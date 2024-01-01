@@ -2,44 +2,56 @@
     border: 1px solid green;
 } */
 @font-face {
-    font-family: 'ComicSans';
-    src: url('fonts/comicsans.otf');
+  font-family: "ComicSans";
+  src: url("fonts/comicsans.otf");
 }
-:root{
-    font-family: "ComicSans";
-    color: #9ECE6A;
-    background: url("snow.gif");
-    background-color: #1A1B26;
+:root {
+  font-family: "ComicSans";
+  color: #9ece6a;
+  background: url("assets/snow.gif");
+  background-color: #1a1b26;
 }
-div{
-    text-align: center;
-    margin: auto;
-    width: 50%;
+div {
+  text-align: center;
+  margin: auto;
+  width: 50%;
 }
-div#title{
-    margin-top: 12.5%;
+div#title {
+  margin-top: 12.5%;
 }
-div#bio{
-
+div#bio {
+  padding-top: 1.5%;
 }
-div#foot{
-    color: #9AA5CE;
+div#foot {
+  color: #9aa5ce;
+  position: fixed;
+  bottom: 1%;
+  width: 100%;
+  height: auto;
 }
-img#pfp{
-    border-radius: 50%;
-    max-width: 200px;
-    max-height: 200px;
-    width: auto;
-    height: auto;
+img#pfp {
+  border-radius: 50%;
+  max-width: 200px;
+  max-height: 200px;
+  width: auto;
+  height: auto;
+  border: 3px solid #ba3c97;
 }
-div#links a img{
-    width: 50px;
-    height: 50px;
-    padding: .25%;
+div#links a img {
+  width: 50px;
+  height: 50px;
+  padding: 0.25%;
 }
-.cubeish{
-    border-radius: 25%;
+.cubeish {
+  border-radius: 25%;
 }
-h1{
-    color: #F7768E;
+h1 {
+  color: #f7768e;
+}
+a:link {
+  color: #0db9d7;
+  text-decoration: none;
+}
+a:visited {
+  color: #785cad;
 }
