@@ -3,6 +3,7 @@
 } */
 :root{
     font-family: "Comic Sans MS", "Comic Sans";
+    src: local('Comic Sans MS'), local("Comic Sans"), url(fonts/ComicSans.ttf);
 
     color: #9ECE6A;
     background: url("snow.gif");
