@@ -1,0 +1,42 @@
+/* *{
+    border: 1px solid green;
+} */
+:root{
+    font-family: "Comic Sans MS", "Comic Sans", cursive;
+
+    color: #9ECE6A;
+    background: url("snow.gif");
+    background-color: #1A1B26;
+}
+div{
+    text-align: center;
+    margin: auto;
+    width: 50%;
+}
+div#title{
+    margin-top: 12.5%;
+}
+div#bio{
+
+}
+div#foot{
+    color: #9AA5CE;
+}
+img#pfp{
+    border-radius: 50%;
+    max-width: 200px;
+    max-height: 200px;
+    width: auto;
+    height: auto;
+}
+div#links a img{
+    width: 50px;
+    height: 50px;
+    padding: .25%;
+}
+.cubeish{
+    border-radius: 25%;
+}
+h1{
+    color: #F7768E;
+}
