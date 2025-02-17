@@ -63,3 +63,6 @@ a:link {
 a:visited {
   color: #785cad;
 }
+#name {
+  cursor: pointer;
+}
