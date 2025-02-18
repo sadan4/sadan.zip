@@ -1,15 +1,19 @@
 {
+    const [block, unblock] = toggler("block");
+    const [pointer, unpointer] = toggler("pointer");
+    let typing = true;
     /**
      * @type {HTMLElement}
         */
     let myname = document.getElementById("name")
     addEventListener("DOMContentLoaded", () => {
         setTimeout(() => {
-            typing = true;
             typewriter(myname, "Click me!", 50).then(async () => {
                 await new Promise(r => setTimeout(r, 750));
                 await typewriter(myname, "sadan", 50);
                 typing = false;
+                unblock(myname);
+                pointer(myname);
             });
         }, 1000);
 
@@ -34,12 +38,15 @@
         ['<img src="https://cdn.discordapp.com/emojis/1320236763494486087.webp?size=128" alt=":steamcatcozy:" class="emoji"></img>', 35],
         ['<img src="https://cdn.discordapp.com/emojis/1262562427422244874.webp?size=128" alt=":wires:" class="emoji"></img>', 35],
     ].map(x => Array.isArray(x) ? x : [x])
-    let typing = false;
     const randomName = () => names.filter((n) => myname.innerHTML !== n)[Math.floor(Math.random() * (names.length - 1))];
     document.getElementById("name").addEventListener("click", async (e) => {
         if (typing) return;
         typing = true;
+        unpointer(myname);
+        block(myname);
         await typewriter(myname, ...randomName());
+        unblock(myname);
+        pointer(myname);
         typing = false;
     })
     let delDelay = 50;
@@ -61,8 +68,17 @@
         e.innerHTML = text;
         delDelay = Math.max(delay - 10, 0);
     }
-
-    let matchHtmlRegExp = /["'&<>]/;
+    /**
+     * @param {string} name className
+     * 
+     * @returns {[(e: HTMLElement) => void, (e: HTMLElement) => void]} a set of toggler functions
+     */
+    function toggler(name) {
+        return [
+            (e) => e.classList.add(name),
+            (e) => e.classList.remove(name)
+        ]
+    }
     /*!
     * escape-html
     * Copyright(c) 2012-2013 TJ Holowaychuk
@@ -70,6 +86,7 @@
     * Copyright(c) 2015 Tiancheng "Timothy" Gu
     * MIT Licensed
     */
+    let matchHtmlRegExp = /["'&<>]/;
     function escapeHtml(string) {
         var str = '' + string
         var match = matchHtmlRegExp.exec(str)
