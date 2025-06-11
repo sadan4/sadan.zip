@@ -23,8 +23,18 @@
   --color-error: #ff757f;
 }
 
+@font-face {
+  font-family: "comicsans";
+  src: url("assets/comicsans.otf");
+}
+
+@font-face {
+  font-family: "comicsanslocal";
+  src: local(ComicShannsMono Nerd Font Mono);
+}
+
 :root {
-  font-family: url("assets/comicsans.otf");
+  font-family: "Comic Sans MS", "Comic Sans", "comicsanslocal", "comicsans";
   line-height: 1.5;
   font-weight: 400;
 
