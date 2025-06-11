@@ -24,7 +24,7 @@
 }
 
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: url("assets/comicsans.otf");
   line-height: 1.5;
   font-weight: 400;
 
