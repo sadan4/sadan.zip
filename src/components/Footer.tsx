@@ -5,8 +5,6 @@ import {
 } from "react";
 import { joinWith } from "../utils/array";
 import { SourceLink, ThemeLink } from "./Links";
-import _ from "lodash";
-import invariant from "invariant";
 
 export interface FooterProps extends PropsWithChildren {
   className?: string;
@@ -30,7 +28,7 @@ export default function Footer({
 
 export function DefaultFooter() {
   return (
-    <Footer>
+    <Footer className="mb-1"> 
       <ThemeLink />
       <SourceLink />
     </Footer>

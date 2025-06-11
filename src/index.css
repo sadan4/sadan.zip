@@ -1,4 +1,28 @@
 @import "tailwindcss";
+@theme {
+  --color-bg-100: #1a1b26;
+  --color-bg-200: #16161e;
+  --color-bg-300: #0c0e14;
+  --color-bg-fg: #c0caf5;
+  --color-bg-fg-500: var(--color-bg-fg);
+  --color-bg-fg-600: #a9b1d6;
+  --color-bg-fg-700: #737aa2;
+  --color-bg-fg-800: #565f89;
+  --color-fg-fg: #16161d;
+  --color-primary: #7aa2f7;
+  --color-secondary: #9d7cd8;
+  --color-accent: #4fd6be;
+  --color-neutral: #161928;
+  --color-neutral-content: #c0caf5;
+  --color-info: oklch(0.719 0.1322 264.2);
+  --color-info-500: var(--color-info);
+  --color-info-600: oklch(0.639 0.1322 264.2);
+  --color-info-700: oklch(0.559 0.1322 264.2);
+  --color-success: #c3e88d;
+  --color-warning: #ffc777;
+  --color-error: #ff757f;
+}
+
 :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
@@ -6,7 +30,8 @@
 
   color-scheme: light dark;
   color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  background-color: var(--color-bg-200);
+  background-image: url("assets/snow.gif");
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -14,56 +39,15 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+svg {
+  fill: currentColor;
+}
+
 a {
   font-weight: 500;
-  color: #646cff;
+  color: var(--color-info-500);
   text-decoration: inherit;
 }
 a:hover {
-  color: #535bf2;
-}
-
-body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
-}
-
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
-
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+  color: var(--color-info-600);
 }
