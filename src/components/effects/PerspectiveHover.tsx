@@ -10,7 +10,7 @@ export default function PerspectiveHover({ children, className = "" }: ShineProp
 
     const wrapperRef = useRef<HTMLDivElement>(null);
     const [shineStyle, setShineStyle] = useState<CSSProperties | undefined>();
-    const [contentStyle, setContentStyle] = useState<CSSProperties | undefined>();
+    const [contentStyle, setContentStyle] = useState<CSSProperties>();
     const [wrapperStyle, setWrapperStyle] = useState<CSSProperties | undefined>();
     const [hover, setHover] = useState(false);
 
@@ -112,10 +112,11 @@ export default function PerspectiveHover({ children, className = "" }: ShineProp
             onMouseMove={handleMove}
         >
             <div
-                className="absolute top-0 bottom-0 left-0 right-0 rounded-lg bg-linear-[135deg_rgba(255,255,255,.25)_0%_rgba(255,255,255,0)_60%] pointer-events-none"
+                className="z-10 absolute top-0 bottom-0 left-0 right-0 rounded-lg pointer-events-none"
                 style={shineStyle}
             />
             <div
+                className="-z-10"
                 style={contentStyle}
             >
                 {children}
