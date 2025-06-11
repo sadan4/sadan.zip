@@ -21,7 +21,7 @@ export default function App() {
         footer={<DefaultFooter />}
         className="flex justify-center"
       >
-        <div className="mt-48 flex items-center flex-col">
+        <div className="mt-52 flex items-center flex-col">
           <Avatar className="rounded-full w-52" />
           <Name />
           <Links />

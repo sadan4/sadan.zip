@@ -1,5 +1,5 @@
-import { useCallback, useRef, useState } from "react";
-import Typewriter, { type TypewriterRef, type TypewriterSource } from "./Typewriter";
+import { useCallback, useEffect, useRef, useState } from "react";
+import Typewriter, { type TypewriterFrame, type TypewriterRef, type TypewriterSource } from "./Typewriter";
 import { defaultEraser } from "./typewriterUtils";
 import { range, sample } from "lodash";
 import invariant from "invariant";
@@ -87,6 +87,42 @@ const possibleNameStrings = [
   "Hop on Vencord",
 ];
 
+function clickMe(orig: string): TypewriterSource {
+  return {
+    *type() {
+      yield {
+        component: orig,
+        nextDelay: 1000
+      };
+      for (const val of defaultEraser(orig)) {
+        yield val;
+      }
+      const clickmeTyper = stringTypewriter(50, "Click Me!");
+      let _val: TypewriterFrame = {
+        component: "",
+        nextDelay: 0
+      };
+      for (const val of clickmeTyper.type()) {
+        _val = val;
+        yield val;
+      }
+      yield {
+        ..._val,
+        nextDelay: 750
+      };
+      for (const val of clickmeTyper.erase(_val.component)) {
+        _val = val;
+        yield val;
+      }
+      const origTyper = stringTypewriter(50, orig);
+      for (const val of origTyper.type()) {
+        yield val;
+      }
+    },
+    erase: defaultEraser
+  };
+}
+
 const possibleNames = possibleNameStrings.map(stringTypewriter.bind(null, 50))
   .concat(possibleImages.map(imageTypewriter));
 export default function Name() {
@@ -96,11 +132,21 @@ export default function Name() {
   const onTypingStateChange = useCallback((typingState: boolean) => {
     setTyping(typingState);
   }, []);
+  useEffect(() => {
+    const tryStart = () => {
+      if (typewriterRef.current) {
+        typewriterRef.current.sendWord(clickMe("sadan"), true)
+      } else {
+        setTimeout(tryStart, 10);
+      }
+    }
+    setTimeout(tryStart, 10);
+  }, []);
   return <div className="text-center min-w-24 max-w-3xl"
     style={{
       cursor: typing ? "not-allowed" : "pointer"
     }} >
-    <Typewriter className="text-4xl font-bold mt-5 mb-4 min-h-10 text-accent break-words text-balance" initialContent="sadan"
+    <Typewriter className="text-4xl font-bold mt-6 mb-6 min-h-10 text-accent break-words text-balance" initialContent="sadan"
       onTypingStateChange={onTypingStateChange}
       ref={typewriterRef} onClick={() => {
         const possibleIndexes = range(0, possibleNames.length);

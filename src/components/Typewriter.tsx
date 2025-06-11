@@ -13,7 +13,7 @@ export interface TypewriterSource {
 }
 
 export interface TypewriterRef {
-    sendWord(source: TypewriterSource): void;
+    sendWord(source: TypewriterSource, dontDeleteOld?: boolean): void;
     isTyping: RefObject<boolean>;
 }
 
@@ -35,7 +35,7 @@ export default function Typewriter({ ref, initialContent, onTypingStateChange, .
     const eraser = useRef<TypewriterSource["erase"]>(defaultEraser);
     const isInitialTypewriterSource = isTypewriterSource(initialContent);
     const [content, setContent] = useState(isInitialTypewriterSource ? "" : initialContent);
-    const sendWord = useCallback(async (source: TypewriterSource) => {
+    const sendWord = useCallback(async (source: TypewriterSource, dontDeleteOld?: boolean) => {
         if (typing.current) {
             console.warn("Typewriter: sendWord called while already typing");
             return;
@@ -43,7 +43,7 @@ export default function Typewriter({ ref, initialContent, onTypingStateChange, .
         typing.current = true;
         onTypingStateChange?.(true);
         // remove old content with the eraser
-        if (content) {
+        if (content && !dontDeleteOld) {
             let con: ReactNode = content
             const gen = eraser.current(con);
             let cur = gen.next(con);

@@ -22,15 +22,15 @@ export default function Footer({
     ? [..._children]
     : [_children];
   return (
-    <div className={className}>{joinWith(children, <FooterSeperator />)}</div>
+    <div className={className}>{joinWith(children, <FooterSeperator key="footer-seperator" />)}</div>
   );
 }
 
 export function DefaultFooter() {
   return (
-    <Footer className="mb-1"> 
-      <ThemeLink />
-      <SourceLink />
+    <Footer className="mb-1">
+      <ThemeLink key="footer-theme-link" />
+      <SourceLink key="footer-source-link" />
     </Footer>
   );
 }
