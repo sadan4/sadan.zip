@@ -1,5 +1,5 @@
 import Avatar from "./components/Avatar";
-import PerspectiveHover from "./components/effects/PerspectiveHover";
+import Shine from "./components/effects/Shine";
 import { DefaultFooter, FooterContainer } from "./components/Footer";
 import { DiscordIconLink, FortniteDBIconLink, GithubIconLink, LastFMIconLink, NameMCIconLink, SteamIconLink } from "./components/Links";
 import Name from "./components/Name";
@@ -33,7 +33,7 @@ function Links() {
                         username="sadan4"
                         key="gh-sadan4"
                     />,
-                ].map((el) => <PerspectiveHover key={el.key}>{el}</PerspectiveHover>)
+                ].map((el) => <Shine key={el.key}>{el}</Shine>)
             }
         </div>
     );
@@ -47,7 +47,10 @@ export default function App() {
                 className="flex justify-center"
             >
                 <div className="pt-52 flex items-center flex-col">
-                    <Avatar className="rounded-full w-52" />
+                    <Avatar
+                        className="w-52"
+                        maskClassName="rounded-full overflow-clip"
+                    />
                     <Name />
                     <Links />
                     <div className="text-success mt-6">
