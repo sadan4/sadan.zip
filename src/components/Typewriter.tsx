@@ -1,6 +1,8 @@
 import { sleep } from "@/utils/async";
-import { useCallback, useEffect, useImperativeHandle, useRef, useState, type ComponentPropsWithoutRef, type ReactNode, type Ref, type RefObject } from "react";
+
 import { defaultEraser } from "./typewriterUtils";
+
+import { type ComponentPropsWithoutRef, type ReactNode, type Ref, type RefObject, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 
 export interface TypewriterFrame {
     component: ReactNode;
@@ -35,6 +37,7 @@ export default function Typewriter({ ref, initialContent, onTypingStateChange, .
     const eraser = useRef<TypewriterSource["erase"]>(defaultEraser);
     const isInitialTypewriterSource = isTypewriterSource(initialContent);
     const [content, setContent] = useState(isInitialTypewriterSource ? "" : initialContent);
+
     const sendWord = useCallback(async (source: TypewriterSource, dontDeleteOld?: boolean) => {
         if (typing.current) {
             console.warn("Typewriter: sendWord called while already typing");
@@ -44,23 +47,25 @@ export default function Typewriter({ ref, initialContent, onTypingStateChange, .
         onTypingStateChange?.(true);
         // remove old content with the eraser
         if (content && !dontDeleteOld) {
-            let con: ReactNode = content
+            let con: ReactNode = content;
             const gen = eraser.current(con);
             let cur = gen.next(con);
+
             while (!cur.done) {
                 con = cur.value.component;
                 setContent(con);
                 await sleep(cur.value.nextDelay);
-                cur = gen.next(con)
+                cur = gen.next(con);
             }
         }
-        
+
         // generate the new content
 
         {
             let con: ReactNode = "";
             const gen = source.type();
             let cur = gen.next(con);
+
             while (!cur.done) {
                 con = cur.value.component;
                 setContent(con);
@@ -74,10 +79,11 @@ export default function Typewriter({ ref, initialContent, onTypingStateChange, .
         typing.current = false;
         onTypingStateChange?.(false);
     }, [content, onTypingStateChange]);
+
     useImperativeHandle(ref, () => {
         return {
             sendWord,
-            isTyping: typing
+            isTyping: typing,
         };
     }, [sendWord]);
     useEffect(() => {
@@ -85,8 +91,15 @@ export default function Typewriter({ ref, initialContent, onTypingStateChange, .
             sendWord(initialContent);
         }
     }, [initialContent, isInitialTypewriterSource, sendWord]);
-    return <div {...props} style={{
-        userSelect: "none",
-        ...props.style,
-    }}>{content}</div>;
+    return (
+        <div
+            {...props}
+            style={{
+                userSelect: "none",
+                ...props.style,
+            }}
+        >
+            {content}
+        </div>
+    );
 }
