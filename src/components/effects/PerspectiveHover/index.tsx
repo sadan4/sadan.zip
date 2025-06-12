@@ -1,24 +1,31 @@
-import { type CSSProperties, type MouseEventHandler, type PropsWithChildren, useCallback, useEffect, useRef, useState } from "react";
+import { useHover } from "@/hooks/hover";
+import { useSize } from "@/hooks/size";
+import cn from "@/utils/cn";
 
-export interface ShineProps extends PropsWithChildren {
+import styles from "./style.module.css";
+
+import { type CSSProperties, type JSX, type MouseEventHandler, useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+export interface PerspectiveHoverProps {
+    children: (props: {
+        style?: CSSProperties;
+        className?: string;
+    }) => JSX.Element;
     className?: string;
-    maskClassName?: string;
+    shineClassName?: string;
+    noShine?: boolean;
 }
 
 // https://codepen.io/robin-dela/pen/jVddbq
-export default function Shine({ children, className = "", maskClassName = "" }: ShineProps) {
+export default function PerspectiveHover({ children: Children, className = "", shineClassName = "", noShine = false }: PerspectiveHoverProps) {
     type TMouseEvent = MouseEventHandler<HTMLDivElement>;
 
     const wrapperRef = useRef<HTMLDivElement>(null);
-    const [shineStyle, setShineStyle] = useState<CSSProperties | undefined>();
     const [contentStyle, setContentStyle] = useState<CSSProperties>();
+    const [shineStyle, setShineStyle] = useState<CSSProperties>({});
     const [wrapperStyle, setWrapperStyle] = useState<CSSProperties | undefined>();
-
-    const [shadowStyle, setShadowStyle] = useState<CSSProperties>({
-        overflow: "visible",
-    });
-
-    const [hover, setHover] = useState<boolean | null>();
+    const [shadowStyle, setShadowStyle] = useState<CSSProperties>();
+    const hover = useHover(wrapperRef);
 
     function makeDefaultWrapperStyle() {
         const { clientWidth, offsetWidth, scrollWidth } = wrapperRef.current!;
@@ -32,8 +39,6 @@ export default function Shine({ children, className = "", maskClassName = "" }: 
     const [defaultWrapperStyle, setDefaultWrapperStyle] = useState<CSSProperties>(null!);
 
     useEffect(() => {
-        setHover(wrapperRef.current!.matches(":hover"));
-
         const defaultStyle = makeDefaultWrapperStyle();
 
         setDefaultWrapperStyle(defaultStyle);
@@ -45,21 +50,23 @@ export default function Shine({ children, className = "", maskClassName = "" }: 
         });
     }, []);
 
-    useEffect(() => {
-        const isHover = hover ?? wrapperRef.current!.matches(":hover");
-        const { clientHeight, clientWidth } = wrapperRef.current!;
+    const { width: shadowWidth, height: shadowHeight } = useSize(wrapperRef.current) ?? {
+        width: 0,
+        height: 0,
+    };
 
+    useEffect(() => {
         setShadowStyle((old) => {
+            const base = Math.log(shadowHeight);
+
             return {
                 ...old,
-                filter: `drop-shadow(${clientWidth * 0.15} ${clientHeight * 0.25} var(--color-bg-fg-600))`,
+                "--container-width": `${shadowWidth}px`,
+                "--container-height": `${shadowHeight}px`,
+                "--log-container-height": `${base}px`,
             };
         });
-    }, [hover]);
-
-    const handleEnter = useCallback<TMouseEvent>(() => {
-        setHover(true);
-    }, []);
+    }, [shadowWidth, shadowHeight]);
 
     const handleMove = useCallback<TMouseEvent>((ev) => {
         const { pageX, pageY } = ev;
@@ -73,8 +80,8 @@ export default function Shine({ children, className = "", maskClassName = "" }: 
         const offsetY = 0.52 - ((pageY - offsets.top - bodyTop) / h);
         const dy = pageY - offsets.top - bodyTop - (h / 2);
         const dx = pageX - offsets.left - bodyLeft - (w / 2);
-        const yRotate = (offsetX - dx) * 0.07;
-        const xRotate = (dy - offsetY) * 0.1;
+        const yRotate = (offsetX - dx) * 0.14;
+        const xRotate = (dy - offsetY) * 0.2;
         const arad = Math.atan2(dy, dx);
         let angle = ((arad * 180) / Math.PI) - 90;
 
@@ -87,6 +94,14 @@ export default function Shine({ children, className = "", maskClassName = "" }: 
                 transform: `rotateX(${xRotate}deg) rotateY(${yRotate}deg) ${hover ? "scale3d(1.07, 1.07, 1.07)" : ""}`,
             };
         });
+        setContentStyle((old) => {
+            return {
+                ...old,
+                transform: `translateX(${offsetX * 2.5}px) translateY(${offsetY * 2.5}px)`,
+            };
+        });
+        if (noShine)
+            return;
         setShineStyle((old) => {
             return {
                 ...old,
@@ -94,16 +109,9 @@ export default function Shine({ children, className = "", maskClassName = "" }: 
                 transform: `translateX(${offsetX - 0.1}px) translateY(${offsetY - 0.1}px)`,
             };
         });
-        setContentStyle((old) => {
-            return {
-                ...old,
-                transform: `translateX(${offsetX * 2.5}px) translateY(${offsetY * 2.5}px)`,
-            };
-        });
-    }, [hover]);
+    }, [hover, noShine]);
 
     const handleLeave = useCallback<TMouseEvent>(() => {
-        setHover(false);
         setWrapperStyle((old) => {
             return {
                 ...old,
@@ -111,7 +119,7 @@ export default function Shine({ children, className = "", maskClassName = "" }: 
                 ...defaultWrapperStyle,
             };
         });
-        setShineStyle(void 0);
+        setShineStyle({});
         setContentStyle((old) => {
             return {
                 ...old,
@@ -120,34 +128,41 @@ export default function Shine({ children, className = "", maskClassName = "" }: 
         });
     }, [defaultWrapperStyle]);
 
+    const renderedChildren = useMemo(() => {
+        return (
+            <>
+                <Children
+                    style={{
+                        ...shadowStyle,
+                    }}
+                    className={cn(
+                        styles.dropShadow,
+                        hover && styles.hovered,
+                    )}
+                />
+            </>
+        );
+    }, [Children, hover, shadowStyle]);
+
     return (
         <div
             ref={wrapperRef}
             style={wrapperStyle}
-            className={`${className} ${maskClassName}`}
-            onMouseEnter={handleEnter}
+            className={`${className}`}
             onMouseLeave={handleLeave}
             onMouseMove={handleMove}
         >
-            <div
-                className="z-10 absolute top-0 bottom-0 left-0 right-0 rounded-lg pointer-events-none"
-                style={shineStyle}
-            />
-            <svg
-                className={`${maskClassName} -z-10 absolute w-full h-full transition-all ease-out duration-200`}
-                style={shadowStyle}
-                viewBox="0 0 1 1"
-            >
-                <path
-                    d="M0,0h1v1H0z"
-                    fill="transparent"
+            {!noShine && (
+                <div
+                    className={`${shineClassName} z-10 absolute top-0 bottom-0 left-0 right-0 pointer-events-none`}
+                    style={shineStyle}
                 />
-            </svg>
+            )}
             <div
-                className="-z-10"
+                className="-z-10 w-auto h-auto flex"
                 style={contentStyle}
             >
-                {children}
+                {renderedChildren}
             </div>
         </div>
     );

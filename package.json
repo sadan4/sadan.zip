@@ -10,7 +10,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@react-hook/hover": "^4.0.0",
+    "@react-hook/resize-observer": "^2.0.2",
     "@tailwindcss/vite": "^4.1.8",
+    "classnames": "^2.5.1",
     "invariant": "^2.2.4",
     "lodash": "^4.17.21",
     "react": "^19.1.0",
@@ -33,8 +36,10 @@
     "eslint-plugin-unused-imports": "^4.1.4",
     "globals": "^16.0.0",
     "jiti": "^2.4.2",
+    "type-fest": "^4.41.0",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.30.1",
+    "typescript-plugin-css-modules": "^5.1.0",
     "vite": "^6.3.5",
     "vite-tsconfig-paths": "^5.1.4"
   },

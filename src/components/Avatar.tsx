@@ -1,22 +1,30 @@
 import avatar from "@/assets/avatar.webp";
+import cn from "@/utils/cn";
 
-import Shine from "./effects/Shine";
+import PerspectiveHover from "./effects/PerspectiveHover";
 
 import type { ComponentProps } from "react";
 
 export interface AvatarProps extends ComponentProps<"img"> {
-    maskClassName?: string;
+    round?: boolean;
 }
 
-export default function Avatar({ maskClassName = "", ...props }: AvatarProps) {
+export default function Avatar({ round = false, ...props }: AvatarProps) {
     return (
-        <Shine maskClassName={maskClassName}>
-            <img
-                src={avatar}
-                alt="my discord profile picture, imagine a cute cat!"
-                {...props}
-                className={`max-w-sm max-h-max ${props.className ?? ""} ${maskClassName}`}
-            />
-        </Shine>
+        <PerspectiveHover
+            shineClassName={cn(round && "rounded-full overflow-clip")}
+        >
+            {
+                (hoverProps) => (
+                    <img
+                        src={avatar}
+                        alt="my discord profile picture, imagine a cute cat!"
+                        {...props}
+                        {...hoverProps}
+                        className={cn("max-w-sm max-h-max", round && "rounded-full", props.className, hoverProps.className)}
+                    />
+                )
+            }
+        </PerspectiveHover>
     );
 }

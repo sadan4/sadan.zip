@@ -5,7 +5,7 @@ import NameMC from "./icons/NameMC";
 import SaveTheWorld from "./icons/SaveTheWorld";
 import Steam from "./icons/Steam";
 
-import type { PropsWithChildren } from "react";
+import type { ComponentProps, PropsWithChildren } from "react";
 
 export interface LinkProps extends PropsWithChildren {
     href: HTMLAnchorElement["href"];
@@ -36,73 +36,76 @@ export function SourceLink() {
     return <Link href="https://github.com/sadan4/sadan.zip">Source Code</Link>;
 }
 
-export interface DiscordIconLinkProps {
+export interface IconLinkProps extends ComponentProps<"svg"> {
+}
+
+export interface DiscordIconLinkProps extends IconLinkProps {
     userId: string;
 }
 
-export function DiscordIconLink({ userId }: DiscordIconLinkProps) {
+export function DiscordIconLink({ userId, ...props }: DiscordIconLinkProps) {
     return (
         <Link href={`https://discord.com/users/${userId}`}>
-            <Discord />
+            <Discord {...props} />
         </Link>
     );
 }
 
-export interface NameMCIconLinkProps {
+export interface NameMCIconLinkProps extends IconLinkProps {
     UUID: string;
 }
 
-export function NameMCIconLink({ UUID }: NameMCIconLinkProps) {
+export function NameMCIconLink({ UUID, ...props }: NameMCIconLinkProps) {
     return (
         <Link href={`https://namemc.com/profile/${UUID}`}>
-            <NameMC />
+            <NameMC {...props} />
         </Link>
     );
 }
 
-export interface LastFMIconLinkProps {
+export interface LastFMIconLinkProps extends IconLinkProps {
     username: string;
 }
 
-export function LastFMIconLink({ username }: LastFMIconLinkProps) {
+export function LastFMIconLink({ username, ...props }: LastFMIconLinkProps) {
     return (
         <Link href={`https://last.fm/user/${username}`}>
-            <LastFM />
+            <LastFM {...props} />
         </Link>
     );
 }
 
-export interface SteamIconLinkProps {
+export interface SteamIconLinkProps extends IconLinkProps {
     userId: string;
 }
-export function SteamIconLink({ userId }: SteamIconLinkProps) {
+export function SteamIconLink({ userId, ...props }: SteamIconLinkProps) {
     return (
         <Link href={`https://steamcommunity.com/id/${userId}`}>
-            <Steam />
+            <Steam {...props} />
         </Link>
     );
 }
 
-export interface FortniteDBIconLinkProps {
+export interface FortniteDBIconLinkProps extends IconLinkProps {
     username: string;
 }
 
-export function FortniteDBIconLink({ username }: FortniteDBIconLinkProps) {
+export function FortniteDBIconLink({ username, ...props }: FortniteDBIconLinkProps) {
     return (
         <Link href={`https://fortnitedb.com/profile/${username}`}>
-            <SaveTheWorld />
+            <SaveTheWorld {...props} />
         </Link>
     );
 }
 
-export interface GithubIconLinkProps {
+export interface GithubIconLinkProps extends IconLinkProps {
     username: string;
 }
 
-export function GithubIconLink({ username }: GithubIconLinkProps) {
+export function GithubIconLink({ username, ...props }: GithubIconLinkProps) {
     return (
         <Link href={`https://github.com/${username}`}>
-            <Github />
+            <Github {...props} />
         </Link>
     );
 }
