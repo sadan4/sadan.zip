@@ -1,4 +1,6 @@
 import Avatar from "./components/Avatar";
+import Cursor from "./components/Cursor";
+import { DotCursor } from "./components/Cursor/DotCursor";
 import { DefaultFooter, FooterContainer } from "./components/Footer";
 import { DiscordIconLink, FortniteDBIconLink, GithubIconLink, LastFMIconLink, NameMCIconLink, SteamIconLink } from "./components/Links";
 import Name from "./components/Name";
@@ -77,6 +79,12 @@ export default function App() {
                     </div>
                 </FooterContainer>
             </div>
+            <Cursor>
+                <DotCursor
+                    className="bg-bg-fg"
+                    radius={6}
+                />
+            </Cursor>
         </>
     );
 }

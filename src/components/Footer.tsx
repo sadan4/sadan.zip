@@ -3,6 +3,7 @@ import { joinWith } from "../utils/array";
 
 import {
     type ComponentProps,
+    memo,
     type PropsWithChildren,
     type ReactNode,
 } from "react";
@@ -28,14 +29,14 @@ export default function Footer({
     );
 }
 
-export function DefaultFooter() {
+export const DefaultFooter = memo(function DefaultFooter() {
     return (
         <Footer className="mb-1">
             <ThemeLink key="footer-theme-link" />
             <SourceLink key="footer-source-link" />
         </Footer>
     );
-}
+});
 
 interface FooterContainerProps extends ComponentProps<"div"> {
     footer: ReactNode;
