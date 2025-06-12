@@ -4,6 +4,7 @@ import LastFM from "./icons/LastFM";
 import NameMC from "./icons/NameMC";
 import SaveTheWorld from "./icons/SaveTheWorld";
 import Steam from "./icons/Steam";
+import { Clickable } from "./Clickable";
 
 import type { ComponentProps, PropsWithChildren } from "react";
 
@@ -15,12 +16,13 @@ export interface LinkProps extends PropsWithChildren {
 }
 export default function Link({ target = "_blank", href, children }: LinkProps) {
     return (
-        <a
+        <Clickable
+            tag="a"
             href={href}
             target={target}
         >
             {children}
-        </a>
+        </Clickable>
     );
 }
 

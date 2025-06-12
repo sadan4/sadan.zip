@@ -7,7 +7,7 @@ import { createRoot } from "react-dom/client";
 
 installF8Break();
 
-createRoot(document.getElementById("root")!)
+createRoot(document.body)
     .render((
         <StrictMode>
             <App />

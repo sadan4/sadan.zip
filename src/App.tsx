@@ -1,12 +1,11 @@
 import Avatar from "./components/Avatar";
-import PerspectiveHover from "./components/effects/PerspectiveHover";
 import { DefaultFooter, FooterContainer } from "./components/Footer";
 import { DiscordIconLink, FortniteDBIconLink, GithubIconLink, LastFMIconLink, NameMCIconLink, SteamIconLink } from "./components/Links";
 import Name from "./components/Name";
 
 function Links() {
     return (
-        <div className="flex [&_svg]:h-14 gap-3 [&_svg]:text-bg-fg-600">
+        <div className="flex [&_svg]:h-14 gap-3 [&_svg]:text-secondary">
             {
                 [
                     (props) => (
@@ -51,14 +50,7 @@ function Links() {
                             {...props}
                         />
                     ),
-                ].map((el, idx) => (
-                    <PerspectiveHover
-                        noShine
-                        key={idx}
-                    >
-                        {el}
-                    </PerspectiveHover>
-                ))
+                ].map((el, _idx) => el({}))
             }
         </div>
     );
@@ -67,22 +59,24 @@ function Links() {
 export default function App() {
     return (
         <>
-            <FooterContainer
-                footer={<DefaultFooter />}
-                className="flex justify-center"
-            >
-                <div className="pt-52 flex items-center flex-col">
-                    <Avatar
-                        className="w-52"
-                        round
-                    />
-                    <Name />
-                    <Links />
-                    <div className="text-success mt-6">
-                        Random loser on the internet.
+            <div className="h-full w-full">
+                <FooterContainer
+                    footer={<DefaultFooter />}
+                    className="flex justify-center"
+                >
+                    <div className="pt-52 flex items-center flex-col">
+                        <Avatar
+                            className="w-52"
+                            round
+                        />
+                        <Name />
+                        <Links />
+                        <div className="text-success mt-6">
+                            Random loser on the internet.
+                        </div>
                     </div>
-                </div>
-            </FooterContainer>
+                </FooterContainer>
+            </div>
         </>
     );
 }

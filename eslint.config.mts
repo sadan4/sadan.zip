@@ -165,7 +165,7 @@ const ESLintRules: IESLintRules = {
     "no-nonoctal-decimal-escape": "error",
     "no-octal": "error",
     "no-octal-escape": "error",
-    "no-redeclare": "error",
+    "no-redeclare": "off",
     "no-regex-spaces": "error",
     "no-return-assign": ["error", "except-parens"],
     "no-sequences": "error",
