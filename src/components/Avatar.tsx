@@ -1,14 +1,30 @@
 import avatar from "@/assets/avatar.webp";
+import cn from "@/utils/cn";
+
+import PerspectiveHover from "./effects/PerspectiveHover";
 
 import type { ComponentProps } from "react";
 
-export default function Avatar(props: ComponentProps<"img">) {
+export interface AvatarProps extends ComponentProps<"img"> {
+    round?: boolean;
+}
+
+export default function Avatar({ round = false, ...props }: AvatarProps) {
     return (
-        <img
-            className="rounded-full max-w-sm max-h-max w-auto h-auto"
-            src={avatar}
-            alt="my discord profile picture, imagine a cute cat!"
-            {...props}
-        />
+        <PerspectiveHover
+            shineClassName={cn(round && "rounded-full overflow-clip")}
+        >
+            {
+                (hoverProps) => (
+                    <img
+                        src={avatar}
+                        alt="my discord profile picture, imagine a cute cat!"
+                        {...props}
+                        {...hoverProps}
+                        className={cn("max-w-sm max-h-max", round && "rounded-full", props.className, hoverProps.className)}
+                    />
+                )
+            }
+        </PerspectiveHover>
     );
 }

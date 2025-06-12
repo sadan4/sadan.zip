@@ -24,11 +24,22 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
+    "noImplicitAny": false,
     "paths": {
       "@/*": [
         "./src/*"
-      ],
-    }
+      ]
+    },
+    "plugins": [
+      {
+        "name": "typescript-plugin-css-modules",
+        "options": {
+          "namedExports": false,
+          "customTemplate": "scripts/cssModulesDts.cjs",
+          "goToDefinition": true
+        }
+      }
+    ]
   },
   "include": [
     "src"
