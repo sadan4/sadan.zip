@@ -1,4 +1,5 @@
 import { useCursorVisible } from "@/hooks/cursorVisible";
+import { useSize } from "@/hooks/size";
 import cn from "@/utils/cn";
 import type { Coord } from "@/utils/types";
 
@@ -43,14 +44,19 @@ export default function BoundingCursor({
     const onScreen = useCursorVisible();
 
     const { topLeft, topRight, bottomLeft, bottomRight, width, height } = (() => {
-        const { width, height, x, y } = isHovering
-            ? element.getBoundingClientRect()
-            : {
-                height: 2 * unHoveredRadius,
-                width: 2 * unHoveredRadius,
-                x: mouseX - unHoveredRadius,
-                y: mouseY - unHoveredRadius,
-            };
+        const { width, height, x, y } = (() => {
+            // eslint-disable-next-line react-hooks/rules-of-hooks
+            const elemSize = useSize(element);
+
+            return isHovering && elemSize
+                ? elemSize
+                : {
+                    height: 2 * unHoveredRadius,
+                    width: 2 * unHoveredRadius,
+                    x: mouseX - unHoveredRadius,
+                    y: mouseY - unHoveredRadius,
+                };
+        })();
 
         return {
             topLeft: {

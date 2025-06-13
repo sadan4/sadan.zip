@@ -2,7 +2,7 @@ import useResizeObserver from "@react-hook/resize-observer";
 
 import { useLayoutEffect, useState } from "react";
 
-export function useSize<T extends HTMLElement>(target: T | null): DOMRect | undefined {
+export function useSize<T extends Element>(target: T | null): DOMRect | undefined {
     const [size, setSize] = useState<any>();
 
     useLayoutEffect(() => {
@@ -10,7 +10,7 @@ export function useSize<T extends HTMLElement>(target: T | null): DOMRect | unde
     }, [target]);
 
     useResizeObserver(target, (entry) => {
-        setSize(entry.contentRect);
+        setSize(entry.target.getBoundingClientRect());
     });
 
     return size;
