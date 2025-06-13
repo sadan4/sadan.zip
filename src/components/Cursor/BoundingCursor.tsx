@@ -65,8 +65,6 @@ export default function BoundingCursor({
         };
     })();
 
-    console.log(`topLeft: ${topLeft}, topRight: ${topRight}, bottomLeft: ${bottomLeft}, bottomRight: ${bottomRight}, width: ${width}, height: ${height}`);
-
     const { xLength, yLength } = (() => {
         if (!isHovering) {
             return {};
@@ -99,8 +97,6 @@ export default function BoundingCursor({
             }
         }
     })();
-
-    console.log(`xlength: ${xLength}, yLength: ${yLength}`);
 
     return isHovering && (
         invariant(topLeft && topRight && bottomLeft && bottomRight && xLength && yLength, "topLeft, topRight, bottomLeft, and bottomRight must be defined when hovering"),
