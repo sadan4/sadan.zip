@@ -1,4 +1,4 @@
 .boundingCursor > div {
-    position: absolute;
-    background-color: currentColor;
+  position: fixed;
+  background-color: currentColor;
 }

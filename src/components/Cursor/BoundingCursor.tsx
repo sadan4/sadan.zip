@@ -1,8 +1,9 @@
+import { useCursorVisible } from "@/hooks/cursorVisible";
 import cn from "@/utils/cn";
 import type { Coord } from "@/utils/types";
 
 import styles from "./BoundingCursor.module.css";
-import { CursorClickableContext } from "./context";
+import { CursorClickableContext, CursorPosContext } from "./context";
 
 import invariant from "invariant";
 import _ from "lodash";
@@ -23,6 +24,8 @@ export interface BoundingCursorProps {
     className?: string;
     frameLength?: TFrameLength;
     thickness?: number;
+    unHoveredRadius?: number;
+    hideOnExit?: boolean;
 }
 
 export default function BoundingCursor({
@@ -32,16 +35,23 @@ export default function BoundingCursor({
         length: 15,
     },
     thickness = 5,
+    unHoveredRadius = 15,
+    hideOnExit,
 }: BoundingCursorProps) {
     const element = useContext(CursorClickableContext);
+    const { x: mouseX, y: mouseY } = useContext(CursorPosContext);
     const isHovering = element !== null;
+    const onScreen = useCursorVisible();
 
     const { topLeft, topRight, bottomLeft, bottomRight, width, height } = (() => {
-        if (!isHovering)
-            return {};
-
-        const { width, height, x, y } = _(element.getBoundingClientRect())
-            .valueOf();
+        const { width, height, x, y } = isHovering
+            ? element.getBoundingClientRect()
+            : {
+                height: 2 * unHoveredRadius,
+                width: 2 * unHoveredRadius,
+                x: mouseX - unHoveredRadius,
+                y: mouseY - unHoveredRadius,
+            };
 
         return {
             topLeft: {
@@ -66,9 +76,6 @@ export default function BoundingCursor({
     })();
 
     const { xLength, yLength } = (() => {
-        if (!isHovering) {
-            return {};
-        }
         switch (frameLength.type) {
             case "static": {
                 const { length } = frameLength;
@@ -98,12 +105,12 @@ export default function BoundingCursor({
         }
     })();
 
-    return isHovering && (
-        invariant(topLeft && topRight && bottomLeft && bottomRight && xLength && yLength, "topLeft, topRight, bottomLeft, and bottomRight must be defined when hovering"),
+    return (
         <>
             {
                 createPortal(
-                    (
+
+                    onScreen && (
                         <div
                             className={cn(className, "absolute top-0 left-0 pointer-events-none", styles.boundingCursor)}
                         >
