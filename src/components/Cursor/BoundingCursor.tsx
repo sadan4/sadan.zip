@@ -36,7 +36,6 @@ export default function BoundingCursor({
     },
     thickness = 5,
     unHoveredRadius = 15,
-    hideOnExit,
 }: BoundingCursorProps) {
     const element = useContext(CursorClickableContext);
     const { x: mouseX, y: mouseY } = useContext(CursorPosContext);
