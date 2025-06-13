@@ -183,3 +183,8 @@ interface Elements {
 }
 
 export type ElementFromTag<T extends keyof Elements> = Elements[T];
+
+export interface Coord {
+    x: number;
+    y: number;
+}

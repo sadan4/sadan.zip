@@ -1,10 +1,13 @@
 import { useEventHandler } from "@/hooks/eventListener";
 import cn from "@/utils/cn";
 import { useCssFile } from "@/utils/cssFile";
+import { disposableEventHandler } from "@/utils/events";
+import type { Coord } from "@/utils/types";
 
+import { CursorClickableContext, CursorPosContext } from "./context";
 import noCursorStyle from "./style.css?url";
 
-import { type CSSProperties, type ReactNode, useCallback, useRef } from "react";
+import { type CSSProperties, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 
 export interface AnimatedCursorOptions {
     children?: ReactNode;
@@ -27,15 +30,17 @@ export interface AnimatedCursorProps extends AnimatedCursorOptions {
     trailingSpeed?: number;
 }
 
-export interface AnimatedCursorCoordinates {
-    x: number;
-    y: number;
-}
-
 export default function Cursor({ className = "", children }: AnimatedCursorProps) {
     useCssFile(noCursorStyle);
 
     const cursorRef = useRef<HTMLDivElement>(null);
+
+    const [pos, setPos] = useState<Coord>({
+        x: 0,
+        y: 0,
+    });
+
+    const [clickableElement, setClickableElement] = useState<Element | null>(null);
 
     const onMouseMove = useCallback((ev: MouseEvent) => {
         const { clientX, clientY } = ev;
@@ -44,16 +49,45 @@ export default function Cursor({ className = "", children }: AnimatedCursorProps
             cursorRef.current.style.top = `${clientY}px`;
             cursorRef.current.style.left = `${clientX}px`;
         }
+
+        setPos({
+            x: clientX,
+            y: clientY,
+        });
     }, []);
+
+    useEffect(() => {
+        const clickableElements = document.querySelectorAll("[data-clickable]");
+        const cleanups: (() => void)[] = [];
+
+        for (const el of clickableElements) {
+            cleanups.push(disposableEventHandler("mouseover", () => {
+                setClickableElement(el);
+            }, el as HTMLElement));
+            cleanups.push(disposableEventHandler("mouseout", () => {
+                setClickableElement(null);
+            }, el as HTMLElement));
+        }
+
+        return () => {
+            for (const cleanup of cleanups) {
+                cleanup();
+            }
+        };
+    });
 
     useEventHandler("mousemove", onMouseMove);
 
     return (
-        <div
-            className={cn("fixed z-99999 pointer-events-none -translate-1/2", className)}
-            ref={cursorRef}
-        >
-            {children}
-        </div>
+        <CursorClickableContext.Provider value={clickableElement}>
+            <CursorPosContext.Provider value={pos}>
+                <div
+                    className={cn("fixed z-999 pointer-events-none -translate-1/2", className)}
+                    ref={cursorRef}
+                >
+                    {children}
+                </div>
+            </CursorPosContext.Provider>
+        </CursorClickableContext.Provider>
     );
 }
