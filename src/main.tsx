@@ -1,4 +1,4 @@
-import { installF8Break } from "./utils/f8Break.ts";
+import { installF8Break } from "./utils/devtools.ts";
 import App from "./App.tsx";
 
 import "./index.css";

@@ -6,4 +6,12 @@ import tsconfigPaths from 'vite-tsconfig-paths'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss(), tsconfigPaths()],
+  build: {
+    sourcemap: true,
+  },
+  css: {
+    modules: {
+      localsConvention: 'camelCase',
+    }
+  }
 })

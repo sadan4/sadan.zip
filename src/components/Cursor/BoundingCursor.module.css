@@ -1,4 +1,4 @@
-.boundingCursor > div {
+.bounding-cursor > div {
   position: fixed;
   background-color: currentColor;
 }

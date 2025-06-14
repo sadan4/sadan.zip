@@ -4,7 +4,7 @@
   --log-container-height: 0px;
 }
 
-.dropShadow {
+.drop-shadow {
   --box-shadow-color: --alpha(var(--color-bg-fg-700) / 0.3);
   --box-shadow-hover-color: --alpha(var(--color-bg-fg-700) / 0.4);
   /* box-shadow: 0px 8px 24px var(--box-shadow-color); */
@@ -12,7 +12,7 @@
   transition: all 0.2s ease-in-out;
 }
 
-.dropShadow.hovered {
+.drop-shadow.hovered {
   filter: drop-shadow(
     0px calc(var(--log-container-height) * 2) calc(var(--log-container-height))
       var(--box-shadow-hover-color)

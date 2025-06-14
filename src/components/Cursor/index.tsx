@@ -1,11 +1,12 @@
+import { useCssFile } from "@/hooks/cssFile";
 import { useEventHandler } from "@/hooks/eventListener";
 import cn from "@/utils/cn";
-import { useCssFile } from "@/utils/cssFile";
 import { disposableEventHandler } from "@/utils/events";
 import type { Coord } from "@/utils/types";
 
 import { CursorClickableContext, CursorPosContext } from "./context";
-import noCursorStyle from "./style.css?url";
+import noCursorStyle from "./hideNativeCursor.css?url";
+import styles from "./styles.module.css";
 
 import { type CSSProperties, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 
@@ -82,7 +83,7 @@ export default function Cursor({ className = "", children }: AnimatedCursorProps
         <CursorClickableContext.Provider value={clickableElement}>
             <CursorPosContext.Provider value={pos}>
                 <div
-                    className={cn("fixed z-999 pointer-events-none -translate-1/2", className)}
+                    className={cn(styles.cursorZ, "fixed pointer-events-none -translate-1/2", className)}
                     ref={cursorRef}
                 >
                     {children}

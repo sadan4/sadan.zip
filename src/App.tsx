@@ -1,3 +1,5 @@
+import cursorStyles from "@/components/Cursor/styles.module.css";
+
 import Avatar from "./components/Avatar";
 import Cursor from "./components/Cursor";
 import BoundingCursor from "./components/Cursor/BoundingCursor";
@@ -5,6 +7,7 @@ import { DotCursor } from "./components/Cursor/DotCursor";
 import { DefaultFooter, FooterContainer } from "./components/Footer";
 import { DiscordIconLink, FortniteDBIconLink, GithubIconLink, LastFMIconLink, NameMCIconLink, SteamIconLink } from "./components/Links";
 import Name from "./components/Name";
+import cn from "./utils/cn";
 
 function Links() {
     return (
@@ -64,14 +67,14 @@ export default function App() {
         <>
             <Cursor>
                 <DotCursor
-                    className="bg-bg-fg mix-blend-exclusion z-999"
+                    className={cn("bg-bg-fg mix-blend-exclusion", cursorStyles.cursorZ)}
                     radius={10}
                     invert
                 />
             </Cursor>
             <Cursor>
                 <BoundingCursor
-                    className="bg-bg-fg mix-blend-exclusion"
+                    className={cn("bg-bg-fg mix-blend-exclusion", cursorStyles.cursorZ)}
                     frameLength={{
                         type: "dynamic",
                     }}
