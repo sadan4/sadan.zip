@@ -1,13 +1,12 @@
 import { useSize } from "@/hooks/size";
+import cn from "@/utils/cn";
 import toCSS from "@/utils/toCSS";
 
-import { type CSSProperties, type JSX, useLayoutEffect, useRef, useState } from "react";
+import styles from "./style.module.css";
 
-export interface ShadowProps {
-    children: (props: {
-        className?: string;
-        style?: CSSProperties;
-    }) => JSX.Element;
+import { type CSSProperties, type PropsWithChildren, useLayoutEffect, useRef, useState } from "react";
+
+export interface ShadowProps extends PropsWithChildren {
     noHover?: boolean;
 }
 
@@ -36,9 +35,9 @@ export default function Shadow({ children, noHover = false }: ShadowProps) {
         <div
             ref={ref}
             style={cssProps}
+            className={cn(noHover ? styles.dropShadowNoHover : styles.dropShadow)}
         >
-            {children({
-            })}
+            {children}
         </div>
     );
 }

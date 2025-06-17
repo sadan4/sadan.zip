@@ -1,27 +1,25 @@
 #_vars {
-  --container-width: 0px;
-  --container-height: 0px;
-  --log-container-height: 0px;
+  --shadow-container-width: 0px;
+  --shadow-container-height: 0px;
+  --log-shadow-container-height: 0px;
 }
 
-.drop-shadow {
+.drop-shadow > * {
   --box-shadow-color: --alpha(var(--color-bg-fg-700) / 0.3);
   --box-shadow-hover-color: --alpha(var(--color-bg-fg-700) / 0.4);
-  /* box-shadow: 0px 8px 24px var(--box-shadow-color); */
   filter: drop-shadow(0px 8px 8px var(--box-shadow-color));
   transition: all 0.2s ease-in-out;
 }
 
-.drop-shadow-no-hover {
+.drop-shadow-no-hover > * {
   --box-shadow-color: --alpha(var(--color-bg-fg-700) / 0.3);
   --box-shadow-hover-color: --alpha(var(--color-bg-fg-700) / 0.4);
-  /* box-shadow: 0px 8px 24px var(--box-shadow-color); */
   filter: drop-shadow(0px 8px 8px var(--box-shadow-color));
 }
 
-.drop-shadow:hover {
+.drop-shadow:hover > * {
   filter: drop-shadow(
-    0px calc(var(--log-container-height) * 2) calc(var(--log-container-height))
+    0px calc(var(--log-shadow-container-height) * 2) calc(var(--log-shadow-container-height))
       var(--box-shadow-hover-color)
   );
 }
