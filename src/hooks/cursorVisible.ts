@@ -1,15 +1,22 @@
-import { useEventHandler } from "./eventListener";
+import { disposableEventHandler } from "@/utils/events";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export function useCursorVisible() {
     const [visible, setVisible] = useState(document.body.matches(":hover"));
 
-    useEventHandler("mouseover", () => {
-        setVisible(true);
-    });
-    useEventHandler("mouseout", () => {
-        setVisible(false);
-    });
+    // mousemove instead of mouseover because react 
+    // devtools blocks mouseover events while inspecting
+    useEffect(() => {
+        if (visible) {
+            return disposableEventHandler("mouseout", () => {
+                setVisible(false);
+            });
+        }
+        return disposableEventHandler("mousemove", () => {
+            setVisible(true);
+        });
+    }, [visible]);
+
     return visible;
 }

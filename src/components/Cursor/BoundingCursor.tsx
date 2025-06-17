@@ -1,3 +1,4 @@
+import { useCursorVisible } from "@/hooks/cursorVisible";
 import { useSize } from "@/hooks/size";
 import cn from "@/utils/cn";
 import type { Coord } from "@/utils/types";
@@ -39,6 +40,7 @@ export default function BoundingCursor({
 }: BoundingCursorProps) {
     const element = useContext(CursorClickableContext);
     const { x: mouseX, y: mouseY } = useContext(CursorPosContext);
+    const cursorVisible = useCursorVisible();
     const isHovering = element !== null;
 
     const { topLeft, topRight, bottomLeft, bottomRight, width, height } = (() => {
@@ -113,7 +115,7 @@ export default function BoundingCursor({
             {
                 createPortal(
 
-                    (
+                    cursorVisible && (
                         <div
                             className={cn(className, "absolute top-0 left-0 pointer-events-none", styles.boundingCursor)}
                         >
