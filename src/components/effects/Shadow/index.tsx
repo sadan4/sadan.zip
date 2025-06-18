@@ -13,7 +13,7 @@ export interface ShadowProps extends PropsWithChildren {
 export default function Shadow({ children, noHover = false }: ShadowProps) {
     const ref = useRef<HTMLDivElement>(null);
 
-    const { width, height } = useSize(ref.current) ?? {
+    const { width, height } = useSize(() => ref.current) ?? {
         width: 0,
         height: 0,
     };

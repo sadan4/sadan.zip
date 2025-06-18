@@ -1,6 +1,7 @@
 import avatar from "@/assets/avatar.webp";
 import cn from "@/utils/cn";
 
+import BorderHoldCircular from "./effects/borderHold/Circular";
 import PerspectiveHover from "./effects/PerspectiveHover";
 import Shadow from "./effects/Shadow";
 
@@ -14,12 +15,15 @@ export default function Avatar({ round = false, ...props }: AvatarProps) {
     return (
         <PerspectiveHover hoverFactor={4}>
             <Shadow>
-                <img
-                    src={avatar}
-                    alt="my discord profile picture, imagine a cute cat!"
-                    {...props}
-                    className={cn("max-w-sm max-h-max", round && "rounded-full", props.className)}
-                />
+                <BorderHoldCircular >
+                    <img
+                        src={avatar}
+                        alt="my discord profile picture, imagine a cute cat!"
+                        {...props}
+                        className={cn("max-w-sm max-h-max select-none", round && "rounded-full", props.className)}
+                        draggable={false}
+                    />
+                </BorderHoldCircular>
             </Shadow>
         </PerspectiveHover>
     );

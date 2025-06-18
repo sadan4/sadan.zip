@@ -60,7 +60,7 @@ export default function PerspectiveHover({ children, hoverFactor }: PerspectiveH
     });
 
     {
-        const { x: elX, y: elY, width, height } = useSize(domRef.current) ?? {
+        const { x: elX, y: elY, width, height } = useSize(() => domRef.current) ?? {
             x: 0,
             y: 0,
             width: 0,
@@ -78,16 +78,7 @@ export default function PerspectiveHover({ children, hoverFactor }: PerspectiveH
     }
 
     useGesture({
-        onDrag({ active, offset: [x, y] }) {
-            api.start({
-                x,
-                y,
-                rotateX: 0,
-                rotateY: 0,
-                scale: active ? 1 : 1.1,
-            });
-        },
-        onMove({ xy: [pointerX, pointerY], dragging }) {
+        onMove({ xy: [pointerX, pointerY], dragging, down }) {
             if (dragging)
                 return;
             if (width.get() === 0 || height.get() === 0) {
@@ -96,7 +87,7 @@ export default function PerspectiveHover({ children, hoverFactor }: PerspectiveH
             api.start({
                 rotateX: calcX(pointerY, width.get(), elY.get()),
                 rotateY: calcY(pointerX, height.get(), elX.get()),
-                scale: 1.1,
+                scale: down ? 1 : 1.1,
             });
         },
         onHover({ hovering }) {
@@ -105,6 +96,21 @@ export default function PerspectiveHover({ children, hoverFactor }: PerspectiveH
             api.start({
                 rotateX: 0,
                 rotateY: 0,
+                scale: 1,
+            });
+        },
+        onMouseDown() {
+            api.start({
+                scale: 1,
+            });
+        },
+        onMouseUp() {
+            api.start({
+                scale: 1.1,
+            });
+        },
+        onMouseOut() {
+            api.start({
                 scale: 1,
             });
         },
