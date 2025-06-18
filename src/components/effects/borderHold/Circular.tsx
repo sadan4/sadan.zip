@@ -57,8 +57,6 @@ export default function BorderHoldCircular({ children, onHold }: BolderHoldCircu
                 api.stop();
                 opacityApi.start({
                     opacity: 0,
-                    onRest() {
-                    },
                 });
             }
         },
