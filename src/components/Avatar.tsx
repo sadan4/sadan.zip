@@ -1,7 +1,7 @@
 import avatar from "@/assets/avatar.webp";
+import BorderHoldCircular from "@/components/effects/BorderHold/Circular";
 import cn from "@/utils/cn";
 
-import BorderHoldCircular from "./effects/BorderHold/Circular";
 import PerspectiveHover from "./effects/PerspectiveHover";
 import Shadow from "./effects/Shadow";
 import { openModal } from "./modal";
