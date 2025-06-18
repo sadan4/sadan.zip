@@ -2,7 +2,7 @@ import Typewriter, { type TypewriterFrame, type TypewriterRef, type TypewriterSo
 import { defaultEraser } from "./typewriterUtils";
 
 import invariant from "invariant";
-import { range, sample } from "lodash-es";
+import _ from "lodash";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 function stringTypewriter(nextDelay: number, string: string): TypewriterSource {
@@ -172,11 +172,11 @@ export default function Name() {
                     if (typing)
                         return;
 
-                    const possibleIndexes = range(0, possibleNames.length);
-                    let idx = sample(possibleIndexes);
+                    const possibleIndexes = _.range(0, possibleNames.length);
+                    let idx = _.sample(possibleIndexes);
 
                     while (idx === lastIndex.current) {
-                        idx = sample(possibleIndexes);
+                        idx = _.sample(possibleIndexes);
                     }
                     invariant(idx && idx >= 0, "this should never happen");
                     typewriterRef.current?.sendWord(possibleNames[idx]);

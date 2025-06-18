@@ -8,14 +8,14 @@ type AllEventMaps = HTMLElementEventMap & DocumentEventMap & WindowEventMap;
 export function useEventHandler<K extends keyof HTMLElementEventMap>(
     type: K,
     handler: (event: HTMLElementEventMap[K]) => void,
-    element: HTMLElement,
+    element: HTMLElement | null,
     opts?: AddEventListenerOptions
 ): void;
 
 export function useEventHandler<K extends keyof DocumentEventMap>(
     type: K,
     handler: (event: DocumentEventMap[K]) => void,
-    element: Document,
+    element: Document | null,
     opts?: AddEventListenerOptions
 ): void;
 
@@ -36,16 +36,19 @@ export function useEventHandler<K extends keyof AllEventMaps>(
     const opts = useDeepMemo(_opts);
 
     useEffect(() => {
+        if (element === null)
+            return;
+
         const el = element === undefined ? window : element;
 
         const wrappedHandler = (ev: AllEventMaps[K]) => {
             return handlerRef.current(ev);
         };
 
-        el?.addEventListener(type, wrappedHandler as EventListenerOrEventListenerObject, opts);
+        el.addEventListener(type, wrappedHandler as EventListenerOrEventListenerObject, opts);
 
         return () => {
-            el?.removeEventListener(type, wrappedHandler as EventListenerOrEventListenerObject);
+            el.removeEventListener(type, wrappedHandler as EventListenerOrEventListenerObject);
         };
     }, [type, element, handlerRef, opts]);
 }

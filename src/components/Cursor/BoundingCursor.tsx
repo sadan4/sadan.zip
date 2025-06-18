@@ -10,7 +10,7 @@ import styles from "./BoundingCursor.module.css";
 import { CursorClickableContext, lastPos } from "./context";
 
 import invariant from "invariant";
-import { clamp, round } from "lodash-es";
+import _ from "lodash";
 import { useCallback, useContext, useEffect } from "react";
 import { createPortal } from "react-dom";
 export type TFrameLength = {
@@ -124,8 +124,14 @@ export default function BoundingCursor({
                 const { min = 15, max = 100, factor = 1 / 8 } = frameLength;
 
                 return {
-                    xLength: to(width, (width) => round(clamp(width * factor, min, max))),
-                    yLength: to(height, (height) => round(clamp(height * factor, min, max))),
+                    xLength: to(width, (width) => _.chain(width * factor)
+                        .clamp(min, max)
+                        .round()
+                        .valueOf()),
+                    yLength: to(height, (height) => _.chain(height * factor)
+                        .clamp(min, max)
+                        .round()
+                        .valueOf()),
                 };
             }
             default: {

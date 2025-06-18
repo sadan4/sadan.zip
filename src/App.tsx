@@ -6,6 +6,7 @@ import BoundingCursor from "./components/Cursor/BoundingCursor";
 import { DotCursor } from "./components/Cursor/DotCursor";
 import { DefaultFooter, FooterContainer } from "./components/Footer";
 import { DiscordIconLink, FortniteDBIconLink, GithubIconLink, LastFMIconLink, NameMCIconLink, SteamIconLink } from "./components/Links";
+import ModalRenderRoot from "./components/modal/ModalRenderRoot";
 import Name from "./components/Name";
 import cn from "./utils/cn";
 
@@ -85,6 +86,7 @@ export default function App() {
                     thickness={4}
                 />
             </Cursor>
+            <ModalRenderRoot />
             <div className="h-full w-full">
                 <FooterContainer
                     footer={<DefaultFooter />}
