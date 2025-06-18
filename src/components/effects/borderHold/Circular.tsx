@@ -43,6 +43,12 @@ export default function BorderHoldCircular({ children, onHold }: BolderHoldCircu
                 opacity: 1,
             });
         },
+        onRest() {
+            api.stop();
+            opacityApi.start({
+                opacity: 0,
+            });
+        },
         onChange(foo) {
             if (foo.value.progress > 98) {
                 if (dispatched.current)
@@ -54,10 +60,6 @@ export default function BorderHoldCircular({ children, onHold }: BolderHoldCircu
                 if (!dispatched.current)
                     return;
                 dispatched.current = false;
-                api.stop();
-                opacityApi.start({
-                    opacity: 0,
-                });
             }
         },
     }));
