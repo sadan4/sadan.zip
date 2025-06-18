@@ -4,7 +4,7 @@ import { useGesture } from "@use-gesture/react";
 import { exitModalKeybinds } from ".";
 
 import _ from "lodash";
-import { type PropsWithChildren, useRef } from "react";
+import { type PropsWithChildren } from "react";
 
 function shouldCancel(timing: "up" | "down", ev: KeyboardEvent): boolean {
     return _(exitModalKeybinds)
@@ -15,8 +15,6 @@ function shouldCancel(timing: "up" | "down", ev: KeyboardEvent): boolean {
 
 
 export function CatchEscapeKey({ children }: PropsWithChildren) {
-    const ref = useRef<HTMLDivElement>(null);
-
     const bind = useGesture({
         onKeyDown({ event }) {
             if (shouldCancel("down", event)) {
@@ -31,7 +29,10 @@ export function CatchEscapeKey({ children }: PropsWithChildren) {
     });
 
     return (
-        <div {...bind()}>
+        <div
+            tabIndex={0}
+            {...bind()}
+        >
             {children}
         </div>
     );
