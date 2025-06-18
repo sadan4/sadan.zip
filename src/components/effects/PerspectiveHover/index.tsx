@@ -68,7 +68,7 @@ export default function PerspectiveHover({ children, hoverFactor }: PerspectiveH
         };
 
         useEffect(() => {
-            api({
+            api.start({
                 elX,
                 elY,
                 width,
@@ -79,7 +79,7 @@ export default function PerspectiveHover({ children, hoverFactor }: PerspectiveH
 
     useGesture({
         onDrag({ active, offset: [x, y] }) {
-            api({
+            api.start({
                 x,
                 y,
                 rotateX: 0,
@@ -93,7 +93,7 @@ export default function PerspectiveHover({ children, hoverFactor }: PerspectiveH
             if (width.get() === 0 || height.get() === 0) {
                 ensureDimsSet();
             }
-            api({
+            api.start({
                 rotateX: calcX(pointerY, width.get(), elY.get()),
                 rotateY: calcY(pointerX, height.get(), elX.get()),
                 scale: 1.1,
@@ -102,7 +102,7 @@ export default function PerspectiveHover({ children, hoverFactor }: PerspectiveH
         onHover({ hovering }) {
             if (hovering)
                 return;
-            api({
+            api.start({
                 rotateX: 0,
                 rotateY: 0,
                 scale: 1,

@@ -77,7 +77,11 @@ export default function App() {
                     className={cn("bg-bg-fg mix-blend-exclusion", cursorStyles.cursorZ)}
                     frameLength={{
                         type: "dynamic",
+                        factor: 1 / 10,
+                        min: 8,
+                        max: 25,
                     }}
+                    unHoveredRadius={15}
                     thickness={4}
                 />
             </Cursor>

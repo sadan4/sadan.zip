@@ -15,8 +15,8 @@ window.addEventListener("mouseout", () => {
     leaveHandlers.forEach((handler) => handler());
 });
 
-export function useCursorVisible() {
-    const [visible, setVisible] = useState(document.body.matches(":hover"));
+export function useCursorVisible(defaultValue?: boolean) {
+    const [visible, setVisible] = useState(defaultValue !== undefined ? defaultValue : document.body.matches(":hover"));
 
     // mousemove instead of mouseover because react 
     // devtools blocks mouseover events while inspecting

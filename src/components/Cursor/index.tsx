@@ -2,9 +2,8 @@ import { useCssFile } from "@/hooks/cssFile";
 import { useEventHandler } from "@/hooks/eventListener";
 import cn from "@/utils/cn";
 import { disposableEventHandler } from "@/utils/events";
-import type { Coord } from "@/utils/types";
 
-import { CursorClickableContext, CursorPosContext } from "./context";
+import { CursorClickableContext } from "./context";
 import noCursorStyle from "./hideNativeCursor.css?url";
 import styles from "./styles.module.css";
 
@@ -35,12 +34,6 @@ export default function Cursor({ className = "", children }: AnimatedCursorProps
     useCssFile(noCursorStyle);
 
     const cursorRef = useRef<HTMLDivElement>(null);
-
-    const [pos, setPos] = useState<Coord>({
-        x: 0,
-        y: 0,
-    });
-
     const [clickableElement, setClickableElement] = useState<Element | null>(null);
 
     const onMouseMove = useCallback((ev: MouseEvent) => {
@@ -50,11 +43,6 @@ export default function Cursor({ className = "", children }: AnimatedCursorProps
             cursorRef.current.style.top = `${clientY}px`;
             cursorRef.current.style.left = `${clientX}px`;
         }
-
-        setPos({
-            x: clientX,
-            y: clientY,
-        });
     }, []);
 
     useEffect(() => {
@@ -81,14 +69,12 @@ export default function Cursor({ className = "", children }: AnimatedCursorProps
 
     return (
         <CursorClickableContext.Provider value={clickableElement}>
-            <CursorPosContext.Provider value={pos}>
-                <div
-                    className={cn(styles.cursorZ, "fixed pointer-events-none -translate-1/2", className)}
-                    ref={cursorRef}
-                >
-                    {children}
-                </div>
-            </CursorPosContext.Provider>
+            <div
+                className={cn(styles.cursorZ, "fixed pointer-events-none -translate-1/2", className)}
+                ref={cursorRef}
+            >
+                {children}
+            </div>
         </CursorClickableContext.Provider>
     );
 }
