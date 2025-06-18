@@ -165,7 +165,7 @@ const ESLintRules: IESLintRules = {
     "no-nonoctal-decimal-escape": "error",
     "no-octal": "error",
     "no-octal-escape": "error",
-    "no-redeclare": "error",
+    "no-redeclare": "off",
     "no-regex-spaces": "error",
     "no-return-assign": ["error", "except-parens"],
     "no-sequences": "error",
@@ -633,7 +633,7 @@ const styleRules: Partial<_RuleOptions> = {
 const extensions = "{js,mjs,cjs,jsx,mjsx,cjsx,ts,mts,cts,tsx,mtsx,ctsx}";
 
 export default TSEslint.config({ ignores: ["dist"] }, {
-    files: [`src/**/*.${extensions}`, `eslint.config.${extensions}`],
+    files: [`src/**/*.${extensions}`, `eslint.config.${extensions}`, `vite.config.${extensions}`],
     plugins: {
         "@stylistic": stylistic,
         "@typescript-eslint": TSEslint.plugin,

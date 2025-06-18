@@ -2,7 +2,7 @@ import Typewriter, { type TypewriterFrame, type TypewriterRef, type TypewriterSo
 import { defaultEraser } from "./typewriterUtils";
 
 import invariant from "invariant";
-import { range, sample } from "lodash";
+import { range, sample } from "lodash-es";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 function stringTypewriter(nextDelay: number, string: string): TypewriterSource {
@@ -154,7 +154,7 @@ export default function Name() {
             }
         };
 
-        setTimeout(tryStart, 10);
+        return clearTimeout.bind(null, setTimeout(tryStart, 10));
     }, []);
     return (
         <div
@@ -169,6 +169,9 @@ export default function Name() {
                 onTypingStateChange={onTypingStateChange}
                 ref={typewriterRef}
                 onClick={() => {
+                    if (typing)
+                        return;
+
                     const possibleIndexes = range(0, possibleNames.length);
                     let idx = sample(possibleIndexes);
 

@@ -36,7 +36,8 @@
         "options": {
           "namedExports": false,
           "customTemplate": "scripts/cssModulesDts.cjs",
-          "goToDefinition": true
+          "goToDefinition": true,
+          "classnameTransform": "camelCaseOnly"
         }
       }
     ]

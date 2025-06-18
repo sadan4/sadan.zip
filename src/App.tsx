@@ -1,12 +1,17 @@
+import cursorStyles from "@/components/Cursor/styles.module.css";
+
 import Avatar from "./components/Avatar";
-import PerspectiveHover from "./components/effects/PerspectiveHover";
+import Cursor from "./components/Cursor";
+import BoundingCursor from "./components/Cursor/BoundingCursor";
+import { DotCursor } from "./components/Cursor/DotCursor";
 import { DefaultFooter, FooterContainer } from "./components/Footer";
 import { DiscordIconLink, FortniteDBIconLink, GithubIconLink, LastFMIconLink, NameMCIconLink, SteamIconLink } from "./components/Links";
 import Name from "./components/Name";
+import cn from "./utils/cn";
 
 function Links() {
     return (
-        <div className="flex [&_svg]:h-14 gap-3 [&_svg]:text-bg-fg-600">
+        <div className="flex [&_svg]:h-14 gap-3 [&_svg]:text-secondary">
             {
                 [
                     (props) => (
@@ -51,14 +56,7 @@ function Links() {
                             {...props}
                         />
                     ),
-                ].map((el, idx) => (
-                    <PerspectiveHover
-                        noShine
-                        key={idx}
-                    >
-                        {el}
-                    </PerspectiveHover>
-                ))
+                ].map((el, _idx) => el({}))
             }
         </div>
     );
@@ -67,22 +65,44 @@ function Links() {
 export default function App() {
     return (
         <>
-            <FooterContainer
-                footer={<DefaultFooter />}
-                className="flex justify-center"
-            >
-                <div className="pt-52 flex items-center flex-col">
-                    <Avatar
-                        className="w-52"
-                        round
-                    />
-                    <Name />
-                    <Links />
-                    <div className="text-success mt-6">
-                        Random loser on the internet.
+            <Cursor>
+                <DotCursor
+                    className={cn("bg-bg-fg mix-blend-exclusion", cursorStyles.cursorZ)}
+                    radius={10}
+                    invert
+                />
+            </Cursor>
+            <Cursor>
+                <BoundingCursor
+                    className={cn("bg-bg-fg mix-blend-exclusion", cursorStyles.cursorZ)}
+                    frameLength={{
+                        type: "dynamic",
+                        factor: 1 / 10,
+                        min: 8,
+                        max: 25,
+                    }}
+                    unHoveredRadius={15}
+                    thickness={4}
+                />
+            </Cursor>
+            <div className="h-full w-full">
+                <FooterContainer
+                    footer={<DefaultFooter />}
+                    className="flex justify-center"
+                >
+                    <div className="pt-52 flex items-center flex-col">
+                        <Avatar
+                            className="w-52"
+                            round
+                        />
+                        <Name />
+                        <Links />
+                        <div className="text-success mt-6">
+                            Random loser on the internet.
+                        </div>
                     </div>
-                </div>
-            </FooterContainer>
+                </FooterContainer>
+            </div>
         </>
     );
 }

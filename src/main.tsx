@@ -1,4 +1,4 @@
-import { installF8Break } from "./utils/f8Break.ts";
+import { installF8Break } from "./utils/devtools.ts";
 import App from "./App.tsx";
 
 import "./index.css";
@@ -7,7 +7,7 @@ import { createRoot } from "react-dom/client";
 
 installF8Break();
 
-createRoot(document.getElementById("root")!)
+createRoot(document.body)
     .render((
         <StrictMode>
             <App />

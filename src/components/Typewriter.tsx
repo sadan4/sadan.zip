@@ -1,5 +1,6 @@
 import { sleep } from "@/utils/async";
 
+import { Clickable } from "./Clickable";
 import { defaultEraser } from "./typewriterUtils";
 
 import { type ComponentPropsWithoutRef, type ReactNode, type Ref, type RefObject, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
@@ -92,7 +93,8 @@ export default function Typewriter({ ref, initialContent, onTypingStateChange, .
         }
     }, [initialContent, isInitialTypewriterSource, sendWord]);
     return (
-        <div
+        <Clickable
+            tag="div"
             {...props}
             style={{
                 userSelect: "none",
@@ -100,6 +102,6 @@ export default function Typewriter({ ref, initialContent, onTypingStateChange, .
             }}
         >
             {content}
-        </div>
+        </Clickable>
     );
 }
