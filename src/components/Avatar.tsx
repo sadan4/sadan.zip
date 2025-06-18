@@ -15,7 +15,7 @@ export default function Avatar({ round = false, ...props }: AvatarProps) {
     return (
         <PerspectiveHover hoverFactor={4}>
             <Shadow>
-                <BorderHoldCircular >
+                <BorderHoldCircular onHold={alert.bind(null, "Button held")}>
                     <img
                         src={avatar}
                         alt="my discord profile picture, imagine a cute cat!"
