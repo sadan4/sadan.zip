@@ -84,6 +84,7 @@ export default function App() {
                     }}
                     unHoveredRadius={15}
                     thickness={4}
+                    borderFocusedItems
                 />
             </Cursor>
             <ModalRenderRoot />

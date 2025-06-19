@@ -66,3 +66,7 @@ a {
 a:hover {
   color: var(--color-info-600);
 }
+
+:where([tabindex="-1"]:focus) {
+  outline: none;
+}

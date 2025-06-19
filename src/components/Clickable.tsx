@@ -12,6 +12,7 @@ export function Clickable<T extends "a" | "div" | "span" | "li" = "div">({ tag =
     return createElement(tag, {
         ref,
         "data-clickable": "true",
+        tabIndex: 0,
         ...props,
     }, children);
 }

@@ -36,7 +36,6 @@ export default function BorderHoldCircular({ children, onHold }: BolderHoldCircu
         config: {
             mass: 5,
             friction: 110,
-            tension: 170,
         },
         onStart() {
             opacityApi.start({
@@ -59,8 +58,8 @@ export default function BorderHoldCircular({ children, onHold }: BolderHoldCircu
             } else if (foo.value.progress < 2) {
                 if (!dispatched.current)
                     return;
-                dispatched.current = false;
-            }
+            } else
+                dispatched.current &&= false;
         },
     }));
 
@@ -68,12 +67,18 @@ export default function BorderHoldCircular({ children, onHold }: BolderHoldCircu
     const startAnimation = useCallback(() => {
         api.start({
             progress: 100,
+            config: {
+                friction: 110,
+            },
         });
     }, [api]);
 
     const stopAnimation = useCallback(() => {
         api.start({
             progress: 0,
+            config: {
+                friction: 55,
+            },
         });
     }, [api]);
 

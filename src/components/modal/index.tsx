@@ -1,11 +1,10 @@
 import { type Keybind, KeybindKeys } from "@/hooks/keybind";
 import type { Thenable } from "@/utils/types";
 
-import { useModalStackStore } from "./internal/modalStackStore";
+import { SYM_INTERNAL_KEY, useModalStackStore } from "./internal/modalStackStore";
 
 import type { JSX } from "react";
 
-export const SYM_INTERNAL_KEY = Symbol.for("modal.internal.key");
 
 export interface Modal {
     [SYM_INTERNAL_KEY]: symbol;

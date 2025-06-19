@@ -3,11 +3,11 @@ import { useEventHandler } from "@/hooks/eventListener";
 import cn from "@/utils/cn";
 import { disposableEventHandler } from "@/utils/events";
 
-import { CursorClickableContext } from "./context";
+import { useCursorContextStore } from "./cursorContextStore";
 import noCursorStyle from "./hideNativeCursor.css?url";
 import styles from "./styles.module.css";
 
-import { type CSSProperties, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { type CSSProperties, type ReactNode, useCallback, useEffect, useRef } from "react";
 
 export interface AnimatedCursorOptions {
     children?: ReactNode;
@@ -34,7 +34,6 @@ export default function Cursor({ className = "", children }: AnimatedCursorProps
     useCssFile(noCursorStyle);
 
     const cursorRef = useRef<HTMLDivElement>(null);
-    const [clickableElement, setClickableElement] = useState<Element | null>(null);
 
     const onMouseMove = useCallback((ev: MouseEvent) => {
         const { clientX, clientY } = ev;
@@ -51,10 +50,12 @@ export default function Cursor({ className = "", children }: AnimatedCursorProps
 
         for (const el of clickableElements) {
             cleanups.push(disposableEventHandler("mouseover", () => {
-                setClickableElement(el);
+                useCursorContextStore.getState()
+                    .updateClickableElement(el);
             }, el as HTMLElement));
             cleanups.push(disposableEventHandler("mouseout", () => {
-                setClickableElement(null);
+                useCursorContextStore.getState()
+                    .updateClickableElement(null);
             }, el as HTMLElement));
         }
 
@@ -68,13 +69,11 @@ export default function Cursor({ className = "", children }: AnimatedCursorProps
     useEventHandler("mousemove", onMouseMove);
 
     return (
-        <CursorClickableContext.Provider value={clickableElement}>
-            <div
-                className={cn(styles.cursorZ, "fixed pointer-events-none -translate-1/2", className)}
-                ref={cursorRef}
-            >
-                {children}
-            </div>
-        </CursorClickableContext.Provider>
+        <div
+            className={cn(styles.cursorZ, "fixed pointer-events-none -translate-1/2", className)}
+            ref={cursorRef}
+        >
+            {children}
+        </div>
     );
 }

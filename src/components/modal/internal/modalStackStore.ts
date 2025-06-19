@@ -1,7 +1,13 @@
-import { type Modal, SYM_INTERNAL_KEY } from "..";
+// for type extension
+import type { } from "@redux-devtools/extension";
+
+import { type Modal } from "..";
 
 import _ from "lodash";
 import { create } from "zustand";
+import { devtools } from "zustand/middleware";
+
+export const SYM_INTERNAL_KEY = Symbol.for("modal.internal.key");
 
 export interface ModalStackStore {
     readonly modals: readonly Readonly<Modal>[];
@@ -12,22 +18,24 @@ export interface ModalStackStore {
     _popModalByInternalKey(key: symbol): void;
 }
 
-export const useModalStackStore = create<ModalStackStore>((set) => ({
+const devtoolsData = new Map<any, any>();
+
+export const useModalStackStore = create<ModalStackStore>()(devtools((set) => ({
     modals: [],
     pushModal(modal: Modal) {
         set((state) => ({
             modals: [...state.modals, modal],
-        }));
+        }), undefined, "modalStack/pushModal");
     },
     popModal() {
         set((state) => ({
             modals: _.initial(state.modals),
-        }));
+        }), undefined, "modalStack/popModal");
     },
     popAllModals() {
         set(() => ({
             modals: [],
-        }));
+        }), undefined, "modalStack/popAllModals");
     },
     popModalByKey(key: string) {
         set((state) => {
@@ -39,7 +47,7 @@ export const useModalStackStore = create<ModalStackStore>((set) => ({
             return {
                 modals: state.modals.toSpliced(idx, 1),
             };
-        });
+        }, undefined, "modalStack/popModalByKey");
     },
     _popModalByInternalKey(key: symbol) {
         set((state) => {
@@ -51,6 +59,11 @@ export const useModalStackStore = create<ModalStackStore>((set) => ({
             return {
                 modals: state.modals.toSpliced(idx, 1),
             };
-        });
+        }, undefined, "modalStack/_popModalByInternalKey");
     },
+}), {
+    name: "ModalStackStore",
+    store: "ModalStackStore",
+    enabled: true,
+    trace: true,
 }));

@@ -1,2 +1,2 @@
-export function TAssert<T extends {}>(_value?: T): asserts _value is T {
+export function TAssert<T extends {}>(_value?: unknown): asserts _value is T {
 }
