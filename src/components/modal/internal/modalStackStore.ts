@@ -18,8 +18,6 @@ export interface ModalStackStore {
     _popModalByInternalKey(key: symbol): void;
 }
 
-const devtoolsData = new Map<any, any>();
-
 export const useModalStackStore = create<ModalStackStore>()(devtools((set) => ({
     modals: [],
     pushModal(modal: Modal) {
