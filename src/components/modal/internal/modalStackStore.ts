@@ -64,6 +64,6 @@ export const useModalStackStore = create<ModalStackStore>()(devtools((set) => ({
 }), {
     name: "ModalStackStore",
     store: "ModalStackStore",
-    enabled: true,
+    enabled: import.meta.env.DEV,
     trace: true,
 }));

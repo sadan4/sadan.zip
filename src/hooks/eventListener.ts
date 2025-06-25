@@ -5,31 +5,31 @@ import { useEffect } from "react";
 
 type AllEventMaps = HTMLElementEventMap & DocumentEventMap & WindowEventMap;
 
-export function useEventHandler<K extends keyof HTMLElementEventMap>(
+export function useEventHandler<K extends keyof HTMLElementEventMap, E extends HTMLElement>(
     type: K,
-    handler: (event: HTMLElementEventMap[K]) => void,
-    element: HTMLElement | null,
+    handler: (this: E, event: HTMLElementEventMap[K]) => void,
+    element: E | null,
     opts?: AddEventListenerOptions
 ): void;
 
 export function useEventHandler<K extends keyof DocumentEventMap>(
     type: K,
-    handler: (event: DocumentEventMap[K]) => void,
+    handler: (this: Document, event: DocumentEventMap[K]) => void,
     element: Document | null,
     opts?: AddEventListenerOptions
 ): void;
 
 export function useEventHandler<K extends keyof WindowEventMap>(
     type: K,
-    handler: (event: WindowEventMap[K]) => void,
+    handler: (this: Window, event: WindowEventMap[K]) => void,
     element?: Window,
     opts?: AddEventListenerOptions
 ): void;
 
-export function useEventHandler<K extends keyof AllEventMaps>(
+export function useEventHandler<K extends keyof AllEventMaps, E extends HTMLElement | Document | Window | null>(
     type: K,
-    handler: (event: AllEventMaps[K]) => void,
-    element?: HTMLElement | Document | Window | null,
+    handler: (this: E, ev: AllEventMaps[K]) => void,
+    element?: E,
     _opts: AddEventListenerOptions = {},
 ) {
     const handlerRef = useRecent(handler);
@@ -41,8 +41,8 @@ export function useEventHandler<K extends keyof AllEventMaps>(
 
         const el = element === undefined ? window : element;
 
-        const wrappedHandler = (ev: AllEventMaps[K]) => {
-            return handlerRef.current(ev);
+        const wrappedHandler = function (this: typeof el, ev: AllEventMaps[K]) {
+            return handlerRef.current.call(this as E, ev);
         };
 
         el.addEventListener(type, wrappedHandler as EventListenerOrEventListenerObject, opts);

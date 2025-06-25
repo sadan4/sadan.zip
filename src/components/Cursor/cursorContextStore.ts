@@ -32,7 +32,7 @@ export const useCursorContextStore = create<CursorContextStore>()(devtools((set)
 }), {
     store: "CursorContextStore",
     name: "CursorContextStore",
-    enabled: true,
+    enabled: import.meta.env.DEV,
     actionsDenylist: ["cursorContext/__onMouseMove", "cursorContext/updateClickableElement"],
     trace: false,
 }));

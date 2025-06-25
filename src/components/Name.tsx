@@ -61,7 +61,7 @@ function imageTypewriter(image: TypewriterImage): TypewriterSource {
             yield {
                 component: (
                     <img
-                        className="max-w-32"
+                        className="w-32 h-32"
                         src={image.href}
                         alt={image.alt}
                     />

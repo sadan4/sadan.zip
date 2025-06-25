@@ -54,8 +54,10 @@ body {
   height: 100vh;
 }
 
-svg {
-  fill: currentColor;
+@layer base {
+  svg {
+    fill: currentColor;
+  }
 }
 
 a {
