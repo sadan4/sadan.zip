@@ -36,4 +36,10 @@ export const friends: Friend[] = [
         url: new URL("https://sqaaakoi.xyz"),
         avatarUrl: new URL("https://avatars.githubusercontent.com/u/37475903?v=4"),
     },
+    {
+        name: "i3vie",
+        discordId: "1215424013443272736",
+        url: new URL("https://i3vie.dev"),
+        avatarUrl: new URL("https://avatars.githubusercontent.com/u/180745311?v=4"),
+    },
 ];
