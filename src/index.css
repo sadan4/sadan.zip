@@ -54,8 +54,10 @@ body {
   height: 100vh;
 }
 
-svg {
-  fill: currentColor;
+@layer base {
+  :where(svg) {
+    fill: currentColor;
+  }
 }
 
 a {
@@ -65,4 +67,8 @@ a {
 }
 a:hover {
   color: var(--color-info-600);
+}
+
+:where([tabindex="-1"]:focus) {
+  outline: none;
 }

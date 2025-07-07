@@ -1,17 +1,32 @@
-interface ToCSS {
+class ToCSS {
     perspective(px: number): string;
     perspective(px: string): string;
-    px(px: number): string;
-}
+    perspective(_px: number | string): string {
+        const px = typeof _px === "number" ? this.px(_px) : _px;
 
-export default {
-    perspective(px: number | string): string {
-        if (typeof px === "number") {
-            return `perspective(${px}px)`;
-        }
         return `perspective(${px})`;
-    },
+    }
+
+    px(px: number): string;
     px(px: number): string {
         return `${px}px`;
-    },
-} satisfies ToCSS as ToCSS;
+    }
+
+    url(url: string): string;
+    url(url: string, fragment: string): string;
+    url(url: string, fragment?: string): string {
+        if (fragment) {
+            return `url(${url}#${fragment})`;
+        }
+        return `url(${url})`;
+    }
+
+    translate(x: number | string, y: number | string): string;
+    translate(_x: number | string, _y: number | string): string {
+        const x = typeof _x === "number" ? this.px(_x) : _x;
+        const y = typeof _y === "number" ? this.px(_y) : _y;
+
+        return `${x} ${y}`;
+    }
+}
+export default new ToCSS();

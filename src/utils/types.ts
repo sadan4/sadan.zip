@@ -188,3 +188,5 @@ export interface Coord {
     x: number;
     y: number;
 }
+
+export type Thenable<T> = PromiseLike<T> | Promise<T> | T;

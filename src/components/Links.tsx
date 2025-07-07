@@ -1,4 +1,7 @@
+import { discordUrl } from "@/utils/constants";
+
 import Discord from "./icons/Discord";
+import LinkIcon from "./icons/FriendLink";
 import Github from "./icons/Github";
 import LastFM from "./icons/LastFM";
 import NameMC from "./icons/NameMC";
@@ -47,7 +50,9 @@ export interface DiscordIconLinkProps extends IconLinkProps {
 
 export function DiscordIconLink({ userId, ...props }: DiscordIconLinkProps) {
     return (
-        <Link href={`https://discord.com/users/${userId}`}>
+        <Link href={discordUrl(userId)
+            .toString()}
+        >
             <Discord {...props} />
         </Link>
     );
@@ -108,6 +113,21 @@ export function GithubIconLink({ username, ...props }: GithubIconLinkProps) {
     return (
         <Link href={`https://github.com/${username}`}>
             <Github {...props} />
+        </Link>
+    );
+}
+
+export interface FriendWebsiteLinkProps extends IconLinkProps {
+    href: string;
+}
+export function FriendWebsiteLink({ href, width = 24, height = 24, ...props }: FriendWebsiteLinkProps) {
+    return (
+        <Link href={href} >
+            <LinkIcon
+                width={width}
+                height={height}
+                {...props}
+            />
         </Link>
     );
 }
