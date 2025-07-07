@@ -131,20 +131,6 @@ export default function FriendModal() {
             .toSpliced(0, 0, nextButton, prevButton);
     }, [friendIndex, nextButton, prevButton]);
 
-    const friendsContents = Array.from(friends, (friend, i) => (
-        <Fragment key={friend.name} >
-            <PerspectiveHover hoverFactor={2}>
-                <Shadow>
-                    <img
-                        src={friend.avatarUrl.toString()}
-                        className="w-24 h-24 rounded-full"
-                        alt={friend.name}
-                    />
-                </Shadow>
-            </PerspectiveHover>
-        </Fragment>
-    ));
-
     return (
         <div className="top-0 left-0 fixed w-full h-full z-101">
             <div

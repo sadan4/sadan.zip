@@ -5,7 +5,7 @@ import type { Friend } from "@/utils/friends";
 export interface FriendCardProps {
     friend: Friend;
 }
-export default function FriendCard({ friend }: FriendCardProps) {
+export default function FriendCard({ friend: _ }: FriendCardProps) {
     return (
         <Circle
             radius={192}
