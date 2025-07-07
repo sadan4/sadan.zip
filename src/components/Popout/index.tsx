@@ -38,7 +38,7 @@ export function Popout({ open, children, side, renderPopout: RenderPopout }: Pop
     }, []);
 
     const contentRef = useRef<HTMLDivElement>(null);
-    const [triggerWidth, setTriggerWitdh] = useState(0);
+    const [triggerWidth, setTriggerWidth] = useState(0);
     const [triggerHight, setTriggerHight] = useState(0);
 
     useEffect(() => {
@@ -47,7 +47,7 @@ export function Popout({ open, children, side, renderPopout: RenderPopout }: Pop
 
         const { width, height } = contentRef.current.getBoundingClientRect();
 
-        setTriggerWitdh(width);
+        setTriggerWidth(width);
         setTriggerHight(height);
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [contentRef.current]);
