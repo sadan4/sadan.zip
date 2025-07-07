@@ -25,6 +25,7 @@ export default function FriendCard({ friend }: FriendCardProps) {
                             target="_blank"
                             rel="noopener noreferrer"
                             className="w-12 h-12 flex items-center justify-center bg-bg-100 rounded-full"
+                            href={friend.url.toString()}
                         >
                             <LinkIcon className="w-9 h-9" />
                         </Clickable>
