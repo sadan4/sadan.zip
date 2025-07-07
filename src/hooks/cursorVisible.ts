@@ -11,8 +11,11 @@ window.addEventListener("mousemove", () => {
     enterHandlers.forEach((handler) => handler());
 });
 
-window.addEventListener("mouseout", () => {
-    leaveHandlers.forEach((handler) => handler());
+window.addEventListener("mouseout", (ev) => {
+    // for some reason, this triggers on things like SVGs
+    if (ev.relatedTarget === null) {
+        leaveHandlers.forEach((handler) => handler());
+    }
 });
 
 export function useCursorVisible(defaultValue?: boolean) {

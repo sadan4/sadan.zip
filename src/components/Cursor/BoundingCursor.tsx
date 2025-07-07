@@ -1,3 +1,4 @@
+import { useCssFile } from "@/hooks/cssFile";
 import { useCursorVisible } from "@/hooks/cursorVisible";
 import { useForceUpdater } from "@/hooks/forceUpdater";
 import cn from "@/utils/cn";
@@ -7,12 +8,14 @@ import { animated, to, useSpring, useSpringValue } from "@react-spring/web";
 import { useMove } from "@use-gesture/react";
 
 import styles from "./BoundingCursor.module.css";
-import { CursorClickableContext, lastPos } from "./context";
+import { useCursorContextStore } from "./cursorContextStore";
+import hideFocusOutline from "./hideFocusOutline.css?url";
 
 import invariant from "invariant";
-import { clamp, round } from "lodash-es";
-import { useCallback, useContext, useEffect } from "react";
+import _ from "lodash";
+import { useCallback, useEffect } from "react";
 import { createPortal } from "react-dom";
+
 export type TFrameLength = {
     type: "static";
     length: number;
@@ -29,6 +32,7 @@ export interface BoundingCursorProps {
     thickness?: number;
     unHoveredRadius?: number;
     hideOnExit?: boolean;
+    borderFocusedItems?: boolean;
 }
 
 interface CursorPos {
@@ -53,6 +57,11 @@ interface BarLengths {
     yLength: number | FluidValue<number>;
 }
 
+function RemoveFocusOutline() {
+    useCssFile(hideFocusOutline);
+
+    return null;
+}
 
 export default function BoundingCursor({
     className,
@@ -62,11 +71,18 @@ export default function BoundingCursor({
     },
     thickness: _thickness = 5,
     unHoveredRadius: _unHoveredRadius = 15,
+    borderFocusedItems = false,
 }: BoundingCursorProps) {
-    const element = useContext(CursorClickableContext);
+    const element = useCursorContextStore((state) => {
+        if (borderFocusedItems && state.focusedElement) {
+            return state.focusedElement;
+        }
+        return state.clickableElement;
+    });
+
     const cursorVisible = useCursorVisible(false);
-    const mouseX = useSpringValue(lastPos.x || window.innerWidth / 2);
-    const mouseY = useSpringValue(lastPos.y || window.innerHeight / 2);
+    const mouseX = useSpringValue(useCursorContextStore.getState().lastMousePos.x || window.innerWidth / 2);
+    const mouseY = useSpringValue(useCursorContextStore.getState().lastMousePos.y || window.innerHeight / 2);
 
     useMove(({ xy: [mx, my] }) => {
         mouseX.set(mx);
@@ -124,8 +140,14 @@ export default function BoundingCursor({
                 const { min = 15, max = 100, factor = 1 / 8 } = frameLength;
 
                 return {
-                    xLength: to(width, (width) => round(clamp(width * factor, min, max))),
-                    yLength: to(height, (height) => round(clamp(height * factor, min, max))),
+                    xLength: to(width, (width) => _.chain(width * factor)
+                        .clamp(min, max)
+                        .round()
+                        .valueOf()),
+                    yLength: to(height, (height) => _.chain(height * factor)
+                        .clamp(min, max)
+                        .round()
+                        .valueOf()),
                 };
             }
             default: {
@@ -205,84 +227,87 @@ export default function BoundingCursor({
                 createPortal(
 
                     (
-                        <animated.div
-                            style={{
-                                opacity,
-                            }}
-                        >
-                            <div
-                                className={cn(className, "absolute top-0 left-0 pointer-events-none", styles.boundingCursor)}
+                        <>
+                            {borderFocusedItems && <RemoveFocusOutline />}
+                            <animated.div
+                                style={{
+                                    opacity,
+                                }}
                             >
-                                {/* Top-left corner */}
-                                <animated.div
-                                    style={{
-                                        left: to([topLeftX, thickness], (tlx, thick) => tlx - thick),
-                                        top: to([topLeftY, thickness], (tly, thick) => tly - thick),
-                                        width: to([xLength, thickness], (xLen, thick) => xLen + thick),
-                                        height: thickness,
-                                    }}
-                                />
-                                <animated.div
-                                    style={{
-                                        left: to([topLeftX, thickness], (tlx, thick) => tlx - thick),
-                                        top: to([topLeftY, thickness], (tly, thick) => tly - thick),
-                                        width: thickness,
-                                        height: to([yLength, thickness], (yLen, thick) => yLen + thick),
-                                    }}
-                                />
-                                {/* Top-right corner */}
-                                <animated.div
-                                    style={{
-                                        left: to([topRightX, xLength], (tlx, xLen) => tlx - xLen),
-                                        top: to([topRightY, thickness], (tly, thick) => tly - thick),
-                                        width: to([xLength, thickness], (len, thick) => len + thick),
-                                        height: thickness,
-                                    }}
-                                />
-                                <animated.div
-                                    style={{
-                                        left: topRightX,
-                                        top: to([topRightY, thickness], (val, thick) => val - thick),
-                                        width: thickness,
-                                        height: to([yLength, thickness], (len, thick) => len + thick),
-                                    }}
-                                />
-                                {/* Bottom-left corner */}
-                                <animated.div
-                                    style={{
-                                        left: to([bottomLeftX, thickness], (val, thick) => val - thick),
-                                        top: to([bottomLeftY, yLength], (val, len) => val - len),
-                                        width: thickness,
-                                        height: to([yLength, thickness], (len, thick) => len + thick),
-                                    }}
-                                />
-                                <animated.div
-                                    style={{
-                                        left: to([bottomLeftX, thickness], (val, thick) => val - thick),
-                                        top: bottomLeftY,
-                                        width: to([xLength, thickness], (len, thick) => len + thick),
-                                        height: thickness,
-                                    }}
-                                />
-                                {/* Bottom-right corner */}
-                                <animated.div
-                                    style={{
-                                        left: bottomRightX,
-                                        top: to([bottomRightY, yLength], (val, len) => val - len),
-                                        width: thickness,
-                                        height: to([yLength, thickness], (len, thick) => len + thick),
-                                    }}
-                                />
-                                <animated.div
-                                    style={{
-                                        left: to([bottomRightX, xLength], (val, len) => val - len),
-                                        top: bottomRightY,
-                                        width: to([xLength, thickness], (len, thick) => len + thick),
-                                        height: thickness,
-                                    }}
-                                />
-                            </div>
-                        </animated.div>
+                                <div
+                                    className={cn(className, "absolute top-0 left-0 pointer-events-none", styles.boundingCursor)}
+                                >
+                                    {/* Top-left corner */}
+                                    <animated.div
+                                        style={{
+                                            left: to([topLeftX, thickness], (tlx, thick) => tlx - thick),
+                                            top: to([topLeftY, thickness], (tly, thick) => tly - thick),
+                                            width: to([xLength, thickness], (xLen, thick) => xLen + thick),
+                                            height: thickness,
+                                        }}
+                                    />
+                                    <animated.div
+                                        style={{
+                                            left: to([topLeftX, thickness], (tlx, thick) => tlx - thick),
+                                            top: to([topLeftY, thickness], (tly, thick) => tly - thick),
+                                            width: thickness,
+                                            height: to([yLength, thickness], (yLen, thick) => yLen + thick),
+                                        }}
+                                    />
+                                    {/* Top-right corner */}
+                                    <animated.div
+                                        style={{
+                                            left: to([topRightX, xLength], (tlx, xLen) => tlx - xLen),
+                                            top: to([topRightY, thickness], (tly, thick) => tly - thick),
+                                            width: to([xLength, thickness], (len, thick) => len + thick),
+                                            height: thickness,
+                                        }}
+                                    />
+                                    <animated.div
+                                        style={{
+                                            left: topRightX,
+                                            top: to([topRightY, thickness], (val, thick) => val - thick),
+                                            width: thickness,
+                                            height: to([yLength, thickness], (len, thick) => len + thick),
+                                        }}
+                                    />
+                                    {/* Bottom-left corner */}
+                                    <animated.div
+                                        style={{
+                                            left: to([bottomLeftX, thickness], (val, thick) => val - thick),
+                                            top: to([bottomLeftY, yLength], (val, len) => val - len),
+                                            width: thickness,
+                                            height: to([yLength, thickness], (len, thick) => len + thick),
+                                        }}
+                                    />
+                                    <animated.div
+                                        style={{
+                                            left: to([bottomLeftX, thickness], (val, thick) => val - thick),
+                                            top: bottomLeftY,
+                                            width: to([xLength, thickness], (len, thick) => len + thick),
+                                            height: thickness,
+                                        }}
+                                    />
+                                    {/* Bottom-right corner */}
+                                    <animated.div
+                                        style={{
+                                            left: bottomRightX,
+                                            top: to([bottomRightY, yLength], (val, len) => val - len),
+                                            width: thickness,
+                                            height: to([yLength, thickness], (len, thick) => len + thick),
+                                        }}
+                                    />
+                                    <animated.div
+                                        style={{
+                                            left: to([bottomRightX, xLength], (val, len) => val - len),
+                                            top: bottomRightY,
+                                            width: to([xLength, thickness], (len, thick) => len + thick),
+                                            height: thickness,
+                                        }}
+                                    />
+                                </div>
+                            </animated.div>
+                        </>
                     ),
                     document.body,
                 )
