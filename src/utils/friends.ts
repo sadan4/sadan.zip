@@ -25,12 +25,6 @@ export const friends: Friend[] = [
         avatarUrl: new URL("https://avatars.githubusercontent.com/u/31907977?v=4"),
     },
     {
-        name: "darwinx64",
-        discordId: "1375697625864601650",
-        url: new URL("https://maize.moe"),
-        avatarUrl: new URL("https://maize.moe/avatar.png"),
-    },
-    {
         name: "elissa",
         discordId: "381494697073573899",
         // url: new URL("https://elissa.moe"),

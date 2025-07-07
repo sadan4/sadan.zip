@@ -55,7 +55,7 @@ body {
 }
 
 @layer base {
-  svg {
+  :where(svg) {
     fill: currentColor;
   }
 }

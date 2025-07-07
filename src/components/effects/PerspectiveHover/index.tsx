@@ -1,5 +1,4 @@
 import { useForceUpdater } from "@/hooks/forceUpdater";
-import { useOnce } from "@/hooks/once";
 import { useSize } from "@/hooks/size";
 import toCSS from "@/utils/toCSS";
 import { animated, to, useSpring } from "@react-spring/web";
@@ -45,7 +44,7 @@ export default function PerspectiveHover({ children, hoverFactor }: PerspectiveH
         },
     }));
 
-    const ensureDimsSet = useOnce(() => {
+    function ensureDimsSet() {
         if (!domRef.current) {
             console.warn("animating before the element is mounted");
             return;
@@ -57,7 +56,7 @@ export default function PerspectiveHover({ children, hoverFactor }: PerspectiveH
         elY.set(box.y);
         width.set(box.width);
         height.set(box.height);
-    });
+    }
 
     {
         const { x: elX, y: elY, width, height } = useSize(() => domRef.current) ?? {

@@ -1,6 +1,7 @@
+import cn from "@/utils/cn";
 import toCSS from "@/utils/toCSS";
 
-import type { PropsWithChildren, ReactNode } from "react";
+import type { ComponentProps, PropsWithChildren, ReactNode } from "react";
 
 export interface CircleItemProps {
     x: number;
@@ -8,9 +9,11 @@ export interface CircleItemProps {
     n: number;
     radius: number;
     angle: number;
+    lastItem: Pick<CircleItemProps, "x" | "y" | "angle">;
+    nextItem: Pick<CircleItemProps, "x" | "y" | "angle">;
 }
 
-export interface CircleProps {
+export interface CircleProps extends Omit<ComponentProps<"div">, "children"> {
     radius: number;
     numItems?: number;
     offset?: number;
@@ -30,7 +33,7 @@ export function DefaultPlacementCircleItem({ x, y, children }: PropsWithChildren
     );
 }
 
-export default function Circle({ radius, children, numItems = children.length, offset = 0 }: CircleProps) {
+export default function Circle({ radius, children, numItems = children.length, offset = 0, ...props }: CircleProps) {
     const angleStep = (2 * Math.PI) / numItems;
 
     if (children.length === 0)
@@ -38,8 +41,10 @@ export default function Circle({ radius, children, numItems = children.length, o
 
     return (
         <div
-            className="-translate-1/2 *:-translate-1/2 *:absolute pointer-events-none *:pointer-events-auto"
+            {...props}
+            className={cn(props.className, "-translate-1/2 *:-translate-1/2 *:absolute pointer-events-none *:pointer-events-auto")}
             style={{
+                ...props.style,
                 position: "absolute",
                 width: toCSS.px(radius),
                 height: toCSS.px(radius),
@@ -49,6 +54,24 @@ export default function Circle({ radius, children, numItems = children.length, o
                 const angle = angleStep * (i + offset);
                 const x = (radius / 2) + ((radius / 2) * Math.cos(angle));
                 const y = (radius / 2) + ((radius / 2) * Math.sin(angle));
+                const lastAngle = angleStep * (i + (i ? offset - 1 : offset - children.length - 1));
+                const lastX = (radius / 2) + ((radius / 2) * Math.cos(lastAngle));
+                const lastY = (radius / 2) + ((radius / 2) * Math.sin(lastAngle));
+                const nextAngle = angleStep * (i + (i < numItems - 1 ? offset + 1 : offset - children.length + 1));
+                const nextX = (radius / 2) + ((radius / 2) * Math.cos(nextAngle));
+                const nextY = (radius / 2) + ((radius / 2) * Math.sin(nextAngle));
+
+                const nextItem = {
+                    x: nextX,
+                    y: nextY,
+                    angle: nextAngle,
+                };
+
+                const lastItem = {
+                    x: lastX,
+                    y: lastY,
+                    angle: lastAngle,
+                };
 
                 if (typeof children[i] !== "function") {
                     return (
@@ -58,6 +81,8 @@ export default function Circle({ radius, children, numItems = children.length, o
                             n={i}
                             radius={radius}
                             angle={angle}
+                            nextItem={nextItem}
+                            lastItem={lastItem}
                         >
                             {children[i]}
                         </DefaultPlacementCircleItem>
@@ -69,6 +94,8 @@ export default function Circle({ radius, children, numItems = children.length, o
                     n: i,
                     radius,
                     angle,
+                    nextItem,
+                    lastItem,
                 });
             })}
         </div>

@@ -9,12 +9,12 @@ import Circle, { type CircleItemProps, DefaultPlacementCircleItem } from "@/comp
 import { useModalStackStore } from "@/components/modal/internal/modalStackStore";
 import { Popout } from "@/components/Popout";
 import { PopoutDirection } from "@/components/Popout/constants";
-import { Square } from "@/components/testing";
 import { loopArrayStartingAt } from "@/utils/array";
 import cn from "@/utils/cn";
 import { friends } from "@/utils/friends";
 import toCSS from "@/utils/toCSS";
 
+import FriendCard from "./FriendCard";
 import { defaultPosition, useFriendModalCenterStore } from "./friendModalCenterStore";
 
 import __ from "lodash/fp";
@@ -110,20 +110,22 @@ export default function FriendModal() {
                             side={PopoutDirection.CENTER}
                             renderPopout={() => {
                                 return (
-                                    <div className="">
-                                        <Square />
+                                    <div>
+                                        <FriendCard friend={friend} />
                                     </div>
                                 );
                             }}
                         >
-                            <PerspectiveHover hoverFactor={2}>
-                                <Shadow>
-                                    <img
-                                        src={friend.avatarUrl.toString()}
-                                        className="h-24 w-24 min-w-24 min-h-24 rounded-full select-none"
-                                    />
-                                </Shadow>
-                            </PerspectiveHover>
+                            <Clickable>
+                                <PerspectiveHover hoverFactor={2}>
+                                    <Shadow>
+                                        <img
+                                            src={friend.avatarUrl.toString()}
+                                            className="h-24 w-24 min-w-24 min-h-24 rounded-full select-none"
+                                        />
+                                    </Shadow>
+                                </PerspectiveHover>
+                            </Clickable>
                         </Popout>
                     </DefaultPlacementCircleItem>
                 </Fragment>
@@ -132,7 +134,12 @@ export default function FriendModal() {
     }, [friendIndex, nextButton, prevButton]);
 
     return (
-        <div className="top-0 left-0 fixed w-full h-full z-101">
+        <div
+            className="top-0 left-0 fixed w-full h-full z-101"
+            onWheel={(e) => {
+                console.log("scroll", e);
+            }}
+        >
             <div
                 className="absolute -translate-1/2"
                 style={{
