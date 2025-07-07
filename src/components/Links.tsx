@@ -1,4 +1,5 @@
 import Discord from "./icons/Discord";
+import LinkIcon from "./icons/FriendLink";
 import Github from "./icons/Github";
 import LastFM from "./icons/LastFM";
 import NameMC from "./icons/NameMC";
@@ -108,6 +109,17 @@ export function GithubIconLink({ username, ...props }: GithubIconLinkProps) {
     return (
         <Link href={`https://github.com/${username}`}>
             <Github {...props} />
+        </Link>
+    );
+}
+
+export interface FriendWebsiteLinkProps extends IconLinkProps {
+    href: string;
+}
+export function FriendWebsiteLink({ href, ...props }: FriendWebsiteLinkProps) {
+    return (
+        <Link href={href} >
+            <LinkIcon {...props} />
         </Link>
     );
 }

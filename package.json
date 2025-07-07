@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@radix-ui/react-popover": "^1.1.14",
     "@react-hook/hover": "^4.0.0",
     "@react-hook/resize-observer": "^2.0.2",
     "@react-spring/shared": "^10.0.1",

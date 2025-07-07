@@ -4,9 +4,11 @@ import { animated, useTransition } from "@react-spring/web";
 
 import { SYM_INTERNAL_KEY, useModalStackStore } from "./internal/modalStackStore";
 import { ModalContext } from "./context";
+import styles from "./style.module.css";
 import { exitModalKeybinds } from ".";
 
 import { type BaseSyntheticEvent, useCallback, useEffect, useRef } from "react";
+import cn from "@/utils/cn";
 
 
 function stopParentPropagation(ev: BaseSyntheticEvent) {
@@ -72,7 +74,7 @@ export default function ModalRenderRoot() {
             <animated.div
                 ref={setRef}
                 style={style}
-                className="absolute top-0 left-0 w-full h-full z-100 bg-black/70"
+                className={cn("absolute top-0 left-0 w-full h-full z-100 bg-black/70", styles.modalRoot)}
                 tabIndex={-1}
                 onClick={closeModal}
             >
