@@ -47,4 +47,10 @@ export const friends: Friend[] = [
         discordId: "721853658941227088",
         avatarUrl: new URL("https://avatars.githubusercontent.com/u/52550063?v=4"),
     },
+    {
+        name: "fres",
+        discordId: "843448897737064448",
+        avatarUrl: new URL("https://slug.cat/avatar.png"),
+        url: new URL("https://slug.cat"),
+    },
 ];
