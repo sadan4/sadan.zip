@@ -31,6 +31,10 @@ export function Clickable<T extends "a" | "div" | "span" | "li" = "div">({ tag =
             .updateClickableElement(null);
     }, ref);
 
+    useEventHandler("mouseup", () => {
+        ref?.blur();
+    }, ref);
+
     return createElement(tag, {
         ref: setRef,
         "data-clickable": "true",

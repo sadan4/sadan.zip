@@ -2,11 +2,14 @@ import avatar from "@/assets/avatar.webp";
 import BorderHoldCircular from "@/components/effects/BorderHold/Circular";
 import { useSize } from "@/hooks/size";
 import cn from "@/utils/cn";
+import { friends } from "@/utils/friends";
+import { once } from "@/utils/functional";
 
 import PerspectiveHover from "./effects/PerspectiveHover";
 import Shadow from "./effects/Shadow";
 import FriendModal from "./modals/Friend";
 import { useFriendModalCenterStore } from "./modals/Friend/friendModalCenterStore";
+import { Clickable } from "./Clickable";
 import { openModal } from "./modal";
 
 import { type ComponentProps, useEffect, useRef } from "react";
@@ -14,6 +17,15 @@ import { type ComponentProps, useEffect, useRef } from "react";
 export interface AvatarProps extends ComponentProps<"img"> {
     round?: boolean;
 }
+
+const preloadFriends = once(function preloadFriends() {
+    for (const { avatarUrl } of friends) {
+        const img = new Image();
+
+        img.src = avatarUrl.toString();
+    }
+});
+
 
 export default function Avatar({ round = false, ...props }: AvatarProps) {
     const imgRef = useRef<HTMLImageElement>(null);
@@ -32,27 +44,30 @@ export default function Avatar({ round = false, ...props }: AvatarProps) {
     }, [x, y, width, height]);
 
     return (
-        <PerspectiveHover hoverFactor={4}>
-            <Shadow>
-                <BorderHoldCircular onHold={() => {
-                    openModal({
-                        key: "MODAL_FRIENDS",
-                        render() {
-                            return <FriendModal />;
-                        },
-                    });
-                }}
-                >
-                    <img
-                        ref={imgRef}
-                        src={avatar}
-                        alt="my discord profile picture, imagine a cute cat!"
-                        {...props}
-                        className={cn("max-w-sm max-h-max select-none", round && "rounded-full", props.className)}
-                        draggable={false}
-                    />
-                </BorderHoldCircular>
-            </Shadow>
-        </PerspectiveHover>
+        <Clickable>
+            <PerspectiveHover hoverFactor={4}>
+                <Shadow>
+                    <BorderHoldCircular onHold={() => {
+                        openModal({
+                            key: "MODAL_FRIENDS",
+                            render() {
+                                return <FriendModal />;
+                            },
+                        });
+                    }}
+                    >
+                        <img
+                            ref={imgRef}
+                            src={avatar}
+                            alt="my discord profile picture, imagine a cute cat!"
+                            {...props}
+                            onMouseOver={preloadFriends}
+                            className={cn("max-w-sm max-h-max select-none", round && "rounded-full", props.className)}
+                            draggable={false}
+                        />
+                    </BorderHoldCircular>
+                </Shadow>
+            </PerspectiveHover>
+        </Clickable>
     );
 }
