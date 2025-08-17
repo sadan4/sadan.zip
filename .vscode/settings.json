@@ -1,0 +1,4 @@
+{
+    "vite.autoStart": false,
+    "vite.browserType": "system"
+}
