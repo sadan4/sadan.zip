@@ -7,7 +7,6 @@ import { once } from "@/utils/functional";
 
 import PerspectiveHover from "./effects/PerspectiveHover";
 import Shadow from "./effects/Shadow";
-import FriendModal from "./modals/Friend";
 import { useFriendModalCenterStore } from "./modals/Friend/friendModalCenterStore";
 import { Clickable } from "./Clickable";
 import { openModal } from "./modal";
@@ -47,7 +46,9 @@ export default function Avatar({ round = false, ...props }: AvatarProps) {
         <Clickable>
             <PerspectiveHover hoverFactor={4}>
                 <Shadow>
-                    <BorderHoldCircular onHold={() => {
+                    <BorderHoldCircular onHold={async () => {
+                        const FriendModal = (await import("@/components/modals/Friend")).default;
+
                         openModal({
                             key: "MODAL_FRIENDS",
                             render() {
