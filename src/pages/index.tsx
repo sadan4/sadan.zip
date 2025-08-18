@@ -1,14 +1,9 @@
-import cursorStyles from "@/components/Cursor/styles.module.css";
+import { Boilerplate } from "@/components/Boilerplate";
 
 import Avatar from "../components/Avatar";
-import Cursor from "../components/Cursor";
-import BoundingCursor from "../components/Cursor/BoundingCursor";
-import { DotCursor } from "../components/Cursor/DotCursor";
 import { DefaultFooter, FooterContainer } from "../components/Footer";
 import { DiscordIconLink, FortniteDBIconLink, GithubIconLink, LastFMIconLink, NameMCIconLink, SteamIconLink } from "../components/Links";
-import ModalRenderRoot from "../components/modal/ModalRenderRoot";
 import Name from "../components/Name";
-import cn from "../utils/cn";
 
 function Links() {
     return (
@@ -44,31 +39,10 @@ function Links() {
 export default function App() {
     return (
         <>
-            <Cursor>
-                <DotCursor
-                    className={cn("bg-bg-fg mix-blend-exclusion", cursorStyles.cursorZ)}
-                    radius={10}
-                    invert
-                />
-            </Cursor>
-            <Cursor>
-                <BoundingCursor
-                    className={cn("bg-bg-fg mix-blend-exclusion", cursorStyles.cursorZ)}
-                    frameLength={{
-                        type: "dynamic",
-                        factor: 1 / 10,
-                        min: 8,
-                        max: 25,
-                    }}
-                    unHoveredRadius={15}
-                    thickness={4}
-                    borderFocusedItems
-                />
-            </Cursor>
-            <ModalRenderRoot />
+            <Boilerplate />
             <div className="h-full w-full">
                 <FooterContainer
-                    footer={<DefaultFooter />}
+                    footer={() => <DefaultFooter />}
                     className="flex justify-center"
                 >
                     <div className="pt-52 flex items-center flex-col">

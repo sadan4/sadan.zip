@@ -39,19 +39,19 @@ export const DefaultFooter = memo(function DefaultFooter() {
 });
 
 interface FooterContainerProps extends ComponentProps<"div"> {
-    footer: ReactNode;
+    footer: () => ReactNode;
 }
 
 export function FooterContainer({
     children,
-    footer,
+    footer: Footer,
     ...props
 }: FooterContainerProps) {
     return (
         <div className="grid grid-rows-[1fr_min-content] w-full h-full">
             <div {...props}>{children}</div>
             <div className="flex justify-center items-center content-center">
-                {footer}
+                <Footer />
             </div>
         </div>
     );
