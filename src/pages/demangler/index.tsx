@@ -8,13 +8,6 @@ import { demangleWords } from "@/utils/demangle";
 
 import { useState } from "react";
 
-interface DemangleOutputProps {
-    text: string;
-}
-
-function DemangleOutput({ text }: DemangleOutputProps) {
-    return <Text>{text}</Text>;
-}
 export default function Demangler() {
     const [text, setText] = useState("");
 
