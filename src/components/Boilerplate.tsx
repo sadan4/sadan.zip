@@ -27,7 +27,6 @@ export function Boilerplate() {
                     }}
                     unHoveredRadius={15}
                     thickness={4}
-                    borderFocusedItems
                 />
             </Cursor>
             <ModalRenderRoot />
