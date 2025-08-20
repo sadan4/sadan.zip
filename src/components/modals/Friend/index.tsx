@@ -17,7 +17,6 @@ import toCSS from "@/utils/toCSS";
 import FriendCard from "./FriendCard";
 import { defaultPosition, useFriendModalCenterStore } from "./friendModalCenterStore";
 
-import __ from "lodash/fp";
 import { Fragment, useMemo, useState } from "react";
 
 export interface FriendModalProps {
@@ -61,7 +60,7 @@ function ArrowButton({ direction }: ArrowButtonProps) {
 }
 
 export default function FriendModal() {
-    const { x, y } = useFriendModalCenterStore(__.prop("pos")) ?? defaultPosition();
+    const { x, y } = useFriendModalCenterStore((x) => x.pos) ?? defaultPosition();
     const [friendIndex, setFriendIndex] = useState(0);
 
     const nextButton = useMemo(() => {

@@ -1,7 +1,5 @@
 import { useEventHandler } from "./eventListener";
 
-import _ from "lodash";
-
 export const enum KeybindModifiers {
     NONE = 0,
     // cmd on mac
@@ -87,11 +85,13 @@ export function matchesEvent(ev: KeyboardEvent, keybind: Keybind): boolean {
 
 export function useKeybind(element: HTMLElement | Document | Window | null, keybinds: Keybind[]) {
     function callValidBinds(mode: "down" | "up", ev: KeyboardEvent) {
-        return _(keybinds)
-            .filter({ timing: mode })
-            .filter(matchesEvent.bind(null, ev))
-            .invokeMap("handle", ev)
-            .value();
+        return keybinds
+            .filter((kb) => {
+                return kb.timing === mode && matchesEvent(ev, kb);
+            })
+            .forEach((kb) => {
+                kb.handle(ev);
+            });
     }
     useEventHandler("keydown", callValidBinds.bind(null, "down"), element as any);
     useEventHandler("keyup", callValidBinds.bind(null, "up"), element as any);

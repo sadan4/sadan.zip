@@ -3,7 +3,6 @@ import type { } from "@redux-devtools/extension";
 
 import { type Modal } from "..";
 
-import _ from "lodash";
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 
@@ -27,7 +26,7 @@ export const useModalStackStore = create<ModalStackStore>()(devtools((set) => ({
     },
     popModal() {
         set((state) => ({
-            modals: _.initial(state.modals),
+            modals: state.modals.slice(1),
         }), undefined, "modalStack/popModal");
     },
     popAllModals() {
@@ -37,7 +36,7 @@ export const useModalStackStore = create<ModalStackStore>()(devtools((set) => ({
     },
     popModalByKey(key: string) {
         set((state) => {
-            const idx = _.findLastIndex(state.modals, { key });
+            const idx = state.modals.findLastIndex((modal) => modal.key === key);
 
             if (idx === -1)
                 return {};
@@ -49,7 +48,7 @@ export const useModalStackStore = create<ModalStackStore>()(devtools((set) => ({
     },
     _popModalByInternalKey(key: symbol) {
         set((state) => {
-            const idx = _.findLastIndex(state.modals, { [SYM_INTERNAL_KEY]: key });
+            const idx = state.modals.findLastIndex((x) => x[SYM_INTERNAL_KEY] === key);
 
             if (idx === -1)
                 return {};

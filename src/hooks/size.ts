@@ -10,14 +10,14 @@ export function useSize<T extends Element>(target: () => (T | null)): DOMRect | 
     const [size, setSize] = useState<any>();
     const [, forceUpdate] = useForceUpdater();
     const targetRef = useRecent(target);
+    const t = target();
 
     useLayoutEffect(() => {
         targetRef.current() && setSize(targetRef.current()!
             .getBoundingClientRect());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [targetRef, target()]);
+    }, [targetRef, t]);
 
-    useResizeObserver(target(), (entry) => {
+    useResizeObserver(t, (entry) => {
         setSize(entry.target.getBoundingClientRect());
     });
 

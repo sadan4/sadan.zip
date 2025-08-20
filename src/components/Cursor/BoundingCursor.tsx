@@ -2,6 +2,7 @@ import { useCssFile } from "@/hooks/cssFile";
 import { useCursorVisible } from "@/hooks/cursorVisible";
 import { useForceUpdater } from "@/hooks/forceUpdater";
 import cn from "@/utils/cn";
+import { clamp } from "@/utils/functional";
 import useResizeObserver from "@react-hook/resize-observer";
 import { FluidValue } from "@react-spring/shared";
 import { animated, to, useSpring, useSpringValue } from "@react-spring/web";
@@ -12,7 +13,6 @@ import { useCursorContextStore } from "./cursorContextStore";
 import hideFocusOutline from "./hideFocusOutline.css?url";
 
 import invariant from "invariant";
-import _ from "lodash";
 import { useCallback, useEffect } from "react";
 import { createPortal } from "react-dom";
 
@@ -140,14 +140,8 @@ export default function BoundingCursor({
                 const { min = 15, max = 100, factor = 1 / 8 } = frameLength;
 
                 return {
-                    xLength: to(width, (width) => _.chain(width * factor)
-                        .clamp(min, max)
-                        .round()
-                        .valueOf()),
-                    yLength: to(height, (height) => _.chain(height * factor)
-                        .clamp(min, max)
-                        .round()
-                        .valueOf()),
+                    xLength: to(width, (width) => Math.round(clamp(min, max, width * factor))),
+                    yLength: to(height, (height) => Math.round(clamp(min, max, height * factor))),
                 };
             }
             default: {

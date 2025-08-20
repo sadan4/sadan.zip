@@ -49,8 +49,7 @@ export function Popout({ open, children, side, renderPopout: RenderPopout }: Pop
 
         setTriggerWidth(width);
         setTriggerHight(height);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [contentRef.current]);
+    }, []);
 
     return (
         <Popover.Root

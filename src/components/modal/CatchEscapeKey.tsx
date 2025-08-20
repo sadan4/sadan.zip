@@ -3,14 +3,13 @@ import { useGesture } from "@use-gesture/react";
 
 import { exitModalKeybinds } from ".";
 
-import _ from "lodash";
 import { type PropsWithChildren } from "react";
 
 function shouldCancel(timing: "up" | "down", ev: KeyboardEvent): boolean {
-    return _(exitModalKeybinds)
-        .filter({ timing })
-        .filter(matchesEvent.bind(null, ev))
-        .isEmpty();
+    return exitModalKeybinds.filter((kb) => {
+        return kb.timing === timing && matchesEvent(ev, kb);
+    })
+        .length > 0;
 }
 
 

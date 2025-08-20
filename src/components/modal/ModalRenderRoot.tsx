@@ -1,5 +1,6 @@
 import { useKeybind } from "@/hooks/keybind";
 import { useUpdatingRef } from "@/hooks/updatingRef";
+import cn from "@/utils/cn";
 import { animated, useTransition } from "@react-spring/web";
 
 import { SYM_INTERNAL_KEY, useModalStackStore } from "./internal/modalStackStore";
@@ -8,7 +9,6 @@ import styles from "./style.module.css";
 import { exitModalKeybinds } from ".";
 
 import { type BaseSyntheticEvent, useCallback, useEffect, useRef } from "react";
-import cn from "@/utils/cn";
 
 
 function stopParentPropagation(ev: BaseSyntheticEvent) {

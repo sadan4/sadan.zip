@@ -1,7 +1,7 @@
 import cn from "@/utils/cn";
 import toCSS from "@/utils/toCSS";
 
-import type { ComponentProps, PropsWithChildren, ReactNode } from "react";
+import type { ComponentProps, JSX, PropsWithChildren, ReactNode } from "react";
 
 export interface CircleItemProps {
     x: number;
@@ -83,6 +83,7 @@ export default function Circle({ radius, children, numItems = children.length, o
                             angle={angle}
                             nextItem={nextItem}
                             lastItem={lastItem}
+                            key={(children[i] as JSX.Element)?.key}
                         >
                             {children[i]}
                         </DefaultPlacementCircleItem>

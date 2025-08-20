@@ -1,8 +1,8 @@
+import { range } from "@/utils/functional";
+
 import Typewriter, { type TypewriterFrame, type TypewriterRef, type TypewriterSource } from "./Typewriter";
 import { defaultEraser } from "./typewriterUtils";
 
-import invariant from "invariant";
-import _ from "lodash";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 function stringTypewriter(nextDelay: number, string: string): TypewriterSource {
@@ -172,13 +172,11 @@ export default function Name() {
                     if (typing)
                         return;
 
-                    const possibleIndexes = _.range(0, possibleNames.length);
-                    let idx = _.sample(possibleIndexes);
+                    let idx: number;
 
-                    while (idx === lastIndex.current) {
-                        idx = _.sample(possibleIndexes);
+                    while ((idx = range(0, possibleNames.length)) === lastIndex.current) {
+                        // guh
                     }
-                    invariant(idx && idx >= 0, "this should never happen");
                     typewriterRef.current?.sendWord(possibleNames[idx]);
                 }}
             />

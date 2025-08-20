@@ -677,6 +677,7 @@ export default TSEslint.config({ ignores: ["dist"] }, {
         ],
         "simple-import-sort/exports": "error",
         ...reactHooks.configs.recommended.rules,
+        "react-hooks/react-compiler": "error",
         "react-refresh/only-export-components": [
             "warn",
             { allowConstantExport: true },
