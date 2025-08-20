@@ -2,6 +2,7 @@
     "vite.autoStart": false,
     "vite.browserType": "system",
     "cSpell.words": [
+        "minky",
         "noselect"
     ]
 }
