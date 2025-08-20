@@ -3,6 +3,7 @@ import Discord from "@/components/icons/Discord";
 import LinkIcon from "@/components/icons/FriendLink";
 import Circle from "@/components/layout/Circle";
 import { Square } from "@/components/testing";
+import { Text } from "@/components/Text";
 import { discordUrl } from "@/utils/constants";
 import type { Friend } from "@/utils/friends";
 
@@ -46,12 +47,13 @@ export default function FriendCard({ friend }: FriendCardProps) {
                         )
                 }
             </Fragment>
-            <div
-                className="text-info-500 text-3xl"
+            <Text
+                color="info"
+                size="3xl"
                 key="name"
             >
                 {friend.name}
-            </div>
+            </Text>
             <Fragment key="discord">
                 {
                     friend.discordId

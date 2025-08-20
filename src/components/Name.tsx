@@ -1,9 +1,16 @@
 import { range } from "@/utils/functional";
 
+import { Text, type TextProps, type TextTags } from "./Text";
 import Typewriter, { type TypewriterFrame, type TypewriterRef, type TypewriterSource } from "./Typewriter";
 import { defaultEraser } from "./typewriterUtils";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+
+const nameTextProps: TextProps<"span"> = {
+    color: "accent",
+    size: "4xl",
+    weight: "bold",
+};
 
 function stringTypewriter(nextDelay: number, string: string): TypewriterSource {
     return {
@@ -20,6 +27,54 @@ function stringTypewriter(nextDelay: number, string: string): TypewriterSource {
             };
         },
         erase: defaultEraser,
+    };
+}
+
+function textComponentTypewriter(
+    nextDelay: number,
+    str: string,
+    extraProps: Omit<TextProps<"span">, "children"> = {},
+): TypewriterSource {
+    return {
+        *type() {
+            for (let i = 1; i <= str.length; i++) {
+                yield {
+                    component: <Text {...extraProps}>{str.substring(0, i)}|</Text>,
+                    nextDelay,
+                };
+            }
+            yield {
+                component: <Text {...extraProps}>{str}</Text>,
+                nextDelay,
+            };
+        },
+        erase: makeTextComponentEraser(str, nextDelay, extraProps),
+    };
+}
+
+function makeTextComponentEraser(
+    prevStr: string,
+    nextDelay: number,
+    extraProps: TextProps<TextTags>,
+) {
+    return function *(): Generator<TypewriterFrame, void, ReactNode> {
+        let cur = prevStr;
+
+        while (cur.length > 0) {
+            yield {
+                component: <Text {...extraProps}>{cur = cur.substring(0, cur.length - 1)}|</Text>,
+                nextDelay,
+            };
+        }
+        yield {
+            component: (
+                <Text
+                    {...extraProps}
+                    children=""
+                />
+            ),
+            nextDelay,
+        };
     };
 }
 
@@ -49,12 +104,12 @@ const possibleImages: TypewriterImage[] = [
     makeDiscordEmojiImage("1262562427422244874", "wires"),
 ];
 
-function imageTypewriter(image: TypewriterImage): TypewriterSource {
+function imageTypewriter(image: TypewriterImage, extraProps: TextProps<TextTags>): TypewriterSource {
     return {
         *type() {
             for (let i = 1; i <= image.htmlTag.length; i++) {
                 yield {
-                    component: `${image.htmlTag.substring(0, i)}|`,
+                    component: <Text {...extraProps}>{image.htmlTag.substring(0, i)}|</Text>,
                     nextDelay: 35,
                 };
             }
@@ -69,7 +124,7 @@ function imageTypewriter(image: TypewriterImage): TypewriterSource {
                 nextDelay: 0,
             };
         },
-        erase: defaultEraser.bind(null, image.htmlTag, 35),
+        erase: makeTextComponentEraser(image.htmlTag, 35, extraProps),
     };
 }
 
@@ -97,14 +152,14 @@ function clickMe(orig: string): TypewriterSource {
     return {
         *type() {
             yield {
-                component: orig,
+                component: <Text {...nameTextProps}>{orig}</Text>,
                 nextDelay: 1000,
             };
-            for (const val of defaultEraser(orig)) {
+            for (const val of makeTextComponentEraser(orig, 50, nameTextProps)()) {
                 yield val;
             }
 
-            const clickMeFrames = stringTypewriter(50, "Click Me!");
+            const clickMeFrames = textComponentTypewriter(50, "Click Me!", nameTextProps);
 
             let _val: TypewriterFrame = {
                 component: "",
@@ -123,18 +178,19 @@ function clickMe(orig: string): TypewriterSource {
                 yield val;
             }
 
-            const origFrames = stringTypewriter(50, orig);
+            const origFrames = textComponentTypewriter(50, orig, nameTextProps);
 
             for (const val of origFrames.type()) {
                 yield val;
             }
         },
-        erase: defaultEraser,
+        erase: makeTextComponentEraser(orig, 50, nameTextProps),
     };
 }
 
-const possibleNames = possibleNameStrings.map(stringTypewriter.bind(null, 50))
-    .concat(possibleImages.map(imageTypewriter));
+const possibleNames = possibleNameStrings
+    .map((str) => textComponentTypewriter(50, str, nameTextProps))
+    .concat(possibleImages.map((img) => imageTypewriter(img, nameTextProps)));
 
 export default function Name() {
     const typewriterRef = useRef<TypewriterRef>(null);

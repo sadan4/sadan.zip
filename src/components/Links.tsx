@@ -1,3 +1,4 @@
+import { Text } from "@/components/Text";
 import { discordUrl } from "@/utils/constants";
 
 import Discord from "./icons/Discord";
@@ -32,13 +33,17 @@ export default function Link({ target = "_blank", href, children }: LinkProps) {
 export function ThemeLink() {
     return (
         <Link href="https://github.com/enkia/tokyo-night-vscode-theme/tree/master">
-            Color Scheme
+            <Text tag="span">Color Scheme</Text>
         </Link>
     );
 }
 
 export function SourceLink() {
-    return <Link href="https://github.com/sadan4/sadan.zip">Source Code</Link>;
+    return (
+        <Link href="https://github.com/sadan4/sadan.zip">
+            <Text tag="span">Source Code</Text>
+        </Link>
+    );
 }
 
 export interface IconLinkProps extends ComponentProps<"svg"> {

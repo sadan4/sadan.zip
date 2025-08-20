@@ -1,3 +1,5 @@
+import { Text } from "@/components/Text";
+
 import { SourceLink, ThemeLink } from "./Links";
 import { joinWith } from "../utils/array";
 
@@ -12,7 +14,7 @@ export interface FooterProps extends PropsWithChildren {
 }
 
 function FooterSeperator() {
-    return " | ";
+    return <Text tag="span"> | </Text>;
 }
 
 export default function Footer({

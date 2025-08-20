@@ -2,6 +2,7 @@ import { Boilerplate } from "@/components/Boilerplate";
 import { Clickable } from "@/components/Clickable";
 import { DefaultFooter, FooterContainer } from "@/components/Footer";
 import { Input } from "@/components/Input";
+import { Text } from "@/components/Text";
 import { makeDemangler } from "@sadan4/demangler/wasm";
 import wasmBundleUrl from "@sadan4/demangler/wasm/compiled.wasm?url";
 
@@ -14,11 +15,7 @@ interface DemangleOutputProps {
 }
 
 function DemangleOutput({ text }: DemangleOutputProps) {
-    return (
-        <div>
-            {text}
-        </div>
-    );
+    return <Text>{text}</Text>;
 }
 export default function Demangler() {
     const [text, setText] = useState("");
@@ -31,9 +28,12 @@ export default function Demangler() {
                 footer={() => <DefaultFooter />}
             >
                 <div className="flex h-full w-full items-center flex-col pt-52">
-                    <div className="text-4xl text-accent">
+                    <Text
+                        size="4xl"
+                        color="accent"
+                    >
                         Demangler
-                    </div>
+                    </Text>
                     <div className="flex items-center gap-6 mt-6">
                         <Input
                             textSize="lg"
@@ -54,7 +54,7 @@ export default function Demangler() {
                                 setOutput(demangler.demangle(text) ?? "Unable to demangle input :(");
                             }}
                         >
-                            Demangle It
+                            <Text tag="span">Demangle It</Text>
                         </Clickable>
                     </div>
                     <div className="mt-6" />

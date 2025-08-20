@@ -1,3 +1,5 @@
+import { Text } from "@/components/Text";
+
 export default function Mink() {
-    return <div>Mink</div>;
+    return <Text>Mink</Text>;
 }

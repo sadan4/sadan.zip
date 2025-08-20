@@ -60,12 +60,17 @@ body {
   }
 }
 
-a {
+/* used in text component */
+.text {
+  --idk: "not empty";
+}
+
+a, a>.text {
   font-weight: 500;
   color: var(--color-info-500);
   text-decoration: inherit;
 }
-a:hover {
+a:hover, a:hover>.text {
   color: var(--color-info-600);
 }
 

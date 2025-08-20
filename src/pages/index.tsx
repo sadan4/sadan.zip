@@ -1,4 +1,5 @@
 import { Boilerplate } from "@/components/Boilerplate";
+import { Text } from "@/components/Text";
 
 import Avatar from "../components/Avatar";
 import { DefaultFooter, FooterContainer } from "../components/Footer";
@@ -52,9 +53,12 @@ export default function App() {
                         />
                         <Name />
                         <Links />
-                        <div className="text-success mt-6">
+                        <Text
+                            color="success"
+                            className="mt-6"
+                        >
                             Random loser on the internet.
-                        </div>
+                        </Text>
                     </div>
                 </FooterContainer>
             </div>
