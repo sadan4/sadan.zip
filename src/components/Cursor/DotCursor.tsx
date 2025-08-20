@@ -25,8 +25,6 @@ export function DotCursor({ className, radius = 6, invert, lineOnText = false }:
         textElement: s.textElement,
     })));
 
-    console.log(`mouseDown: ${mouseDown}`);
-
     const [{ height, width }, sizeApi] = useSpring(() => ({
         height: radius,
         width: radius,
