@@ -36,6 +36,9 @@ export function DotCursor({ className, radius = 6, invert, lineOnText = false }:
     }));
 
     useEffect(() => {
+        if (!lineOnText) {
+            return;
+        }
         if (textElement != null) {
             sizeApi.start({
                 height: getLineHeight(textElement) * 0.8,
@@ -47,7 +50,7 @@ export function DotCursor({ className, radius = 6, invert, lineOnText = false }:
                 width: radius,
             });
         }
-    }, [radius, sizeApi, textElement, mouseDown]);
+    }, [radius, sizeApi, textElement, mouseDown, lineOnText]);
 
 
     return cursorVisible && (

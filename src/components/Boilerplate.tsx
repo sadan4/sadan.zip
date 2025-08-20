@@ -13,6 +13,7 @@ export function Boilerplate() {
                     className={cn("bg-bg-fg mix-blend-exclusion", cursorStyles.cursorZ)}
                     radius={10}
                     invert
+                    lineOnText
                 />
             </Cursor>
             <Cursor>
