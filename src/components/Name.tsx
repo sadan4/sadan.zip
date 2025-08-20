@@ -1,10 +1,10 @@
 import { range } from "@/utils/functional";
 
-import { Text, type TextProps, type TextTags } from "./Text";
+import { Text, type TextProps } from "./Text";
 import Typewriter, { type TypewriterFrame, type TypewriterRef, type TypewriterSource } from "./Typewriter";
-import { defaultEraser } from "./typewriterUtils";
+import { imageTypewriter, makeTextComponentEraser, textComponentTypewriter, type TypewriterImage } from "./typewriterUtils";
 
-import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const nameTextProps: TextProps<"span"> = {
     color: "accent",
@@ -12,77 +12,6 @@ const nameTextProps: TextProps<"span"> = {
     weight: "bold",
 };
 
-function stringTypewriter(nextDelay: number, string: string): TypewriterSource {
-    return {
-        *type() {
-            for (let i = 1; i <= string.length; i++) {
-                yield {
-                    component: `${string.substring(0, i)}|`,
-                    nextDelay,
-                };
-            }
-            yield {
-                component: string,
-                nextDelay,
-            };
-        },
-        erase: defaultEraser,
-    };
-}
-
-function textComponentTypewriter(
-    nextDelay: number,
-    str: string,
-    extraProps: Omit<TextProps<"span">, "children"> = {},
-): TypewriterSource {
-    return {
-        *type() {
-            for (let i = 1; i <= str.length; i++) {
-                yield {
-                    component: <Text {...extraProps}>{str.substring(0, i)}|</Text>,
-                    nextDelay,
-                };
-            }
-            yield {
-                component: <Text {...extraProps}>{str}</Text>,
-                nextDelay,
-            };
-        },
-        erase: makeTextComponentEraser(str, nextDelay, extraProps),
-    };
-}
-
-function makeTextComponentEraser(
-    prevStr: string,
-    nextDelay: number,
-    extraProps: TextProps<TextTags>,
-) {
-    return function *(): Generator<TypewriterFrame, void, ReactNode> {
-        let cur = prevStr;
-
-        while (cur.length > 0) {
-            yield {
-                component: <Text {...extraProps}>{cur = cur.substring(0, cur.length - 1)}|</Text>,
-                nextDelay,
-            };
-        }
-        yield {
-            component: (
-                <Text
-                    {...extraProps}
-                    children=""
-                />
-            ),
-            nextDelay,
-        };
-    };
-}
-
-interface TypewriterImage {
-    htmlTag: string;
-    alt: string;
-    href: string;
-}
 
 function makeDiscordEmojiImage(emojiId: string, emojiName: string): TypewriterImage {
     return {
@@ -104,29 +33,6 @@ const possibleImages: TypewriterImage[] = [
     makeDiscordEmojiImage("1262562427422244874", "wires"),
 ];
 
-function imageTypewriter(image: TypewriterImage, extraProps: TextProps<TextTags>): TypewriterSource {
-    return {
-        *type() {
-            for (let i = 1; i <= image.htmlTag.length; i++) {
-                yield {
-                    component: <Text {...extraProps}>{image.htmlTag.substring(0, i)}|</Text>,
-                    nextDelay: 35,
-                };
-            }
-            yield {
-                component: (
-                    <img
-                        className="w-32 h-32"
-                        src={image.href}
-                        alt={image.alt}
-                    />
-                ),
-                nextDelay: 0,
-            };
-        },
-        erase: makeTextComponentEraser(image.htmlTag, 35, extraProps),
-    };
-}
 
 const possibleNameStrings = [
     "sadan",
@@ -197,10 +103,6 @@ export default function Name() {
     const lastIndex = useRef(-1);
     const [typing, setTyping] = useState(false);
 
-    const onTypingStateChange = useCallback((typingState: boolean) => {
-        setTyping(typingState);
-    }, []);
-
     useEffect(() => {
         const tryStart = () => {
             if (typewriterRef.current) {
@@ -220,9 +122,11 @@ export default function Name() {
             }}
         >
             <Typewriter
-                className="text-4xl font-bold mt-6 mb-6 min-h-10 text-accent break-words text-balance"
+                className="mt-6 mb-6 min-h-10 break-words text-balance"
                 initialContent="sadan"
-                onTypingStateChange={onTypingStateChange}
+                onTypingStateChange={(prevState) => {
+                    setTyping(prevState);
+                }}
                 ref={typewriterRef}
                 onClick={() => {
                     if (typing)

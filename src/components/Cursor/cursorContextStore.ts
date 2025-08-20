@@ -8,8 +8,11 @@ export interface CursorContextStore {
     lastMousePos: Coord;
     focusedElement: Element | null;
     clickableElement: Element | null;
+    textElement: Element | null;
+    mouseDown: boolean;
     updateFocusedElement(element: Element | null): void;
     updateClickableElement(element: Element | null): void;
+    updateTextElement(element: Element | null): void;
 }
 
 export const useCursorContextStore = create<CursorContextStore>()(devtools((set) => ({
@@ -19,6 +22,8 @@ export const useCursorContextStore = create<CursorContextStore>()(devtools((set)
     },
     focusedElement: null,
     clickableElement: null,
+    textElement: null,
+    mouseDown: false,
     updateFocusedElement(element) {
         set(() => ({
             focusedElement: element,
@@ -28,6 +33,12 @@ export const useCursorContextStore = create<CursorContextStore>()(devtools((set)
         set(() => ({
             clickableElement: element,
         }), undefined, "cursorContext/updateClickableElement");
+    },
+    updateTextElement(element) {
+        console.log("updating text element", element);
+        set(() => ({
+            textElement: element,
+        }), undefined, "cursorContext/updateTextElement");
     },
 }), {
     store: "CursorContextStore",
@@ -56,4 +67,15 @@ window.addEventListener("focusout", () => {
     useCursorContextStore
         .getState()
         .updateFocusedElement(null);
+});
+window.addEventListener("mousedown", () => {
+    useCursorContextStore.setState(() => ({
+        mouseDown: true,
+    }), undefined, "cursorContext/__onMouseDown");
+});
+
+window.addEventListener("mouseup", () => {
+    useCursorContextStore.setState(() => ({
+        mouseDown: false,
+    }), undefined, "cursorContext/__onMouseUp");
 });

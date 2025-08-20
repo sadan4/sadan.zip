@@ -4,7 +4,7 @@ import type { ElementFromTag } from "@/utils/types";
 
 import { useCursorContextStore } from "./Cursor/cursorContextStore";
 
-import { type ComponentPropsWithRef, createElement, type PropsWithChildren, useEffect } from "react";
+import { type ComponentPropsWithRef, createElement, type PropsWithChildren, useEffect, useRef } from "react";
 
 export type ClickableProps<T extends "a" | "div" | "span" | "li" = "div"> = PropsWithChildren<ComponentPropsWithRef<T>> & {
     tag?: T | undefined;
@@ -12,6 +12,7 @@ export type ClickableProps<T extends "a" | "div" | "span" | "li" = "div"> = Prop
 
 export function Clickable<T extends "a" | "div" | "span" | "li" = "div">({ tag = "div" as T, ref: _ref, children, ...props }: ClickableProps<T>) {
     const [ref, setRef] = useUpdatingRef<ElementFromTag<T>>();
+    const shouldNullOnUnmount = useRef(false);
 
     useEffect(() => {
         if (typeof _ref === "function") {
@@ -22,11 +23,13 @@ export function Clickable<T extends "a" | "div" | "span" | "li" = "div">({ tag =
     }, [_ref, ref]);
 
     useEventHandler("mouseover", function () {
+        shouldNullOnUnmount.current = true;
         useCursorContextStore.getState()
             .updateClickableElement(this);
     }, ref);
 
     useEventHandler("mouseout", () => {
+        shouldNullOnUnmount.current = false;
         useCursorContextStore.getState()
             .updateClickableElement(null);
     }, ref);
@@ -34,6 +37,15 @@ export function Clickable<T extends "a" | "div" | "span" | "li" = "div">({ tag =
     useEventHandler("mouseup", () => {
         ref?.blur();
     }, ref);
+
+    useEffect(() => {
+        return () => {
+            if (shouldNullOnUnmount.current) {
+                useCursorContextStore.getState()
+                    .updateClickableElement(null);
+            }
+        };
+    }, []);
 
     return createElement(tag, {
         ref: setRef,

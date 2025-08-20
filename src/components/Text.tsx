@@ -1,6 +1,9 @@
 import cn from "@/utils/cn";
+import type { ElementFromTag } from "@/utils/types";
 
-import { type ComponentProps, createElement, type PropsWithChildren } from "react";
+import { useCursorContextStore } from "./Cursor/cursorContextStore";
+
+import { type ComponentProps, createElement, type MouseEvent, type PropsWithChildren, useCallback, useEffect, useRef } from "react";
 
 export type TextTags = "div" | "span" | "p";
 
@@ -68,11 +71,44 @@ export function Text<T extends TextTags = "div">(props: TextProps<T>) {
         weight = "normal",
         color = "white",
         children,
+        onMouseOver: onMouseOverProp,
+        onMouseOut: onMouseOutProp,
         ...rest
     } = props;
 
+    type TElement = ElementFromTag<typeof tag>;
+
+    const shouldNullOnUnmount = useRef(false);
+
+    const onMouseOver = useCallback((e: MouseEvent<TElement>) => {
+        onMouseOverProp?.(e as any);
+        shouldNullOnUnmount.current = true;
+        useCursorContextStore
+            .getState()
+            .updateTextElement(e.nativeEvent.target as TElement);
+    }, [onMouseOverProp]);
+
+    const onMouseOut = useCallback((e: MouseEvent<TElement>) => {
+        onMouseOutProp?.(e as any);
+        shouldNullOnUnmount.current = false;
+        useCursorContextStore
+            .getState()
+            .updateTextElement(null);
+    }, [onMouseOutProp]);
+
+    useEffect(() => {
+        return () => {
+            if (shouldNullOnUnmount.current) {
+                useCursorContextStore.getState()
+                    .updateTextElement(null);
+            }
+        };
+    }, []);
+
     return createElement(tag, {
         className: cn("text", textSize[size], textWeight[weight], textColor[color], className),
+        onMouseOver,
+        onMouseOut,
         ...rest,
     }, children);
 }

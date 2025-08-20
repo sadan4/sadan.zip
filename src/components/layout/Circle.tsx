@@ -73,6 +73,9 @@ export default function Circle({ radius, children, numItems = children.length, o
                     angle: lastAngle,
                 };
 
+                if (children[i] == null) {
+                    return null;
+                }
                 if (typeof children[i] !== "function") {
                     return (
                         <DefaultPlacementCircleItem
