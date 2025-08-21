@@ -35,7 +35,6 @@ export const useCursorContextStore = create<CursorContextStore>()(devtools((set)
         }), undefined, "cursorContext/updateClickableElement");
     },
     updateTextElement(element) {
-        console.log("updating text element", element);
         set(() => ({
             textElement: element,
         }), undefined, "cursorContext/updateTextElement");

@@ -1,7 +1,3 @@
-import { useEventHandler } from "@/hooks/eventListener";
-import { useUpdatingRef } from "@/hooks/updatingRef";
-import type { ElementFromTag } from "@/utils/types";
-
 import { useCursorContextStore } from "./Cursor/cursorContextStore";
 
 import { type ComponentPropsWithRef, createElement, type PropsWithChildren, useEffect, useRef } from "react";
@@ -10,33 +6,8 @@ export type ClickableProps<T extends "a" | "div" | "span" | "li" = "div"> = Prop
     tag?: T | undefined;
 };
 
-export function Clickable<T extends "a" | "div" | "span" | "li" = "div">({ tag = "div" as T, ref: _ref, children, ...props }: ClickableProps<T>) {
-    const [ref, setRef] = useUpdatingRef<ElementFromTag<T>>();
+export function Clickable<T extends "a" | "div" | "span" | "li" = "div">({ tag = "div" as T, onMouseOver, onMouseOut, onMouseUp, children, ...props }: ClickableProps<T>) {
     const shouldNullOnUnmount = useRef(false);
-
-    useEffect(() => {
-        if (typeof _ref === "function") {
-            return _ref(ref as any);
-        } else if (_ref) {
-            _ref.current = ref;
-        }
-    }, [_ref, ref]);
-
-    useEventHandler("mouseover", function () {
-        shouldNullOnUnmount.current = true;
-        useCursorContextStore.getState()
-            .updateClickableElement(this);
-    }, ref);
-
-    useEventHandler("mouseout", () => {
-        shouldNullOnUnmount.current = false;
-        useCursorContextStore.getState()
-            .updateClickableElement(null);
-    }, ref);
-
-    useEventHandler("mouseup", () => {
-        ref?.blur();
-    }, ref);
 
     useEffect(() => {
         return () => {
@@ -48,9 +19,24 @@ export function Clickable<T extends "a" | "div" | "span" | "li" = "div">({ tag =
     }, []);
 
     return createElement(tag, {
-        ref: setRef,
         "data-clickable": "true",
         tabIndex: 0,
+        onMouseOver(e) {
+            shouldNullOnUnmount.current = true;
+            useCursorContextStore.getState()
+                .updateClickableElement(e.currentTarget as Element);
+            onMouseOver?.(e);
+        },
+        onMouseOut(e) {
+            shouldNullOnUnmount.current = false;
+            useCursorContextStore.getState()
+                .updateClickableElement(null);
+            onMouseOut?.(e);
+        },
+        onMouseUp(e) {
+            e.target?.blur();
+            onMouseUp?.(e);
+        },
         ...props,
     }, children);
 }

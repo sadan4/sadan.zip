@@ -55,6 +55,7 @@ export default function App() {
                         <Links />
                         <Text
                             color="success"
+                            size="md"
                             className="mt-6"
                         >
                             Random loser on the internet.
