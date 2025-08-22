@@ -1,4 +1,7 @@
 {
     "vite.autoStart": false,
-    "vite.browserType": "system"
+    "vite.browserType": "system",
+    "cSpell.words": [
+        "Minky"
+    ]
 }

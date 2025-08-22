@@ -1,5 +1,5 @@
 import { Text } from "@/components/Text";
 
 export default function Mink() {
-    return <Text>Mink</Text>;
+    return <Text>Minky</Text>;
 }
