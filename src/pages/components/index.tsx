@@ -157,7 +157,12 @@ function SwitchExample() {
                     Uncontrolled Switches
                 </Text>
                 <div className="flex flex-row flex-wrap gap-4">
-                    {Array.from({ length: 20 }, (_, i) => <LoneSwitch key={i} />)}
+                    {Array.from({ length: 20 }, (_, i) => (
+                        <LoneSwitch
+                            key={i}
+                            initialValue={Math.random() > 0.5}
+                        />
+                    ))}
                 </div>
             </Box>
         </>

@@ -25,9 +25,14 @@ function xFromSwitchState(state: SwitchState): number {
     }
 }
 
-export function LoneSwitch() {
-    const [enabled, setEnabled] = useState(false);
-    const [state, setState] = useState(SwitchState.OFF);
+export interface LoneSwitchProps {
+    initialValue?: boolean;
+    onChange?: (value: boolean) => void;
+}
+
+export function LoneSwitch({ initialValue = false, onChange }: LoneSwitchProps) {
+    const [enabled, setEnabled] = useState(initialValue);
+    const [state, setState] = useState(initialValue ? SwitchState.ON : SwitchState.OFF);
 
     const [{ cx }, switchPosApi] = useSpring(() => ({
         cx: xFromSwitchState(state),
@@ -61,7 +66,8 @@ export function LoneSwitch() {
                 } else {
                     setState(SwitchState.ON);
                 }
-                setEnabled((prev) => !prev);
+                onChange?.(!enabled);
+                setEnabled(!enabled);
             }}
             onMouseLeave={() => {
                 if (enabled) {
@@ -85,3 +91,4 @@ export function LoneSwitch() {
         </Clickable>
     );
 }
+
