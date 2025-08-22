@@ -98,7 +98,8 @@ function ExampleTabBar() {
 }
 
 function ExampleButtons() {
-    const [border, setBorder] = useState(false);
+    const border = false;
+    // const [border, setBorder] = useState(false);
 
 
     return (
@@ -156,6 +157,9 @@ function xFromSwitchState(state: SwitchState): number {
             return 18;
         case SwitchState.HELD:
             return 12;
+        default: {
+            throw new Error("unhandled state");
+        }
     }
 }
 
