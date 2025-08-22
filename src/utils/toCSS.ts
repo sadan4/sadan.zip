@@ -28,5 +28,14 @@ class ToCSS {
 
         return `${x} ${y}`;
     }
+
+    rotate(deg: number | string): string;
+    rotate(deg: number | string, x: number | string, y: number | string): string;
+    rotate(deg: number | string, x?: number | string, y?: number | string): string {
+        if (x === undefined) {
+            return `rotate(${deg})`;
+        }
+        return `rotate(${deg} ${x} ${y})`;
+    }
 }
 export default new ToCSS();

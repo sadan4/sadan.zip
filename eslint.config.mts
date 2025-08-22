@@ -633,7 +633,7 @@ const styleRules: Partial<_RuleOptions> = {
 const extensions = "{js,mjs,cjs,jsx,mjsx,cjsx,ts,mts,cts,tsx,mtsx,ctsx}";
 
 export default TSEslint.config({ ignores: ["dist"] }, {
-    files: [`src/**/*.${extensions}`, `eslint.config.${extensions}`, `vite.config.${extensions}`],
+    files: [`src/**/*.${extensions}`, `eslint.config.${extensions}`, `vite.config.${extensions}`, `vitest.config.${extensions}`],
     plugins: {
         "@stylistic": stylistic,
         "@typescript-eslint": TSEslint.plugin,

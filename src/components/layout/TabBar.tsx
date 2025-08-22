@@ -7,7 +7,7 @@ import cn from "@/utils/cn";
 import { animated, useSpring } from "@react-spring/web";
 
 import invariant from "invariant";
-import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 export interface TabRowItemProps {
     isSelected: boolean;
@@ -76,6 +76,14 @@ function TabButton({
     const isActive = tabProp.id === activeTabId;
     const ref = useRef<HTMLDivElement>(null);
 
+
+    const setRef = useCallback((node: HTMLDivElement | null) => {
+        ref.current = node;
+        if (isActive && node) {
+            setActiveTabRect(node.getBoundingClientRect());
+        }
+    }, [isActive, setActiveTabRect]);
+
     return (
         <Clickable
             className={cn(className)}
@@ -91,12 +99,7 @@ function TabButton({
                     }
                 }
             }}
-            ref={(e) => {
-                ref.current = e;
-                if (isActive && e) {
-                    setActiveTabRect(e.getBoundingClientRect());
-                }
-            }}
+            ref={setRef}
         >
             <tabProp.renderTab
                 isSelected={isActive}
