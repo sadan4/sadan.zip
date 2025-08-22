@@ -1,7 +1,7 @@
 import { Text } from "@/components/Text";
 
 import { SourceLink, ThemeLink } from "./Links";
-import { joinWith } from "../utils/array";
+import { joinWithKey } from "../utils/array";
 
 import {
     type ComponentProps,
@@ -26,7 +26,7 @@ export default function Footer({
         : [_children];
 
     return (
-        <div className={className}>{joinWith(children, <FooterSeperator key="footer-seperator" />)}</div>
+        <div className={className}>{joinWithKey(children, (i) => <FooterSeperator key={`footer-seperator-${i}`} />)}</div>
     );
 }
 

@@ -2,11 +2,13 @@ import { useCursorContextStore } from "./Cursor/cursorContextStore";
 
 import { type ComponentPropsWithRef, createElement, type PropsWithChildren, useEffect, useRef } from "react";
 
-export type ClickableProps<T extends "a" | "div" | "span" | "li" = "div"> = PropsWithChildren<ComponentPropsWithRef<T>> & {
+export type ClickableTags = "a" | "div" | "span" | "li" | "button";
+
+export type ClickableProps<T extends ClickableTags = "div"> = PropsWithChildren<ComponentPropsWithRef<T>> & {
     tag?: T | undefined;
 };
 
-export function Clickable<T extends "a" | "div" | "span" | "li" = "div">({ tag = "div" as T, onMouseOver, onMouseOut, onMouseUp, children, ...props }: ClickableProps<T>) {
+export function Clickable<T extends ClickableTags = "div">({ tag = "div" as T, onMouseOver, onMouseOut, onMouseUp, children, ...props }: ClickableProps<T>) {
     const shouldNullOnUnmount = useRef(false);
 
     useEffect(() => {
@@ -20,6 +22,7 @@ export function Clickable<T extends "a" | "div" | "span" | "li" = "div">({ tag =
 
     return createElement(tag, {
         "data-clickable": "true",
+        role: "button",
         tabIndex: 0,
         onMouseOver(e) {
             shouldNullOnUnmount.current = true;

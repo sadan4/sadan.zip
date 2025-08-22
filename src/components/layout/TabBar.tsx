@@ -1,14 +1,13 @@
+import { Box } from "@/components/Box";
+import { Clickable } from "@/components/Clickable";
+import { Text } from "@/components/Text";
+import { VerticalLine } from "@/components/VerticalLine";
 import { joinWithKey } from "@/utils/array";
 import cn from "@/utils/cn";
 import { animated, useSpring } from "@react-spring/web";
 
-import { Box } from "./Box";
-import { Clickable } from "./Clickable";
-import { Text } from "./Text";
-import { VerticalLine } from "./VerticalLine";
-
 import invariant from "invariant";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 export interface TabRowItemProps {
     isSelected: boolean;
@@ -25,6 +24,7 @@ export interface TabBarProps {
     className?: string;
     tabsClassName?: string;
     contentClassName?: string;
+    noSeparators?: boolean;
     selectedTab?: string;
     initialSelectedTab?: string;
     onTabChange?: (tab: Tab) => void;
@@ -56,6 +56,56 @@ const fallbackTab: Tab = {
     },
 };
 
+interface TabButtonProps {
+    tab: Tab;
+    activeTabId: string;
+    className?: string;
+    setActiveTabRect: (r?: DOMRect) => void;
+    setActiveTab: (tabId: string) => void;
+    onTabChange?: (tab: Tab) => void;
+}
+
+function TabButton({
+    tab: tabProp,
+    activeTabId,
+    className,
+    setActiveTabRect,
+    setActiveTab,
+    onTabChange,
+}: TabButtonProps) {
+    const isActive = tabProp.id === activeTabId;
+    const ref = useRef<HTMLDivElement>(null);
+
+    return (
+        <Clickable
+            className={cn(className)}
+            onClick={() => {
+                const isNew = tabProp.id !== activeTabId;
+
+                setActiveTab(tabProp.id);
+                if (isNew) {
+                    try {
+                        onTabChange?.(tabProp);
+                    } finally {
+                        setActiveTabRect(ref.current?.getBoundingClientRect());
+                    }
+                }
+            }}
+            ref={(e) => {
+                ref.current = e;
+                if (isActive && e) {
+                    setActiveTabRect(e.getBoundingClientRect());
+                }
+            }}
+        >
+            <tabProp.renderTab
+                isSelected={isActive}
+                selectedTab={activeTabId}
+            />
+        </Clickable>
+    );
+}
+
 export function TabBar({
     tabs,
     tabsClassName,
@@ -64,6 +114,7 @@ export function TabBar({
     selectedTab,
     initialSelectedTab,
     onTabChange,
+    noSeparators = false,
 }: TabBarProps) {
     invariant(!(selectedTab && initialSelectedTab), "You can only provide one of selectedTab or initialSelectedTab");
 
@@ -78,10 +129,6 @@ export function TabBar({
 
     const selectedTabObj = tabs.find(({ id }) => id === tab) ?? fallbackTab;
 
-    interface TabButtonProps {
-        tab: Tab;
-    }
-
 
     const [{ width, x, y }, focusBarApi] = useSpring(() => ({
         x: 0,
@@ -91,7 +138,7 @@ export function TabBar({
         },
     }));
 
-    useEffect(() => {
+    useLayoutEffect(() => {
         if (activeTabRect) {
             const size = activeTabRect;
 
@@ -111,39 +158,6 @@ export function TabBar({
         }
     }, [activeTabRect, focusBarApi, x]);
 
-    function TabButton({ tab: tabProp }: TabButtonProps) {
-        const isActive = tabProp.id === tab;
-        const ref = useRef<HTMLDivElement>(null);
-
-        return (
-            <Clickable
-                className={cn(tabsClassName)}
-                onClick={(e) => {
-                    const isNew = tabProp.id !== tab;
-
-                    setTab(tabProp.id);
-                    if (isNew) {
-                        try {
-                            onTabChange?.(tabProp);
-                        } finally {
-                            setActiveTabRect(ref.current?.getBoundingClientRect());
-                        }
-                    }
-                }}
-                ref={(e) => {
-                    ref.current = e;
-                    if (isActive && e && !activeTabRect) {
-                        setActiveTabRect(e.getBoundingClientRect());
-                    }
-                }}
-            >
-                <tabProp.renderTab
-                    isSelected={isActive}
-                    selectedTab={tab}
-                />
-            </Clickable>
-        );
-    }
 
     return (
         <div className={cn("flex w-full flex-col", className)}>
@@ -154,8 +168,12 @@ export function TabBar({
                     <TabButton
                         key={t.id}
                         tab={t}
+                        activeTabId={tab}
+                        setActiveTabRect={setActiveTabRect}
+                        setActiveTab={setTab}
+                        onTabChange={onTabChange}
                     />
-                )), (i) => <VerticalLine key={`vl-${i}`} />)}
+                )), (i) => (noSeparators ? null : <VerticalLine key={`vl-${i}`} />))}
                 <animated.div
                     className="absolute top-0 left-0 pointer-events-none border-b-2 border-bg-fg-500"
                     style={{

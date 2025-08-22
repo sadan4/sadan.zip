@@ -1,4 +1,4 @@
-import cn, { colors, textSize, type TextStyleProps, textWeight } from "@/utils/cn";
+import cn, { textColors, textSize, type TextStyleProps, textWeight } from "@/utils/cn";
 import type { ElementFromTag } from "@/utils/types";
 
 import { useCursorContextStore } from "./Cursor/cursorContextStore";
@@ -12,6 +12,7 @@ export type TextProps<T extends TextTags> = PropsWithChildren<ComponentProps<T>>
     tag?: T;
     noselect?: boolean;
     nowrap?: boolean;
+    center?: boolean;
 };
 
 export function Text<T extends TextTags = "div">(props: TextProps<T>) {
@@ -26,6 +27,7 @@ export function Text<T extends TextTags = "div">(props: TextProps<T>) {
         onMouseOut: onMouseOutProp,
         noselect = false,
         nowrap = false,
+        center = false,
         ...rest
     } = props;
 
@@ -64,10 +66,23 @@ export function Text<T extends TextTags = "div">(props: TextProps<T>) {
         };
     }, []);
 
-    return createElement(tag, {
-        className: cn("text", noselect && "select-none", nowrap && "whitespace-nowrap", textSize[size], textWeight[weight], colors[color], className),
+    const el = createElement(tag, {
+        className: cn(
+            "text",
+            noselect && "select-none",
+            nowrap && "whitespace-nowrap",
+            textSize[size],
+            textWeight[weight],
+            textColors[color],
+            className,
+        ),
         onMouseOver,
         onMouseOut,
         ...rest,
     }, children);
+
+    if (center) {
+        return <div className="flex justify-center">{el}</div>;
+    }
+    return el;
 }
