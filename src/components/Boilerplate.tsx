@@ -26,7 +26,7 @@ export function Boilerplate() {
                         max: 25,
                     }}
                     unHoveredRadius={15}
-                    thickness={4}
+                    thickness={3}
                 />
             </Cursor>
             <ModalRenderRoot />
