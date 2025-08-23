@@ -235,6 +235,22 @@ function SelectionDropDown() {
 }
 
 function SwitchExample() {
+    const [switchValues, setSwitchValues] = useState<boolean[]>([true, false, true, false]);
+    const [ignoreInput, setIgnoreInput] = useState(false);
+
+    const toggleAll = () => {
+        setSwitchValues((values) => values.map((v) => !v));
+    };
+
+    const handleSwitchChange = (index: number, newValue: boolean) => {
+        setSwitchValues((values) => {
+            const newValues = [...values];
+
+            newValues[index] = newValue;
+            return newValues;
+        });
+    };
+
     return (
         <>
             <Text
@@ -257,6 +273,41 @@ function SwitchExample() {
                             initialValue={Math.random() > 0.5}
                         />
                     ))}
+                </div>
+            </Box>
+
+            <Box className="mt-8">
+                <Text
+                    size="lg"
+                    center
+                >
+                    Controlled Switches
+                </Text>
+                <div className="flex items-center justify-center mb-4">
+                    <Text
+                        size="md"
+                        className="mr-3"
+                    >
+                        Ignore User Input:
+                    </Text>
+                    <Switch
+                        value={ignoreInput}
+                        onChange={setIgnoreInput}
+                    />
+                </div>
+                <div className="flex flex-row flex-wrap gap-4 mb-4">
+                    {switchValues.map((value, index) => (
+                        <Switch
+                            key={index}
+                            value={value}
+                            onChange={ignoreInput ? undefined : (newValue) => handleSwitchChange(index, newValue)}
+                        />
+                    ))}
+                </div>
+                <div className="flex justify-center">
+                    <Button onClick={toggleAll}>
+                        Toggle All Switches
+                    </Button>
                 </div>
             </Box>
         </>
