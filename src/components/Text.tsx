@@ -68,7 +68,7 @@ export function Text<T extends TextTags = "div">(props: TextProps<T>) {
 
     const el = createElement(tag, {
         className: cn(
-            "text",
+            "text w-fit",
             noselect && "select-none",
             nowrap && "whitespace-nowrap",
             textSize[size],

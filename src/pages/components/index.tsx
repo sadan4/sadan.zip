@@ -3,7 +3,9 @@ import { Box } from "@/components/Box";
 import { Button } from "@/components/Button";
 import { DefaultFooter, FooterContainer } from "@/components/Footer";
 import { HorizontalLine } from "@/components/HorizontalLine";
+import { CheckedInput, LabeledInput } from "@/components/Input";
 import { TabBar } from "@/components/layout/TabBar";
+import { Marquee } from "@/components/Marquee";
 import { Switch } from "@/components/Switch";
 import { Text } from "@/components/Text";
 import { keys } from "@/utils/array";
@@ -314,6 +316,106 @@ function SwitchExample() {
     );
 }
 
+function InputExample() {
+    return (
+        <>
+            <Text
+                size="xl"
+                center
+            >
+                Input Field
+            </Text>
+            <div className="flex flex-col gap-2">
+                <LabeledInput
+                    onChange={() => {}}
+                >
+                    Input
+                </LabeledInput>
+                <LabeledInput
+                    onChange={() => { }}
+                    placeholder="Placeholder"
+                >
+                    With Placeholder
+                </LabeledInput>
+                <LabeledInput
+                    onChange={() => { }}
+                    placeholder="Placeholder"
+                    initialValue="Initial Value"
+                >
+                    With Initial Value
+                </LabeledInput>
+                <LabeledInput
+                    onChange={() => { }}
+                    placeholder="Placeholder"
+                    disabled
+                >
+                    Disabled
+                </LabeledInput>
+                <LabeledInput
+                    onChange={() => { }}
+                    placeholder="Placeholder"
+                    initialValue="Read only Input"
+                    readOnly
+                >
+                    Read Only
+                </LabeledInput>
+                <CheckedInput
+                    check={() => false}
+                    onValidChange={() => {}}
+                >
+                    Checked Input
+                </CheckedInput>
+                <CheckedInput
+                    check={/fooba[rz]/}
+                    onValidChange={() => {}}
+                >
+                    Regex Checked Input
+                </CheckedInput>
+                <CheckedInput
+                    check={{
+                        type: "len",
+                        min: 3,
+                        max: 10,
+                    }}
+                    onValidChange={() => {}}
+                >
+                    Length Checked Input
+                </CheckedInput>
+                <CheckedInput
+                    check={/fooba[rz]/}
+                    debounce={2000}
+                    onValidChange={() => {}}
+                >
+                    2000s Debounced Check
+                </CheckedInput>
+                <CheckedInput
+                    check={() => false}
+                    errorMessage={() => (
+                        <Text
+                            size="sm"
+                            color="error"
+                        >
+                            <Marquee>
+                                Custom Error Message
+                            </Marquee>
+                        </Text>
+                    )}
+                    onValidChange={() => {}}
+                >
+                    Custom Error Message
+                </CheckedInput>
+                <CheckedInput
+                    check={() => false}
+                    onValidChange={() => { }}
+                    disabled
+                >
+                    Disabled
+                </CheckedInput>
+            </div>
+        </>
+    );
+}
+
 export default function Components() {
     return (
         <>
@@ -336,6 +438,8 @@ export default function Components() {
                         <SelectionDropDown />
                         <HorizontalLine className="my-4" />
                         <SwitchExample />
+                        <HorizontalLine className="my-4" />
+                        <InputExample />
                     </Box>
                 </div>
             </FooterContainer>
