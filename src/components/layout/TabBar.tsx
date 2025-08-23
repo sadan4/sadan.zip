@@ -1,12 +1,14 @@
-import { AnimatedBox } from "@/components/Box";
 import { Clickable } from "@/components/Clickable";
 import { Text } from "@/components/Text";
 import { VerticalLine } from "@/components/VerticalLine";
+import { useForceUpdater } from "@/hooks/forceUpdater";
 import { useImperativeSprings } from "@/hooks/imperativeSprings";
 import { joinWithKey } from "@/utils/array";
 import cn from "@/utils/cn";
 import useResizeObserver from "@react-hook/resize-observer";
-import { animated } from "@react-spring/web";
+import { animated, useSpringValue } from "@react-spring/web";
+
+import { Box } from "../Box";
 
 import invariant from "invariant";
 import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -134,6 +136,8 @@ export function TabBar({
     const [activeTabRect, setActiveTabRect] = useState<DOMRect | undefined>();
     const contentRef = useRef<HTMLDivElement>(null);
     const lastIndicatorPos = useRef<DOMRect>(null);
+    const initialRender = useRef(true);
+
 
     useEffect(() => {
         if (selectedTab) {
@@ -148,6 +152,26 @@ export function TabBar({
         y: 0,
         width: 0,
     });
+
+    const height = useSpringValue(0);
+    const [dep, updateBoxHeight] = useForceUpdater();
+
+    useResizeObserver(contentRef, () => {
+        updateBoxHeight();
+    });
+
+    useLayoutEffect(() => {
+        if (contentRef.current) {
+            const size = contentRef.current.getBoundingClientRect();
+
+            if (initialRender.current) {
+                initialRender.current = false;
+                height.set(size.height);
+            } else {
+                height.start(size.height);
+            }
+        }
+    }, [activeTabRect, height, dep]);
 
     useLayoutEffect(() => {
         if (activeTabRect) {
@@ -192,13 +216,17 @@ export function TabBar({
                     }}
                 />
             </div>
-            <AnimatedBox className={cn("h-full ", contentClassName)}>
-                <div
-                    ref={contentRef}
-                >
-                    <selectedTabObj.render />
-                </div>
-            </AnimatedBox>
+            <Box
+                className={cn("h-full overflow-clip", contentClassName)}
+            >
+                <animated.div style={{ height }} >
+                    <div
+                        ref={contentRef}
+                    >
+                        <selectedTabObj.render />
+                    </div>
+                </animated.div>
+            </Box>
         </div>
     );
 }

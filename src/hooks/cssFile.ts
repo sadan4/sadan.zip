@@ -1,9 +1,9 @@
-import { useEffect } from "react";
+import { useInsertionEffect } from "react";
 
 export const cssMap = Object.create(null) as Record<string, [element: HTMLLinkElement, refCount: number]>;
 
 export function useCssFile(file: string): void {
-    useEffect(() => {
+    useInsertionEffect(() => {
         if (file in cssMap) {
             cssMap[file][1]++;
         } else {
