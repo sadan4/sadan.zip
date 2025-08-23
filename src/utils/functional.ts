@@ -19,3 +19,15 @@ export function clamp(min: number, max: number, num: number) {
 export function range(min, max) {
     return ((Math.random() * (max - min)) + min) | 0;
 }
+
+export function mapObject<T extends Object, U>(
+    obj: T,
+    fn: (value: T[keyof T], key: keyof T) => U,
+): { [K in keyof T]: U } {
+    const result = {} as { [K in keyof T]: U };
+
+    for (const key in obj) {
+        result[key] = fn(obj[key], key);
+    }
+    return result;
+}

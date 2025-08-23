@@ -1,4 +1,5 @@
 import cn from "@/utils/cn";
+import error from "@/utils/error";
 import { animated, useSpring } from "@react-spring/web";
 
 import { Clickable } from "./Clickable";
@@ -20,17 +21,17 @@ function xFromSwitchState(state: SwitchState): number {
         case SwitchState.HELD:
             return 12;
         default: {
-            throw new Error("unhandled state");
+            error("unhandled state");
         }
     }
 }
 
-export interface LoneSwitchProps {
+export interface SwitchProps {
     initialValue?: boolean;
     onChange?: (value: boolean) => void;
 }
 
-export function LoneSwitch({ initialValue = false, onChange }: LoneSwitchProps) {
+export function Switch({ initialValue = false, onChange }: SwitchProps) {
     const [enabled, setEnabled] = useState(initialValue);
     const [state, setState] = useState(initialValue ? SwitchState.ON : SwitchState.OFF);
 

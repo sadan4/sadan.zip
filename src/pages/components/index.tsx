@@ -4,10 +4,12 @@ import { Button } from "@/components/Button";
 import { DefaultFooter, FooterContainer } from "@/components/Footer";
 import { HorizontalLine } from "@/components/HorizontalLine";
 import { TabBar } from "@/components/layout/TabBar";
-import { LoneSwitch } from "@/components/Switch";
+import { Switch } from "@/components/Switch";
 import { Text } from "@/components/Text";
 import { keys } from "@/utils/array";
 import cn, { buttonColors } from "@/utils/cn";
+
+import { useState } from "react";
 
 
 // cspell:disable
@@ -17,6 +19,99 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum ut dui est. 
 In viverra eleifend tortor ultricies molestie. Duis ullamcorper, lacus ac vehicula malesuada, tortor leo rhoncus enim, eu tempor ipsum purus non ipsum. Integer rutrum ipsum sit amet ante laoreet malesuada. Morbi hendrerit vestibulum neque in dignissim. Pellentesque aliquet tempor sem non ultricies. Nulla ac imperdiet erat, sit amet finibus lacus. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Etiam ornare accumsan tellus, ac aliquet turpis imperdiet et.
 `;
 // cspell:enable
+
+function ManagedTabBar() {
+    const [section, setSection] = useState<"1" | "2" | "3">("1");
+
+    return (
+        <>
+            <TabBar
+                selectedTab={section}
+                tabs={[
+                    {
+                        id: "1",
+                        render() {
+                            return (
+                                <Text size="md">
+                                    This is the content of Tab 1.
+                                </Text>
+                            );
+                        },
+                        renderTab() {
+                            return (
+                                <Text
+                                    size="md"
+                                    noselect
+                                >
+                                    Tab 1
+                                </Text>
+                            );
+                        },
+                    },
+                    {
+                        id: "2",
+                        render() {
+                            return (
+                                <div>
+                                    <Text size="md">
+                                        This is the content of Tab 2.
+                                    </Text>
+                                </div>
+                            );
+                        },
+                        renderTab() {
+                            return (
+                                <Text
+                                    size="md"
+                                    noselect
+                                >
+                                    Tab 2
+                                </Text>
+                            );
+                        },
+                    },
+                    {
+                        id: "3",
+                        render() {
+                            return (
+                                <Text size="md">
+                                    This is the content of Tab 3.
+                                </Text>
+                            );
+                        },
+                        renderTab() {
+                            return (
+                                <Text
+                                    size="md"
+                                    noselect
+                                >
+                                    Tab 3
+                                </Text>
+                            );
+                        },
+                    },
+                ]}
+            />
+            <div className="flex justify-between mt-4">
+                <Button
+                    onClick={() => setSection("1")}
+                >
+                    Tab 1
+                </Button>
+                <Button
+                    onClick={() => setSection("2")}
+                >
+                    Tab 2
+                </Button>
+                <Button
+                    onClick={() => setSection("3")}
+                >
+                    Tab 3
+                </Button>
+            </div>
+        </>
+    );
+}
 
 function ExampleTabBar() {
     return (
@@ -75,7 +170,7 @@ function ExampleTabBar() {
                 {
                     id: "3",
                     render() {
-                        return <Text size="md">Tab 3 content</Text>;
+                        return <ManagedTabBar />;
                     },
                     renderTab() {
                         return (
@@ -83,7 +178,7 @@ function ExampleTabBar() {
                                 size="md"
                                 noselect
                             >
-                                Tab 3
+                                Managed TabBar
                             </Text>
                         );
                     },
@@ -96,7 +191,6 @@ function ExampleTabBar() {
 
 function ExampleButtons() {
     const border = false;
-    // const [border, setBorder] = useState(false);
 
 
     return (
@@ -158,7 +252,7 @@ function SwitchExample() {
                 </Text>
                 <div className="flex flex-row flex-wrap gap-4">
                     {Array.from({ length: 20 }, (_, i) => (
-                        <LoneSwitch
+                        <Switch
                             key={i}
                             initialValue={Math.random() > 0.5}
                         />

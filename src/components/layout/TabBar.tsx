@@ -1,10 +1,12 @@
-import { Box } from "@/components/Box";
+import { AnimatedBox } from "@/components/Box";
 import { Clickable } from "@/components/Clickable";
 import { Text } from "@/components/Text";
 import { VerticalLine } from "@/components/VerticalLine";
+import { useImperativeSprings } from "@/hooks/imperativeSprings";
 import { joinWithKey } from "@/utils/array";
 import cn from "@/utils/cn";
-import { animated, useSpring } from "@react-spring/web";
+import useResizeObserver from "@react-hook/resize-observer";
+import { animated } from "@react-spring/web";
 
 import invariant from "invariant";
 import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -84,6 +86,13 @@ function TabButton({
         }
     }, [isActive, setActiveTabRect]);
 
+    // fixes position of selected tab icon when zooming in/out
+    useResizeObserver(ref, () => {
+        if (isActive) {
+            setActiveTabRect(ref.current?.getBoundingClientRect());
+        }
+    });
+
     return (
         <Clickable
             className={cn(className)}
@@ -123,6 +132,8 @@ export function TabBar({
 
     const [tab, setTab] = useState(selectedTab ?? initialSelectedTab ?? (tabs[0]?.id || ""));
     const [activeTabRect, setActiveTabRect] = useState<DOMRect | undefined>();
+    const contentRef = useRef<HTMLDivElement>(null);
+    const lastIndicatorPos = useRef<DOMRect>(null);
 
     useEffect(() => {
         if (selectedTab) {
@@ -132,34 +143,29 @@ export function TabBar({
 
     const selectedTabObj = tabs.find(({ id }) => id === tab) ?? fallbackTab;
 
-
-    const [{ width, x, y }, focusBarApi] = useSpring(() => ({
+    const { x, y, width } = useImperativeSprings({
         x: 0,
-        width: 0,
         y: 0,
-        config: {
-        },
-    }));
+        width: 0,
+    });
 
     useLayoutEffect(() => {
         if (activeTabRect) {
             const size = activeTabRect;
 
             if (x.get() === 0) {
-                focusBarApi.set({
-                    width: size.width,
-                    x: size.x,
-                    y: size.y + size.height,
-                });
+                width.set(size.width);
+                y.set(size.y + size.height);
+                x.set(size.x);
+                lastIndicatorPos.current = size;
             } else {
-                focusBarApi.start({
-                    width: size.width,
-                    x: size.x,
-                    y: size.y + size.height,
-                });
+                width.start(size.width);
+                y.start(size.y + size.height);
+                x.start(size.x);
+                lastIndicatorPos.current = size;
             }
         }
-    }, [activeTabRect, focusBarApi, x]);
+    }, [activeTabRect, width, x, y]);
 
 
     return (
@@ -186,9 +192,13 @@ export function TabBar({
                     }}
                 />
             </div>
-            <Box className={cn("h-full", contentClassName)}>
-                <selectedTabObj.render />
-            </Box>
+            <AnimatedBox className={cn("h-full ", contentClassName)}>
+                <div
+                    ref={contentRef}
+                >
+                    <selectedTabObj.render />
+                </div>
+            </AnimatedBox>
         </div>
     );
 }
