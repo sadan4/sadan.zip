@@ -67,6 +67,7 @@ interface TabButtonProps {
     setActiveTabRect: (r?: DOMRect) => void;
     setActiveTab: (tabId: string) => void;
     onTabChange?: (tab: Tab) => void;
+    isManaged: boolean;
 }
 
 function TabButton({
@@ -76,6 +77,7 @@ function TabButton({
     setActiveTabRect,
     setActiveTab,
     onTabChange,
+    isManaged,
 }: TabButtonProps) {
     const isActive = tabProp.id === activeTabId;
     const ref = useRef<HTMLDivElement>(null);
@@ -95,18 +97,23 @@ function TabButton({
         }
     });
 
+
     return (
         <Clickable
             className={cn(className)}
             onClick={() => {
                 const isNew = tabProp.id !== activeTabId;
 
-                setActiveTab(tabProp.id);
+                if (!isManaged) {
+                    setActiveTab(tabProp.id);
+                }
                 if (isNew) {
                     try {
                         onTabChange?.(tabProp);
                     } finally {
-                        setActiveTabRect(ref.current?.getBoundingClientRect());
+                        if (!isManaged) {
+                            setActiveTabRect(ref.current?.getBoundingClientRect());
+                        }
                     }
                 }
             }}
@@ -137,6 +144,7 @@ export function TabBar({
     const contentRef = useRef<HTMLDivElement>(null);
     const lastIndicatorPos = useRef<DOMRect>(null);
     const initialRender = useRef(true);
+    const isManaged = selectedTab !== undefined;
 
 
     useEffect(() => {
@@ -205,6 +213,7 @@ export function TabBar({
                         setActiveTabRect={setActiveTabRect}
                         setActiveTab={setTab}
                         onTabChange={onTabChange}
+                        isManaged={isManaged}
                     />
                 )), (i) => (noSeparators ? null : <VerticalLine key={`vl-${i}`} />))}
                 <animated.div

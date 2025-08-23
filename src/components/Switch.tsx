@@ -3,9 +3,10 @@ import error from "@/utils/error";
 import { animated, useSpringValue } from "@react-spring/web";
 
 import { Clickable } from "./Clickable";
+import { type StandardTextProps, Text } from "./Text";
 
 import invariant from "invariant";
-import { useEffect, useState } from "react";
+import { type ComponentPropsWithRef, useEffect, useState } from "react";
 
 enum SwitchState {
     OFF,
@@ -125,6 +126,46 @@ export function Switch({ initialValue, value, onChange }: SwitchProps) {
                 />
             </svg>
         </Clickable>
+    );
+}
+
+export interface LabeledSwitchProps extends SwitchProps, Omit<ComponentPropsWithRef<"div">, "onChange" | "color">, Omit<StandardTextProps, "center"> {
+}
+export function LabeledSwitch({
+    initialValue,
+    className,
+    children,
+    value,
+    onChange,
+    noselect = true,
+    nowrap,
+    size = "md",
+    weight,
+    color,
+    ...props
+}: LabeledSwitchProps) {
+    return (
+        <div
+            className={cn("inline-flex items-center gap-3", className)}
+            {...props}
+        >
+            <div className="flex-[1_1_0]">
+                <Text
+                    noselect={noselect}
+                    nowrap={nowrap}
+                    size={size}
+                    weight={weight}
+                    color={color}
+                >
+                    {children}
+                </Text>
+            </div>
+            <Switch
+                initialValue={initialValue}
+                value={value}
+                onChange={onChange}
+            />
+        </div>
     );
 }
 

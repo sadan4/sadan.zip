@@ -51,6 +51,7 @@ export default function FriendCard({ friend }: FriendCardProps) {
                 color="info"
                 size="3xl"
                 key="name"
+                className="px-2"
             >
                 {friend.name}
             </Text>

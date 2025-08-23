@@ -7,12 +7,14 @@ import { type ComponentProps, createElement, type MouseEvent, type PropsWithChil
 
 export type TextTags = "div" | "span" | "p";
 
-
-export type TextProps<T extends TextTags> = PropsWithChildren<ComponentProps<T>> & TextStyleProps & {
-    tag?: T;
+export interface StandardTextProps extends TextStyleProps {
     noselect?: boolean;
     nowrap?: boolean;
     center?: boolean;
+}
+
+export type TextProps<T extends TextTags> = PropsWithChildren<ComponentProps<T>> & StandardTextProps & {
+    tag?: T;
 };
 
 export function Text<T extends TextTags = "div">(props: TextProps<T>) {

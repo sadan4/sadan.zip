@@ -55,7 +55,7 @@ export function Input({
     return (
         <input
             type="text"
-            name="demangled text input"
+            name="Text Input"
             className={cn("bg-bg-300 rounded-md px-3 py-2 w-full disabled:pointer-events-none disabled:cursor-not-allowed disabled:select-none disabled:opacity-50 outline-none transition-[color,box-shadow] focus-visible:ring-2 ring-2 ring-bg-fg-600/25 focus:ring-bg-fg-600", inputSizes[textSize ?? "md"], className)}
             onMouseOver={(e) => {
                 try {
@@ -190,6 +190,7 @@ function DefaultErrorMessage({ origCheck }: ErrorMessageProps) {
             tag="span"
             size="sm"
             className="flex gap-1 items-center"
+            noselect
         >
             <ErrorIcon height={18} />
             {msg}
