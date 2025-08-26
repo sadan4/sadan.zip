@@ -1,5 +1,6 @@
 import { useCssFile } from "@/hooks/cssFile";
 import { useCursorVisible } from "@/hooks/cursorVisible";
+import { useEventHandler } from "@/hooks/eventListener";
 import { useForceUpdater } from "@/hooks/forceUpdater";
 import cn from "@/utils/cn";
 import { clamp } from "@/utils/functional";
@@ -204,6 +205,7 @@ export default function BoundingCursor({
     }, [api, element, makeBarLengths, makeCursorPos, mouseX, mouseY, unHoveredRadius, dep]);
 
     useResizeObserver(element, updateElementSize);
+    useEventHandler("scroll", updateElementSize);
 
     const opacity = useSpringValue(0);
 

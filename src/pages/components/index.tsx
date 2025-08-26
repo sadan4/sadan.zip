@@ -9,8 +9,10 @@ import { TabBar } from "@/components/layout/TabBar";
 import { Marquee } from "@/components/Marquee";
 import { LabeledSwitch, Switch } from "@/components/Switch";
 import { Text } from "@/components/Text";
+import { LabeledTextArea, TextArea } from "@/components/TextArea";
 import { keys } from "@/utils/array";
 import cn, { buttonColors, textSize, textWeight } from "@/utils/cn";
+import guh from "./guh.module.css"
 
 import { useRef, useState } from "react";
 
@@ -116,7 +118,7 @@ function ManagedTabBar() {
     );
 }
 
-function ExampleTabBar() {
+function TabBarExample() {
     return (
         <>
             <Text
@@ -192,7 +194,7 @@ function ExampleTabBar() {
     );
 }
 
-function ExampleButtons() {
+function ButtonsExample() {
     const border = false;
 
 
@@ -221,7 +223,7 @@ function ExampleButtons() {
     );
 }
 
-function SelectionDropDown() {
+function SelectionExample() {
     return (
         <>
             <Text
@@ -491,36 +493,38 @@ function AccordionExample() {
                 Accordion Group, Only One Open
             </Text>
             <AccordionGroup>
-                <Accordion
-                    item={{
-                        id: "1",
-                        render() {
-                            return <Text size="md">This is the content of Accordion 1.</Text>;
-                        },
-                    }}
-                >
-                    <Text size="lg">Accordion 1</Text>
-                </Accordion>
-                <Accordion
-                    item={{
-                        id: "2",
-                        render() {
-                            return <Text size="md">This is the content of Accordion 2.</Text>;
-                        },
-                    }}
-                >
-                    <Text size="lg">Accordion 2</Text>
-                </Accordion>
-                <Accordion
-                    item={{
-                        id: "3",
-                        render() {
-                            return <Text size="md">This is the content of Accordion 3.</Text>;
-                        },
-                    }}
-                >
-                    <Text size="lg">Accordion 3</Text>
-                </Accordion>
+                <Box>
+                    <Accordion
+                        item={{
+                            id: "1",
+                            render() {
+                                return <Text size="md">This is the content of Accordion 1.</Text>;
+                            },
+                        }}
+                    >
+                        <Text size="lg">Accordion 1</Text>
+                    </Accordion>
+                    <Accordion
+                        item={{
+                            id: "2",
+                            render() {
+                                return <Text size="md">{lorem}</Text>;
+                            },
+                        }}
+                    >
+                        <Text size="lg">Accordion 2</Text>
+                    </Accordion>
+                    <Accordion
+                        item={{
+                            id: "3",
+                            render() {
+                                return <Text size="md">This is the content of Accordion 3.</Text>;
+                            },
+                        }}
+                    >
+                        <Text size="lg">Accordion 3</Text>
+                    </Accordion>
+                </Box>
             </AccordionGroup>
             <div className="flex items-center justify-between my-2">
                 <Text
@@ -540,37 +544,56 @@ function AccordionExample() {
                 onlyOneOpen={false}
                 ref={group2Ref}
             >
-                <Accordion
-                    item={{
-                        id: "1",
-                        render() {
-                            return <Text size="md">This is the content of Accordion 1.</Text>;
-                        },
-                    }}
-                >
-                    <Text size="lg">Accordion 1</Text>
-                </Accordion>
-                <Accordion
-                    item={{
-                        id: "2",
-                        render() {
-                            return <Text size="md">This is the content of Accordion 2.</Text>;
-                        },
-                    }}
-                >
-                    <Text size="lg">Accordion 2</Text>
-                </Accordion>
-                <Accordion
-                    item={{
-                        id: "3",
-                        render() {
-                            return <Text size="md">This is the content of Accordion 3.</Text>;
-                        },
-                    }}
-                >
-                    <Text size="lg">Accordion 3</Text>
-                </Accordion>
+                <Box>
+                    <Accordion
+                        item={{
+                            id: "1",
+                            render() {
+                                return <Text size="md">This is the content of Accordion 1.</Text>;
+                            },
+                        }}
+                    >
+                        <Text size="lg">Accordion 1</Text>
+                    </Accordion>
+                    <Accordion
+                        item={{
+                            id: "2",
+                            render() {
+                                return <Text size="md">{lorem}</Text>;
+                            },
+                        }}
+                    >
+                        <Text size="lg">Accordion 2</Text>
+                    </Accordion>
+                    <Accordion
+                        item={{
+                            id: "3",
+                            render() {
+                                return <Text size="md">This is the content of Accordion 3.</Text>;
+                            },
+                        }}
+                    >
+                        <Text size="lg">Accordion 3</Text>
+                    </Accordion>
+                </Box>
             </AccordionGroup>
+        </>
+    );
+}
+
+function TextAreaExample() {
+    return (
+        <>
+            <Text
+                size="xl"
+                center
+            >
+                Text Area
+            </Text>
+            <TextArea />
+            <LabeledTextArea resize="both">
+                Resizable
+            </LabeledTextArea>
         </>
     );
 }
@@ -590,19 +613,38 @@ export default function Components() {
                         Component Testing
                     </Text>
                     <Box className="mt-6 w-[40vw]">
-                        <ExampleTabBar />
+                        <TabBarExample />
                         <HorizontalLine className="my-4"/>
-                        <ExampleButtons />
+                        <ButtonsExample />
                         <HorizontalLine className="my-4" />
-                        <SelectionDropDown />
+                        <SelectionExample />
+                        <HorizontalLine className="my-4" />
+                        <Text
+                            size="xl"
+                            center
+                        >
+                            scroll thingie
+                        </Text>
+                        <div className={guh.what}>
+                            <Text
+                                size="lg"
+                                center
+                            >
+                                Black on hover
+                            </Text>
+                        </div>
+                        <HorizontalLine className="my-4" />
+                        <SelectionExample />
                         <HorizontalLine className="my-4" />
                         <SwitchExample />
+                        <HorizontalLine className="my-4" />
+                        <AccordionExample />
                         <HorizontalLine className="my-4" />
                         <InputExample />
                         <HorizontalLine className="my-4" />
                         <TextExample />
                         <HorizontalLine className="my-4" />
-                        <AccordionExample />
+                        <TextAreaExample />
                     </Box>
                 </div>
             </FooterContainer>

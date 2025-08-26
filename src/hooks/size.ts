@@ -30,5 +30,11 @@ export function useSize<T extends Element>(target: () => (T | null)): DOMRect | 
         forceUpdate();
     });
 
+    useEventHandler("scroll", () => {
+        setSize(targetRef.current()
+            ?.getBoundingClientRect());
+        forceUpdate();
+    });
+
     return size;
 }

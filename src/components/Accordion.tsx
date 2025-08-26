@@ -2,7 +2,7 @@ import { useForceUpdater } from "@/hooks/forceUpdater";
 import cn from "@/utils/cn";
 import { animated, useSpringValue } from "@react-spring/web";
 
-import { Box } from "./Box";
+import { AnimateHeight } from "./effects/AnimateHeight";
 import { Clickable } from "./Clickable";
 
 import { createContext, type PropsWithChildren, type ReactNode, type Ref, useContext, useEffect, useImperativeHandle, useState } from "react";
@@ -22,14 +22,14 @@ interface AccordionContext {
     toggleActiveItem(id: string): void;
     getActiveItem(): string | undefined;
     isActive(id: string): boolean | undefined;
-    effectAndCloseWhenChangeAndNotZero: number;
+    closeAllTrigger: number;
 }
 
 const AccordionContext = createContext<AccordionContext | null>(null);
 
 export function Accordion({ item: { id, render: Render }, children, className, initialOpen }: AccordionProps) {
     const [active, setActive] = useState(initialOpen ?? false);
-    const accordionApi = useContext(AccordionContext);
+    const groupCtx = useContext(AccordionContext);
 
     const rotation = useSpringValue(active ? 180 : 0, {
         config: {
@@ -39,42 +39,41 @@ export function Accordion({ item: { id, render: Render }, children, className, i
     });
 
     useEffect(() => {
-        const num = accordionApi?.effectAndCloseWhenChangeAndNotZero;
+        const num = groupCtx?.closeAllTrigger;
 
         if (num !== undefined && num !== 0) {
             setActive(false);
         }
-    }, [accordionApi?.effectAndCloseWhenChangeAndNotZero]);
+    }, [groupCtx?.closeAllTrigger]);
 
     useEffect(() => {
         rotation.start(active ? 180 : 0);
     }, [active, rotation]);
 
     useEffect(() => {
-        if (!accordionApi) {
+        if (!groupCtx) {
             return;
         }
 
-        const isActive = accordionApi.isActive(id);
+        const isActive = groupCtx.isActive(id);
 
         if (isActive != null) {
             setActive(isActive);
         }
-    }, [accordionApi, id]);
+    }, [groupCtx, id]);
 
     return (
-        <Box className={cn(className)}>
+        <div className={cn(className)}>
             <Clickable
-                // -mb-2 to offset box looking weird
-                className="flex items-center justify-between py-2 pr-2 -mb-2"
+                className="flex items-center justify-between py-2 pr-2"
                 onMouseDown={(e) => {
                     if (e.detail > 1) {
                         e.preventDefault();
                     }
                 }}
                 onClick={() => {
-                    if (accordionApi) {
-                        accordionApi.toggleActiveItem(id);
+                    if (groupCtx) {
+                        groupCtx.toggleActiveItem(id);
                     }
                     setActive((prev) => !prev);
                 }}
@@ -95,10 +94,15 @@ export function Accordion({ item: { id, render: Render }, children, className, i
                     />
                 </animated.svg>
             </Clickable>
-            <div>
-                {active && <Render />}
-            </div>
-        </Box>
+            <AnimateHeight>
+                <div style={{
+                    height: active ? "auto" : 0,
+                }}
+                >
+                    <Render />
+                </div>
+            </AnimateHeight>
+        </div>
     );
 }
 
@@ -147,7 +151,7 @@ export function AccordionGroup({ children, onlyOneOpen = true, ref }: AccordionG
             }
             return activeItemId === id;
         },
-        effectAndCloseWhenChangeAndNotZero: dep,
+        closeAllTrigger: dep,
     };
 
     return (

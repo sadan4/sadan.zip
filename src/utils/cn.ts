@@ -4,6 +4,17 @@ export const cn = classNames;
 
 export default cn;
 
+export const resizeClasses = {
+    none: "resize-none",
+    x: "resize-x",
+    y: "resize-y",
+    both: "resize",
+};
+
+export interface ResizeProp {
+    resize?: keyof typeof resizeClasses;
+}
+
 export const buttonColors = {
     primary: "bg-primary active:bg-primary/65 hover:bg-primary/80 disabled:bg-primary/80",
     secondary: "bg-secondary active:bg-secondary/65 hover:bg-secondary/80 disabled:bg-secondary/80",

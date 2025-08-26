@@ -2,9 +2,9 @@ import { useDebouncedFn } from "@/hooks/debouncedFn";
 import cn, { textColors, textSize, textWeight } from "@/utils/cn";
 import error from "@/utils/error";
 import { updateRef } from "@/utils/ref";
-import { animated, useSpringValue } from "@react-spring/web";
 
 import { useCursorContextStore } from "./Cursor/cursorContextStore";
+import { AnimateHeight } from "./effects/AnimateHeight";
 import { ErrorIcon } from "./icons/ErrorIcon";
 import { Text } from "./Text";
 
@@ -220,6 +220,7 @@ export interface CheckedInputProps extends Omit<InputProps, "onChange">, PropsWi
     onInvalidChange?: (e: ChangeEvent<HTMLInputElement> | undefined, value: string) => void;
     debounce?: number;
     wrapperClassName?: string;
+    checkInitialRender?: boolean;
 }
 
 
@@ -246,30 +247,16 @@ export function CheckedInput({
     onInvalidChange,
     disabled = false,
     debounce = 100,
+    checkInitialRender: _checkInitialRender = true,
     ref: _ref,
     ...props
 }: CheckedInputProps) {
     const [error, setError] = useState<ReactNode>(null);
     const ref = useRef<HTMLInputElement>(null);
-    const checkInitialRender = useRef(true);
-    const animateInitialRender = useRef(true);
-    const errorRef = useRef<HTMLDivElement>(null);
+    const checkInitialRender = useRef(_checkInitialRender);
     const hasError = !!error;
-    const height = useSpringValue(0);
 
-    useEffect(() => {
-        if (errorRef.current) {
-            const size = errorRef.current.getBoundingClientRect();
-
-            if (animateInitialRender.current) {
-                height.set(size.height);
-                animateInitialRender.current = false;
-            } else {
-                height.start(size.height);
-            }
-        }
-    });
-
+    // validate on initial render
     useEffect(() => {
         if (ref.current) {
             checkInitialRender.current = false;
@@ -333,14 +320,13 @@ export function CheckedInput({
                 onChange={handleChange}
                 disabled={disabled}
             />
-            <animated.div style={{ height }}>
+            <AnimateHeight>
                 <div
-                    ref={errorRef}
                     className={cn(disabled && "opacity-50")}
                 >
                     {error}
                 </div>
-            </animated.div>
+            </AnimateHeight>
         </div>
     );
 }

@@ -9,6 +9,7 @@ import useResizeObserver from "@react-hook/resize-observer";
 import { animated, useSpringValue } from "@react-spring/web";
 
 import { Box } from "../Box";
+import { AnimateHeight } from "../effects/AnimateHeight";
 
 import invariant from "invariant";
 import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -141,7 +142,6 @@ export function TabBar({
 
     const [tab, setTab] = useState(selectedTab ?? initialSelectedTab ?? (tabs[0]?.id || ""));
     const [activeTabRect, setActiveTabRect] = useState<DOMRect | undefined>();
-    const contentRef = useRef<HTMLDivElement>(null);
     const lastIndicatorPos = useRef<DOMRect>(null);
     const initialRender = useRef(true);
     const isManaged = selectedTab !== undefined;
@@ -164,22 +164,6 @@ export function TabBar({
     const height = useSpringValue(0);
     const [dep, updateBoxHeight] = useForceUpdater();
 
-    useResizeObserver(contentRef, () => {
-        updateBoxHeight();
-    });
-
-    useLayoutEffect(() => {
-        if (contentRef.current) {
-            const size = contentRef.current.getBoundingClientRect();
-
-            if (initialRender.current) {
-                initialRender.current = false;
-                height.set(size.height);
-            } else {
-                height.start(size.height);
-            }
-        }
-    }, [activeTabRect, height, dep]);
 
     useLayoutEffect(() => {
         if (activeTabRect) {
@@ -228,13 +212,9 @@ export function TabBar({
             <Box
                 className={cn("h-full overflow-clip", contentClassName)}
             >
-                <animated.div style={{ height }} >
-                    <div
-                        ref={contentRef}
-                    >
-                        <selectedTabObj.render />
-                    </div>
-                </animated.div>
+                <AnimateHeight>
+                    <selectedTabObj.render />
+                </AnimateHeight>
             </Box>
         </div>
     );
