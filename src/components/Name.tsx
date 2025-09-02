@@ -122,7 +122,7 @@ export default function Name() {
             }}
         >
             <Typewriter
-                className="mt-6 mb-6 min-h-10 break-words text-balance"
+                className="mt-6 mb-6 min-h-10 break-words text-balance flex justify-center"
                 initialContent="sadan"
                 onTypingStateChange={(prevState) => {
                     setTyping(prevState);
