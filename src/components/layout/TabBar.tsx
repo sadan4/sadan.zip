@@ -1,12 +1,11 @@
 import { Clickable } from "@/components/Clickable";
 import { Text } from "@/components/Text";
 import { VerticalLine } from "@/components/VerticalLine";
-import { useForceUpdater } from "@/hooks/forceUpdater";
 import { useImperativeSprings } from "@/hooks/imperativeSprings";
 import { joinWithKey } from "@/utils/array";
 import cn from "@/utils/cn";
 import useResizeObserver from "@react-hook/resize-observer";
-import { animated, useSpringValue } from "@react-spring/web";
+import { animated } from "@react-spring/web";
 
 import { Box } from "../Box";
 import { AnimateHeight } from "../effects/AnimateHeight";
@@ -143,7 +142,6 @@ export function TabBar({
     const [tab, setTab] = useState(selectedTab ?? initialSelectedTab ?? (tabs[0]?.id || ""));
     const [activeTabRect, setActiveTabRect] = useState<DOMRect | undefined>();
     const lastIndicatorPos = useRef<DOMRect>(null);
-    const initialRender = useRef(true);
     const isManaged = selectedTab !== undefined;
 
 
@@ -160,10 +158,6 @@ export function TabBar({
         y: 0,
         width: 0,
     });
-
-    const height = useSpringValue(0);
-    const [dep, updateBoxHeight] = useForceUpdater();
-
 
     useLayoutEffect(() => {
         if (activeTabRect) {

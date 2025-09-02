@@ -1,26 +1,27 @@
-import cn from "@/utils/cn";
-import type { ComponentPropsWithRef } from "react";
+// import cn from "@/utils/cn";
 
-export enum ScrollAreaType {
-    AUTO,
-    ALWAYS,
-    SCROLL,
-    HIDDEN,
-}
+// import type { ComponentPropsWithRef } from "react";
 
-export interface ScrollAreaProps extends ComponentPropsWithRef<"div"> {
-    type?: ScrollAreaType;
-    hideDelay?: number;
-}
+// export enum ScrollAreaType {
+//     AUTO,
+//     ALWAYS,
+//     SCROLL,
+//     HIDDEN,
+// }
 
-export function ScrollArea({ type, hideDelay = 600, children, className, ...props }: ScrollAreaProps) {
-    return (
-        <div
-            className={cn("min-w-full table", className)}
-            {...props}
-        >
-            {children}
-        </div>
-    );
-}
+// export interface ScrollAreaProps extends ComponentPropsWithRef<"div"> {
+//     type?: ScrollAreaType;
+//     hideDelay?: number;
+// }
+
+// export function ScrollArea({ type, hideDelay = 600, children, className, ...props }: ScrollAreaProps) {
+//     return (
+//         <div
+//             className={cn("min-w-full table", className)}
+//             {...props}
+//         >
+//             {children}
+//         </div>
+//     );
+// }
 
