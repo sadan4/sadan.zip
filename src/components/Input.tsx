@@ -5,7 +5,9 @@ import { updateRef } from "@/utils/ref";
 
 import { useCursorContextStore } from "./Cursor/cursorContextStore";
 import { AnimateHeight } from "./effects/AnimateHeight";
+import Close from "./icons/Close";
 import { ErrorIcon } from "./icons/ErrorIcon";
+import { Clickable } from "./Clickable";
 import { Text } from "./Text";
 
 import { type ChangeEvent, type ChangeEventHandler, type ComponentProps, type PropsWithChildren, type ReactNode, useEffect, useRef, useState } from "react";
@@ -23,7 +25,8 @@ export interface InputProps extends ComponentProps<"input"> {
     textSize?: keyof typeof inputSizes;
     initialValue?: string;
     onChange: ChangeEventHandler<HTMLInputElement>;
-
+    clearButton?: boolean;
+    onClear?: () => void;
 }
 
 export function Input({
@@ -34,11 +37,15 @@ export function Input({
     ref: _ref,
     initialValue,
     value,
+    onClear = () => { },
+    onChange,
+    clearButton = false,
     ...props
 }: InputProps) {
     const shouldNullOnDemount = useRef(false);
     const ref = useRef<HTMLInputElement>(null);
     const isManaged = value !== undefined;
+    const [hasValue, setHasValue] = useState(Boolean(initialValue ?? value));
 
     useEffect(() => {
         if (shouldNullOnDemount.current) {
@@ -53,39 +60,70 @@ export function Input({
         }
     }, [initialValue, isManaged]);
     return (
-        <input
-            type="text"
-            name="Text Input"
-            className={cn("bg-bg-300 rounded-md px-3 py-2 w-full disabled:pointer-events-none disabled:cursor-not-allowed disabled:select-none disabled:opacity-50 outline-none transition-[color,box-shadow] focus-visible:ring-2 ring-2 ring-bg-fg-600/25 focus:ring-bg-fg-600", inputSizes[textSize ?? "md"], className)}
-            onMouseOver={(e) => {
-                try {
-                    onMouseOver?.(e);
-                } catch (e) {
-                    console.error("Error occurred in onMouseOver:", e);
-                }
-                shouldNullOnDemount.current = true;
-                useCursorContextStore
-                    .getState()
-                    .updateTextElement(e.nativeEvent.target as Element);
-            }}
-            onMouseOut={(e) => {
-                try {
-                    onMouseOut?.(e);
-                } catch (e) {
-                    console.error("Error occurred in onMouseOut:", e);
-                }
-                shouldNullOnDemount.current = false;
-                useCursorContextStore
-                    .getState()
-                    .updateTextElement(null);
-            }}
-            value={value}
-            {...props}
-            ref={(e) => {
-                updateRef(ref, e);
-                updateRef(_ref, e);
-            }}
-        />
+        <div className="relative">
+            <input
+                type="text"
+                name="Text Input"
+                className={cn("bg-bg-300 rounded-md px-3 py-2 w-full disabled:pointer-events-none disabled:cursor-not-allowed disabled:select-none disabled:opacity-50 outline-none transition-[color,box-shadow] focus-visible:ring-2 ring-2 ring-bg-fg-600/25 focus:ring-bg-fg-600", inputSizes[textSize ?? "md"], className)}
+                onMouseOver={(e) => {
+                    try {
+                        onMouseOver?.(e);
+                    } catch (e) {
+                        console.error("Error occurred in onMouseOver:", e);
+                    }
+                    shouldNullOnDemount.current = true;
+                    useCursorContextStore
+                        .getState()
+                        .updateTextElement(e.nativeEvent.target as Element);
+                }}
+                onMouseOut={(e) => {
+                    try {
+                        onMouseOut?.(e);
+                    } catch (e) {
+                        console.error("Error occurred in onMouseOut:", e);
+                    }
+                    shouldNullOnDemount.current = false;
+                    useCursorContextStore
+                        .getState()
+                        .updateTextElement(null);
+                }}
+                onChange={(e) => {
+                    onChange(e);
+                    setHasValue(Boolean(e.target.value));
+                }}
+                value={value}
+                {...props}
+                ref={(e) => {
+                    updateRef(ref, e);
+                    updateRef(_ref, e);
+                }}
+            />
+            {
+                clearButton && hasValue && (
+                    <div className="pointer-events-none absolute top-0 left-0 w-full h-full flex items-center flex-row-reverse pr-2" >
+                        <Clickable
+                            className="pointer-events-auto p-2 -mr-2"
+                            onClick={() => {
+                                if (isManaged) {
+                                    onClear();
+                                } else if (ref.current) {
+                                    ref.current.value = "";
+                                    ref.current.focus();
+                                    onClear();
+                                }
+                                setHasValue(false);
+                            }}
+                        >
+                            <Close
+                                height={16}
+                                width={16}
+                                className="fill-bg-fg-600"
+                            />
+                        </Clickable>
+                    </div>
+                )
+            }
+        </div>
     );
 }
 export interface LabeledInputProps extends InputProps, PropsWithChildren {

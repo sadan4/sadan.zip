@@ -1,10 +1,12 @@
 import type { ComponentProps } from "react";
 
-function Close(props: ComponentProps<"svg">) {
+function Close({ width = 24, height = 24, ...props }: ComponentProps<"svg">) {
     return (
         <svg
             xmlns="http://www.w3.org/2000/svg"
             version="1.1"
+            width={width}
+            height={height}
             {...props}
             viewBox="0 0 50 50"
         >

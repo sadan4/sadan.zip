@@ -6,9 +6,10 @@ import { type PropsWithChildren, useEffect, useRef } from "react";
 
 export interface AnimateHeightProps extends PropsWithChildren {
     animateInitialHeight?: boolean;
+    show?: boolean;
 }
 
-export function AnimateHeight({ children, animateInitialHeight = false }: AnimateHeightProps) {
+export function AnimateHeight({ children, animateInitialHeight = false, show = true }: AnimateHeightProps) {
     const ref = useRef<HTMLDivElement>(null);
     const initialRender = useRef(!animateInitialHeight);
     const height = useSpringValue(0);
@@ -35,7 +36,13 @@ export function AnimateHeight({ children, animateInitialHeight = false }: Animat
             className="overflow-hidden"
         >
             <div ref={ref}>
-                {children}
+                <div
+                    style={{
+                        height: show ? "auto" : 0,
+                    }}
+                >
+                    {children}
+                </div>
             </div>
         </animated.div>
     );

@@ -52,6 +52,16 @@ const router = createBrowserRouter([
                     };
                 },
             },
+            {
+                path: "discord-intl",
+                async lazy() {
+                    const Component = (await import("./pages/discord-intl")).default;
+
+                    return {
+                        Component,
+                    };
+                },
+            },
         ],
     },
 ]);

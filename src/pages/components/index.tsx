@@ -12,7 +12,8 @@ import { Text } from "@/components/Text";
 import { LabeledTextArea, TextArea } from "@/components/TextArea";
 import { keys } from "@/utils/array";
 import cn, { buttonColors, textSize, textWeight } from "@/utils/cn";
-import guh from "./guh.module.css"
+
+import guh from "./guh.module.css";
 
 import { useRef, useState } from "react";
 
@@ -339,6 +340,14 @@ function InputExample() {
                     initialValue="Initial Value"
                 >
                     With Initial Value
+                </LabeledInput>
+                <LabeledInput
+                    onChange={() => { }}
+                    placeholder="Placeholder"
+                    initialValue="Initial Value"
+                    clearButton
+                >
+                    With Clear Button
                 </LabeledInput>
                 <LabeledInput
                     onChange={() => { }}
