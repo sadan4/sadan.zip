@@ -19,7 +19,7 @@ export default function DiscordIntlLookup() {
 
     return (
         <>
-            <Boilerplate />
+            <Boilerplate noCursor />
             <FooterContainer footer={() => <DefaultFooter />}>
                 <div className="flex justify-center mt-6">
                     <Box className="w-1/2">
@@ -50,23 +50,44 @@ export default function DiscordIntlLookup() {
                             <AnimateHeight
                                 show={!!search}
                             >
-                                <div className={cn("flex items-center justify-between transition-colors")}>
-                                    <Text
-                                        color={result != null ? "success" : "error"}
-                                    >
-                                        {result ?? "No result :("}
-                                    </Text>
-                                    {
-                                        result
-                                        && (
-                                            <Button onClick={() => {
-                                                copy(result);
-                                            }}
-                                            >
-                                                Copy to Clipboard
-                                            </Button>
-                                        )
-                                    }
+                                <div className="flex flex-col gap-2">
+                                    <div className={cn("flex items-center justify-between transition-colors")}>
+                                        <Text
+                                            color={result != null ? "success" : "error"}
+                                        >
+                                            {result ?? "No result :("}
+                                        </Text>
+                                        {
+                                            result
+                                            && (
+                                                <Button onClick={() => {
+                                                    copy(result);
+                                                }}
+                                                >
+                                                    Copy to Clipboard
+                                                </Button>
+                                            )
+                                        }
+                                    </div>
+                                    <div className={cn("flex items-center justify-between transition-colors")}>
+                                        <Text
+                                            color={result != null ? "success" : "error"}
+                                            className="overflow-clip text-nowrap max-w-6/10"
+                                        >
+                                            #{"{"}intl::{result ?? "No result :("}{"}"}
+                                        </Text>
+                                        {
+                                            result
+                                            && (
+                                                <Button onClick={() => {
+                                                    copy(`#{intl::${result}}`);
+                                                }}
+                                                >
+                                                    Copy Vencord Find
+                                                </Button>
+                                            )
+                                        }
+                                    </div>
                                 </div>
                             </AnimateHeight>
                         </div>
