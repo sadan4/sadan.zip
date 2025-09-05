@@ -5,8 +5,8 @@ import { animated, useTransition } from "@react-spring/web";
 
 import { SYM_INTERNAL_KEY, useModalStackStore } from "./internal/modalStackStore";
 import { ModalContext } from "./context";
-import styles from "./style.module.css";
 import { exitModalKeybinds } from ".";
+import z from "../z";
 
 import { type BaseSyntheticEvent, useCallback, useEffect, useRef } from "react";
 
@@ -74,7 +74,7 @@ export default function ModalRenderRoot() {
             <animated.div
                 ref={setRef}
                 style={style}
-                className={cn("absolute top-0 left-0 w-full h-full z-100 bg-black/70", styles.modalRoot)}
+                className={cn("absolute top-0 left-0 w-full h-full bg-black/70", z.modal)}
                 tabIndex={-1}
                 onClick={closeModal}
             >

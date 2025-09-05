@@ -134,7 +134,7 @@ export default function FriendModal() {
 
     return (
         <div
-            className="top-0 left-0 fixed w-full h-full z-101"
+            className="top-0 left-0 fixed w-full h-full"
             onWheel={(e) => {
                 console.log("scroll", e);
             }}

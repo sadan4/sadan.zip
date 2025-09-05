@@ -1,9 +1,8 @@
-import { useForceUpdater } from "@/hooks/forceUpdater";
 import cn from "@/utils/cn";
+import { Clickable } from "@components/Clickable";
+import { AnimateHeight } from "@effects/AnimateHeight";
+import { useForceUpdater } from "@hooks/forceUpdater";
 import { animated, useSpringValue } from "@react-spring/web";
-
-import { AnimateHeight } from "./effects/AnimateHeight";
-import { Clickable } from "./Clickable";
 
 import { createContext, type PropsWithChildren, type ReactNode, type Ref, useContext, useEffect, useImperativeHandle, useState } from "react";
 

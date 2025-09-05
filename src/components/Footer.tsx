@@ -1,4 +1,4 @@
-import { Text } from "@/components/Text";
+import { Text } from "@components/Text";
 
 import { SourceLink, ThemeLink } from "./Links";
 import { joinWithKey } from "../utils/array";

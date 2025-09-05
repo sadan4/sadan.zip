@@ -1,15 +1,14 @@
 import avatar from "@/assets/avatar.webp";
-import BorderHoldCircular from "@/components/effects/BorderHold/Circular";
-import { useSize } from "@/hooks/size";
 import cn from "@/utils/cn";
 import { friends } from "@/utils/friends";
 import { once } from "@/utils/functional";
-
-import PerspectiveHover from "./effects/PerspectiveHover";
-import Shadow from "./effects/Shadow";
-import { useFriendModalCenterStore } from "./modals/Friend/friendModalCenterStore";
-import { Clickable } from "./Clickable";
-import { openModal } from "./modal";
+import { Clickable } from "@components/Clickable";
+import { openModal } from "@components/modal";
+import { useFriendModalCenterStore } from "@components/modals/Friend/friendModalCenterStore";
+import BorderHoldCircular from "@effects/BorderHold/Circular";
+import PerspectiveHover from "@effects/PerspectiveHover";
+import Shadow from "@effects/Shadow";
+import { useSize } from "@hooks/size";
 
 import { type ComponentProps, useEffect, useRef } from "react";
 

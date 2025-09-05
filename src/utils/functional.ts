@@ -31,3 +31,7 @@ export function mapObject<T extends Object, U>(
     }
     return result;
 }
+
+export function prop<O extends object, K extends keyof O>(key: K): (obj: O) => O[K] {
+    return (obj) => obj[key];
+}

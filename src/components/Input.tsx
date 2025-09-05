@@ -1,12 +1,13 @@
-import { useDebouncedFn } from "@/hooks/debouncedFn";
 import cn, { textColors, textSize, textWeight } from "@/utils/cn";
 import error from "@/utils/error";
 import { updateRef } from "@/utils/ref";
+import { useCursorContextStore } from "@components/Cursor/cursorContextStore";
+import { AnimateHeight } from "@effects/AnimateHeight";
+import { useDebouncedFn } from "@hooks/debouncedFn";
 
-import { useCursorContextStore } from "./Cursor/cursorContextStore";
-import { AnimateHeight } from "./effects/AnimateHeight";
 import Close from "./icons/Close";
 import { ErrorIcon } from "./icons/ErrorIcon";
+import border from "./border";
 import { Clickable } from "./Clickable";
 import { Text } from "./Text";
 
@@ -64,7 +65,7 @@ export function Input({
             <input
                 type="text"
                 name="Text Input"
-                className={cn("bg-bg-300 rounded-md px-3 py-2 w-full disabled:pointer-events-none disabled:cursor-not-allowed disabled:select-none disabled:opacity-50 outline-none transition-[color,box-shadow] focus-visible:ring-2 ring-2 ring-bg-fg-600/25 focus:ring-bg-fg-600", inputSizes[textSize ?? "md"], className)}
+                className={cn("bg-bg-300 rounded-md px-3 py-2 w-full disabled:pointer-events-none disabled:cursor-not-allowed disabled:select-none disabled:opacity-50", inputSizes[textSize ?? "md"], border.compose("interactive", "autofocus", "animate"), className)}
                 onMouseOver={(e) => {
                     try {
                         onMouseOver?.(e);

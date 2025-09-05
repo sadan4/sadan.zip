@@ -7,13 +7,12 @@ import { HorizontalLine } from "@/components/HorizontalLine";
 import { CheckedInput, Input, LabeledInput } from "@/components/Input";
 import { TabBar } from "@/components/layout/TabBar";
 import { Marquee } from "@/components/Marquee";
+import { Select, type SelectOption } from "@/components/Select";
 import { LabeledSwitch, Switch } from "@/components/Switch";
 import { Text } from "@/components/Text";
 import { LabeledTextArea, TextArea } from "@/components/TextArea";
 import { keys } from "@/utils/array";
 import cn, { buttonColors, textSize, textWeight } from "@/utils/cn";
-
-import guh from "./guh.module.css";
 
 import { useRef, useState } from "react";
 
@@ -224,7 +223,28 @@ function ButtonsExample() {
     );
 }
 
-function SelectionExample() {
+function SelectExample() {
+    const selectionItems = [
+        {
+            label: "foo",
+            value: "foo",
+            key: "foo",
+            typedValue: "foo",
+        },
+        {
+            label: "bar",
+            value: "bar",
+            key: "bar",
+            typedValue: "bar",
+        },
+        {
+            label: "baz",
+            value: "baz",
+            key: "baz",
+            typedValue: "baz",
+        },
+    ] as const satisfies SelectOption<PropertyKey>[];
+
     return (
         <>
             <Text
@@ -233,9 +253,76 @@ function SelectionExample() {
             >
                 Selection Menu
             </Text>
-            <Text size="xl">
-                TODO
+            <Select
+                items={selectionItems}
+                defaultValue="bar"
+            />
+            <Text size="lg">
+                Stay Open After Selection
             </Text>
+            <Select
+                items={selectionItems}
+                defaultValue="bar"
+                closeOnSelect={false}
+            />
+            <Text size="lg">
+                Custom Label
+            </Text>
+            <Select
+                items={selectionItems}
+                defaultValue="bar"
+                customChildren
+            >
+                <div className="flex items-center">
+                    <Marquee className="w-fit">Custom Label</Marquee>
+                </div>
+            </Select>
+            <Text size="lg">
+                Custom Entries
+            </Text>
+            <Select
+                items={[
+                    {
+                        label: (
+                            <Text
+                                size="sm"
+                                color="accent"
+                            >
+                                Entry 1
+                            </Text>
+                        ),
+                        value: "entry1",
+                        typedValue: "entry 1",
+
+                    },
+                    {
+                        label: (
+                            <Text
+                                size="lg"
+                                color="error"
+                            >
+                                Entry 2
+                            </Text>
+                        ),
+                        value: "entry2",
+                        typedValue: "entry 2",
+                    },
+                    {
+                        label: (
+                            <Text
+                                size="md"
+                                weight="extraBold"
+                                color="info"
+                            >
+                                Entry 3
+                            </Text>
+                        ),
+                        value: "entry3",
+                        typedValue: "entry 3",
+                    },
+                ]}
+                defaultValue="entry2"
+            />
         </>
     );
 }
@@ -626,24 +713,7 @@ export default function Components() {
                         <HorizontalLine className="my-4"/>
                         <ButtonsExample />
                         <HorizontalLine className="my-4" />
-                        <SelectionExample />
-                        <HorizontalLine className="my-4" />
-                        <Text
-                            size="xl"
-                            center
-                        >
-                            scroll thingie
-                        </Text>
-                        <div className={guh.what}>
-                            <Text
-                                size="lg"
-                                center
-                            >
-                                Black on hover
-                            </Text>
-                        </div>
-                        <HorizontalLine className="my-4" />
-                        <SelectionExample />
+                        <SelectExample />
                         <HorizontalLine className="my-4" />
                         <SwitchExample />
                         <HorizontalLine className="my-4" />

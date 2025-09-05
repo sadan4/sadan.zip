@@ -28,6 +28,28 @@ export const buttonColors = {
     error: "bg-error active:bg-error/65 hover:bg-error/80 disabled:bg-error/80",
 } as const;
 
+export const bgColors = {
+    black: "bg-bg-100",
+    "black-200": "bg-bg-200",
+    "black-300": "bg-bg-300",
+    white: "bg-bg-fg",
+    "white-600": "bg-bg-fg-600",
+    "white-700": "bg-bg-fg-700",
+    "white-800": "bg-bg-fg-800",
+    "white-900": "bg-bg-fg-900",
+    primary: "bg-primary",
+    secondary: "bg-secondary",
+    accent: "bg-accent",
+    neutral: "bg-neutral",
+    "neutral-content": "bg-neutral-content",
+    info: "bg-info",
+    "info-600": "bg-info-600",
+    "info-700": "bg-info-700",
+    success: "bg-success",
+    warning: "bg-warning",
+    error: "bg-error",
+} as const;
+
 
 export const buttonTextColors: Record<keyof typeof buttonColors, keyof typeof textColors> = {
     primary: "black",
@@ -106,4 +128,12 @@ export interface ColorProp {
 
 export interface TextStyleProps extends SizeProp, WeightProp, ColorProp {
 
+}
+
+export function createCompose<T extends Record<string, string>>(classes: T) {
+    return function compose<K extends keyof T>(...keys: K[]): string {
+        return keys
+            .map((k) => classes[k])
+            .join(" ");
+    };
 }

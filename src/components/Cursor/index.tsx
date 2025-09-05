@@ -3,7 +3,7 @@ import { useEventHandler } from "@/hooks/eventListener";
 import cn from "@/utils/cn";
 
 import noCursorStyle from "./hideNativeCursor.css?url";
-import styles from "./styles.module.css";
+import z from "../z";
 
 import { type CSSProperties, type ReactNode, useCallback, useRef } from "react";
 
@@ -46,7 +46,7 @@ export default function Cursor({ className = "", children }: AnimatedCursorProps
 
     return (
         <div
-            className={cn(styles.cursorZ, "fixed pointer-events-none -translate-1/2", className)}
+            className={cn(z.cursor, "fixed pointer-events-none -translate-1/2", className)}
             ref={cursorRef}
         >
             {children}
