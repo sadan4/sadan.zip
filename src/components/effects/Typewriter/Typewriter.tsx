@@ -1,7 +1,7 @@
+import { Clickable } from "@/components/Clickable";
 import { sleep } from "@/utils/async";
 
-import { Clickable } from "./Clickable";
-import { defaultEraser } from "./typewriterUtils";
+import { defaultEraser } from "./utils";
 
 import { type ComponentPropsWithoutRef, type ReactNode, type Ref, type RefObject, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 
@@ -32,7 +32,7 @@ function isTypewriterSource(source: any): source is TypewriterSource {
 }
 
 
-export default function Typewriter({ ref, initialContent, onTypingStateChange, ...props }: TypewriterProps) {
+export function Typewriter({ ref, initialContent, onTypingStateChange, ...props }: TypewriterProps) {
     // const [typing, setTyping] = useState(false);
     const typing = useRef(false);
     const eraser = useRef<TypewriterSource["erase"]>(defaultEraser);

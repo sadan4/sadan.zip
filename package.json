@@ -32,7 +32,6 @@
     "react-router": "^7.8.1",
     "react-use-measure": "^2.1.7",
     "tailwindcss": "^4.1.8",
-    "wrangler": "^4.32.0",
     "zustand": "^5.0.5"
   },
   "devDependencies": {
@@ -69,6 +68,9 @@
     "vite-tsconfig-paths": "^5.1.4",
     "vitest": "^3.2.4",
     "vitest-browser-react": "^1.0.1"
+  },
+  "optionalDependencies": {
+    "wrangler": "^4.32.0"
   },
   "packageManager": "pnpm@9.15.2+sha512.93e57b0126f0df74ce6bff29680394c0ba54ec47246b9cf321f0121d8d9bb03f750a705f24edc3c1180853afd7c2c3b94196d0a3d53d3e069d9e2793ef11f321"
 }

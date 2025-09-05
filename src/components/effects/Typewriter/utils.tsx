@@ -1,5 +1,6 @@
-import { Text, type TextProps, type TextTags } from "./Text";
-import type { TypewriterFrame, TypewriterSource } from "./Typewriter";
+import { Text, type TextProps, type TextTags } from "@/components/Text";
+
+import type { TypewriterFrame, TypewriterSource } from ".";
 
 import type { ReactNode } from "react";
 

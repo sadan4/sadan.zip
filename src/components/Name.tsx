@@ -1,8 +1,7 @@
+import { imageTypewriter, makeTextComponentEraser, textComponentTypewriter, Typewriter, type TypewriterFrame, type TypewriterImage, type TypewriterRef, type TypewriterSource } from "@/components/effects/Typewriter";
 import { range } from "@/utils/functional";
 
 import { Text, type TextProps } from "./Text";
-import Typewriter, { type TypewriterFrame, type TypewriterRef, type TypewriterSource } from "./Typewriter";
-import { imageTypewriter, makeTextComponentEraser, textComponentTypewriter, type TypewriterImage } from "./typewriterUtils";
 
 import { useEffect, useRef, useState } from "react";
 
