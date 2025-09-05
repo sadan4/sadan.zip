@@ -1,12 +1,12 @@
 import { useKeybind } from "@/hooks/keybind";
 import { useUpdatingRef } from "@/hooks/updatingRef";
+import { z } from "@/styles";
 import cn from "@/utils/cn";
 import { animated, useTransition } from "@react-spring/web";
 
 import { SYM_INTERNAL_KEY, useModalStackStore } from "./internal/modalStackStore";
 import { ModalContext } from "./context";
 import { exitModalKeybinds } from ".";
-import z from "../z";
 
 import { type BaseSyntheticEvent, useCallback, useEffect, useRef } from "react";
 

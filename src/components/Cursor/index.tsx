@@ -1,9 +1,9 @@
 import { useCssFile } from "@/hooks/cssFile";
 import { useEventHandler } from "@/hooks/eventListener";
+import { z } from "@/styles";
 import cn from "@/utils/cn";
 
 import noCursorStyle from "./hideNativeCursor.css?url";
-import z from "../z";
 
 import { type CSSProperties, type ReactNode, useCallback, useRef } from "react";
 

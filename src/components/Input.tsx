@@ -1,3 +1,4 @@
+import { border } from "@/styles";
 import cn, { textColors, textSize, textWeight } from "@/utils/cn";
 import error from "@/utils/error";
 import { updateRef } from "@/utils/ref";
@@ -7,7 +8,6 @@ import { useDebouncedFn } from "@hooks/debouncedFn";
 
 import Close from "./icons/Close";
 import { ErrorIcon } from "./icons/ErrorIcon";
-import border from "./border";
 import { Clickable } from "./Clickable";
 import { Text } from "./Text";
 
@@ -65,7 +65,7 @@ export function Input({
             <input
                 type="text"
                 name="Text Input"
-                className={cn("bg-bg-300 rounded-md px-3 py-2 w-full disabled:pointer-events-none disabled:cursor-not-allowed disabled:select-none disabled:opacity-50", inputSizes[textSize ?? "md"], border.compose("interactive", "autofocus", "animate"), className)}
+                className={cn("bg-bg-300 rounded-md px-3 py-2 w-full disabled:pointer-events-none disabled:cursor-not-allowed disabled:select-none disabled:opacity-50", inputSizes[textSize ?? "md"], border.interactive, border.autofocus, border.animate, className)}
                 onMouseOver={(e) => {
                     try {
                         onMouseOver?.(e);

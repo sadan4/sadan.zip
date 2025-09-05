@@ -1,5 +1,5 @@
-import z from "@/components/z";
 import { useSize } from "@/hooks/size";
+import { z } from "@/styles";
 import cn from "@/utils/cn";
 import toCSS from "@/utils/toCSS";
 import { animated, useSpring } from "@react-spring/web";

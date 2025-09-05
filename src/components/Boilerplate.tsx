@@ -1,10 +1,9 @@
+import { z } from "@/styles";
 import cn from "@/utils/cn";
 import Cursor from "@components/Cursor";
 import BoundingCursor from "@components/Cursor/BoundingCursor";
 import { DotCursor } from "@components/Cursor/DotCursor";
 import ModalRenderRoot from "@components/modal/ModalRenderRoot";
-
-import z from "./z";
 
 export interface BoilerplateProps {
     noCursor?: boolean;

@@ -1,38 +1,16 @@
 // import { createContext, type PropsWithChildren } from "react";
 
 import { useRecent } from "@/hooks/recent";
-import { joinWithKey } from "@/utils/array";
+import { border, z } from "@/styles";
 import cn from "@/utils/cn";
 import { prop } from "@/utils/functional";
 import { animated, useSpringValue } from "@react-spring/web";
 
 import CheckCircle from "./icons/CheckCircle";
-import { border } from "./border";
 import { Clickable } from "./Clickable";
-import { HorizontalLine } from "./HorizontalLine";
-import z from "./z";
 
 import invariant from "invariant";
 import { type Dispatch, type Key, type PropsWithChildren, type ReactNode, type SetStateAction, useCallback, useEffect, useRef, useState } from "react";
-
-// interface SelectContext {
-
-// }
-
-// const SelectContext = createContext<SelectContext | null>(null);
-
-// export interface SelectProps extends PropsWithChildren {
-//     initialVisibility?: boolean;
-//     visible?: boolean;
-// }
-
-// export function Select({}: SelectProps) {
-//     return null;
-// }
-
-// export function SelectContent() {
-//     return null;
-// }
 
 export interface SelectOption<T> {
     disabled?: boolean;
@@ -123,7 +101,7 @@ interface SelectItemProps<T> {
 function SelectItem<T>({ item: { label, value, disabled }, isSelected, onChange }: SelectItemProps<T>) {
     return (
         <Clickable
-            className={cn("flex items-center p-2", disabled && "brightness-50")}
+            className={cn("flex items-center p-2", disabled ? "brightness-50" : "hover:bg-bg-200")}
             onClick={() => onChange(value)}
         >
             <div className="flex-1/1">{label}</div>
@@ -141,7 +119,7 @@ interface SelectMenuProps<T> {
 function SelectMenu<T>({ items, onChange, selectedItem }: SelectMenuProps<T>) {
     return (
         <div className="bg-bg-300 rounded-md border-bg-fg-700 border-3 flex flex-col">
-            {joinWithKey(items.map((item) => {
+            {items.map((item) => {
                 return (
                     <SelectItem
                         key={item.key}
@@ -150,12 +128,7 @@ function SelectMenu<T>({ items, onChange, selectedItem }: SelectMenuProps<T>) {
                         item={item}
                     />
                 );
-            }), (i) => (
-                <HorizontalLine
-                    key={i}
-                    className="w-3/4 h-0.5 self-center"
-                />
-            ))}
+            })}
         </div>
     );
 }
@@ -208,8 +181,11 @@ export function Select<T extends PropertyKey>({
                 className="relative"
             >
                 <Clickable
-                    className={cn("items-center w-full rounded-md p-2 flex", border.compose("interactive", "autofocus", "animate"), open && border.focused)}
-                    onClick={() => {
+                    className={cn("items-center w-full rounded-md p-2 flex", border.interactive, border.autofocus, border.animate, open && border.focused)}
+                    onClick={(e) => {
+                        if (e.detail > 1) {
+                            e.preventDefault();
+                        }
                         setOpen((o) => !o);
                     }}
                 >

@@ -1,0 +1,14 @@
+@layer base {
+    :where(.w-full) {
+        width: 100%;
+    }
+    :where(.h-1) {
+        height: calc(var(--spacing) * 1);
+    }
+    :where(.h-1px) {
+        height: 1px;
+    }
+    :where(.my-2) {
+        margin-block: calc(var(--spacing) * 2);
+    }
+}

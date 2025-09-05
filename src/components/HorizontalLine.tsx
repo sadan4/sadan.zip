@@ -1,6 +1,5 @@
+import { base } from "@/styles";
 import cn, { bgColors } from "@/utils/cn";
-
-import base from "./base.module.css";
 
 import type { ComponentProps } from "react";
 

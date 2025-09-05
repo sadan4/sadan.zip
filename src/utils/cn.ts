@@ -129,11 +129,3 @@ export interface ColorProp {
 export interface TextStyleProps extends SizeProp, WeightProp, ColorProp {
 
 }
-
-export function createCompose<T extends Record<string, string>>(classes: T) {
-    return function compose<K extends keyof T>(...keys: K[]): string {
-        return keys
-            .map((k) => classes[k])
-            .join(" ");
-    };
-}
