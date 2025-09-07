@@ -1,16 +1,19 @@
-// import { createContext, type PropsWithChildren } from "react";
-
-import { useRecent } from "@/hooks/recent";
-import { border, z } from "@/styles";
+import { useControlledState } from "@/hooks/controlledState";
+import { base, border, z } from "@/styles";
 import cn from "@/utils/cn";
 import { prop } from "@/utils/functional";
+import { Input } from "@components/Input";
 import { animated, useSpringValue } from "@react-spring/web";
 
 import CheckCircle from "./icons/CheckCircle";
+import { ScrollArea } from "./layout/ScrollArea";
+import { ScrollAreaContext } from "./layout/ScrollArea/context";
 import { Clickable } from "./Clickable";
+import { Text } from "./Text";
 
 import invariant from "invariant";
-import { type Dispatch, type Key, type PropsWithChildren, type ReactNode, type SetStateAction, useCallback, useEffect, useRef, useState } from "react";
+import { type Key, type PropsWithChildren, type ReactNode, useContext, useEffect, useRef, useState } from "react";
+import scrollIntoView from "scroll-into-view-if-needed";
 
 export interface SelectOption<T> {
     disabled?: boolean;
@@ -24,74 +27,6 @@ export interface SelectOption<T> {
     default?: boolean;
 }
 
-
-interface ControlledStateOptions<T> {
-    managedValue: T | undefined;
-    handleChange?: (newValue: NoInfer<T>) => void;
-    initialValue: T;
-    debugName?: string;
-}
-
-function isFunction(func: any): func is ((...a: any[]) => any) {
-    return typeof func === "function";
-}
-
-// credit to radix
-function useControlledState<T>({ managedValue, initialValue, handleChange = () => {}, debugName = "UNKNOWN_COMPONENT" }: ControlledStateOptions<T>) {
-    const [uncontrolledState, setUncontrolledState] = useState(initialValue);
-    const isControlled = managedValue !== undefined;
-    const value = isControlled ? managedValue : uncontrolledState;
-    const latestChangeFunc = useRecent(handleChange);
-
-    // OK to disable conditionally calling hooks here because they will always run
-    // consistently in the same environment. Bundlers should be able to remove the
-    // code block entirely in production.
-    // eslint-disable-next-line react-hooks/react-compiler
-    /* eslint-disable react-hooks/rules-of-hooks */
-    if (process.env.NODE_ENV !== "production") {
-        const isControlledRef = useRef(managedValue !== undefined);
-
-        useEffect(() => {
-            const wasControlled = isControlledRef.current;
-
-            if (wasControlled !== isControlled) {
-                const from = wasControlled ? "controlled" : "uncontrolled";
-                const to = isControlled ? "controlled" : "uncontrolled";
-
-                console.warn(`${debugName} is changing from ${from} to ${to}. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component.`);
-            }
-            isControlledRef.current = isControlled;
-        }, [isControlled, debugName]);
-    }
-
-    /* eslint-enable react-hooks/rules-of-hooks */
-
-    const setValue = useCallback<SetStateFunc<T>>((nextValue) => {
-        if (isControlled) {
-            const value = isFunction(nextValue) ? nextValue(managedValue) : nextValue;
-
-            if (value !== managedValue) {
-                latestChangeFunc.current(value);
-            }
-        } else {
-            setUncontrolledState(nextValue);
-        }
-    }, [isControlled, latestChangeFunc, managedValue]);
-
-    return [value, setValue] as const;
-}
-
-type SetStateFunc<T> = Dispatch<SetStateAction<T>>;
-
-export interface SelectProps<T extends PropertyKey> extends PropsWithChildren {
-    items: SelectOption<T>[];
-    selectedValue?: NoInfer<T>;
-    defaultValue?: NoInfer<T>;
-    customChildren?: boolean;
-    onChange?: (selection: NoInfer<T>) => void;
-    closeOnSelect?: boolean;
-}
-
 interface SelectItemProps<T> {
     item: SelectOption<T>;
     isSelected: boolean;
@@ -99,8 +34,22 @@ interface SelectItemProps<T> {
 }
 
 function SelectItem<T>({ item: { label, value, disabled }, isSelected, onChange }: SelectItemProps<T>) {
+    const ref = useRef<HTMLDivElement>(null);
+    const ctx = useContext(ScrollAreaContext).ref;
+
+    useEffect(() => {
+        if (isSelected && ref.current) {
+            scrollIntoView(ref.current, {
+                boundary: ctx.current,
+                scrollMode: "if-needed",
+                behavior: "instant",
+            });
+        }
+    }, [ctx, isSelected]);
+
     return (
         <Clickable
+            ref={ref}
             className={cn("flex items-center p-2", disabled ? "brightness-50" : "hover:bg-bg-200")}
             onClick={() => onChange(value)}
         >
@@ -118,7 +67,7 @@ interface SelectMenuProps<T> {
 
 function SelectMenu<T>({ items, onChange, selectedItem }: SelectMenuProps<T>) {
     return (
-        <div className="bg-bg-300 rounded-md border-bg-fg-700 border-3 flex flex-col">
+        <ScrollArea className="bg-bg-300 sb-track-bg-300 rounded-md border-bg-fg-700 border-3 flex flex-col">
             {items.map((item) => {
                 return (
                     <SelectItem
@@ -129,13 +78,25 @@ function SelectMenu<T>({ items, onChange, selectedItem }: SelectMenuProps<T>) {
                     />
                 );
             })}
-        </div>
+        </ScrollArea>
     );
 }
 
 
 function getDefaultItem<T>(items: SelectOption<T>[]): SelectOption<T> {
-    return items.find(prop("value")) ?? items[0];
+    return items.find(prop("default")) ?? items[0];
+}
+
+export interface SelectProps<T extends PropertyKey> extends PropsWithChildren {
+    items: SelectOption<T>[];
+    selectedValue?: NoInfer<T>;
+    defaultValue?: NoInfer<T>;
+    customChildren?: boolean;
+    onChange?: (selection: NoInfer<T>) => void;
+    closeOnSelect?: boolean;
+    className?: string;
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
 }
 
 export function Select<T extends PropertyKey>({
@@ -146,6 +107,9 @@ export function Select<T extends PropertyKey>({
     selectedValue,
     children,
     closeOnSelect = true,
+    className,
+    open: _open,
+    onOpenChange,
 }: SelectProps<T>) {
     const [selectedItem, setSelectedItem] = useControlledState({
         initialValue: defaultValue,
@@ -154,7 +118,14 @@ export function Select<T extends PropertyKey>({
         handleChange: onChange,
     });
 
-    const [open, setOpen] = useState(false);
+    // const isOpenManaged = _open !== undefined;
+    const [open, setOpen] = useControlledState({
+        initialValue: false,
+        debugName: "Select",
+        managedValue: _open,
+        handleChange: onOpenChange,
+    });
+
     const ref = useRef<HTMLDivElement>(null);
     const menuRef = useRef<HTMLDivElement>(null);
 
@@ -174,6 +145,16 @@ export function Select<T extends PropertyKey>({
         rotation.start(open ? 180 : 0);
     }, [open, rotation]);
 
+    let currentLabel = getItem(selectedItem)?.label;
+
+    if (typeof currentLabel === "string") {
+        currentLabel = (
+            <Text size="md">
+                {currentLabel}
+            </Text>
+        );
+    }
+
     return (
         <>
             <div
@@ -181,7 +162,7 @@ export function Select<T extends PropertyKey>({
                 className="relative"
             >
                 <Clickable
-                    className={cn("items-center w-full rounded-md p-2 flex", border.interactive, border.autofocus, border.animate, open && border.focused)}
+                    className={cn("items-center rounded-md flex", className, base.p2, base.wFull, border.interactive, border.autofocus, border.animate, open && border.focused)}
                     onClick={(e) => {
                         if (e.detail > 1) {
                             e.preventDefault();
@@ -189,25 +170,31 @@ export function Select<T extends PropertyKey>({
                         setOpen((o) => !o);
                     }}
                 >
-                    <div className="flex-1/1">
-                        {customChildren ? children : getItem(selectedItem)?.label}
-                    </div>
-                    <animated.svg
-                        viewBox="-2.4 -2.4 28.8 28.8"
-                        className="fill-none stroke-bg-fg w-8 h-8"
-                        style={{
-                            transform: rotation.to((r) => `rotate(${r}deg)`),
-                        }}
-                    >
-                        <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            d="m6 9 6 6 6-6"
-                        />
-                    </animated.svg>
+                    { customChildren
+                        ? children
+                        : (
+                            <>
+                                <div className="flex-1/1">
+                                    {currentLabel}
+                                </div>
+                                <animated.svg
+                                    viewBox="-2.4 -2.4 28.8 28.8"
+                                    className="fill-none stroke-bg-fg w-8 h-8"
+                                    style={{
+                                        transform: rotation.to((r) => `rotate(${r}deg)`),
+                                    }}
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth="2"
+                                        d="m6 9 6 6 6-6"
+                                    />
+                                </animated.svg>
+                            </>
+                        )}
                 </Clickable>
-                <div className={cn("absolute left-0 w-full", z.select)}>
+                <div className={cn("absolute top-6/5 left-0 w-full", z.select)}>
                     {open && (
                         <div
                             onBlur={({ relatedTarget }) => {
@@ -235,5 +222,25 @@ export function Select<T extends PropertyKey>({
                 </div>
             </div>
         </>
+    );
+}
+
+export function SearchableSelect<T extends PropertyKey>({ onChange, ...props }: SelectProps<T>) {
+    const [open, _setOpen] = useState(false);
+
+    return (
+        <Select
+            open={open}
+            {...props}
+            onChange={(value) => {
+                onChange?.(value);
+            }}
+            customChildren
+            className={cn(border.directDisable, "p-0")}
+        >
+            <Input
+                onChange={() => { }}
+            />
+        </Select>
     );
 }

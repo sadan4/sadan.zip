@@ -8,7 +8,7 @@ import { type StandardTextProps, Text } from "./Text";
 import invariant from "invariant";
 import { type ComponentPropsWithRef, useEffect, useState } from "react";
 
-enum SwitchState {
+const enum SwitchState {
     OFF,
     ON,
     HELD,

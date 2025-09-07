@@ -23,6 +23,14 @@
   --color-error: #ff757f;
 }
 
+@utility sb-track-* {
+  --scrollbar-track-color: --value(--color-*);
+}
+
+@utility sb-thumb-* {
+  --scrollbar-thumb-color: --value(--color-*);
+}
+
 @font-face {
   font-family: "comicsans";
   src: url("assets/comicsans.otf");

@@ -6,10 +6,11 @@ import { useCursorContextStore } from "@components/Cursor/cursorContextStore";
 import { AnimateHeight } from "@effects/AnimateHeight";
 import { useDebouncedFn } from "@hooks/debouncedFn";
 
-import Close from "./icons/Close";
-import { ErrorIcon } from "./icons/ErrorIcon";
-import { Clickable } from "./Clickable";
-import { Text } from "./Text";
+import styles from "./styles.module.css";
+import { Clickable } from "../Clickable";
+import Close from "../icons/Close";
+import { ErrorIcon } from "../icons/ErrorIcon";
+import { Text } from "../Text";
 
 import { type ChangeEvent, type ChangeEventHandler, type ComponentProps, type PropsWithChildren, type ReactNode, useEffect, useRef, useState } from "react";
 
@@ -65,7 +66,7 @@ export function Input({
             <input
                 type="text"
                 name="Text Input"
-                className={cn("bg-bg-300 rounded-md px-3 py-2 w-full disabled:pointer-events-none disabled:cursor-not-allowed disabled:select-none disabled:opacity-50", inputSizes[textSize ?? "md"], border.interactive, border.autofocus, border.animate, className)}
+                className={cn(styles.input, inputSizes[textSize ?? "md"], border.interactive, border.autofocus, border.animate, className)}
                 onMouseOver={(e) => {
                     try {
                         onMouseOver?.(e);

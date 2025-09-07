@@ -1,14 +1,23 @@
-@layer base {
-    :where(.w-full) {
+@layer components {
+    .w-full {
         width: 100%;
     }
-    :where(.h-1) {
+    .h-1 {
         height: calc(var(--spacing) * 1);
     }
-    :where(.h-1px) {
+    .h-1px {
         height: 1px;
     }
-    :where(.my-2) {
+    .my-2 {
         margin-block: calc(var(--spacing) * 2);
+    }
+    .max-h-400px {
+        max-height: 400px;
+    }
+    .p-0 {
+        padding: 0;
+    }
+    .p-2 {
+        padding: calc(var(--spacing) * 2);
     }
 }

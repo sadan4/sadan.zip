@@ -190,3 +190,7 @@ export interface Coord {
 }
 
 export type Thenable<T> = PromiseLike<T> | Promise<T> | T;
+
+export function isFunction(func: any): func is ((...a: any[]) => any) {
+    return typeof func === "function";
+}

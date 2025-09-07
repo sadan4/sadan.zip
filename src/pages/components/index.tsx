@@ -7,7 +7,7 @@ import { HorizontalLine } from "@/components/HorizontalLine";
 import { CheckedInput, Input, LabeledInput } from "@/components/Input";
 import { TabBar } from "@/components/layout/TabBar";
 import { Marquee } from "@/components/Marquee";
-import { Select, type SelectOption } from "@/components/Select";
+import { SearchableSelect, Select, type SelectOption } from "@/components/Select";
 import { LabeledSwitch, Switch } from "@/components/Switch";
 import { Text } from "@/components/Text";
 import { LabeledTextArea, TextArea } from "@/components/TextArea";
@@ -245,6 +245,13 @@ function SelectExample() {
         },
     ] as const satisfies SelectOption<PropertyKey>[];
 
+    const manyItems = Array.from({ length: 100 }, (_, i) => ({
+        label: `Item ${i + 1}`,
+        value: `item${i + 1}`,
+        key: `item${i + 1}`,
+        typedValue: `item ${i + 1}`,
+    })) satisfies SelectOption<PropertyKey>[];
+
     return (
         <>
             <Text
@@ -322,6 +329,20 @@ function SelectExample() {
                     },
                 ]}
                 defaultValue="entry2"
+            />
+            <Text size="lg">
+                Many Items
+            </Text>
+            <Select
+                items={manyItems}
+                defaultValue="item50"
+            />
+            <Text size="lg">
+                Many Items
+            </Text>
+            <SearchableSelect
+                items={manyItems}
+                defaultValue="item50"
             />
         </>
     );
@@ -529,7 +550,7 @@ function TextExample() {
                                 setPreviewText(e.target.value);
                             }}
                             placeholder="Preview Text"
-                            className="!w-fit"
+                            className="w-fit"
                         />
                     )
                 }

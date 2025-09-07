@@ -1,3 +1,6 @@
+.disable .interactive, .direct-disable.interactive {
+    --ring-width: 0px;
+}
 .interactive {
     /**
      * Components are expected to use autofocus or focused to manage the outline
