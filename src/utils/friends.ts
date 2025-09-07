@@ -59,4 +59,10 @@ export const friends: Friend[] = [
         url: new URL("https://wingio.xyz/"),
         avatarUrl: new URL("https://avatars.githubusercontent.com/u/44992537?v=4"),
     },
+    {
+        name: "paige",
+        discordId: "1375697625864601650",
+        url: new URL("https://pai.pages.gay/"),
+        avatarUrl: new URL("https://pai.pages.gay/avatar.png"),
+    },
 ];
