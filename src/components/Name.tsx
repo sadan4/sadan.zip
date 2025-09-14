@@ -35,6 +35,7 @@ const possibleImages: TypewriterImage[] = [
 
 const possibleNameStrings = [
     "sadan",
+    "satan",
     ":3",
     "hiiiii",
     "minecraft addict",
