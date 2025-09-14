@@ -1,5 +1,6 @@
 import { z } from "@/styles";
 import cn from "@/utils/cn";
+import { isMobileDevice } from "@/utils/dom";
 import Cursor from "@components/Cursor";
 import BoundingCursor from "@components/Cursor/BoundingCursor";
 import { DotCursor } from "@components/Cursor/DotCursor";
@@ -9,7 +10,7 @@ export interface BoilerplateProps {
     noCursor?: boolean;
 }
 
-export function Boilerplate({ noCursor = false }: BoilerplateProps) {
+export function Boilerplate({ noCursor = isMobileDevice() }: BoilerplateProps) {
     return (
         <>
             {

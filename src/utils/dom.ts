@@ -21,3 +21,8 @@ export function getLineHeight(element: Element) {
     // Otherwise, line-height is in px, em, rem, etc.
     return parseFloat(lineHeight);
 }
+
+export function isMobileDevice(): boolean {
+    // i guess people with laptops are fucked (myself included)
+    return navigator.maxTouchPoints > 0;
+}
