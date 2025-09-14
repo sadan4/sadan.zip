@@ -50,7 +50,7 @@ export function FooterContainer({
     ...props
 }: FooterContainerProps) {
     return (
-        <ScrollArea className="max-h-screen">
+        <ScrollArea className="max-h-screen h-screen">
             <div className="grid grid-rows-[1fr_min-content] w-full h-full">
                 <div {...props}>{children}</div>
                 <div className="flex justify-center items-center content-center">
