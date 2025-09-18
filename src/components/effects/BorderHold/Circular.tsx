@@ -86,9 +86,15 @@ export default function BorderHoldCircular({ children, onHold }: BolderHoldCircu
     return (
         <div
             ref={wrapperRef}
-            onMouseDown={startAnimation}
-            onMouseUp={stopAnimation}
-            onMouseOut={stopAnimation}
+            onPointerDown={startAnimation}
+            onContextMenu={(e) => {
+                // it's a pointer event, react is stupid https://developer.mozilla.org/en-US/docs/Web/API/Element/contextmenu_event#browser_compatibility
+                if ((e.nativeEvent as PointerEvent).pointerType !== "mouse") {
+                    e.preventDefault();
+                }
+            }}
+            onPointerUp={stopAnimation}
+            onPointerOut={stopAnimation}
         >
             <animated.svg
                 className={cn("absolute -translate-1/30", z.baseVisualEffect, styles.circularBorder)}
