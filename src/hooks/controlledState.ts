@@ -49,9 +49,15 @@ export function useControlledState<T>({ managedValue, initialValue, handleChange
                 latestChangeFunc.current(value);
             }
         } else {
+            // guh??
+            const value = nextStateValue(managedValue, nextValue as any) as T;
+
+            if (value !== uncontrolledState) {
+                latestChangeFunc.current(value);
+            }
             setUncontrolledState(nextValue);
         }
-    }, [isControlled, latestChangeFunc, managedValue]);
+    }, [isControlled, latestChangeFunc, managedValue, uncontrolledState]);
 
     return [value, setValue] as const;
 }

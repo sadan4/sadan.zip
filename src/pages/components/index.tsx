@@ -529,9 +529,31 @@ function InputExample() {
         </>
     );
 }
+
+const textSizeSelectOptions: SelectOption<keyof typeof textSize>[] = Object.keys(textSize)
+    .map((size) => {
+        return {
+            label: size,
+            value: size,
+            typedValue: size,
+            key: size,
+        } satisfies SelectOption<string>;
+    }) as any;
+
+const textWeightSelectOptions: SelectOption<keyof typeof textWeight>[] = Object.keys(textWeight)
+    .map((weight) => {
+        return {
+            label: weight,
+            value: weight,
+            typedValue: weight,
+            key: weight,
+        } satisfies SelectOption<string>;
+    }) as any;
+
 function TextExample() {
     const [previewText, setPreviewText] = useState("");
-    const [show, setShow] = useState(false);
+    const [size, setSize] = useState<keyof typeof textSize>("md");
+    const [weight, setWeight] = useState<keyof typeof textWeight>("normal");
 
     return (
         <>
@@ -542,44 +564,43 @@ function TextExample() {
                 >
                     TextComponents
                 </Text>
-                {
-                    show && (
-                        <Input
-                            initialValue={previewText}
-                            onChange={(e) => {
-                                setPreviewText(e.target.value);
-                            }}
-                            placeholder="Preview Text"
-                            className="w-fit"
-                        />
-                    )
-                }
-                <Button onClick={() => setShow(!show)}>
-                    {show ? "Hide Preview" : "Show Preview"}
-                </Button>
+                <Select
+                    className="w-20"
+                    items={textSizeSelectOptions}
+                    defaultValue={size}
+                    onChange={(size) => setSize(size)}
+                />
+                <Select
+                    className="w-30"
+                    items={textWeightSelectOptions}
+                    defaultValue={weight}
+                    onChange={setWeight}
+                />
+                <Input
+                    initialValue={previewText}
+                    onChange={(e) => {
+                        setPreviewText(e.target.value);
+                    }}
+                    placeholder="Preview Text"
+                    className="w-fit"
+                />
             </div>
-            {show && Object.keys(textSize)
-                .flatMap((size) => {
-                    return Object.keys(textWeight)
-                        .map((weight) => (
-                            <Text
-                                weight={weight as any}
-                                size={size as any}
-                                key={`${weight}-${size}`}
-                                tag="span"
-                            >
-                                {previewText || `${size}-${weight}`}
-                                {previewText && (
-                                    <Text
-                                        size="md"
-                                        tag="span"
-                                    >
-                                        {` (${size}-${weight})`}
-                                    </Text>
-                                )}
-                            </Text>
-                        ));
-                })}
+            <Text
+                weight={weight}
+                size={size}
+                key={`${weight}-${size}`}
+                tag="span"
+            >
+                {previewText || `${size}-${weight}`}
+                {previewText && (
+                    <Text
+                        size="md"
+                        tag="span"
+                    >
+                        {` (${size}-${weight})`}
+                    </Text>
+                )}
+            </Text>
         </>
     );
 }

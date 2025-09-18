@@ -1,0 +1,46 @@
+@reference "../index.css";
+
+.enabled {
+    --unused: true;
+}
+
+@layer components {
+    .box {
+        @apply flex flex-col gap-2 bg-bg-100 p-4 rounded-md outline-2 outline-bg-fg-600/25;
+    }
+
+    .button {
+        @apply rounded-md p-2 transition-colors duration-150 disabled:cursor-not-allowed;
+    }
+
+    .hr {
+        @apply w-full my-2;
+        height: 1px;
+    }
+
+    .vr {
+        width: 0;
+        height: 100%;
+        &::after {
+            @apply border-l-2 border-bg-fg-600/50;
+            width: 0;
+            height: 100%;
+        }
+    }
+
+    .select {
+        @apply items-center rounded-md flex p-2 w-full;
+    }
+
+    .switch {
+        @apply w-12 h-8 rounded-full flex justify-center transition-[background-color, border-radius] duration-250;
+
+        &.enabled {
+            @apply bg-primary;
+        }
+
+        &:not(.enabled) {
+            @apply border border-bg-fg-800 bg-bg-300;
+        }
+    }
+}

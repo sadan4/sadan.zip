@@ -1,6 +1,13 @@
+@reference "../../../index.css";
+
 :root {
   --scrollbar-track-color: var(--color-bg-200);
   --scrollbar-thumb-color: var(--color-bg-fg-600);
+}
+@layer base {
+    .scrollbar {
+        @apply min-w-full relative max-h-100;
+    }
 }
 .scrollbar {
     /**

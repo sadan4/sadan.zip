@@ -3,6 +3,7 @@ import error from "@/utils/error";
 import { animated, useSpringValue } from "@react-spring/web";
 
 import { Clickable } from "./Clickable";
+import styles from "./styles.module.css";
 import { type StandardTextProps, Text } from "./Text";
 
 import invariant from "invariant";
@@ -82,7 +83,7 @@ export function Switch({ initialValue, value, onChange }: SwitchProps) {
 
     return (
         <Clickable
-            className={cn("w-12 h-8 rounded-full flex justify-center transition-[background-color,border-radius] duration-250", enabled ? "bg-primary" : " border border-bg-fg-800 bg-bg-300")}
+            className={cn(styles.switch, enabled && styles.enabled)}
             onMouseDown={(e) => {
                 // stop random other text from being selected
                 if (e.detail > 1) {

@@ -1,3 +1,4 @@
+import { base } from "@/styles";
 import cn, { textColors, textSize, type TextStyleProps, textWeight } from "@/utils/cn";
 import type { ElementFromTag } from "@/utils/types";
 
@@ -70,7 +71,8 @@ export function Text<T extends TextTags = "div">(props: TextProps<T>) {
 
     const el = createElement(tag, {
         className: cn(
-            "text w-fit",
+            "text",
+            base.wFit,
             noselect && "select-none",
             nowrap && "whitespace-nowrap",
             textSize[size],

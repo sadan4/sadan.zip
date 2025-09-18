@@ -1,5 +1,6 @@
-import { base } from "@/styles";
 import cn, { bgColors } from "@/utils/cn";
+
+import styles from "./styles.module.css";
 
 import type { ComponentProps } from "react";
 
@@ -10,7 +11,7 @@ export interface HorizontalLineProps extends Omit<ComponentProps<"hr">, "color">
 export function HorizontalLine({ className, color = "white-600", ...props }: HorizontalLineProps) {
     return (
         <div
-            className={cn(base.wFull, base.my2, base.h1Px, bgColors[color], className)}
+            className={cn(styles.hr, bgColors[color], className)}
             {...props}
         />
     );

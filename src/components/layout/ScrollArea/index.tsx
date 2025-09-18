@@ -1,4 +1,3 @@
-import { base } from "@/styles";
 import cn from "@/utils/cn";
 import { updateRef } from "@/utils/ref";
 
@@ -20,7 +19,7 @@ export function ScrollArea({ children, className, ref: _ref, ...props }: ScrollA
     return (
         <ScrollAreaContext.Provider value={{ ref }}>
             <div
-                className={cn("min-w-full relative", base.maxH400Px, styles.scrollbar, className)}
+                className={cn(styles.scrollbar, className)}
                 ref={(e) => {
                     updateRef(ref, e);
                     updateRef(_ref, e);

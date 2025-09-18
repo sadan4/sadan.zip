@@ -1,5 +1,5 @@
 import { useControlledState } from "@/hooks/controlledState";
-import { base, border, z } from "@/styles";
+import { border, z } from "@/styles";
 import cn from "@/utils/cn";
 import { prop } from "@/utils/functional";
 import { Input } from "@components/Input";
@@ -9,6 +9,7 @@ import CheckCircle from "./icons/CheckCircle";
 import { ScrollArea } from "./layout/ScrollArea";
 import { ScrollAreaContext } from "./layout/ScrollArea/context";
 import { Clickable } from "./Clickable";
+import styles from "./styles.module.css";
 import { Text } from "./Text";
 
 import invariant from "invariant";
@@ -162,7 +163,14 @@ export function Select<T extends PropertyKey>({
                 className="relative"
             >
                 <Clickable
-                    className={cn("items-center rounded-md flex", className, base.p2, base.wFull, border.interactive, border.autofocus, border.animate, open && border.focused)}
+                    className={cn(
+                        styles.select,
+                        className,
+                        border.interactive,
+                        border.autofocus,
+                        border.animate,
+                        open && border.focused,
+                    )}
                     onClick={(e) => {
                         if (e.detail > 1) {
                             e.preventDefault();
