@@ -63,6 +63,6 @@ export const friends: Friend[] = [
         name: "krstlskll",
         discordId: "929208515883569182",
         url: new URL("https://krstlskll69.github.io/"),
-        avatarUrl: new URL("https://krstlskll69.github.io/assets/images/brand/7a394673-1c73-4099-8244-4d3c0f416cbd.png"),
+        avatarUrl: new URL("https://krstlskll69.github.io/assets/images/brand/7a394673-1c73-4099-8244-4d3c0f416cbd.avif"),
     },
 ];
