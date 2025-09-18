@@ -88,6 +88,10 @@ function getDefaultItem<T>(items: SelectOption<T>[]): SelectOption<T> {
     return items.find(prop("default")) ?? items[0];
 }
 
+function getDefaultItemValue<T>(items: SelectOption<T>[]): T {
+    return getDefaultItem(items).value;
+}
+
 export interface SelectProps<T extends PropertyKey> extends PropsWithChildren {
     items: SelectOption<T>[];
     selectedValue?: NoInfer<T>;
@@ -103,7 +107,7 @@ export interface SelectProps<T extends PropertyKey> extends PropsWithChildren {
 export function Select<T extends PropertyKey>({
     items,
     customChildren = false,
-    defaultValue = getDefaultItem(items).value,
+    defaultValue = getDefaultItemValue(items),
     onChange,
     selectedValue,
     children,

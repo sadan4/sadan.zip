@@ -1,7 +1,9 @@
 import cn from "@/utils/cn";
 import toCSS from "@/utils/toCSS";
 
-import type { ComponentProps, JSX, PropsWithChildren, ReactNode } from "react";
+import { CircleItemContext } from "./context";
+
+import { type ComponentProps, type PropsWithChildren, type ReactElement, type ReactNode, useContext } from "react";
 
 export interface CircleItemProps {
     x: number;
@@ -20,12 +22,14 @@ export interface CircleProps extends Omit<ComponentProps<"div">, "children"> {
     children: (((props: CircleItemProps) => ReactNode) | ReactNode)[];
 }
 
-export function DefaultPlacementCircleItem({ x, y, children }: PropsWithChildren<CircleItemProps>) {
+export function DefaultPlacementCircleItem({ children }: PropsWithChildren) {
+    const { x: left, y: top } = useContext(CircleItemContext);
+
     return (
         <div
             style={{
-                top: toCSS.px(y),
-                left: toCSS.px(x),
+                top,
+                left,
             }}
         >
             {children}
@@ -76,23 +80,8 @@ export default function Circle({ radius, children, numItems = children.length, o
                 if (children[i] == null) {
                     return null;
                 }
-                if (typeof children[i] !== "function") {
-                    return (
-                        <DefaultPlacementCircleItem
-                            x={x}
-                            y={y}
-                            n={i}
-                            radius={radius}
-                            angle={angle}
-                            nextItem={nextItem}
-                            lastItem={lastItem}
-                            key={(children[i] as JSX.Element)?.key}
-                        >
-                            {children[i]}
-                        </DefaultPlacementCircleItem>
-                    );
-                }
-                return (children[i] ?? (() => null))({
+
+                const placementProps: CircleItemProps = Object.freeze({
                     x,
                     y,
                     n: i,
@@ -101,6 +90,34 @@ export default function Circle({ radius, children, numItems = children.length, o
                     nextItem,
                     lastItem,
                 });
+
+                if (typeof children[i] !== "function") {
+                    return (
+                        <CircleItemContext.Provider
+                            value={placementProps}
+                            key={(children[i] as ReactElement)?.key}
+                        >
+                            {(children[i] as ReactElement)?.type === DefaultPlacementCircleItem
+                                ? children[i]
+                                : (
+                                    <DefaultPlacementCircleItem>
+                                        {children[i]}
+                                    </DefaultPlacementCircleItem>
+                                )}
+                        </CircleItemContext.Provider>
+                    );
+                }
+
+                const c = (children[i] ?? (() => null))(placementProps);
+
+                return (
+                    <CircleItemContext.Provider
+                        value={placementProps}
+                        key={(c as ReactElement)?.key}
+                    >
+                        {c}
+                    </CircleItemContext.Provider>
+                );
             })}
         </div>
     );

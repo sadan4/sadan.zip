@@ -33,7 +33,7 @@
     }
 
     .switch {
-        @apply w-12 h-8 rounded-full flex justify-center transition-[background-color, border-radius] duration-250;
+        @apply w-12 h-8 rounded-full flex justify-center transition-[background-color,border-radius] duration-250;
 
         &.enabled {
             @apply bg-primary;

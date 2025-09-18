@@ -1,10 +1,11 @@
 import cn from "@/utils/cn";
+import { namedContext } from "@/utils/devtools";
 import { Clickable } from "@components/Clickable";
 import { AnimateHeight } from "@effects/AnimateHeight";
 import { useForceUpdater } from "@hooks/forceUpdater";
 import { animated, useSpringValue } from "@react-spring/web";
 
-import { createContext, type PropsWithChildren, type ReactNode, type Ref, useContext, useEffect, useImperativeHandle, useState } from "react";
+import { type PropsWithChildren, type ReactNode, type Ref, useContext, useEffect, useImperativeHandle, useState } from "react";
 
 export interface AccordionItem {
     id: string;
@@ -24,7 +25,7 @@ interface AccordionContext {
     closeAllTrigger: number;
 }
 
-const AccordionContext = createContext<AccordionContext | null>(null);
+const AccordionContext = namedContext<AccordionContext | null>(null, "AccordionContext");
 
 export function Accordion({ item: { id, render: Render }, children, className, initialOpen }: AccordionProps) {
     const [active, setActive] = useState(initialOpen ?? false);

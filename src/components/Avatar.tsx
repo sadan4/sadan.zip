@@ -10,6 +10,8 @@ import PerspectiveHover from "@effects/PerspectiveHover";
 import Shadow from "@effects/Shadow";
 import { useSize } from "@hooks/size";
 
+import { ModalKey } from "./modals/ModalKey";
+
 import { type ComponentProps, useEffect, useRef } from "react";
 
 export interface AvatarProps extends ComponentProps<"img"> {
@@ -49,7 +51,7 @@ export default function Avatar({ round = false, ...props }: AvatarProps) {
                         const FriendModal = (await import("@/components/modals/Friend")).default;
 
                         openModal({
-                            key: "MODAL_FRIENDS",
+                            key: ModalKey.FRIENDS,
                             render() {
                                 return <FriendModal />;
                             },

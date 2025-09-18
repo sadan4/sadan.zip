@@ -1,9 +1,11 @@
 import { Clickable } from "@/components/Clickable";
 import { Text } from "@/components/Text";
 import { VerticalLine } from "@/components/VerticalLine";
+import { useEventHandler } from "@/hooks/eventListener";
 import { useImperativeSprings } from "@/hooks/imperativeSprings";
 import { joinWithKey } from "@/utils/array";
 import cn from "@/utils/cn";
+import { updateRef } from "@/utils/ref";
 import useResizeObserver from "@react-hook/resize-observer";
 import { animated } from "@react-spring/web";
 
@@ -11,7 +13,7 @@ import { Box } from "../Box";
 import { AnimateHeight } from "../effects/AnimateHeight";
 
 import invariant from "invariant";
-import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { type ReactNode, type RefCallback, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 export interface TabRowItemProps {
     isSelected: boolean;
@@ -64,7 +66,7 @@ interface TabButtonProps {
     tab: Tab;
     activeTabId: string;
     className?: string;
-    setActiveTabRect: (r?: DOMRect) => void;
+    setActiveTabRef: RefCallback<HTMLElement>;
     setActiveTab: (tabId: string) => void;
     onTabChange?: (tab: Tab) => void;
     isManaged: boolean;
@@ -74,7 +76,7 @@ function TabButton({
     tab: tabProp,
     activeTabId,
     className,
-    setActiveTabRect,
+    setActiveTabRef,
     setActiveTab,
     onTabChange,
     isManaged,
@@ -84,19 +86,11 @@ function TabButton({
 
 
     const setRef = useCallback((node: HTMLDivElement | null) => {
-        ref.current = node;
+        updateRef(ref, node);
         if (isActive && node) {
-            setActiveTabRect(node.getBoundingClientRect());
+            updateRef(setActiveTabRef, node);
         }
-    }, [isActive, setActiveTabRect]);
-
-    // fixes position of selected tab icon when zooming in/out
-    useResizeObserver(ref, () => {
-        if (isActive) {
-            setActiveTabRect(ref.current?.getBoundingClientRect());
-        }
-    });
-
+    }, [isActive, setActiveTabRef]);
 
     return (
         <Clickable
@@ -108,13 +102,10 @@ function TabButton({
                     setActiveTab(tabProp.id);
                 }
                 if (isNew) {
-                    try {
-                        onTabChange?.(tabProp);
-                    } finally {
-                        if (!isManaged) {
-                            setActiveTabRect(ref.current?.getBoundingClientRect());
-                        }
+                    if (!isManaged) {
+                        setActiveTabRef(ref.current);
                     }
+                    onTabChange?.(tabProp);
                 }
             }}
             ref={setRef}
@@ -140,8 +131,8 @@ export function TabBar({
     invariant(!(selectedTab && initialSelectedTab), "You can only provide one of selectedTab or initialSelectedTab");
 
     const [tab, setTab] = useState(selectedTab ?? initialSelectedTab ?? (tabs[0]?.id || ""));
-    const [activeTabRect, setActiveTabRect] = useState<DOMRect | undefined>();
-    const lastIndicatorPos = useRef<DOMRect>(null);
+    const [activeRect, setActiveRect] = useState<DOMRect | undefined>();
+    const activeTabRef = useRef<HTMLElement | null>(null);
     const isManaged = selectedTab !== undefined;
 
 
@@ -159,23 +150,41 @@ export function TabBar({
         width: 0,
     });
 
+    useEventHandler("resize", () => {
+        if (activeTabRef.current) {
+            const size = activeTabRef.current.getBoundingClientRect();
+
+            width.set(size.width);
+            y.set(size.y + size.height);
+            x.set(size.x);
+            setActiveRect(size);
+        }
+    });
+
+    useResizeObserver(activeTabRef, () => {
+        setActiveRect(activeTabRef.current?.getBoundingClientRect());
+    });
+
     useLayoutEffect(() => {
-        if (activeTabRect) {
-            const size = activeTabRect;
+        if (activeRect) {
+            const size = activeRect;
 
             if (x.get() === 0) {
                 width.set(size.width);
                 y.set(size.y + size.height);
                 x.set(size.x);
-                lastIndicatorPos.current = size;
             } else {
                 width.start(size.width);
                 y.start(size.y + size.height);
                 x.start(size.x);
-                lastIndicatorPos.current = size;
             }
         }
-    }, [activeTabRect, width, x, y]);
+    }, [activeRect, width, x, y]);
+
+    const handleActiveTabRef: RefCallback<HTMLElement | null> = useCallback((node) => {
+        updateRef(activeTabRef, node);
+        setActiveRect(node?.getBoundingClientRect());
+    }, []);
 
 
     return (
@@ -188,10 +197,10 @@ export function TabBar({
                         key={t.id}
                         tab={t}
                         activeTabId={tab}
-                        setActiveTabRect={setActiveTabRect}
                         setActiveTab={setTab}
                         onTabChange={onTabChange}
                         isManaged={isManaged}
+                        setActiveTabRef={handleActiveTabRef}
                     />
                 )), (i) => (noSeparators ? null : <VerticalLine key={`vl-${i}`} />))}
                 <animated.div

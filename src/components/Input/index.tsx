@@ -68,10 +68,12 @@ export function Input({
                 name="Text Input"
                 className={cn(styles.input, inputSizes[textSize ?? "md"], border.interactive, border.autofocus, border.animate, className)}
                 onMouseOver={(e) => {
-                    try {
-                        onMouseOver?.(e);
-                    } catch (e) {
-                        console.error("Error occurred in onMouseOver:", e);
+                    if (onMouseOver) {
+                        try {
+                            onMouseOver(e);
+                        } catch (e) {
+                            console.error("Error occurred in onMouseOver:", e);
+                        }
                     }
                     shouldNullOnDemount.current = true;
                     useCursorContextStore
@@ -79,10 +81,12 @@ export function Input({
                         .updateTextElement(e.nativeEvent.target as Element);
                 }}
                 onMouseOut={(e) => {
-                    try {
-                        onMouseOut?.(e);
-                    } catch (e) {
-                        console.error("Error occurred in onMouseOut:", e);
+                    if (onMouseOut) {
+                        try {
+                            onMouseOut(e);
+                        } catch (e) {
+                            console.error("Error occurred in onMouseOut:", e);
+                        }
                     }
                     shouldNullOnDemount.current = false;
                     useCursorContextStore

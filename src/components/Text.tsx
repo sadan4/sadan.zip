@@ -4,7 +4,7 @@ import type { ElementFromTag } from "@/utils/types";
 
 import { useCursorContextStore } from "./Cursor/cursorContextStore";
 
-import { type ComponentProps, createElement, type MouseEvent, type PropsWithChildren, useCallback, useEffect, useRef } from "react";
+import { type ComponentProps, type MouseEvent, type PropsWithChildren, useCallback, useEffect, useRef } from "react";
 
 export type TextTags = "div" | "span" | "p";
 
@@ -33,6 +33,8 @@ export function Text<T extends TextTags = "div">(props: TextProps<T>) {
         center = false,
         ...rest
     } = props;
+
+    const Tag = tag as any;
 
     type TElement = ElementFromTag<typeof tag>;
 
@@ -69,21 +71,26 @@ export function Text<T extends TextTags = "div">(props: TextProps<T>) {
         };
     }, []);
 
-    const el = createElement(tag, {
-        className: cn(
-            "text",
-            base.wFit,
-            noselect && "select-none",
-            nowrap && "whitespace-nowrap",
-            textSize[size],
-            textWeight[weight],
-            textColors[color],
-            className,
-        ),
-        onMouseOver,
-        onMouseOut,
-        ...rest,
-    }, children);
+    const el = (
+        <Tag
+            className={
+                cn(
+                    "text",
+                    base.wFit,
+                    noselect && "select-none",
+                    nowrap && "whitespace-nowrap",
+                    textSize[size],
+                    textWeight[weight],
+                    textColors[color],
+                    className,
+                )
+            }
+            onMouseOver={onMouseOver}
+            onMouseOut={onMouseOut}
+            {...rest}
+        >{children}
+        </Tag>
+    );
 
     if (center) {
         return <div className="flex justify-center">{el}</div>;

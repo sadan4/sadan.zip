@@ -1,7 +1,7 @@
-import { useKeybind } from "@/hooks/keybind";
-import { useUpdatingRef } from "@/hooks/updatingRef";
+import { useKeybinds } from "@/hooks/keybind";
 import { z } from "@/styles";
 import cn from "@/utils/cn";
+import { updateRef } from "@/utils/ref";
 import { animated, useTransition } from "@react-spring/web";
 
 import { SYM_INTERNAL_KEY, useModalStackStore } from "./internal/modalStackStore";
@@ -29,7 +29,7 @@ export default function ModalRenderRoot() {
     });
 
     const closing = useRef(false);
-    const [ref, setRef] = useUpdatingRef<HTMLDivElement>();
+    const ref = useRef<HTMLDivElement>(null);
 
     const forceCloseModal = useCallback(() => {
         try {
@@ -63,16 +63,20 @@ export default function ModalRenderRoot() {
         }
     }, [currentModal, forceCloseModal]);
 
-    useKeybind(ref, exitModalKeybinds);
+    const kb = useKeybinds(exitModalKeybinds);
+
     // ensure the root has focus at first so we can listen for escape
     useEffect(() => {
-        ref?.focus();
-    }, [ref]);
+        ref.current?.focus();
+    }, []);
 
     return transitions((style, item) => (item
         ? (
             <animated.div
-                ref={setRef}
+                ref={(e) => {
+                    updateRef(ref, e);
+                    return kb(e);
+                }}
                 style={style}
                 className={cn("absolute top-0 left-0 w-full h-full bg-black/70", z.modal)}
                 tabIndex={-1}

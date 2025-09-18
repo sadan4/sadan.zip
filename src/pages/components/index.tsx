@@ -557,25 +557,27 @@ function TextExample() {
 
     return (
         <>
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-wrap items-center justify-between mb-4 gap-y-4">
                 <Text
                     size="xl"
                     center
                 >
                     TextComponents
                 </Text>
-                <Select
-                    className="w-20"
-                    items={textSizeSelectOptions}
-                    defaultValue={size}
-                    onChange={(size) => setSize(size)}
-                />
-                <Select
-                    className="w-30"
-                    items={textWeightSelectOptions}
-                    defaultValue={weight}
-                    onChange={setWeight}
-                />
+                <div className="flex items-center justify-between gap-3 w-min">
+                    <Select
+                        className="w-20"
+                        items={textSizeSelectOptions}
+                        defaultValue={size}
+                        onChange={(size) => setSize(size)}
+                    />
+                    <Select
+                        className="w-30"
+                        items={textWeightSelectOptions}
+                        defaultValue={weight}
+                        onChange={setWeight}
+                    />
+                </div>
                 <Input
                     initialValue={previewText}
                     onChange={(e) => {
