@@ -1,3 +1,4 @@
+// For more info, see https://github.com/storybookjs/eslint-plugin-storybook#configuration-flat-config-format
 import stylistic, { type RuleOptions } from "@stylistic/eslint-plugin";
 
 import { Linter } from "eslint";
@@ -5,6 +6,7 @@ import type { ESLintRules as IESLintRules } from "eslint/rules";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 import simpleImportSort from "eslint-plugin-simple-import-sort";
+import storybook from "eslint-plugin-storybook";
 import unusedImports from "eslint-plugin-unused-imports";
 import TSEslint from "typescript-eslint";
 
@@ -459,7 +461,7 @@ const styleRules: Partial<_RuleOptions> = {
     "@stylistic/padded-blocks": ["error", "never"],
     "@stylistic/padding-line-between-statements": [
         "error",
-        ...((function (): PaddingSchema {
+        ...(((function (): PaddingSchema {
             const tsTypes = ["enum", "interface", "type"] as const;
             const varTypes = ["var", "let", "const"] as const;
             const singlelineVar = varTypes.map((x) => `singleline-${x}` as const);
@@ -531,7 +533,7 @@ const styleRules: Partial<_RuleOptions> = {
                 makeTypescriptPadding(),
             ].flat(99);
         })()
-            .flat() as any /* doesnt include readonly arrays for some reason */),
+            .flat() as any) /* doesnt include readonly arrays for some reason */),
     ],
     "@stylistic/quote-props": ["error", "as-needed"],
     "@stylistic/quotes": [
@@ -633,7 +635,7 @@ const styleRules: Partial<_RuleOptions> = {
 const extensions = "{js,mjs,cjs,jsx,mjsx,cjsx,ts,mts,cts,tsx,mtsx,ctsx}";
 
 export default TSEslint.config({ ignores: ["dist"] }, {
-    files: [`src/**/*.${extensions}`, `eslint.config.${extensions}`, `vite.config.${extensions}`, `vitest.config.${extensions}`],
+    files: [`src/**/*.${extensions}`, `eslint.config.${extensions}`, `vite.config.${extensions}`, `vitest.config.${extensions}`, `.storybook/*.${extensions}`],
     plugins: {
         "@stylistic": stylistic,
         "@typescript-eslint": TSEslint.plugin,
@@ -683,7 +685,7 @@ export default TSEslint.config({ ignores: ["dist"] }, {
             { allowConstantExport: true },
         ],
     },
-});
+}, storybook.configs["flat/recommended"]);
 // import js from '@eslint/js'
 // import globals from 'globals'
 // import tseslint from 'typescript-eslint'

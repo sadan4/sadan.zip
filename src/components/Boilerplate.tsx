@@ -1,16 +1,22 @@
 import { z } from "@/styles";
 import cn from "@/utils/cn";
-import { isMobileDevice } from "@/utils/dom";
 import Cursor from "@components/Cursor";
 import BoundingCursor from "@components/Cursor/BoundingCursor";
 import { DotCursor } from "@components/Cursor/DotCursor";
 import ModalRenderRoot from "@components/modal/ModalRenderRoot";
 
+import { CustomCursorContext } from "./Cursor/context";
+
+import { useContext } from "react";
+
 export interface BoilerplateProps {
     noCursor?: boolean;
 }
 
-export function Boilerplate({ noCursor = isMobileDevice() }: BoilerplateProps) {
+export function Boilerplate({ noCursor }: BoilerplateProps) {
+    const cursorContext = useContext(CustomCursorContext);
+
+    noCursor ??= cursorContext;
     return (
         <>
             {

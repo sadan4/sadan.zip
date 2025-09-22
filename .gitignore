@@ -23,3 +23,6 @@ dist-ssr
 *.sw?
 .vite/deps
 .direnv
+
+*storybook.log
+storybook-static

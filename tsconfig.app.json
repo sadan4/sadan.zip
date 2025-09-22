@@ -51,6 +51,7 @@
     ]
   },
   "include": [
-    "src"
+    "src",
+    ".storybook/preview.tsx",
   ]
 }

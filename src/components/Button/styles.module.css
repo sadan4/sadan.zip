@@ -1,0 +1,156 @@
+@reference "../../index.css";
+
+@layer components {
+    .button {
+        border-radius: --spacing(1.5);
+        padding: --spacing(2);
+
+        &,
+        >.button-text {
+            @apply transition-colors duration-150;
+        }
+
+        &:hover {
+            cursor: pointer;
+        }
+
+        &:disabled {
+            cursor: not-allowed;
+        }
+
+        &.filled {
+            &:hover {
+                --button-color: --alpha(var(--button-color-base) / 80%);
+            }
+
+            &:active {
+                --button-color: --alpha(var(--button-color-base) / 65%);
+            }
+
+            &:disabled {
+                --button-color: --alpha(var(--button-color-base) / 80%);
+            }
+
+            >.button-text {
+                --text-color: var(--button-text-color, var(--color-bg-100));
+            }
+
+            background-color: var(--button-color, var(--button-color-base));
+        }
+
+        &.outline,
+        &.text {
+            background-color: transparent;
+            --button-color: var(--button-color-base);
+
+            >.button-text {
+                --text-color: var(--button-color);
+            }
+
+            &:disabled {
+                --button-color: color-mix(in oklab, var(--button-color-base), black 30%);
+            }
+
+            &.outline {
+                border-width: 1px;
+                border-style: solid;
+                border-color: var(--button-color);
+
+                &:hover {
+                    background-color: --alpha(var(--button-color) / var(--hover-bg-opacity, 5%));
+                }
+
+                &:active {
+                    background-color: --alpha(var(--button-color) / 15%);
+                }
+
+                &:disabled {
+                    background-color: unset;
+                }
+            }
+
+            &.text {
+                &:hover {
+                    background-color: --alpha(var(--button-color) / var(--hover-bg-opacity, 10%));
+                }
+
+                &:active {
+                    background-color: --alpha(var(--button-color) / 20%);
+                }
+
+                &:disabled {
+                    background-color: --alpha(var(--button-color) / 10%);
+                }
+            }
+        }
+
+        &:where(.primary) {
+            --button-color-base: var(--color-primary);
+        }
+
+        &:where(.secondary) {
+            --button-color-base: var(--color-secondary);
+        }
+
+        &:where(.accent) {
+            --button-color-base: var(--color-accent);
+
+            &:is(.outline, .text):hover {
+                --hover-bg-opacity: 10%;
+            }
+        }
+
+        &:where(.neutral) {
+            --button-color-base: var(--color-neutral);
+
+            &.filled {
+                --button-text-color: var(--color-neutral-content);
+
+                &:hover {
+                    --button-color: --alpha(var(--color-neutral) / 90%);
+                }
+
+                &:active {
+                    --button-color: --alpha(var(--color-neutral) / 70%);
+                }
+
+                &:disabled {
+                    --button-color: --alpha(var(--color-neutral) / 80%);
+                    --button-text-color: --alpha(var(--color-neutral-content) / 80%);
+                }
+            }
+        }
+
+        &:where(.neutral-content) {
+            --button-color-base: var(--color-neutral-content);
+
+            &.filled {
+                --button-text-color: var(--color-neutral);
+            }
+        }
+
+        &:where(.info) {
+            --button-color-base: var(--color-info);
+        }
+
+        &:where(.info-700) {
+            --button-color-base: var(--color-info-700);
+
+            &.filled {
+                --button-text-color: var(--color-bg-fg);
+            }
+        }
+
+        &:where(.success) {
+            --button-color-base: var(--color-success);
+        }
+
+        &:where(.warning) {
+            --button-color-base: var(--color-warning);
+        }
+
+        &:where(.error) {
+            --button-color-base: var(--color-error);
+        }
+    }
+}

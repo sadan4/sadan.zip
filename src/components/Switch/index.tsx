@@ -1,10 +1,10 @@
 import cn from "@/utils/cn";
 import error from "@/utils/error";
-import { animated, useSpringValue } from "@react-spring/web";
+import { animated, useSpring } from "@react-spring/web";
 
-import { Clickable } from "./Clickable";
 import styles from "./styles.module.css";
-import { type StandardTextProps, Text } from "./Text";
+import { Clickable } from "../Clickable";
+import { type StandardTextProps, Text } from "../Text";
 
 import invariant from "invariant";
 import { type ComponentPropsWithRef, useEffect, useState } from "react";
@@ -44,11 +44,23 @@ function rFromSwitchState(state: SwitchState) {
 }
 
 export interface SwitchProps {
+    /**
+     * the initial value of the switch if uncontrolled
+     */
     initialValue?: boolean;
+    /**
+     * the controlled value of the switch
+     */
     value?: boolean;
+    /**
+     * Called when the switch is toggled.
+     */
     onChange?: (value: boolean) => void;
 }
 
+/**
+ * An on-off switch with animations.
+ */
 export function Switch({ initialValue, value, onChange }: SwitchProps) {
     invariant(!(initialValue !== undefined && value !== undefined), "Switch cannot be both controlled and uncontrolled");
 
@@ -57,16 +69,9 @@ export function Switch({ initialValue, value, onChange }: SwitchProps) {
     const enabled = isManaged ? value : internalEnabled;
     const [state, setState] = useState(initialValue ? SwitchState.ON : SwitchState.OFF);
 
-    const cx = useSpringValue(xFromSwitchState(state), {
-        config: {
-            mass: 0.5,
-        },
-    });
-
-    const r = useSpringValue(rFromSwitchState(state), {
-        config: {
-            mass: 0.1,
-        },
+    const { cx, r } = useSpring({
+        cx: xFromSwitchState(state),
+        r: rFromSwitchState(state),
     });
 
     useEffect(() => {
@@ -75,11 +80,6 @@ export function Switch({ initialValue, value, onChange }: SwitchProps) {
             setState(value ? SwitchState.ON : SwitchState.OFF);
         }
     }, [isManaged, value]);
-
-    useEffect(() => {
-        cx.start(xFromSwitchState(state));
-        r.start(rFromSwitchState(state));
-    }, [state, cx, r]);
 
     return (
         <Clickable
@@ -117,13 +117,12 @@ export function Switch({ initialValue, value, onChange }: SwitchProps) {
         >
             <svg
                 viewBox="0 0 24 24"
-                className="flex items-center justify-center w-full h-full"
             >
                 <animated.circle
                     cx={cx}
                     cy={12}
                     r={r}
-                    className={cn("transition-colors duration-250", enabled ? "fill-neutral" : "fill-bg-fg-600")}
+                    className={styles.thumb}
                 />
             </svg>
         </Clickable>

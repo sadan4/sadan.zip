@@ -15,18 +15,6 @@ export interface ResizeProp {
     resize?: keyof typeof resizeClasses;
 }
 
-export const buttonColors = {
-    primary: "bg-primary active:bg-primary/65 hover:bg-primary/80 disabled:bg-primary/80",
-    secondary: "bg-secondary active:bg-secondary/65 hover:bg-secondary/80 disabled:bg-secondary/80",
-    accent: "bg-accent active:bg-accent/65 hover:bg-accent/80 disabled:bg-accent/80",
-    neutral: "bg-neutral active:bg-neutral/87 hover:bg-neutral/93 disabled:bg-neutral/93",
-    "neutral-content": "bg-neutral-content active:bg-neutral-content/65 hover:bg-neutral-content/80 disabled:bg-neutral-content/80",
-    info: "bg-info active:bg-info/65 hover:bg-info/80 disabled:bg-info/80",
-    "info-700": "bg-info-700 active:bg-info-700/65 hover:bg-info-700/80 disabled:bg-info-700/80",
-    success: "bg-success active:bg-success/65 hover:bg-success/80 disabled:bg-success/80",
-    warning: "bg-warning active:bg-warning/65 hover:bg-warning/80 disabled:bg-warning/80",
-    error: "bg-error active:bg-error/65 hover:bg-error/80 disabled:bg-error/80",
-} as const;
 
 export const bgColors = {
     black: "bg-bg-100",
@@ -51,19 +39,6 @@ export const bgColors = {
 } as const;
 
 
-export const buttonTextColors: Record<keyof typeof buttonColors, keyof typeof textColors> = {
-    primary: "black",
-    secondary: "black",
-    accent: "black",
-    neutral: "neutral-content",
-    "neutral-content": "neutral",
-    info: "black",
-    "info-700": "white",
-    success: "black",
-    warning: "black",
-    error: "black",
-} as const;
-
 export const textSize = {
     xs: "text-xs",
     sm: "text-sm",
@@ -79,6 +54,7 @@ export const textSize = {
     "8xl": "text-8xl",
     "9xl": "text-9xl",
 };
+export type GUH = "foo" | "bar";
 
 export interface SizeProp {
     size?: keyof typeof textSize;
@@ -108,7 +84,6 @@ export const textColors = {
     "white-600": "text-bg-fg-600",
     "white-700": "text-bg-fg-700",
     "white-800": "text-bg-fg-800",
-    "white-900": "text-bg-fg-900",
     primary: "text-primary",
     secondary: "text-secondary",
     accent: "text-accent",

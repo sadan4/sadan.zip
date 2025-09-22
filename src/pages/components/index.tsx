@@ -11,8 +11,7 @@ import { SearchableSelect, Select, type SelectOption } from "@/components/Select
 import { LabeledSwitch, Switch } from "@/components/Switch";
 import { Text } from "@/components/Text";
 import { LabeledTextArea, TextArea } from "@/components/TextArea";
-import { keys } from "@/utils/array";
-import cn, { buttonColors, textSize, textWeight } from "@/utils/cn";
+import { textSize, textWeight } from "@/utils/cn";
 
 import { useRef, useState } from "react";
 
@@ -190,35 +189,6 @@ function TabBarExample() {
                 },
             ]}
             />
-        </>
-    );
-}
-
-function ButtonsExample() {
-    const border = false;
-
-
-    return (
-        <>
-            <Text
-                size="xl"
-                center
-            >
-                Buttons
-            </Text>
-            <div className={cn("flex gap-2 flex-wrap", border && "*:border *:border-red-500")}>
-                {keys(buttonColors)
-                    .map((color) => {
-                        return (
-                            <Button
-                                key={color}
-                                color={color}
-                            >
-                                Click Me!
-                            </Button>
-                        );
-                    })}
-            </div>
         </>
     );
 }
@@ -754,8 +724,6 @@ export default function Components() {
                     </Text>
                     <Box className="mt-6 w-[40vw]">
                         <TabBarExample />
-                        <HorizontalLine className="my-4"/>
-                        <ButtonsExample />
                         <HorizontalLine className="my-4" />
                         <SelectExample />
                         <HorizontalLine className="my-4" />

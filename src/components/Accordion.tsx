@@ -3,7 +3,7 @@ import { namedContext } from "@/utils/devtools";
 import { Clickable } from "@components/Clickable";
 import { AnimateHeight } from "@effects/AnimateHeight";
 import { useForceUpdater } from "@hooks/forceUpdater";
-import { animated, useSpringValue } from "@react-spring/web";
+import { animated, useSpring } from "@react-spring/web";
 
 import { type PropsWithChildren, type ReactNode, type Ref, useContext, useEffect, useImperativeHandle, useState } from "react";
 
@@ -31,7 +31,8 @@ export function Accordion({ item: { id, render: Render }, children, className, i
     const [active, setActive] = useState(initialOpen ?? false);
     const groupCtx = useContext(AccordionContext);
 
-    const rotation = useSpringValue(active ? 180 : 0, {
+    const { rotation } = useSpring({
+        rotation: active ? 180 : 0,
         config: {
             mass: 0.5,
             friction: 50,
@@ -45,10 +46,6 @@ export function Accordion({ item: { id, render: Render }, children, className, i
             setActive(false);
         }
     }, [groupCtx?.closeAllTrigger]);
-
-    useEffect(() => {
-        rotation.start(active ? 180 : 0);
-    }, [active, rotation]);
 
     useEffect(() => {
         if (!groupCtx) {
