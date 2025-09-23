@@ -23,6 +23,12 @@ const router = createBrowserRouter([
                 },
             },
             {
+                path: "storybook",
+                loader() {
+                    location.pathname = "/storybook/index.html";
+                },
+            },
+            {
                 path: "demangler",
                 async lazy() {
                     const Component = (await import("./pages/demangler")).default;

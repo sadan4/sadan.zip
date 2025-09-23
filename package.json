@@ -5,11 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "pnpm build:vite && pnpm build:storybook",
+    "build:vite": "tsc -b && vite build",
+    "build:storybook": "storybook build -o dist/storybook",
     "lint": "eslint .",
     "preview": "vite preview",
-    "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build"
+    "storybook": "storybook dev -p 6006"
   },
   "dependencies": {
     "@radix-ui/react-popover": "^1.1.14",
