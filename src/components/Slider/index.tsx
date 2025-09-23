@@ -40,6 +40,8 @@ export interface SliderProps extends Omit<ComponentProps<"input">, "onChange" | 
      * the size of the slider, defaults to {@link sliderSizes.sm | sm}
      */
     size?: keyof typeof sliderSizes;
+    vertical?: boolean;
+    reverseVertical?: boolean;
     /**
      * called when the value changes
      */
@@ -63,6 +65,8 @@ export function Slider(props: SliderProps) {
         max = 100,
         value,
         size = "sm",
+        vertical = false,
+        reverseVertical = false,
         initialValue = rangeInputDefaultValue(min, max),
         onChange,
         markers = [],
@@ -104,7 +108,11 @@ export function Slider(props: SliderProps) {
     return (
         <div
             ref={containerRef}
-            className={cn(styles.slider, z.slider, sliderSizes[size], shouldShowMarkers && "my-3")}
+            className={cn(styles.slider, z.slider, sliderSizes[size], shouldShowMarkers && "my-3", {
+                [styles.vertical]: vertical,
+                [styles.horizontal]: !vertical,
+                [styles.reverse]: reverseVertical,
+            })}
             style={{
                 ["--progress" as any]: valueToPercent(currentValue),
             }}

@@ -44,7 +44,7 @@ export const Text: FC<{ children: ReactNode;
 }) => <span style={{ color }}>{children}</span>;
 
 // Simple Button component
-export const Button: React.FC<
+export const GuhButton: React.FC<
     React.ButtonHTMLAttributes<HTMLButtonElement> & { label: string; }
 > = ({ label, ...props }) => (
     <button

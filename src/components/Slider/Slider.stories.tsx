@@ -49,6 +49,21 @@ export const Default: Story = {
     },
 };
 
+export const Vertical: Story = {
+    args: {
+        vertical: true,
+        initialValue: 40,
+    },
+};
+
+export const ReversedVertical: Story = {
+    args: {
+        vertical: true,
+        reverseVertical: true,
+        initialValue: 40,
+    },
+};
+
 export const Disabled: Story = {
     args: {
         disabled: true,

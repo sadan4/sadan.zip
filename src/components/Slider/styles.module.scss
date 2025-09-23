@@ -1,4 +1,4 @@
-@function --alpha($color) {
+@function alpha($color) {
     @return color-mix(in oklab, $color, transparent);
 
 }
@@ -48,15 +48,147 @@
     .slider {
         display: flex;
         align-items: center;
-        width: 100%;
         position: relative;
 
         --progress: .5;
 
         --thumb-height: 2rem;
-        --track-height-padding: calc(var(--thumb-height) / 3);
         --track-height: calc(var(--thumb-height) / 3);
         --thumb-width: .3rem;
+
+        &.vertical {
+            writing-mode: vertical-rl;
+
+            transform: rotate(180deg);
+
+            &.reverse {
+                transform: none;
+            }
+
+            input::-webkit-slider-thumb {
+                height: var(--thumb-width);
+                width: var(--thumb-height);
+            }
+        }
+
+        &.horizontal {
+            width: 100%;
+
+            input::-webkit-slider-thumb {
+                height: var(--thumb-height);
+                width: var(--thumb-width);
+            }
+        }
+
+        input {
+            @extend %default-input-range;
+            position: relative;
+
+            &::-webkit-slider-thumb {
+                border-radius: $inf;
+                background-color: var(--color-bg-fg);
+            }
+        }
+
+        &:has(input:disabled) {
+            >* {
+                cursor: not-allowed;
+            }
+
+            input {
+                &::-webkit-slider-thumb {
+                    background-color: alpha(var(--color-bg-fg) 50%);
+                }
+            }
+
+            >.progress {
+                background-color: alpha(var(--color-primary) 50%);
+            }
+
+            >.remainder {
+                background-color: alpha(var(--color-bg-fg-700) 50%);
+            }
+        }
+
+        >.progress,
+        >.remainder {
+            position: absolute;
+        }
+
+        >.progress {
+            background-color: var(--color-primary);
+        }
+
+        >.remainder {
+            background-color: var(--color-bg-fg-700);
+        }
+
+        // bad name
+        $widthFromLeft: calc(var(--progress) * 100% + ((var(--progress) - .5) * -1 * var(--thumb-width)));
+        //                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        // This is needed to keep the end of the progress track always at the center of the thumb
+
+        &.vertical {
+
+            >.progress,
+            >.remainder {
+                block-size: var(--track-height);
+            }
+
+            >.progress {
+                border-top-left-radius: $inf;
+                border-top-right-radius: $inf;
+                height: $widthFromLeft;
+
+                // * 1.5 to account for the fact that we start in it's center
+                $guh: calc(100% - var(--thumb-width) * 1.5);
+                clip-path: polygon(0 0, 100% 0, 100% $guh, 0 $guh);
+            }
+
+            >.remainder {
+                border-bottom-left-radius: $inf;
+                border-bottom-right-radius: $inf;
+
+                top: $widthFromLeft;
+                bottom: 0;
+
+                // * 1.5 to account for the fact that we start in it's center
+                $guh: calc(var(--thumb-width) * 1.5);
+                clip-path: polygon(0 $guh, 100% $guh, 100% 100%, 0 100%);
+            }
+        }
+
+        &.horizontal {
+
+            >.progress,
+            >.remainder {
+                block-size: var(--track-height);
+            }
+
+            >.progress {
+                left: 0;
+                width: $widthFromLeft;
+
+                border-start-start-radius: $inf;
+                border-end-start-radius: $inf;
+
+                // * 1.5 to account for the fact that we start in it's center
+                $guh: calc(100% - var(--thumb-width) * 1.5);
+                clip-path: polygon(0 0, $guh 0, $guh 100%, 0 100%);
+            }
+
+            >.remainder {
+                left: $widthFromLeft;
+                right: 0;
+
+                border-start-end-radius: $inf;
+                border-end-end-radius: $inf;
+
+                // * 1.5 to account for the fact that we start in it's center
+                $guh: calc(var(--thumb-width) * 1.5);
+                clip-path: polygon($guh 0, 100% 0, 100% 100%, $guh 100%);
+            }
+        }
 
         &.xs {
             --thumb-height: 1rem;
@@ -69,83 +201,12 @@
 
         &.md {
             --thumb-height: 2.5rem;
-            --track-height-padding: .25rem;
             --track-height: 2rem;
         }
 
         &.lg {
             --thumb-height: 4rem;
-            --track-height-padding: .25rem;
             --track-height: 3.5rem;
-        }
-
-        &:has(input:disabled) {
-            >* {
-                cursor: not-allowed;
-            }
-
-            input {
-                &::-webkit-slider-thumb {
-                    background-color: --alpha(var(--color-bg-fg) 50%);
-                }
-            }
-
-            >.progress {
-                background-color: --alpha(var(--color-primary) 50%);
-            }
-
-            >.remainder {
-                background-color: --alpha(var(--color-bg-fg-700) 50%);
-            }
-        }
-
-        input {
-            @extend %default-input-range;
-            position: relative;
-
-            &::-webkit-slider-thumb {
-                height: var(--thumb-height);
-                width: var(--thumb-width);
-                border-radius: $inf;
-                background-color: var(--color-bg-fg);
-            }
-        }
-
-        $widthFromLeft: calc(var(--progress) * 100% + ((var(--progress) - .5) * -1 * var(--thumb-width)));
-        //                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-        // This is needed to keep the end of the progress track always at the center of the thumb
-
-        >.progress,
-        >.remainder {
-            position: absolute;
-            top: var(--track-height-padding);
-            block-size: var(--track-height);
-        }
-
-        >.progress {
-            left: 0;
-            width: $widthFromLeft;
-
-            border-start-start-radius: $inf;
-            border-end-start-radius: $inf;
-            background-color: var(--color-primary);
-
-            // * 1.5 to account for the fact that we start in it's center
-            $guh: calc(100% - var(--thumb-width) * 1.5);
-            clip-path: polygon(0 0, $guh 0, $guh 100%, 0 100%);
-        }
-
-        >.remainder {
-            left: $widthFromLeft;
-            right: 0;
-
-            border-start-end-radius: $inf;
-            border-end-end-radius: $inf;
-            background-color: var(--color-bg-fg-700);
-
-            // * 1.5 to account for the fact that we start in it's center
-            $guh: calc(var(--thumb-width) * 1.5);
-            clip-path: polygon($guh 0, 100% 0, 100% 100%, $guh 100%);
         }
     }
 }

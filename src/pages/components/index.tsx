@@ -1,4 +1,3 @@
-import { Accordion, AccordionGroup, type AccordionGroupHandle } from "@/components/Accordion";
 import { Boilerplate } from "@/components/Boilerplate";
 import { Box } from "@/components/Box";
 import { Button } from "@/components/Button";
@@ -8,21 +7,12 @@ import { CheckedInput, Input, LabeledInput } from "@/components/Input";
 import { TabBar } from "@/components/layout/TabBar";
 import { Marquee } from "@/components/Marquee";
 import { SearchableSelect, Select, type SelectOption } from "@/components/Select";
-import { LabeledSwitch, Switch } from "@/components/Switch";
 import { Text } from "@/components/Text";
 import { LabeledTextArea, TextArea } from "@/components/TextArea";
 import { textSize, textWeight } from "@/utils/cn";
+import { lorem } from "@/utils/constants";
 
-import { useRef, useState } from "react";
-
-
-// cspell:disable
-const lorem = `
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum ut dui est. Cras commodo, erat eget finibus varius, augue est dignissim turpis, nec bibendum nisl justo vitae sem. Aenean sit amet vulputate tortor. Nullam eu vestibulum nisi. Phasellus hendrerit sollicitudin malesuada. Nullam est tellus, convallis in justo quis, efficitur laoreet erat. Duis nulla elit, sodales sed vulputate faucibus, commodo quis sapien. Donec in ligula non risus sagittis fermentum nec ac diam. Phasellus vel dictum nisi, sed pharetra justo.
-
-In viverra eleifend tortor ultricies molestie. Duis ullamcorper, lacus ac vehicula malesuada, tortor leo rhoncus enim, eu tempor ipsum purus non ipsum. Integer rutrum ipsum sit amet ante laoreet malesuada. Morbi hendrerit vestibulum neque in dignissim. Pellentesque aliquet tempor sem non ultricies. Nulla ac imperdiet erat, sit amet finibus lacus. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Etiam ornare accumsan tellus, ac aliquet turpis imperdiet et.
-`;
-// cspell:enable
+import { useState } from "react";
 
 function ManagedTabBar() {
     const [section, setSection] = useState<"1" | "2" | "3">("1");
@@ -318,79 +308,6 @@ function SelectExample() {
     );
 }
 
-function SwitchExample() {
-    const [switchValues, setSwitchValues] = useState<boolean[]>([true, false, true, false]);
-    const [ignoreInput, setIgnoreInput] = useState(false);
-
-    const toggleAll = () => {
-        setSwitchValues((values) => values.map((v) => !v));
-    };
-
-    const handleSwitchChange = (index: number, newValue: boolean) => {
-        setSwitchValues((values) => {
-            const newValues = [...values];
-
-            newValues[index] = newValue;
-            return newValues;
-        });
-    };
-
-    return (
-        <>
-            <Text
-                size="xl"
-                center
-            >
-                Switch
-            </Text>
-            <Box>
-                <Text
-                    size="lg"
-                    center
-                >
-                    Uncontrolled Switches
-                </Text>
-                <div className="flex flex-row flex-wrap gap-4">
-                    {Array.from({ length: 20 }, (_, i) => (
-                        <Switch
-                            key={i}
-                            initialValue={Math.random() > 0.5}
-                        />
-                    ))}
-                </div>
-            </Box>
-
-            <Box className="mt-8">
-                <div className="flex items-center justify-between mb-4 gap-3">
-                    <LabeledSwitch
-                        value={ignoreInput}
-                        onChange={setIgnoreInput}
-                    >
-                        Ignore User Input
-                    </LabeledSwitch>
-                    <Text
-                        size="lg"
-                    >
-                        Controlled Switches
-                    </Text>
-                    <Button onClick={toggleAll}>
-                        Toggle All Switches
-                    </Button>
-                </div>
-                <div className="flex flex-row flex-wrap gap-4">
-                    {switchValues.map((value, index) => (
-                        <Switch
-                            key={index}
-                            value={value}
-                            onChange={ignoreInput ? undefined : (newValue) => handleSwitchChange(index, newValue)}
-                        />
-                    ))}
-                </div>
-            </Box>
-        </>
-    );
-}
-
 function InputExample() {
     return (
         <>
@@ -577,120 +494,6 @@ function TextExample() {
     );
 }
 
-function AccordionExample() {
-    const group2Ref = useRef<AccordionGroupHandle>(null);
-
-    return (
-        <>
-            <Text
-                size="xl"
-                center
-            >
-                Accordion
-            </Text>
-            <Accordion
-                item={{
-                    id: "sample-accordion",
-                    render: () => <Text>Accordion Content</Text>,
-                }}
-            >
-                <Text size="lg">Single Accordion Item</Text>
-            </Accordion>
-            <Text
-                size="lg"
-                className="my-2"
-            >
-                Accordion Group, Only One Open
-            </Text>
-            <AccordionGroup>
-                <Box>
-                    <Accordion
-                        item={{
-                            id: "1",
-                            render() {
-                                return <Text size="md">This is the content of Accordion 1.</Text>;
-                            },
-                        }}
-                    >
-                        <Text size="lg">Accordion 1</Text>
-                    </Accordion>
-                    <Accordion
-                        item={{
-                            id: "2",
-                            render() {
-                                return <Text size="md">{lorem}</Text>;
-                            },
-                        }}
-                    >
-                        <Text size="lg">Accordion 2</Text>
-                    </Accordion>
-                    <Accordion
-                        item={{
-                            id: "3",
-                            render() {
-                                return <Text size="md">This is the content of Accordion 3.</Text>;
-                            },
-                        }}
-                    >
-                        <Text size="lg">Accordion 3</Text>
-                    </Accordion>
-                </Box>
-            </AccordionGroup>
-            <div className="flex items-center justify-between my-2">
-                <Text
-                    size="lg"
-                >
-                    Accordion Group
-                </Text>
-                <Button
-                    onClick={() => {
-                        group2Ref.current?.closeAll();
-                    }}
-                >
-                    Close All
-                </Button>
-            </div>
-            <AccordionGroup
-                onlyOneOpen={false}
-                ref={group2Ref}
-            >
-                <Box>
-                    <Accordion
-                        item={{
-                            id: "1",
-                            render() {
-                                return <Text size="md">This is the content of Accordion 1.</Text>;
-                            },
-                        }}
-                    >
-                        <Text size="lg">Accordion 1</Text>
-                    </Accordion>
-                    <Accordion
-                        item={{
-                            id: "2",
-                            render() {
-                                return <Text size="md">{lorem}</Text>;
-                            },
-                        }}
-                    >
-                        <Text size="lg">Accordion 2</Text>
-                    </Accordion>
-                    <Accordion
-                        item={{
-                            id: "3",
-                            render() {
-                                return <Text size="md">This is the content of Accordion 3.</Text>;
-                            },
-                        }}
-                    >
-                        <Text size="lg">Accordion 3</Text>
-                    </Accordion>
-                </Box>
-            </AccordionGroup>
-        </>
-    );
-}
-
 function TextAreaExample() {
     return (
         <>
@@ -726,10 +529,6 @@ export default function Components() {
                         <TabBarExample />
                         <HorizontalLine className="my-4" />
                         <SelectExample />
-                        <HorizontalLine className="my-4" />
-                        <SwitchExample />
-                        <HorizontalLine className="my-4" />
-                        <AccordionExample />
                         <HorizontalLine className="my-4" />
                         <InputExample />
                         <HorizontalLine className="my-4" />

@@ -21,9 +21,4 @@
             height: 100%;
         }
     }
-
-    .select {
-        @apply items-center rounded-md flex p-2 w-full;
-    }
-
 }
