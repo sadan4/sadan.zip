@@ -1,0 +1,151 @@
+@function --alpha($color) {
+    @return color-mix(in oklab, $color, transparent);
+
+}
+
+@layer components {
+    %default-input-range {
+        box-shadow: none;
+        border: none;
+        outline: none;
+        pointer-events: all;
+        inline-size: 100%;
+        appearance: none;
+        -webkit-appearance: none;
+
+
+        &::-webkit-slider-thumb,
+        &::-webkit-slider-runnable-track,
+        &::-webkit-slider-container {
+            appearance: none;
+            -webkit-appearance: none;
+            box-sizing: border-box;
+            -webkit-user-modify: read-only !important;
+        }
+
+        &::-webkit-slider-container,
+        &::-webkit-slider-runnable-track {
+            min-inline-size: 0px;
+            flex: 1 1 0%;
+        }
+
+        &::-webkit-slider-thumb,
+        &::-webkit-slider-runnable-track {
+            display: block;
+        }
+
+        &::-webkit-slider-container {
+            display: flex;
+        }
+
+        &::-webkit-slider-runnable-track {
+            align-self: center;
+        }
+    }
+
+    $inf: calc(infinity * 1px);
+
+    .slider {
+        display: flex;
+        align-items: center;
+        width: 100%;
+        position: relative;
+
+        --progress: .5;
+
+        --thumb-height: 2rem;
+        --track-height-padding: calc(var(--thumb-height) / 3);
+        --track-height: calc(var(--thumb-height) / 3);
+        --thumb-width: .3rem;
+
+        &.xs {
+            --thumb-height: 1rem;
+            --thumb-width: .15rem;
+        }
+
+        &.sm {
+            --thumb-height: 2rem;
+        }
+
+        &.md {
+            --thumb-height: 2.5rem;
+            --track-height-padding: .25rem;
+            --track-height: 2rem;
+        }
+
+        &.lg {
+            --thumb-height: 4rem;
+            --track-height-padding: .25rem;
+            --track-height: 3.5rem;
+        }
+
+        &:has(input:disabled) {
+            >* {
+                cursor: not-allowed;
+            }
+
+            input {
+                &::-webkit-slider-thumb {
+                    background-color: --alpha(var(--color-bg-fg) 50%);
+                }
+            }
+
+            >.progress {
+                background-color: --alpha(var(--color-primary) 50%);
+            }
+
+            >.remainder {
+                background-color: --alpha(var(--color-bg-fg-700) 50%);
+            }
+        }
+
+        input {
+            @extend %default-input-range;
+            position: relative;
+
+            &::-webkit-slider-thumb {
+                height: var(--thumb-height);
+                width: var(--thumb-width);
+                border-radius: $inf;
+                background-color: var(--color-bg-fg);
+            }
+        }
+
+        $widthFromLeft: calc(var(--progress) * 100% + ((var(--progress) - .5) * -1 * var(--thumb-width)));
+        //                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        // This is needed to keep the end of the progress track always at the center of the thumb
+
+        >.progress,
+        >.remainder {
+            position: absolute;
+            top: var(--track-height-padding);
+            block-size: var(--track-height);
+        }
+
+        >.progress {
+            left: 0;
+            width: $widthFromLeft;
+
+            border-start-start-radius: $inf;
+            border-end-start-radius: $inf;
+            background-color: var(--color-primary);
+
+            // * 1.5 to account for the fact that we start in it's center
+            $guh: calc(100% - var(--thumb-width) * 1.5);
+            clip-path: polygon(0 0, $guh 0, $guh 100%, 0 100%);
+        }
+
+        >.remainder {
+            left: $widthFromLeft;
+            right: 0;
+
+            border-start-end-radius: $inf;
+            border-end-end-radius: $inf;
+            background-color: var(--color-bg-fg-700);
+
+            // * 1.5 to account for the fact that we start in it's center
+            $guh: calc(var(--thumb-width) * 1.5);
+            clip-path: polygon($guh 0, 100% 0, 100% 100%, $guh 100%);
+        }
+    }
+}

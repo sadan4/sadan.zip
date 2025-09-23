@@ -6,5 +6,5 @@ export {
 } from "./border.module.css";
 export {
     default as z,
-} from "./z.module.css";
+} from "./z.module.scss";
 

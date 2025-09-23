@@ -6,12 +6,21 @@ import cssUrl from "../src/index.css?url";
 
 import { themes } from "storybook/theming";
 
-const styleEl = document.createElement("link");
-
-styleEl.rel = "stylesheet";
-styleEl.href = cssUrl;
 // INSANITY https://github.com/storybookjs/storybook/issues/23990
-document.head.prepend(styleEl);
+const styleEl = function (): HTMLLinkElement {
+    const ID = "index-style-storybook-workaround";
+    let cur = document.getElementById(ID) as HTMLLinkElement | null;
+
+    if (!cur) {
+        cur = document.createElement("link");
+        cur.id = ID;
+        document.head.prepend(cur);
+    }
+    cur.rel = "stylesheet";
+    return cur;
+}();
+
+styleEl.href = cssUrl;
 
 import { createPortal } from "react-dom";
 
