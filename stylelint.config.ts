@@ -2,6 +2,7 @@ import { type Config } from "stylelint";
 
 export default {
     extends: ["stylelint-config-standard"],
+    ignoreFiles: ["./dist/**/*"],
     overrides: [
         {
             files: "*.scss",
@@ -13,7 +14,7 @@ export default {
                 "at-rule-no-unknown": [
                     true,
                     {
-                    // tailwind at rules
+                        // tailwind at rules
                         ignoreAtRules: ["reference", "apply", "utility"],
                     },
                 ],
