@@ -1,4 +1,5 @@
 import { useSize } from "@/hooks/size";
+import { z } from "@/styles";
 import cn from "@/utils/cn";
 import toCSS from "@/utils/toCSS";
 import { animated, useSpring } from "@react-spring/web";
@@ -85,12 +86,18 @@ export default function BorderHoldCircular({ children, onHold }: BolderHoldCircu
     return (
         <div
             ref={wrapperRef}
-            onMouseDown={startAnimation}
-            onMouseUp={stopAnimation}
-            onMouseOut={stopAnimation}
+            onPointerDown={startAnimation}
+            onContextMenu={(e) => {
+                // it's a pointer event, react is stupid https://developer.mozilla.org/en-US/docs/Web/API/Element/contextmenu_event#browser_compatibility
+                if ((e.nativeEvent as PointerEvent).pointerType !== "mouse") {
+                    e.preventDefault();
+                }
+            }}
+            onPointerUp={stopAnimation}
+            onPointerOut={stopAnimation}
         >
             <animated.svg
-                className={cn("absolute -translate-1/30 -z-10", styles.circularBorder)}
+                className={cn("absolute -translate-1/30", z.baseVisualEffect, styles.circularBorder)}
                 viewBox="0 0 250 250"
                 style={{
                     width: toCSS.px(bgWidth),

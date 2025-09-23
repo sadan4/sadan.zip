@@ -1,0 +1,27 @@
+.disable .interactive, .direct-disable.interactive {
+    --ring-width: 0px;
+}
+.interactive {
+    /**
+     * Components are expected to use autofocus or focused to manage the outline
+     */
+    outline: none;
+    --ring-color: color-mix(in oklab, var(--color-bg-fg-600) 25%, transparent);
+    --ring-width: 2px;
+    box-shadow: 0 0 0 var(--ring-width) var(--ring-color);
+
+    &.autofocus:focus-visible,
+    &.focused {
+        --ring-color: var(--color-bg-fg-600);
+    }
+
+    &.animate {
+        transition-property: color, box-shadow;
+        transition-timing-function: var(--tw-ease, var(--default-transition-timing-function)
+                /* cubic-bezier(0.4, 0, 0.2, 1) */
+            );
+        transition-duration: var(--tw-duration, var(--default-transition-duration)
+                /* 150ms */
+            );
+    }
+}

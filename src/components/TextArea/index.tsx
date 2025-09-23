@@ -37,26 +37,18 @@ export function TextArea({
         <textarea
             className={cn("bg-bg-300 rounded-md px-3 py-1 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 outline-none transition-[color,box-shadow] ring-1 ring-bg-fg-600/50 focus-visible:ring-3 focus:ring-bg-fg-600", resizeClasses[resize], textColors[color], textSize[size], textWeight[weight], className)}
             onMouseOut={(e: MouseEvent<HTMLTextAreaElement>) => {
-                try {
-                    onMouseOutProp?.(e as any);
-                } catch (e) {
-                    console.error("Error occurred in mouseOut:", e);
-                }
                 shouldNullOnUnmount.current = false;
                 useCursorContextStore
                     .getState()
                     .updateTextElement(null);
+                onMouseOutProp?.(e as any);
             }}
             onMouseOver={(e: MouseEvent<HTMLTextAreaElement>) => {
-                try {
-                    onMouseOverProp?.(e as any);
-                } catch (e) {
-                    console.error("error occurred in mouseOver:", e);
-                }
                 shouldNullOnUnmount.current = true;
                 useCursorContextStore
                     .getState()
                     .updateTextElement(e.nativeEvent.target as HTMLTextAreaElement);
+                onMouseOverProp?.(e as any);
             }}
             ref={(r) => {
                 updateRef(ref, r);

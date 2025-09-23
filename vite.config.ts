@@ -1,11 +1,18 @@
+/// <reference types="vitest/config" />
+import { storybookTest } from "@storybook/addon-vitest/vitest-plugin";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 
+// https://vite.dev/config/
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 import devtoolsJson from "vite-plugin-devtools-json";
 import tsconfigPaths from "vite-tsconfig-paths";
 
-// https://vite.dev/config/
+const dirname = typeof __dirname !== "undefined" ? __dirname : path.dirname(fileURLToPath(import.meta.url));
+
+// More info at: https://storybook.js.org/docs/next/writing-tests/integrations/vitest-addon
 export default defineConfig({
     plugins: [
         react({
@@ -15,26 +22,34 @@ export default defineConfig({
                         "babel-plugin-react-compiler",
                         {
                             logger: {
-                                logEvent(filename: any, event: { kind: string;
-                                    detail: { reason: any;
+                                logEvent(filename: any, event: {
+                                    kind: string;
+                                    detail: {
+                                        reason: any;
                                         description: any;
-                                        loc: { start: { line: any;
-                                            column: any; }; };
-                                        suggestions: any; }; }) {
+                                        loc: {
+                                            start: {
+                                                line: any;
+                                                column: any;
+                                            };
+                                        };
+                                        suggestions: any;
+                                    };
+                                }) {
                                     if (event.kind === "CompileError") {
                                         console.error(`\nCompilation failed: ${filename}`);
                                         console.error(`Reason: ${event.detail.reason}`);
-
                                         if (event.detail.description) {
                                             console.error(`Details: ${event.detail.description}`);
                                         }
-
                                         if (event.detail.loc) {
-                                            const { line, column } = event.detail.loc.start ?? {};
+                                            const {
+                                                line,
+                                                column,
+                                            } = event.detail.loc.start ?? {};
 
                                             console.error(`Location: Line ${line}, Column ${column}`);
                                         }
-
                                         if (event.detail.suggestions) {
                                             console.error("Suggestions:", event.detail.suggestions);
                                         }
@@ -68,5 +83,33 @@ export default defineConfig({
         modules: {
             localsConvention: "camelCase",
         },
+    },
+    test: {
+        projects: [
+            {
+                extends: true,
+                plugins: [
+                    // The plugin will run tests for the stories defined in your Storybook config
+                    // See options at: https://storybook.js.org/docs/next/writing-tests/integrations/vitest-addon#storybooktest
+                    storybookTest({
+                        configDir: path.join(dirname, ".storybook"),
+                    }),
+                ],
+                test: {
+                    name: "storybook",
+                    browser: {
+                        enabled: true,
+                        headless: true,
+                        provider: "playwright",
+                        instances: [
+                            {
+                                browser: "chromium",
+                            },
+                        ],
+                    },
+                    setupFiles: [".storybook/vitest.setup.ts"],
+                },
+            },
+        ],
     },
 });

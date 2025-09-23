@@ -2,8 +2,12 @@
     "vite.autoStart": false,
     "vite.browserType": "system",
     "cSpell.words": [
+        "autofocus",
         "minky",
-        "noselect",
-        "Minky"
-    ]
+        "Minky",
+        "noselect"
+    ],
+    "typescript.tsdk": "node_modules/typescript/lib",
+    "css.lint.unknownAtRules": "ignore",
+    "typescript.tsserver.experimental.enableProjectDiagnostics": true,
 }

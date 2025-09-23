@@ -5,7 +5,7 @@ import Shadow from "@/components/effects/Shadow";
 import CloseIcon from "@/components/icons/Close";
 import LeftArrow from "@/components/icons/LeftArrow";
 import RightArrow from "@/components/icons/RightArrow";
-import Circle, { type CircleItemProps, DefaultPlacementCircleItem } from "@/components/layout/Circle";
+import Circle, { DefaultPlacementCircleItem } from "@/components/layout/Circle";
 import { useModalStackStore } from "@/components/modal/internal/modalStackStore";
 import { Popout } from "@/components/Popout";
 import { PopoutDirection } from "@/components/Popout/constants";
@@ -17,7 +17,7 @@ import toCSS from "@/utils/toCSS";
 import FriendCard from "./FriendCard";
 import { defaultPosition, useFriendModalCenterStore } from "./friendModalCenterStore";
 
-import { Fragment, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 export interface FriendModalProps {
 }
@@ -65,76 +65,64 @@ export default function FriendModal() {
 
     const nextButton = useMemo(() => {
         return (
-            (props: CircleItemProps) => (
-                <Fragment key="next-button">
-                    <DefaultPlacementCircleItem {...props}>
-                        <Clickable onClick={() => {
-                            setFriendIndex((prev) => prev + 1);
-                        }}
-                        >
-                            <ArrowButton direction="next" />
-                        </Clickable>
-                    </DefaultPlacementCircleItem>
-                </Fragment>
-            )
+            <DefaultPlacementCircleItem key="next-button">
+                <Clickable onClick={() => {
+                    setFriendIndex((prev) => prev + 1);
+                }}
+                >
+                    <ArrowButton direction="next" />
+                </Clickable>
+            </DefaultPlacementCircleItem>
         );
     }, []);
 
     const prevButton = useMemo(() => {
         return (
-            (props: CircleItemProps) => (
-                <Fragment key="prev-button">
-                    <DefaultPlacementCircleItem
-                        {...props}
-                    >
-                        <Clickable onClick={() => {
-                            setFriendIndex((prev) => prev - 1);
-                        }}
-                        >
-                            <ArrowButton direction="previous" />
-                        </Clickable>
-                    </DefaultPlacementCircleItem>
-                </Fragment>
-            )
+            <DefaultPlacementCircleItem key="prev-button">
+                <Clickable onClick={() => {
+                    setFriendIndex((prev) => prev - 1);
+                }}
+                >
+                    <ArrowButton direction="previous" />
+                </Clickable>
+            </DefaultPlacementCircleItem>
         );
     }, []);
 
     const contents = useMemo(() => {
         return loopArrayStartingAt(friends, friendIndex)
             .slice(0, 4)
-            .map((friend) => (props: CircleItemProps) => (
-                <Fragment key={friend.name}>
-                    <DefaultPlacementCircleItem {...props}>
-                        <Popout
-                            side={PopoutDirection.CENTER}
-                            renderPopout={() => {
-                                return (
-                                    <div>
-                                        <FriendCard friend={friend} />
-                                    </div>
-                                );
-                            }}
-                        >
-                            <Clickable>
-                                <PerspectiveHover hoverFactor={2}>
-                                    <Shadow>
-                                        <img
-                                            src={friend.avatarUrl.toString()}
-                                            className="h-24 w-24 min-w-24 min-h-24 rounded-full select-none"
-                                        />
-                                    </Shadow>
-                                </PerspectiveHover>
-                            </Clickable>
-                        </Popout>
-                    </DefaultPlacementCircleItem>
-                </Fragment>
+            .map((friend) => (
+                <DefaultPlacementCircleItem key={friend.name}>
+                    <Popout
+                        side={PopoutDirection.CENTER}
+                        renderPopout={() => {
+                            return (
+                                <div>
+                                    <FriendCard friend={friend} />
+                                </div>
+                            );
+                        }}
+                    >
+                        <Clickable>
+                            <PerspectiveHover hoverFactor={2}>
+                                <Shadow>
+                                    <img
+                                        src={friend.avatarUrl.toString()}
+                                        className="h-24 w-24 min-w-24 min-h-24 rounded-full select-none"
+                                    />
+                                </Shadow>
+                            </PerspectiveHover>
+                        </Clickable>
+                    </Popout>
+                </DefaultPlacementCircleItem>
             ))
             .toSpliced(0, 0, nextButton, prevButton);
     }, [friendIndex, nextButton, prevButton]);
 
     return (
         <div
-            className="top-0 left-0 fixed w-full h-full z-101"
+            className="top-0 left-0 fixed w-full h-full"
             onWheel={(e) => {
                 console.log("scroll", e);
             }}

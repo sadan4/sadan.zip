@@ -1,4 +1,3 @@
-import { Accordion, AccordionGroup, type AccordionGroupHandle } from "@/components/Accordion";
 import { Boilerplate } from "@/components/Boilerplate";
 import { Box } from "@/components/Box";
 import { Button } from "@/components/Button";
@@ -7,24 +6,13 @@ import { HorizontalLine } from "@/components/HorizontalLine";
 import { CheckedInput, Input, LabeledInput } from "@/components/Input";
 import { TabBar } from "@/components/layout/TabBar";
 import { Marquee } from "@/components/Marquee";
-import { LabeledSwitch, Switch } from "@/components/Switch";
+import { SearchableSelect, Select, type SelectOption } from "@/components/Select";
 import { Text } from "@/components/Text";
 import { LabeledTextArea, TextArea } from "@/components/TextArea";
-import { keys } from "@/utils/array";
-import cn, { buttonColors, textSize, textWeight } from "@/utils/cn";
+import { textSize, textWeight } from "@/utils/cn";
+import { lorem } from "@/utils/constants";
 
-import guh from "./guh.module.css";
-
-import { useRef, useState } from "react";
-
-
-// cspell:disable
-const lorem = `
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum ut dui est. Cras commodo, erat eget finibus varius, augue est dignissim turpis, nec bibendum nisl justo vitae sem. Aenean sit amet vulputate tortor. Nullam eu vestibulum nisi. Phasellus hendrerit sollicitudin malesuada. Nullam est tellus, convallis in justo quis, efficitur laoreet erat. Duis nulla elit, sodales sed vulputate faucibus, commodo quis sapien. Donec in ligula non risus sagittis fermentum nec ac diam. Phasellus vel dictum nisi, sed pharetra justo.
-
-In viverra eleifend tortor ultricies molestie. Duis ullamcorper, lacus ac vehicula malesuada, tortor leo rhoncus enim, eu tempor ipsum purus non ipsum. Integer rutrum ipsum sit amet ante laoreet malesuada. Morbi hendrerit vestibulum neque in dignissim. Pellentesque aliquet tempor sem non ultricies. Nulla ac imperdiet erat, sit amet finibus lacus. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Etiam ornare accumsan tellus, ac aliquet turpis imperdiet et.
-`;
-// cspell:enable
+import { useState } from "react";
 
 function ManagedTabBar() {
     const [section, setSection] = useState<"1" | "2" | "3">("1");
@@ -195,36 +183,35 @@ function TabBarExample() {
     );
 }
 
-function ButtonsExample() {
-    const border = false;
+function SelectExample() {
+    const selectionItems = [
+        {
+            label: "foo",
+            value: "foo",
+            key: "foo",
+            typedValue: "foo",
+        },
+        {
+            label: "bar",
+            value: "bar",
+            key: "bar",
+            typedValue: "bar",
+        },
+        {
+            label: "baz",
+            value: "baz",
+            key: "baz",
+            typedValue: "baz",
+        },
+    ] as const satisfies SelectOption<PropertyKey>[];
 
+    const manyItems = Array.from({ length: 100 }, (_, i) => ({
+        label: `Item ${i + 1}`,
+        value: `item${i + 1}`,
+        key: `item${i + 1}`,
+        typedValue: `item ${i + 1}`,
+    })) satisfies SelectOption<PropertyKey>[];
 
-    return (
-        <>
-            <Text
-                size="xl"
-                center
-            >
-                Buttons
-            </Text>
-            <div className={cn("flex gap-2 flex-wrap", border && "*:border *:border-red-500")}>
-                {keys(buttonColors)
-                    .map((color) => {
-                        return (
-                            <Button
-                                key={color}
-                                color={color}
-                            >
-                                Click Me!
-                            </Button>
-                        );
-                    })}
-            </div>
-        </>
-    );
-}
-
-function SelectionExample() {
     return (
         <>
             <Text
@@ -233,82 +220,90 @@ function SelectionExample() {
             >
                 Selection Menu
             </Text>
-            <Text size="xl">
-                TODO
+            <Select
+                items={selectionItems}
+                defaultValue="bar"
+            />
+            <Text size="lg">
+                Stay Open After Selection
             </Text>
-        </>
-    );
-}
-
-function SwitchExample() {
-    const [switchValues, setSwitchValues] = useState<boolean[]>([true, false, true, false]);
-    const [ignoreInput, setIgnoreInput] = useState(false);
-
-    const toggleAll = () => {
-        setSwitchValues((values) => values.map((v) => !v));
-    };
-
-    const handleSwitchChange = (index: number, newValue: boolean) => {
-        setSwitchValues((values) => {
-            const newValues = [...values];
-
-            newValues[index] = newValue;
-            return newValues;
-        });
-    };
-
-    return (
-        <>
-            <Text
-                size="xl"
-                center
+            <Select
+                items={selectionItems}
+                defaultValue="bar"
+                closeOnSelect={false}
+            />
+            <Text size="lg">
+                Custom Label
+            </Text>
+            <Select
+                items={selectionItems}
+                defaultValue="bar"
+                customChildren
             >
-                Switch
+                <div className="flex items-center">
+                    <Marquee className="w-fit">Custom Label</Marquee>
+                </div>
+            </Select>
+            <Text size="lg">
+                Custom Entries
             </Text>
-            <Box>
-                <Text
-                    size="lg"
-                    center
-                >
-                    Uncontrolled Switches
-                </Text>
-                <div className="flex flex-row flex-wrap gap-4">
-                    {Array.from({ length: 20 }, (_, i) => (
-                        <Switch
-                            key={i}
-                            initialValue={Math.random() > 0.5}
-                        />
-                    ))}
-                </div>
-            </Box>
+            <Select
+                items={[
+                    {
+                        label: (
+                            <Text
+                                size="sm"
+                                color="accent"
+                            >
+                                Entry 1
+                            </Text>
+                        ),
+                        value: "entry1",
+                        typedValue: "entry 1",
 
-            <Box className="mt-8">
-                <div className="flex items-center justify-between mb-4 gap-3">
-                    <LabeledSwitch
-                        value={ignoreInput}
-                        onChange={setIgnoreInput}
-                    >
-                        Ignore User Input
-                    </LabeledSwitch>
-                    <Text
-                        size="lg"
-                    >
-                        Controlled Switches
-                    </Text>
-                    <Button onClick={toggleAll}>
-                        Toggle All Switches
-                    </Button>
-                </div>
-                <div className="flex flex-row flex-wrap gap-4">
-                    {switchValues.map((value, index) => (
-                        <Switch
-                            key={index}
-                            value={value}
-                            onChange={ignoreInput ? undefined : (newValue) => handleSwitchChange(index, newValue)}
-                        />
-                    ))}
-                </div>
-            </Box>
+                    },
+                    {
+                        label: (
+                            <Text
+                                size="lg"
+                                color="error"
+                            >
+                                Entry 2
+                            </Text>
+                        ),
+                        value: "entry2",
+                        typedValue: "entry 2",
+                    },
+                    {
+                        label: (
+                            <Text
+                                size="md"
+                                weight="extraBold"
+                                color="info"
+                            >
+                                Entry 3
+                            </Text>
+                        ),
+                        value: "entry3",
+                        typedValue: "entry 3",
+                    },
+                ]}
+                defaultValue="entry2"
+            />
+            <Text size="lg">
+                Many Items
+            </Text>
+            <Select
+                items={manyItems}
+                defaultValue="item50"
+            />
+            <Text size="lg">
+                Many Items
+            </Text>
+            <SearchableSelect
+                items={manyItems}
+                defaultValue="item50"
+            />
         </>
     );
 }
@@ -421,171 +416,80 @@ function InputExample() {
         </>
     );
 }
+
+const textSizeSelectOptions: SelectOption<keyof typeof textSize>[] = Object.keys(textSize)
+    .map((size) => {
+        return {
+            label: size,
+            value: size,
+            typedValue: size,
+            key: size,
+        } satisfies SelectOption<string>;
+    }) as any;
+
+const textWeightSelectOptions: SelectOption<keyof typeof textWeight>[] = Object.keys(textWeight)
+    .map((weight) => {
+        return {
+            label: weight,
+            value: weight,
+            typedValue: weight,
+            key: weight,
+        } satisfies SelectOption<string>;
+    }) as any;
+
 function TextExample() {
     const [previewText, setPreviewText] = useState("");
-    const [show, setShow] = useState(false);
+    const [size, setSize] = useState<keyof typeof textSize>("md");
+    const [weight, setWeight] = useState<keyof typeof textWeight>("normal");
 
     return (
         <>
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-wrap items-center justify-between mb-4 gap-y-4">
                 <Text
                     size="xl"
                     center
                 >
                     TextComponents
                 </Text>
-                {
-                    show && (
-                        <Input
-                            initialValue={previewText}
-                            onChange={(e) => {
-                                setPreviewText(e.target.value);
-                            }}
-                            placeholder="Preview Text"
-                            className="!w-fit"
-                        />
-                    )
-                }
-                <Button onClick={() => setShow(!show)}>
-                    {show ? "Hide Preview" : "Show Preview"}
-                </Button>
-            </div>
-            {show && Object.keys(textSize)
-                .flatMap((size) => {
-                    return Object.keys(textWeight)
-                        .map((weight) => (
-                            <Text
-                                weight={weight as any}
-                                size={size as any}
-                                key={`${weight}-${size}`}
-                                tag="span"
-                            >
-                                {previewText || `${size}-${weight}`}
-                                {previewText && (
-                                    <Text
-                                        size="md"
-                                        tag="span"
-                                    >
-                                        {` (${size}-${weight})`}
-                                    </Text>
-                                )}
-                            </Text>
-                        ));
-                })}
-        </>
-    );
-}
-
-function AccordionExample() {
-    const group2Ref = useRef<AccordionGroupHandle>(null);
-
-    return (
-        <>
-            <Text
-                size="xl"
-                center
-            >
-                Accordion
-            </Text>
-            <Accordion
-                item={{
-                    id: "sample-accordion",
-                    render: () => <Text>Accordion Content</Text>,
-                }}
-            >
-                <Text size="lg">Single Accordion Item</Text>
-            </Accordion>
-            <Text
-                size="lg"
-                className="my-2"
-            >
-                Accordion Group, Only One Open
-            </Text>
-            <AccordionGroup>
-                <Box>
-                    <Accordion
-                        item={{
-                            id: "1",
-                            render() {
-                                return <Text size="md">This is the content of Accordion 1.</Text>;
-                            },
-                        }}
-                    >
-                        <Text size="lg">Accordion 1</Text>
-                    </Accordion>
-                    <Accordion
-                        item={{
-                            id: "2",
-                            render() {
-                                return <Text size="md">{lorem}</Text>;
-                            },
-                        }}
-                    >
-                        <Text size="lg">Accordion 2</Text>
-                    </Accordion>
-                    <Accordion
-                        item={{
-                            id: "3",
-                            render() {
-                                return <Text size="md">This is the content of Accordion 3.</Text>;
-                            },
-                        }}
-                    >
-                        <Text size="lg">Accordion 3</Text>
-                    </Accordion>
-                </Box>
-            </AccordionGroup>
-            <div className="flex items-center justify-between my-2">
-                <Text
-                    size="lg"
-                >
-                    Accordion Group
-                </Text>
-                <Button
-                    onClick={() => {
-                        group2Ref.current?.closeAll();
+                <div className="flex items-center justify-between gap-3 w-min">
+                    <Select
+                        className="w-20"
+                        items={textSizeSelectOptions}
+                        defaultValue={size}
+                        onChange={(size) => setSize(size)}
+                    />
+                    <Select
+                        className="w-30"
+                        items={textWeightSelectOptions}
+                        defaultValue={weight}
+                        onChange={setWeight}
+                    />
+                </div>
+                <Input
+                    initialValue={previewText}
+                    onChange={(e) => {
+                        setPreviewText(e.target.value);
                     }}
-                >
-                    Close All
-                </Button>
+                    placeholder="Preview Text"
+                    className="w-fit"
+                />
             </div>
-            <AccordionGroup
-                onlyOneOpen={false}
-                ref={group2Ref}
+            <Text
+                weight={weight}
+                size={size}
+                key={`${weight}-${size}`}
+                tag="span"
             >
-                <Box>
-                    <Accordion
-                        item={{
-                            id: "1",
-                            render() {
-                                return <Text size="md">This is the content of Accordion 1.</Text>;
-                            },
-                        }}
+                {previewText || `${size}-${weight}`}
+                {previewText && (
+                    <Text
+                        size="md"
+                        tag="span"
                     >
-                        <Text size="lg">Accordion 1</Text>
-                    </Accordion>
-                    <Accordion
-                        item={{
-                            id: "2",
-                            render() {
-                                return <Text size="md">{lorem}</Text>;
-                            },
-                        }}
-                    >
-                        <Text size="lg">Accordion 2</Text>
-                    </Accordion>
-                    <Accordion
-                        item={{
-                            id: "3",
-                            render() {
-                                return <Text size="md">This is the content of Accordion 3.</Text>;
-                            },
-                        }}
-                    >
-                        <Text size="lg">Accordion 3</Text>
-                    </Accordion>
-                </Box>
-            </AccordionGroup>
+                        {` (${size}-${weight})`}
+                    </Text>
+                )}
+            </Text>
         </>
     );
 }
@@ -623,31 +527,8 @@ export default function Components() {
                     </Text>
                     <Box className="mt-6 w-[40vw]">
                         <TabBarExample />
-                        <HorizontalLine className="my-4"/>
-                        <ButtonsExample />
                         <HorizontalLine className="my-4" />
-                        <SelectionExample />
-                        <HorizontalLine className="my-4" />
-                        <Text
-                            size="xl"
-                            center
-                        >
-                            scroll thingie
-                        </Text>
-                        <div className={guh.what}>
-                            <Text
-                                size="lg"
-                                center
-                            >
-                                Black on hover
-                            </Text>
-                        </div>
-                        <HorizontalLine className="my-4" />
-                        <SelectionExample />
-                        <HorizontalLine className="my-4" />
-                        <SwitchExample />
-                        <HorizontalLine className="my-4" />
-                        <AccordionExample />
+                        <SelectExample />
                         <HorizontalLine className="my-4" />
                         <InputExample />
                         <HorizontalLine className="my-4" />

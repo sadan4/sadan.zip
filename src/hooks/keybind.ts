@@ -1,4 +1,5 @@
-import { useEventHandler } from "./eventListener";
+import { useRecent } from "./recent";
+
 
 export const enum KeybindModifiers {
     NONE = 0,
@@ -83,9 +84,11 @@ export function matchesEvent(ev: KeyboardEvent, keybind: Keybind): boolean {
     return makeModifierMask(ev) === (keybind.modifiers ?? KeybindModifiers.NONE);
 }
 
-export function useKeybind(element: HTMLElement | Document | Window | null, keybinds: Keybind[]) {
+export function useKeybinds(keybinds: Keybind[]): (ref: HTMLElement | null) => () => void {
+    const keybindsRef = useRecent(keybinds);
+
     function callValidBinds(mode: "down" | "up", ev: KeyboardEvent) {
-        return keybinds
+        return keybindsRef.current
             .filter((kb) => {
                 return kb.timing === mode && matchesEvent(ev, kb);
             })
@@ -93,6 +96,25 @@ export function useKeybind(element: HTMLElement | Document | Window | null, keyb
                 kb.handle(ev);
             });
     }
-    useEventHandler("keydown", callValidBinds.bind(null, "down"), element as any);
-    useEventHandler("keyup", callValidBinds.bind(null, "up"), element as any);
+
+    return (ref: HTMLElement | null) => {
+        if (ref == null) {
+            return () => {};
+        }
+
+        const controller = new AbortController();
+
+        ref.addEventListener("keydown", callValidBinds.bind(null, "down"), {
+            passive: true,
+            signal: controller.signal,
+        });
+        ref.addEventListener("keyup", callValidBinds.bind(null, "up"), {
+            passive: true,
+            signal: controller.signal,
+        });
+
+        return () => {
+            controller.abort();
+        };
+    };
 }

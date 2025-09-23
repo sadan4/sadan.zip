@@ -1,14 +1,17 @@
-import cn, { type ColorProp, textColors } from "@/utils/cn";
+import cn, { bgColors } from "@/utils/cn";
+
+import styles from "./styles.module.css";
 
 import type { ComponentProps } from "react";
 
-export interface HorizontalLineProps extends Omit<ComponentProps<"hr">, "color">, ColorProp {
+export interface HorizontalLineProps extends Omit<ComponentProps<"hr">, "color"> {
+    color?: keyof typeof bgColors;
 }
 
 export function HorizontalLine({ className, color = "white-600", ...props }: HorizontalLineProps) {
     return (
-        <hr
-            className={cn("w-full my-2", textColors[color], className)}
+        <div
+            className={cn(styles.hr, bgColors[color], className)}
             {...props}
         />
     );

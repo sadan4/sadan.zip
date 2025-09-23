@@ -23,6 +23,14 @@
   --color-error: #ff757f;
 }
 
+@utility sb-track-* {
+  --scrollbar-track-color: --value(--color-*);
+}
+
+@utility sb-thumb-* {
+  --scrollbar-thumb-color: --value(--color-*);
+}
+
 @font-face {
   font-family: "comicsans";
   src: url("assets/comicsans.otf");
@@ -41,7 +49,6 @@
   color-scheme: light dark;
   color: rgba(255, 255, 255, 0.87);
   background-color: var(--color-bg-200);
-  background-image: url("assets/snow.gif");
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;

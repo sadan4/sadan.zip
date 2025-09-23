@@ -1,0 +1,27 @@
+@reference "../index.css";
+@layer components {
+    .w-full {
+        @apply w-full;
+    }
+    .h-1 {
+        @apply h-1;
+    }
+    .h-1px {
+        height: 1px;
+    }
+    .my-2 {
+        @apply my-2;
+    }
+    .max-h-400px {
+        max-height: 400px;
+    }
+    .p-0 {
+        @apply p-0;
+    }
+    .p-2 {
+        @apply p-2;
+    }
+    .w-fit {
+        @apply w-fit;
+    }
+}

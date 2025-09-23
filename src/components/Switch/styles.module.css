@@ -1,0 +1,51 @@
+@reference "../../index.css";
+
+@layer components {
+    .switch {
+        height: --spacing(8);
+        width: --spacing(12);
+        display: flex;
+        justify-content: center;
+        border-radius: 9999px;
+        --bg: var(--bg-base);
+        background-color: var(--bg);
+
+        &,
+        .thumb {
+            transition-property: background-color, color, fill, border-radius;
+            transition-duration: 250ms;
+            transition-timing-function: ease-in;
+        }
+
+        &.enabled {
+            --bg-base: var(--color-primary);
+
+            .thumb {
+                fill: var(--color-neutral);
+            }
+        }
+
+        &:not(.enabled) {
+            border: 1px solid;
+            border-color: var(--color-bg-fg-800);
+            --bg-base: var(--color-bg-300);
+
+            .thumb {
+                fill: var(--color-bg-fg-600);
+            }
+        }
+
+        &:focus-visible {
+            outline: 3px solid var(--color-primary);
+            outline-offset: --spacing(1);
+        }
+
+        svg {
+            display: flex;
+            align-items: center;
+            justify-items: center;
+            width: 100%;
+            height: 100%;
+        }
+    }
+}

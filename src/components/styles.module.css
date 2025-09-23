@@ -1,0 +1,24 @@
+@reference "../index.css";
+
+@layer components {
+    .box {
+        @apply flex flex-col gap-2 bg-bg-100 p-4 rounded-md outline-2 outline-bg-fg-600/25;
+    }
+
+    .hr {
+        @apply w-full my-2;
+        height: 1px;
+    }
+
+    .vr {
+        width: 0;
+        height: 100%;
+        &::after {
+            @apply border-l-2 border-bg-fg-600/50;
+            display: block;
+            content: "";
+            width: 0;
+            height: 100%;
+        }
+    }
+}

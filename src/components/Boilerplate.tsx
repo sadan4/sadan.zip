@@ -1,15 +1,22 @@
-import Cursor from "@/components/Cursor";
-import BoundingCursor from "@/components/Cursor/BoundingCursor";
-import { DotCursor } from "@/components/Cursor/DotCursor";
-import cursorStyles from "@/components/Cursor/styles.module.css";
-import ModalRenderRoot from "@/components/modal/ModalRenderRoot";
+import { z } from "@/styles";
 import cn from "@/utils/cn";
+import Cursor from "@components/Cursor";
+import BoundingCursor from "@components/Cursor/BoundingCursor";
+import { DotCursor } from "@components/Cursor/DotCursor";
+import ModalRenderRoot from "@components/modal/ModalRenderRoot";
+
+import { CustomCursorContext } from "./Cursor/context";
+
+import { useContext } from "react";
 
 export interface BoilerplateProps {
     noCursor?: boolean;
 }
 
-export function Boilerplate({ noCursor = false }: BoilerplateProps) {
+export function Boilerplate({ noCursor }: BoilerplateProps) {
+    const cursorContext = useContext(CustomCursorContext);
+
+    noCursor ??= cursorContext;
     return (
         <>
             {
@@ -17,7 +24,7 @@ export function Boilerplate({ noCursor = false }: BoilerplateProps) {
                     <>
                         <Cursor>
                             <DotCursor
-                                className={cn("bg-bg-fg mix-blend-exclusion", cursorStyles.cursorZ)}
+                                className={cn("bg-bg-fg mix-blend-exclusion", z.cursor)}
                                 radius={10}
                                 invert
                                 lineOnText
@@ -25,7 +32,7 @@ export function Boilerplate({ noCursor = false }: BoilerplateProps) {
                         </Cursor>
                         <Cursor>
                             <BoundingCursor
-                                className={cn("bg-bg-fg mix-blend-exclusion", cursorStyles.cursorZ)}
+                                className={cn("bg-bg-fg mix-blend-exclusion", z.cursor)}
                                 frameLength={{
                                     type: "dynamic",
                                     factor: 1 / 10,

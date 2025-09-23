@@ -1,5 +1,6 @@
-import { Text } from "@/components/Text";
+import { Text } from "@components/Text";
 
+import { ScrollArea } from "./layout/ScrollArea";
 import { SourceLink, ThemeLink } from "./Links";
 import { joinWithKey } from "../utils/array";
 
@@ -49,11 +50,13 @@ export function FooterContainer({
     ...props
 }: FooterContainerProps) {
     return (
-        <div className="grid grid-rows-[1fr_min-content] w-full h-full">
-            <div {...props}>{children}</div>
-            <div className="flex justify-center items-center content-center">
-                <Footer />
+        <ScrollArea className="max-h-screen h-screen">
+            <div className="grid grid-rows-[1fr_min-content] w-full h-full">
+                <div {...props}>{children}</div>
+                <div className="flex justify-center items-center content-center">
+                    <Footer />
+                </div>
             </div>
-        </div>
+        </ScrollArea>
     );
 }

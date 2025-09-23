@@ -27,7 +27,16 @@
     "paths": {
       "@/*": [
         "./src/*"
-      ]
+      ],
+      "@components/*": [
+        "./src/components/*"
+      ],
+      "@effects/*": [
+        "./src/components/effects/*"
+      ],
+      "@hooks/*": [
+        "./src/hooks/*"
+      ],
     },
     "plugins": [
       {
@@ -42,6 +51,7 @@
     ]
   },
   "include": [
-    "src"
+    "src",
+    ".storybook/preview.tsx",
   ]
 }

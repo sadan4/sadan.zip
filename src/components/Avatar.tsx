@@ -1,15 +1,16 @@
 import avatar from "@/assets/avatar.webp";
-import BorderHoldCircular from "@/components/effects/BorderHold/Circular";
-import { useSize } from "@/hooks/size";
 import cn from "@/utils/cn";
 import { friends } from "@/utils/friends";
 import { once } from "@/utils/functional";
+import { Clickable } from "@components/Clickable";
+import { openModal } from "@components/modal";
+import { useFriendModalCenterStore } from "@components/modals/Friend/friendModalCenterStore";
+import BorderHoldCircular from "@effects/BorderHold/Circular";
+import PerspectiveHover from "@effects/PerspectiveHover";
+import Shadow from "@effects/Shadow";
+import { useSize } from "@hooks/size";
 
-import PerspectiveHover from "./effects/PerspectiveHover";
-import Shadow from "./effects/Shadow";
-import { useFriendModalCenterStore } from "./modals/Friend/friendModalCenterStore";
-import { Clickable } from "./Clickable";
-import { openModal } from "./modal";
+import { ModalKey } from "./modals/ModalKey";
 
 import { type ComponentProps, useEffect, useRef } from "react";
 
@@ -50,7 +51,7 @@ export default function Avatar({ round = false, ...props }: AvatarProps) {
                         const FriendModal = (await import("@/components/modals/Friend")).default;
 
                         openModal({
-                            key: "MODAL_FRIENDS",
+                            key: ModalKey.FRIENDS,
                             render() {
                                 return <FriendModal />;
                             },
