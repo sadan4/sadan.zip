@@ -78,10 +78,18 @@ export default defineConfig({
         sourcemap: true,
         // top-level await in esm
         target: "es2022",
+        rollupOptions: {
+            output: {
+                chunkFileNames: "js/[hash].js",
+                assetFileNames: "assets/[hash].[ext]",
+            },
+        },
     },
     css: {
+        devSourcemap: true,
         modules: {
-            localsConvention: "camelCase",
+            localsConvention: "camelCaseOnly",
+            generateScopedName: "[local]_[contentHash:5]",
         },
         preprocessorOptions: {
             scss: {
