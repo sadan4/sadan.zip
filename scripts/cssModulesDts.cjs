@@ -1,5 +1,4 @@
 module.exports = (dts, { classes, filename, logger }) => {
-    logger.log('Example log');
     return [
       '/* eslint-disable */',
       dts,

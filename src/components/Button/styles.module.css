@@ -2,8 +2,8 @@
 
 @layer components {
     .button {
-        border-radius: --spacing(1.5);
-        padding: --spacing(2);
+        border-radius: .375rem;
+        padding: .5rem;
 
         &,
         >.button-text {
@@ -41,6 +41,7 @@
         &.outline,
         &.text {
             background-color: transparent;
+
             --button-color: var(--button-color-base);
 
             >.button-text {
@@ -84,15 +85,15 @@
             }
         }
 
-        &:where(.primary) {
+        &.primary {
             --button-color-base: var(--color-primary);
         }
 
-        &:where(.secondary) {
+        &.secondary {
             --button-color-base: var(--color-secondary);
         }
 
-        &:where(.accent) {
+        &.accent {
             --button-color-base: var(--color-accent);
 
             &:is(.outline, .text):hover {
@@ -100,7 +101,7 @@
             }
         }
 
-        &:where(.neutral) {
+        &.neutral {
             --button-color-base: var(--color-neutral);
 
             &.filled {
@@ -121,7 +122,7 @@
             }
         }
 
-        &:where(.neutral-content) {
+        &.neutral-content {
             --button-color-base: var(--color-neutral-content);
 
             &.filled {
@@ -129,11 +130,11 @@
             }
         }
 
-        &:where(.info) {
+        &.info {
             --button-color-base: var(--color-info);
         }
 
-        &:where(.info-700) {
+        &.info-700 {
             --button-color-base: var(--color-info-700);
 
             &.filled {
@@ -141,15 +142,15 @@
             }
         }
 
-        &:where(.success) {
+        &.success {
             --button-color-base: var(--color-success);
         }
 
-        &:where(.warning) {
+        &.warning {
             --button-color-base: var(--color-warning);
         }
 
-        &:where(.error) {
+        &.error {
             --button-color-base: var(--color-error);
         }
     }
