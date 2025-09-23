@@ -1,13 +1,15 @@
 import { useControlledState } from "@/hooks/controlledState";
+import { useForceUpdater } from "@/hooks/forceUpdater";
 import { z } from "@/styles";
 import cn from "@/utils/cn";
 import { parseCSSValue, rangeInputDefaultValue } from "@/utils/dom";
 import { clamp } from "@/utils/functional";
+import useResizeObserver from "@react-hook/resize-observer";
 
 import styles from "./styles.module.scss";
 import { VerticalLine } from "../VerticalLine";
 
-import { type ComponentProps, type ReactNode, type RefObject, useCallback, useEffect, useRef, useState } from "react";
+import { type ComponentProps, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 
 const sliderSizes = {
     xs: styles.xs,
@@ -54,7 +56,7 @@ export interface SliderProps extends Omit<ComponentProps<"input">, "onChange" | 
     /**
      * If true, only allow selecting values that match the markers
      */
-    stickToMarkers?: "stick" | "snap" | "no";
+    stickToMarkers?: boolean;
     renderMarkers?(props: RenderMarkersProps): ReactNode;
     renderMarker?(props: RenderMarkerProps): ReactNode;
 }
@@ -77,7 +79,7 @@ export function Slider(props: SliderProps) {
         renderMarker = DefaultRenderMarker,
     } = props;
 
-    const containerRef = useRef<HTMLDivElement>(null);
+    const [containerRef, setContainerRef] = useState<HTMLDivElement | null>(null);
 
     const [currentValue, setCurrentValue] = useControlledState({
         initialValue,
@@ -107,7 +109,7 @@ export function Slider(props: SliderProps) {
 
     return (
         <div
-            ref={containerRef}
+            ref={setContainerRef}
             className={cn(styles.slider, z.slider, sliderSizes[size], shouldShowMarkers && "my-3", {
                 [styles.vertical]: vertical,
                 [styles.horizontal]: !vertical,
@@ -125,21 +127,14 @@ export function Slider(props: SliderProps) {
                 min={min}
                 max={max}
                 value={currentValue}
-                onBlur={() => {
-                    if (stickToMarkers === "stick") {
-                        setCurrentValue((cur) => snapToMarker(cur));
-                    }
-                }}
-                onPointerUp={(e) => {
-                    if (e.isPrimary && stickToMarkers === "stick") {
-                        setCurrentValue((cur) => snapToMarker(cur));
-                    }
+                onKeyDown={(e) => {
+                    setCurrentValue(snapToMarker);
                 }}
                 onChange={(e) => {
                     const _num = +e.target.value;
                     let num = _num;
 
-                    if (stickToMarkers === "snap") {
+                    if (stickToMarkers) {
                         num = snapToMarker(_num);
                     }
 
@@ -165,7 +160,7 @@ export function Slider(props: SliderProps) {
 
 export interface RenderMarkersProps {
     markers: number[];
-    containerRef: RefObject<HTMLDivElement | null>;
+    containerRef: HTMLDivElement | null;
     min: number;
     max: number;
     valueToPercent: (value: number) => number;
@@ -181,16 +176,20 @@ function DefaultRenderMarkers({
     markers,
 }: RenderMarkersProps) {
     const [containerWidth, setContainerWidth] = useState(0);
+    const [dep, updateSize] = useForceUpdater();
     const [thumbWidth, setThumbWidth] = useState(0);
 
+    useResizeObserver(containerRef, updateSize);
+
     useEffect(() => {
-        if (containerRef.current) {
-            const { width } = containerRef.current.getBoundingClientRect();
+        dep;
+        if (containerRef) {
+            const { width } = containerRef.getBoundingClientRect();
 
             const thumbWidth = parseCSSValue(
-                getComputedStyle(containerRef.current)
+                getComputedStyle(containerRef)
                     .getPropertyValue("--thumb-width"),
-                containerRef.current,
+                containerRef,
             );
 
             setContainerWidth(width);
@@ -199,7 +198,7 @@ function DefaultRenderMarkers({
             setContainerWidth(0);
             setThumbWidth(0);
         }
-    }, [containerRef]);
+    }, [containerRef, dep]);
 
     return (
         <div className={cn("absolute top-0 left-0 h-full w-full pointer-events-none", z.markers)}>
@@ -228,7 +227,7 @@ export interface RenderMarkerProps {
     progress: number;
     containerWidth: number;
     thumbWidth: number;
-    containerRef: RefObject<HTMLDivElement | null>;
+    containerRef: HTMLDivElement | null;
 }
 
 function DefaultRenderMarker({ marker, progress, thumbWidth, containerWidth }: RenderMarkerProps) {

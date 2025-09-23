@@ -76,24 +76,17 @@ export const WithMarkers: Story = {
     },
 };
 
-export const SnapToMarkers: Story = {
-    args: {
-        markers: Array.from({ length: 11 }, (_, i) => i * 10),
-        stickToMarkers: "snap",
-    },
-};
-
 export const StickToMarkers: Story = {
     args: {
         markers: Array.from({ length: 11 }, (_, i) => i * 10),
-        stickToMarkers: "stick",
+        stickToMarkers: true,
     },
 };
 
 export const StickToMarkersWithoutShowingThem: Story = {
     args: {
         markers: Array.from({ length: 11 }, (_, i) => i * 10),
-        stickToMarkers: "stick",
+        stickToMarkers: true,
         showMarkers: false,
     },
 };
