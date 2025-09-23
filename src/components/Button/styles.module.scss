@@ -1,4 +1,4 @@
-@reference "../../index.css";
+@use "u";
 
 @layer components {
     .button {
@@ -6,8 +6,9 @@
         padding: .5rem;
 
         &,
-        >.button-text {
-            @apply transition-colors duration-150;
+        > .button-text {
+            @include u.anim-prop(color border-color background-color);
+            @include u.anim-dur;
         }
 
         &:hover {
@@ -20,18 +21,18 @@
 
         &.filled {
             &:hover {
-                --button-color: --alpha(var(--button-color-base) / 80%);
+                --button-color: u.alpha(var(--button-color-base) / 80%);
             }
 
             &:active {
-                --button-color: --alpha(var(--button-color-base) / 65%);
+                --button-color: u.alpha(var(--button-color-base) / 65%);
             }
 
             &:disabled {
-                --button-color: --alpha(var(--button-color-base) / 80%);
+                --button-color: u.alpha(var(--button-color-base) / 80%);
             }
 
-            >.button-text {
+            > .button-text {
                 --text-color: var(--button-text-color, var(--color-bg-100));
             }
 
@@ -44,7 +45,7 @@
 
             --button-color: var(--button-color-base);
 
-            >.button-text {
+            > .button-text {
                 --text-color: var(--button-color);
             }
 
@@ -108,16 +109,16 @@
                 --button-text-color: var(--color-neutral-content);
 
                 &:hover {
-                    --button-color: --alpha(var(--color-neutral) / 90%);
+                    --button-color: u.alpha(var(--color-neutral) / 90%);
                 }
 
                 &:active {
-                    --button-color: --alpha(var(--color-neutral) / 70%);
+                    --button-color: u.alpha(var(--color-neutral) / 70%);
                 }
 
                 &:disabled {
-                    --button-color: --alpha(var(--color-neutral) / 80%);
-                    --button-text-color: --alpha(var(--color-neutral-content) / 80%);
+                    --button-color: u.alpha(var(--color-neutral) / 80%);
+                    --button-text-color: u.alpha(var(--color-neutral-content) / 80%);
                 }
             }
         }

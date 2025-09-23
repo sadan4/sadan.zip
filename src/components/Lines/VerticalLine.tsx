@@ -1,6 +1,6 @@
 import cn from "@/utils/cn";
 
-import styles from "./styles.module.css";
+import styles from "./styles.module.scss";
 
 import type { ComponentProps } from "react";
 

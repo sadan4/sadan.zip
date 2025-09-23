@@ -1,6 +1,6 @@
 import { Clickable } from "@/components/Clickable";
 import { Text } from "@/components/Text";
-import { VerticalLine } from "@/components/VerticalLine";
+import { VerticalLine } from "@/components/Lines/VerticalLine";
 import { useEventHandler } from "@/hooks/eventListener";
 import { useImperativeSprings } from "@/hooks/imperativeSprings";
 import { joinWithKey } from "@/utils/array";
@@ -9,7 +9,7 @@ import { updateRef } from "@/utils/ref";
 import useResizeObserver from "@react-hook/resize-observer";
 import { animated } from "@react-spring/web";
 
-import { Box } from "../../Box";
+import { Box } from "../Box/Box";
 import { AnimateHeight } from "../../effects/AnimateHeight";
 
 import invariant from "invariant";

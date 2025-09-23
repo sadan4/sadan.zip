@@ -6,7 +6,7 @@ import { useCursorContextStore } from "@components/Cursor/cursorContextStore";
 import { AnimateHeight } from "@effects/AnimateHeight";
 import { useDebouncedFn } from "@hooks/debouncedFn";
 
-import styles from "./styles.module.css";
+import styles from "./styles.module.scss";
 import { Clickable } from "../Clickable";
 import Close from "../icons/Close";
 import { ErrorIcon } from "../icons/ErrorIcon";

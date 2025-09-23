@@ -9,9 +9,9 @@ import { FluidValue } from "@react-spring/shared";
 import { animated, to, useSpring, useSpringValue } from "@react-spring/web";
 import { useMove } from "@use-gesture/react";
 
-import styles from "./BoundingCursor.module.css";
+import styles from "./BoundingCursor.module.scss";
 import { useCursorContextStore } from "./cursorContextStore";
-import hideFocusOutline from "./hideFocusOutline.css?url";
+import hideFocusOutline from "./hideFocusOutline.scss?url";
 
 import invariant from "invariant";
 import { useCallback, useEffect } from "react";

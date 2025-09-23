@@ -7,7 +7,7 @@ import { clamp } from "@/utils/functional";
 import useResizeObserver from "@react-hook/resize-observer";
 
 import styles from "./styles.module.scss";
-import { VerticalLine } from "../VerticalLine";
+import { VerticalLine } from "../Lines/VerticalLine";
 
 import { type ComponentProps, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 

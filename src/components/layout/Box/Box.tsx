@@ -1,7 +1,7 @@
 import cn from "@/utils/cn";
 import { animated, type ComponentPropsWithRef } from "@react-spring/web";
 
-import styles from "./styles.module.css";
+import styles from "./styles.module.scss";
 
 import type { ReactNode } from "react";
 

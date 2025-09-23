@@ -3,7 +3,7 @@ import { useEventHandler } from "@/hooks/eventListener";
 import { z } from "@/styles";
 import cn from "@/utils/cn";
 
-import noCursorStyle from "./hideNativeCursor.css?url";
+import noCursorStyle from "./hideNativeCursor.scss?url";
 
 import { type CSSProperties, type ReactNode, useCallback, useRef } from "react";
 

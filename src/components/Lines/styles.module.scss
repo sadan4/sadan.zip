@@ -1,0 +1,23 @@
+@use "u";
+
+@layer components {
+    .hr {
+        width: 100%;
+        margin-block: .5rem;
+        height: 1px;
+    }
+
+    .vr {
+        width: 0;
+        height: 100%;
+
+        &::after {
+            border-left-width: 2px;
+            border-color: u.alpha(var(--color-bg-fg-600) 50%);
+            display: block;
+            content: "";
+            width: 0;
+            height: 100%;
+        }
+    }
+}

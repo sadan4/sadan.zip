@@ -1,10 +1,10 @@
 import { Boilerplate } from "@/components/Boilerplate";
-import { Box } from "@/components/Box";
 import { Button } from "@/components/Button";
 import { DefaultFooter, FooterContainer } from "@/components/Footer";
-import { HorizontalLine } from "@/components/HorizontalLine";
 import { CheckedInput, Input, LabeledInput } from "@/components/Input";
+import { Box } from "@/components/layout/Box/Box";
 import { TabBar } from "@/components/layout/TabBar";
+import { HorizontalLine } from "@/components/Lines/HorizontalLine";
 import { Marquee } from "@/components/Marquee";
 import { SearchableSelect, Select, type SelectOption } from "@/components/Select";
 import { Text } from "@/components/Text";

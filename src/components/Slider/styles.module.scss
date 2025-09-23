@@ -1,4 +1,4 @@
-@use "util";
+@use "u";
 
 @layer components {
 	%default-input-range {
@@ -55,7 +55,7 @@
 			position: relative;
 
 			&::-webkit-slider-thumb {
-				border-radius: util.$inf;
+				border-radius: u.$inf;
 				background-color: var(--color-bg-fg);
 			}
 		}
@@ -96,8 +96,8 @@
 			}
 
 			> .progress {
-				border-top-left-radius: util.$inf;
-				border-top-right-radius: util.$inf;
+				border-top-left-radius: u.$inf;
+				border-top-right-radius: u.$inf;
 				height: $width-from-left;
 
 				// * 1.5 to account for the fact that we start in it's center
@@ -107,8 +107,8 @@
 			}
 
 			> .remainder {
-				border-bottom-left-radius: util.$inf;
-				border-bottom-right-radius: util.$inf;
+				border-bottom-left-radius: u.$inf;
+				border-bottom-right-radius: u.$inf;
 				top: $width-from-left;
 				bottom: 0;
 
@@ -135,8 +135,8 @@
 			> .progress {
 				left: 0;
 				width: $width-from-left;
-				border-start-start-radius: util.$inf;
-				border-end-start-radius: util.$inf;
+				border-start-start-radius: u.$inf;
+				border-end-start-radius: u.$inf;
 
 				// * 1.5 to account for the fact that we start in it's center
 				$guh: calc(100% - var(--thumb-width) * 1.5);
@@ -147,8 +147,8 @@
 			> .remainder {
 				left: $width-from-left;
 				right: 0;
-				border-start-end-radius: util.$inf;
-				border-end-end-radius: util.$inf;
+				border-start-end-radius: u.$inf;
+				border-end-end-radius: u.$inf;
 
 				// * 1.5 to account for the fact that we start in it's center
 				$guh: calc(var(--thumb-width) * 1.5);
@@ -165,16 +165,16 @@
 
 			input {
 				&::-webkit-slider-thumb {
-					background-color: util.alpha(var(--color-bg-fg) 50%);
+					background-color: u.alpha(var(--color-bg-fg) 50%);
 				}
 			}
 
 			> .progress {
-				background-color: util.alpha(var(--color-primary) 50%);
+				background-color: u.alpha(var(--color-primary) 50%);
 			}
 
 			> .remainder {
-				background-color: util.alpha(var(--color-bg-fg-700) 50%);
+				background-color: u.alpha(var(--color-bg-fg-700) 50%);
 			}
 		}
 

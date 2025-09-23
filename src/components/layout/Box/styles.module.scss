@@ -1,0 +1,14 @@
+@use "u";
+
+@layer components {
+    .box {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        background-color: var(--color-bg-100);
+        padding: 1rem;
+        border-radius: .375rem;
+        outline: 2px;
+        outline-color: u.alpha(var(--color-bg-fg-600) 25%);
+    }
+}

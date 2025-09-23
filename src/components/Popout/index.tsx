@@ -3,7 +3,7 @@ import toCSS from "@/utils/toCSS";
 import * as Popover from "@radix-ui/react-popover";
 
 import { PopoutDirection } from "./constants";
-import styles from "./style.module.css";
+import styles from "./style.module.scss";
 
 import { type PropsWithChildren, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 

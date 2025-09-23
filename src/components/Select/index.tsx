@@ -5,7 +5,7 @@ import { prop } from "@/utils/functional";
 import { Input } from "@components/Input";
 import { animated, useSpringValue } from "@react-spring/web";
 
-import styles from "./styles.module.css";
+import styles from "./styles.module.scss";
 import { Clickable } from "../Clickable";
 import CheckCircle from "../icons/CheckCircle";
 import { ScrollArea } from "../layout/ScrollArea";

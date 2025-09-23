@@ -1,0 +1,9 @@
+$colors: color background-color border-color outline-color fill stroke;
+
+@mixin prop($props) {
+    transition-property: $props;
+}
+
+@mixin dur($duration: 150ms) {
+    transition-duration: $duration;
+}
