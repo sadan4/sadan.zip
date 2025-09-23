@@ -1,11 +1,15 @@
 import { installF8Break } from "@/utils/devtools";
 
+import { Slider } from "./components/Slider";
+
 import "./app.css";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { createBrowserRouter, RouterProvider } from "react-router";
 
 installF8Break();
+
+Slider;
 
 const router = createBrowserRouter([
     {

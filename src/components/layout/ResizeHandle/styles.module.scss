@@ -1,0 +1,17 @@
+@layer components {
+	%handle {
+		--not-empty: guh;
+	}
+
+	.vertical-handle {
+		&::after {
+			content: "";
+			width: .5rem;
+			transition-property: background-color;
+
+			&:hover {
+				background-color: var(--color-bg-300);
+			}
+		}
+	}
+}

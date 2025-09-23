@@ -127,7 +127,7 @@ export function Slider(props: SliderProps) {
                 min={min}
                 max={max}
                 value={currentValue}
-                onKeyDown={(e) => {
+                onKeyDown={() => {
                     setCurrentValue(snapToMarker);
                 }}
                 onChange={(e) => {

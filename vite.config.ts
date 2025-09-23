@@ -4,7 +4,7 @@ import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 
 // https://vite.dev/config/
-import path from "node:path";
+import path, { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 import devtoolsJson from "vite-plugin-devtools-json";
@@ -82,6 +82,11 @@ export default defineConfig({
     css: {
         modules: {
             localsConvention: "camelCase",
+        },
+        preprocessorOptions: {
+            scss: {
+                loadPaths: [join(dirname, "src", "styles")],
+            },
         },
     },
     test: {

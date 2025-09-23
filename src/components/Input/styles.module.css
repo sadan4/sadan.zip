@@ -1,15 +1,16 @@
 @layer components {
-    .input {
-        background-color: var(--color-bg-300);
-        border-radius: var(--radius-md);
-        padding-inline: calc(var(--spacing) * 3);
-        padding-block: calc(var(--spacing) * 2);
-        width: 100%;
-        &:disabled {
-            pointer-events: none;
-            cursor: not-allowed;
-            user-select: none;
-            opacity: 50%;
-        }
-    }
+	.input {
+		background-color: var(--color-bg-300);
+		border-radius: var(--radius-md);
+		padding-inline: calc(var(--spacing) * 3);
+		padding-block: calc(var(--spacing) * 2);
+		width: 100%;
+
+		&:disabled {
+			pointer-events: none;
+			cursor: not-allowed;
+			user-select: none;
+			opacity: 0.5;
+		}
+	}
 }
