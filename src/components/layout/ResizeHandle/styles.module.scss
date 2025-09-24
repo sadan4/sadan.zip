@@ -1,0 +1,38 @@
+@use "u";
+
+@layer components {
+    %handle {
+        @include u.anim-prop(background-color);
+        @include u.anim-dur;
+
+        --handle-width: .5rem;
+
+        position: absolute;
+        background-color: u.alpha(var(--color-bg-300) 40%);
+
+        &.dragging,
+        &:hover {
+            background-color: u.alpha(var(--color-info-700) 80%);
+        }
+    }
+
+    .horizontal-handle {
+        @extend %handle;
+
+        cursor: ns-resize;
+        top: calc((var(--drag-offset, var(--initial-drag-offset, .5)) * 100%) - (var(--handle-width) / 2));
+        left: 0;
+        width: 100%;
+        height: var(--handle-width);
+    }
+
+    .vertical-handle {
+        @extend %handle;
+
+        cursor: ew-resize;
+        top: 0;
+        left: calc((var(--drag-offset, var(--initial-drag-offset, .5)) * 100%) - (var(--handle-width) / 2));
+        height: 100%;
+        width: var(--handle-width);
+    }
+}

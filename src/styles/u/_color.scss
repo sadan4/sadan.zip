@@ -1,0 +1,3 @@
+@function alpha($color) {
+    @return color-mix(in oklab, $color, transparent);
+}

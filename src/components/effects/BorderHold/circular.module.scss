@@ -1,0 +1,23 @@
+.circular-border {
+	--border-hold-width: 250px;
+	--border-hold-height: 250px;
+	--border-hold-half: calc(var(--border-hold-width) / 2);
+	--border-hold-radius: calc((var(--border-hold-width)) / 2);
+	--border-hold-circumference: calc(2 * var(--border-hold-radius) * pi);
+	--border-hold-dash: calc(var(--border-hold-circumference) * var(--border-hold-progress) / 100);
+
+	overflow: visible;
+}
+
+.circular-border circle {
+	transform: rotate(-90deg);
+	transform-origin: var(--border-hold-half) var(--border-hold-half);
+	cx: var(--border-hold-half);
+	cy: var(--border-hold-half);
+	r: calc(var(--border-hold-half) - 3px);
+	stroke-dasharray: var(--border-hold-dash) calc(var(--border-hold-circumference) - var(--border-hold-dash));
+	stroke: var(--border-hold-color, var(--color-info-700));
+	stroke-width: 10px;
+	stroke-linecap: round;
+	fill: none;
+}

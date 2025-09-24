@@ -1,13 +1,14 @@
-@reference "../../index.css";
+@use "u";
 
 @layer components {
     .button {
-        border-radius: --spacing(1.5);
-        padding: --spacing(2);
+        border-radius: .375rem;
+        padding: .5rem;
 
         &,
-        >.button-text {
-            @apply transition-colors duration-150;
+        > .button-text {
+            @include u.anim-prop(color border-color background-color);
+            @include u.anim-dur;
         }
 
         &:hover {
@@ -20,18 +21,18 @@
 
         &.filled {
             &:hover {
-                --button-color: --alpha(var(--button-color-base) / 80%);
+                --button-color: #{u.alpha(var(--button-color-base) 80%)};
             }
 
             &:active {
-                --button-color: --alpha(var(--button-color-base) / 65%);
+                --button-color: #{u.alpha(var(--button-color-base) 65%)};
             }
 
             &:disabled {
-                --button-color: --alpha(var(--button-color-base) / 80%);
+                --button-color: #{u.alpha(var(--button-color-base) 80%)};
             }
 
-            >.button-text {
+            > .button-text {
                 --text-color: var(--button-text-color, var(--color-bg-100));
             }
 
@@ -41,9 +42,10 @@
         &.outline,
         &.text {
             background-color: transparent;
+
             --button-color: var(--button-color-base);
 
-            >.button-text {
+            > .button-text {
                 --text-color: var(--button-color);
             }
 
@@ -57,11 +59,11 @@
                 border-color: var(--button-color);
 
                 &:hover {
-                    background-color: --alpha(var(--button-color) / var(--hover-bg-opacity, 5%));
+                    background-color: u.alpha(var(--button-color) var(--hover-bg-opacity, 5%));
                 }
 
                 &:active {
-                    background-color: --alpha(var(--button-color) / 15%);
+                    background-color: u.alpha(var(--button-color) 15%);
                 }
 
                 &:disabled {
@@ -71,28 +73,28 @@
 
             &.text {
                 &:hover {
-                    background-color: --alpha(var(--button-color) / var(--hover-bg-opacity, 10%));
+                    background-color: u.alpha(var(--button-color) var(--hover-bg-opacity, 10%));
                 }
 
                 &:active {
-                    background-color: --alpha(var(--button-color) / 20%);
+                    background-color: u.alpha(var(--button-color) 20%);
                 }
 
                 &:disabled {
-                    background-color: --alpha(var(--button-color) / 10%);
+                    background-color: u.alpha(var(--button-color) 10%);
                 }
             }
         }
 
-        &:where(.primary) {
+        &.primary {
             --button-color-base: var(--color-primary);
         }
 
-        &:where(.secondary) {
+        &.secondary {
             --button-color-base: var(--color-secondary);
         }
 
-        &:where(.accent) {
+        &.accent {
             --button-color-base: var(--color-accent);
 
             &:is(.outline, .text):hover {
@@ -100,28 +102,28 @@
             }
         }
 
-        &:where(.neutral) {
+        &.neutral {
             --button-color-base: var(--color-neutral);
 
             &.filled {
                 --button-text-color: var(--color-neutral-content);
 
                 &:hover {
-                    --button-color: --alpha(var(--color-neutral) / 90%);
+                    --button-color: #{u.alpha(var(--color-neutral) 90%)};
                 }
 
                 &:active {
-                    --button-color: --alpha(var(--color-neutral) / 70%);
+                    --button-color: #{u.alpha(var(--color-neutral) 70%)};
                 }
 
                 &:disabled {
-                    --button-color: --alpha(var(--color-neutral) / 80%);
-                    --button-text-color: --alpha(var(--color-neutral-content) / 80%);
+                    --button-color: #{u.alpha(var(--color-neutral) 80%)};
+                    --button-text-color: #{u.alpha(var(--color-neutral-content) 80%)};
                 }
             }
         }
 
-        &:where(.neutral-content) {
+        &.neutral-content {
             --button-color-base: var(--color-neutral-content);
 
             &.filled {
@@ -129,11 +131,11 @@
             }
         }
 
-        &:where(.info) {
+        &.info {
             --button-color-base: var(--color-info);
         }
 
-        &:where(.info-700) {
+        &.info-700 {
             --button-color-base: var(--color-info-700);
 
             &.filled {
@@ -141,15 +143,15 @@
             }
         }
 
-        &:where(.success) {
+        &.success {
             --button-color-base: var(--color-success);
         }
 
-        &:where(.warning) {
+        &.warning {
             --button-color-base: var(--color-warning);
         }
 
-        &:where(.error) {
+        &.error {
             --button-color-base: var(--color-error);
         }
     }

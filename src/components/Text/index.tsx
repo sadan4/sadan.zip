@@ -1,8 +1,7 @@
-import { base } from "@/styles";
 import cn, { type SizeProp, textSize, textWeight, type WeightProp } from "@/utils/cn";
 import type { ElementFromTag } from "@/utils/types";
 
-import styles from "./styles.module.css";
+import styles from "./styles.module.scss";
 import { useCursorContextStore } from "../Cursor/cursorContextStore";
 
 import { type ComponentProps, type MouseEvent, type PropsWithChildren, useCallback, useEffect, useRef } from "react";
@@ -115,7 +114,6 @@ export function Text<T extends TextTags = "div">(props: TextProps<T>) {
             className={
                 cn(
                     "text",
-                    base.wFit,
                     noselect && "select-none",
                     nowrap && "whitespace-nowrap",
                     textSize[size],

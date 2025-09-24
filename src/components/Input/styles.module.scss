@@ -1,0 +1,16 @@
+@layer components {
+	.input {
+		background-color: var(--color-bg-300);
+		border-radius: var(--radius-md);
+		padding-inline: .75rem;
+		padding-block: .5rem;
+		width: 100%;
+
+		&:disabled {
+			pointer-events: none;
+			cursor: not-allowed;
+			user-select: none;
+			opacity: 0.5;
+		}
+	}
+}

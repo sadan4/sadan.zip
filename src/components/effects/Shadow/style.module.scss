@@ -1,0 +1,23 @@
+@use "u";
+
+.drop-shadow > * {
+  --box-shadow-color: #{u.alpha(var(--color-bg-fg-700) / 30%)};
+  --box-shadow-hover-color: #{u.alpha(var(--color-bg-fg-700) / 40%)};
+
+  filter: drop-shadow(0 8px 8px var(--box-shadow-color));
+  transition: all 0.2s ease-in-out;
+}
+
+.drop-shadow-no-hover > * {
+  --box-shadow-color: #{u.alpha(var(--color-bg-fg-700) / 30%)};
+  --box-shadow-hover-color: #{u.alpha(var(--color-bg-fg-700) / 40%)};
+
+  filter: drop-shadow(0 8px 8px var(--box-shadow-color));
+}
+
+.drop-shadow:hover > * {
+  filter: drop-shadow(
+    0 calc(var(--log-shadow-container-height) * 2) calc(var(--log-shadow-container-height))
+      var(--box-shadow-hover-color)
+  );
+}

@@ -2,7 +2,7 @@ import { useSize } from "@/hooks/size";
 import cn from "@/utils/cn";
 import toCSS from "@/utils/toCSS";
 
-import styles from "./style.module.css";
+import styles from "./style.module.scss";
 
 import { type CSSProperties, type PropsWithChildren, useLayoutEffect, useRef, useState } from "react";
 

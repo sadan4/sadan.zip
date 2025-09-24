@@ -1,43 +1,43 @@
 @mixin z($idx) {
-    --_z: $idx;
-    z-index: $idx;
+	--z: $idx;
+
+	z-index: $idx;
 }
 
-$z: var(--_z, 0);
-
-:where(*) {
-    z-index: $z;
-}
+$z: var(--z, 0);
 
 .cursor {
-    @include z(10000001);
+	@include z(10000001);
 }
 
 .modal {
-    @include z(100);
+	@include z(100);
 }
 
 :where(.modal) * {
-    @include z(102);
+	@include z(102);
 }
 
 .select {
-    z-index: calc($z + 5);
+	z-index: calc($z + 5);
 }
 
 .slider {
-    z-index: $z;
-    .markers {
-        z-index: $z;
-    }
-    .track {
-        z-index: calc($z + 2);
-    }
-    .thumb {
-        z-index: calc($z + 3);
-    }
+	z-index: $z;
+
+	.markers {
+		z-index: $z;
+	}
+
+	.track {
+		z-index: calc($z + 2);
+	}
+
+	.thumb {
+		z-index: calc($z + 3);
+	}
 }
 
 .base-visual-effect {
-    z-index: calc($z - 10);
+	z-index: calc($z - 10);
 }

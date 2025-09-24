@@ -1,9 +1,9 @@
 import { Boilerplate } from "@/components/Boilerplate";
-import { Box } from "@/components/Box";
+import { Box } from "@/components/layout/Box/Box";
 import { Button } from "@/components/Button";
 import { AnimateHeight } from "@/components/effects/AnimateHeight";
 import { DefaultFooter, FooterContainer } from "@/components/Footer";
-import { HorizontalLine } from "@/components/HorizontalLine";
+import { HorizontalLine } from "@/components/Lines/HorizontalLine";
 import { LabeledInput } from "@/components/Input";
 import { Text } from "@/components/Text";
 import { copy } from "@/utils/clipboard";

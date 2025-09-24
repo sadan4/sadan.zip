@@ -1,6 +1,6 @@
 import { installF8Break } from "@/utils/devtools";
 
-import "./app.css";
+import "./app.scss";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { createBrowserRouter, RouterProvider } from "react-router";

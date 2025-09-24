@@ -1,6 +1,0 @@
-.what {
-    background-color: blue;
-    &:hover {
-        background-color: black;
-    }
-}

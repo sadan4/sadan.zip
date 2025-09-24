@@ -1,20 +1,19 @@
-@reference "../index.css";
+@use "u";
 
 @layer components {
-    .box {
-        @apply flex flex-col gap-2 bg-bg-100 p-4 rounded-md outline-2 outline-bg-fg-600/25;
-    }
-
     .hr {
-        @apply w-full my-2;
+        width: 100%;
+        margin-block: .5rem;
         height: 1px;
     }
 
     .vr {
         width: 0;
         height: 100%;
+
         &::after {
-            @apply border-l-2 border-bg-fg-600/50;
+            border-left-width: 2px;
+            border-color: u.alpha(var(--color-bg-fg-600) 50%);
             display: block;
             content: "";
             width: 0;

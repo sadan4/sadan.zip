@@ -1,5 +1,5 @@
 import { Button } from "@/components/Button";
-import { HorizontalLine } from "@/components/HorizontalLine";
+import { HorizontalLine } from "@/components/Lines/HorizontalLine";
 import { Text } from "@/components/Text";
 import { lorem } from "@/utils/constants";
 import type { Meta, StoryObj } from "@storybook/react-vite";

@@ -1,7 +1,7 @@
 import { cn, type textSize } from "@/utils/cn";
 
 import { colors, colorTypes } from "./colors";
-import styles from "./styles.module.css";
+import styles from "./styles.module.scss";
 import { Clickable } from "../Clickable";
 import { Text } from "../Text";
 
@@ -19,7 +19,7 @@ export interface ButtonProps extends ComponentProps<typeof Clickable<"button">> 
     size?: keyof typeof textSize;
     /**
      * Whether the button text should wrap
-     * 
+     *
      * @default false
      */
     wrap?: boolean;

@@ -1,4 +1,0 @@
-.popout-content-wrapper[data-center=true] div[data-radix-popper-content-wrapper]{
-    transform: translate(calc(-50% + (var(--trigger-width, 0) / 2)), calc(-50% + (var(--trigger-height, 0) / 2))) !important;
-    /* transform: translate(-50%, -50%) !important; */
-}

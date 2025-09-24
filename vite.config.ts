@@ -4,7 +4,7 @@ import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 
 // https://vite.dev/config/
-import path from "node:path";
+import path, { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 import devtoolsJson from "vite-plugin-devtools-json";
@@ -78,10 +78,23 @@ export default defineConfig({
         sourcemap: true,
         // top-level await in esm
         target: "es2022",
+        rollupOptions: {
+            output: {
+                chunkFileNames: "js/[hash].js",
+                assetFileNames: "assets/[hash].[ext]",
+            },
+        },
     },
     css: {
+        devSourcemap: true,
         modules: {
-            localsConvention: "camelCase",
+            localsConvention: "camelCaseOnly",
+            generateScopedName: "[local]_[contentHash:5]",
+        },
+        preprocessorOptions: {
+            scss: {
+                loadPaths: [join(dirname, "src", "styles")],
+            },
         },
     },
     test: {

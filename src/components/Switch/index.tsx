@@ -2,7 +2,7 @@ import cn from "@/utils/cn";
 import error from "@/utils/error";
 import { animated, useSpring } from "@react-spring/web";
 
-import styles from "./styles.module.css";
+import styles from "./styles.module.scss";
 import { Clickable } from "../Clickable";
 import { type StandardTextProps, Text } from "../Text";
 

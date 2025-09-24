@@ -45,7 +45,14 @@
           "namedExports": false,
           "customTemplate": "scripts/cssModulesDts.cjs",
           "goToDefinition": true,
-          "classnameTransform": "camelCaseOnly"
+          "classnameTransform": "camelCaseOnly",
+          "rendererOptions": {
+            "sass": {
+              "loadPaths": [
+                "src/styles"
+              ]
+            }
+          }
         }
       }
     ]

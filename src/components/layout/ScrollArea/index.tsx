@@ -2,7 +2,7 @@ import cn from "@/utils/cn";
 import { updateRef } from "@/utils/ref";
 
 import { ScrollAreaContext } from "./context";
-import styles from "./styles.module.css";
+import styles from "./styles.module.scss";
 import type { ScrollAreaType } from "./types";
 
 import { type ComponentPropsWithRef, useRef } from "react";

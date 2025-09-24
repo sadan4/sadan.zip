@@ -4,7 +4,7 @@ import cn from "@/utils/cn";
 import toCSS from "@/utils/toCSS";
 import { animated, useSpring } from "@react-spring/web";
 
-import styles from "./circular.module.css";
+import styles from "./circular.module.scss";
 
 import { type PropsWithChildren, useCallback, useRef } from "react";
 

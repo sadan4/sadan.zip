@@ -1,20 +1,22 @@
-@reference "../../index.css";
+@use "u";
 
 @layer components {
     .switch {
-        height: --spacing(8);
-        width: --spacing(12);
+        height: 2rem;
+        width: 3rem;
         display: flex;
         justify-content: center;
         border-radius: 9999px;
+
         --bg: var(--bg-base);
+
         background-color: var(--bg);
 
         &,
         .thumb {
-            transition-property: background-color, color, fill, border-radius;
-            transition-duration: 250ms;
-            transition-timing-function: ease-in;
+            @include u.anim-prop(background-color color fill border-radius);
+            @include u.anim-dur(250ms);
+            @include u.anim-ease-in;
         }
 
         &.enabled {
@@ -28,6 +30,7 @@
         &:not(.enabled) {
             border: 1px solid;
             border-color: var(--color-bg-fg-800);
+
             --bg-base: var(--color-bg-300);
 
             .thumb {
@@ -37,13 +40,12 @@
 
         &:focus-visible {
             outline: 3px solid var(--color-primary);
-            outline-offset: --spacing(1);
+            outline-offset: .25rem;
         }
 
         svg {
             display: flex;
-            align-items: center;
-            justify-items: center;
+            place-items: center center;
             width: 100%;
             height: 100%;
         }

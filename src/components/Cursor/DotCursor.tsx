@@ -4,7 +4,7 @@ import { getLineHeight } from "@/utils/dom";
 import { animated, useSpring } from "@react-spring/web";
 
 import { useCursorContextStore } from "./cursorContextStore";
-import styles from "./DotCursor.module.css";
+import styles from "./DotCursor.module.scss";
 
 import { useEffect } from "react";
 import { useShallow } from "zustand/react/shallow";

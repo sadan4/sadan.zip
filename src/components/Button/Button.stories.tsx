@@ -4,6 +4,24 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 
 const meta = {
     component: Button,
+    args: {
+        disabled: false,
+        wrap: false,
+    },
+    argTypes: {
+        disabled: {
+            control: "boolean",
+        },
+        wrap: {
+            control: "boolean",
+        },
+        tag: {
+            if: {
+                arg: undefined as never,
+                truthy: true,
+            },
+        },
+    },
 } satisfies Meta<typeof Button>;
 
 export default meta;
