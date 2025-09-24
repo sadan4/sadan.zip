@@ -1,7 +1,7 @@
 import { Boilerplate } from "@/components/Boilerplate";
 import { DefaultFooter, FooterContainer } from "@/components/Footer";
 import { CheckedInput, Input, LabeledInput } from "@/components/Input";
-import { Box } from "@/components/layout/Box/Box";
+import { Box } from "@/components/layout/Box";
 import { HorizontalLine } from "@/components/Lines/HorizontalLine";
 import { Marquee } from "@/components/Marquee";
 import { SearchableSelect, Select, type SelectOption } from "@/components/Select";
@@ -354,8 +354,6 @@ export default function Components() {
                         Component Testing
                     </Text>
                     <Box className="mt-6 w-[40vw]">
-                        <TabBarExample />
-                        <HorizontalLine className="my-4" />
                         <SelectExample />
                         <HorizontalLine className="my-4" />
                         <InputExample />
