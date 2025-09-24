@@ -1,0 +1,16 @@
+@layer components {
+    .tooltip {
+        height: fit-content;
+        width: fit-content;
+        position: relative;
+
+        .wrapper {
+            position: absolute;
+        }
+
+        .trigger {
+            width: fit-content;
+            height: fit-content;
+        }
+    }
+}
