@@ -1,17 +1,38 @@
+@use "u";
+
 @layer components {
-	%handle {
-		--not-empty: guh;
-	}
+    %handle {
+        @include u.anim-prop(background-color);
+        @include u.anim-dur;
 
-	.vertical-handle {
-		&::after {
-			content: "";
-			width: .5rem;
-			transition-property: background-color;
+        --handle-width: .5rem;
 
-			&:hover {
-				background-color: var(--color-bg-300);
-			}
-		}
-	}
+        position: absolute;
+        background-color: u.alpha(var(--color-bg-300) 40%);
+
+        &.dragging,
+        &:hover {
+            background-color: u.alpha(var(--color-info-700) 80%);
+        }
+    }
+
+    .horizontal-handle {
+        @extend %handle;
+
+        cursor: ns-resize;
+        top: calc((var(--drag-offset, var(--initial-drag-offset, .5)) * 100%) - (var(--handle-width) / 2));
+        left: 0;
+        width: 100%;
+        height: var(--handle-width);
+    }
+
+    .vertical-handle {
+        @extend %handle;
+
+        cursor: ew-resize;
+        top: 0;
+        left: calc((var(--drag-offset, var(--initial-drag-offset, .5)) * 100%) - (var(--handle-width) / 2));
+        height: 100%;
+        width: var(--handle-width);
+    }
 }

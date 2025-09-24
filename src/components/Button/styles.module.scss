@@ -21,15 +21,15 @@
 
         &.filled {
             &:hover {
-                --button-color: u.alpha(var(--button-color-base) / 80%);
+                --button-color: #{u.alpha(var(--button-color-base) 80%)};
             }
 
             &:active {
-                --button-color: u.alpha(var(--button-color-base) / 65%);
+                --button-color: #{u.alpha(var(--button-color-base) 65%)};
             }
 
             &:disabled {
-                --button-color: u.alpha(var(--button-color-base) / 80%);
+                --button-color: #{u.alpha(var(--button-color-base) 80%)};
             }
 
             > .button-text {
@@ -59,11 +59,11 @@
                 border-color: var(--button-color);
 
                 &:hover {
-                    background-color: --alpha(var(--button-color) / var(--hover-bg-opacity, 5%));
+                    background-color: u.alpha(var(--button-color) var(--hover-bg-opacity, 5%));
                 }
 
                 &:active {
-                    background-color: --alpha(var(--button-color) / 15%);
+                    background-color: u.alpha(var(--button-color) 15%);
                 }
 
                 &:disabled {
@@ -73,15 +73,15 @@
 
             &.text {
                 &:hover {
-                    background-color: --alpha(var(--button-color) / var(--hover-bg-opacity, 10%));
+                    background-color: u.alpha(var(--button-color) var(--hover-bg-opacity, 10%));
                 }
 
                 &:active {
-                    background-color: --alpha(var(--button-color) / 20%);
+                    background-color: u.alpha(var(--button-color) 20%);
                 }
 
                 &:disabled {
-                    background-color: --alpha(var(--button-color) / 10%);
+                    background-color: u.alpha(var(--button-color) 10%);
                 }
             }
         }
@@ -109,16 +109,16 @@
                 --button-text-color: var(--color-neutral-content);
 
                 &:hover {
-                    --button-color: u.alpha(var(--color-neutral) / 90%);
+                    --button-color: #{u.alpha(var(--color-neutral) 90%)};
                 }
 
                 &:active {
-                    --button-color: u.alpha(var(--color-neutral) / 70%);
+                    --button-color: #{u.alpha(var(--color-neutral) 70%)};
                 }
 
                 &:disabled {
-                    --button-color: u.alpha(var(--color-neutral) / 80%);
-                    --button-text-color: u.alpha(var(--color-neutral-content) / 80%);
+                    --button-color: #{u.alpha(var(--color-neutral) 80%)};
+                    --button-text-color: #{u.alpha(var(--color-neutral-content) 80%)};
                 }
             }
         }

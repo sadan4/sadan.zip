@@ -6,10 +6,6 @@
 
 $z: var(--z, 0);
 
-:where(*) {
-	z-index: $z;
-}
-
 .cursor {
 	@include z(10000001);
 }

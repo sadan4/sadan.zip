@@ -1,9 +1,15 @@
+@use "sass:list";
+
 $colors: color background-color border-color outline-color fill stroke;
 
 @mixin prop($props) {
-    transition-property: $props;
+    transition-property: list.join($list1: $props, $list2: (), $separator: comma);
 }
 
 @mixin dur($duration: 150ms) {
     transition-duration: $duration;
+}
+
+@mixin ease-in {
+    transition-timing-function: ease-in;
 }

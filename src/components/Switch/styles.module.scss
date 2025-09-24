@@ -1,3 +1,5 @@
+@use "u";
+
 @layer components {
     .switch {
         height: 2rem;
@@ -12,9 +14,9 @@
 
         &,
         .thumb {
-            transition-property: background-color, color, fill, border-radius;
-            transition-duration: 250ms;
-            transition-timing-function: ease-in;
+            @include u.anim-prop(background-color color fill border-radius);
+            @include u.anim-dur(250ms);
+            @include u.anim-ease-in;
         }
 
         &.enabled {
