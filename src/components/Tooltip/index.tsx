@@ -27,8 +27,8 @@ function useTooltipAnim(shouldShow: boolean, position: TooltipPosition) {
     return useTransition(shouldShow, {
         from: {
             opacity: 0,
-            scale: 0,
-            top: -50,
+            scale: 0.7,
+            top: -80,
         },
         enter: {
             opacity: 1,
@@ -37,8 +37,8 @@ function useTooltipAnim(shouldShow: boolean, position: TooltipPosition) {
         },
         leave: {
             opacity: 0,
-            scale: 0,
-            top: -150,
+            scale: 0.7,
+            top: -120,
         },
     });
 }
@@ -64,7 +64,11 @@ export function Tooltip({
     const hide = () => setShouldShow(false);
 
     return (
-        <div className={cn(styles.tooltip, className)}>
+        <div
+            className={cn(styles.tooltip, className)}
+            onMouseOver={show}
+            onMouseOut={hide}
+        >
             {
                 tooltipTransition(({ opacity, scale, top }, show) => show && (
                     <animated.div
@@ -83,8 +87,6 @@ export function Tooltip({
             }
             <div
                 className={cn(styles.trigger)}
-                onMouseOver={show}
-                onMouseOut={hide}
             >
                 {children}
             </div>

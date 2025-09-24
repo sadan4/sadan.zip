@@ -63,12 +63,13 @@ function SelectItem<T>({ item: { label, value, disabled }, isSelected, onChange 
 interface SelectMenuProps<T> {
     items: SelectOption<T>[];
     selectedItem: NoInfer<T>;
+    scrollAreaClassName?: string;
     onChange: (item: NoInfer<T>) => void;
 }
 
-function SelectMenu<T>({ items, onChange, selectedItem }: SelectMenuProps<T>) {
+function SelectMenu<T>({ items, onChange, selectedItem, scrollAreaClassName }: SelectMenuProps<T>) {
     return (
-        <ScrollArea className="bg-bg-300 sb-track-bg-300 rounded-md border-bg-fg-700 border-3 flex flex-col">
+        <ScrollArea className={cn("bg-bg-300 sb-track-bg-300 rounded-md border-bg-fg-700 border-3 flex flex-col", scrollAreaClassName)}>
             {items.map((item) => {
                 return (
                     <SelectItem
@@ -100,6 +101,7 @@ export interface SelectProps<T extends PropertyKey> extends PropsWithChildren {
     onChange?: (selection: NoInfer<T>) => void;
     closeOnSelect?: boolean;
     className?: string;
+    scrollAreaClassName?: string;
     open?: boolean;
     onOpenChange?: (open: boolean) => void;
 }
@@ -113,6 +115,7 @@ export function Select<T extends PropertyKey>({
     children,
     closeOnSelect = true,
     className,
+    scrollAreaClassName,
     open: _open,
     onOpenChange,
 }: SelectProps<T>) {
@@ -221,6 +224,7 @@ export function Select<T extends PropertyKey>({
                         >
                             <SelectMenu
                                 items={items}
+                                scrollAreaClassName={scrollAreaClassName}
                                 selectedItem={selectedItem}
                                 onChange={(label) => {
                                     setSelectedItem(label);
