@@ -1,12 +1,14 @@
 import { useControlledState } from "@/hooks/controlledState";
+import { useForceUpdater } from "@/hooks/forceUpdater";
 import cn from "@/utils/cn";
+import useResizeObserver from "@react-hook/resize-observer";
 import { animated, useTransition } from "@react-spring/web";
 
 import { TooltipPosition } from "./constants";
 import styles from "./styles.module.scss";
 import { Box } from "../layout/Box";
 
-import type { PropsWithChildren, ReactNode } from "react";
+import { type PropsWithChildren, type ReactNode, useLayoutEffect, useRef } from "react";
 
 export interface TooltipProps extends PropsWithChildren {
     /**
@@ -21,27 +23,44 @@ export interface TooltipProps extends PropsWithChildren {
     onShow?(): void;
     onHide?(): void;
     className?: string;
+    /**
+     * Don't use the default wrapper ({@link Box})
+     */
+    noWrapper?: boolean;
 }
 
-function useTooltipAnim(shouldShow: boolean, position: TooltipPosition) {
+function useTooltipAnim(shouldShow: boolean) {
+    const scaleBy = 0.1;
+
     return useTransition(shouldShow, {
         from: {
             opacity: 0,
-            scale: 0.7,
-            top: -80,
+            scale: 0.95,
+            "--percent-in": -scaleBy,
         },
         enter: {
             opacity: 1,
             scale: 1,
-            top: -100,
+            "--percent-in": 0,
         },
         leave: {
             opacity: 0,
-            scale: 0.7,
-            top: -120,
+            scale: 0.95,
+            "--percent-in": scaleBy,
+        },
+        config: {
+            tension: 2400,
+            friction: 52,
         },
     });
 }
+
+const posMap: Record<TooltipPosition, string> = {
+    [TooltipPosition.TOP]: styles.top,
+    [TooltipPosition.BOTTOM]: styles.bottom,
+    [TooltipPosition.LEFT]: styles.left,
+    [TooltipPosition.RIGHT]: styles.right,
+};
 
 export function Tooltip({
     text,
@@ -51,6 +70,7 @@ export function Tooltip({
     className,
     position = TooltipPosition.TOP,
     children,
+    noWrapper = false,
 }: TooltipProps) {
     const [shouldShow, setShouldShow] = useControlledState({
         initialValue: false,
@@ -59,7 +79,22 @@ export function Tooltip({
         debugName: "Tooltip",
     });
 
-    const tooltipTransition = useTooltipAnim(shouldShow, position);
+    const triggerRef = useRef<HTMLDivElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [dep, updateSizeVar] = useForceUpdater();
+
+    useResizeObserver(triggerRef, updateSizeVar);
+
+    useLayoutEffect(() => {
+        if (triggerRef.current && containerRef.current) {
+            const { width, height } = triggerRef.current.getBoundingClientRect();
+
+            containerRef.current.style.setProperty("--trigger-width", `${width}px`);
+            containerRef.current.style.setProperty("--trigger-height", `${height}px`);
+        }
+    }, [dep]);
+
+    const tooltipTransition = useTooltipAnim(shouldShow);
     const show = () => setShouldShow(true);
     const hide = () => setShouldShow(false);
 
@@ -68,24 +103,32 @@ export function Tooltip({
             className={cn(styles.tooltip, className)}
             onMouseOver={show}
             onMouseOut={hide}
+            ref={containerRef}
         >
             {
-                tooltipTransition(({ opacity, scale, top }, show) => show && (
-                    <animated.div
-                        className={cn(styles.wrapper)}
-                        style={{
-                            opacity,
-                            scale,
-                            top: top.to((t) => `${t}%`),
-                        }}
-                    >
-                        <Box>
-                            {text}
-                        </Box>
-                    </animated.div>
-                ))
+                tooltipTransition(({ ...styleProps }, show) => {
+                    return show && (
+                        <animated.div
+                            className={cn(styles.container, posMap[position])}
+                            style={{
+                                ...styleProps,
+                            }}
+                        >
+                            {
+                                noWrapper
+                                    ? text
+                                    : (
+                                        <Box className={styles.wrapper}>
+                                            {text}
+                                        </Box>
+                                    )
+                            }
+                        </animated.div>
+                    );
+                })
             }
             <div
+                ref={triggerRef}
                 className={cn(styles.trigger)}
             >
                 {children}

@@ -5,7 +5,6 @@ import { Marquee } from "../Marquee";
 import { Text } from "../Text";
 
 import { useState } from "react";
-import cn from "@/utils/cn";
 
 const meta = {
     args: {

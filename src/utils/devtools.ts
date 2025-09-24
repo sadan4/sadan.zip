@@ -22,3 +22,10 @@ export function namedContext<T>(defaultValue: T, name: string) {
     context.displayName = name;
     return context;
 }
+
+export function dbg<T>(val: T): T {
+    const { stack } = new Error();
+
+    console.log("dbg", val, { stack });
+    return val;
+}

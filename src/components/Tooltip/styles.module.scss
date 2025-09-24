@@ -4,8 +4,39 @@
         width: fit-content;
         position: relative;
 
-        .wrapper {
+        .container {
+            $padding: var(--tooltip-padding, 1rem);
+            $progress: var(--percent-in);
+            $h: var(--trigger-height);
+            $w: var(--trigger-width);
+
             position: absolute;
+            display: inline;
+
+            &.top,
+            &.bottom {
+                --empty: true;
+            }
+
+            &.left,
+            &.right {
+                --empty: true;
+            }
+
+            &.top {
+                bottom: calc($h + ($h * $progress));
+                padding-bottom: $padding;
+            }
+
+            &.bottom {
+                top: calc($h + ($h * $progress));
+                padding-top: $padding;
+            }
+
+            >.wrapper {
+                --empty: true;
+            }
+
         }
 
         .trigger {
