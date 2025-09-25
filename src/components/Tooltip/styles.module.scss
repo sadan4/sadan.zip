@@ -93,26 +93,26 @@ $w: var(--trigger-width);
 
             &.top {
                 position-area: top;
-                margin-bottom: calc($padding + ($h * $progress));
+                padding-bottom: calc($padding + ($h * $progress));
                 position-try-fallbacks: --tooltip-bottom, --tooltip-left, --tooltip-right;
             }
 
             &.bottom {
                 position-area: bottom;
-                margin-top: calc($padding + ($h * $progress));
-                position-try-fallbacks: --tooltip-bottom, --tooltip-top, --tooltip-left, --tooltip-right;
+                padding-top: calc($padding + ($h * $progress));
+                position-try-fallbacks: --tooltip-top, --tooltip-left, --tooltip-right;
             }
 
             &.left {
                 position-area: left;
-                margin-right: calc($padding + ($w * $progress));
-                position-try-fallbacks: --tooltip-left, --tooltip-right, --tooltip-top, --tooltip-bottom;
+                padding-right: calc($padding + ($w * $progress));
+                position-try-fallbacks: --tooltip-right, --tooltip-top, --tooltip-bottom;
             }
 
             &.right {
                 position-area: right;
-                margin-left: calc($padding + ($w * $progress));
-                position-try-fallbacks: --tooltip-right, --tooltip-left, --tooltip-top, --tooltip-bottom;
+                padding-left: calc($padding + ($w * $progress));
+                position-try-fallbacks: --tooltip-left, --tooltip-top, --tooltip-bottom;
             }
 
             .box {
