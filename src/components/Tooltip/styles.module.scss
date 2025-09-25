@@ -1,3 +1,60 @@
+// #region constants
+$box-padding: 1rem;
+$max-content-size: 16rem;
+
+// #endregion
+@property --tooltip-padding {
+    syntax: "*";
+    inherits: true;
+    initial-value: 1rem;
+}
+
+$padding: var(--tooltip-padding);
+
+@property --percent-in {
+    syntax: "<number>";
+    inherits: true;
+    initial-value: 0;
+}
+
+$progress: var(--percent-in);
+
+@property --trigger-height {
+    syntax: "<length>";
+    inherits: true;
+    initial-value: 0;
+}
+
+$h: var(--trigger-height);
+
+@property --trigger-width {
+    syntax: "<length>";
+    inherits: true;
+    initial-value: 0;
+}
+
+$w: var(--trigger-width);
+
+@position-try --tooltip-top {
+    position-area: top;
+    margin-bottom: calc($padding + ($h * $progress));
+}
+
+@position-try --tooltip-bottom {
+    position-area: bottom;
+    margin-top: calc($padding + ($h * $progress));
+}
+
+@position-try --tooltip-left {
+    position-area: left;
+    margin-right: calc($padding + ($w * $progress));
+}
+
+@position-try --tooltip-right {
+    position-area: right;
+    margin-left: calc($padding + ($w * $progress));
+}
+
 @layer components {
     .tooltip {
         height: fit-content;
@@ -36,22 +93,26 @@
 
             &.top {
                 position-area: top;
-                padding-bottom: calc($padding + ($h * $progress));
+                margin-bottom: calc($padding + ($h * $progress));
+                position-try-fallbacks: --tooltip-bottom, --tooltip-left, --tooltip-right;
             }
 
             &.bottom {
                 position-area: bottom;
-                padding-top: calc($padding + ($h * $progress));
+                margin-top: calc($padding + ($h * $progress));
+                position-try-fallbacks: --tooltip-bottom, --tooltip-top, --tooltip-left, --tooltip-right;
             }
 
             &.left {
                 position-area: left;
-                padding-right: calc($padding + ($w * $progress));
+                margin-right: calc($padding + ($w * $progress));
+                position-try-fallbacks: --tooltip-left, --tooltip-right, --tooltip-top, --tooltip-bottom;
             }
 
             &.right {
                 position-area: right;
-                padding-left: calc($padding + ($w * $progress));
+                margin-left: calc($padding + ($w * $progress));
+                position-try-fallbacks: --tooltip-right, --tooltip-left, --tooltip-top, --tooltip-bottom;
             }
 
             .box {
