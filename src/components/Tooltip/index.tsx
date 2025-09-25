@@ -27,6 +27,10 @@ export interface TooltipProps extends PropsWithChildren {
      * Don't use the default wrapper ({@link Box})
      */
     noWrapper?: boolean;
+    /**
+     * Delay in ms before showing the tooltip on hover
+     */
+    hoverShowDelay?: number;
 }
 
 function useTooltipAnim(shouldShow: boolean) {
@@ -71,6 +75,7 @@ export function Tooltip({
     position = TooltipPosition.TOP,
     children,
     noWrapper = false,
+    hoverShowDelay,
 }: TooltipProps) {
     const [shouldShow, setShouldShow] = useControlledState({
         initialValue: false,
@@ -79,6 +84,7 @@ export function Tooltip({
         debugName: "Tooltip",
     });
 
+    const timeoutRef = useRef<NodeJS.Timeout>(undefined);
     const triggerRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const [dep, updateSizeVar] = useForceUpdater();
@@ -95,14 +101,27 @@ export function Tooltip({
     }, [dep]);
 
     const tooltipTransition = useTooltipAnim(shouldShow);
-    const show = () => setShouldShow(true);
-    const hide = () => setShouldShow(false);
+
+    const show = () => {
+        if (hoverShowDelay == null) {
+            setShouldShow(true);
+        }
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = setTimeout(() => {
+            setShouldShow(true);
+        }, hoverShowDelay);
+    };
+
+    const hide = () => {
+        clearTimeout(timeoutRef.current);
+        setShouldShow(false);
+    };
 
     return (
         <div
             className={cn(styles.tooltip, className)}
-            onMouseOver={show}
-            onMouseOut={hide}
+            onMouseEnter={show}
+            onMouseLeave={hide}
             ref={containerRef}
         >
             {
@@ -114,15 +133,15 @@ export function Tooltip({
                                 ...styleProps,
                             }}
                         >
-                            {
-                                noWrapper
-                                    ? text
-                                    : (
-                                        <Box className={styles.wrapper}>
+                            {noWrapper
+                                ? text
+                                : (
+                                    <Box className={styles.box}>
+                                        <div className={styles.wrapper}>
                                             {text}
-                                        </Box>
-                                    )
-                            }
+                                        </div>
+                                    </Box>
+                                )}
                         </animated.div>
                     );
                 })

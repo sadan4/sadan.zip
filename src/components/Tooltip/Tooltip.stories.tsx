@@ -1,29 +1,30 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
+import { TooltipPosition } from "./constants";
 import { Tooltip } from ".";
 import { Button } from "../Button";
 import { Switch } from "../Switch";
 
 import { useState } from "react";
-import { TooltipPosition } from "./constants";
 
 const meta = {
     component: Tooltip,
     args: {
         text: "Tooltip Content",
+        children: <Button>Hover Me</Button>,
     },
     render(args) {
         return (
             <div className="flex items-center justify-center w-screen h-screen gap-10">
                 <Tooltip
                     {...args}
-                >
-                    <Button>Hover Me</Button>
-                </Tooltip>
+                />
             </div>
         );
     },
 } satisfies Meta<typeof Tooltip>;
+
+document.body.style.padding = "0";
 
 export default meta;
 
@@ -34,23 +35,67 @@ export const Top: Story = {
         position: TooltipPosition.TOP,
     },
 };
+
+export const Bottom: Story = {
+    args: {
+        position: TooltipPosition.BOTTOM,
+    },
+};
+
+export const Left: Story = {
+    args: {
+        position: TooltipPosition.LEFT,
+    },
+};
+
+export const Right: Story = {
+    args: {
+        position: TooltipPosition.RIGHT,
+    },
+};
+
+export const Delayed: Story = {
+    args: {
+        hoverShowDelay: 1000,
+        children: <Button>1s hover delay</Button>,
+    },
+};
+
 export const Controlled: Story = {
-    render() {
+    args: {
+        text: "Controlled Tooltip",
+        children: <Button>Click the switch --{">"}</Button>,
+    },
+    render(args) {
         const [show, setShow] = useState(false);
 
         return (
             <div className="flex items-center justify-center w-screen h-screen gap-10">
                 <Tooltip
-                    text="Tooltip text"
+                    {...args}
                     show={show}
-                >
-                    <Button>Click the switch --{">"}</Button>
-                </Tooltip>
+                />
                 <Switch
                     value={show}
                     onChange={setShow}
                 />
             </div>
         );
+    },
+};
+
+export const WideTooltip: Story = {
+    args: {
+        text: Array
+            .from({ length: 3 }, () => "This is a very wide tooltip")
+            .join(" "),
+        children: <Button>button</Button>,
+    },
+};
+
+
+export const CustomContent: Story = {
+    args: {
+        noWrapper: true,
     },
 };

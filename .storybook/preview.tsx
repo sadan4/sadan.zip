@@ -22,7 +22,11 @@ const styleEl = function (): HTMLLinkElement {
 
 styleEl.href = cssUrl;
 
+import { installF8Break } from "@/utils/devtools";
+
 import { createPortal } from "react-dom";
+
+installF8Break();
 
 const preview: Preview = {
     parameters: {

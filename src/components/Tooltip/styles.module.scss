@@ -2,41 +2,61 @@
     .tooltip {
         height: fit-content;
         width: fit-content;
-        position: relative;
+        anchor-name: --tooltip-anchor;
 
         .container {
+            // #region constants
+            $box-padding: 1rem;
+            $max-content-size: 16rem;
+
+            // #endregion
             $padding: var(--tooltip-padding, 1rem);
             $progress: var(--percent-in);
             $h: var(--trigger-height);
             $w: var(--trigger-width);
 
-            position: absolute;
-            display: inline;
+            position-anchor: --tooltip-anchor;
+            position: fixed;
 
-            &.top,
-            &.bottom {
-                --empty: true;
+            .wrapper {
+                text-align: center;
             }
 
-            &.left,
-            &.right {
-                --empty: true;
+            &.left,&.right {
+                .wrapper {
+                    max-height: $max-content-size;
+                }
+            }
+
+            &.top,&.bottom {
+                .wrapper {
+                    max-width: $max-content-size;
+                }
             }
 
             &.top {
-                bottom: calc($h + ($h * $progress));
-                padding-bottom: $padding;
+                position-area: top;
+                padding-bottom: calc($padding + ($h * $progress));
             }
 
             &.bottom {
-                top: calc($h + ($h * $progress));
-                padding-top: $padding;
+                position-area: bottom;
+                padding-top: calc($padding + ($h * $progress));
             }
 
-            >.wrapper {
-                --empty: true;
+            &.left {
+                position-area: left;
+                padding-right: calc($padding + ($w * $progress));
             }
 
+            &.right {
+                position-area: right;
+                padding-left: calc($padding + ($w * $progress));
+            }
+
+            .box {
+                padding: calc($box-padding / 2) $box-padding;
+            }
         }
 
         .trigger {
