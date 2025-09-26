@@ -8,7 +8,7 @@ import Name from "../components/Name";
 
 function Links() {
     return (
-        <div className="flex [&_svg]:h-14 gap-3 [&_svg]:text-secondary">
+        <div className="flex [&_svg]:h-14 gap-3 [&_svg]:text-secondary-500">
             <DiscordIconLink
                 userId="521819891141967883"
                 key="521819891141967883"

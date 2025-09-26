@@ -24,7 +24,7 @@ export function Boilerplate({ noCursor }: BoilerplateProps) {
                     <>
                         <Cursor>
                             <DotCursor
-                                className={cn("bg-bg-fg mix-blend-exclusion", z.cursor)}
+                                className={cn("bg-fg-500 mix-blend-exclusion", z.cursor)}
                                 radius={10}
                                 invert
                                 lineOnText
@@ -32,7 +32,7 @@ export function Boilerplate({ noCursor }: BoilerplateProps) {
                         </Cursor>
                         <Cursor>
                             <BoundingCursor
-                                className={cn("bg-bg-fg mix-blend-exclusion", z.cursor)}
+                                className={cn("bg-fg-500 mix-blend-exclusion", z.cursor)}
                                 frameLength={{
                                     type: "dynamic",
                                     factor: 1 / 10,

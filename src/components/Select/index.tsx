@@ -55,7 +55,7 @@ function SelectItem<T>({ item: { label, value, disabled }, isSelected, onChange 
             onClick={() => onChange(value)}
         >
             <div className="flex-1/1">{label}</div>
-            {isSelected && <CheckCircle className="fill-info"/>}
+            {isSelected && <CheckCircle className="fill-info-500"/>}
         </Clickable>
     );
 }
@@ -69,7 +69,7 @@ interface SelectMenuProps<T> {
 
 function SelectMenu<T>({ items, onChange, selectedItem, scrollAreaClassName }: SelectMenuProps<T>) {
     return (
-        <ScrollArea className={cn("bg-bg-300 sb-track-bg-300 rounded-md border-bg-fg-700 border-3 flex flex-col", scrollAreaClassName)}>
+        <ScrollArea className={cn("bg-bg-300 sb-track-bg-300 rounded-md border-fg-700 border-3 flex flex-col", scrollAreaClassName)}>
             {items.map((item) => {
                 return (
                     <SelectItem
@@ -194,7 +194,7 @@ export function Select<T extends PropertyKey>({
                                 </div>
                                 <animated.svg
                                     viewBox="-2.4 -2.4 28.8 28.8"
-                                    className="fill-none stroke-bg-fg w-8 h-8"
+                                    className="fill-none stroke-fg-500 w-8 h-8"
                                     style={{
                                         transform: rotation.to((r) => `rotate(${r}deg)`),
                                     }}

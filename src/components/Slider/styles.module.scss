@@ -56,7 +56,7 @@
 
 			&::-webkit-slider-thumb {
 				border-radius: u.$inf;
-				background-color: var(--color-bg-fg);
+				background-color: var(--color-fg-500);
 			}
 		}
 
@@ -66,11 +66,11 @@
 		}
 
 		> .progress {
-			background-color: var(--color-primary);
+			background-color: var(--color-primary-400);
 		}
 
 		> .remainder {
-			background-color: var(--color-bg-fg-700);
+			background-color: var(--color-fg-700);
 		}
 
 		// bad name
@@ -165,16 +165,16 @@
 
 			input {
 				&::-webkit-slider-thumb {
-					background-color: u.alpha(var(--color-bg-fg) 50%);
+					background-color: u.alpha(var(--color-fg-500) 50%);
 				}
 			}
 
 			> .progress {
-				background-color: u.alpha(var(--color-primary) 50%);
+				background-color: u.alpha(var(--color-primary-400) 50%);
 			}
 
 			> .remainder {
-				background-color: u.alpha(var(--color-bg-fg-700) 50%);
+				background-color: u.alpha(var(--color-fg-700) 50%);
 			}
 		}
 

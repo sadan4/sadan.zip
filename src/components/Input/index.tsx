@@ -123,7 +123,7 @@ export function Input({
                             <Close
                                 height={16}
                                 width={16}
-                                className="fill-bg-fg-600"
+                                className="fill-fg-600"
                             />
                         </Clickable>
                     </div>
@@ -360,7 +360,7 @@ export function CheckedInput({
                     updateRef(ref, e);
                     updateRef(_ref, e);
                 }}
-                className={cn(hasError && "ring-error/65 focus:ring-error", className)}
+                className={cn(hasError && "ring-error-400/65 focus:ring-error-400", className)}
                 onChange={handleChange}
                 disabled={disabled}
             />

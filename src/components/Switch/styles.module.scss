@@ -20,7 +20,7 @@
         }
 
         &.enabled {
-            --bg-base: var(--color-primary);
+            --bg-base: var(--color-primary-400);
 
             .thumb {
                 fill: var(--color-neutral);
@@ -29,17 +29,17 @@
 
         &:not(.enabled) {
             border: 1px solid;
-            border-color: var(--color-bg-fg-800);
+            border-color: var(--color-fg-800);
 
             --bg-base: var(--color-bg-300);
 
             .thumb {
-                fill: var(--color-bg-fg-600);
+                fill: var(--color-fg-600);
             }
         }
 
         &:focus-visible {
-            outline: 3px solid var(--color-primary);
+            outline: 3px solid var(--color-primary-400);
             outline-offset: .25rem;
         }
 

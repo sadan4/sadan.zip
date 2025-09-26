@@ -13,7 +13,7 @@
 
         &::after {
             border-left-width: 2px;
-            border-color: u.alpha(var(--color-bg-fg-600) 50%);
+            border-color: u.alpha(var(--color-fg-600) 50%);
             display: block;
             content: "";
             width: 0;

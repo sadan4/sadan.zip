@@ -4,14 +4,14 @@
      */
 	outline: none;
 
-	--ring-color: color-mix(in oklab, var(--color-bg-fg-600) 25%, transparent);
+	--ring-color: color-mix(in oklab, var(--color-fg-600) 25%, transparent);
 	--ring-width: 2px;
 
 	box-shadow: 0 0 0 var(--ring-width) var(--ring-color);
 
 	&.autofocus:focus-visible,
 	&.focused {
-		--ring-color: var(--color-bg-fg-600);
+		--ring-color: var(--color-fg-600);
 	}
 
 	&.animate {

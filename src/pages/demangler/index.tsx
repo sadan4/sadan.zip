@@ -34,7 +34,7 @@ export default function Demangler() {
                             placeholder="_ZN5sadan9demanglerB5cxx11Ev"
                             className="min-w-50 min-h-20 w-[60vw] max-w-[60vw] h-[45vh] max-h-[45vh] resize"
                         />
-                        <div className="flex gap-3 *:flex *:rounded-md *:bg-accent h-9 *:px-2 *:items-center">
+                        <div className="flex gap-3 *:flex *:rounded-md *:bg-accent-300 h-9 *:px-2 *:items-center">
                             <Clickable
                                 onClick={() => {
                                     if (!text) {

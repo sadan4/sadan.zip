@@ -6,24 +6,21 @@
 	--color-bg-100: #1a1b26;
 	--color-bg-200: #16161e;
 	--color-bg-300: #0c0e14;
-	--color-bg-fg: #c0caf5;
-	--color-bg-fg-500: var(--color-bg-fg);
-	--color-bg-fg-600: #a9b1d6;
-	--color-bg-fg-700: #737aa2;
-	--color-bg-fg-800: #565f89;
-	--color-fg-fg: #16161d;
-	--color-primary: #7aa2f7;
-	--color-secondary: #9d7cd8;
-	--color-accent: #4fd6be;
+	--color-fg-500: #c0caf5;
+	--color-fg-600: #a9b1d6;
+	--color-fg-700: #737aa2;
+	--color-fg-800: #565f89;
+	--color-primary-400: #7aa2f7;
+	--color-secondary-500: #9d7cd8;
+	--color-accent-300: #4fd6be;
 	--color-neutral: #161928;
 	--color-neutral-content: #c0caf5;
-	--color-info: oklch(0.719 0.1322 264.2);
-	--color-info-500: var(--color-info);
+	--color-info-500: oklch(0.719 0.1322 264.2);
 	--color-info-600: oklch(0.639 0.1322 264.2);
 	--color-info-700: oklch(0.559 0.1322 264.2);
-	--color-success: #c3e88d;
-	--color-warning: #ffc777;
-	--color-error: #ff757f;
+	--color-success-300: #c3e88d;
+	--color-warning-300: #ffc777;
+	--color-error-400: #ff757f;
 }
 
 @utility sb-track-* {

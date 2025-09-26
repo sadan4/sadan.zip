@@ -78,7 +78,7 @@ export function Accordion({ item: { id, render: Render }, children, className, i
                 {children}
                 <animated.svg
                     viewBox="-2.4 -2.4 28.8 28.8"
-                    className="fill-none stroke-bg-fg w-8 h-8"
+                    className="fill-none stroke-fg-500 w-8 h-8"
                     style={{
                         transform: rotation.to((r) => `rotate(${r}deg)`),
                     }}

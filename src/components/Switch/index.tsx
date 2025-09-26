@@ -114,6 +114,9 @@ export function Switch({ initialValue, value, onChange }: SwitchProps) {
                     setState(SwitchState.OFF);
                 }
             }}
+            role="switch"
+            aria-checked={enabled}
+            aria-readonly={false}
         >
             <svg
                 viewBox="0 0 24 24"

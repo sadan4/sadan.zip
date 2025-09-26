@@ -87,15 +87,15 @@
         }
 
         &.primary {
-            --button-color-base: var(--color-primary);
+            --button-color-base: var(--color-primary-400);
         }
 
         &.secondary {
-            --button-color-base: var(--color-secondary);
+            --button-color-base: var(--color-secondary-500);
         }
 
         &.accent {
-            --button-color-base: var(--color-accent);
+            --button-color-base: var(--color-accent-300);
 
             &:is(.outline, .text):hover {
                 --hover-bg-opacity: 10%;
@@ -132,27 +132,27 @@
         }
 
         &.info {
-            --button-color-base: var(--color-info);
+            --button-color-base: var(--color-info-500);
         }
 
         &.info-700 {
             --button-color-base: var(--color-info-700);
 
             &.filled {
-                --button-text-color: var(--color-bg-fg);
+                --button-text-color: var(--color-fg-500);
             }
         }
 
         &.success {
-            --button-color-base: var(--color-success);
+            --button-color-base: var(--color-success-300);
         }
 
         &.warning {
-            --button-color-base: var(--color-warning);
+            --button-color-base: var(--color-warning-300);
         }
 
         &.error {
-            --button-color-base: var(--color-error);
+            --button-color-base: var(--color-error-400);
         }
     }
 }

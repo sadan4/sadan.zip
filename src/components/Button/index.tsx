@@ -5,7 +5,7 @@ import styles from "./styles.module.scss";
 import { Clickable } from "../Clickable";
 import { Text } from "../Text";
 
-import type { ComponentProps } from "react";
+import { type ComponentProps, useId } from "react";
 
 
 export interface ButtonProps extends ComponentProps<typeof Clickable<"button">> {
@@ -37,14 +37,18 @@ export interface ButtonProps extends ComponentProps<typeof Clickable<"button">> 
  * A simple button
  */
 export function Button({ children, className, color = "primary", size = "md", wrap = false, colorType = "filled", disabled = false, ...props }: ButtonProps) {
+    const id = useId();
+
     return (
         <Clickable
             className={cn(styles.button, colors[color], colorTypes[colorType], className)}
             {...props}
             disabled={disabled}
             tag="button"
+            aria-labelledby={id}
         >
             <Text
+                id={id}
                 size={size}
                 nowrap={!wrap}
                 className={styles.buttonText}
