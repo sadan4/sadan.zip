@@ -3,9 +3,20 @@ import { installF8Break } from "@/utils/devtools";
 import "./app.scss";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { createBrowserRouter, RouterProvider } from "react-router";
+import { createBrowserRouter, RouterProvider, useLoaderData as useLoaderData_ } from "react-router";
 
 installF8Break();
+
+export interface LoaderData {
+    config: {
+        solidBg?: boolean;
+        noCursor?: boolean;
+    };
+}
+
+export function useLoaderData() {
+    return useLoaderData_<LoaderData>();
+}
 
 const router = createBrowserRouter([
     {
@@ -16,6 +27,24 @@ const router = createBrowserRouter([
                 index: true,
                 async lazy() {
                     const Component = (await import("./pages")).default;
+
+                    return {
+                        Component,
+                    };
+                },
+            },
+            {
+                path: "e",
+                loader(): LoaderData {
+                    return {
+                        config: {
+                            solidBg: true,
+                            noCursor: true,
+                        },
+                    };
+                },
+                async lazy() {
+                    const Component = (await import("./pages/e")).default;
 
                     return {
                         Component,

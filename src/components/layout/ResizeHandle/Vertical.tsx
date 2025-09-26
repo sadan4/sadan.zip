@@ -1,4 +1,5 @@
 import { useEventHandler } from "@/hooks/eventListener";
+import { useRecent } from "@/hooks/recent";
 import cn from "@/utils/cn";
 
 import type { ResizeHandleProps } from ".";
@@ -6,7 +7,7 @@ import { Direction, getBounds } from "./bounds";
 import styles from "./styles.module.scss";
 
 import invariant from "invariant";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 
 export interface VerticalResizeHandleProps extends ResizeHandleProps {
 }
@@ -20,12 +21,16 @@ export function Vertical({
     onResizeFinish,
     initialPosition = 0.5,
     onReset,
+    ref,
     ...props
 }: VerticalResizeHandleProps) {
     invariant(initialPosition >= 0 && initialPosition <= 1, "Invalid initial position");
 
+    const controller = useRef(new AbortController());
     const handleRef = useRef<HTMLDivElement>(null);
     const [dragging, setDragging] = useState(false);
+    const onResizeHandler = useRecent(onResize);
+    const onResizeFinishHandler = useRecent(onResizeFinish);
 
     const dispatchResize = useCallback((final = false) => {
         if (handleRef.current && boundingElementRef.current) {
@@ -34,12 +39,14 @@ export function Vertical({
             const num = toPercentage(handleLeft + (handleWidth / 2)) * 100;
 
             if (final) {
-                onResizeFinish?.(num);
+                onResizeFinishHandler.current?.(num);
+                controller.current.abort();
+                controller.current = new AbortController();
             } else {
-                onResize?.(num);
+                onResizeHandler.current?.(num);
             }
         }
-    }, [boundingElementRef, onResize, onResizeFinish]);
+    }, [boundingElementRef, onResizeFinishHandler, onResizeHandler]);
 
     const dispatchReset = useCallback(() => {
         onReset?.();
@@ -56,6 +63,21 @@ export function Vertical({
         dispatchResize();
         dispatchReset();
     }, [dispatchReset, dispatchResize, stopDragging]);
+
+    useImperativeHandle(ref, () => ({
+        setCurrentPos(percent, shouldDispatch = false) {
+            if (handleRef.current) {
+                handleRef.current.style.setProperty("--drag-offset", `${percent / 100}`);
+                if (shouldDispatch) {
+                    dispatchResize();
+                    dispatchResize(true);
+                }
+            }
+        },
+        reset() {
+            reset();
+        },
+    }), [dispatchResize, reset]);
 
     useEventHandler("pointerup", stopDragging, window, {
         passive: true,
@@ -114,6 +136,8 @@ export function Vertical({
             onPointerDown={(e) => {
                 if (e.isPrimary) {
                     setDragging(true);
+                    // prevent selection while we are dragging, this controller will be aborted when we finish resizing
+                    window.addEventListener("selectstart", (e) => e.preventDefault(), { signal: controller.current.signal });
                 }
                 props.onPointerDown?.(e);
             }}

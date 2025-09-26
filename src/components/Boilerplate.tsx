@@ -1,3 +1,4 @@
+import { useLoaderData } from "@/main";
 import { z } from "@/styles";
 import cn from "@/utils/cn";
 import Cursor from "@components/Cursor";
@@ -7,7 +8,7 @@ import ModalRenderRoot from "@components/modal/ModalRenderRoot";
 
 import { CustomCursorContext } from "./Cursor/context";
 
-import { useContext } from "react";
+import { useContext, useEffect } from "react";
 
 export interface BoilerplateProps {
     noCursor?: boolean;
@@ -15,8 +16,20 @@ export interface BoilerplateProps {
 
 export function Boilerplate({ noCursor }: BoilerplateProps) {
     const cursorContext = useContext(CustomCursorContext);
+    const loaderData = useLoaderData();
+    const gifBg = !loaderData?.config?.solidBg;
+
+    useEffect(() => {
+        if (gifBg) {
+            document.body.classList.add("snow");
+            return () => {
+                document.body.classList.remove("snow");
+            };
+        }
+    }, [gifBg]);
 
     noCursor ??= cursorContext;
+    noCursor ??= loaderData?.config?.noCursor;
     return (
         <>
             {

@@ -26,5 +26,8 @@
 		"editor.codeActionsOnSave": {
 			"source.fixAll.stylelint": "always",
 		}
-	}
+    },
+    "tailwindCSS.classFunctions": [
+        "cn"
+    ]
 }

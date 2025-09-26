@@ -386,7 +386,7 @@ const styleRules: Partial<_RuleOptions> = {
     "@stylistic/newline-per-chained-call": [
         "error",
         {
-            ignoreChainWithDepth: 1,
+            ignoreChainWithDepth: 2,
         },
     ],
     "@stylistic/no-confusing-arrow": [
