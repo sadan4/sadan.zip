@@ -20,6 +20,7 @@ export function Horizontal({
     onResize,
     onReset,
     onDoubleClick,
+    ref: _ref,
     ...props
 }: ResizeHandleProps) {
     invariant(initialPosition >= 0 && initialPosition <= 1, "Invalid initial position");
