@@ -115,13 +115,13 @@ export default function Name() {
     }, []);
     return (
         <div
-            className="text-center min-w-24 max-w-3xl"
+            className="max-w-3xl min-w-24 text-center"
             style={{
                 cursor: typing ? "not-allowed" : "pointer",
             }}
         >
             <Typewriter
-                className="mt-6 mb-6 min-h-10 break-words text-balance flex justify-center"
+                className="mt-6 mb-6 flex min-h-10 justify-center text-balance break-words"
                 initialContent="sadan"
                 onTypingStateChange={(prevState) => {
                     setTyping(prevState);

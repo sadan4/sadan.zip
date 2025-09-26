@@ -161,7 +161,7 @@ export const Controlled: Story = {
                         },
                     ]}
                 />
-                <div className="flex gap-3 mt-4">
+                <div className="mt-4 flex gap-3">
                     <Button
                         colorType="outline"
                         onClick={() => setSection("1")}

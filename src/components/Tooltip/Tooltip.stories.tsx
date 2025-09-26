@@ -15,7 +15,7 @@ const meta = {
     },
     render(args) {
         return (
-            <div className="flex items-center justify-center w-screen h-screen gap-10">
+            <div className="flex h-screen w-screen items-center justify-center gap-10">
                 <Tooltip
                     {...args}
                 />
@@ -70,7 +70,7 @@ export const Controlled: Story = {
         const [show, setShow] = useState(false);
 
         return (
-            <div className="flex items-center justify-center w-screen h-screen gap-10">
+            <div className="flex h-screen w-screen items-center justify-center gap-10">
                 <Tooltip
                     {...args}
                     show={show}

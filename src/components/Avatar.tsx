@@ -64,7 +64,7 @@ export default function Avatar({ round = false, ...props }: AvatarProps) {
                             alt="my discord profile picture, imagine a cute cat!"
                             {...props}
                             onMouseOver={preloadFriends}
-                            className={cn("max-w-sm max-h-max select-none", round && "rounded-full", props.className)}
+                            className={cn("max-h-max max-w-sm select-none", round && "rounded-full", props.className)}
                             draggable={false}
                         />
                     </BorderHoldCircular>

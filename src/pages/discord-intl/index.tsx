@@ -1,10 +1,10 @@
 import { Boilerplate } from "@/components/Boilerplate";
-import { Box } from "@/components/layout/Box/Box";
 import { Button } from "@/components/Button";
 import { AnimateHeight } from "@/components/effects/AnimateHeight";
 import { DefaultFooter, FooterContainer } from "@/components/Footer";
-import { HorizontalLine } from "@/components/Lines/HorizontalLine";
 import { LabeledInput } from "@/components/Input";
+import { Box } from "@/components/layout/Box/Box";
+import { HorizontalLine } from "@/components/Lines/HorizontalLine";
 import { Text } from "@/components/Text";
 import { copy } from "@/utils/clipboard";
 import cn from "@/utils/cn";
@@ -21,7 +21,7 @@ export default function DiscordIntlLookup() {
         <>
             <Boilerplate noCursor />
             <FooterContainer footer={() => <DefaultFooter />}>
-                <div className="flex justify-center mt-6">
+                <div className="mt-6 flex justify-center">
                     <Box className="w-1/2">
                         <Text
                             size="2xl"
@@ -30,7 +30,7 @@ export default function DiscordIntlLookup() {
                             Discord Intl Lookup
                         </Text>
                         <HorizontalLine className="my-2" />
-                        <div className="flex flex-col gap-3 w-1/2 self-center">
+                        <div className="flex w-1/2 flex-col gap-3 self-center">
                             <LabeledInput
                                 placeholder="nkq1l5"
                                 onChange={({ target: { value } }) => {
@@ -72,7 +72,7 @@ export default function DiscordIntlLookup() {
                                     <div className={cn("flex items-center justify-between transition-colors")}>
                                         <Text
                                             color={result != null ? "success" : "error"}
-                                            className="overflow-clip text-nowrap max-w-6/10"
+                                            className="max-w-6/10 overflow-clip text-nowrap"
                                         >
                                             #{"{"}intl::{result ?? "No result :("}{"}"}
                                         </Text>

@@ -78,7 +78,7 @@ export default function ModalRenderRoot() {
                     return kb(e);
                 }}
                 style={style}
-                className={cn("absolute top-0 left-0 w-full h-full bg-black/70", z.modal)}
+                className={cn("absolute top-0 left-0 h-full w-full bg-black/70", z.modal)}
                 tabIndex={-1}
                 onClick={closeModal}
             >

@@ -8,7 +8,7 @@ import Name from "../components/Name";
 
 function Links() {
     return (
-        <div className="flex [&_svg]:h-14 gap-3 [&_svg]:text-secondary-500">
+        <div className="[&_svg]:text-secondary-500 flex gap-3 [&_svg]:h-14">
             <DiscordIconLink
                 userId="521819891141967883"
                 key="521819891141967883"
@@ -46,7 +46,7 @@ export default function App() {
                     footer={() => <DefaultFooter />}
                     className="flex justify-center"
                 >
-                    <div className="pt-52 flex items-center flex-col">
+                    <div className="flex flex-col items-center pt-52">
                         <Avatar
                             className="w-52"
                             round

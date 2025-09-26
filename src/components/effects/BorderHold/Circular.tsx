@@ -107,7 +107,7 @@ export default function BorderHoldCircular({ children, onHold }: BolderHoldCircu
                 }}
             >
                 <circle
-                    className={cn("rounded-full w-full h-full")}
+                    className={cn("h-full w-full rounded-full")}
                 />
             </animated.svg>
             {children}

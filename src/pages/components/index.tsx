@@ -272,14 +272,14 @@ function TextExample() {
 
     return (
         <>
-            <div className="flex flex-wrap items-center justify-between mb-4 gap-y-4">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-y-4">
                 <Text
                     size="xl"
                     center
                 >
                     TextComponents
                 </Text>
-                <div className="flex items-center justify-between gap-3 w-min">
+                <div className="flex w-min items-center justify-between gap-3">
                     <Select
                         className="w-20"
                         items={textSizeSelectOptions}

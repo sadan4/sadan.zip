@@ -46,7 +46,7 @@ export default function Cursor({ className = "", children }: AnimatedCursorProps
 
     return (
         <div
-            className={cn(z.cursor, "fixed pointer-events-none -translate-1/2", className)}
+            className={cn(z.cursor, "pointer-events-none fixed -translate-1/2", className)}
             ref={cursorRef}
         >
             {children}

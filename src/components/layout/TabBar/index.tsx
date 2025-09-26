@@ -1,6 +1,6 @@
 import { Clickable } from "@/components/Clickable";
-import { Text } from "@/components/Text";
 import { VerticalLine } from "@/components/Lines/VerticalLine";
+import { Text } from "@/components/Text";
 import { useEventHandler } from "@/hooks/eventListener";
 import { useImperativeSprings } from "@/hooks/imperativeSprings";
 import { joinWithKey } from "@/utils/array";
@@ -9,8 +9,8 @@ import { updateRef } from "@/utils/ref";
 import useResizeObserver from "@react-hook/resize-observer";
 import { animated } from "@react-spring/web";
 
-import { Box } from "../Box/Box";
 import { AnimateHeight } from "../../effects/AnimateHeight";
+import { Box } from "../Box/Box";
 
 import invariant from "invariant";
 import { type ReactNode, type RefCallback, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -190,7 +190,7 @@ export function TabBar({
     return (
         <div className={cn("flex w-full flex-col", className)}>
             <div
-                className={cn("flex justify-center gap-2 mb-3", tabsClassName)}
+                className={cn("mb-3 flex justify-center gap-2", tabsClassName)}
             >
                 {joinWithKey(tabs.map((t) => (
                     <TabButton
@@ -204,7 +204,7 @@ export function TabBar({
                     />
                 )), (i) => (noSeparators ? null : <VerticalLine key={`vl-${i}`} />))}
                 <animated.div
-                    className="absolute top-0 left-0 pointer-events-none border-b-2 border-bg-fg-500"
+                    className="border-bg-fg-500 pointer-events-none absolute top-0 left-0 border-b-2"
                     style={{
                         x,
                         width,

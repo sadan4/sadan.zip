@@ -25,7 +25,7 @@ export interface FriendModalProps {
 function FriendModalCloseIcon() {
     return (
         <HoverScale factor={0.9}>
-            <div className="flex items-center justify-center w-52 h-52">
+            <div className="flex h-52 w-52 items-center justify-center">
                 <Clickable
                     onClick={() => {
                         useModalStackStore.getState()
@@ -33,10 +33,10 @@ function FriendModalCloseIcon() {
                     }}
                 >
                     <div
-                        className={cn("w-44 h-44 rounded-full bg-bg-100 flex items-center justify-center")}
+                        className={cn("bg-bg-100 flex h-44 w-44 items-center justify-center rounded-full")}
                     >
                         <CloseIcon
-                            className="w-2/3 h-2/3 fill-info-700"
+                            className="fill-info-700 h-2/3 w-2/3"
                         />
                     </div>
                 </Clickable>
@@ -54,7 +54,7 @@ function ArrowButton({ direction }: ArrowButtonProps) {
 
     return (
         <div>
-            <Component className="w-24 h-24" />
+            <Component className="h-24 w-24" />
         </div>
     );
 }
@@ -109,7 +109,7 @@ export default function FriendModal() {
                                 <Shadow>
                                     <img
                                         src={friend.avatarUrl.toString()}
-                                        className="h-24 w-24 min-w-24 min-h-24 rounded-full select-none"
+                                        className="h-24 min-h-24 w-24 min-w-24 rounded-full select-none"
                                     />
                                 </Shadow>
                             </PerspectiveHover>
@@ -122,7 +122,7 @@ export default function FriendModal() {
 
     return (
         <div
-            className="top-0 left-0 fixed w-full h-full"
+            className="fixed top-0 left-0 h-full w-full"
             onWheel={(e) => {
                 console.log("scroll", e);
             }}
@@ -135,7 +135,7 @@ export default function FriendModal() {
                 }}
             >
                 <div
-                    className="absolute w-52 h-52 top-0 left-0 -translate-1/2"
+                    className="absolute top-0 left-0 h-52 w-52 -translate-1/2"
                 >
                     <FriendModalCloseIcon />
                 </div>

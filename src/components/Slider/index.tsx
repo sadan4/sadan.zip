@@ -201,8 +201,8 @@ function DefaultRenderMarkers({
     }, [containerRef, dep]);
 
     return (
-        <div className={cn("absolute top-0 left-0 h-full w-full pointer-events-none", z.markers)}>
-            <div className="relative w-full h-full">
+        <div className={cn("pointer-events-none absolute top-0 left-0 h-full w-full", z.markers)}>
+            <div className="relative h-full w-full">
                 {markers.map((marker) => {
                     const progress = valueToPercent(clampToRange(marker));
 
@@ -234,13 +234,13 @@ function DefaultRenderMarker({ marker, progress, thumbWidth, containerWidth }: R
     return (
         <div
             key={marker}
-            className="absolute top-0 flex flex-col justify-center h-full"
+            className="absolute top-0 flex h-full flex-col justify-center"
             style={{
                 left: `${(progress * containerWidth) + ((progress - 0.5) * -1 * thumbWidth)}px`,
             }}
         >
             <div
-                className="absolute left-0 -top-[1lh] -translate-x-1/2"
+                className="absolute top-[-1lh] left-0 -translate-x-1/2"
             >
                 {marker}
             </div>

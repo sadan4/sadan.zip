@@ -35,7 +35,7 @@ export function TextArea({
 
     return (
         <textarea
-            className={cn("bg-bg-300 rounded-md px-3 py-1 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 outline-none transition-[color,box-shadow] ring-1 ring-fg-600/50 focus-visible:ring-3 focus:ring-fg-600", resizeClasses[resize], textColors[color], textSize[size], textWeight[weight], className)}
+            className={cn("bg-bg-300 ring-fg-600/50 focus:ring-fg-600 rounded-md px-3 py-1 ring-1 transition-[color,box-shadow] outline-none focus-visible:ring-3 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50", resizeClasses[resize], textColors[color], textSize[size], textWeight[weight], className)}
             onMouseOut={(e: MouseEvent<HTMLTextAreaElement>) => {
                 shouldNullOnUnmount.current = false;
                 useCursorContextStore

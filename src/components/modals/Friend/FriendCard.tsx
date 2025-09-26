@@ -28,21 +28,21 @@ export default function FriendCard({ friend }: FriendCardProps) {
                                 tag="a"
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="w-12 h-12 flex items-center justify-center bg-bg-100 rounded-full"
+                                className="bg-bg-100 flex h-12 w-12 items-center justify-center rounded-full"
                                 href={friend.url.toString()}
                             >
-                                <LinkIcon className="w-9 h-9" />
+                                <LinkIcon className="h-9 w-9" />
                             </Clickable>
                         )
                         : (
                             <Clickable
                                 tag="a"
-                                className="w-12 h-12 flex items-center justify-center bg-bg-100 rounded-full cursor-not-allowed brightness-50"
+                                className="bg-bg-100 flex h-12 w-12 cursor-not-allowed items-center justify-center rounded-full brightness-50"
                                 onClick={(e) => {
                                     e.preventDefault();
                                 }}
                             >
-                                <LinkIcon className="w-9 h-9" />
+                                <LinkIcon className="h-9 w-9" />
                             </Clickable>
                         )
                 }
@@ -65,9 +65,9 @@ export default function FriendCard({ friend }: FriendCardProps) {
                                     .toString()}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="w-12 h-12 flex items-center justify-center bg-bg-100 rounded-full"
+                                className="bg-bg-100 flex h-12 w-12 items-center justify-center rounded-full"
                             >
-                                <Discord className="w-8 h-8" />
+                                <Discord className="h-8 w-8" />
                             </Clickable>
                         )
                         : (

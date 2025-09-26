@@ -83,7 +83,7 @@ export const CloseAllButton: Story = {
 
         return (
             <>
-                <div className="flex items-center justify-between my-2">
+                <div className="my-2 flex items-center justify-between">
                     <Text
                         size="lg"
                     >

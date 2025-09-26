@@ -106,9 +106,9 @@ export function Input({
             />
             {
                 clearButton && hasValue && (
-                    <div className="pointer-events-none absolute top-0 left-0 w-full h-full flex items-center flex-row-reverse pr-2" >
+                    <div className="pointer-events-none absolute top-0 left-0 flex h-full w-full flex-row-reverse items-center pr-2" >
                         <Clickable
-                            className="pointer-events-auto p-2 -mr-2"
+                            className="pointer-events-auto -mr-2 p-2"
                             onClick={() => {
                                 if (isManaged) {
                                     onClear();
@@ -233,7 +233,7 @@ function DefaultErrorMessage({ origCheck }: ErrorMessageProps) {
             color="error"
             tag="span"
             size="sm"
-            className="flex gap-1 items-center"
+            className="flex items-center gap-1"
             noselect
         >
             <ErrorIcon height={18} />

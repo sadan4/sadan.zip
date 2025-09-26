@@ -111,7 +111,7 @@ export function imageTypewriter(image: TypewriterImage, extraProps: TextProps<Te
             yield {
                 component: (
                     <img
-                        className="w-32 h-32"
+                        className="h-32 w-32"
                         src={image.href}
                         alt={image.alt}
                     />

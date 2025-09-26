@@ -45,7 +45,7 @@ export const Vertical: Story = {
 
         return (
             <div
-                className="flex w-full h-50 relative"
+                className="relative flex h-50 w-full"
                 ref={boundingElementRef}
             >
                 <First ref={firstRef} />
@@ -71,7 +71,7 @@ export const VerticalOnFinish: Story = {
 
         return (
             <div
-                className="flex w-full h-50 relative"
+                className="relative flex h-50 w-full"
                 ref={boundingElementRef}
             >
                 <First ref={firstRef} />
@@ -98,7 +98,7 @@ export const ManyVerticalHandles: Story = {
 
         return (
             <div
-                className="flex w-full h-50 relative"
+                className="relative flex h-50 w-full"
                 ref={boundingElementRef}
             >
                 <div
@@ -114,7 +114,7 @@ export const ManyVerticalHandles: Story = {
                     }}
                 />
                 <div
-                    className="grow h-full flex relative"
+                    className="relative flex h-full grow"
                     ref={secondTrackRef}
                 >
                     <div
@@ -143,7 +143,7 @@ export const Horizontal: Story = {
 
         return (
             <div
-                className="flex flex-col relative w-40 h-120"
+                className="relative flex h-120 w-40 flex-col"
                 ref={boundingElementRef}
             >
                 <div
@@ -173,7 +173,7 @@ export const ManyHorizontalHandles: Story = {
 
         return (
             <div
-                className="flex flex-col w-40 h-120 relative"
+                className="relative flex h-120 w-40 flex-col"
                 ref={boundingElementRef}
             >
                 <div
@@ -189,7 +189,7 @@ export const ManyHorizontalHandles: Story = {
                     }}
                 />
                 <div
-                    className="grow w-full flex flex-col relative"
+                    className="relative flex w-full grow flex-col"
                     ref={secondTrackRef}
                 >
                     <div
@@ -218,7 +218,7 @@ export const HorizontalOnFinish: Story = {
 
         return (
             <div
-                className="flex flex-col relative w-40 h-120"
+                className="relative flex h-120 w-40 flex-col"
                 ref={boundingElementRef}
             >
                 <div

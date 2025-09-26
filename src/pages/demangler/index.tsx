@@ -17,14 +17,14 @@ export default function Demangler() {
             <FooterContainer
                 footer={() => <DefaultFooter />}
             >
-                <div className="flex h-full w-full items-center flex-col pt-[20vh]">
+                <div className="flex h-full w-full flex-col items-center pt-[20vh]">
                     <Text
                         size="4xl"
                         color="accent"
                     >
                         Demangler
                     </Text>
-                    <div className="flex flex-col items-center gap-6 mt-6 w-1/3">
+                    <div className="mt-6 flex w-1/3 flex-col items-center gap-6">
                         <TextArea
                             size="lg"
                             value={text}
@@ -32,9 +32,9 @@ export default function Demangler() {
                                 setText(e.target.value);
                             }}
                             placeholder="_ZN5sadan9demanglerB5cxx11Ev"
-                            className="min-w-50 min-h-20 w-[60vw] max-w-[60vw] h-[45vh] max-h-[45vh] resize"
+                            className="h-[45vh] max-h-[45vh] min-h-20 w-[60vw] max-w-[60vw] min-w-50 resize"
                         />
-                        <div className="flex gap-3 *:flex *:rounded-md *:bg-accent-300 h-9 *:px-2 *:items-center">
+                        <div className="*:bg-accent-300 flex h-9 gap-3 *:flex *:items-center *:rounded-md *:px-2">
                             <Clickable
                                 onClick={() => {
                                     if (!text) {

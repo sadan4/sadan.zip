@@ -7,6 +7,7 @@ import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 import simpleImportSort from "eslint-plugin-simple-import-sort";
 import storybook from "eslint-plugin-storybook";
+import tailwindcss from "eslint-plugin-tailwindcss";
 import unusedImports from "eslint-plugin-unused-imports";
 import TSEslint from "typescript-eslint";
 
@@ -634,6 +635,10 @@ const styleRules: Partial<_RuleOptions> = {
 
 const extensions = "{js,mjs,cjs,jsx,mjsx,cjsx,ts,mts,cts,tsx,mtsx,ctsx}";
 
+const tailwindCallees = Object.freeze({
+    callees: ["classnames", "clsx", "ctl", "cva", "tv", "cn"],
+});
+
 export default TSEslint.config({ ignores: ["dist"] }, {
     files: [`src/**/*.${extensions}`, `eslint.config.${extensions}`, `vite.config.${extensions}`, `stylelint.config.${extensions}`, `vitest.config.${extensions}`, `.storybook/*.${extensions}`],
     plugins: {
@@ -643,6 +648,7 @@ export default TSEslint.config({ ignores: ["dist"] }, {
         "unused-imports": unusedImports,
         "react-hooks": reactHooks,
         "react-refresh": reactRefresh,
+        tailwindcss,
     },
     languageOptions: {
         parser: TSEslint.parser,
@@ -684,6 +690,17 @@ export default TSEslint.config({ ignores: ["dist"] }, {
             "warn",
             { allowConstantExport: true },
         ],
+        "tailwindcss/classnames-order": [
+            "error",
+            tailwindCallees,
+        ],
+        "tailwindcss/enforces-negative-arbitrary-values": ["error", tailwindCallees],
+        "tailwindcss/enforces-shorthand": ["error", tailwindCallees],
+        // maybe add no-arbitrary-value
+        "tailwindcss/no-contradicting-classname": ["error", tailwindCallees],
+        // not yet working in the beta
+        // "tailwindcss/no-custom-classname": ["error", tailwindCallees],
+        "tailwindcss/no-unnecessary-arbitrary-value": ["error", tailwindCallees],
     },
 }, storybook.configs["flat/recommended"]);
 // import js from '@eslint/js'

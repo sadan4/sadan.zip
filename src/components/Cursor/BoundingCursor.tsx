@@ -231,7 +231,7 @@ export default function BoundingCursor({
                                 }}
                             >
                                 <div
-                                    className={cn(className, "absolute top-0 left-0 pointer-events-none", styles.boundingCursor)}
+                                    className={cn(className, "pointer-events-none absolute top-0 left-0", styles.boundingCursor)}
                                 >
                                     {/* Top-left corner */}
                                     <animated.div

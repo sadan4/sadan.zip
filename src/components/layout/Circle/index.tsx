@@ -46,7 +46,7 @@ export default function Circle({ radius, children, numItems = children.length, o
     return (
         <div
             {...props}
-            className={cn(props.className, "-translate-1/2 *:-translate-1/2 *:absolute pointer-events-none *:pointer-events-auto")}
+            className={cn(props.className, "pointer-events-none -translate-1/2 *:pointer-events-auto *:absolute *:-translate-1/2")}
             style={{
                 ...props.style,
                 position: "absolute",

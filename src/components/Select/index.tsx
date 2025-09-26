@@ -69,7 +69,7 @@ interface SelectMenuProps<T> {
 
 function SelectMenu<T>({ items, onChange, selectedItem, scrollAreaClassName }: SelectMenuProps<T>) {
     return (
-        <ScrollArea className={cn("bg-bg-300 sb-track-bg-300 rounded-md border-fg-700 border-3 flex flex-col", scrollAreaClassName)}>
+        <ScrollArea className={cn("bg-bg-300 sb-track-bg-300 border-fg-700 flex flex-col rounded-md border-3", scrollAreaClassName)}>
             {items.map((item) => {
                 return (
                     <SelectItem
@@ -194,7 +194,7 @@ export function Select<T extends PropertyKey>({
                                 </div>
                                 <animated.svg
                                     viewBox="-2.4 -2.4 28.8 28.8"
-                                    className="fill-none stroke-fg-500 w-8 h-8"
+                                    className="stroke-fg-500 h-8 w-8 fill-none"
                                     style={{
                                         transform: rotation.to((r) => `rotate(${r}deg)`),
                                     }}
