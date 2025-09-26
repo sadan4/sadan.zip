@@ -5,8 +5,8 @@ import { createSidebarStateStore, ResizableSidebar, Side, SidebarStateStoreProvi
 import { useRef } from "react";
 import { useStore } from "zustand";
 
-export const leftSidebarStateStore = createSidebarStateStore();
-export const rightSidebarStateStore = createSidebarStateStore();
+const leftSidebarStateStore = createSidebarStateStore();
+const rightSidebarStateStore = createSidebarStateStore();
 
 export default function Explorer() {
     const sidebarBoundingRef = useRef<HTMLDivElement>(null);
