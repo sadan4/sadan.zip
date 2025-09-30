@@ -15,7 +15,7 @@ export interface LazyScrollerRenderItemProps<T> {
     array: readonly T[];
 }
 
-export interface LazyScrollerProps<T> extends ScrollAreaProps {
+export interface BufferedScrollProps<T> extends ScrollAreaProps {
     renderHeader?(): ReactNode;
     renderItem(props: LazyScrollerRenderItemProps<T>): ReactNode;
     renderFooter?(): ReactNode;
@@ -90,7 +90,7 @@ function makeChunks(items: readonly unknown[], batchSize: number, maxChunks: num
     return chunks;
 }
 
-export function LazyScroller<T>({
+export function BufferedScroller<T>({
     renderHeader,
     renderItem,
     renderFooter,
@@ -100,13 +100,13 @@ export function LazyScroller<T>({
     alwaysRenderFooter = false,
     className,
     ...props
-}: LazyScrollerProps<T>) {
+}: BufferedScrollProps<T>) {
     const [batchSize] = useControlledState({
         initialValue: Math.min(Math.floor(items.length / 20), items.length),
-        managedValue: _batchSize,
+        managedValue: _batchSize && Math.floor(_batchSize),
     });
 
-    invariant(batchSize === Math.floor(batchSize), "batchSize must be an integer");
+    invariant(batchSize === Math.floor(batchSize) && batchSize > 0, "batchSize must be a positive integer");
     Object.freeze(items);
 
     type VisibleChunks = Partial<Record<number, Partial<Record<"top" | "bottom", boolean>>>>;
@@ -180,7 +180,7 @@ export function LazyScroller<T>({
             className={cn(className)}
             {...props}
         >
-            <Fragment key="lazyscroller-header">{renderHeader?.()}</Fragment>
+            <Fragment key="bufferedscroller-header">{renderHeader?.()}</Fragment>
             {chunks.map(({ chunkIdx, startIdx, size }) => {
                 return (
                     <Fragment key={`chunk-${startIdx}`}>
@@ -214,7 +214,6 @@ export function LazyScroller<T>({
                             onEnter={() => {
                                 setChunkVisibility(chunkIdx, "bottom", true);
                                 if (chunkIdx === numChunks - 1) {
-                                    console.log("update");
                                     setNumChunks((prev) => {
                                         return Math.min(prev + 1, totalChunks);
                                     });
@@ -228,7 +227,7 @@ export function LazyScroller<T>({
                 );
             })}
             {
-                (alwaysRenderFooter || firstChunk + numChunks >= totalChunks) && <Fragment key="lazyscroller-footer">{renderFooter?.()}</Fragment>
+                (alwaysRenderFooter || firstChunk + numChunks >= totalChunks) && <Fragment key="bufferedscroller-footer">{renderFooter?.()}</Fragment>
             }
         </ScrollArea>
     );

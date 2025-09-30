@@ -84,13 +84,6 @@ export const Neutral: Story = {
 
 };
 
-export const NeutralContent: Story = {
-    args: {
-        children: "Neutral Content",
-        color: "neutral-content",
-    },
-};
-
 export const Info: Story = {
     args: {
         children: "Info",

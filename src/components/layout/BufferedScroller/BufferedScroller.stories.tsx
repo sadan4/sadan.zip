@@ -2,14 +2,14 @@ import { Button } from "@/components/Button";
 import cn from "@/utils/cn";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
-import { LazyScroller } from ".";
+import { BufferedScroller } from ".";
 
 import { useState } from "react";
 
 const items = Object.freeze(Array.from({ length: 1000 }).map((_, i) => `Item ${i + 1}`));
 
 const meta = {
-    component: LazyScroller,
+    component: BufferedScroller,
     args: {
         items,
         className: cn("w-min"),
@@ -26,11 +26,11 @@ const meta = {
     render(args) {
         return (
             <div className="w-60">
-                <LazyScroller {...args} />
+                <BufferedScroller {...args} />
             </div>
         );
     },
-} satisfies Meta<typeof LazyScroller<string>>;
+} satisfies Meta<typeof BufferedScroller<string>>;
 
 export default meta;
 
