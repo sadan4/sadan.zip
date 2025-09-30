@@ -103,10 +103,10 @@ export function BufferedScroller<T>({
 }: BufferedScrollProps<T>) {
     const [batchSize] = useControlledState({
         initialValue: Math.min(Math.floor(items.length / 20), items.length),
-        managedValue: _batchSize,
+        managedValue: _batchSize && Math.floor(_batchSize),
     });
 
-    invariant(batchSize === Math.floor(batchSize), "batchSize must be an integer");
+    invariant(batchSize === Math.floor(batchSize) && batchSize > 0, "batchSize must be a positive integer");
     Object.freeze(items);
 
     type VisibleChunks = Partial<Record<number, Partial<Record<"top" | "bottom", boolean>>>>;
@@ -214,7 +214,6 @@ export function BufferedScroller<T>({
                             onEnter={() => {
                                 setChunkVisibility(chunkIdx, "bottom", true);
                                 if (chunkIdx === numChunks - 1) {
-                                    console.log("update");
                                     setNumChunks((prev) => {
                                         return Math.min(prev + 1, totalChunks);
                                     });
