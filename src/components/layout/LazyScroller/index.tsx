@@ -1,13 +1,13 @@
 import { useControlledState } from "@/hooks/controlledState";
 import { getNewestEntry, useIntersection } from "@/hooks/intersection";
 import cn from "@/utils/cn";
+import { mapObject } from "@/utils/functional";
 
 import { ScrollArea, type ScrollAreaProps } from "../ScrollArea";
 import { ScrollAreaContext } from "../ScrollArea/context";
 
 import invariant from "invariant";
 import { Fragment, type ReactNode, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { mapObject } from "@/utils/functional";
 
 export interface LazyScrollerRenderItemProps<T> {
     item: T;
@@ -19,26 +19,24 @@ export interface LazyScrollerProps<T> extends ScrollAreaProps {
     renderHeader?(): ReactNode;
     renderItem(props: LazyScrollerRenderItemProps<T>): ReactNode;
     renderFooter?(): ReactNode;
+    alwaysRenderFooter?: boolean;
     items: Readonly<T[]>;
     /**
      * Number of items to render in each batch. Default is min(floor({@link items}.length / 20), {@link items}.length).
      */
     batchSize?: number;
-}
-
-const enum FlagPosition {
-    START,
-    END,
+    /**
+     * The number of batches to keep rendered above and below the viewport.
+     */
+    bufferSize?: number;
 }
 
 interface FlagProps {
-    // FIXME: remove these after debugging
-    idx?: number;
     onEnter?(): void;
     onExit?(): void;
 }
 
-function Flag({ idx, onEnter, onExit }: FlagProps) {
+function Flag({ onEnter, onExit }: FlagProps) {
     const scrollAreaHandle = useContext(ScrollAreaContext);
     const lastState = useRef<boolean>(null);
 
@@ -61,7 +59,6 @@ function Flag({ idx, onEnter, onExit }: FlagProps) {
     return (
         <div
             ref={setIntersectionRef}
-            data-flag-idx={idx}
             className="pointer-events-none h-0 w-0 bg-transparent after:h-[1] after:w-[1] after:content-['']"
         />
     );
@@ -99,6 +96,8 @@ export function LazyScroller<T>({
     renderFooter,
     items,
     batchSize: _batchSize,
+    bufferSize = Infinity,
+    alwaysRenderFooter = false,
     className,
     ...props
 }: LazyScrollerProps<T>) {
@@ -132,12 +131,13 @@ export function LazyScroller<T>({
     }
 
     useEffect(() => {
-        const visibleChunkIndices = mapObject(visibleChunks, (directions, chunkId) => {
-            if (!directions) {
-                return false;
-            }
-            return !(directions.bottom || directions.top);
+        let first = firstChunk;
+        let num = numChunks;
+
+        const visibleChunkIndices = mapObject(visibleChunks, (directions) => {
+            return directions?.bottom || directions?.top;
         });
+
         let firstVisibleChunk = Infinity;
         let lastVisibleChunk = -Infinity;
 
@@ -147,7 +147,29 @@ export function LazyScroller<T>({
                 lastVisibleChunk = Math.max(lastVisibleChunk, +chunkId);
             }
         }
-    }, [visibleChunks]);
+
+        // handle buffering
+        if (
+            bufferSize !== Infinity
+            && firstVisibleChunk !== Infinity
+            && lastVisibleChunk !== -Infinity
+        ) {
+            if (firstVisibleChunk - firstChunk > bufferSize) {
+                first = Math.max(0, firstVisibleChunk - bufferSize);
+            }
+            if (lastVisibleChunk - firstVisibleChunk > bufferSize) {
+                num = Math.max(0, lastVisibleChunk + bufferSize);
+            }
+        }
+
+        // handle when a new chunk is added to the bottom and we are at the end of the list
+        if (lastVisibleChunk === totalChunks - 2) {
+            num = Math.min(totalChunks, num + 1);
+        }
+
+        setFirstChunk(first);
+        setNumChunks(num);
+    }, [visibleChunks, bufferSize, firstChunk, numChunks, totalChunks]);
 
     useEffect(() => {
         setVisibleChunks({});
@@ -164,15 +186,16 @@ export function LazyScroller<T>({
                     <Fragment key={`chunk-${startIdx}`}>
                         <Flag
                             key="chunk-start"
-                            idx={chunkIdx}
                             onEnter={() => {
-                                console.log("enter", "start", chunkIdx);
+                                if (bufferSize !== Infinity) {
+                                    if (chunkIdx === firstChunk || chunkIdx === firstChunk + bufferSize) {
+                                        setFirstChunk((prev) => Math.max(0, prev - 1));
+                                    }
+                                }
                                 setChunkVisibility(chunkIdx, "top", true);
                             }}
                             onExit={() => {
-                                console.log("exit", "start", chunkIdx);
                                 setChunkVisibility(chunkIdx, "top", false);
-                                console.log(visibleChunks);
                             }}
                         />
                         {
@@ -188,9 +211,7 @@ export function LazyScroller<T>({
                         }
                         <Flag
                             key="chunk-end"
-                            idx={chunkIdx}
                             onEnter={() => {
-                                console.log("enter", "end", chunkIdx, numChunks);
                                 setChunkVisibility(chunkIdx, "bottom", true);
                                 if (chunkIdx === numChunks - 1) {
                                     console.log("update");
@@ -201,13 +222,14 @@ export function LazyScroller<T>({
                             }}
                             onExit={() => {
                                 setChunkVisibility(chunkIdx, "bottom", false);
-                                console.log("exit", "end", chunkIdx);
                             }}
                         />
                     </Fragment>
                 );
             })}
-            <Fragment key="lazyscroller-footer">{renderFooter?.()}</Fragment>
+            {
+                (alwaysRenderFooter || firstChunk + numChunks >= totalChunks) && <Fragment key="lazyscroller-footer">{renderFooter?.()}</Fragment>
+            }
         </ScrollArea>
     );
 }
