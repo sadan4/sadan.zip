@@ -103,33 +103,13 @@
         }
 
         &.neutral {
-            --button-color-base: var(--color-neutral);
-
-            &.filled {
-                --button-text-color: var(--color-neutral-content);
-
-                &:hover {
-                    --button-color: #{u.alpha(var(--color-neutral) 90%)};
-                }
-
-                &:active {
-                    --button-color: #{u.alpha(var(--color-neutral) 70%)};
-                }
-
-                &:disabled {
-                    --button-color: #{u.alpha(var(--color-neutral) 80%)};
-                    --button-text-color: #{u.alpha(var(--color-neutral-content) 80%)};
-                }
-            }
-        }
-
-        &.neutral-content {
             --button-color-base: var(--color-neutral-content);
 
             &.filled {
                 --button-text-color: var(--color-neutral);
             }
         }
+
 
         &.info {
             --button-color-base: var(--color-info-500);

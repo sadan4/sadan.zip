@@ -5,7 +5,6 @@ export const colors = {
     secondary: styles.secondary,
     accent: styles.accent,
     neutral: styles.neutral,
-    "neutral-content": styles.neutralContent,
     info: styles.info,
     "info-700": styles.info700,
     success: styles.success,
