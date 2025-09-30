@@ -22,8 +22,10 @@ const styleEl = function (): HTMLLinkElement {
 
 styleEl.href = cssUrl;
 
+import { type LoaderData, UseLoaderDataContext } from "@/main";
 import { installF8Break } from "@/utils/devtools";
 
+import { useCallback } from "react";
 import { createPortal } from "react-dom";
 
 installF8Break();
@@ -40,6 +42,7 @@ const preview: Preview = {
         },
         docs: {
             theme: themes.dark,
+            codePanel: true,
         },
     },
     tags: ["autodocs"],
@@ -69,11 +72,24 @@ const preview: Preview = {
     },
     decorators: [
         (storyFn, context) => {
+            const mockLoaderData = useCallback(
+                () => {
+                    return {
+                        config: {
+                            solidBg: true,
+                        },
+                    } satisfies LoaderData;
+                },
+                [],
+            );
+
             return (
-                <CustomCursorContext value={!context.globals.customCursor}>
-                    {createPortal(<Boilerplate />, document.body)}
-                    {storyFn()}
-                </CustomCursorContext>
+                <UseLoaderDataContext value={mockLoaderData}>
+                    <CustomCursorContext value={!context.globals.customCursor}>
+                        {createPortal(<Boilerplate />, document.body)}
+                        {storyFn()}
+                    </CustomCursorContext>
+                </UseLoaderDataContext>
             );
         },
     ],

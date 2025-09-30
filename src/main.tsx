@@ -1,11 +1,8 @@
-import { installF8Break } from "@/utils/devtools";
+import { installF8Break, namedContext, uninstallF8Break } from "@/utils/devtools";
 
 import "./app.scss";
-import { StrictMode } from "react";
-import { createRoot } from "react-dom/client";
+import { StrictMode, useContext, useEffect } from "react";
 import { createBrowserRouter, RouterProvider, useLoaderData as useLoaderData_ } from "react-router";
-
-installF8Break();
 
 export interface LoaderData {
     config: {
@@ -14,8 +11,12 @@ export interface LoaderData {
     };
 }
 
+// Yes, this can violate the rules of hooks, but we don't
+export const UseLoaderDataContext = namedContext<() => LoaderData>(useLoaderData_<LoaderData>, "LoaderDataContext");
+
+// eslint-disable-next-line react-refresh/only-export-components
 export function useLoaderData() {
-    return useLoaderData_<LoaderData>();
+    return useContext(UseLoaderDataContext)();
 }
 
 const router = createBrowserRouter([
@@ -101,9 +102,14 @@ const router = createBrowserRouter([
     },
 ]);
 
-createRoot(document.body)
-    .render((
+export function App() {
+    useEffect(() => {
+        installF8Break();
+        return uninstallF8Break;
+    }, []);
+    return (
         <StrictMode>
             <RouterProvider router={router} />
         </StrictMode>
-    ));
+    );
+}
