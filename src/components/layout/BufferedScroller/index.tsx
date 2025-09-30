@@ -15,7 +15,7 @@ export interface LazyScrollerRenderItemProps<T> {
     array: readonly T[];
 }
 
-export interface LazyScrollerProps<T> extends ScrollAreaProps {
+export interface BufferedScrollProps<T> extends ScrollAreaProps {
     renderHeader?(): ReactNode;
     renderItem(props: LazyScrollerRenderItemProps<T>): ReactNode;
     renderFooter?(): ReactNode;
@@ -90,7 +90,7 @@ function makeChunks(items: readonly unknown[], batchSize: number, maxChunks: num
     return chunks;
 }
 
-export function LazyScroller<T>({
+export function BufferedScroller<T>({
     renderHeader,
     renderItem,
     renderFooter,
@@ -100,7 +100,7 @@ export function LazyScroller<T>({
     alwaysRenderFooter = false,
     className,
     ...props
-}: LazyScrollerProps<T>) {
+}: BufferedScrollProps<T>) {
     const [batchSize] = useControlledState({
         initialValue: Math.min(Math.floor(items.length / 20), items.length),
         managedValue: _batchSize,
@@ -180,7 +180,7 @@ export function LazyScroller<T>({
             className={cn(className)}
             {...props}
         >
-            <Fragment key="lazyscroller-header">{renderHeader?.()}</Fragment>
+            <Fragment key="bufferedscroller-header">{renderHeader?.()}</Fragment>
             {chunks.map(({ chunkIdx, startIdx, size }) => {
                 return (
                     <Fragment key={`chunk-${startIdx}`}>
@@ -228,7 +228,7 @@ export function LazyScroller<T>({
                 );
             })}
             {
-                (alwaysRenderFooter || firstChunk + numChunks >= totalChunks) && <Fragment key="lazyscroller-footer">{renderFooter?.()}</Fragment>
+                (alwaysRenderFooter || firstChunk + numChunks >= totalChunks) && <Fragment key="bufferedscroller-footer">{renderFooter?.()}</Fragment>
             }
         </ScrollArea>
     );
