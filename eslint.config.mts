@@ -12,27 +12,25 @@ import unusedImports from "eslint-plugin-unused-imports";
 import TSEslint from "typescript-eslint";
 
 // cursed
-type ExtractRules<Rules = typeof import("@typescript-eslint/eslint-plugin/use-at-your-own-risk/rules")> = {
-    [K in keyof Rules as K extends string ? `@typescript-eslint/${K}` : never]: Rules[K] extends { defaultOptions: infer Options extends any[]; } ? Linter.RuleEntry<Options> : never;
+type _tsLintRules = typeof import("./node_modules/@typescript-eslint/eslint-plugin/dist/rules");
+
+type ITSLintRules = {
+    [K in keyof _tsLintRules & string as `@typescript-eslint/${K}`]: _tsLintRules[K] extends { defaultOptions: infer Options extends any[]; } ? Linter.RuleEntry<Options> : never;
 };
 
-type _RuleOptions = {
+type IStyleRules = {
     [K in keyof RuleOptions]: Linter.RuleEntry<RuleOptions[K]>;
 };
 
-type _statmentType = RuleOptions["@stylistic/padding-line-between-statements"][number]["next" | "prev"];
+type _statementType = RuleOptions["@stylistic/padding-line-between-statements"][number]["next" | "prev"];
 
 type PaddingSchema = {
     blankLine: "any" | "always" | "never";
-    prev: _statmentType | _statmentType[] | readonly _statmentType[];
-    next: _statmentType | _statmentType[] | readonly _statmentType[];
+    prev: _statementType | _statementType[] | readonly _statementType[];
+    next: _statementType | _statementType[] | readonly _statementType[];
 }[];
 
-type ElementType<T> = T extends (infer U)[] ? U : never;
-
-type PaddingElement = ElementType<PaddingSchema>;
-
-const ESLintRules: IESLintRules = {
+const ESLintRules: Partial<IESLintRules> = {
     "array-callback-return": [
         "error",
         {
@@ -209,7 +207,7 @@ const ESLintRules: IESLintRules = {
     yoda: ["error", "never"],
 };
 
-const TSLintRules: Partial<ExtractRules> = {
+const TSLintRules: Partial<ITSLintRules> = {
     "@typescript-eslint/no-use-before-define": [
         "error",
         {
@@ -237,7 +235,7 @@ const TSLintRules: Partial<ExtractRules> = {
     ],
 };
 
-const styleRules: Partial<_RuleOptions> = {
+const styleRules: Partial<IStyleRules> = {
     "@stylistic/array-bracket-newline": [
         "error",
         {
@@ -514,6 +512,11 @@ const styleRules: Partial<_RuleOptions> = {
                     next: tsTypes,
                 });
             }
+
+            type ElementType<T> = T extends (infer U)[] ? U : never;
+
+            type PaddingElement = ElementType<PaddingSchema>;
+
             // util
             function withInverse(rule: PaddingElement): [PaddingElement, PaddingElement] {
                 const { prev, next } = rule;
@@ -534,7 +537,7 @@ const styleRules: Partial<_RuleOptions> = {
                 makeTypescriptPadding(),
             ].flat(99);
         })()
-            .flat() as any) /* doesnt include readonly arrays for some reason */),
+            .flat() as any) /* doesn't include readonly arrays for some reason */),
     ],
     "@stylistic/quote-props": ["error", "as-needed"],
     "@stylistic/quotes": [
