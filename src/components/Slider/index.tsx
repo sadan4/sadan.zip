@@ -9,6 +9,7 @@ import useResizeObserver from "@react-hook/resize-observer";
 import styles from "./styles.module.scss";
 import { VerticalLine } from "../Lines/VerticalLine";
 
+import invariant from "invariant";
 import { type ComponentProps, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 
 const sliderSizes = {
@@ -72,12 +73,16 @@ export function Slider(props: SliderProps) {
         initialValue = rangeInputDefaultValue(min, max),
         onChange,
         markers = [],
-        stickToMarkers = "no",
+        stickToMarkers = false,
         showMarkers = true,
         disabled = false,
         renderMarkers: RenderMarkers = DefaultRenderMarkers,
         renderMarker = DefaultRenderMarker,
     } = props;
+
+    if (stickToMarkers) {
+        invariant(markers.length, "markers must be non-empty when stickToMarkers is true");
+    }
 
     const [containerRef, setContainerRef] = useState<HTMLDivElement | null>(null);
 
@@ -128,7 +133,9 @@ export function Slider(props: SliderProps) {
                 max={max}
                 value={currentValue}
                 onKeyDown={() => {
-                    setCurrentValue(snapToMarker);
+                    if (stickToMarkers) {
+                        setCurrentValue(snapToMarker);
+                    }
                 }}
                 onChange={(e) => {
                     const _num = +e.target.value;
