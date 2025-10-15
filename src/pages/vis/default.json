@@ -30,5 +30,13 @@
       "length": 3
     },
     "contents": "alh"
+  },
+  {
+    "type": "zip.sadan.bashls.bash.lexer.tokens.EofToken",
+    "pos": {
+      "start": 7,
+      "length": 0
+    },
+    "contents": ""
   }
 ]
