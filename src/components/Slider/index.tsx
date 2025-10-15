@@ -3,7 +3,7 @@ import { useForceUpdater } from "@/hooks/forceUpdater";
 import { z } from "@/styles";
 import cn from "@/utils/cn";
 import { parseCSSValue, rangeInputDefaultValue } from "@/utils/dom";
-import { clamp } from "@/utils/functional";
+import { clamp } from "@/utils/math";
 import useResizeObserver from "@react-hook/resize-observer";
 
 import styles from "./styles.module.scss";

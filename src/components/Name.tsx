@@ -1,5 +1,5 @@
 import { imageTypewriter, makeTextComponentEraser, textComponentTypewriter, Typewriter, type TypewriterFrame, type TypewriterImage, type TypewriterRef, type TypewriterSource } from "@/components/effects/Typewriter";
-import { range } from "@/utils/functional";
+import { range } from "@/utils/math";
 
 import { Text, type TextProps } from "./Text";
 
