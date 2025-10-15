@@ -2,9 +2,9 @@ import { Text } from "@/components/Text";
 import { discordUrl } from "@/utils/constants";
 
 import Discord from "./icons/Discord";
-import { LinkIcon } from "./icons/Link";
 import Github from "./icons/Github";
 import LastFM from "./icons/LastFM";
+import { LinkIcon } from "./icons/Link";
 import NameMC from "./icons/NameMC";
 import SaveTheWorld from "./icons/SaveTheWorld";
 import Steam from "./icons/Steam";
