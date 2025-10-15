@@ -3,7 +3,7 @@ import { useCursorVisible } from "@/hooks/cursorVisible";
 import { useEventHandler } from "@/hooks/eventListener";
 import { useForceUpdater } from "@/hooks/forceUpdater";
 import cn from "@/utils/cn";
-import { clamp } from "@/utils/functional";
+import { clamp } from "@/utils/math";
 import useResizeObserver from "@react-hook/resize-observer";
 import { FluidValue } from "@react-spring/shared";
 import { animated, to, useSpring, useSpringValue } from "@react-spring/web";
