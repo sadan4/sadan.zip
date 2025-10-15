@@ -2,9 +2,6 @@ import { Clickable } from "@/components/Clickable";
 import HoverScale from "@/components/effects/HoverScale";
 import PerspectiveHover from "@/components/effects/PerspectiveHover";
 import Shadow from "@/components/effects/Shadow";
-import CloseIcon from "@/components/icons/Close";
-import LeftArrow from "@/components/icons/LeftArrow";
-import RightArrow from "@/components/icons/RightArrow";
 import Circle, { DefaultPlacementCircleItem } from "@/components/layout/Circle";
 import { useModalStackStore } from "@/components/modal/internal/modalStackStore";
 import { Popout } from "@/components/Popout";
@@ -17,6 +14,7 @@ import toCSS from "@/utils/toCSS";
 import FriendCard from "./FriendCard";
 import { defaultPosition, useFriendModalCenterStore } from "./friendModalCenterStore";
 
+import { ArrowLeftIcon, ArrowRightIcon, XIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 
 export interface FriendModalProps {
@@ -35,8 +33,8 @@ function FriendModalCloseIcon() {
                     <div
                         className={cn("bg-bg-100 flex h-44 w-44 items-center justify-center rounded-full")}
                     >
-                        <CloseIcon
-                            className="fill-info-700 h-2/3 w-2/3"
+                        <XIcon
+                            className="text-info-700 h-full w-full"
                         />
                     </div>
                 </Clickable>
@@ -50,7 +48,7 @@ interface ArrowButtonProps {
 }
 
 function ArrowButton({ direction }: ArrowButtonProps) {
-    const Component = direction === "next" ? RightArrow : LeftArrow;
+    const Component = direction === "next" ? ArrowRightIcon : ArrowLeftIcon;
 
     return (
         <div>

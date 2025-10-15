@@ -8,10 +8,10 @@ import { useDebouncedFn } from "@hooks/debouncedFn";
 
 import styles from "./styles.module.scss";
 import { Clickable } from "../Clickable";
-import Close from "../icons/Close";
 import { ErrorIcon } from "../icons/ErrorIcon";
 import { Text } from "../Text";
 
+import { XIcon } from "lucide-react";
 import { type ChangeEvent, type ChangeEventHandler, type ComponentProps, type PropsWithChildren, type ReactNode, useEffect, useRef, useState } from "react";
 
 const inputSizes = {
@@ -120,7 +120,7 @@ export function Input({
                                 setHasValue(false);
                             }}
                         >
-                            <Close
+                            <XIcon
                                 height={16}
                                 width={16}
                                 className="fill-fg-600"

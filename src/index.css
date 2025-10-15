@@ -61,7 +61,7 @@ body {
 }
 
 @layer base {
-	:where(svg) {
+	:where(svg:not(.lucide)) {
 		fill: currentColor;
 	}
 }

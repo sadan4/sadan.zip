@@ -8,11 +8,11 @@ import { animated, useSpringValue } from "@react-spring/web";
 
 import styles from "./styles.module.scss";
 import { Clickable } from "../Clickable";
-import CheckCircle from "../icons/CheckCircle";
 import { ScrollArea } from "../layout/ScrollArea";
 import { ScrollAreaContext } from "../layout/ScrollArea/context";
 import { Text } from "../Text";
 
+import { CircleCheck } from "lucide-react";
 import { type Key, type PropsWithChildren, type ReactNode, useContext, useEffect, useRef, useState } from "react";
 import scrollIntoView from "scroll-into-view-if-needed";
 
@@ -55,7 +55,7 @@ function SelectItem<T>({ item: { label, value, disabled }, isSelected, onChange 
             onClick={() => onChange(value)}
         >
             <div className="flex-1/1">{label}</div>
-            {isSelected && <CheckCircle className="fill-info-500"/>}
+            {isSelected && <CircleCheck className="text-info-500"/>}
         </Clickable>
     );
 }

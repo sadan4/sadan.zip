@@ -2,7 +2,7 @@ import { Text } from "@/components/Text";
 import { discordUrl } from "@/utils/constants";
 
 import Discord from "./icons/Discord";
-import LinkIcon from "./icons/FriendLink";
+import { LinkIcon } from "./icons/Link";
 import Github from "./icons/Github";
 import LastFM from "./icons/LastFM";
 import NameMC from "./icons/NameMC";

@@ -1,6 +1,6 @@
 import { Clickable } from "@/components/Clickable";
 import Discord from "@/components/icons/Discord";
-import LinkIcon from "@/components/icons/FriendLink";
+import { LinkIcon } from "@/components/icons/Link";
 import Circle from "@/components/layout/Circle";
 import { Square } from "@/components/testing";
 import { Text } from "@/components/Text";
@@ -31,7 +31,9 @@ export default function FriendCard({ friend }: FriendCardProps) {
                                 className="bg-bg-100 flex h-12 w-12 items-center justify-center rounded-full"
                                 href={friend.url.toString()}
                             >
-                                <LinkIcon className="h-9 w-9" />
+                                <LinkIcon
+                                    className="h-9 w-9"
+                                />
                             </Clickable>
                         )
                         : (
