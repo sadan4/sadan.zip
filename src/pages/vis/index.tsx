@@ -7,6 +7,8 @@ import { TextArea } from "@/components/TextArea";
 import { Tooltip } from "@/components/Tooltip";
 import { paste } from "@/utils/clipboard";
 
+import defaultJson from "./default.json?raw";
+
 import invariant from "invariant";
 import { Fragment, type ReactNode, useEffect, useState } from "react";
 
@@ -137,8 +139,7 @@ export default function Vis() {
                                 color="secondary"
                                 colorType="outline"
                                 onClick={() => {
-                                    setText(String.raw`[{"type":"zip.sadan.bashls.bash.lexer.tokens.LiteralToken","pos":{"start":0,"length":2},"contents":"ls"},{"type":"zip.sadan.bashls.bash.lexer.tokens.BlankSpaceToken","pos":{"start":2,"length":1},"contents":" "},{"type":"zip.sadan.bashls.bash.lexer.tokens.MinusToken","pos":{"start":3,"length":1}},{"type":"zip.sadan.bashls.bash.lexer.tokens.LiteralToken","pos":{"start":4,"length":3},"contents":"alh"}]
-`);
+                                    setText(defaultJson);
                                 }}
                             >
                                 Fill With Example
