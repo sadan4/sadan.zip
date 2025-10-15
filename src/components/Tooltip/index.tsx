@@ -23,6 +23,7 @@ export interface TooltipProps extends PropsWithChildren {
     onShow?(): void;
     onHide?(): void;
     className?: string;
+    triggerClassName?: string;
     /**
      * Don't use the default wrapper ({@link Box})
      */
@@ -72,6 +73,7 @@ export function Tooltip({
     onShow,
     onHide,
     className,
+    triggerClassName,
     position = TooltipPosition.TOP,
     children,
     noWrapper = false,
@@ -148,7 +150,7 @@ export function Tooltip({
             }
             <div
                 ref={triggerRef}
-                className={cn(styles.trigger)}
+                className={cn(styles.trigger, triggerClassName)}
             >
                 {children}
             </div>

@@ -53,6 +53,23 @@ const router = createBrowserRouter([
                 },
             },
             {
+                path: "vis",
+                loader(): LoaderData {
+                    return {
+                        config: {
+                            noCursor: true,
+                        },
+                    };
+                },
+                async lazy() {
+                    const Component = (await import("./pages/vis")).default;
+
+                    return {
+                        Component,
+                    };
+                },
+            },
+            {
                 path: "storybook",
                 loader() {
                     location.pathname = "/storybook/index.html";
