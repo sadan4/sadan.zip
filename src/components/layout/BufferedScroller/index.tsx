@@ -1,12 +1,12 @@
 import { useControlledState } from "@/hooks/controlledState";
 import { getNewestEntry, useIntersection } from "@/hooks/intersection";
 import cn from "@/utils/cn";
+import { assert } from "@/utils/error";
 import { mapObject } from "@/utils/functional";
 
 import { ScrollArea, type ScrollAreaProps } from "../ScrollArea";
 import { ScrollAreaContext } from "../ScrollArea/context";
 
-import invariant from "invariant";
 import { Fragment, type ReactNode, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 export interface LazyScrollerRenderItemProps<T> {
@@ -106,7 +106,7 @@ export function BufferedScroller<T>({
         managedValue: _batchSize && Math.floor(_batchSize),
     });
 
-    invariant(batchSize === Math.floor(batchSize) && batchSize > 0, "batchSize must be a positive integer");
+    assert(batchSize === Math.floor(batchSize) && batchSize > 0, "batchSize must be a positive integer");
     Object.freeze(items);
 
     type VisibleChunks = Partial<Record<number, Partial<Record<"top" | "bottom", boolean>>>>;

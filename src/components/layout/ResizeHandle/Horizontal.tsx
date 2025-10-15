@@ -1,11 +1,11 @@
 import { useEventHandler } from "@/hooks/eventListener";
 import cn from "@/utils/cn";
+import { assert } from "@/utils/error";
 
 import type { ResizeHandleProps } from ".";
 import { Direction, getBounds } from "./bounds";
 import styles from "./styles.module.scss";
 
-import invariant from "invariant";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 export interface HorizontalResizeHandleProps extends ResizeHandleProps {
@@ -23,7 +23,7 @@ export function Horizontal({
     ref: _ref,
     ...props
 }: ResizeHandleProps) {
-    invariant(initialPosition >= 0 && initialPosition <= 1, "Invalid initial position");
+    assert(initialPosition >= 0 && initialPosition <= 1, "Invalid initial position");
 
     const handleRef = useRef<HTMLDivElement>(null);
     const [dragging, setDragging] = useState(false);

@@ -1,12 +1,11 @@
 import cn from "@/utils/cn";
-import error from "@/utils/error";
+import { assert, error } from "@/utils/error";
 import { animated, useSpring } from "@react-spring/web";
 
 import styles from "./styles.module.scss";
 import { Clickable } from "../Clickable";
 import { type StandardTextProps, Text } from "../Text";
 
-import invariant from "invariant";
 import { type ComponentPropsWithRef, useEffect, useState } from "react";
 
 const enum SwitchState {
@@ -62,7 +61,7 @@ export interface SwitchProps {
  * An on-off switch with animations.
  */
 export function Switch({ initialValue, value, onChange }: SwitchProps) {
-    invariant(!(initialValue !== undefined && value !== undefined), "Switch cannot be both controlled and uncontrolled");
+    assert(!(initialValue !== undefined && value !== undefined), "Switch cannot be both controlled and uncontrolled");
 
     const isManaged = value !== undefined;
     const [internalEnabled, setInternalEnabled] = useState(value ?? initialValue ?? false);

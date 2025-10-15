@@ -3,13 +3,13 @@ import { useForceUpdater } from "@/hooks/forceUpdater";
 import { z } from "@/styles";
 import cn from "@/utils/cn";
 import { parseCSSValue, rangeInputDefaultValue } from "@/utils/dom";
+import { assert } from "@/utils/error";
 import { clamp } from "@/utils/math";
 import useResizeObserver from "@react-hook/resize-observer";
 
 import styles from "./styles.module.scss";
 import { VerticalLine } from "../Lines/VerticalLine";
 
-import invariant from "invariant";
 import { type ComponentProps, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 
 const sliderSizes = {
@@ -81,7 +81,7 @@ export function Slider(props: SliderProps) {
     } = props;
 
     if (stickToMarkers) {
-        invariant(markers.length, "markers must be non-empty when stickToMarkers is true");
+        assert(markers.length, "markers must be non-empty when stickToMarkers is true");
     }
 
     const [containerRef, setContainerRef] = useState<HTMLDivElement | null>(null);

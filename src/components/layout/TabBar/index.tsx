@@ -5,6 +5,7 @@ import { useEventHandler } from "@/hooks/eventListener";
 import { useImperativeSprings } from "@/hooks/imperativeSprings";
 import { joinWithKey } from "@/utils/array";
 import cn from "@/utils/cn";
+import { assert } from "@/utils/error";
 import { updateRef } from "@/utils/ref";
 import useResizeObserver from "@react-hook/resize-observer";
 import { animated } from "@react-spring/web";
@@ -12,7 +13,6 @@ import { animated } from "@react-spring/web";
 import { AnimateHeight } from "../../effects/AnimateHeight";
 import { Box } from "../Box/Box";
 
-import invariant from "invariant";
 import { type ReactNode, type RefCallback, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 export interface TabRowItemProps {
@@ -128,7 +128,7 @@ export function TabBar({
     onTabChange,
     noSeparators = false,
 }: TabBarProps) {
-    invariant(!(selectedTab && initialSelectedTab), "You can only provide one of selectedTab or initialSelectedTab");
+    assert(!(selectedTab && initialSelectedTab), "You can only provide one of selectedTab or initialSelectedTab");
 
     const [tab, setTab] = useState(selectedTab ?? initialSelectedTab ?? (tabs[0]?.id || ""));
     const [activeRect, setActiveRect] = useState<DOMRect | undefined>();

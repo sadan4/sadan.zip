@@ -36,6 +36,7 @@ export default defineConfig({
                                         suggestions: any;
                                     };
                                 }) {
+                                    return;
                                     if (event.kind === "CompileError") {
                                         console.error(`\nCompilation failed: ${filename}`);
                                         console.error(`Reason: ${event.detail.reason}`);
@@ -78,10 +79,42 @@ export default defineConfig({
         sourcemap: true,
         // top-level await in esm
         target: "es2022",
+        emptyOutDir: false,
         rollupOptions: {
             output: {
-                chunkFileNames: "js/[hash].js",
+                chunkFileNames: "js/[name]-[hash].js",
+                entryFileNames: "js/[hash].js",
                 assetFileNames: "assets/[hash].[ext]",
+                onlyExplicitManualChunks: true,
+                manualChunks: (() => {
+                    const chunks = {
+                        hooks: ["@react-hook/resize-observer", "@use-gesture/react"],
+                        reactRouter: ["react-router"],
+                        reactSpring: [
+                            "@react-spring/shared",
+                            "@react-spring/web",
+                        ],
+                        zustand: ["zustand"],
+                        demangler: ["@sadan4/demangler"],
+                        ui: ["@radix-ui/react-popover"],
+                        misc: [
+                            "fast-deep-equal",
+                            "scroll-into-view-if-needed",
+                            "classnames",
+                        ],
+                        react: ["react", "react-dom"],
+                    };
+
+                    const revChunks = Object
+                        .entries(chunks)
+                        .flatMap(([chunkName, modules]) => {
+                            return modules.map((module) => [`/${module}/`, chunkName] as const);
+                        });
+
+                    return (chunk, _info) => {
+                        return revChunks.find(([module]) => chunk.includes(module))?.[1];
+                    };
+                })(),
             },
         },
     },

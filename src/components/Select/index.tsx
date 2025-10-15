@@ -1,6 +1,7 @@
 import { useControlledState } from "@/hooks/controlledState";
 import { border, z } from "@/styles";
 import cn from "@/utils/cn";
+import { assert } from "@/utils/error";
 import { prop } from "@/utils/functional";
 import { Input } from "@components/Input";
 import { animated, useSpringValue } from "@react-spring/web";
@@ -12,7 +13,6 @@ import { ScrollArea } from "../layout/ScrollArea";
 import { ScrollAreaContext } from "../layout/ScrollArea/context";
 import { Text } from "../Text";
 
-import invariant from "invariant";
 import { type Key, type PropsWithChildren, type ReactNode, useContext, useEffect, useRef, useState } from "react";
 import scrollIntoView from "scroll-into-view-if-needed";
 
@@ -213,7 +213,7 @@ export function Select<T extends PropertyKey>({
                     {open && (
                         <div
                             onBlur={({ relatedTarget }) => {
-                                invariant(ref.current, "how are we running this without ref.current being set");
+                                assert(ref.current, "how are we running this without ref.current being set");
                                 if (ref.current.contains(relatedTarget)) {
                                     return;
                                 }

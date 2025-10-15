@@ -3,6 +3,7 @@ import { useCursorVisible } from "@/hooks/cursorVisible";
 import { useEventHandler } from "@/hooks/eventListener";
 import { useForceUpdater } from "@/hooks/forceUpdater";
 import cn from "@/utils/cn";
+import { error } from "@/utils/error";
 import { clamp } from "@/utils/math";
 import useResizeObserver from "@react-hook/resize-observer";
 import { FluidValue } from "@react-spring/shared";
@@ -13,7 +14,6 @@ import styles from "./BoundingCursor.module.scss";
 import { useCursorContextStore } from "./cursorContextStore";
 import hideFocusOutline from "./hideFocusOutline.scss?url";
 
-import invariant from "invariant";
 import { useCallback, useEffect } from "react";
 import { createPortal } from "react-dom";
 
@@ -146,7 +146,7 @@ export default function BoundingCursor({
                 };
             }
             default: {
-                invariant(false, "invalid frame length type");
+                error("invalid frame length type");
             }
         }
     }, [frameLength]);

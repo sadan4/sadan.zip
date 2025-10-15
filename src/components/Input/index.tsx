@@ -1,6 +1,6 @@
 import { border } from "@/styles";
 import cn, { textColors, textSize, textWeight } from "@/utils/cn";
-import error from "@/utils/error";
+import { error } from "@/utils/error";
 import { updateRef } from "@/utils/ref";
 import { useCursorContextStore } from "@components/Cursor/cursorContextStore";
 import { AnimateHeight } from "@effects/AnimateHeight";

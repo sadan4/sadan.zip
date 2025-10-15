@@ -1,5 +1,5 @@
 import { namedContext } from "@/utils/devtools";
-import error from "@/utils/error";
+import { error } from "@/utils/error";
 
 import type { ResizeHandleAPI } from "../ResizeHandle";
 

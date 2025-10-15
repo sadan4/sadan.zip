@@ -6,10 +6,10 @@ import { Text } from "@/components/Text";
 import { TextArea } from "@/components/TextArea";
 import { Tooltip } from "@/components/Tooltip";
 import { paste } from "@/utils/clipboard";
+import { assert } from "@/utils/error";
 
 import defaultJson from "./default.json?raw";
 
-import invariant from "invariant";
 import { Fragment, type ReactNode, useEffect, useState } from "react";
 
 interface Token {
@@ -55,7 +55,7 @@ const REMOVE_FQN_REGEX = /.*\./;
 function parseTokens(json: string): Token[] {
     const arr: RawToken[] = JSON.parse(json);
 
-    invariant(Array.isArray(arr), "Expected an array");
+    assert(Array.isArray(arr), "Expected an array");
 
     return arr.map(({ contents, pos, type }) => {
         const parsedType = type.replace(REMOVE_FQN_REGEX, "");

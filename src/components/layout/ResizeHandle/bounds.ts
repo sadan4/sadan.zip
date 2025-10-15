@@ -1,4 +1,4 @@
-import error from "@/utils/error";
+import { error } from "@/utils/error";
 import { clamp } from "@/utils/math";
 
 export const enum Direction {

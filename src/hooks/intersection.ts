@@ -1,7 +1,8 @@
+import { assert } from "@/utils/error";
+
 import { useDeepMemo } from "./deepMemo";
 import { useRecent } from "./recent";
 
-import invariant from "invariant";
 import { type RefCallback, type RefObject, useEffect, useState } from "react";
 
 interface UseIntersectionOpts extends IntersectionObserverInit {
@@ -13,7 +14,7 @@ interface UseIntersectionOpts extends IntersectionObserverInit {
 
 export function getNewestEntry(entries: IntersectionObserverEntry[]): IntersectionObserverEntry {
     // should always have at least one entry
-    invariant(entries.length > 0, "entries is empty");
+    assert(entries.length > 0, "entries is empty");
     if (entries.length === 1)
         return entries[0];
 

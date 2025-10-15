@@ -1,12 +1,12 @@
 import { useEventHandler } from "@/hooks/eventListener";
 import { useRecent } from "@/hooks/recent";
 import cn from "@/utils/cn";
+import { assert } from "@/utils/error";
 
 import type { ResizeHandleProps } from ".";
 import { Direction, getBounds } from "./bounds";
 import styles from "./styles.module.scss";
 
-import invariant from "invariant";
 import { useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 
 export interface VerticalResizeHandleProps extends ResizeHandleProps {
@@ -24,7 +24,7 @@ export function Vertical({
     ref,
     ...props
 }: VerticalResizeHandleProps) {
-    invariant(initialPosition >= 0 && initialPosition <= 1, "Invalid initial position");
+    assert(initialPosition >= 0 && initialPosition <= 1, "Invalid initial position");
 
     const controller = useRef(new AbortController());
     const handleRef = useRef<HTMLDivElement>(null);

@@ -2,7 +2,6 @@ import { TAssert } from "@/utils/assert";
 import type { Coord } from "@/utils/types";
 
 import { create } from "zustand";
-import { devtools } from "zustand/middleware";
 
 export interface CursorContextStore {
     lastMousePos: Coord;
@@ -15,7 +14,7 @@ export interface CursorContextStore {
     updateTextElement(element: Element | null): void;
 }
 
-export const useCursorContextStore = create<CursorContextStore>()(devtools((set) => ({
+export const useCursorContextStore = create<CursorContextStore>((set) => ({
     lastMousePos: {
         x: 0,
         y: 0,
@@ -27,24 +26,18 @@ export const useCursorContextStore = create<CursorContextStore>()(devtools((set)
     updateFocusedElement(element) {
         set(() => ({
             focusedElement: element,
-        }), undefined, "cursorContext/updateFocusedElement");
+        }));
     },
     updateClickableElement(element) {
         set(() => ({
             clickableElement: element,
-        }), undefined, "cursorContext/updateClickableElement");
+        }));
     },
     updateTextElement(element) {
         set(() => ({
             textElement: element,
-        }), undefined, "cursorContext/updateTextElement");
+        }));
     },
-}), {
-    store: "CursorContextStore",
-    name: "CursorContextStore",
-    enabled: import.meta.env.DEV,
-    actionsDenylist: ["cursorContext/__onMouseMove", "cursorContext/updateClickableElement"],
-    trace: false,
 }));
 
 document.addEventListener("mousemove", ({ clientX, clientY }) => {
@@ -53,7 +46,7 @@ document.addEventListener("mousemove", ({ clientX, clientY }) => {
             x: clientX,
             y: clientY,
         },
-    }), undefined, "cursorContext/__onMouseMove");
+    }));
 });
 window.addEventListener("focusin", (ev) => {
     TAssert<Element>(ev.target);
@@ -70,11 +63,11 @@ window.addEventListener("focusout", () => {
 window.addEventListener("mousedown", () => {
     useCursorContextStore.setState(() => ({
         mouseDown: true,
-    }), undefined, "cursorContext/__onMouseDown");
+    }));
 });
 
 window.addEventListener("mouseup", () => {
     useCursorContextStore.setState(() => ({
         mouseDown: false,
-    }), undefined, "cursorContext/__onMouseUp");
+    }));
 });
