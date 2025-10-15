@@ -82,39 +82,9 @@ export default defineConfig({
         emptyOutDir: false,
         rollupOptions: {
             output: {
-                chunkFileNames: "js/[name]-[hash].js",
+                chunkFileNames: "js/[hash].js",
                 entryFileNames: "js/[hash].js",
                 assetFileNames: "assets/[hash].[ext]",
-                onlyExplicitManualChunks: true,
-                manualChunks: (() => {
-                    const chunks = {
-                        hooks: ["@react-hook/resize-observer", "@use-gesture/react"],
-                        reactRouter: ["react-router"],
-                        reactSpring: [
-                            "@react-spring/shared",
-                            "@react-spring/web",
-                        ],
-                        zustand: ["zustand"],
-                        demangler: ["@sadan4/demangler"],
-                        ui: ["@radix-ui/react-popover"],
-                        misc: [
-                            "fast-deep-equal",
-                            "scroll-into-view-if-needed",
-                            "classnames",
-                        ],
-                        react: ["react", "react-dom"],
-                    };
-
-                    const revChunks = Object
-                        .entries(chunks)
-                        .flatMap(([chunkName, modules]) => {
-                            return modules.map((module) => [`/${module}/`, chunkName] as const);
-                        });
-
-                    return (chunk, _info) => {
-                        return revChunks.find(([module]) => chunk.includes(module))?.[1];
-                    };
-                })(),
             },
         },
     },

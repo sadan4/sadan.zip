@@ -67,9 +67,6 @@
     "vite-tsconfig-paths": "^5.1.4",
     "vitest": "^3.2.4"
   },
-  "overrides": {
-    "vite>rollup": "^4.52.0"
-  },
   "optionalDependencies": {
     "wrangler": "^4.32.0"
   },
