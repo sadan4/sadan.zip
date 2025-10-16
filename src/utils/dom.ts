@@ -1,3 +1,5 @@
+import { error } from "./error";
+
 export function getLineHeight(element: Element) {
     // Get computed style
     const computedStyle = window.getComputedStyle(element);
@@ -65,6 +67,19 @@ export function parseCSSValue(value: string, element: Element): number {
         case "px":
             return parseFloat(num);
         default:
-            throw new Error(`unhandled css value: ${value}`);
+            error(`unhandled css value: ${value}`);
     }
+}
+
+export function measureRect(element: Element): DOMRect {
+    const computedStyle = getComputedStyle(element);
+
+    if (computedStyle.display !== "contents") {
+        return element.getBoundingClientRect();
+    }
+
+    const range = document.createRange();
+
+    range.selectNodeContents(element);
+    return range.getBoundingClientRect();
 }

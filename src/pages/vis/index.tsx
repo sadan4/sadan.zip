@@ -5,12 +5,19 @@ import { Box } from "@/components/layout/Box";
 import { Text } from "@/components/Text";
 import { TextArea } from "@/components/TextArea";
 import { Tooltip } from "@/components/Tooltip";
+import { useForceUpdater } from "@/hooks/forceUpdater";
+import { fill } from "@/utils/array";
 import { paste } from "@/utils/clipboard";
+import cn from "@/utils/cn";
+import { NBSP } from "@/utils/constants";
 import { assert } from "@/utils/error";
+import useResizeObserver from "@react-hook/resize-observer";
 
 import defaultJson from "./default.json?raw";
+import styles from "./styles.module.scss";
 
-import { Fragment, type ReactNode, useEffect, useState } from "react";
+import { AlertCircleIcon } from "lucide-react";
+import { Fragment, type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 interface Token {
     type: string;
@@ -25,32 +32,55 @@ interface RawToken extends Omit<Token, "contents"> {
     contents: string;
 }
 
-interface TokenColor {
-    bg: string;
-    border: string;
-}
-
-const colors = new Map<string, TokenColor>();
+const knownColors: Record<string, string> = {
+    LiteralToken: cn("bg-accent-300/50 border-accent-300"),
+    BlankSpaceToken: cn("border-info-700 bg-transparent"),
+    MinusToken: cn("bg-warning-300/60 border-warning-300"),
+    EofToken: cn("border-error-400 bg-transparent"),
+};
 
 function colorForType(type: string) {
-    if (!colors.has(type)) {
-        const randomHex = Math.floor(Math.random() * (0xffffff + 1))
-            .toString(16)
-            .padStart(6, "0");
+    if (!(type in knownColors)) {
+        console.error("missing color", type);
 
-        const bg = `color-mix(in oklab, #${randomHex} 50%, transparent)`;
-        const border = `color-mix(in oklab, #${randomHex} 80%, transparent)`;
-
-        colors.set(type, {
-            bg,
-            border,
-        });
+        return cn("bg-info-600/50 border-info-600");
     }
 
-    return colors.get(type)!;
+    return knownColors[type];
 }
 
 const REMOVE_FQN_REGEX = /.*\./;
+
+function EmptyToken(count: number) {
+    const ref = useRef<SVGSVGElement>(null);
+    const rectRef = useRef<SVGRectElement>(null);
+    const [dep, updateAngle] = useForceUpdater();
+
+    useResizeObserver(ref, updateAngle);
+    useLayoutEffect(() => {
+        if (ref.current && rectRef.current) {
+            const { width, height } = ref.current.getBoundingClientRect();
+
+            ref.current.style.setProperty("--width", `${width}px`);
+            ref.current.style.setProperty("--height", `${height}px`);
+        }
+    }, [dep]);
+
+    return (
+        <>
+            {fill(count + 1, NBSP).join("")}
+            <svg
+                ref={ref}
+                className="inset-fill fill-error-400 absolute"
+            >
+                <rect
+                    ref={rectRef}
+                    className={styles.emptyToken}
+                />
+            </svg>
+        </>
+    );
+}
 
 function parseTokens(json: string): Token[] {
     const arr: RawToken[] = JSON.parse(json);
@@ -67,31 +97,45 @@ function parseTokens(json: string): Token[] {
             contents(): ReactNode {
                 return (
                     <Tooltip
-                        text={parsedType}
+                        text={(
+                            <ul className="text-left">
+                                <li>
+                                    {parsedType}
+                                </li>
+                                <li>
+                                    [{pos.start}, {pos.start + pos.length})
+                                </li>
+                                {
+                                    !contents && (
+                                        <li>
+                                            <span className="">
+                                                <AlertCircleIcon className="stroke-warning-300 inline h-4 w-auto pr-1 align-text-top" />This token has no content!
+                                            </span>
+                                        </li>
+                                    )
+                                }
+                            </ul>
+                        )}
                         className="inline"
-                        triggerClassName="inline"
                     >
                         <span
-                            style={{
-                                backgroundColor: tokenColor.bg,
-                                borderColor: tokenColor.border,
-                            }}
-                            className="border font-mono"
+                            className={cn("relative border-1 align-middle", tokenColor)}
                         >
-                            {contents}
+                            {contents || EmptyToken(pos.length)}
                         </span>
                     </Tooltip>
                 );
             },
-        };
+        } satisfies Token;
     });
 }
 
 export default function Vis() {
     const [text, setText] = useState("");
     const [tokens, setTokens] = useState<Token[]>([]);
+    // react refresh hack
 
-    function updateTokens() {
+    const updateTokens = useCallback(() => {
         if (text) {
             try {
                 setTokens(parseTokens(text));
@@ -101,8 +145,9 @@ export default function Vis() {
         } else {
             setTokens([]);
         }
-    }
-    useEffect(updateTokens, [text]);
+    }, [text]);
+
+    useEffect(updateTokens, [updateTokens]);
 
     return (
         <>
@@ -117,7 +162,7 @@ export default function Vis() {
                     >
                         Token Visualizer
                     </Text>
-                    <div className="mt-6 flex w-1/3 flex-col items-center gap-6">
+                    <div className="mt-6 flex w-9/10 flex-col items-center gap-6">
                         <TextArea
                             size="lg"
                             value={text}
@@ -144,18 +189,8 @@ export default function Vis() {
                             >
                                 Fill With Example
                             </Button>
-                            <Button
-                                color="secondary"
-                                colorType="text"
-                                onClick={() => {
-                                    colors.clear();
-                                    updateTokens();
-                                }}
-                            >
-                                Reroll Colors
-                            </Button>
                         </div>
-                        <Box className="inline-block w-full">
+                        <Box className="inline w-full [&>*:not(:first-child)]:ml-0.5">
                             {
                                 tokens.length ? tokens.map((t) => <Fragment key={`${t.type}-${t.pos.start}`}><t.contents /></Fragment>) : null
                             }

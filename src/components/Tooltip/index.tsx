@@ -1,6 +1,7 @@
 import { useControlledState } from "@/hooks/controlledState";
 import { useForceUpdater } from "@/hooks/forceUpdater";
 import cn from "@/utils/cn";
+import { updateRef } from "@/utils/ref";
 import useResizeObserver from "@react-hook/resize-observer";
 import { animated, useTransition } from "@react-spring/web";
 
@@ -8,9 +9,10 @@ import { TooltipPosition } from "./constants";
 import styles from "./styles.module.scss";
 import { Box } from "../layout/Box";
 
-import { type PropsWithChildren, type ReactNode, useLayoutEffect, useRef } from "react";
+import { type ComponentProps, type ReactNode, useLayoutEffect, useRef } from "react";
+import { measureRect } from "@/utils/dom";
 
-export interface TooltipProps extends PropsWithChildren {
+export interface TooltipProps extends ComponentProps<"div"> {
     /**
      * The content of the tooltip
      */
@@ -23,7 +25,7 @@ export interface TooltipProps extends PropsWithChildren {
     onShow?(): void;
     onHide?(): void;
     className?: string;
-    triggerClassName?: string;
+    triggerProps?: ComponentProps<"div">;
     /**
      * Don't use the default wrapper ({@link Box})
      */
@@ -73,11 +75,13 @@ export function Tooltip({
     onShow,
     onHide,
     className,
-    triggerClassName,
+    triggerProps,
     position = TooltipPosition.TOP,
     children,
     noWrapper = false,
     hoverShowDelay,
+    ref,
+    ...props
 }: TooltipProps) {
     const [shouldShow, setShouldShow] = useControlledState({
         initialValue: false,
@@ -95,7 +99,7 @@ export function Tooltip({
 
     useLayoutEffect(() => {
         if (triggerRef.current && containerRef.current) {
-            const { width, height } = triggerRef.current.getBoundingClientRect();
+            const { width, height } = measureRect(triggerRef.current);
 
             containerRef.current.style.setProperty("--trigger-width", `${width}px`);
             containerRef.current.style.setProperty("--trigger-height", `${height}px`);
@@ -121,10 +125,14 @@ export function Tooltip({
 
     return (
         <div
+            {...props}
             className={cn(styles.tooltip, className)}
             onMouseEnter={show}
             onMouseLeave={hide}
-            ref={containerRef}
+            ref={(value) => {
+                updateRef(containerRef, value);
+                updateRef(ref, value);
+            }}
         >
             {
                 tooltipTransition(({ ...styleProps }, show) => {
@@ -149,8 +157,12 @@ export function Tooltip({
                 })
             }
             <div
-                ref={triggerRef}
-                className={cn(styles.trigger, triggerClassName)}
+                {...triggerProps}
+                ref={(value) => {
+                    updateRef(triggerProps?.ref, value);
+                    updateRef(triggerRef, value);
+                }}
+                className={cn(styles.trigger, triggerProps?.className)}
             >
                 {children}
             </div>

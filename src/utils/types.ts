@@ -194,3 +194,7 @@ export type Thenable<T> = PromiseLike<T> | Promise<T> | T;
 export function isFunction(func: any): func is ((...a: any[]) => any) {
     return typeof func === "function";
 }
+
+export function truthy<T>(i: T): i is Exclude<T, false | null | undefined> {
+    return !!i;
+}

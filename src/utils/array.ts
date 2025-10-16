@@ -102,3 +102,7 @@ export function keys<T extends Object>(obj: T): (keyof T)[] {
 export function invertPair<A, B>([a, b]: [A, B]): [B, A] {
     return [b, a];
 }
+
+export function fill<T>(length: number, item: T) {
+    return Array.from({ length }, () => item);
+}

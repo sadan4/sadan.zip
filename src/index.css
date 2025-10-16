@@ -2,6 +2,10 @@
 @import "tailwindcss";
 
 /* stylelint-disable-next-line at-rule-no-unknown */
+
+/* @config "../tailwind.config.js"; */
+
+/* stylelint-disable-next-line at-rule-no-unknown */
 @theme {
 	--color-bg-100: #1a1b26;
 	--color-bg-200: #16161e;
@@ -29,6 +33,25 @@
 
 @utility sb-thumb-* {
 	--scrollbar-thumb-color: --value(--color-*);
+}
+
+@utility svg-x-* {
+    x: --spacing(--value(integer));
+    x: calc(--value(ratio) * 100%);
+    x: --value([length], [relative-size], [number], [absolute-size]);
+}
+
+@utility svg-y-* {
+    y: --spacing(--value(integer));
+    y: calc(--value(ratio) * 100%);
+    y: --value([length], [relative-size], [number], [absolute-size]);
+}
+
+@utility inset-fill {
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
 }
 
 @font-face {

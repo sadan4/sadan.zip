@@ -57,6 +57,7 @@ $w: var(--trigger-width);
 
 @layer components {
     .tooltip {
+        display: contents;
         height: fit-content;
         width: fit-content;
         anchor-name: --tooltip-anchor;
@@ -123,6 +124,7 @@ $w: var(--trigger-width);
         .trigger {
             width: fit-content;
             height: fit-content;
+            display: contents;
         }
     }
 }

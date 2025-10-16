@@ -1,0 +1,12 @@
+.empty-token {
+    $svg-width: var(--width);
+    $svg-height: var(--height);
+    $deg: calc(-1 * atan2($svg-width, $svg-height));
+    $w: 2px;
+
+    width: $w;
+    top: 0;
+    height: calc($svg-width * 3);
+    transform: rotate($deg);
+    x: calc($w / -2);
+}
