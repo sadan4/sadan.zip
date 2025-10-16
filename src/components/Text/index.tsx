@@ -19,6 +19,7 @@ const textColors = {
     accent: styles.accent,
     neutral: styles.neutral,
     "neutral-content": styles.neutralContent,
+    "info-400": styles.info400,
     info: styles.info,
     "info-600": styles.info600,
     "info-700": styles.info700,

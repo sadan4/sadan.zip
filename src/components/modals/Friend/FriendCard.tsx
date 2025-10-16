@@ -50,7 +50,7 @@ export default function FriendCard({ friend }: FriendCardProps) {
                 }
             </Fragment>
             <Text
-                color="info"
+                color="info-400"
                 size="3xl"
                 key="name"
                 className="px-2"

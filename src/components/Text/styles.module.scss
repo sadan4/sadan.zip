@@ -51,6 +51,10 @@
             --text-color: var(--color-neutral-content);
         }
 
+        &.info-400 {
+            --text-color: var(--color-info-400);
+        }
+
         &.info {
             --text-color: var(--color-info-500);
         }

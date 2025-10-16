@@ -16,7 +16,7 @@
 	cy: var(--border-hold-half);
 	r: calc(var(--border-hold-half) - 3px);
 	stroke-dasharray: var(--border-hold-dash) calc(var(--border-hold-circumference) - var(--border-hold-dash));
-	stroke: var(--border-hold-color, var(--color-info-700));
+	stroke: var(--border-hold-color, var(--color-info-500));
 	stroke-width: 10px;
 	stroke-linecap: round;
 	fill: none;

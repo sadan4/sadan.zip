@@ -34,7 +34,7 @@ function FriendModalCloseIcon() {
                         className={cn("bg-bg-100 flex h-44 w-44 items-center justify-center rounded-full")}
                     >
                         <XIcon
-                            className="text-info-700 h-full w-full"
+                            className="text-info-500 h-full w-full"
                         />
                     </div>
                 </Clickable>

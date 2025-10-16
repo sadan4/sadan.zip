@@ -34,9 +34,10 @@ interface RawToken extends Omit<Token, "contents"> {
 
 const knownColors: Record<string, string> = {
     LiteralToken: cn("bg-accent-300/50 border-accent-300"),
-    BlankSpaceToken: cn("border-info-700 bg-transparent"),
+    BlankSpaceToken: cn("border-info-500 bg-transparent"),
     MinusToken: cn("bg-warning-300/60 border-warning-300"),
     EofToken: cn("border-error-400 bg-transparent"),
+    DoubleQuoteToken: cn("border-info-300 bg-info-300/50"),
 };
 
 function colorForType(type: string) {
