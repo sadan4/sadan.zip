@@ -46,6 +46,14 @@ export function SourceLink() {
     );
 }
 
+export function ButtonLink() {
+    return (
+        <Link href="/88x31">
+            <Text tag="span">88x31</Text>
+        </Link>
+    );
+}
+
 export interface IconLinkProps extends ComponentProps<"svg"> {
 }
 

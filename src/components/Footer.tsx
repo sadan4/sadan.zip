@@ -1,7 +1,7 @@
 import { Text } from "@components/Text";
 
 import { ScrollArea } from "./layout/ScrollArea";
-import { SourceLink, ThemeLink } from "./Links";
+import { ButtonLink, SourceLink, ThemeLink } from "./Links";
 import { joinWithKey } from "../utils/array";
 
 import {
@@ -36,6 +36,7 @@ export const DefaultFooter = function DefaultFooter() {
         <Footer className="mb-1">
             <ThemeLink key="footer-theme-link" />
             <SourceLink key="footer-source-link" />
+            <ButtonLink key="footer-button-link" />
         </Footer>
     );
 };
@@ -53,7 +54,7 @@ export function FooterContainer({
         <ScrollArea className="h-screen max-h-screen">
             <div className="grid h-full w-full grid-rows-[1fr_min-content]">
                 <div {...props}>{children}</div>
-                <div className="flex place-content-center items-center">
+                <div className="flex justify-center">
                     <Footer />
                 </div>
             </div>
