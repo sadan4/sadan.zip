@@ -1,0 +1,38 @@
+@layer components {
+    .tab-bar {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+
+        .tabs {
+            margin-bottom: .75rem;
+            display: flex;
+            gap: .5rem;
+
+            &.tabs-center {
+                justify-content: center;
+            }
+
+            &.tabs-left {
+                justify-content: left;
+            }
+
+            &.tabs-right {
+                justify-content: right;
+            }
+
+            .marker {
+                border-bottom: 2px solid var(--color-fg-500);
+                pointer-events: none;
+                position: absolute;
+                top: 0;
+                left: 0;
+            }
+        }
+
+        .content {
+            height: 100%;
+            overflow: clip;
+        }
+    }
+}

@@ -21,10 +21,10 @@ export const Default: Story = {
         tabs: [
             {
                 id: "1",
-                render() {
+                Render() {
                     return <Text size="md">Tab 1 content</Text>;
                 },
-                renderTab() {
+                RenderTab() {
                     return (
                         <Text
                             size="md"
@@ -37,7 +37,7 @@ export const Default: Story = {
             },
             {
                 id: "2",
-                render() {
+                Render() {
                     return (
                         <div>
                             <Text
@@ -53,7 +53,7 @@ export const Default: Story = {
                         </div>
                     );
                 },
-                renderTab() {
+                RenderTab() {
                     return (
                         <Text
                             size="md"
@@ -66,10 +66,10 @@ export const Default: Story = {
             },
             {
                 id: "3",
-                render() {
+                Render() {
                     return <Text>Tab 3 content</Text>;
                 },
-                renderTab() {
+                RenderTab() {
                     return (
                         <Text
                             size="md"
@@ -99,14 +99,14 @@ export const Controlled: Story = {
                     tabs={[
                         {
                             id: "1",
-                            render() {
+                            Render() {
                                 return (
                                     <Text size="md">
                                         This is the content of Tab 1.
                                     </Text>
                                 );
                             },
-                            renderTab() {
+                            RenderTab() {
                                 return (
                                     <Text
                                         size="md"
@@ -119,7 +119,7 @@ export const Controlled: Story = {
                         },
                         {
                             id: "2",
-                            render() {
+                            Render() {
                                 return (
                                     <div>
                                         <Text size="md">
@@ -128,7 +128,7 @@ export const Controlled: Story = {
                                     </div>
                                 );
                             },
-                            renderTab() {
+                            RenderTab() {
                                 return (
                                     <Text
                                         size="md"
@@ -141,14 +141,14 @@ export const Controlled: Story = {
                         },
                         {
                             id: "3",
-                            render() {
+                            Render() {
                                 return (
                                     <Text size="md">
                                         This is the content of Tab 3.
                                     </Text>
                                 );
                             },
-                            renderTab() {
+                            RenderTab() {
                                 return (
                                     <Text
                                         size="md"

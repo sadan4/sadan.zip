@@ -115,6 +115,16 @@ const router = createBrowserRouter([
                     };
                 },
             },
+            {
+                path: "88x31",
+                async lazy() {
+                    const Component = (await import("./pages/88x31")).default;
+
+                    return {
+                        Component,
+                    };
+                },
+            },
         ],
     },
 ]);

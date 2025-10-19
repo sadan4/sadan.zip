@@ -15,3 +15,7 @@ export function assert(cond: unknown, msg?: string): asserts cond {
         throw new AssertionError(msg);
     }
 }
+
+export function unreachable(msg?: string) {
+    throw new AssertionError(msg || "unreachable");
+}

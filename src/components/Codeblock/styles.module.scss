@@ -1,0 +1,51 @@
+@use "u";
+
+@layer components {
+    .codeblock {
+        position: relative;
+
+        .overlay-container {
+            $margin: 2.5%;
+
+            position: absolute;
+            pointer-events: none;
+            top: $margin;
+            left: $margin;
+            width: calc(100% - 2 * $margin);
+            height: calc(100% - 2 * $margin);
+            display: flex;
+            align-items: flex-end;
+            justify-content: flex-end;
+
+            .button-container {
+                @include u.anim-prop(opacity);
+                @include u.anim-dur(250ms);
+
+                opacity: 0;
+                pointer-events: auto;
+
+            }
+        }
+
+        &:hover .overlay-container .button-container {
+            opacity: 1;
+        }
+    }
+}
+
+.codeblock {
+
+    /* stylelint-disable-next-line selector-class-pattern */
+    &.wrap :global(.defaultStyles) :is(pre, code) {
+        white-space: pre-wrap;
+        word-break: normal;
+        overflow-wrap: anywhere;
+    }
+
+    /* stylelint-disable-next-line selector-class-pattern */
+    :global(.defaultStyles) {
+        pre {
+            overflow: unset;
+        }
+    }
+}

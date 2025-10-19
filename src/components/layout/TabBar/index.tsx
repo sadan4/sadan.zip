@@ -1,17 +1,19 @@
-import { Clickable } from "@/components/Clickable";
-import { VerticalLine } from "@/components/Lines/VerticalLine";
-import { Text } from "@/components/Text";
-import { useEventHandler } from "@/hooks/eventListener";
 import { useImperativeSprings } from "@/hooks/imperativeSprings";
 import { joinWithKey } from "@/utils/array";
 import cn from "@/utils/cn";
 import { assert } from "@/utils/error";
 import { updateRef } from "@/utils/ref";
+import { Clickable } from "@components/Clickable";
+import { Box } from "@components/layout/Box";
+import { VerticalLine } from "@components/Lines/VerticalLine";
+import { Text } from "@components/Text";
+import { AnimateHeight } from "@effects/AnimateHeight";
+import { useEventHandler } from "@hooks/eventListener";
 import useResizeObserver from "@react-hook/resize-observer";
 import { animated } from "@react-spring/web";
 
-import { AnimateHeight } from "../../effects/AnimateHeight";
-import { Box } from "../Box/Box";
+import { TabBarPosition } from "./enum";
+import styles from "./styles.module.scss";
 
 import { type ReactNode, type RefCallback, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
@@ -22,8 +24,8 @@ export interface TabRowItemProps {
 
 export interface Tab {
     readonly id: string;
-    renderTab(props: TabRowItemProps): ReactNode;
-    render(): ReactNode;
+    RenderTab(props: TabRowItemProps): ReactNode;
+    Render(): ReactNode;
 }
 export interface TabBarProps {
     tabs: Tab[];
@@ -34,11 +36,19 @@ export interface TabBarProps {
     selectedTab?: string;
     initialSelectedTab?: string;
     onTabChange?: (tab: Tab) => void;
+    tabsPosition?: TabBarPosition;
 }
+
+const positionClasses: Record<TabBarPosition, string> = {
+    [TabBarPosition.CENTER]: styles.tabsCenter,
+    [TabBarPosition.LEFT]: styles.tabsLeft,
+    [TabBarPosition.RIGHT]: styles.tabsRight,
+};
+
 
 const fallbackTab: Tab = {
     id: "FALLBACK_TAB",
-    render() {
+    Render() {
         return (
             <Text
                 size="xl"
@@ -49,7 +59,7 @@ const fallbackTab: Tab = {
             </Text>
         );
     },
-    renderTab() {
+    RenderTab() {
         return (
             <Text
                 size="lg"
@@ -110,7 +120,7 @@ function TabButton({
             }}
             ref={setRef}
         >
-            <tabProp.renderTab
+            <tabProp.RenderTab
                 isSelected={isActive}
                 selectedTab={activeTabId}
             />
@@ -127,6 +137,7 @@ export function TabBar({
     initialSelectedTab,
     onTabChange,
     noSeparators = false,
+    tabsPosition = TabBarPosition.CENTER,
 }: TabBarProps) {
     assert(!(selectedTab && initialSelectedTab), "You can only provide one of selectedTab or initialSelectedTab");
 
@@ -188,9 +199,9 @@ export function TabBar({
 
 
     return (
-        <div className={cn("flex w-full flex-col", className)}>
+        <div className={cn(styles.tabBar, className)}>
             <div
-                className={cn("mb-3 flex justify-center gap-2", tabsClassName)}
+                className={cn(styles.tabs, positionClasses[tabsPosition], tabsClassName)}
             >
                 {joinWithKey(tabs.map((t) => (
                     <TabButton
@@ -204,7 +215,7 @@ export function TabBar({
                     />
                 )), (i) => (noSeparators ? null : <VerticalLine key={`vl-${i}`} />))}
                 <animated.div
-                    className="border-bg-fg-500 pointer-events-none absolute top-0 left-0 border-b-2"
+                    className={styles.marker}
                     style={{
                         x,
                         width,
@@ -213,10 +224,10 @@ export function TabBar({
                 />
             </div>
             <Box
-                className={cn("h-full overflow-clip", contentClassName)}
+                className={cn(styles.content, contentClassName)}
             >
                 <AnimateHeight>
-                    <selectedTabObj.render />
+                    <selectedTabObj.Render />
                 </AnimateHeight>
             </Box>
         </div>

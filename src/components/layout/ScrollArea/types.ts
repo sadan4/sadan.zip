@@ -4,3 +4,9 @@ export const enum ScrollAreaType {
     SCROLL,
     HIDDEN,
 }
+
+export const enum ScrollAreaDirection {
+    HORIZONTAL,
+    VERTICAL,
+    BOTH,
+}

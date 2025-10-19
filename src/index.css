@@ -132,6 +132,15 @@
     src: local(ComicShannsMono Nerd Font Mono);
 }
 
+@layer base {
+    pre, kbd, samp, code {
+        font-family: comicsanslocal, comicsans, monospace;
+        font-feature-settings: var(--default-mono-font-feature-settings, normal);
+        font-variation-settings: var(--default-mono-font-variation-settings, normal);
+        font-size: 1em;
+    }
+}
+
 :root {
     font-family: comicsanslocal, comicsans, system-ui;
     line-height: 1.5;

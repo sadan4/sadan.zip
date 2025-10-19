@@ -16,7 +16,18 @@
      * not compatible with scrollbar styles
      */
     resize: none;
-    overflow: hidden scroll;
+
+    &.vertical {
+        overflow: hidden scroll;
+    }
+
+    &.horizontal {
+        overflow: scroll hidden;
+    }
+
+    &.both {
+        overflow: scroll;
+    }
 
     &::-webkit-scrollbar {
         height: 16px;
