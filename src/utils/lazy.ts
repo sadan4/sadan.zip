@@ -1,6 +1,6 @@
 export type Lazy<T> = () => T;
 
-export function makeLazy<T>(factory: () => T, attempts = 5): () => T {
+export function makeLazy<T>(factory: () => T, attempts = 5): Lazy<T> {
     let tries = 0;
     let cache: T;
 

@@ -1,12 +1,11 @@
 import _88x31Image from "@/assets/88x31.png";
 import { Boilerplate } from "@/components/Boilerplate";
 import { Clickable } from "@/components/Clickable";
-import { CodeblockLang } from "@/components/Codeblock";
 import { Codeblock } from "@/components/Codeblock/Codeblock";
+import { CodeblockLang } from "@/components/Codeblock/enums";
 import { DefaultFooter, FooterContainer } from "@/components/Footer";
 import { Box } from "@/components/layout/Box";
-import { TabBar } from "@/components/layout/TabBar";
-import { TabBarPosition } from "@/components/layout/TabBar/enum";
+import { TabBar, TabBarPosition } from "@/components/layout/TabBar";
 import { Text } from "@/components/Text";
 
 import htmlExampleContent from "./_sample.html?raw";

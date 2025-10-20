@@ -4,7 +4,7 @@ import { Text } from "@/components/Text";
 import { lorem } from "@/utils/constants";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
-import { TabBar } from ".";
+import { TabBar } from "./TabBar";
 
 import { useState } from "react";
 

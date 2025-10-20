@@ -1,18 +1,18 @@
+import { copy } from "@/utils/clipboard";
 import cn from "@/utils/cn";
 import { assert, unreachable } from "@/utils/error";
+import { ScrollArea } from "@components/layout/ScrollArea";
 
+import { useHighlighter } from "./_internal/useHighlighter";
+import { CodeblockLang, HorizontalOverflowMode } from "./enums";
 import styles from "./styles.module.scss";
-import { CodeblockLang, HorizontalOverflowMode } from ".";
 import { Button } from "../Button";
-import { ScrollArea } from "../layout/ScrollArea";
 import { ScrollAreaDirection } from "../layout/ScrollArea/types";
 import { Tooltip } from "../Tooltip";
 
 import { CopyIcon } from "lucide-react";
-import { type ComponentProps, useState } from "react";
-import ShikiHighlighter, { createHighlighterCore, createOnigurumaEngine, type Language } from "react-shiki/core";
-import type { HighlighterCore } from "shiki";
-import { copy } from "@/utils/clipboard";
+import { type ComponentProps } from "react";
+import ShikiHighlighter, { type Language } from "react-shiki/core";
 
 export interface CodeblockProps extends Omit<ComponentProps<"div">, "children" | "lang"> {
     children: string;
@@ -31,24 +31,6 @@ export interface CodeblockProps extends Omit<ComponentProps<"div">, "children" |
      */
     overflowX?: HorizontalOverflowMode;
     noCopy?: boolean;
-}
-
-// FIXME: setup proper HMR
-function useHighlighter(): [undefined, false] | [HighlighterCore, true] {
-    globalThis[Symbol.for("__highlighterPromise")] ??= createHighlighterCore({
-        themes: [import("@shikijs/themes/tokyo-night")],
-        langs: [import("@shikijs/langs/tsx"), import("@shikijs/langs/html")],
-        engine: createOnigurumaEngine(import("shiki/wasm")),
-    });
-
-    const [hl, setHl] = useState<HighlighterCore>(globalThis[Symbol.for("__highlighter")]);
-
-    if (!hl) {
-        globalThis[Symbol.for("__highlighterPromise")].then((highlighter) => setHl(globalThis[Symbol.for("__highlighter")] = highlighter));
-    }
-
-    // @ts-expect-error
-    return [hl, hl !== undefined];
 }
 
 const langMap: Record<CodeblockLang, Language> = {
@@ -73,13 +55,13 @@ export function Codeblock({
 
     const highlighter = useHighlighter();
 
-    if (!highlighter[1]) {
+    if (!highlighter) {
         return;
     }
 
     let hl = (
         <ShikiHighlighter
-            highlighter={highlighter[0]}
+            highlighter={highlighter}
             theme="tokyo-night"
             language={langMap[lang]}
             showLineNumbers={lineNumbers}
