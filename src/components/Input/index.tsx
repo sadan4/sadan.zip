@@ -26,8 +26,9 @@ const inputSizes = {
 export interface InputProps extends ComponentProps<"input"> {
     textSize?: keyof typeof inputSizes;
     initialValue?: string;
-    onChange: ChangeEventHandler<HTMLInputElement>;
+    onChange?: ChangeEventHandler<HTMLInputElement>;
     clearButton?: boolean;
+    focusAfterClear?: boolean;
     onClear?: () => void;
 }
 
@@ -42,6 +43,7 @@ export function Input({
     onClear = () => { },
     onChange,
     clearButton = false,
+    focusAfterClear = false,
     ...props
 }: InputProps) {
     const shouldNullOnDemount = useRef(false);
@@ -94,7 +96,7 @@ export function Input({
                         .updateTextElement(null);
                 }}
                 onChange={(e) => {
-                    onChange(e);
+                    onChange?.(e);
                     setHasValue(Boolean(e.target.value));
                 }}
                 value={value}
@@ -114,8 +116,10 @@ export function Input({
                                     onClear();
                                 } else if (ref.current) {
                                     ref.current.value = "";
-                                    ref.current.focus();
                                     onClear();
+                                }
+                                if (focusAfterClear) {
+                                    ref.current?.focus();
                                 }
                                 setHasValue(false);
                             }}
@@ -260,7 +264,7 @@ export interface CheckedInputProps extends Omit<InputProps, "onChange">, PropsWi
     labelWeight?: keyof typeof textWeight;
     check: RegExp | ((value: string) => boolean) | LenCheck;
     errorMessage?: (props: ErrorMessageProps) => ReactNode;
-    onValidChange: (e: ChangeEvent<HTMLInputElement> | undefined, value: string) => void;
+    onValidChange?: (e: ChangeEvent<HTMLInputElement> | undefined, value: string) => void;
     onInvalidChange?: (e: ChangeEvent<HTMLInputElement> | undefined, value: string) => void;
     debounce?: number;
     wrapperClassName?: string;
@@ -309,7 +313,7 @@ export function CheckedInput({
 
             if (checkInitialRender.current) {
                 if (valid) {
-                    onValidChange(undefined, ref.current.value);
+                    onValidChange?.(undefined, ref.current.value);
                 } else {
                     onInvalidChange?.(undefined, ref.current.value);
                 }
@@ -330,7 +334,7 @@ export function CheckedInput({
 
         if (valid) {
             setError(null);
-            onValidChange(e, e.target.value);
+            onValidChange?.(e, e.target.value);
         } else {
             setError((
                 <ErrorMessage
