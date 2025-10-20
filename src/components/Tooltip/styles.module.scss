@@ -62,69 +62,79 @@ $w: var(--trigger-width);
         width: fit-content;
         anchor-name: --tooltip-anchor;
 
-        .container {
-            // #region constants
-            $box-padding: 1rem;
-            $max-content-size: 16rem;
-
-            // #endregion
-            $padding: var(--tooltip-padding, 1rem);
-            $progress: var(--percent-in);
-            $h: var(--trigger-height);
-            $w: var(--trigger-width);
-
-            position-anchor: --tooltip-anchor;
-            position: fixed;
-
-            .wrapper {
-                text-align: center;
-            }
-
-            &.left,&.right {
-                .wrapper {
-                    max-height: $max-content-size;
-                }
-            }
-
-            &.top,&.bottom {
-                .wrapper {
-                    max-width: $max-content-size;
-                }
-            }
-
-            &.top {
-                position-area: top;
-                padding-bottom: calc($padding + ($h * $progress));
-                position-try-fallbacks: --tooltip-bottom, --tooltip-left, --tooltip-right;
-            }
-
-            &.bottom {
-                position-area: bottom;
-                padding-top: calc($padding + ($h * $progress));
-                position-try-fallbacks: --tooltip-top, --tooltip-left, --tooltip-right;
-            }
-
-            &.left {
-                position-area: left;
-                padding-right: calc($padding + ($w * $progress));
-                position-try-fallbacks: --tooltip-right, --tooltip-top, --tooltip-bottom;
-            }
-
-            &.right {
-                position-area: right;
-                padding-left: calc($padding + ($w * $progress));
-                position-try-fallbacks: --tooltip-left, --tooltip-top, --tooltip-bottom;
-            }
-
-            .box {
-                padding: calc($box-padding / 2) $box-padding;
-            }
-        }
 
         .trigger {
             width: fit-content;
             height: fit-content;
             display: contents;
+        }
+    }
+
+    .container {
+        $box-padding: 1rem;
+
+        position: fixed;
+
+        &.top {
+            translate: -50% -100%;
+            padding-bottom: $box-padding;
+        }
+
+        // // #region constants
+        // $box-padding: 1rem;
+        // $max-content-size: 16rem;
+
+        // // #endregion
+        // $padding: var(--tooltip-padding, 1rem);
+        // $progress: var(--percent-in);
+        // $h: var(--trigger-height);
+        // $w: var(--trigger-width);
+
+        // position-anchor: --tooltip-anchor;
+        // position: fixed;
+
+        // .wrapper {
+        //     text-align: center;
+        // }
+
+        // &.left,&.right {
+        //     .wrapper {
+        //         max-height: $max-content-size;
+        //     }
+        // }
+
+        // &.top,&.bottom {
+        //     .wrapper {
+        //         max-width: $max-content-size;
+        //     }
+        // }
+
+        // &.top {
+        //     position-area: top;
+        //     padding-bottom: calc($padding + ($h * $progress));
+        //     position-try-fallbacks: --tooltip-bottom, --tooltip-left, --tooltip-right;
+        // }
+
+        // &.bottom {
+        //     position-area: bottom;
+        //     padding-top: calc($padding + ($h * $progress));
+        //     position-try-fallbacks: --tooltip-top, --tooltip-left, --tooltip-right;
+        // }
+
+        // &.left {
+        //     position-area: left;
+        //     padding-right: calc($padding + ($w * $progress));
+        //     position-try-fallbacks: --tooltip-right, --tooltip-top, --tooltip-bottom;
+        // }
+
+        // &.right {
+        //     position-area: right;
+        //     padding-left: calc($padding + ($w * $progress));
+        //     position-try-fallbacks: --tooltip-left, --tooltip-top, --tooltip-bottom;
+        // }
+
+        .box {
+            padding: calc($box-padding / 2) $box-padding;
         }
     }
 }

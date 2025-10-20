@@ -99,3 +99,22 @@ export const CustomContent: Story = {
         noWrapper: true,
     },
 };
+
+export const TwoTooltips: Story = {
+    render(args) {
+        return (
+            <div className="flex h-screen w-screen items-center justify-center gap-10">
+                <Tooltip
+                    {...args}
+                >
+                    <Button>Hover Me 1</Button>
+                </Tooltip>
+                <Tooltip
+                    {...args}
+                >
+                    <Button>Hover Me 2</Button>
+                </Tooltip>
+            </div>
+        );
+    },
+};

@@ -1,16 +1,18 @@
 import { useControlledState } from "@/hooks/controlledState";
 import { useForceUpdater } from "@/hooks/forceUpdater";
 import cn from "@/utils/cn";
+import { measureRect } from "@/utils/dom";
+import { unreachable } from "@/utils/error";
 import { updateRef } from "@/utils/ref";
 import useResizeObserver from "@react-hook/resize-observer";
 import { animated, useTransition } from "@react-spring/web";
 
 import { TooltipPosition } from "./constants";
 import styles from "./styles.module.scss";
+import { LayerPortal } from "../Layer";
 import { Box } from "../layout/Box";
 
-import { type ComponentProps, type ReactNode, useLayoutEffect, useRef } from "react";
-import { measureRect } from "@/utils/dom";
+import { type ComponentProps, type CSSProperties, type ReactNode, useLayoutEffect, useRef } from "react";
 
 export interface TooltipProps extends ComponentProps<"div"> {
     /**
@@ -68,6 +70,25 @@ const posMap: Record<TooltipPosition, string> = {
     [TooltipPosition.LEFT]: styles.left,
     [TooltipPosition.RIGHT]: styles.right,
 };
+
+function getTriggerPosition(triggerRect: DOMRect, position: TooltipPosition): Pick<CSSProperties, "top" | "left" | "bottom" | "right" | "transform"> {
+    const { top, left, width, height } = triggerRect;
+
+    switch (position) {
+        case TooltipPosition.TOP: {
+            return {
+                left: left + (width / 2),
+                top,
+            };
+        }
+        case TooltipPosition.BOTTOM:
+        case TooltipPosition.LEFT:
+        case TooltipPosition.RIGHT:
+        default: {
+            unreachable();
+        }
+    }
+}
 
 export function Tooltip({
     text,
@@ -134,28 +155,34 @@ export function Tooltip({
                 updateRef(ref, value);
             }}
         >
-            {
-                tooltipTransition(({ ...styleProps }, show) => {
-                    return show && (
-                        <animated.div
-                            className={cn(styles.container, posMap[position])}
-                            style={{
-                                ...styleProps,
-                            }}
-                        >
-                            {noWrapper
-                                ? text
-                                : (
-                                    <Box className={styles.box}>
-                                        <div className={styles.wrapper}>
-                                            {text}
-                                        </div>
-                                    </Box>
-                                )}
-                        </animated.div>
-                    );
-                })
-            }
+            <LayerPortal>
+                {
+                    tooltipTransition(({ ...styleProps }, show) => {
+                        const triggerRect = triggerRef.current && measureRect(triggerRef.current);
+                        const posStyles = triggerRect && getTriggerPosition(triggerRect, position);
+
+                        return show && posStyles && (
+                            <animated.div
+                                className={cn(styles.container, posMap[position])}
+                                style={{
+                                    ...styleProps,
+                                    ...posStyles,
+                                }}
+                            >
+                                {noWrapper
+                                    ? text
+                                    : (
+                                        <Box className={styles.box}>
+                                            <div className={styles.wrapper}>
+                                                {text}
+                                            </div>
+                                        </Box>
+                                    )}
+                            </animated.div>
+                        );
+                    })
+                }
+            </LayerPortal>
             <div
                 {...triggerProps}
                 ref={(value) => {

@@ -22,8 +22,10 @@ const styleEl = function (): HTMLLinkElement {
 
 styleEl.href = cssUrl;
 
+import { LayerContext } from "@/components/Layer/context";
 import { type LoaderData, UseLoaderDataContext } from "@/main";
 import { installF8Break } from "@/utils/devtools";
+import { assert } from "@/utils/error";
 
 import { useCallback } from "react";
 import { createPortal } from "react-dom";
@@ -83,12 +85,23 @@ const preview: Preview = {
                 [],
             );
 
+            const root = document.getElementById("storybook-root");
+
+            assert(root instanceof HTMLDivElement, "Missing storybook root element");
+
             return (
                 <UseLoaderDataContext value={mockLoaderData}>
-                    <CustomCursorContext value={!context.globals.customCursor}>
-                        {createPortal(<Boilerplate />, document.body)}
-                        {storyFn()}
-                    </CustomCursorContext>
+                    <LayerContext
+                        value={{
+                            level: 0,
+                            root,
+                        }}
+                    >
+                        <CustomCursorContext value={!context.globals.customCursor}>
+                            {createPortal(<Boilerplate />, document.body)}
+                            {storyFn()}
+                        </CustomCursorContext>
+                    </LayerContext>
                 </UseLoaderDataContext>
             );
         },
