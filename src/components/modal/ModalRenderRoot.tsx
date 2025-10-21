@@ -6,17 +6,33 @@ import { animated, useTransition } from "@react-spring/web";
 
 import { SYM_INTERNAL_KEY, useModalStackStore } from "./internal/modalStackStore";
 import { ModalContext } from "./context";
-import { exitModalKeybinds } from ".";
+import { exitModalKeybinds, type IModalContext, type Modal } from ".";
 
-import { type BaseSyntheticEvent, useCallback, useEffect, useRef } from "react";
+import { type BaseSyntheticEvent, useCallback, useEffect, useMemo, useRef } from "react";
 
 
 function stopParentPropagation(ev: BaseSyntheticEvent) {
     ev.stopPropagation();
 }
 
+function makeContext(modal: Modal | undefined): IModalContext | undefined {
+    return modal && {
+        ...modal,
+        close() {
+            useModalStackStore.getState()._popModalByInternalKey(modal[SYM_INTERNAL_KEY]);
+        },
+    };
+}
+
+function Render({ context }: { context: IModalContext; }) {
+    const C = context.Render.bind(context);
+
+    return <C />;
+}
+
 export default function ModalRenderRoot() {
     const currentModal = useModalStackStore((state) => state.modals.at(-1));
+    const modalContext = useMemo(() => makeContext(currentModal), [currentModal]);
 
     const transitions = useTransition(currentModal, {
         from: { opacity: 0 },
@@ -35,14 +51,14 @@ export default function ModalRenderRoot() {
         try {
             if (!currentModal)
                 return;
-            currentModal.onModalClose?.apply(currentModal);
+            currentModal.onModalClose?.apply(modalContext!);
             useModalStackStore.getState()
                 ._popModalByInternalKey(currentModal[SYM_INTERNAL_KEY]);
         } catch (e) {
             console.log("Failed to close modal", e);
             throw e;
         }
-    }, [currentModal]);
+    }, [currentModal, modalContext]);
 
     const closeModal = useCallback(async () => {
         if (!currentModal)
@@ -51,7 +67,7 @@ export default function ModalRenderRoot() {
             return;
         closing.current = true;
         try {
-            const shouldStayOpen = await currentModal?.onRequestClose?.apply(currentModal);
+            const shouldStayOpen = await currentModal?.onRequestClose?.apply(modalContext!);
 
             if (!shouldStayOpen) {
                 forceCloseModal();
@@ -61,7 +77,7 @@ export default function ModalRenderRoot() {
         } finally {
             closing.current = false;
         }
-    }, [currentModal, forceCloseModal]);
+    }, [currentModal, forceCloseModal, modalContext]);
 
     const kb = useKeybinds(exitModalKeybinds);
 
@@ -84,7 +100,7 @@ export default function ModalRenderRoot() {
             >
                 <ModalContext value={item}>
                     <div onClick={stopParentPropagation}>
-                        <item.render />
+                        <Render context={modalContext!} />
                     </div>
                 </ModalContext>
             </animated.div>

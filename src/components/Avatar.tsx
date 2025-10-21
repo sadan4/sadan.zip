@@ -52,7 +52,7 @@ export default function Avatar({ round = false, ...props }: AvatarProps) {
 
                         openModal({
                             key: ModalKey.FRIENDS,
-                            render() {
+                            Render() {
                                 return <FriendModal />;
                             },
                         });

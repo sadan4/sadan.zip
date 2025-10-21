@@ -3,6 +3,9 @@ import type { Thenable } from "@/utils/types";
 
 import { SYM_INTERNAL_KEY, useModalStackStore } from "./internal/modalStackStore";
 import type { ModalKey } from "../modals/ModalKey";
+export {
+    ModalKey,
+} from "../modals/ModalKey";
 
 import type { JSX } from "react";
 
@@ -10,21 +13,25 @@ import type { JSX } from "react";
 export interface Modal {
     [SYM_INTERNAL_KEY]: symbol;
     key?: ModalKey;
-    render(this: Modal): JSX.Element;
+    Render(this: IModalContext): JSX.Element;
     /**
      * called when the modal is rendered
      */
-    onModalOpen?: (this: Modal) => void;
+    onModalOpen?(this: IModalContext): void;
     /**
      * called when the modal is closed
      */
-    onModalClose?: (this: Modal) => void;
+    onModalClose?(this: IModalContext): void;
     /**
      * called when the modal is requested to close by clicking outside of it
-     * 
+     *
      * return true to stay open
      */
-    onRequestClose?: (this: Modal) => Thenable<boolean | void>;
+    onRequestClose?(this: IModalContext): Thenable<boolean | void>;
+}
+
+export interface IModalContext extends Modal {
+    close(): void;
 }
 
 export function openModal(modal: Omit<Modal, typeof SYM_INTERNAL_KEY>): void;
