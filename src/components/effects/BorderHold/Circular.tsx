@@ -1,7 +1,7 @@
 import { useSize } from "@/hooks/size";
 import cn from "@/utils/cn";
 import toCSS from "@/utils/toCSS";
-import { animated, useSpring } from "@react-spring/web";
+import { animated, useSpringValue } from "@react-spring/web";
 
 import styles from "./circular.module.scss";
 
@@ -24,81 +24,68 @@ export default function BorderHoldCircular({ children, onHold }: BolderHoldCircu
 
     const bgWidth = width * (1 + (1 / 15));
     const bgHeight = height * (1 + (1 / 15));
-
-    const [{ opacity }, opacityApi] = useSpring(() => ({
-        opacity: 0,
-    }));
-
+    const opacity = useSpringValue(0);
     const dispatched = useRef(false);
 
-    const [{ progress }, api] = useSpring(() => ({
-        progress: 0,
+    const progress = useSpringValue(0, {
         config: {
             mass: 5,
             friction: 110,
         },
         onStart() {
-            opacityApi.start({
-                opacity: 1,
-            });
+            opacity.start(1);
         },
-        onRest() {
-            api.stop();
-            opacityApi.start({
-                opacity: 0,
-            });
-        },
-        onChange(foo) {
-            if (foo.value.progress > 98) {
-                if (dispatched.current)
-                    return;
+        onChange(_foo) {
+            // https://github.com/pmndrs/react-spring/issues/2183
+            const foo: number = typeof _foo === "number"
+                ? _foo
+                : _foo.value;
+
+            if (foo > 98 && progress.goal === 100) {
                 dispatched.current = true;
-
                 onHold?.();
-            } else if (foo.value.progress < 2) {
-                if (!dispatched.current)
-                    return;
-            } else
-                dispatched.current &&= false;
+            } else if (foo < 2 && progress.goal === 0) {
+                opacity.start(0);
+                dispatched.current = false;
+            }
         },
-    }));
-
+    });
 
     const startAnimation = useCallback(() => {
-        api.start({
-            progress: 100,
+        progress.start(100, {
             config: {
                 friction: 110,
             },
         });
-    }, [api]);
+    }, [progress]);
 
     const stopAnimation = useCallback(() => {
-        api.start({
-            progress: 0,
+        progress.start(0, {
             config: {
                 friction: 55,
             },
         });
-    }, [api]);
+    }, [progress]);
 
     return (
-        <div
-            className="children"
-            ref={wrapperRef}
-            onPointerDown={startAnimation}
-            onContextMenu={(e) => {
+        <>
+            <div
+                className="contents"
+                ref={wrapperRef}
+                onPointerDown={startAnimation}
+                onContextMenu={(e) => {
                 // it's a pointer event, react is stupid https://developer.mozilla.org/en-US/docs/Web/API/Element/contextmenu_event#browser_compatibility
-                if ((e.nativeEvent as PointerEvent).pointerType !== "mouse") {
-                    e.preventDefault();
-                }
-            }}
-            onPointerUp={stopAnimation}
-            onPointerOut={stopAnimation}
-        >
-            {children}
+                    if ((e.nativeEvent as PointerEvent).pointerType !== "mouse") {
+                        e.preventDefault();
+                    }
+                }}
+                onPointerUp={stopAnimation}
+                onPointerLeave={stopAnimation}
+            >
+                {children}
+            </div>
             <animated.svg
-                className={cn("fixed -translate-1/30", false && z.baseVisualEffect, styles.circularBorder)}
+                className={styles.circularBorder}
                 viewBox="0 0 250 250"
                 style={{
                     width: toCSS.px(bgWidth),
@@ -113,6 +100,6 @@ export default function BorderHoldCircular({ children, onHold }: BolderHoldCircu
                     className={cn("h-full w-full rounded-full")}
                 />
             </animated.svg>
-        </div>
+        </>
     );
 }

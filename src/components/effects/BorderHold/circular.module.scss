@@ -6,7 +6,10 @@
 	--border-hold-circumference: calc(2 * var(--border-hold-radius) * pi);
 	--border-hold-dash: calc(var(--border-hold-circumference) * var(--border-hold-progress) / 100);
 
+    position: fixed;
+    translate: calc(-10% / 3) calc(-10% / 3);
 	overflow: visible;
+    pointer-events: none;
 }
 
 .circular-border circle {
