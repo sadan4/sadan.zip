@@ -12,7 +12,7 @@ function openModal3() {
             return (
                 <Box className="p-16">
                     <Text>
-                        This is a third test modal
+                        This is a third test modal foo
                     </Text>
                     <Button
                         onClick={this.close}

@@ -63,6 +63,7 @@
 		> .progress,
 		> .remainder {
 			position: absolute;
+            pointer-events: none;
 		}
 
 		> .progress {

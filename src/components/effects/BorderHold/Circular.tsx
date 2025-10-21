@@ -1,5 +1,4 @@
 import { useSize } from "@/hooks/size";
-import { z } from "@/styles";
 import cn from "@/utils/cn";
 import toCSS from "@/utils/toCSS";
 import { animated, useSpring } from "@react-spring/web";
@@ -18,7 +17,7 @@ export interface BolderHoldCircularProps extends PropsWithChildren {
 export default function BorderHoldCircular({ children, onHold }: BolderHoldCircularProps) {
     const wrapperRef = useRef<HTMLDivElement>(null);
 
-    const { width, height } = useSize(() => wrapperRef.current) ?? {
+    const { width, height, left, top } = useSize(() => wrapperRef.current) ?? {
         width: 0,
         height: 0,
     };
@@ -85,6 +84,7 @@ export default function BorderHoldCircular({ children, onHold }: BolderHoldCircu
 
     return (
         <div
+            className="children"
             ref={wrapperRef}
             onPointerDown={startAnimation}
             onContextMenu={(e) => {
@@ -96,12 +96,15 @@ export default function BorderHoldCircular({ children, onHold }: BolderHoldCircu
             onPointerUp={stopAnimation}
             onPointerOut={stopAnimation}
         >
+            {children}
             <animated.svg
-                className={cn("absolute -translate-1/30", z.baseVisualEffect, styles.circularBorder)}
+                className={cn("fixed -translate-1/30", false && z.baseVisualEffect, styles.circularBorder)}
                 viewBox="0 0 250 250"
                 style={{
                     width: toCSS.px(bgWidth),
                     height: toCSS.px(bgHeight),
+                    left,
+                    top,
                     ["--border-hold-progress" as any]: progress,
                     opacity,
                 }}
@@ -110,7 +113,6 @@ export default function BorderHoldCircular({ children, onHold }: BolderHoldCircu
                     className={cn("h-full w-full rounded-full")}
                 />
             </animated.svg>
-            {children}
         </div>
     );
 }

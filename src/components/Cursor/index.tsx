@@ -1,6 +1,5 @@
 import { useCssFile } from "@/hooks/cssFile";
 import { useEventHandler } from "@/hooks/eventListener";
-import { z } from "@/styles";
 import cn from "@/utils/cn";
 
 import noCursorStyle from "./hideNativeCursor.scss?url";
@@ -46,7 +45,7 @@ export default function Cursor({ className = "", children }: AnimatedCursorProps
 
     return (
         <div
-            className={cn(z.cursor, "pointer-events-none fixed -translate-1/2", className)}
+            className={cn("pointer-events-none fixed z-999999 -translate-1/2", className)}
             ref={cursorRef}
         >
             {children}

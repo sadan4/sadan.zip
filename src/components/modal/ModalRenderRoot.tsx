@@ -1,5 +1,4 @@
 import { useKeybinds } from "@/hooks/keybind";
-import { z } from "@/styles";
 import cn from "@/utils/cn";
 import { updateRef } from "@/utils/ref";
 import { animated, useTransition } from "@react-spring/web";
@@ -7,6 +6,7 @@ import { animated, useTransition } from "@react-spring/web";
 import { SYM_INTERNAL_KEY, useModalStackStore } from "./internal/modalStackStore";
 import { ModalContext } from "./context";
 import { exitModalKeybinds, type IModalContext, type Modal } from ".";
+import { LayerPortal } from "../Layer";
 
 import { type BaseSyntheticEvent, useCallback, useEffect, useMemo, useRef } from "react";
 
@@ -24,17 +24,18 @@ function makeContext(modal: Modal | undefined): IModalContext | undefined {
     };
 }
 
-function Render({ context }: { context: IModalContext; }) {
-    const C = context.Render.bind(context);
+function Render({ context }: { context?: IModalContext; }) {
+    if (!context)
+        return null;
 
-    return <C />;
+    return context.Render.apply(context);
 }
 
 export default function ModalRenderRoot() {
     const currentModal = useModalStackStore((state) => state.modals.at(-1));
     const modalContext = useMemo(() => makeContext(currentModal), [currentModal]);
 
-    const transitions = useTransition(currentModal, {
+    const transitions = useTransition(modalContext, {
         from: { opacity: 0 },
         enter: { opacity: 1 },
         leave: { opacity: 0 },
@@ -86,24 +87,30 @@ export default function ModalRenderRoot() {
         ref.current?.focus();
     }, []);
 
-    return transitions((style, item) => (item
-        ? (
-            <animated.div
-                ref={(e) => {
-                    updateRef(ref, e);
-                    return kb(e);
-                }}
-                style={style}
-                className={cn("absolute top-0 left-0 h-full w-full bg-black/70", z.modal)}
-                tabIndex={-1}
-                onClick={closeModal}
-            >
-                <ModalContext value={item}>
-                    <div onClick={stopParentPropagation}>
-                        <Render context={modalContext!} />
-                    </div>
-                </ModalContext>
-            </animated.div>
-        )
-        : null));
+    return (
+        <LayerPortal>
+            {
+                transitions((style, context) => (context
+                    ? (
+                        <animated.div
+                            ref={(e) => {
+                                updateRef(ref, e);
+                                return kb(e);
+                            }}
+                            style={style}
+                            className={cn("absolute top-0 left-0 h-full w-full bg-black/70")}
+                            tabIndex={-1}
+                            onClick={closeModal}
+                        >
+                            <ModalContext value={context}>
+                                <div onClick={stopParentPropagation}>
+                                    <Render context={context} />
+                                </div>
+                            </ModalContext>
+                        </animated.div>
+                    )
+                    : null))
+            }
+        </LayerPortal>
+    );
 }

@@ -1,6 +1,5 @@
 import { useControlledState } from "@/hooks/controlledState";
 import { useForceUpdater } from "@/hooks/forceUpdater";
-import { z } from "@/styles";
 import cn from "@/utils/cn";
 import { parseCSSValue, rangeInputDefaultValue } from "@/utils/dom";
 import { assert } from "@/utils/error";
@@ -115,7 +114,7 @@ export function Slider(props: SliderProps) {
     return (
         <div
             ref={setContainerRef}
-            className={cn(styles.slider, z.slider, sliderSizes[size], shouldShowMarkers && "my-3", {
+            className={cn(styles.slider, sliderSizes[size], shouldShowMarkers && "my-3", {
                 [styles.vertical]: vertical,
                 [styles.horizontal]: !vertical,
                 [styles.reverse]: reverseVertical,
@@ -124,10 +123,20 @@ export function Slider(props: SliderProps) {
                 ["--progress" as any]: valueToPercent(currentValue),
             }}
         >
+            {shouldShowMarkers && (
+                <RenderMarkers
+                    markers={markers}
+                    containerRef={containerRef}
+                    min={min}
+                    max={max}
+                    valueToPercent={valueToPercent}
+                    clampToRange={clampToRange}
+                    renderMarker={renderMarker}
+                />
+            )}
             <input
                 ref={inputRef}
                 disabled={disabled}
-                className={z.thumb}
                 type="range"
                 min={min}
                 max={max}
@@ -148,19 +157,8 @@ export function Slider(props: SliderProps) {
                     setCurrentValue(num);
                 }}
             />
-            <span className={cn(styles.progress, z.track)} />
-            <span className={cn(styles.remainder, z.track)} />
-            {shouldShowMarkers && (
-                <RenderMarkers
-                    markers={markers}
-                    containerRef={containerRef}
-                    min={min}
-                    max={max}
-                    valueToPercent={valueToPercent}
-                    clampToRange={clampToRange}
-                    renderMarker={renderMarker}
-                />
-            )}
+            <span className={cn(styles.progress)} />
+            <span className={cn(styles.remainder)} />
         </div>
     );
 }
@@ -208,7 +206,7 @@ function DefaultRenderMarkers({
     }, [containerRef, dep]);
 
     return (
-        <div className={cn("pointer-events-none absolute top-0 left-0 h-full w-full", z.markers)}>
+        <div className={cn("pointer-events-none absolute top-0 left-0 h-full w-full")}>
             <div className="relative h-full w-full">
                 {markers.map((marker) => {
                     const progress = valueToPercent(clampToRange(marker));

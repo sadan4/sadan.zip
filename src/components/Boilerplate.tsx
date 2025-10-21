@@ -1,5 +1,4 @@
 import { useLoaderData } from "@/main";
-import { z } from "@/styles";
 import cn from "@/utils/cn";
 import Cursor from "@components/Cursor";
 import BoundingCursor from "@components/Cursor/BoundingCursor";
@@ -37,7 +36,7 @@ export function Boilerplate({ noCursor }: BoilerplateProps) {
                     <>
                         <Cursor>
                             <DotCursor
-                                className={cn("bg-fg-500 mix-blend-exclusion", z.cursor)}
+                                className={cn("bg-fg-500 z-999999 mix-blend-exclusion")}
                                 radius={10}
                                 invert
                                 lineOnText
@@ -45,7 +44,7 @@ export function Boilerplate({ noCursor }: BoilerplateProps) {
                         </Cursor>
                         <Cursor>
                             <BoundingCursor
-                                className={cn("bg-fg-500 mix-blend-exclusion", z.cursor)}
+                                className={cn("bg-fg-500 z-999999 mix-blend-exclusion")}
                                 frameLength={{
                                     type: "dynamic",
                                     factor: 1 / 10,

@@ -1,5 +1,5 @@
 import { useControlledState } from "@/hooks/controlledState";
-import { border, z } from "@/styles";
+import { border } from "@/styles";
 import cn from "@/utils/cn";
 import { assert } from "@/utils/error";
 import { prop } from "@/utils/functional";
@@ -209,7 +209,8 @@ export function Select<T extends PropertyKey>({
                             </>
                         )}
                 </Clickable>
-                <div className={cn("absolute top-6/5 left-0 w-full", z.select)}>
+                {/* TODO: portal this */}
+                <div className={cn("absolute top-6/5 left-0 w-full")}>
                     {open && (
                         <div
                             onBlur={({ relatedTarget }) => {
