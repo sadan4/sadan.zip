@@ -1,66 +1,10 @@
-// #region constants
-$box-padding: 1rem;
-$max-content-size: 16rem;
-
-// #endregion
-@property --tooltip-padding {
-    syntax: "*";
-    inherits: true;
-    initial-value: 1rem;
-}
-
-$padding: var(--tooltip-padding);
-
-@property --percent-in {
-    syntax: "<number>";
-    inherits: true;
-    initial-value: 0;
-}
-
-$progress: var(--percent-in);
-
-@property --trigger-height {
-    syntax: "<length>";
-    inherits: true;
-    initial-value: 0;
-}
-
-$h: var(--trigger-height);
-
-@property --trigger-width {
-    syntax: "<length>";
-    inherits: true;
-    initial-value: 0;
-}
-
-$w: var(--trigger-width);
-
-@position-try --tooltip-top {
-    position-area: top;
-    margin-bottom: calc($padding + ($h * $progress));
-}
-
-@position-try --tooltip-bottom {
-    position-area: bottom;
-    margin-top: calc($padding + ($h * $progress));
-}
-
-@position-try --tooltip-left {
-    position-area: left;
-    margin-right: calc($padding + ($w * $progress));
-}
-
-@position-try --tooltip-right {
-    position-area: right;
-    margin-left: calc($padding + ($w * $progress));
-}
+@use "u";
 
 @layer components {
     .tooltip {
         display: contents;
         height: fit-content;
         width: fit-content;
-        anchor-name: --tooltip-anchor;
 
 
         .trigger {
@@ -71,70 +15,93 @@ $w: var(--trigger-width);
     }
 
     .container {
-        $box-padding: 1rem;
+        $max-content-size: 16rem;
+        $pad: var(--pad, 1rem);
 
         position: fixed;
 
+        .arrow {
+            position: absolute;
+
+            > path {
+                fill: var(--color-bg-100)
+            }
+
+            > path.border {
+                stroke: u.alpha(var(--color-fg-600) 25%);
+                stroke-width: 3px;
+            }
+        }
+
         &.top {
             translate: -50% -100%;
-            padding-bottom: $box-padding;
+
+            .arrow {
+                translate: -50%;
+            }
         }
 
-        // // #region constants
-        // $box-padding: 1rem;
-        // $max-content-size: 16rem;
+        &.bottom {
+            translate: -50%;
 
-        // // #endregion
-        // $padding: var(--tooltip-padding, 1rem);
-        // $progress: var(--percent-in);
-        // $h: var(--trigger-height);
-        // $w: var(--trigger-width);
+            .arrow {
+                top: 0;
+                rotate: 180deg;
+                translate: -50% calc(-100% + $pad);
+            }
+        }
 
-        // position-anchor: --tooltip-anchor;
-        // position: fixed;
+        &.left {
+            translate: -100% -50%;
 
-        // .wrapper {
-        //     text-align: center;
-        // }
+            .arrow {
+                left: 100%;
+                rotate: 270deg;
+                translate: calc(-1 * $pad) -50%;
+            }
+        }
 
-        // &.left,&.right {
-        //     .wrapper {
-        //         max-height: $max-content-size;
-        //     }
-        // }
+        &.right {
+            translate: 0 -50%;
 
-        // &.top,&.bottom {
-        //     .wrapper {
-        //         max-width: $max-content-size;
-        //     }
-        // }
+            .arrow {
+                left: $pad;
+                rotate: 90deg;
+                translate: -100% -50%;
+            }
+        }
 
-        // &.top {
-        //     position-area: top;
-        //     padding-bottom: calc($padding + ($h * $progress));
-        //     position-try-fallbacks: --tooltip-bottom, --tooltip-left, --tooltip-right;
-        // }
+        .wrapper {
+            text-align: center;
+        }
 
-        // &.bottom {
-        //     position-area: bottom;
-        //     padding-top: calc($padding + ($h * $progress));
-        //     position-try-fallbacks: --tooltip-top, --tooltip-left, --tooltip-right;
-        // }
+        &.left,
+        &.right {
+            .arrow {
+                top: 50%;
+            }
 
-        // &.left {
-        //     position-area: left;
-        //     padding-right: calc($padding + ($w * $progress));
-        //     position-try-fallbacks: --tooltip-right, --tooltip-top, --tooltip-bottom;
-        // }
+            .wrapper {
+                max-height: $max-content-size;
+            }
+        }
 
-        // &.right {
-        //     position-area: right;
-        //     padding-left: calc($padding + ($w * $progress));
-        //     position-try-fallbacks: --tooltip-left, --tooltip-top, --tooltip-bottom;
-        // }
+        &.top,
+        &.bottom {
+            .arrow {
+                left: 50%;
+            }
+
+            .wrapper {
+                max-width: $max-content-size;
+            }
+        }
 
         .box {
+            $box-padding: 1rem;
+
             padding: calc($box-padding / 2) $box-padding;
         }
+
     }
 }

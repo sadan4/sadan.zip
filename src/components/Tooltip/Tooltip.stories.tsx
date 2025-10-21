@@ -57,6 +57,7 @@ export const Right: Story = {
 export const Delayed: Story = {
     args: {
         hoverShowDelay: 1000,
+        lingerDelay: 1000,
         children: <Button>1s hover delay</Button>,
     },
 };

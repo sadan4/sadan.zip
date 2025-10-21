@@ -5,14 +5,14 @@ import { measureRect } from "@/utils/dom";
 import { unreachable } from "@/utils/error";
 import { updateRef } from "@/utils/ref";
 import useResizeObserver from "@react-hook/resize-observer";
-import { animated, useTransition } from "@react-spring/web";
+import { animated, to, useSpringValue, useTransition } from "@react-spring/web";
 
 import { TooltipPosition } from "./constants";
 import styles from "./styles.module.scss";
 import { LayerPortal } from "../Layer";
 import { Box } from "../layout/Box";
 
-import { type ComponentProps, type CSSProperties, type ReactNode, useLayoutEffect, useRef } from "react";
+import { type ComponentProps, type ReactNode, useLayoutEffect, useRef } from "react";
 
 export interface TooltipProps extends ComponentProps<"div"> {
     /**
@@ -34,8 +34,20 @@ export interface TooltipProps extends ComponentProps<"div"> {
     noWrapper?: boolean;
     /**
      * Delay in ms before showing the tooltip on hover
+     *
+     * @default 250
      */
     hoverShowDelay?: number;
+    /**
+     * @default 250
+     */
+    lingerDelay?: number;
+    /**
+     * Don't show the arrow point to the trigger element
+     *
+     * @default false
+     */
+    noarrow?: boolean;
 }
 
 function useTooltipAnim(shouldShow: boolean) {
@@ -45,17 +57,17 @@ function useTooltipAnim(shouldShow: boolean) {
         from: {
             opacity: 0,
             scale: 0.95,
-            "--percent-in": -scaleBy,
+            percentIn: -scaleBy,
         },
         enter: {
             opacity: 1,
             scale: 1,
-            "--percent-in": 0,
+            percentIn: 0,
         },
         leave: {
             opacity: 0,
             scale: 0.95,
-            "--percent-in": scaleBy,
+            percentIn: scaleBy,
         },
         config: {
             tension: 2400,
@@ -64,31 +76,31 @@ function useTooltipAnim(shouldShow: boolean) {
     });
 }
 
+function TooltipArrow() {
+    return (
+        <svg
+            height="24"
+            width="24"
+            viewBox="0 0 24 24"
+            className={styles.arrow}
+        >
+            <path
+                className={styles.border}
+                d="m8.96,8.98l-8.96,-8.98l23.99,0l-8.92,8.98a3.53,2.05 180 0 1 -6.11,0z"
+            />
+            <path
+                d="m8.96,8.98l-8.96,-8.98l23.99,0l-8.92,8.98a3.53,2.05 180 0 1 -6.11,0z"
+            />
+        </svg>
+    );
+}
+
 const posMap: Record<TooltipPosition, string> = {
     [TooltipPosition.TOP]: styles.top,
     [TooltipPosition.BOTTOM]: styles.bottom,
     [TooltipPosition.LEFT]: styles.left,
     [TooltipPosition.RIGHT]: styles.right,
 };
-
-function getTriggerPosition(triggerRect: DOMRect, position: TooltipPosition): Pick<CSSProperties, "top" | "left" | "bottom" | "right" | "transform"> {
-    const { top, left, width, height } = triggerRect;
-
-    switch (position) {
-        case TooltipPosition.TOP: {
-            return {
-                left: left + (width / 2),
-                top,
-            };
-        }
-        case TooltipPosition.BOTTOM:
-        case TooltipPosition.LEFT:
-        case TooltipPosition.RIGHT:
-        default: {
-            unreachable();
-        }
-    }
-}
 
 export function Tooltip({
     text,
@@ -100,7 +112,9 @@ export function Tooltip({
     position = TooltipPosition.TOP,
     children,
     noWrapper = false,
-    hoverShowDelay,
+    hoverShowDelay = 250,
+    lingerDelay = 250,
+    noarrow = noWrapper,
     ref,
     ...props
 }: TooltipProps) {
@@ -114,6 +128,8 @@ export function Tooltip({
     const timeoutRef = useRef<NodeJS.Timeout>(undefined);
     const triggerRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
+    const triggerHeight = useSpringValue(0);
+    const triggerWidth = useSpringValue(0);
     const [dep, updateSizeVar] = useForceUpdater();
 
     useResizeObserver(triggerRef, updateSizeVar);
@@ -122,26 +138,38 @@ export function Tooltip({
         if (triggerRef.current && containerRef.current) {
             const { width, height } = measureRect(triggerRef.current);
 
-            containerRef.current.style.setProperty("--trigger-width", `${width}px`);
-            containerRef.current.style.setProperty("--trigger-height", `${height}px`);
+            if (!triggerHeight.hasAnimated) {
+                triggerHeight.set(height);
+                triggerWidth.set(width);
+            } else {
+                triggerHeight.start(height);
+                triggerWidth.start(width);
+            }
         }
-    }, [dep]);
+    }, [dep, triggerHeight, triggerWidth]);
 
     const tooltipTransition = useTooltipAnim(shouldShow);
 
     const show = () => {
-        if (hoverShowDelay == null) {
-            setShouldShow(true);
-        }
         clearTimeout(timeoutRef.current);
-        timeoutRef.current = setTimeout(() => {
+        if (!hoverShowDelay) {
             setShouldShow(true);
-        }, hoverShowDelay);
+        } else {
+            timeoutRef.current = setTimeout(() => {
+                setShouldShow(true);
+            }, hoverShowDelay);
+        }
     };
 
     const hide = () => {
         clearTimeout(timeoutRef.current);
-        setShouldShow(false);
+        if (!lingerDelay) {
+            setShouldShow(false);
+        } else {
+            timeoutRef.current = setTimeout(() => {
+                setShouldShow(false);
+            }, lingerDelay);
+        }
     };
 
     return (
@@ -157,16 +185,76 @@ export function Tooltip({
         >
             <LayerPortal>
                 {
-                    tooltipTransition(({ ...styleProps }, show) => {
+                    tooltipTransition(({ percentIn, ...styleProps }, show) => {
                         const triggerRect = triggerRef.current && measureRect(triggerRef.current);
-                        const posStyles = triggerRect && getTriggerPosition(triggerRect, position);
 
-                        return show && posStyles && (
+                        return show && triggerRect && (
                             <animated.div
                                 className={cn(styles.container, posMap[position])}
                                 style={{
                                     ...styleProps,
-                                    ...posStyles,
+                                    ...(() => {
+                                        const { top, left, width, height } = triggerRect;
+
+                                        switch (position) {
+                                            case TooltipPosition.TOP: {
+                                                const paddingBottom = to(
+                                                    [percentIn, triggerHeight],
+                                                    (percentIn, triggerHeight) => `calc(1rem + ${percentIn * triggerHeight}px)`,
+                                                );
+
+                                                return {
+                                                    left: left + (width / 2),
+                                                    top,
+                                                    paddingBottom,
+                                                    ["--pad" as any]: paddingBottom,
+                                                };
+                                            }
+                                            case TooltipPosition.BOTTOM: {
+                                                const paddingTop = to(
+                                                    [percentIn, triggerHeight],
+                                                    (percentIn, triggerHeight) => `calc(1rem + ${percentIn * triggerHeight}px)`,
+                                                );
+
+                                                return {
+                                                    left: left + (width / 2),
+                                                    top: height + top,
+                                                    paddingTop,
+                                                    ["--pad" as any]: paddingTop,
+                                                };
+                                            }
+                                            case TooltipPosition.LEFT: {
+                                                const paddingRight = to(
+                                                    [percentIn, triggerWidth],
+                                                    (percentIn, triggerWidth) => `calc(1rem + ${percentIn * triggerWidth}px)`,
+                                                );
+
+                                                return {
+                                                    top: top + (height / 2),
+                                                    left,
+                                                    paddingRight,
+                                                    ["--pad" as any]: paddingRight,
+                                                };
+                                            }
+                                            case TooltipPosition.RIGHT: {
+                                                const paddingLeft = to(
+                                                    [percentIn, triggerWidth],
+                                                    (percentIn, triggerWidth) => `calc(1rem + ${percentIn * triggerWidth}px)`,
+                                                );
+
+                                                return {
+                                                    top: top + (height / 2),
+                                                    left: left + width,
+                                                    paddingLeft,
+                                                    ["--pad" as any]: paddingLeft,
+                                                };
+                                            }
+
+                                            default: {
+                                                unreachable();
+                                            }
+                                        }
+                                    })(),
                                 }}
                             >
                                 {noWrapper
@@ -178,6 +266,7 @@ export function Tooltip({
                                             </div>
                                         </Box>
                                     )}
+                                {noarrow || <TooltipArrow />}
                             </animated.div>
                         );
                     })
