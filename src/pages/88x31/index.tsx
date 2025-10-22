@@ -48,7 +48,7 @@ export default function Component_88x31_Button() {
             <Boilerplate />
             <FooterContainer footer={() => <DefaultFooter />} >
                 <div className="mt-4 flex w-full justify-center">
-                    <Box className="w-1/2">
+                    <Box className="mr-2 sm:w-full md:w-1/2">
                         <Text
                             size="3xl"
                             color="primary"
