@@ -6,6 +6,10 @@ export interface Friend {
     _88x31url?: URL;
 }
 
+// Friends!
+
+// If i know you, feel free to pr
+
 export const friends: Friend[] = [
     {
         name: "nin0",
