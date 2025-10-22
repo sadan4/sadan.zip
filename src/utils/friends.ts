@@ -3,6 +3,7 @@ export interface Friend {
     name: string;
     avatarUrl: URL;
     url?: URL;
+    _88x31url?: URL;
 }
 
 export const friends: Friend[] = [
@@ -11,6 +12,7 @@ export const friends: Friend[] = [
         discordId: "886685857560539176",
         url: new URL("https://nin0.dev"),
         avatarUrl: new URL("https://nin0.dev/logo.png"),
+        _88x31url: new URL("https://files.nin0.dev/88x31.png"),
     },
     {
         name: "s4mi",

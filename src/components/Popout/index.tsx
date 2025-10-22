@@ -14,12 +14,13 @@ export interface RenderPopoutProps {
 export interface PopoutProps extends PropsWithChildren {
     open?: boolean;
     onClose?: () => void;
+    onOpen?: () => void;
     renderPopout(props: RenderPopoutProps): ReactNode;
     openOnClick?: boolean;
     side: PopoutDirection;
 }
 
-export function Popout({ open, children, side, renderPopout: RenderPopout }: PopoutProps) {
+export function Popout({ open, children, side, renderPopout: RenderPopout, onOpen, onClose }: PopoutProps) {
     const isCenter = side === PopoutDirection.CENTER;
     const [popoutOpen, setPopoutOpen] = useState(open ?? false);
 
@@ -30,8 +31,13 @@ export function Popout({ open, children, side, renderPopout: RenderPopout }: Pop
     }, [open]);
 
     const onOpenChange = useCallback((state: boolean) => {
+        if (state) {
+            onOpen?.();
+        } else {
+            onClose?.();
+        }
         setPopoutOpen(state);
-    }, []);
+    }, [onClose, onOpen]);
 
     const closePopout = useCallback(() => {
         setPopoutOpen(false);

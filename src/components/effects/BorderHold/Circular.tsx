@@ -17,7 +17,7 @@ export interface BolderHoldCircularProps extends PropsWithChildren {
 export default function BorderHoldCircular({ children, onHold }: BolderHoldCircularProps) {
     const wrapperRef = useRef<HTMLDivElement>(null);
 
-    const { width, height, left, top } = useSize(() => wrapperRef.current) ?? {
+    const { width, height } = useSize(() => wrapperRef.current) ?? {
         width: 0,
         height: 0,
     };

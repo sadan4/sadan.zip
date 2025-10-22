@@ -6,6 +6,8 @@ import Circle, { DefaultPlacementCircleItem } from "@/components/layout/Circle";
 import { useModalStackStore } from "@/components/modal/internal/modalStackStore";
 import { Popout } from "@/components/Popout";
 import { PopoutDirection } from "@/components/Popout/constants";
+import { Tooltip } from "@/components/Tooltip";
+import { TooltipPosition } from "@/components/Tooltip/constants";
 import { loopArrayStartingAt } from "@/utils/array";
 import cn from "@/utils/cn";
 import { friends } from "@/utils/friends";
@@ -16,6 +18,7 @@ import { defaultPosition, useFriendModalCenterStore } from "./friendModalCenterS
 
 import { ArrowLeftIcon, ArrowRightIcon, XIcon } from "lucide-react";
 import { useMemo, useState } from "react";
+import { preload } from "react-dom";
 
 export interface FriendModalProps {
 }
@@ -90,31 +93,64 @@ export default function FriendModal() {
     const contents = useMemo(() => {
         return loopArrayStartingAt(friends, friendIndex)
             .slice(0, 4)
-            .map((friend) => (
-                <DefaultPlacementCircleItem key={friend.name}>
-                    <Popout
-                        side={PopoutDirection.CENTER}
-                        renderPopout={() => {
-                            return (
-                                <div>
-                                    <FriendCard friend={friend} />
-                                </div>
-                            );
-                        }}
-                    >
-                        <Clickable>
-                            <PerspectiveHover hoverFactor={2}>
-                                <Shadow>
-                                    <img
-                                        src={friend.avatarUrl.toString()}
-                                        className="h-24 min-h-24 w-24 min-w-24 rounded-full select-none"
-                                    />
-                                </Shadow>
-                            </PerspectiveHover>
-                        </Clickable>
-                    </Popout>
-                </DefaultPlacementCircleItem>
-            ))
+            .map((friend, idx) => {
+                function Render() {
+                    const [popoutOpen, setPopoutOpen] = useState(false);
+                    const [tooltipVisible, setTooltipVisible] = useState(false);
+
+                    return (
+                        <DefaultPlacementCircleItem key={friend.name}>
+                            <Popout
+                                side={PopoutDirection.CENTER}
+                                renderPopout={() => {
+                                    return (
+                                        <div>
+                                            <FriendCard
+                                                friend={friend}
+                                            />
+                                        </div>
+                                    );
+                                }}
+                                onOpen={() => {
+                                    setPopoutOpen(true);
+                                }}
+                                onClose={() => {
+                                    setPopoutOpen(false);
+                                }}
+                            >
+                                <Tooltip
+                                    position={idx < 2 ? TooltipPosition.LEFT : TooltipPosition.RIGHT}
+                                    text={friend.name}
+                                    show={tooltipVisible && !popoutOpen}
+                                    onShow={() => {
+                                        setTooltipVisible(true);
+                                    }}
+                                    onHide={() => {
+                                        setTooltipVisible(false);
+                                    }}
+                                >
+                                    <Clickable onMouseOver={() => {
+                                        if (friend._88x31url) {
+                                            preload(friend._88x31url.toString(), { as: "image" });
+                                        }
+                                    }}
+                                    >
+                                        <PerspectiveHover hoverFactor={2}>
+                                            <Shadow>
+                                                <img
+                                                    src={friend.avatarUrl.toString()}
+                                                    className="h-24 min-h-24 w-24 min-w-24 rounded-full select-none"
+                                                />
+                                            </Shadow>
+                                        </PerspectiveHover>
+                                    </Clickable>
+                                </Tooltip>
+                            </Popout>
+                        </DefaultPlacementCircleItem>
+                    );
+                }
+                return <Render />;
+            })
             .toSpliced(0, 0, nextButton, prevButton);
     }, [friendIndex, nextButton, prevButton]);
 

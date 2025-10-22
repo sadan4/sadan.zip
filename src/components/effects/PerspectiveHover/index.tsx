@@ -1,10 +1,9 @@
-import { useForceUpdater } from "@/hooks/forceUpdater";
-import { useSize } from "@/hooks/size";
+import { measureRect } from "@/utils/dom";
 import toCSS from "@/utils/toCSS";
 import { animated, to, useSpring } from "@react-spring/web";
 import { useGesture } from "@use-gesture/react";
 
-import { type PropsWithChildren, useEffect, useRef } from "react";
+import { type PropsWithChildren, useRef } from "react";
 
 export interface PerspectiveHoverProps extends PropsWithChildren {
     /**
@@ -22,10 +21,8 @@ export default function PerspectiveHover({ children, hoverFactor }: PerspectiveH
     }
 
     const domRef = useRef<HTMLDivElement>(null);
-    const [sizeDep, _forceSizeUpdate] = useForceUpdater();
 
-
-    const [{ x, y, scale, zoom, rotateX, rotateY, rotateZ, width, height, elX, elY }, api] = useSpring(() => ({
+    const [{ x, y, scale, zoom, rotateX, rotateY, rotateZ }, api] = useSpring(() => ({
         rotateX: 0,
         rotateY: 0,
         rotateZ: 0,
@@ -33,10 +30,6 @@ export default function PerspectiveHover({ children, hoverFactor }: PerspectiveH
         zoom: 0,
         x: 0,
         y: 0,
-        elX: 0,
-        elY: 0,
-        width: 0,
-        height: 0,
         config: {
             mass: 5,
             friction: 40,
@@ -44,48 +37,16 @@ export default function PerspectiveHover({ children, hoverFactor }: PerspectiveH
         },
     }));
 
-    function ensureDimsSet() {
-        if (!domRef.current) {
-            console.warn("animating before the element is mounted");
-            return;
-        }
-
-        const box = domRef.current.getBoundingClientRect();
-
-        elX.set(box.x);
-        elY.set(box.y);
-        width.set(box.width);
-        height.set(box.height);
-    }
-
-    {
-        const { x: elX, y: elY, width, height } = useSize(() => domRef.current) ?? {
-            x: 0,
-            y: 0,
-            width: 0,
-            height: 0,
-        };
-
-        useEffect(() => {
-            api.start({
-                elX,
-                elY,
-                width,
-                height,
-            });
-        }, [api, elX, elY, height, width, sizeDep]);
-    }
-
     useGesture({
         onMove({ xy: [pointerX, pointerY], dragging, down }) {
-            if (dragging)
+            if (dragging || !domRef.current)
                 return;
-            if (width.get() === 0 || height.get() === 0) {
-                ensureDimsSet();
-            }
+
+            const { width, height, x, y } = measureRect(domRef.current);
+
             api.start({
-                rotateX: calcX(pointerY, width.get(), elY.get()),
-                rotateY: calcY(pointerX, height.get(), elX.get()),
+                rotateX: calcX(pointerY, height, y),
+                rotateY: calcY(pointerX, width, x),
                 scale: down ? 1 : 1.1,
             });
         },

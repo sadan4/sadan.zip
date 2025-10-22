@@ -48,6 +48,7 @@ export interface TooltipProps extends ComponentProps<"div"> {
      * @default false
      */
     noarrow?: boolean;
+    tooltipClassName?: string;
 }
 
 function useTooltipAnim(shouldShow: boolean) {
@@ -115,6 +116,7 @@ export function Tooltip({
     hoverShowDelay = 250,
     lingerDelay = 250,
     noarrow = noWrapper,
+    tooltipClassName,
     ref,
     ...props
 }: TooltipProps) {
@@ -190,7 +192,7 @@ export function Tooltip({
 
                         return show && triggerRect && (
                             <animated.div
-                                className={cn(styles.container, posMap[position])}
+                                className={cn(styles.container, posMap[position], tooltipClassName)}
                                 style={{
                                     ...styleProps,
                                     ...(() => {

@@ -14,6 +14,25 @@ export interface FriendCardProps {
     friend: Friend;
 }
 
+
+function C88X31({ friend }: FriendCardProps) {
+    return (
+        <Clickable
+            tag="a"
+            href={friend.url?.toString() ?? "#"}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block h-[31px] w-[88px]"
+        >
+            <img
+                className="h-[31px] w-[88px] [image-rendering:pixelated]"
+                src={friend._88x31url?.toString()}
+                alt={`${friend.name} 88x31 banner`}
+            />
+        </Clickable>
+    );
+}
+
 export default function FriendCard({ friend }: FriendCardProps) {
     return (
         <Circle
@@ -49,14 +68,20 @@ export default function FriendCard({ friend }: FriendCardProps) {
                         )
                 }
             </Fragment>
-            <Text
-                color="info-400"
-                size="3xl"
-                key="name"
-                className="px-2"
-            >
-                {friend.name}
-            </Text>
+            {
+                friend._88x31url
+                    ? <C88X31 friend={friend} />
+                    : (
+                        <Text
+                            color="info-400"
+                            size="3xl"
+                            key="name"
+                            className="px-2"
+                        >
+                            {friend.name}
+                        </Text>
+                    )
+            }
             <Fragment key="discord">
                 {
                     friend.discordId
