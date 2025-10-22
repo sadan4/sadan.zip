@@ -116,6 +116,7 @@ export default function FriendModal() {
                                 }}
                                 onClose={() => {
                                     setPopoutOpen(false);
+                                    setTooltipVisible(false);
                                 }}
                             >
                                 <Tooltip
