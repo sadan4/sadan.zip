@@ -47,6 +47,7 @@ export const friends: Friend[] = [
         discordId: "1215424013443272736",
         url: new URL("https://i3vie.dev"),
         avatarUrl: new URL("https://avatars.githubusercontent.com/u/180745311?v=4"),
+        _88x31url: new URL("https://i3vie.dev/8831/i3v.png"),
     },
     {
         name: "cookie",
