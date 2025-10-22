@@ -17,7 +17,7 @@ export interface BolderHoldCircularProps extends PropsWithChildren {
 export default function BorderHoldCircular({ children, onHold }: BolderHoldCircularProps) {
     const wrapperRef = useRef<HTMLDivElement>(null);
 
-    const { width, height, left, top } = useSize(() => wrapperRef.current) ?? {
+    const { width, height, left, top, ...dbg } = useSize(() => wrapperRef.current) ?? {
         width: 0,
         height: 0,
     };
@@ -31,9 +31,6 @@ export default function BorderHoldCircular({ children, onHold }: BolderHoldCircu
         config: {
             mass: 5,
             friction: 110,
-        },
-        onStart() {
-            opacity.start(1);
         },
         onChange(_foo) {
             // https://github.com/pmndrs/react-spring/issues/2183
@@ -57,7 +54,8 @@ export default function BorderHoldCircular({ children, onHold }: BolderHoldCircu
                 friction: 110,
             },
         });
-    }, [progress]);
+        opacity.start(1);
+    }, [opacity, progress]);
 
     const stopAnimation = useCallback(() => {
         progress.start(0, {
