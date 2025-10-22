@@ -29,6 +29,7 @@ export const friends: Friend[] = [
         discordId: "289556910426816513",
         url: new URL("https://zt64.dev"),
         avatarUrl: new URL("https://avatars.githubusercontent.com/u/31907977?v=4"),
+        _88x31url: new URL("https://mugman.tech/88x31/zoot.png"),
     },
     {
         name: "elissa",
