@@ -4,7 +4,7 @@ import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 
 // https://vite.dev/config/
-import path, { join, relative, resolve } from "node:path";
+import path, { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 import devtoolsJson from "vite-plugin-devtools-json";
@@ -13,7 +13,7 @@ import tsconfigPaths from "vite-tsconfig-paths";
 const dirname = typeof __dirname !== "undefined" ? __dirname : path.dirname(fileURLToPath(import.meta.url));
 
 // More info at: https://storybook.js.org/docs/next/writing-tests/integrations/vitest-addon
-export default defineConfig(({command}) => ({
+export default defineConfig({
     plugins: [
         react({
             babel: {
@@ -73,7 +73,7 @@ export default defineConfig(({command}) => ({
                     next();
                 });
             },
-        }
+        },
     ],
     build: {
         sourcemap: true,
@@ -127,4 +127,4 @@ export default defineConfig(({command}) => ({
             },
         ],
     },
-}));
+});

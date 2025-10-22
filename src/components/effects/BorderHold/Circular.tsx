@@ -17,7 +17,7 @@ export interface BolderHoldCircularProps extends PropsWithChildren {
 export default function BorderHoldCircular({ children, onHold }: BolderHoldCircularProps) {
     const wrapperRef = useRef<HTMLDivElement>(null);
 
-    const { width, height, left, top, ...dbg } = useSize(() => wrapperRef.current) ?? {
+    const { width, height, left, top } = useSize(() => wrapperRef.current) ?? {
         width: 0,
         height: 0,
     };
@@ -38,7 +38,7 @@ export default function BorderHoldCircular({ children, onHold }: BolderHoldCircu
                 ? _foo
                 : _foo.value;
 
-            if (foo > 98 && progress.goal === 100) {
+            if (foo > 98 && progress.goal === 100 && !dispatched.current) {
                 dispatched.current = true;
                 onHold?.();
             } else if (foo < 2 && progress.goal === 0) {
@@ -66,30 +66,26 @@ export default function BorderHoldCircular({ children, onHold }: BolderHoldCircu
     }, [progress]);
 
     return (
-        <>
-            <div
-                className="contents"
-                ref={wrapperRef}
-                onPointerDown={startAnimation}
-                onContextMenu={(e) => {
+        <div
+            className="relative"
+            ref={wrapperRef}
+            onPointerDown={startAnimation}
+            onContextMenu={(e) => {
                 // it's a pointer event, react is stupid https://developer.mozilla.org/en-US/docs/Web/API/Element/contextmenu_event#browser_compatibility
-                    if ((e.nativeEvent as PointerEvent).pointerType !== "mouse") {
-                        e.preventDefault();
-                    }
-                }}
-                onPointerUp={stopAnimation}
-                onPointerLeave={stopAnimation}
-            >
-                {children}
-            </div>
+                if ((e.nativeEvent as PointerEvent).pointerType !== "mouse") {
+                    e.preventDefault();
+                }
+            }}
+            onPointerUp={stopAnimation}
+            onPointerLeave={stopAnimation}
+        >
+            {children}
             <animated.svg
                 className={styles.circularBorder}
                 viewBox="0 0 250 250"
                 style={{
                     width: toCSS.px(bgWidth),
                     height: toCSS.px(bgHeight),
-                    left,
-                    top,
                     ["--border-hold-progress" as any]: progress,
                     opacity,
                 }}
@@ -98,6 +94,6 @@ export default function BorderHoldCircular({ children, onHold }: BolderHoldCircu
                     className={cn("h-full w-full rounded-full")}
                 />
             </animated.svg>
-        </>
+        </div>
     );
 }
