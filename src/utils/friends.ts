@@ -33,8 +33,9 @@ export const friends: Friend[] = [
     {
         name: "elissa",
         discordId: "381494697073573899",
-        // url: new URL("https://elissa.moe"),
+        url: new URL("https://elissa.moe"),
         avatarUrl: new URL("https://avatars.githubusercontent.com/u/140089641?v=4"),
+        _88x31url: new URL("https://elissa.moe/"),
     },
     {
         name: "sqaaakoi",
@@ -79,10 +80,18 @@ export const friends: Friend[] = [
         avatarUrl: new URL("https://avatars.githubusercontent.com/u/53713683?v=4"),
         _88x31url: new URL("https://mugman.tech/88x31/me.gif"),
     },
+    {
         name: "worf",
         discordId: "262786101037498369",
         url: new URL("https://worf.win/"),
         avatarUrl: new URL("https://avatars.githubusercontent.com/u/49472728?v=4"),
         _88x31url: new URL("https://worf.win/images/worfwin.gif"),
+    },
+    {
+        name: "vee",
+        discordId: "343383572805058560",
+        url: new URL("https://vendicated.dev"),
+        avatarUrl: new URL("https://avatars.githubusercontent.com/u/45497981?v=4"),
+        _88x31url: new URL("https://vendicated.dev/assets/88x31/me.gif"),
     },
 ];
