@@ -79,4 +79,10 @@ export const friends: Friend[] = [
         avatarUrl: new URL("https://avatars.githubusercontent.com/u/53713683?v=4"),
         _88x31url: new URL("https://mugman.tech/88x31/me.gif"),
     },
+        name: "worf",
+        discordId: "262786101037498369",
+        url: new URL("https://worf.win/"),
+        avatarUrl: new URL("https://avatars.githubusercontent.com/u/49472728?v=4"),
+        _88x31url: new URL("https://worf.win/images/worfwin.gif"),
+    },
 ];
