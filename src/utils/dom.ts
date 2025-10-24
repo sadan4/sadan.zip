@@ -1,4 +1,4 @@
-import { error } from "./error";
+import { error, unreachable } from "./error";
 
 export function getLineHeight(element: Element) {
     // Get computed style
@@ -43,9 +43,26 @@ function isDigit(char: string): boolean {
     return /^\d$/.test(char);
 }
 
-const CSS_VALUE_REGEX = /^(\d*(?:\.\d+)?)(%|rem|px)$/;
+const CSS_VALUE_REGEX = /^(\d*(?:\.\d+)?(?:[eE][+-]?\d+)?)(%|r?em|px)$/;
 
-export function parseCSSValue(value: string, element: Element): number {
+export const enum PercentReference {
+    WIDTH,
+    HEIGHT,
+}
+
+function getPercentReferenceValue(element: Element, reference: PercentReference): number {
+    switch (reference) {
+        case PercentReference.WIDTH:
+            return element.clientWidth;
+        case PercentReference.HEIGHT:
+            return element.clientHeight;
+        default:
+            unreachable();
+    }
+}
+
+export function parseCSSValue(value: string, element: Element, precentReference: PercentReference): number {
+    // px
     if (isDigit(value.slice(-1))) {
         return parseFloat(value);
     }
@@ -54,9 +71,9 @@ export function parseCSSValue(value: string, element: Element): number {
 
     switch (unit) {
         case "%": {
-            const parentHeight = element.clientHeight;
+            const referenceValue = getPercentReferenceValue(element, precentReference);
 
-            return (parseFloat(num) / 100) * parentHeight;
+            return (parseFloat(num) / 100) * referenceValue;
         }
         case "em":
         case "rem": {

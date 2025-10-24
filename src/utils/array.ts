@@ -1,3 +1,5 @@
+import { error } from "./error";
+
 /**
  * Inserts a separator between each pair of elements in the given array and returns the mutated array.
  *
@@ -105,4 +107,12 @@ export function invertPair<A, B>([a, b]: [A, B]): [B, A] {
 
 export function fill<T>(length: number, item: T) {
     return Array.from({ length }, () => item);
+}
+
+export function single<T>(arr: ArrayLike<T>): T {
+    if (arr.length !== 1) {
+        error("array has more than one element");
+    }
+
+    return arr[0];
 }
