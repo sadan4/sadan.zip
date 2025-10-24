@@ -1,12 +1,13 @@
 import { useControlledState } from "@/hooks/controlledState";
 import { useForceUpdater } from "@/hooks/forceUpdater";
 import cn from "@/utils/cn";
-import { parseCSSValue, rangeInputDefaultValue } from "@/utils/dom";
+import { parseCSSValue, PercentReference, rangeInputDefaultValue } from "@/utils/dom";
 import { assert } from "@/utils/error";
 import { clamp } from "@/utils/math";
 import useResizeObserver from "@react-hook/resize-observer";
 
 import styles from "./styles.module.scss";
+import { HorizontalLine } from "../Lines";
 import { VerticalLine } from "../Lines/VerticalLine";
 
 import { type ComponentProps, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
@@ -132,6 +133,7 @@ export function Slider(props: SliderProps) {
                     valueToPercent={valueToPercent}
                     clampToRange={clampToRange}
                     renderMarker={renderMarker}
+                    vertical={vertical}
                 />
             )}
             <input
@@ -171,6 +173,7 @@ export interface RenderMarkersProps {
     valueToPercent: (value: number) => number;
     clampToRange: (num: number) => number;
     renderMarker?(props: RenderMarkerProps): ReactNode;
+    vertical: boolean;
 }
 
 function DefaultRenderMarkers({
@@ -179,8 +182,10 @@ function DefaultRenderMarkers({
     clampToRange,
     valueToPercent,
     markers,
+    vertical,
 }: RenderMarkersProps) {
     const [containerWidth, setContainerWidth] = useState(0);
+    const [containerHeight, setContainerHeight] = useState(0);
     const [dep, updateSize] = useForceUpdater();
     const [thumbWidth, setThumbWidth] = useState(0);
 
@@ -189,15 +194,17 @@ function DefaultRenderMarkers({
     useEffect(() => {
         dep;
         if (containerRef) {
-            const { width } = containerRef.getBoundingClientRect();
+            const { width, height } = containerRef.getBoundingClientRect();
 
             const thumbWidth = parseCSSValue(
                 getComputedStyle(containerRef)
                     .getPropertyValue("--thumb-width"),
                 containerRef,
+                PercentReference.WIDTH,
             );
 
             setContainerWidth(width);
+            setContainerHeight(height);
             setThumbWidth(thumbWidth);
         } else {
             setContainerWidth(0);
@@ -217,8 +224,10 @@ function DefaultRenderMarkers({
                             marker={marker}
                             progress={progress}
                             containerWidth={containerWidth}
+                            containerHeight={containerHeight}
                             thumbWidth={thumbWidth}
                             containerRef={containerRef}
+                            vertical={vertical}
                         />
                     );
                 })}
@@ -231,11 +240,49 @@ export interface RenderMarkerProps {
     marker: number;
     progress: number;
     containerWidth: number;
+    containerHeight: number;
     thumbWidth: number;
     containerRef: HTMLDivElement | null;
+    vertical: boolean;
 }
 
-function DefaultRenderMarker({ marker, progress, thumbWidth, containerWidth }: RenderMarkerProps) {
+function DefaultRenderMarker({ vertical, ...props }: RenderMarkerProps) {
+    if (vertical) {
+        return (
+            <DefaultRenderVerticalMarker
+                vertical={vertical}
+                {...props}
+            />
+        );
+    }
+    return (
+        <DefaultRenderHorizontalMarker
+            vertical={vertical}
+            {...props}
+        />
+    );
+}
+
+function DefaultRenderVerticalMarker({ marker, progress, thumbWidth, containerHeight }: RenderMarkerProps) {
+    return (
+        <div
+            key={marker}
+            className="align-center absolute left-0 flex w-full flex-col"
+            style={{
+                top: `${(progress * containerHeight) + ((progress - 0.5) * -1 * thumbWidth)}px`,
+            }}
+        >
+            <div
+                className="absolute top-0 left-[-1lh] -translate-y-1/2 rotate-90"
+            >
+                {marker}
+            </div>
+            <HorizontalLine className="w-8/10" />
+        </div>
+    );
+}
+
+function DefaultRenderHorizontalMarker({ marker, progress, thumbWidth, containerWidth }: RenderMarkerProps) {
     return (
         <div
             key={marker}
