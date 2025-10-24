@@ -174,6 +174,9 @@ export default function BorderHoldCircular({ children, onHold }: BolderHoldCircu
             >
                 <path
                     ref={borderRef}
+                    style={{
+                        strokeWidth: (bgWidth + bgHeight) / 20,
+                    }}
                 />
             </animated.svg>
         </div>

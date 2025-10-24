@@ -1,7 +1,7 @@
 .rect-border {
     $b-l: var(--border-len);
 
-    --cur-len: calc(var(--border-len) * var(--border-hold-progress));
+    --cur-len: calc(var(--border-len) * (var(--border-hold-progress) / 100));
 
     position: absolute;
     top: 0;
@@ -11,9 +11,7 @@
 
     path {
         stroke-dasharray: var(--cur-len) calc($b-l - var(--cur-len));
-        stroke-dashoffset: calc($b-l / -8);
         stroke: var(--border-hold-color, var(--color-info-500));
-        stroke-width: 10px;
         stroke-linecap: round;
         fill: none;
     }
