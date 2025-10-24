@@ -1,16 +1,12 @@
 import { useSize } from "@/hooks/size";
-import cn from "@/utils/cn";
 import toCSS from "@/utils/toCSS";
 import { animated, useSpringValue } from "@react-spring/web";
 
-import styles from "./circular.module.scss";
+import styles from "./rectangular.module.scss";
 
 import { type PropsWithChildren, useCallback, useRef } from "react";
 
 export interface BolderHoldCircularProps extends PropsWithChildren {
-    // holdDuration?: number;
-    // holdFactor?: number;
-    // returnSpeed?: number;
     onHold?: () => void;
 }
 
@@ -85,7 +81,7 @@ export default function BorderHoldCircular({ children, onHold }: BolderHoldCircu
                 {children}
             </div>
             <animated.svg
-                className={styles.circularBorder}
+                className={styles.rectBorder}
                 viewBox="0 0 250 250"
                 style={{
                     width: toCSS.px(bgWidth),
@@ -94,9 +90,7 @@ export default function BorderHoldCircular({ children, onHold }: BolderHoldCircu
                     opacity,
                 }}
             >
-                <circle
-                    className={cn("h-full w-full rounded-full")}
-                />
+                <rect />
             </animated.svg>
         </div>
     );

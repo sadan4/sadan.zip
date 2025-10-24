@@ -1,0 +1,30 @@
+.rect-border {
+    $w: 250px;
+    $h: 250px;
+
+    // border-length
+    $b-l: 2 * $w + 2 * $h;
+
+    --border-hold-dash: calc(#{$b-l} * (var(--border-hold-progress) / 100));
+
+    position: absolute;
+    top: 0;
+    left: 0;
+    translate: calc(-10% / 3) calc(-10% / 3);
+    overflow: visible;
+    pointer-events: none;
+
+    rect {
+        transform-origin: calc($w / 2) calc($h / 2);
+        x: 0;
+        y: 0;
+        width: $w;
+        height: $w;
+        stroke-dasharray: var(--border-hold-dash) calc($b-l - var(--border-hold-dash));
+        stroke-dashoffset: calc(#{$w} / -2);
+        stroke: var(--border-hold-color, var(--color-info-500));
+        stroke-width: 10px;
+        stroke-linecap: round;
+        fill: none;
+    }
+}
