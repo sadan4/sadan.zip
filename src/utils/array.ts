@@ -116,3 +116,13 @@ export function single<T>(arr: ArrayLike<T>): T {
 
     return arr[0];
 }
+
+export function makeRange(start: number, end: number, step = 1): number[] {
+    const ret: number[] = [];
+
+    for (let i = start; i <= end; i += step) {
+        ret.push(i);
+    }
+
+    return ret;
+}
