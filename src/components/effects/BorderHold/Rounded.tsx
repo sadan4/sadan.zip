@@ -5,16 +5,16 @@ import { ellipseCircumference } from "@/utils/math";
 import useResizeObserver from "@react-hook/resize-observer";
 import { animated, useSpringValue } from "@react-spring/web";
 
+import type { BaseBorderHoldProps } from "./common";
 import styles from "./rounded.module.scss";
 
-import { type PropsWithChildren, type RefObject, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { type RefObject, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 
 export interface BorderHoldHandle {
     recalculateBorder(): void;
 }
 
-export interface BorderHoldCircularProps extends PropsWithChildren {
-    onHold?: () => void;
+export interface BorderHoldCircularProps extends BaseBorderHoldProps {
     ref?: RefObject<BorderHoldHandle | null>;
 }
 
@@ -95,7 +95,7 @@ function calculateBorderLength(element: Element): [length: number, path: string]
     }
 }
 
-export default function BorderHoldRounded({ children, onHold, ref }: BorderHoldCircularProps) {
+export function BorderHoldRounded({ children, onHold, ref }: BorderHoldCircularProps) {
     const wrapperRef = useRef<HTMLDivElement>(null);
     const borderRef = useRef<SVGPathElement>(null);
     const [borderLen, setBorderLen] = useState(-1);

@@ -1,13 +1,13 @@
 import { Text } from "@/components/Text";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
-import Rectangular from "./Rectangular";
+import { BorderHoldRectangular } from "./Rectangular";
 
 import { useState } from "react";
 
 const meta = {
-    component: Rectangular,
-} satisfies Meta<typeof Rectangular>;
+    component: BorderHoldRectangular,
+} satisfies Meta<typeof BorderHoldRectangular>;
 
 export default meta;
 
@@ -19,7 +19,7 @@ export const Default: Story = {
 
         return (
             <div className="m-16">
-                <Rectangular onHold={() => {
+                <BorderHoldRectangular onHold={() => {
                     setText("Held!");
                     setTimeout(() => setText("Hold Me"), 5000);
                 }}
@@ -29,7 +29,7 @@ export const Default: Story = {
                             {text}
                         </Text>
                     </div>
-                </Rectangular>
+                </BorderHoldRectangular>
             </div>
         );
     },

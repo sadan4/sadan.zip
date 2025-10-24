@@ -1,13 +1,13 @@
 import { Text } from "@/components/Text";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
-import Circular from "./Circular";
+import { BorderHoldCircular } from "./Circular";
 
 import { useState } from "react";
 
 const meta = {
-    component: Circular,
-} satisfies Meta<typeof Circular>;
+    component: BorderHoldCircular,
+} satisfies Meta<typeof BorderHoldCircular>;
 
 export default meta;
 
@@ -19,7 +19,7 @@ export const Default: Story = {
 
         return (
             <div className="m-16">
-                <Circular onHold={() => {
+                <BorderHoldCircular onHold={() => {
                     setText("Held!");
                     setTimeout(() => setText("Hold Me"), 5000);
                 }}
@@ -29,7 +29,7 @@ export const Default: Story = {
                             {text}
                         </Text>
                     </div>
-                </Circular>
+                </BorderHoldCircular>
             </div>
         );
     },

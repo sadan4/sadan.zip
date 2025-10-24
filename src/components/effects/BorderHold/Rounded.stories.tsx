@@ -3,7 +3,7 @@ import { Text } from "@/components/Text";
 import { makeRange } from "@/utils/array";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
-import BorderHoldRounded, { type BorderHoldHandle } from "./Rounded";
+import { type BorderHoldHandle, BorderHoldRounded } from "./Rounded";
 
 import { useRef, useState } from "react";
 

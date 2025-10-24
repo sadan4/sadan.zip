@@ -2,15 +2,15 @@ import { useSize } from "@/hooks/size";
 import toCSS from "@/utils/toCSS";
 import { animated, useSpringValue } from "@react-spring/web";
 
+import type { BaseBorderHoldProps } from "./common";
 import styles from "./rectangular.module.scss";
 
-import { type PropsWithChildren, useCallback, useRef } from "react";
+import { useCallback, useRef } from "react";
 
-export interface BolderHoldCircularProps extends PropsWithChildren {
-    onHold?: () => void;
+export interface BorderHoldRectangularProps extends BaseBorderHoldProps {
 }
 
-export default function BorderHoldCircular({ children, onHold }: BolderHoldCircularProps) {
+export function BorderHoldRectangular({ children, onHold }: BorderHoldRectangularProps) {
     const wrapperRef = useRef<HTMLDivElement>(null);
 
     const { width, height } = useSize(() => wrapperRef.current) ?? {
@@ -86,7 +86,7 @@ export default function BorderHoldCircular({ children, onHold }: BolderHoldCircu
                 style={{
                     width: toCSS.px(bgWidth),
                     height: toCSS.px(bgHeight),
-                    ["--border-hold-progress" as any]: progress,
+                    "--border-hold-progress": progress,
                     opacity,
                 }}
             >

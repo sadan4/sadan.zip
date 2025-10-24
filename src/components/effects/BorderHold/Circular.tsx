@@ -4,17 +4,14 @@ import toCSS from "@/utils/toCSS";
 import { animated, useSpringValue } from "@react-spring/web";
 
 import styles from "./circular.module.scss";
+import type { BaseBorderHoldProps } from "./common";
 
-import { type PropsWithChildren, useCallback, useRef } from "react";
+import { useCallback, useRef } from "react";
 
-export interface BolderHoldCircularProps extends PropsWithChildren {
-    // holdDuration?: number;
-    // holdFactor?: number;
-    // returnSpeed?: number;
-    onHold?: () => void;
+export interface BorderHoldCircularProps extends BaseBorderHoldProps {
 }
 
-export default function BorderHoldCircular({ children, onHold }: BolderHoldCircularProps) {
+export function BorderHoldCircular({ children, onHold }: BorderHoldCircularProps) {
     const wrapperRef = useRef<HTMLDivElement>(null);
 
     const { width, height } = useSize(() => wrapperRef.current) ?? {
@@ -90,7 +87,7 @@ export default function BorderHoldCircular({ children, onHold }: BolderHoldCircu
                 style={{
                     width: toCSS.px(bgWidth),
                     height: toCSS.px(bgHeight),
-                    ["--border-hold-progress" as any]: progress,
+                    "--border-hold-progress": progress,
                     opacity,
                 }}
             >
