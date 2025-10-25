@@ -3,7 +3,7 @@ import cn from "@/utils/cn";
 import { friends } from "@/utils/friends";
 import { once } from "@/utils/functional";
 import { Clickable } from "@components/Clickable";
-import { BorderHoldCircular } from "@effects/BorderHold";
+import { BorderHoldRounded } from "@effects/BorderHold";
 import PerspectiveHover from "@effects/PerspectiveHover";
 import Shadow from "@effects/Shadow";
 
@@ -34,7 +34,7 @@ export default function Avatar({ round = false, ...props }: AvatarProps) {
         <Clickable>
             <PerspectiveHover hoverFactor={4}>
                 <Shadow>
-                    <BorderHoldCircular onHold={() => {
+                    <BorderHoldRounded onHold={() => {
                         modal.current?.open();
                     }}
                     >
@@ -47,7 +47,7 @@ export default function Avatar({ round = false, ...props }: AvatarProps) {
                             className={cn("max-h-max max-w-sm select-none", round && "rounded-full", props.className)}
                             draggable={false}
                         />
-                    </BorderHoldCircular>
+                    </BorderHoldRounded>
                 </Shadow>
             </PerspectiveHover>
             <Modal ref={modal}>
