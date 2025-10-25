@@ -17,13 +17,16 @@ import useResizeObserver from "@react-hook/resize-observer";
 
 import { FriendModalContext } from "./context";
 import FriendCard from "./FriendCard";
-import { defaultPosition } from "./friendModalCenterStore";
 
 import { ArrowLeftIcon, ArrowRightIcon, XIcon } from "lucide-react";
 import { use, useCallback, useEffect, useMemo, useState } from "react";
 import { preload } from "react-dom";
 
-export interface FriendModalProps {
+function defaultPosition() {
+    return {
+        x: window.innerWidth / 2,
+        y: window.innerHeight / 2,
+    };
 }
 
 function FriendModalCloseIcon() {
