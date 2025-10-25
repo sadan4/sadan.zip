@@ -1,60 +1,86 @@
-import { type Keybind, KeybindKeys } from "@/hooks/keybind";
-import type { Thenable } from "@/utils/types";
+import { useComposedRefs } from "@/hooks/composedRefs";
+import cn from "@/utils/cn";
+import { namedContext } from "@/utils/devtools";
 
-import { SYM_INTERNAL_KEY, useModalStackStore } from "./internal/modalStackStore";
-import type { ModalKey } from "../modals/ModalKey";
-export {
-    ModalKey,
-} from "../modals/ModalKey";
+import styles from "./styles.module.scss";
+import { Layer } from "../Layer";
 
-import type { JSX } from "react";
+import { type ComponentPropsWithoutRef, type Ref, Suspense, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 
-
-export interface Modal {
-    [SYM_INTERNAL_KEY]: symbol;
-    key?: ModalKey;
-    Render(this: IModalContext): JSX.Element;
-    /**
-     * called when the modal is rendered
-     */
-    onModalOpen?(this: IModalContext): void;
-    /**
-     * called when the modal is closed
-     */
-    onModalClose?(this: IModalContext): void;
-    /**
-     * called when the modal is requested to close by clicking outside of it
-     *
-     * return true to stay open
-     */
-    onRequestClose?(this: IModalContext): Thenable<boolean | void>;
-}
-
-export interface IModalContext extends Modal {
+export interface ModalContext {
+    open(): void;
     close(): void;
+    query(): boolean;
+    requestClose(): void;
 }
 
-export function openModal(modal: Omit<Modal, typeof SYM_INTERNAL_KEY>): void;
-export function openModal(_modal: any): void {
-    const modal: Modal = { ..._modal };
+export const ModalContext = namedContext<ModalContext | null>(null!, "ModalContext");
 
-    modal[SYM_INTERNAL_KEY] = Symbol(`modal.internal.instance.key${modal.key ? `?${modal.key}` : ""}`);
-
-    Object.freeze(modal);
-
-    useModalStackStore
-        .getState()
-        .pushModal(modal);
+export interface ModalProps extends ComponentPropsWithoutRef<"dialog"> {
+    innerRef?: Ref<HTMLDialogElement>;
+    ref: Ref<ModalContext>;
+    open?: boolean;
 }
 
-export const exitModalKeybinds: Keybind[] = [
-    {
-        key: KeybindKeys.ESCAPE,
-        handle() {
-            useModalStackStore.getState()
-                .popAllModals();
+export function Modal({ children, ref: _ref, className, innerRef, open: _open, ...props }: ModalProps) {
+    const [open, setOpen] = useState<boolean>(false);
+    const ref = useRef<HTMLDialogElement>(null);
+    const dialogRef = useComposedRefs(ref, innerRef);
+
+    const api = useMemo<ModalContext>(() => ({
+        open() {
+            setOpen(true);
+            ref.current?.showModal();
         },
-        timing: "down",
-    },
-];
+        close() {
+            setOpen(false);
+            ref.current?.close();
+        },
+        requestClose() {
+            if (ref.current?.dispatchEvent(new Event("cancel", { cancelable: true }))) {
+                ref.current.close();
+            }
+        },
+        query() {
+            return open;
+        },
+    }), [open]);
 
+    useImperativeHandle(_ref, () => api, [api]);
+
+    useEffect(() => {
+        if (typeof _open === "boolean") {
+            if (_open) {
+                api.open();
+            } else {
+                api.close();
+            }
+        }
+    }, [_open, api]);
+
+    return (
+        <ModalContext value={api}>
+            <Suspense>
+                <dialog
+                    ref={dialogRef}
+                    className={cn(styles.modal, className)}
+                    {...props}
+                >
+                    <div
+                        className={styles.centerWrapper}
+                        onClick={() => api.requestClose()}
+                    >
+                        <div
+                            className={styles.content}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <Layer>
+                                {open && children}
+                            </Layer>
+                        </div>
+                    </div>
+                </dialog>
+            </Suspense>
+        </ModalContext>
+    );
+}

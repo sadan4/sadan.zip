@@ -8,7 +8,7 @@ import PerspectiveHover from "@effects/PerspectiveHover";
 import Shadow from "@effects/Shadow";
 
 import { FriendModalContext } from "./modals/Friend/context";
-import { Modal, ModalContext } from "./modalv2";
+import { Modal, type ModalContext } from "./modal";
 
 import { type ComponentProps, lazy, useRef } from "react";
 

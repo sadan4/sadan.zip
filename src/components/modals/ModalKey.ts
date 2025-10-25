@@ -1,6 +1,0 @@
-export const enum ModalKey {
-    FRIENDS = "FRIENDS_MODAL",
-    TESTING = "TESTING_MODAL",
-    TESTING2 = "TESTING2_MODAL",
-    TESTING3 = "TESTING3_MODAL",
-}

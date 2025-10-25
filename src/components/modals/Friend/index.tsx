@@ -3,7 +3,7 @@ import HoverScale from "@/components/effects/HoverScale";
 import PerspectiveHover from "@/components/effects/PerspectiveHover";
 import Shadow from "@/components/effects/Shadow";
 import Circle, { DefaultPlacementCircleItem } from "@/components/layout/Circle";
-import { ModalContext } from "@/components/modalv2";
+import { ModalContext } from "@/components/modal";
 import { Popout } from "@/components/Popout";
 import { PopoutDirection } from "@/components/Popout/constants";
 import { Tooltip } from "@/components/Tooltip";
