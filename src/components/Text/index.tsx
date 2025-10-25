@@ -1,10 +1,8 @@
 import cn, { type SizeProp, textSize, textWeight, type WeightProp } from "@/utils/cn";
-import type { ElementFromTag } from "@/utils/types";
 
 import styles from "./styles.module.scss";
-import { useCursorContextStore } from "../Cursor/cursorContextStore";
 
-import { type ComponentProps, type MouseEvent, type PropsWithChildren, useCallback, useEffect, useRef } from "react";
+import { type ComponentProps, type PropsWithChildren } from "react";
 
 const textColors = {
     black: styles.black,
@@ -65,8 +63,6 @@ export function Text<T extends TextTags = "div">(props: TextProps<T>) {
         weight = "normal",
         color = "white",
         children,
-        onMouseOver: onMouseOverProp,
-        onMouseOut: onMouseOutProp,
         noselect = false,
         nowrap = false,
         center = false,
@@ -74,41 +70,6 @@ export function Text<T extends TextTags = "div">(props: TextProps<T>) {
     } = props;
 
     const Tag = tag as any;
-
-    type TElement = ElementFromTag<typeof tag>;
-
-    const shouldNullOnUnmount = useRef(false);
-
-    const onMouseOver = useCallback((e: MouseEvent<TElement>) => {
-        if (noselect) {
-            return;
-        }
-        onMouseOverProp?.(e as any);
-        shouldNullOnUnmount.current = true;
-        useCursorContextStore
-            .getState()
-            .updateTextElement(e.nativeEvent.target as TElement);
-    }, [noselect, onMouseOverProp]);
-
-    const onMouseOut = useCallback((e: MouseEvent<TElement>) => {
-        if (noselect) {
-            return;
-        }
-        onMouseOutProp?.(e as any);
-        shouldNullOnUnmount.current = false;
-        useCursorContextStore
-            .getState()
-            .updateTextElement(null);
-    }, [noselect, onMouseOutProp]);
-
-    useEffect(() => {
-        return () => {
-            if (shouldNullOnUnmount.current) {
-                useCursorContextStore.getState()
-                    .updateTextElement(null);
-            }
-        };
-    }, []);
 
     const el = (
         <Tag
@@ -123,8 +84,6 @@ export function Text<T extends TextTags = "div">(props: TextProps<T>) {
                     className,
                 )
             }
-            onMouseOver={onMouseOver}
-            onMouseOut={onMouseOut}
             {...rest}
         >{children}
         </Tag>

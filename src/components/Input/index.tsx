@@ -1,8 +1,8 @@
+import { useComposedRefs } from "@/hooks/composedRefs";
 import { border } from "@/styles";
 import cn, { textColors, textSize, textWeight } from "@/utils/cn";
 import { error } from "@/utils/error";
 import { updateRef } from "@/utils/ref";
-import { useCursorContextStore } from "@components/Cursor/cursorContextStore";
 import { AnimateHeight } from "@effects/AnimateHeight";
 import { useDebouncedFn } from "@hooks/debouncedFn";
 
@@ -35,8 +35,6 @@ export interface InputProps extends ComponentProps<"input"> {
 export function Input({
     className,
     textSize,
-    onMouseOver,
-    onMouseOut,
     ref: _ref,
     initialValue,
     value,
@@ -46,18 +44,11 @@ export function Input({
     focusAfterClear = false,
     ...props
 }: InputProps) {
-    const shouldNullOnDemount = useRef(false);
     const ref = useRef<HTMLInputElement>(null);
+    const refs = useComposedRefs(ref, _ref);
     const isManaged = value !== undefined;
     const [hasValue, setHasValue] = useState(Boolean(initialValue ?? value));
 
-    useEffect(() => {
-        if (shouldNullOnDemount.current) {
-            useCursorContextStore
-                .getState()
-                .updateTextElement(null);
-        }
-    }, []);
     useEffect(() => {
         if (!isManaged && ref.current && initialValue) {
             ref.current.value = initialValue;
@@ -69,42 +60,13 @@ export function Input({
                 type="text"
                 name="Text Input"
                 className={cn(styles.input, inputSizes[textSize ?? "md"], border.interactive, border.autofocus, border.animate, className)}
-                onMouseOver={(e) => {
-                    if (onMouseOver) {
-                        try {
-                            onMouseOver(e);
-                        } catch (e) {
-                            console.error("Error occurred in onMouseOver:", e);
-                        }
-                    }
-                    shouldNullOnDemount.current = true;
-                    useCursorContextStore
-                        .getState()
-                        .updateTextElement(e.nativeEvent.target as Element);
-                }}
-                onMouseOut={(e) => {
-                    if (onMouseOut) {
-                        try {
-                            onMouseOut(e);
-                        } catch (e) {
-                            console.error("Error occurred in onMouseOut:", e);
-                        }
-                    }
-                    shouldNullOnDemount.current = false;
-                    useCursorContextStore
-                        .getState()
-                        .updateTextElement(null);
-                }}
                 onChange={(e) => {
                     onChange?.(e);
                     setHasValue(Boolean(e.target.value));
                 }}
                 value={value}
                 {...props}
-                ref={(e) => {
-                    updateRef(ref, e);
-                    updateRef(_ref, e);
-                }}
+                ref={refs}
             />
             {
                 clearButton && hasValue && (

@@ -19,7 +19,7 @@ export default function DiscordIntlLookup() {
 
     return (
         <>
-            <Boilerplate noCursor />
+            <Boilerplate />
             <FooterContainer footer={() => <DefaultFooter />}>
                 <div className="mt-6 flex justify-center">
                     <Box className="w-1/2">

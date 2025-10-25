@@ -31,7 +31,7 @@ export function BorderHoldCircular({ children, onHold }: BorderHoldCircularProps
             progress: 0,
             opacity: 0,
         },
-        async to(next, cancel) {
+        async to(next) {
             if (held) {
                 await next({
                     progress: 100,

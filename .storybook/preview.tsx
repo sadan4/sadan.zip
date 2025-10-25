@@ -1,5 +1,4 @@
 import { Boilerplate } from "@/components/Boilerplate";
-import { CustomCursorContext } from "@/components/Cursor/context";
 import type { Preview } from "@storybook/react-vite";
 
 import cssUrl from "../src/index.css?url";
@@ -48,32 +47,11 @@ const preview: Preview = {
         },
     },
     tags: ["autodocs"],
-    globalTypes: {
-        customCursor: {
-            description: "Enable the custom cursor",
-            toolbar: {
-                icon: "pointerdefault",
-                title: "Custom Cursor",
-                items: [
-                    {
-                        value: false,
-                        right: "❌",
-                        title: "Disabled",
-                    },
-                    {
-                        value: true,
-                        right: "✔️",
-                        title: "Enabled",
-                    },
-                ],
-            },
-        },
-    },
     initialGlobals: {
         customCursor: false,
     },
     decorators: [
-        (storyFn, context) => {
+        (storyFn) => {
             const mockLoaderData = useCallback(
                 () => {
                     return {
@@ -106,10 +84,8 @@ const preview: Preview = {
                     <LayerContext
                         value={ctx}
                     >
-                        <CustomCursorContext value={!context.globals.customCursor}>
-                            {createPortal(<Boilerplate />, document.body)}
-                            {storyFn()}
-                        </CustomCursorContext>
+                        {createPortal(<Boilerplate />, document.body)}
+                        {storyFn()}
                     </LayerContext>
                 </UseLoaderDataContext>
             );
