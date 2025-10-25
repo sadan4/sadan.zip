@@ -1,19 +1,19 @@
-import { useSize } from "@/hooks/size";
+import { useRect } from "@/hooks/rect";
 import cn from "@/utils/cn";
 import toCSS from "@/utils/toCSS";
 
 import styles from "./style.module.scss";
 
-import { type CSSProperties, type PropsWithChildren, useLayoutEffect, useRef, useState } from "react";
+import { type CSSProperties, type PropsWithChildren, useLayoutEffect, useState } from "react";
 
 export interface ShadowProps extends PropsWithChildren {
     noHover?: boolean;
 }
 
 export default function Shadow({ children, noHover = false }: ShadowProps) {
-    const ref = useRef<HTMLDivElement>(null);
+    const [el, setEl] = useState<HTMLDivElement | null>(null);
 
-    const { width, height } = useSize(() => ref.current) ?? {
+    const { width, height } = useRect(el) ?? {
         width: 0,
         height: 0,
     };
@@ -33,7 +33,7 @@ export default function Shadow({ children, noHover = false }: ShadowProps) {
 
     return (
         <div
-            ref={ref}
+            ref={setEl}
             style={cssProps}
             className={cn(noHover ? styles.dropShadowNoHover : styles.dropShadow)}
         >

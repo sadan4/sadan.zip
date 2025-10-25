@@ -1,11 +1,11 @@
-import { useSize } from "@/hooks/size";
+import { useRect } from "@/hooks/rect";
 import { single } from "@/utils/array";
 import { parseCSSValue, PercentReference } from "@/utils/dom";
 import { ellipseCircumference } from "@/utils/math";
 import useResizeObserver from "@react-hook/resize-observer";
-import { animated, useSpringValue } from "@react-spring/web";
+import { animated } from "@react-spring/web";
 
-import type { BaseBorderHoldProps } from "./common";
+import { type BaseBorderHoldProps, useBorderHoldAnim } from "./common";
 import styles from "./rounded.module.scss";
 
 import { type RefObject, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
@@ -96,18 +96,19 @@ function calculateBorderLength(element: Element): [length: number, path: string]
 }
 
 export function BorderHoldRounded({ children, onHold, ref }: BorderHoldCircularProps) {
-    const wrapperRef = useRef<HTMLDivElement>(null);
+    const [wrapper, setWrapper] = useState<HTMLDivElement | null>(null);
+    const [held, setHeld] = useState(false);
     const borderRef = useRef<SVGPathElement>(null);
     const [borderLen, setBorderLen] = useState(-1);
 
-    const { width, height } = useSize(() => wrapperRef.current) ?? {
+    const { width, height } = useRect(wrapper) ?? {
         width: 0,
         height: 0,
     };
 
     const updateBorderLength = useCallback(() => {
-        if (wrapperRef.current) {
-            const child = single(wrapperRef.current.children);
+        if (wrapper) {
+            const child = single(wrapper.children);
             const [length, path] = calculateBorderLength(child);
 
             setBorderLen(length);
@@ -115,56 +116,20 @@ export function BorderHoldRounded({ children, onHold, ref }: BorderHoldCircularP
                 borderRef.current.setAttribute("d", path);
             }
         }
-    }, []);
+    }, [wrapper]);
 
     useImperativeHandle(ref, () => ({
         recalculateBorder: updateBorderLength,
     }), [updateBorderLength]);
 
-    useResizeObserver(wrapperRef, updateBorderLength);
+    useResizeObserver(wrapper, updateBorderLength);
 
     useEffect(updateBorderLength, [updateBorderLength]);
 
-    const opacity = useSpringValue(0);
-    const dispatched = useRef(false);
-
-    const progress = useSpringValue(0, {
-        config: {
-            mass: 5,
-            friction: 110,
-        },
-        onChange(_foo) {
-            // https://github.com/pmndrs/react-spring/issues/2183
-            const foo: number = typeof _foo === "number"
-                ? _foo
-                : _foo.value;
-
-            if (foo > 98 && progress.goal === 100 && !dispatched.current) {
-                dispatched.current = true;
-                onHold?.();
-            } else if (foo < 2 && progress.goal === 0) {
-                opacity.start(0);
-                dispatched.current = false;
-            }
-        },
+    const { progress, opacity } = useBorderHoldAnim({
+        held,
+        onHold,
     });
-
-    const startAnimation = useCallback(() => {
-        progress.start(100, {
-            config: {
-                friction: 110,
-            },
-        });
-        opacity.start(1);
-    }, [opacity, progress]);
-
-    const stopAnimation = useCallback(() => {
-        progress.start(0, {
-            config: {
-                friction: 55,
-            },
-        });
-    }, [progress]);
 
     return (
         <svg
@@ -173,15 +138,15 @@ export function BorderHoldRounded({ children, onHold, ref }: BorderHoldCircularP
                 width,
                 height,
             }}
-            onPointerDown={startAnimation}
+            onPointerDown={() => setHeld(true)}
             onContextMenu={(e) => {
                 // it's a pointer event, react is stupid https://developer.mozilla.org/en-US/docs/Web/API/Element/contextmenu_event#browser_compatibility
                 if ((e.nativeEvent as PointerEvent).pointerType !== "mouse") {
                     e.preventDefault();
                 }
             }}
-            onPointerUp={stopAnimation}
-            onPointerLeave={stopAnimation}
+            onPointerUp={() => setHeld(false)}
+            onPointerLeave={() => setHeld(false)}
         >
             <animated.path
                 ref={borderRef}
@@ -204,7 +169,7 @@ export function BorderHoldRounded({ children, onHold, ref }: BorderHoldCircularP
             >
                 <div
                     className="contents"
-                    ref={wrapperRef}
+                    ref={setWrapper}
                 >
                     {children}
                 </div>

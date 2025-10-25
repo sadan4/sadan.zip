@@ -1,4 +1,5 @@
-import deepEqual from "fast-deep-equal";
+import { deepEqual } from "@/utils/obj";
+
 import { useRef } from "react";
 
 export function useDeepMemo<T>(value: T): T {

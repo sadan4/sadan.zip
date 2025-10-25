@@ -1,84 +1,33 @@
-import { useSize } from "@/hooks/size";
+import { useRect } from "@/hooks/rect";
 import cn from "@/utils/cn";
-import { unreachable } from "@/utils/error";
 import toCSS from "@/utils/toCSS";
-import { animated, type SpringConfig, useSpring } from "@react-spring/web";
+import { animated } from "@react-spring/web";
 
 import styles from "./circular.module.scss";
-import type { BaseBorderHoldProps } from "./common";
+import { type BaseBorderHoldProps, useBorderHoldAnim } from "./common";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 
 export interface BorderHoldCircularProps extends BaseBorderHoldProps {
 }
 
 export function BorderHoldCircular({ children, onHold }: BorderHoldCircularProps) {
-    const wrapperRef = useRef<HTMLDivElement>(null);
+    const [wrapper, setWrapper] = useState<HTMLDivElement | null>(null);
     const [held, setHeld] = useState(false);
 
-    const { width, height } = useSize(() => wrapperRef.current) ?? {
+    const { width, height } = useRect(wrapper) ?? {
         width: 0,
         height: 0,
     };
 
     const bgWidth = width * (1 + (1 / 15));
     const bgHeight = height * (1 + (1 / 15));
-    // const opacity = useSpringValue(0);
-    const dispatched = useRef(false);
 
-    const { progress, opacity } = useSpring({
-        from: {
-            progress: 0,
-            opacity: 0,
-        },
-        async to(next) {
-            if (held) {
-                await next({
-                    progress: 100,
-                    opacity: 1,
-                    onChange(progress) {
-                        if (!progress.cancelled && !dispatched.current && (progress.value.progress as number) >= 98) {
-                            dispatched.current = true;
-                            onHold?.();
-                        }
-                    },
-                });
-            } else {
-                await next({
-                    progress: 0,
-                    onChange(progress) {
-                        if (!progress.cancelled && (progress.value.progress as number) <= 5) {
-                            // react spring doesn't like this, but it works
-                            next({
-                                opacity: 0,
-                            }).catch(() => {});
-                            dispatched.current = false;
-                        }
-                    },
-                });
-            }
-        },
-        config(k): SpringConfig {
-            switch (k as "opacity" | "progress") {
-                case "opacity":
-                    return {};
-                case "progress":
-                    if (held) {
-                        return {
-                            mass: 5,
-                            friction: 110,
-                        };
-                    }
-                    return {
-                        mass: 5,
-                        friction: 50,
-                    };
-
-                default:
-                    unreachable();
-            }
-        },
+    const { progress, opacity } = useBorderHoldAnim({
+        held,
+        onHold,
     });
+
 
     return (
         <div
@@ -101,7 +50,7 @@ export function BorderHoldCircular({ children, onHold }: BorderHoldCircularProps
         >
             <div
                 className="contents"
-                ref={wrapperRef}
+                ref={setWrapper}
             >
                 {children}
             </div>

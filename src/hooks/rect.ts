@@ -2,22 +2,19 @@ import { measureRect } from "@/utils/dom";
 import useResizeObserver from "@react-hook/resize-observer";
 
 import { useEventHandler } from "./eventListener";
-import { useForceUpdater } from "./forceUpdater";
-import { useRecent } from "./recent";
 
 import { useLayoutEffect, useState } from "react";
 
-export function useSize<T extends Element>(target: () => (T | null)): DOMRect | undefined {
+export function useRect(el: Element | null): DOMRect | undefined {
     const [size, setSize] = useState<any>();
-    const [, forceUpdate] = useForceUpdater();
-    const targetRef = useRecent(target);
-    const t = target();
 
     useLayoutEffect(() => {
-        targetRef.current() && setSize(measureRect(targetRef.current()!));
-    }, [targetRef, t]);
+        if (el) {
+            setSize(measureRect(el));
+        }
+    }, [el]);
 
-    useResizeObserver(t, (entry) => {
+    useResizeObserver(el, (entry) => {
         setSize(measureRect(entry.target));
     });
 
@@ -25,13 +22,15 @@ export function useSize<T extends Element>(target: () => (T | null)): DOMRect | 
     useEventHandler("resize", () => {
         // dom rects are mutable, so we can't compare them to see if they changed
         // window will not be resized *that* often
-        setSize(targetRef.current() && measureRect(targetRef.current()!));
-        forceUpdate();
+        if (el) {
+            setSize(measureRect(el));
+        }
     });
 
     useEventHandler("scroll", () => {
-        setSize(targetRef.current() && measureRect(targetRef.current()!));
-        forceUpdate();
+        if (el) {
+            setSize(measureRect(el));
+        }
     });
 
     return size;
