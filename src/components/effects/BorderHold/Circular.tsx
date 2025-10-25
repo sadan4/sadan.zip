@@ -1,18 +1,20 @@
 import { useSize } from "@/hooks/size";
 import cn from "@/utils/cn";
+import { unreachable } from "@/utils/error";
 import toCSS from "@/utils/toCSS";
-import { animated, useSpringValue } from "@react-spring/web";
+import { animated, type SpringConfig, useSpring } from "@react-spring/web";
 
 import styles from "./circular.module.scss";
 import type { BaseBorderHoldProps } from "./common";
 
-import { useCallback, useRef } from "react";
+import { useRef, useState } from "react";
 
 export interface BorderHoldCircularProps extends BaseBorderHoldProps {
 }
 
 export function BorderHoldCircular({ children, onHold }: BorderHoldCircularProps) {
     const wrapperRef = useRef<HTMLDivElement>(null);
+    const [held, setHeld] = useState(false);
 
     const { width, height } = useSize(() => wrapperRef.current) ?? {
         width: 0,
@@ -21,59 +23,81 @@ export function BorderHoldCircular({ children, onHold }: BorderHoldCircularProps
 
     const bgWidth = width * (1 + (1 / 15));
     const bgHeight = height * (1 + (1 / 15));
-    const opacity = useSpringValue(0);
+    // const opacity = useSpringValue(0);
     const dispatched = useRef(false);
 
-    const progress = useSpringValue(0, {
-        config: {
-            mass: 5,
-            friction: 110,
+    const { progress, opacity } = useSpring({
+        from: {
+            progress: 0,
+            opacity: 0,
         },
-        onChange(_foo) {
-            // https://github.com/pmndrs/react-spring/issues/2183
-            const foo: number = typeof _foo === "number"
-                ? _foo
-                : _foo.value;
+        async to(next, cancel) {
+            if (held) {
+                await next({
+                    progress: 100,
+                    opacity: 1,
+                    onChange(progress) {
+                        if (!progress.cancelled && !dispatched.current && (progress.value.progress as number) >= 98) {
+                            dispatched.current = true;
+                            onHold?.();
+                        }
+                    },
+                });
+            } else {
+                await next({
+                    progress: 0,
+                    onChange(progress) {
+                        if (!progress.cancelled && (progress.value.progress as number) <= 5) {
+                            // react spring doesn't like this, but it works
+                            next({
+                                opacity: 0,
+                            }).catch(() => {});
+                            dispatched.current = false;
+                        }
+                    },
+                });
+            }
+        },
+        config(k): SpringConfig {
+            switch (k as "opacity" | "progress") {
+                case "opacity":
+                    return {};
+                case "progress":
+                    if (held) {
+                        return {
+                            mass: 5,
+                            friction: 110,
+                        };
+                    }
+                    return {
+                        mass: 5,
+                        friction: 50,
+                    };
 
-            if (foo > 98 && progress.goal === 100 && !dispatched.current) {
-                dispatched.current = true;
-                onHold?.();
-            } else if (foo < 2 && progress.goal === 0) {
-                opacity.start(0);
-                dispatched.current = false;
+                default:
+                    unreachable();
             }
         },
     });
 
-    const startAnimation = useCallback(() => {
-        progress.start(100, {
-            config: {
-                friction: 110,
-            },
-        });
-        opacity.start(1);
-    }, [opacity, progress]);
-
-    const stopAnimation = useCallback(() => {
-        progress.start(0, {
-            config: {
-                friction: 55,
-            },
-        });
-    }, [progress]);
-
     return (
         <div
             className="relative"
-            onPointerDown={startAnimation}
+            onPointerDown={() => {
+                setHeld(true);
+            }}
             onContextMenu={(e) => {
                 // it's a pointer event, react is stupid https://developer.mozilla.org/en-US/docs/Web/API/Element/contextmenu_event#browser_compatibility
                 if ((e.nativeEvent as PointerEvent).pointerType !== "mouse") {
                     e.preventDefault();
                 }
             }}
-            onPointerUp={stopAnimation}
-            onPointerLeave={stopAnimation}
+            onPointerUp={() => {
+                setHeld(false);
+            }}
+            onPointerLeave={() => {
+                setHeld(false);
+            }}
         >
             <div
                 className="contents"

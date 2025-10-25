@@ -5,7 +5,7 @@ import { once } from "@/utils/functional";
 import { Clickable } from "@components/Clickable";
 import { openModal } from "@components/modal";
 import { useFriendModalCenterStore } from "@components/modals/Friend/friendModalCenterStore";
-import { BorderHoldCircular } from "@effects/BorderHold/Circular";
+import { BorderHoldCircular } from "@effects/BorderHold";
 import PerspectiveHover from "@effects/PerspectiveHover";
 import Shadow from "@effects/Shadow";
 import { useSize } from "@hooks/size";
