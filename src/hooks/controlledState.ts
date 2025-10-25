@@ -21,7 +21,6 @@ export function useControlledState<T>({ managedValue, initialValue, handleChange
     // OK to disable conditionally calling hooks here because they will always run
     // consistently in the same environment. Bundlers should be able to remove the
     // code block entirely in production.
-    // eslint-disable-next-line react-hooks/react-compiler
     /* eslint-disable react-hooks/rules-of-hooks */
     if (process.env.NODE_ENV !== "production") {
         const isControlledRef = useRef(managedValue !== undefined);
