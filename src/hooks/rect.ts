@@ -15,7 +15,9 @@ export function useRect(el: Element | null): DOMRect | undefined {
     }, [el]);
 
     useResizeObserver(el, (entry) => {
-        setSize(measureRect(entry.target));
+        if (el) {
+            setSize(measureRect(el));
+        }
     });
 
     // window resizing could also change position but not size
