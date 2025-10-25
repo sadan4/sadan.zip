@@ -1,0 +1,19 @@
+diff --git a/lib/lib.dom.d.ts b/lib/lib.dom.d.ts
+index edf900a5de22fd63305f87e32d5974716eda7ddd..7a9b11134433c7e474447526c3298fb48e01f509 100644
+--- a/lib/lib.dom.d.ts
++++ b/lib/lib.dom.d.ts
+@@ -23140,10 +23140,10 @@ interface Text extends CharacterData, Slottable {
+     splitText(offset: number): Text;
+ }
+ 
+-declare var Text: {
+-    prototype: Text;
+-    new(data?: string): Text;
+-};
++// declare var Text: {
++//     prototype: Text;
++//     new(data?: string): Text;
++// };
+ 
+ /**
+  * A decoder for a specific method, that is a specific character encoding, like utf-8, iso-8859-2, koi8, cp1261, gbk, etc. A decoder takes a stream of bytes as input and emits a stream of code points. For a more scalable, non-native library, see StringView – a C-like representation of strings based on typed arrays.

@@ -1,6 +1,4 @@
 import { namedContext } from "@/utils/devtools";
-import { assert } from "@/utils/error";
-import { proxyLazy } from "@/utils/lazy";
 
 export interface LayerContext {
     /**
@@ -14,13 +12,7 @@ export interface LayerContext {
 }
 
 
-export const LayerContext = namedContext<LayerContext>(proxyLazy((): LayerContext => {
-    const root = document.getElementById("root");
-
-    assert(root instanceof HTMLDivElement, "Root element must be a div");
-
-    return {
-        level: 0,
-        root,
-    };
-}), "LayerContext");
+export const LayerContext = namedContext<LayerContext>({
+    level: 0,
+    root: null,
+}, "LayerContext");

@@ -3,7 +3,7 @@ import { sleep } from "@/utils/async";
 
 import { defaultEraser } from "./utils";
 
-import { type ComponentPropsWithoutRef, type ReactNode, type Ref, type RefObject, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { type ComponentPropsWithoutRef, type ReactNode, type Ref, type RefObject, useCallback, useEffect, useId, useImperativeHandle, useRef, useState } from "react";
 
 export interface TypewriterFrame {
     component: ReactNode;
@@ -38,6 +38,7 @@ export function Typewriter({ ref, initialContent, onTypingStateChange, ...props 
     const eraser = useRef<TypewriterSource["erase"]>(defaultEraser);
     const isInitialTypewriterSource = isTypewriterSource(initialContent);
     const [content, setContent] = useState(isInitialTypewriterSource ? "" : initialContent);
+    const id = useId();
 
     const sendWord = useCallback(async (source: TypewriterSource, dontDeleteOld?: boolean) => {
         if (typing.current) {
@@ -94,12 +95,14 @@ export function Typewriter({ ref, initialContent, onTypingStateChange, ...props 
     }, [initialContent, isInitialTypewriterSource, sendWord]);
     return (
         <Clickable
+            id={id}
             tag="div"
             {...props}
             style={{
                 userSelect: "none",
                 ...props.style,
             }}
+            aria-labelledby={id}
         >
             {content}
         </Clickable>

@@ -27,7 +27,7 @@ import { type LoaderData, UseLoaderDataContext } from "@/main";
 import { installF8Break } from "@/utils/devtools";
 import { assert } from "@/utils/error";
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
 installF8Break();
@@ -85,17 +85,26 @@ const preview: Preview = {
                 [],
             );
 
-            const root = document.getElementById("storybook-root");
+            const [ctx, setCtx] = useState<LayerContext>({
+                level: 0,
+                root: null,
+            });
 
-            assert(root instanceof HTMLDivElement, "Missing storybook root element");
+            useEffect(() => {
+                const root = document.getElementById("storybook-root");
+
+                assert(root instanceof HTMLDivElement, "Missing storybook root element");
+
+                setCtx({
+                    level: 0,
+                    root,
+                });
+            }, []);
 
             return (
                 <UseLoaderDataContext value={mockLoaderData}>
                     <LayerContext
-                        value={{
-                            level: 0,
-                            root,
-                        }}
+                        value={ctx}
                     >
                         <CustomCursorContext value={!context.globals.customCursor}>
                             {createPortal(<Boilerplate />, document.body)}

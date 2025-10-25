@@ -139,6 +139,11 @@
         font-variation-settings: var(--default-mono-font-variation-settings, normal);
         font-size: 1em;
     }
+
+    dialog {
+        max-height: none;
+        max-width: none;
+    }
 }
 
 :root {

@@ -3,16 +3,14 @@ import cn from "@/utils/cn";
 import { friends } from "@/utils/friends";
 import { once } from "@/utils/functional";
 import { Clickable } from "@components/Clickable";
-import { openModal } from "@components/modal";
-import { useFriendModalCenterStore } from "@components/modals/Friend/friendModalCenterStore";
 import { BorderHoldCircular } from "@effects/BorderHold";
 import PerspectiveHover from "@effects/PerspectiveHover";
 import Shadow from "@effects/Shadow";
-import { useSize } from "@hooks/size";
 
-import { ModalKey } from "./modals/ModalKey";
+import { FriendModalContext } from "./modals/Friend/context";
+import { Modal, ModalContext } from "./modalv2";
 
-import { type ComponentProps, useEffect, useRef } from "react";
+import { type ComponentProps, lazy, useRef } from "react";
 
 export interface AvatarProps extends ComponentProps<"img"> {
     round?: boolean;
@@ -26,36 +24,18 @@ const preloadFriends = once(function preloadFriends() {
     }
 });
 
+const FriendModal = lazy(() => import("@components/modals/Friend"));
 
 export default function Avatar({ round = false, ...props }: AvatarProps) {
+    const modal = useRef<ModalContext>(null);
     const imgRef = useRef<HTMLImageElement>(null);
-    const { x, y, width, height } = useSize(() => imgRef.current) ?? {};
-
-    useEffect(() => {
-        if (x === undefined || y === undefined || width === undefined || height === undefined) {
-            useFriendModalCenterStore
-                .getState()
-                .resetPosition();
-        } else {
-            useFriendModalCenterStore
-                .getState()
-                .updateFromPosition(x + (width / 2), y + (height / 2));
-        }
-    }, [x, y, width, height]);
 
     return (
         <Clickable>
             <PerspectiveHover hoverFactor={4}>
                 <Shadow>
-                    <BorderHoldCircular onHold={async () => {
-                        const FriendModal = (await import("@/components/modals/Friend")).default;
-
-                        openModal({
-                            key: ModalKey.FRIENDS,
-                            Render() {
-                                return <FriendModal />;
-                            },
-                        });
+                    <BorderHoldCircular onHold={() => {
+                        modal.current?.open();
                     }}
                     >
                         <img
@@ -70,6 +50,11 @@ export default function Avatar({ round = false, ...props }: AvatarProps) {
                     </BorderHoldCircular>
                 </Shadow>
             </PerspectiveHover>
+            <Modal ref={modal}>
+                <FriendModalContext value={{ centerElement: imgRef }}>
+                    <FriendModal />
+                </FriendModalContext>
+            </Modal>
         </Clickable>
     );
 }

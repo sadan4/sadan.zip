@@ -10,6 +10,7 @@ import storybook from "eslint-plugin-storybook";
 import tailwindcss from "eslint-plugin-tailwindcss";
 import unusedImports from "eslint-plugin-unused-imports";
 import TSEslint from "typescript-eslint";
+import { join } from "node:path";
 
 // cursed
 type _tsLintRules = typeof import("./node_modules/@typescript-eslint/eslint-plugin/dist/rules");
@@ -640,6 +641,7 @@ const extensions = "{js,mjs,cjs,jsx,mjsx,cjsx,ts,mts,cts,tsx,mtsx,ctsx}";
 
 const tailwindCallees = Object.freeze({
     callees: ["classnames", "clsx", "ctl", "cva", "tv", "cn"],
+    config: join(__dirname, "src", "index.css"),
 });
 
 export default TSEslint.config({ ignores: ["dist"] }, {

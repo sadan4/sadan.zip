@@ -4,6 +4,11 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  typescript:
+    hash: kmtcpv4ql4eeph7o5eu3vojf5m
+    path: patches/typescript.patch
+
 importers:
 
   .:
@@ -84,10 +89,10 @@ importers:
         version: 9.1.7(@vitest/browser@3.2.4)(@vitest/runner@3.2.4)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(storybook@9.1.7(@testing-library/dom@10.4.1)(vite@7.1.10(@types/node@24.0.0)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(sass@1.89.2)(stylus@0.62.0)(terser@5.43.1)))(vitest@3.2.4)
       '@storybook/react-vite':
         specifier: ^9.1.7
-        version: 9.1.7(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(rollup@4.52.4)(storybook@9.1.7(@testing-library/dom@10.4.1)(vite@7.1.10(@types/node@24.0.0)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(sass@1.89.2)(stylus@0.62.0)(terser@5.43.1)))(typescript@5.8.3)(vite@7.1.10(@types/node@24.0.0)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(sass@1.89.2)(stylus@0.62.0)(terser@5.43.1))
+        version: 9.1.7(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(rollup@4.52.4)(storybook@9.1.7(@testing-library/dom@10.4.1)(vite@7.1.10(@types/node@24.0.0)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(sass@1.89.2)(stylus@0.62.0)(terser@5.43.1)))(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))(vite@7.1.10(@types/node@24.0.0)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(sass@1.89.2)(stylus@0.62.0)(terser@5.43.1))
       '@stylistic/eslint-plugin':
         specifier: ^4.4.1
-        version: 4.4.1(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3)
+        version: 4.4.1(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))
       '@types/eslint-plugin-tailwindcss':
         specifier: ^3.17.0
         version: 3.17.0
@@ -129,13 +134,13 @@ importers:
         version: 12.1.1(eslint@9.28.0(jiti@2.4.2))
       eslint-plugin-storybook:
         specifier: ^9.1.7
-        version: 9.1.7(eslint@9.28.0(jiti@2.4.2))(storybook@9.1.7(@testing-library/dom@10.4.1)(vite@7.1.10(@types/node@24.0.0)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(sass@1.89.2)(stylus@0.62.0)(terser@5.43.1)))(typescript@5.8.3)
+        version: 9.1.7(eslint@9.28.0(jiti@2.4.2))(storybook@9.1.7(@testing-library/dom@10.4.1)(vite@7.1.10(@types/node@24.0.0)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(sass@1.89.2)(stylus@0.62.0)(terser@5.43.1)))(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))
       eslint-plugin-tailwindcss:
         specifier: 4.0.0-beta.0
         version: 4.0.0-beta.0(tailwindcss@4.1.8)
       eslint-plugin-unused-imports:
         specifier: ^4.1.4
-        version: 4.1.4(@typescript-eslint/eslint-plugin@8.34.0(@typescript-eslint/parser@8.34.0(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3))(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3))(eslint@9.28.0(jiti@2.4.2))
+        version: 4.1.4(@typescript-eslint/eslint-plugin@8.34.0(@typescript-eslint/parser@8.34.0(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m)))(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m)))(eslint@9.28.0(jiti@2.4.2))
       jiti:
         specifier: ^2.4.2
         version: 2.4.2
@@ -147,22 +152,22 @@ importers:
         version: 9.1.7(@testing-library/dom@10.4.1)(vite@7.1.10(@types/node@24.0.0)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(sass@1.89.2)(stylus@0.62.0)(terser@5.43.1))
       stylelint:
         specifier: ^16.24.0
-        version: 16.24.0(typescript@5.8.3)
+        version: 16.24.0(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))
       stylelint-config-standard:
         specifier: ^39.0.0
-        version: 39.0.0(stylelint@16.24.0(typescript@5.8.3))
+        version: 39.0.0(stylelint@16.24.0(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m)))
       stylelint-config-standard-scss:
         specifier: ^16.0.0
-        version: 16.0.0(postcss@8.5.4)(stylelint@16.24.0(typescript@5.8.3))
+        version: 16.0.0(postcss@8.5.4)(stylelint@16.24.0(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m)))
       typescript:
         specifier: ~5.8.3
-        version: 5.8.3
+        version: 5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m)
       typescript-eslint:
         specifier: ^8.30.1
-        version: 8.34.0(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3)
+        version: 8.34.0(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))
       typescript-plugin-css-modules:
         specifier: ^5.1.0
-        version: 5.1.0(typescript@5.8.3)
+        version: 5.1.0(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))
       vite:
         specifier: ^7.1.10
         version: 7.1.10(@types/node@24.0.0)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(sass@1.89.2)(stylus@0.62.0)(terser@5.43.1)
@@ -171,7 +176,7 @@ importers:
         version: 1.0.0(vite@7.1.10(@types/node@24.0.0)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(sass@1.89.2)(stylus@0.62.0)(terser@5.43.1))
       vite-tsconfig-paths:
         specifier: ^5.1.4
-        version: 5.1.4(typescript@5.8.3)(vite@7.1.10(@types/node@24.0.0)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(sass@1.89.2)(stylus@0.62.0)(terser@5.43.1))
+        version: 5.1.4(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))(vite@7.1.10(@types/node@24.0.0)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(sass@1.89.2)(stylus@0.62.0)(terser@5.43.1))
       vitest:
         specifier: ^3.2.4
         version: 3.2.4(@types/debug@4.1.12)(@types/node@24.0.0)(@vitest/browser@3.2.4)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(sass@1.89.2)(stylus@0.62.0)(terser@5.43.1)
@@ -4874,14 +4879,14 @@ snapshots:
 
   '@istanbuljs/schema@0.1.3': {}
 
-  '@joshwooding/vite-plugin-react-docgen-typescript@0.6.1(typescript@5.8.3)(vite@7.1.10(@types/node@24.0.0)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(sass@1.89.2)(stylus@0.62.0)(terser@5.43.1))':
+  '@joshwooding/vite-plugin-react-docgen-typescript@0.6.1(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))(vite@7.1.10(@types/node@24.0.0)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(sass@1.89.2)(stylus@0.62.0)(terser@5.43.1))':
     dependencies:
       glob: 10.4.5
       magic-string: 0.30.17
-      react-docgen-typescript: 2.4.0(typescript@5.8.3)
+      react-docgen-typescript: 2.4.0(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))
       vite: 7.1.10(@types/node@24.0.0)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(sass@1.89.2)(stylus@0.62.0)(terser@5.43.1)
     optionalDependencies:
-      typescript: 5.8.3
+      typescript: 5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m)
 
   '@jridgewell/gen-mapping@0.3.13':
     dependencies:
@@ -5449,12 +5454,12 @@ snapshots:
       react-dom: 19.2.0(react@19.2.0)
       storybook: 9.1.7(@testing-library/dom@10.4.1)(vite@7.1.10(@types/node@24.0.0)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(sass@1.89.2)(stylus@0.62.0)(terser@5.43.1))
 
-  '@storybook/react-vite@9.1.7(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(rollup@4.52.4)(storybook@9.1.7(@testing-library/dom@10.4.1)(vite@7.1.10(@types/node@24.0.0)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(sass@1.89.2)(stylus@0.62.0)(terser@5.43.1)))(typescript@5.8.3)(vite@7.1.10(@types/node@24.0.0)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(sass@1.89.2)(stylus@0.62.0)(terser@5.43.1))':
+  '@storybook/react-vite@9.1.7(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(rollup@4.52.4)(storybook@9.1.7(@testing-library/dom@10.4.1)(vite@7.1.10(@types/node@24.0.0)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(sass@1.89.2)(stylus@0.62.0)(terser@5.43.1)))(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))(vite@7.1.10(@types/node@24.0.0)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(sass@1.89.2)(stylus@0.62.0)(terser@5.43.1))':
     dependencies:
-      '@joshwooding/vite-plugin-react-docgen-typescript': 0.6.1(typescript@5.8.3)(vite@7.1.10(@types/node@24.0.0)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(sass@1.89.2)(stylus@0.62.0)(terser@5.43.1))
+      '@joshwooding/vite-plugin-react-docgen-typescript': 0.6.1(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))(vite@7.1.10(@types/node@24.0.0)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(sass@1.89.2)(stylus@0.62.0)(terser@5.43.1))
       '@rollup/pluginutils': 5.3.0(rollup@4.52.4)
       '@storybook/builder-vite': 9.1.7(storybook@9.1.7(@testing-library/dom@10.4.1)(vite@7.1.10(@types/node@24.0.0)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(sass@1.89.2)(stylus@0.62.0)(terser@5.43.1)))(vite@7.1.10(@types/node@24.0.0)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(sass@1.89.2)(stylus@0.62.0)(terser@5.43.1))
-      '@storybook/react': 9.1.7(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(storybook@9.1.7(@testing-library/dom@10.4.1)(vite@7.1.10(@types/node@24.0.0)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(sass@1.89.2)(stylus@0.62.0)(terser@5.43.1)))(typescript@5.8.3)
+      '@storybook/react': 9.1.7(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(storybook@9.1.7(@testing-library/dom@10.4.1)(vite@7.1.10(@types/node@24.0.0)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(sass@1.89.2)(stylus@0.62.0)(terser@5.43.1)))(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))
       find-up: 7.0.0
       magic-string: 0.30.17
       react: 19.2.0
@@ -5469,7 +5474,7 @@ snapshots:
       - supports-color
       - typescript
 
-  '@storybook/react@9.1.7(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(storybook@9.1.7(@testing-library/dom@10.4.1)(vite@7.1.10(@types/node@24.0.0)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(sass@1.89.2)(stylus@0.62.0)(terser@5.43.1)))(typescript@5.8.3)':
+  '@storybook/react@9.1.7(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(storybook@9.1.7(@testing-library/dom@10.4.1)(vite@7.1.10(@types/node@24.0.0)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(sass@1.89.2)(stylus@0.62.0)(terser@5.43.1)))(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))':
     dependencies:
       '@storybook/global': 5.0.0
       '@storybook/react-dom-shim': 9.1.7(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(storybook@9.1.7(@testing-library/dom@10.4.1)(vite@7.1.10(@types/node@24.0.0)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(sass@1.89.2)(stylus@0.62.0)(terser@5.43.1)))
@@ -5477,11 +5482,11 @@ snapshots:
       react-dom: 19.2.0(react@19.2.0)
       storybook: 9.1.7(@testing-library/dom@10.4.1)(vite@7.1.10(@types/node@24.0.0)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(sass@1.89.2)(stylus@0.62.0)(terser@5.43.1))
     optionalDependencies:
-      typescript: 5.8.3
+      typescript: 5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m)
 
-  '@stylistic/eslint-plugin@4.4.1(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3)':
+  '@stylistic/eslint-plugin@4.4.1(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))':
     dependencies:
-      '@typescript-eslint/utils': 8.34.0(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3)
+      '@typescript-eslint/utils': 8.34.0(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))
       eslint: 9.28.0(jiti@2.4.2)
       eslint-visitor-keys: 4.2.1
       espree: 10.4.0
@@ -5676,41 +5681,41 @@ snapshots:
 
   '@types/unist@3.0.3': {}
 
-  '@typescript-eslint/eslint-plugin@8.34.0(@typescript-eslint/parser@8.34.0(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3))(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3)':
+  '@typescript-eslint/eslint-plugin@8.34.0(@typescript-eslint/parser@8.34.0(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m)))(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))':
     dependencies:
       '@eslint-community/regexpp': 4.12.1
-      '@typescript-eslint/parser': 8.34.0(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3)
+      '@typescript-eslint/parser': 8.34.0(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))
       '@typescript-eslint/scope-manager': 8.34.0
-      '@typescript-eslint/type-utils': 8.34.0(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3)
-      '@typescript-eslint/utils': 8.34.0(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3)
+      '@typescript-eslint/type-utils': 8.34.0(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))
+      '@typescript-eslint/utils': 8.34.0(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))
       '@typescript-eslint/visitor-keys': 8.34.0
       eslint: 9.28.0(jiti@2.4.2)
       graphemer: 1.4.0
       ignore: 7.0.5
       natural-compare: 1.4.0
-      ts-api-utils: 2.1.0(typescript@5.8.3)
-      typescript: 5.8.3
+      ts-api-utils: 2.1.0(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))
+      typescript: 5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m)
     transitivePeerDependencies:
       - supports-color
 
-  '@typescript-eslint/parser@8.34.0(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3)':
+  '@typescript-eslint/parser@8.34.0(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))':
     dependencies:
       '@typescript-eslint/scope-manager': 8.34.0
       '@typescript-eslint/types': 8.34.0
-      '@typescript-eslint/typescript-estree': 8.34.0(typescript@5.8.3)
+      '@typescript-eslint/typescript-estree': 8.34.0(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))
       '@typescript-eslint/visitor-keys': 8.34.0
       debug: 4.4.1
       eslint: 9.28.0(jiti@2.4.2)
-      typescript: 5.8.3
+      typescript: 5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m)
     transitivePeerDependencies:
       - supports-color
 
-  '@typescript-eslint/project-service@8.34.0(typescript@5.8.3)':
+  '@typescript-eslint/project-service@8.34.0(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))':
     dependencies:
-      '@typescript-eslint/tsconfig-utils': 8.34.0(typescript@5.8.3)
+      '@typescript-eslint/tsconfig-utils': 8.34.0(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))
       '@typescript-eslint/types': 8.34.0
       debug: 4.4.1
-      typescript: 5.8.3
+      typescript: 5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m)
     transitivePeerDependencies:
       - supports-color
 
@@ -5719,27 +5724,27 @@ snapshots:
       '@typescript-eslint/types': 8.34.0
       '@typescript-eslint/visitor-keys': 8.34.0
 
-  '@typescript-eslint/tsconfig-utils@8.34.0(typescript@5.8.3)':
+  '@typescript-eslint/tsconfig-utils@8.34.0(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))':
     dependencies:
-      typescript: 5.8.3
+      typescript: 5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m)
 
-  '@typescript-eslint/type-utils@8.34.0(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3)':
+  '@typescript-eslint/type-utils@8.34.0(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))':
     dependencies:
-      '@typescript-eslint/typescript-estree': 8.34.0(typescript@5.8.3)
-      '@typescript-eslint/utils': 8.34.0(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3)
+      '@typescript-eslint/typescript-estree': 8.34.0(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))
+      '@typescript-eslint/utils': 8.34.0(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))
       debug: 4.4.1
       eslint: 9.28.0(jiti@2.4.2)
-      ts-api-utils: 2.1.0(typescript@5.8.3)
-      typescript: 5.8.3
+      ts-api-utils: 2.1.0(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))
+      typescript: 5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m)
     transitivePeerDependencies:
       - supports-color
 
   '@typescript-eslint/types@8.34.0': {}
 
-  '@typescript-eslint/typescript-estree@8.34.0(typescript@5.8.3)':
+  '@typescript-eslint/typescript-estree@8.34.0(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))':
     dependencies:
-      '@typescript-eslint/project-service': 8.34.0(typescript@5.8.3)
-      '@typescript-eslint/tsconfig-utils': 8.34.0(typescript@5.8.3)
+      '@typescript-eslint/project-service': 8.34.0(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))
+      '@typescript-eslint/tsconfig-utils': 8.34.0(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))
       '@typescript-eslint/types': 8.34.0
       '@typescript-eslint/visitor-keys': 8.34.0
       debug: 4.4.1
@@ -5747,19 +5752,19 @@ snapshots:
       is-glob: 4.0.3
       minimatch: 9.0.5
       semver: 7.7.2
-      ts-api-utils: 2.1.0(typescript@5.8.3)
-      typescript: 5.8.3
+      ts-api-utils: 2.1.0(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))
+      typescript: 5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m)
     transitivePeerDependencies:
       - supports-color
 
-  '@typescript-eslint/utils@8.34.0(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3)':
+  '@typescript-eslint/utils@8.34.0(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))':
     dependencies:
       '@eslint-community/eslint-utils': 4.7.0(eslint@9.28.0(jiti@2.4.2))
       '@typescript-eslint/scope-manager': 8.34.0
       '@typescript-eslint/types': 8.34.0
-      '@typescript-eslint/typescript-estree': 8.34.0(typescript@5.8.3)
+      '@typescript-eslint/typescript-estree': 8.34.0(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))
       eslint: 9.28.0(jiti@2.4.2)
-      typescript: 5.8.3
+      typescript: 5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m)
     transitivePeerDependencies:
       - supports-color
 
@@ -6080,14 +6085,14 @@ snapshots:
     dependencies:
       is-what: 3.14.1
 
-  cosmiconfig@9.0.0(typescript@5.8.3):
+  cosmiconfig@9.0.0(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m)):
     dependencies:
       env-paths: 2.2.1
       import-fresh: 3.3.1
       js-yaml: 4.1.0
       parse-json: 5.2.0
     optionalDependencies:
-      typescript: 5.8.3
+      typescript: 5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m)
 
   cross-spawn@7.0.6:
     dependencies:
@@ -6304,9 +6309,9 @@ snapshots:
     dependencies:
       eslint: 9.28.0(jiti@2.4.2)
 
-  eslint-plugin-storybook@9.1.7(eslint@9.28.0(jiti@2.4.2))(storybook@9.1.7(@testing-library/dom@10.4.1)(vite@7.1.10(@types/node@24.0.0)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(sass@1.89.2)(stylus@0.62.0)(terser@5.43.1)))(typescript@5.8.3):
+  eslint-plugin-storybook@9.1.7(eslint@9.28.0(jiti@2.4.2))(storybook@9.1.7(@testing-library/dom@10.4.1)(vite@7.1.10(@types/node@24.0.0)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(sass@1.89.2)(stylus@0.62.0)(terser@5.43.1)))(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m)):
     dependencies:
-      '@typescript-eslint/utils': 8.34.0(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3)
+      '@typescript-eslint/utils': 8.34.0(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))
       eslint: 9.28.0(jiti@2.4.2)
       storybook: 9.1.7(@testing-library/dom@10.4.1)(vite@7.1.10(@types/node@24.0.0)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(sass@1.89.2)(stylus@0.62.0)(terser@5.43.1))
     transitivePeerDependencies:
@@ -6321,11 +6326,11 @@ snapshots:
       tailwind-api-utils: 1.0.3(tailwindcss@4.1.8)
       tailwindcss: 4.1.8
 
-  eslint-plugin-unused-imports@4.1.4(@typescript-eslint/eslint-plugin@8.34.0(@typescript-eslint/parser@8.34.0(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3))(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3))(eslint@9.28.0(jiti@2.4.2)):
+  eslint-plugin-unused-imports@4.1.4(@typescript-eslint/eslint-plugin@8.34.0(@typescript-eslint/parser@8.34.0(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m)))(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m)))(eslint@9.28.0(jiti@2.4.2)):
     dependencies:
       eslint: 9.28.0(jiti@2.4.2)
     optionalDependencies:
-      '@typescript-eslint/eslint-plugin': 8.34.0(@typescript-eslint/parser@8.34.0(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3))(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3)
+      '@typescript-eslint/eslint-plugin': 8.34.0(@typescript-eslint/parser@8.34.0(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m)))(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))
 
   eslint-scope@8.4.0:
     dependencies:
@@ -7404,9 +7409,9 @@ snapshots:
 
   queue-microtask@1.2.3: {}
 
-  react-docgen-typescript@2.4.0(typescript@5.8.3):
+  react-docgen-typescript@2.4.0(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m)):
     dependencies:
-      typescript: 5.8.3
+      typescript: 5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m)
 
   react-docgen@8.0.1:
     dependencies:
@@ -7757,33 +7762,33 @@ snapshots:
     dependencies:
       inline-style-parser: 0.2.4
 
-  stylelint-config-recommended-scss@16.0.1(postcss@8.5.4)(stylelint@16.24.0(typescript@5.8.3)):
+  stylelint-config-recommended-scss@16.0.1(postcss@8.5.4)(stylelint@16.24.0(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))):
     dependencies:
       postcss-scss: 4.0.9(postcss@8.5.4)
-      stylelint: 16.24.0(typescript@5.8.3)
-      stylelint-config-recommended: 17.0.0(stylelint@16.24.0(typescript@5.8.3))
-      stylelint-scss: 6.12.1(stylelint@16.24.0(typescript@5.8.3))
+      stylelint: 16.24.0(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))
+      stylelint-config-recommended: 17.0.0(stylelint@16.24.0(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m)))
+      stylelint-scss: 6.12.1(stylelint@16.24.0(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m)))
     optionalDependencies:
       postcss: 8.5.4
 
-  stylelint-config-recommended@17.0.0(stylelint@16.24.0(typescript@5.8.3)):
+  stylelint-config-recommended@17.0.0(stylelint@16.24.0(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))):
     dependencies:
-      stylelint: 16.24.0(typescript@5.8.3)
+      stylelint: 16.24.0(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))
 
-  stylelint-config-standard-scss@16.0.0(postcss@8.5.4)(stylelint@16.24.0(typescript@5.8.3)):
+  stylelint-config-standard-scss@16.0.0(postcss@8.5.4)(stylelint@16.24.0(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))):
     dependencies:
-      stylelint: 16.24.0(typescript@5.8.3)
-      stylelint-config-recommended-scss: 16.0.1(postcss@8.5.4)(stylelint@16.24.0(typescript@5.8.3))
-      stylelint-config-standard: 39.0.0(stylelint@16.24.0(typescript@5.8.3))
+      stylelint: 16.24.0(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))
+      stylelint-config-recommended-scss: 16.0.1(postcss@8.5.4)(stylelint@16.24.0(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m)))
+      stylelint-config-standard: 39.0.0(stylelint@16.24.0(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m)))
     optionalDependencies:
       postcss: 8.5.4
 
-  stylelint-config-standard@39.0.0(stylelint@16.24.0(typescript@5.8.3)):
+  stylelint-config-standard@39.0.0(stylelint@16.24.0(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))):
     dependencies:
-      stylelint: 16.24.0(typescript@5.8.3)
-      stylelint-config-recommended: 17.0.0(stylelint@16.24.0(typescript@5.8.3))
+      stylelint: 16.24.0(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))
+      stylelint-config-recommended: 17.0.0(stylelint@16.24.0(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m)))
 
-  stylelint-scss@6.12.1(stylelint@16.24.0(typescript@5.8.3)):
+  stylelint-scss@6.12.1(stylelint@16.24.0(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))):
     dependencies:
       css-tree: 3.1.0
       is-plain-object: 5.0.0
@@ -7793,9 +7798,9 @@ snapshots:
       postcss-resolve-nested-selector: 0.1.6
       postcss-selector-parser: 7.1.0
       postcss-value-parser: 4.2.0
-      stylelint: 16.24.0(typescript@5.8.3)
+      stylelint: 16.24.0(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))
 
-  stylelint@16.24.0(typescript@5.8.3):
+  stylelint@16.24.0(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m)):
     dependencies:
       '@csstools/css-parser-algorithms': 3.0.5(@csstools/css-tokenizer@3.0.4)
       '@csstools/css-tokenizer': 3.0.4
@@ -7804,7 +7809,7 @@ snapshots:
       '@dual-bundle/import-meta-resolve': 4.2.1
       balanced-match: 2.0.0
       colord: 2.9.3
-      cosmiconfig: 9.0.0(typescript@5.8.3)
+      cosmiconfig: 9.0.0(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))
       css-functions-list: 3.2.3
       css-tree: 3.1.0
       debug: 4.4.1
@@ -7942,15 +7947,15 @@ snapshots:
 
   trim-lines@3.0.1: {}
 
-  ts-api-utils@2.1.0(typescript@5.8.3):
+  ts-api-utils@2.1.0(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m)):
     dependencies:
-      typescript: 5.8.3
+      typescript: 5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m)
 
   ts-dedent@2.2.0: {}
 
-  tsconfck@3.1.6(typescript@5.8.3):
+  tsconfck@3.1.6(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m)):
     optionalDependencies:
-      typescript: 5.8.3
+      typescript: 5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m)
 
   tsconfig-paths@4.2.0:
     dependencies:
@@ -7964,17 +7969,17 @@ snapshots:
     dependencies:
       prelude-ls: 1.2.1
 
-  typescript-eslint@8.34.0(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3):
+  typescript-eslint@8.34.0(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m)):
     dependencies:
-      '@typescript-eslint/eslint-plugin': 8.34.0(@typescript-eslint/parser@8.34.0(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3))(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3)
-      '@typescript-eslint/parser': 8.34.0(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3)
-      '@typescript-eslint/utils': 8.34.0(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3)
+      '@typescript-eslint/eslint-plugin': 8.34.0(@typescript-eslint/parser@8.34.0(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m)))(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))
+      '@typescript-eslint/parser': 8.34.0(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))
+      '@typescript-eslint/utils': 8.34.0(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))
       eslint: 9.28.0(jiti@2.4.2)
-      typescript: 5.8.3
+      typescript: 5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m)
     transitivePeerDependencies:
       - supports-color
 
-  typescript-plugin-css-modules@5.1.0(typescript@5.8.3):
+  typescript-plugin-css-modules@5.1.0(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m)):
     dependencies:
       '@types/postcss-modules-local-by-default': 4.0.2
       '@types/postcss-modules-scope': 3.0.4
@@ -7992,12 +7997,12 @@ snapshots:
       source-map-js: 1.2.1
       stylus: 0.62.0
       tsconfig-paths: 4.2.0
-      typescript: 5.8.3
+      typescript: 5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m)
     transitivePeerDependencies:
       - supports-color
       - ts-node
 
-  typescript@5.8.3: {}
+  typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m): {}
 
   ufo@1.6.1: {}
 
@@ -8110,11 +8115,11 @@ snapshots:
       uuid: 11.1.0
       vite: 7.1.10(@types/node@24.0.0)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(sass@1.89.2)(stylus@0.62.0)(terser@5.43.1)
 
-  vite-tsconfig-paths@5.1.4(typescript@5.8.3)(vite@7.1.10(@types/node@24.0.0)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(sass@1.89.2)(stylus@0.62.0)(terser@5.43.1)):
+  vite-tsconfig-paths@5.1.4(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))(vite@7.1.10(@types/node@24.0.0)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(sass@1.89.2)(stylus@0.62.0)(terser@5.43.1)):
     dependencies:
       debug: 4.4.3
       globrex: 0.1.2
-      tsconfck: 3.1.6(typescript@5.8.3)
+      tsconfck: 3.1.6(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))
     optionalDependencies:
       vite: 7.1.10(@types/node@24.0.0)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(sass@1.89.2)(stylus@0.62.0)(terser@5.43.1)
     transitivePeerDependencies:

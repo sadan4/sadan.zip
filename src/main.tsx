@@ -1,8 +1,11 @@
 import { installF8Break, namedContext, uninstallF8Break } from "@/utils/devtools";
 
+import { LayerContext } from "./components/Layer/context";
+
 import "./app.scss";
-import { StrictMode, useContext, useEffect } from "react";
+import { StrictMode, useContext, useEffect, useState } from "react";
 import { createBrowserRouter, RouterProvider, useLoaderData as useLoaderData_ } from "react-router";
+import { assert } from "./utils/error";
 
 export interface LoaderData {
     config: {
@@ -130,13 +133,30 @@ const router = createBrowserRouter([
 ]);
 
 export function App() {
+    const [ctx, setCtx] = useState<LayerContext>({
+        level: 0,
+        root: null,
+    });
+
     useEffect(() => {
         installF8Break();
+
+        const root = document.getElementById("root");
+
+        assert(root instanceof HTMLDivElement);
+
+        setCtx({
+            level: 0,
+            root,
+        });
+
         return uninstallF8Break;
     }, []);
     return (
         <StrictMode>
-            <RouterProvider router={router} />
+            <LayerContext value={ctx}>
+                <RouterProvider router={router} />
+            </LayerContext>
         </StrictMode>
     );
 }

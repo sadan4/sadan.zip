@@ -3,41 +3,45 @@ import HoverScale from "@/components/effects/HoverScale";
 import PerspectiveHover from "@/components/effects/PerspectiveHover";
 import Shadow from "@/components/effects/Shadow";
 import Circle, { DefaultPlacementCircleItem } from "@/components/layout/Circle";
-import { useModalStackStore } from "@/components/modal/internal/modalStackStore";
+import { ModalContext } from "@/components/modalv2";
 import { Popout } from "@/components/Popout";
 import { PopoutDirection } from "@/components/Popout/constants";
 import { Tooltip } from "@/components/Tooltip";
 import { TooltipPosition } from "@/components/Tooltip/constants";
 import { loopArrayStartingAt } from "@/utils/array";
 import cn from "@/utils/cn";
+import { measureRect } from "@/utils/dom";
 import { friends } from "@/utils/friends";
 import toCSS from "@/utils/toCSS";
+import useResizeObserver from "@react-hook/resize-observer";
 
+import { FriendModalContext } from "./context";
 import FriendCard from "./FriendCard";
-import { defaultPosition, useFriendModalCenterStore } from "./friendModalCenterStore";
+import { defaultPosition } from "./friendModalCenterStore";
 
 import { ArrowLeftIcon, ArrowRightIcon, XIcon } from "lucide-react";
-import { useMemo, useState } from "react";
+import { use, useCallback, useEffect, useMemo, useState } from "react";
 import { preload } from "react-dom";
 
 export interface FriendModalProps {
 }
 
 function FriendModalCloseIcon() {
+    const ctx = use(ModalContext);
+
     return (
         <HoverScale factor={0.9}>
             <div className="flex h-52 w-52 items-center justify-center">
                 <Clickable
                     onClick={() => {
-                        useModalStackStore.getState()
-                            .popModal();
+                        ctx?.requestClose();
                     }}
                 >
                     <div
-                        className={cn("bg-bg-100 flex h-44 w-44 items-center justify-center rounded-full")}
+                        className={cn("flex h-44 w-44 items-center justify-center rounded-full bg-bg-100")}
                     >
                         <XIcon
-                            className="text-info-500 h-full w-full"
+                            className="h-full w-full text-info-500"
                         />
                     </div>
                 </Clickable>
@@ -61,7 +65,24 @@ function ArrowButton({ direction }: ArrowButtonProps) {
 }
 
 export default function FriendModal() {
-    const { x, y } = useFriendModalCenterStore((x) => x.pos) ?? defaultPosition();
+    const center = use(FriendModalContext).centerElement;
+    const [{ x, y }, setCoords] = useState(defaultPosition);
+
+    const updateCoords = useCallback(() => {
+        if (center.current) {
+            const { x, y, width, height } = measureRect(center.current);
+
+            setCoords({
+                x: x + (width / 2),
+                y: y + (height / 2),
+            });
+        }
+    }, [center]);
+
+    useResizeObserver(center, updateCoords);
+
+    useEffect(updateCoords, [updateCoords]);
+
     const [friendIndex, setFriendIndex] = useState(0);
 
     const nextButton = useMemo(() => {
