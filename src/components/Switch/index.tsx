@@ -83,14 +83,17 @@ export function Switch({ initialValue, value, onChange }: SwitchProps) {
     return (
         <Clickable
             className={cn(styles.switch, enabled && styles.enabled)}
-            onMouseDown={(e) => {
+            onPointerDown={(e) => {
                 // stop random other text from being selected
                 if (e.detail > 1) {
                     e.preventDefault();
                 }
-                setState(SwitchState.HELD);
+                // 0 is primary button or unknown
+                if (!e.button) {
+                    setState(SwitchState.HELD);
+                }
             }}
-            onMouseUp={() => {
+            onPointerUp={() => {
                 if (state !== SwitchState.HELD) {
                     return;
                 }
@@ -106,7 +109,7 @@ export function Switch({ initialValue, value, onChange }: SwitchProps) {
                 onChange?.(!enabled);
                 setInternalEnabled(!enabled);
             }}
-            onMouseLeave={() => {
+            onPointerLeave={() => {
                 if (enabled) {
                     setState(SwitchState.ON);
                 } else {
