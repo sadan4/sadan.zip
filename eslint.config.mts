@@ -9,8 +9,8 @@ import simpleImportSort from "eslint-plugin-simple-import-sort";
 import storybook from "eslint-plugin-storybook";
 import tailwindcss from "eslint-plugin-tailwindcss";
 import unusedImports from "eslint-plugin-unused-imports";
-import TSEslint from "typescript-eslint";
 import { join } from "node:path";
+import TSEslint from "typescript-eslint";
 
 // cursed
 type _tsLintRules = typeof import("./node_modules/@typescript-eslint/eslint-plugin/dist/rules");
@@ -565,7 +565,13 @@ const styleRules: Partial<IStyleRules> = {
     "@stylistic/space-in-parens": ["error", "never"],
     "@stylistic/space-infix-ops": ["error"],
     "@stylistic/space-unary-ops": ["error"],
-    "@stylistic/spaced-comment": ["error", "always"],
+    "@stylistic/spaced-comment": [
+        "error",
+        "always",
+        {
+            markers: ["/", "#", "!", "@", "*"],
+        },
+    ],
     "@stylistic/switch-colon-spacing": ["error"],
     "@stylistic/template-curly-spacing": ["error", "never"],
     "@stylistic/template-tag-spacing": ["error"],
