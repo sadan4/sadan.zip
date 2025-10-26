@@ -33,8 +33,10 @@ for (const method of [
     "preventExtensions",
     "set",
     "setPrototypeOf",
-]) {
+] as const) {
     handler[method]
+    // TODO: type this properly?
+    // @ts-expect-error method forwarding, could probably be typed properly, but too lazy
         = (target: any, ...args: any[]) => Reflect[method](target[SYM_LAZY_GET](), ...args);
 }
 

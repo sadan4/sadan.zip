@@ -68,7 +68,7 @@ function calculateBorderLength(element: Element): [length: number, path: string]
         `;
     }
 
-    function calcRadiusDelta(a, b): number {
+    function calcRadiusDelta(a: number, b: number): number {
         if (!a && !b) {
             return 0;
         }

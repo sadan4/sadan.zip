@@ -15,7 +15,7 @@ import { useState } from "react";
 
 export default function DiscordIntlLookup() {
     const [search, setSearch] = useState("");
-    const result: string | null = mappings[search] || null;
+    const result: string | null = (mappings as Record<string, string>)[search] || null;
 
     return (
         <>

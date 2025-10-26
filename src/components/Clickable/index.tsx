@@ -25,7 +25,8 @@ export function Clickable<T extends ClickableTags = "div">(_props: ClickableProp
         <Tag
             role={tag !== "a" ? "button" : undefined}
             tabIndex={0}
-            onMouseUp={(e) => {
+            // TODO: type this
+            onMouseUp={(e: any) => {
                 e.target?.blur();
                 onMouseUp?.(e);
             }}
