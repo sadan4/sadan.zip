@@ -1,22 +1,41 @@
 import { measureRect } from "@/utils/dom";
+import { deepEqual } from "@/utils/obj";
 import useResizeObserver from "@react-hook/resize-observer";
 
 import { useEventHandler } from "./eventListener";
 
-import { useLayoutEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export function useRect(el: Element | null): DOMRect | undefined {
-    const [size, setSize] = useState<any>();
+    const [size, _setSize] = useState<DOMRect>();
+    const sizeRef = useRef(size);
 
-    useLayoutEffect(() => {
+    function setSize(newSize: DOMRect) {
+        sizeRef.current = newSize;
+        _setSize(newSize);
+    }
+
+    useEffect(() => {
         if (el) {
-            setSize(measureRect(el));
+            const newRect = { ...measureRect(el) };
+
+            if (deepEqual(sizeRef.current, newRect)) {
+                return;
+            }
+
+            setSize(newRect);
         }
     }, [el]);
 
     useResizeObserver(el, () => {
         if (el) {
-            setSize(measureRect(el));
+            const newRect = { ...measureRect(el) };
+
+            if (deepEqual(sizeRef.current, newRect)) {
+                return;
+            }
+
+            setSize(newRect);
         }
     });
 
@@ -25,13 +44,25 @@ export function useRect(el: Element | null): DOMRect | undefined {
         // dom rects are mutable, so we can't compare them to see if they changed
         // window will not be resized *that* often
         if (el) {
-            setSize(measureRect(el));
+            const newRect = { ...measureRect(el) };
+
+            if (deepEqual(sizeRef.current, newRect)) {
+                return;
+            }
+
+            setSize(newRect);
         }
     });
 
     useEventHandler("scroll", () => {
         if (el) {
-            setSize(measureRect(el));
+            const newRect = { ...measureRect(el) };
+
+            if (deepEqual(sizeRef.current, newRect)) {
+                return;
+            }
+
+            setSize(newRect);
         }
     });
 
