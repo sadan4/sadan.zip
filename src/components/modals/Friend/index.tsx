@@ -8,26 +8,19 @@ import { Popout } from "@/components/Popout";
 import { PopoutDirection } from "@/components/Popout/constants";
 import { Tooltip } from "@/components/Tooltip";
 import { TooltipPosition } from "@/components/Tooltip/constants";
+import { useMediaQuery } from "@/hooks/mediaQuery";
 import { loopArrayStartingAt } from "@/utils/array";
 import cn from "@/utils/cn";
-import { measureRect } from "@/utils/dom";
-import { friends } from "@/utils/friends";
+import { type Friend, friends } from "@/utils/friends";
 import toCSS from "@/utils/toCSS";
-import useResizeObserver from "@react-hook/resize-observer";
 
 import { FriendModalContext } from "./context";
 import FriendCard from "./FriendCard";
 
 import { ArrowLeftIcon, ArrowRightIcon, XIcon } from "lucide-react";
-import { use, useCallback, useEffect, useMemo, useState } from "react";
+import { use, useMemo, useState } from "react";
 import { preload } from "react-dom";
 
-function defaultPosition() {
-    return {
-        x: window.innerWidth / 2,
-        y: window.innerHeight / 2,
-    };
-}
 
 function FriendModalCloseIcon() {
     const ctx = use(ModalContext);
@@ -67,25 +60,99 @@ function ArrowButton({ direction }: ArrowButtonProps) {
     );
 }
 
+interface FriendButtonProps {
+    friend: Friend;
+    tooltipPosition: TooltipPosition;
+}
+
+function FriendButton({ friend, tooltipPosition }: FriendButtonProps) {
+    const [popoutOpen, setPopoutOpen] = useState(false);
+    const [tooltipVisible, setTooltipVisible] = useState(false);
+
+    return (
+        <Popout
+            side={PopoutDirection.CENTER}
+            renderPopout={() => {
+                return (
+                    <div>
+                        <FriendCard
+                            friend={friend}
+                        />
+                    </div>
+                );
+            }}
+            onOpen={() => {
+                setPopoutOpen(true);
+            }}
+            onClose={() => {
+                setPopoutOpen(false);
+                setTooltipVisible(false);
+            }}
+            className="h-24 max-h-24 w-24 max-w-24"
+        >
+            <Tooltip
+                position={tooltipPosition}
+                text={friend.name}
+                show={tooltipVisible && !popoutOpen}
+                onShow={() => {
+                    setTooltipVisible(true);
+                }}
+                onHide={() => {
+                    setTooltipVisible(false);
+                }}
+            >
+                <Clickable onMouseOver={() => {
+                    if (friend._88x31url) {
+                        preload(friend._88x31url.toString(), { as: "image" });
+                    }
+                }}
+                >
+                    <PerspectiveHover
+                        hoverFactor={2}
+                    >
+                        <Shadow>
+                            <img
+                                src={friend.avatarUrl.toString()}
+                                className="max-h-24 max-w-24 rounded-full select-none"
+                            />
+                        </Shadow>
+                    </PerspectiveHover>
+                </Clickable>
+            </Tooltip>
+        </Popout>
+    );
+}
+
 export default function FriendModal() {
-    const center = use(FriendModalContext).centerElement;
-    const [{ x, y }, setCoords] = useState(defaultPosition);
+    const isNormalScreen = useMediaQuery("(width >= 735px)");
 
-    const updateCoords = useCallback(() => {
-        if (center.current) {
-            const { x, y, width, height } = measureRect(center.current);
+    if (isNormalScreen) {
+        return <FriendModalNormal />;
+    }
+    return <FriendModalMobile />;
+}
 
-            setCoords({
-                x: x + (width / 2),
-                y: y + (height / 2),
-            });
-        }
-    }, [center]);
+function FriendModalMobile() {
+    return (
+        <div className="fixed inset-x-1/5 inset-y-1/8 bg-green-500/10">
+            <div className="m-2 grid grid-flow-row-dense grid-cols-[repeat(auto-fill,--spacing(24))] justify-center gap-4">
+                {friends.map((friend) => {
+                    return (
+                        <FriendButton
+                            friend={friend}
+                            tooltipPosition={TooltipPosition.TOP}
+                        />
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
 
-    useResizeObserver(center, updateCoords);
-
-    useEffect(updateCoords, [updateCoords]);
-
+function FriendModalNormal() {
+    const center = use(FriendModalContext);
+    const x = center.x + (center.width / 2);
+    const y = center.y + (center.height / 2);
     const [friendIndex, setFriendIndex] = useState(0);
 
     const nextButton = useMemo(() => {
@@ -118,63 +185,14 @@ export default function FriendModal() {
         return loopArrayStartingAt(friends, friendIndex)
             .slice(0, 4)
             .map((friend, idx) => {
-                function Render() {
-                    const [popoutOpen, setPopoutOpen] = useState(false);
-                    const [tooltipVisible, setTooltipVisible] = useState(false);
-
-                    return (
-                        <DefaultPlacementCircleItem key={friend.name}>
-                            <Popout
-                                side={PopoutDirection.CENTER}
-                                renderPopout={() => {
-                                    return (
-                                        <div>
-                                            <FriendCard
-                                                friend={friend}
-                                            />
-                                        </div>
-                                    );
-                                }}
-                                onOpen={() => {
-                                    setPopoutOpen(true);
-                                }}
-                                onClose={() => {
-                                    setPopoutOpen(false);
-                                    setTooltipVisible(false);
-                                }}
-                            >
-                                <Tooltip
-                                    position={idx < 2 ? TooltipPosition.LEFT : TooltipPosition.RIGHT}
-                                    text={friend.name}
-                                    show={tooltipVisible && !popoutOpen}
-                                    onShow={() => {
-                                        setTooltipVisible(true);
-                                    }}
-                                    onHide={() => {
-                                        setTooltipVisible(false);
-                                    }}
-                                >
-                                    <Clickable onMouseOver={() => {
-                                        if (friend._88x31url) {
-                                            preload(friend._88x31url.toString(), { as: "image" });
-                                        }
-                                    }}
-                                    >
-                                        <PerspectiveHover hoverFactor={2}>
-                                            <Shadow>
-                                                <img
-                                                    src={friend.avatarUrl.toString()}
-                                                    className="h-24 min-h-24 w-24 min-w-24 rounded-full select-none"
-                                                />
-                                            </Shadow>
-                                        </PerspectiveHover>
-                                    </Clickable>
-                                </Tooltip>
-                            </Popout>
-                        </DefaultPlacementCircleItem>
-                    );
-                }
-                return <Render />;
+                return (
+                    <DefaultPlacementCircleItem key={friend.name}>
+                        <FriendButton
+                            friend={friend}
+                            tooltipPosition={idx < 2 ? TooltipPosition.LEFT : TooltipPosition.RIGHT}
+                        />
+                    </DefaultPlacementCircleItem>
+                );
             })
             .toSpliced(0, 0, nextButton, prevButton);
     }, [friendIndex, nextButton, prevButton]);

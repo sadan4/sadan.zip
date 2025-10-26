@@ -1,4 +1,5 @@
 import avatar from "@/assets/avatar.webp";
+import { useRect } from "@/hooks/rect";
 import cn from "@/utils/cn";
 import { friends } from "@/utils/friends";
 import { once } from "@/utils/functional";
@@ -7,10 +8,10 @@ import { BorderHoldRounded } from "@effects/BorderHold";
 import PerspectiveHover from "@effects/PerspectiveHover";
 import Shadow from "@effects/Shadow";
 
-import { FriendModalContext } from "./modals/Friend/context";
+import { defaultPosition, FriendModalContext } from "./modals/Friend/context";
 import { Modal, type ModalContext } from "./modal";
 
-import { type ComponentProps, lazy, useRef } from "react";
+import { type ComponentProps, lazy, useMemo, useRef, useState } from "react";
 
 export interface AvatarProps extends ComponentProps<"img"> {
     round?: boolean;
@@ -28,7 +29,15 @@ const FriendModal = lazy(() => import("@components/modals/Friend"));
 
 export default function Avatar({ round = false, ...props }: AvatarProps) {
     const modal = useRef<ModalContext>(null);
-    const imgRef = useRef<HTMLImageElement>(null);
+    const [img, setImg] = useState<HTMLImageElement | null>(null);
+    const { x, y, width, height } = useRect(img) ?? defaultPosition();
+
+    const value = useMemo(() => ({
+        x,
+        y,
+        width,
+        height,
+    }), [x, y, width, height]);
 
     return (
         <Clickable>
@@ -39,7 +48,7 @@ export default function Avatar({ round = false, ...props }: AvatarProps) {
                     }}
                     >
                         <img
-                            ref={imgRef}
+                            ref={setImg}
                             src={avatar}
                             alt="my discord profile picture, imagine a cute cat!"
                             {...props}
@@ -51,7 +60,7 @@ export default function Avatar({ round = false, ...props }: AvatarProps) {
                 </Shadow>
             </PerspectiveHover>
             <Modal ref={modal}>
-                <FriendModalContext value={{ centerElement: imgRef }}>
+                <FriendModalContext value={value}>
                     <FriendModal />
                 </FriendModalContext>
             </Modal>

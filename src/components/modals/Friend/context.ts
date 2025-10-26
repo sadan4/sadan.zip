@@ -1,12 +1,20 @@
 import { namedContext } from "@/utils/devtools";
-
-import { createRef, type RefObject } from "react";
+import { proxyLazy } from "@/utils/lazy";
 
 export interface FriendModalContext {
-    /**
-     * should never be null
-     */
-    centerElement: RefObject<HTMLElement | null>;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
 }
 
-export const FriendModalContext = namedContext<FriendModalContext>({ centerElement: createRef() }, "FriendModalContext");
+export function defaultPosition() {
+    return {
+        x: 0,
+        y: 0,
+        width: window.innerWidth,
+        height: window.innerHeight,
+    };
+}
+
+export const FriendModalContext = namedContext<FriendModalContext>(proxyLazy(defaultPosition), "FriendModalContext");

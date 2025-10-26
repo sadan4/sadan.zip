@@ -8,9 +8,10 @@ import { type CSSProperties, type PropsWithChildren, useLayoutEffect, useState }
 
 export interface ShadowProps extends PropsWithChildren {
     noHover?: boolean;
+    className?: string;
 }
 
-export default function Shadow({ children, noHover = false }: ShadowProps) {
+export default function Shadow({ children, noHover = false, className }: ShadowProps) {
     const [el, setEl] = useState<HTMLDivElement | null>(null);
 
     const { width, height } = useRect(el) ?? {
@@ -35,7 +36,7 @@ export default function Shadow({ children, noHover = false }: ShadowProps) {
         <div
             ref={setEl}
             style={cssProps}
-            className={cn(noHover ? styles.dropShadowNoHover : styles.dropShadow)}
+            className={cn(noHover ? styles.dropShadowNoHover : styles.dropShadow, className)}
         >
             {children}
         </div>

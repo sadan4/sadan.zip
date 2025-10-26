@@ -18,9 +18,10 @@ export interface PopoutProps extends PropsWithChildren {
     renderPopout(props: RenderPopoutProps): ReactNode;
     openOnClick?: boolean;
     side: PopoutDirection;
+    className?: string;
 }
 
-export function Popout({ open, children, side, renderPopout: RenderPopout, onOpen, onClose }: PopoutProps) {
+export function Popout({ open, children, side, renderPopout: RenderPopout, onOpen, onClose, className }: PopoutProps) {
     const isCenter = side === PopoutDirection.CENTER;
     const [popoutOpen, setPopoutOpen] = useState(open ?? false);
 
@@ -68,6 +69,7 @@ export function Popout({ open, children, side, renderPopout: RenderPopout, onOpe
                     onClick={(ev) => {
                         ev.stopPropagation();
                     }}
+                    className={className}
                 >
                     {children}
                 </div>

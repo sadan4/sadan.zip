@@ -1,3 +1,4 @@
+import cn from "@/utils/cn";
 import { measureRect } from "@/utils/dom";
 import toCSS from "@/utils/toCSS";
 import { animated, to, useSpring } from "@react-spring/web";
@@ -10,9 +11,10 @@ export interface PerspectiveHoverProps extends PropsWithChildren {
      * lower number -> bigger effect
      */
     hoverFactor: number;
+    className?: string;
 }
 
-export default function PerspectiveHover({ children, hoverFactor }: PerspectiveHoverProps) {
+export default function PerspectiveHover({ children, hoverFactor, className }: PerspectiveHoverProps) {
     function calcX(pointerY: number, height: number, posY: number): number {
         return -(pointerY - posY - (height / 2)) / hoverFactor;
     }
@@ -93,7 +95,7 @@ export default function PerspectiveHover({ children, hoverFactor }: PerspectiveH
                 rotateY,
                 rotateZ,
             }}
-            className="touch-none"
+            className={cn("touch-none", className)}
         >
             {children}
         </animated.div>
