@@ -14,7 +14,7 @@ export function useRect(el: Element | null): DOMRect | undefined {
         }
     }, [el]);
 
-    useResizeObserver(el, (entry) => {
+    useResizeObserver(el, () => {
         if (el) {
             setSize(measureRect(el));
         }
