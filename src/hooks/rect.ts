@@ -17,7 +17,7 @@ export function useRect(el: Element | null): DOMRect | undefined {
 
     useEffect(() => {
         if (el) {
-            const newRect = { ...measureRect(el) };
+            const newRect = measureRect(el).toJSON();
 
             if (deepEqual(sizeRef.current, newRect)) {
                 return;
@@ -29,7 +29,7 @@ export function useRect(el: Element | null): DOMRect | undefined {
 
     useResizeObserver(el, () => {
         if (el) {
-            const newRect = { ...measureRect(el) };
+            const newRect = measureRect(el).toJSON();
 
             if (deepEqual(sizeRef.current, newRect)) {
                 return;
@@ -44,7 +44,7 @@ export function useRect(el: Element | null): DOMRect | undefined {
         // dom rects are mutable, so we can't compare them to see if they changed
         // window will not be resized *that* often
         if (el) {
-            const newRect = { ...measureRect(el) };
+            const newRect = measureRect(el).toJSON();
 
             if (deepEqual(sizeRef.current, newRect)) {
                 return;
@@ -56,7 +56,7 @@ export function useRect(el: Element | null): DOMRect | undefined {
 
     useEventHandler("scroll", () => {
         if (el) {
-            const newRect = { ...measureRect(el) };
+            const newRect = measureRect(el).toJSON();
 
             if (deepEqual(sizeRef.current, newRect)) {
                 return;
