@@ -1,11 +1,11 @@
 import { installF8Break, namedContext, uninstallF8Break } from "@/utils/devtools";
 
 import { LayerContext } from "./components/Layer/context";
+import { assert } from "./utils/error";
 
 import "./app.scss";
 import { StrictMode, useContext, useEffect, useState } from "react";
 import { createBrowserRouter, RouterProvider, useLoaderData as useLoaderData_ } from "react-router";
-import { assert } from "./utils/error";
 
 export interface LoaderData {
     config: {
