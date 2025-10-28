@@ -30,14 +30,14 @@ const FriendModal = lazy(() => import("@components/modals/Friend"));
 export default function Avatar({ round = false, ...props }: AvatarProps) {
     const modal = useRef<ModalContext>(null);
     const [img, setImg] = useState<HTMLImageElement | null>(null);
-    const { x, y, width, height } = useRect(img) ?? defaultPosition();
+    const { top, left, width, height } = useRect(img) ?? defaultPosition();
 
     const value = useMemo(() => ({
-        x,
-        y,
+        x: left,
+        y: top,
         width,
         height,
-    }), [x, y, width, height]);
+    }), [left, top, width, height]);
 
     return (
         <Clickable>

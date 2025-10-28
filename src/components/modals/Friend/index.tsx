@@ -2,26 +2,33 @@ import { Clickable } from "@/components/Clickable";
 import HoverScale from "@/components/effects/HoverScale";
 import PerspectiveHover from "@/components/effects/PerspectiveHover";
 import Shadow from "@/components/effects/Shadow";
-import Circle, { DefaultPlacementCircleItem } from "@/components/layout/Circle";
+import { Circle } from "@/components/layout/Circle";
+import { ScrollArea } from "@/components/layout/ScrollArea";
 import { ModalContext } from "@/components/modal";
-import { Popout } from "@/components/Popout";
-import { PopoutDirection } from "@/components/Popout/constants";
+import { Popout2 } from "@/components/Popout2";
 import { Tooltip } from "@/components/Tooltip";
 import { TooltipPosition } from "@/components/Tooltip/constants";
 import { useMediaQuery } from "@/hooks/mediaQuery";
 import { loopArrayStartingAt } from "@/utils/array";
 import cn from "@/utils/cn";
 import { type Friend, friends } from "@/utils/friends";
-import toCSS from "@/utils/toCSS";
 
 import { FriendModalContext } from "./context";
 import FriendCard from "./FriendCard";
+import styles from "./styles.module.scss";
 
 import { ArrowLeftIcon, ArrowRightIcon, XIcon } from "lucide-react";
 import { use, useMemo, useState } from "react";
 import { preload } from "react-dom";
 
-
+declare module "react" {
+    interface CSSProperties {
+        "--center-top"?: number;
+        "--center-left"?: number;
+        "--center-width"?: number;
+        "--center-height"?: number;
+    }
+}
 function FriendModalCloseIcon() {
     const ctx = use(ModalContext);
 
@@ -70,56 +77,60 @@ function FriendButton({ friend, tooltipPosition }: FriendButtonProps) {
     const [tooltipVisible, setTooltipVisible] = useState(false);
 
     return (
-        <Popout
-            side={PopoutDirection.CENTER}
-            renderPopout={() => {
-                return (
-                    <div>
-                        <FriendCard
-                            friend={friend}
-                        />
-                    </div>
-                );
-            }}
+        <Popout2.Root
             onOpen={() => {
                 setPopoutOpen(true);
             }}
             onClose={() => {
                 setPopoutOpen(false);
-                setTooltipVisible(false);
             }}
-            className="h-24 max-h-24 w-24 max-w-24"
         >
-            <Tooltip
-                position={tooltipPosition}
-                text={friend.name}
-                show={tooltipVisible && !popoutOpen}
-                onShow={() => {
-                    setTooltipVisible(true);
-                }}
-                onHide={() => {
-                    setTooltipVisible(false);
-                }}
-            >
-                <Clickable onMouseOver={() => {
-                    if (friend._88x31url) {
-                        preload(friend._88x31url.toString(), { as: "image" });
-                    }
-                }}
+            <Circle.Root>
+                <Circle.Center>
+                    <Popout2.Trigger>
+                        <Tooltip
+                            position={tooltipPosition}
+                            text={friend.name}
+                            show={tooltipVisible && !popoutOpen}
+                            onShow={() => {
+                                setTooltipVisible(true);
+                            }}
+                            onHide={() => {
+                                setTooltipVisible(false);
+                            }}
+                        >
+                            <Clickable onMouseOver={() => {
+                                if (friend._88x31url) {
+                                    preload(friend._88x31url.toString(), { as: "image" });
+                                }
+                            }}
+                            >
+                                <PerspectiveHover
+                                    hoverFactor={2}
+                                >
+                                    <Shadow>
+                                        <img
+                                            src={friend.avatarUrl.toString()}
+                                            className="max-h-24 max-w-24 rounded-full select-none"
+                                        />
+                                    </Shadow>
+                                </PerspectiveHover>
+                            </Clickable>
+                        </Tooltip>
+                    </Popout2.Trigger>
+                </Circle.Center>
+                <Popout2.Content
+                    position={Popout2.Position.CENTER}
+                    onDismiss={() => {
+                        setTooltipVisible(false);
+                    }}
                 >
-                    <PerspectiveHover
-                        hoverFactor={2}
-                    >
-                        <Shadow>
-                            <img
-                                src={friend.avatarUrl.toString()}
-                                className="max-h-24 max-w-24 rounded-full select-none"
-                            />
-                        </Shadow>
-                    </PerspectiveHover>
-                </Clickable>
-            </Tooltip>
-        </Popout>
+                    <FriendCard
+                        friend={friend}
+                    />
+                </Popout2.Content>
+            </Circle.Root>
+        </Popout2.Root>
     );
 }
 
@@ -134,50 +145,52 @@ export default function FriendModal() {
 
 function FriendModalMobile() {
     return (
-        <div className="fixed inset-x-1/5 inset-y-1/8 bg-green-500/10">
-            <div className="m-2 grid grid-flow-row-dense grid-cols-[repeat(auto-fill,--spacing(24))] justify-center gap-4">
-                {friends.map((friend) => {
-                    return (
-                        <FriendButton
-                            friend={friend}
-                            tooltipPosition={TooltipPosition.TOP}
-                        />
-                    );
-                })}
-            </div>
+        <div className="fixed inset-x-1/5 inset-y-1/8 bg-bg-100/25">
+            <ScrollArea className="max-h-full">
+                <div className="m-2 grid grid-flow-row-dense grid-cols-[repeat(auto-fill,--spacing(24))] justify-center gap-4">
+                    {friends.map((friend) => {
+                        return (
+                            <FriendButton
+                                friend={friend}
+                                tooltipPosition={TooltipPosition.TOP}
+                                key={friend.name}
+                            />
+                        );
+                    })}
+                </div>
+            </ScrollArea>
+
         </div>
     );
 }
 
 function FriendModalNormal() {
     const center = use(FriendModalContext);
-    const x = center.x + (center.width / 2);
-    const y = center.y + (center.height / 2);
     const [friendIndex, setFriendIndex] = useState(0);
 
     const nextButton = useMemo(() => {
         return (
-            <DefaultPlacementCircleItem key="next-button">
+            <Circle.DefaultPlacementCircleItem key="next-button">
                 <Clickable onClick={() => {
                     setFriendIndex((prev) => prev + 1);
                 }}
                 >
                     <ArrowButton direction="next" />
                 </Clickable>
-            </DefaultPlacementCircleItem>
+            </Circle.DefaultPlacementCircleItem>
         );
     }, []);
 
     const prevButton = useMemo(() => {
         return (
-            <DefaultPlacementCircleItem key="prev-button">
+            <Circle.DefaultPlacementCircleItem key="prev-button">
                 <Clickable onClick={() => {
                     setFriendIndex((prev) => prev - 1);
                 }}
                 >
                     <ArrowButton direction="previous" />
                 </Clickable>
-            </DefaultPlacementCircleItem>
+            </Circle.DefaultPlacementCircleItem>
         );
     }, []);
 
@@ -186,42 +199,47 @@ function FriendModalNormal() {
             .slice(0, 4)
             .map((friend, idx) => {
                 return (
-                    <DefaultPlacementCircleItem key={friend.name}>
+                    <Circle.DefaultPlacementCircleItem key={friend.name}>
                         <FriendButton
                             friend={friend}
                             tooltipPosition={idx < 2 ? TooltipPosition.LEFT : TooltipPosition.RIGHT}
                         />
-                    </DefaultPlacementCircleItem>
+                    </Circle.DefaultPlacementCircleItem>
                 );
             })
             .toSpliced(0, 0, nextButton, prevButton);
     }, [friendIndex, nextButton, prevButton]);
 
     return (
-        <div
-            className="fixed top-0 left-0 h-full w-full"
-            onWheel={(e) => {
-                console.log("scroll", e);
-            }}
-        >
+        <>
+
             <div
-                className="absolute -translate-1/2"
-                style={{
-                    top: toCSS.px(y),
-                    left: toCSS.px(x),
+                className="fixed inset-fill"
+                onWheel={(e) => {
+                    console.log("scroll", e);
                 }}
             >
-                <div
-                    className="absolute top-0 left-0 h-52 w-52 -translate-1/2"
-                >
-                    <FriendModalCloseIcon />
-                </div>
-                <Circle
-                    radius={500}
-                    children={contents}
-                    offset={1}
-                />
+                <Circle.Root>
+                    <Circle.Center>
+                        <div
+                            className={styles.closeIcon}
+                            style={{
+                                "--center-top": center?.y,
+                                "--center-left": center?.x,
+                                "--center-width": center?.width,
+                                "--center-height": center?.height,
+                            }}
+                        >
+                            <FriendModalCloseIcon />
+                        </div>
+                    </Circle.Center>
+                    <Circle.Items
+                        radius={500}
+                        children={contents}
+                        offset={1}
+                    />
+                </Circle.Root>
             </div>
-        </div>
+        </>
     );
 }

@@ -1,6 +1,6 @@
 import { error } from "@/utils/error";
 
-import { useCallback, useSyncExternalStore } from "react";
+import { useCallback, useDebugValue, useSyncExternalStore } from "react";
 
 /*!
  * MIT License
@@ -27,6 +27,8 @@ import { useCallback, useSyncExternalStore } from "react";
  */
 
 export function useMediaQuery(query: string) {
+    useDebugValue(query);
+
     const subscribe = useCallback(
         (callback: () => void) => {
             const queryList = matchMedia(query);

@@ -1,0 +1,28 @@
+@use "u";
+
+@layer components {
+    .content {
+        $top: var(--pop-top, 0);
+        $left: var(--pop-left, 0);
+        $width: var(--pop-width, 0);
+        $height: var(--pop-height, 0);
+
+        position: fixed;
+
+        &.top {
+            top: $top;
+            left: calc($left + ($width / 2));
+        }
+
+        &.bottom {}
+
+        &.left {}
+
+        &.right {}
+
+        &.center {
+            top: calc($top + ($height / 2));
+            left: calc($left + ($width / 2));
+        }
+    }
+}

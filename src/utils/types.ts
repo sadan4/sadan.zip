@@ -195,6 +195,6 @@ export function isFunction(func: any): func is ((...a: any[]) => any) {
     return typeof func === "function";
 }
 
-export function truthy<T>(i: T): i is Exclude<T, false | null | undefined> {
+export function truthy<T>(i: T): i is Exclude<T, false | null | undefined | 0> {
     return !!i;
 }

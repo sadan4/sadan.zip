@@ -89,10 +89,19 @@ export function parseCSSValue(value: string, element: Element, precentReference:
 }
 
 export function measureRect(element: Element): DOMRect {
-    const computedStyle = getComputedStyle(element);
+    const { display } = getComputedStyle(element);
 
-    if (computedStyle.display !== "contents") {
+    if (display !== "contents") {
         return element.getBoundingClientRect();
+    }
+
+    if (element.children.length === 1) {
+        const [child] = element.children;
+        const { display } = getComputedStyle(child);
+
+        if (display === "contents") {
+            return measureRect(child);
+        }
     }
 
     const range = document.createRange();

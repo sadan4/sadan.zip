@@ -1,0 +1,13 @@
+.close-icon {
+    $left: calc(var(--center-left, 0) * 1px);
+    $top: calc(var(--center-top, 0) * 1px);
+    $w: calc(var(--center-width, 0) * 1px);
+    $h: calc(var(--center-height, 0) * 1px);
+
+    position: absolute;
+    transform-origin: calc($left + ($w / 2)) calc($top + ($h / 2));
+    top: $top;
+    left: $left;
+    width: $w;
+    height: $h;
+}

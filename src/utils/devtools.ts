@@ -23,6 +23,27 @@ export function namedContext<T>(defaultValue: T, name: string) {
     return context;
 }
 
+export function namespacedComponent<T extends Record<PropertyKey, any>>(
+    namespace: T,
+    name: string,
+    keys?: (keyof T)[],
+) {
+    const shouldFilter = !keys;
+
+    for (const key of keys ?? Object.keys(namespace)) {
+        if (shouldFilter && typeof namespace[key] !== "function") {
+            continue;
+        }
+
+        const component = namespace[key];
+
+        if (component == null || (typeof component !== "function" && typeof component !== "object")) {
+            console.warn("invalid component", component);
+        }
+        component.displayName = `${name}.${String(key)}`;
+    }
+}
+
 export function dbg<T>(val: T): T {
     const { stack } = new Error();
 
