@@ -1,0 +1,19 @@
+@layer components {
+    .items {
+        pointer-events: none;
+        position: fixed;
+
+        > * {
+            pointer-events: auto;
+        }
+
+        .default {
+            position: absolute;
+        }
+
+        > *,
+        .default {
+            translate: -50% -50%;
+        }
+    }
+}

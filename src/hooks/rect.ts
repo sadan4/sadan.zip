@@ -6,7 +6,7 @@ import { useEventHandler } from "./eventListener";
 
 import { useEffect, useRef, useState } from "react";
 
-export function useRect(el: Element | null): DOMRect | undefined {
+export function useRect(el: Element | null, extraDeps: unknown[] = []): DOMRect | undefined {
     const [size, _setSize] = useState<DOMRect>();
     const sizeRef = useRef(size);
 
@@ -25,7 +25,7 @@ export function useRect(el: Element | null): DOMRect | undefined {
 
             setSize(newRect);
         }
-    }, [el]);
+    }, [el, ...extraDeps]);
 
     useResizeObserver(el, () => {
         if (el) {

@@ -4,6 +4,7 @@ import { namedContext, namespacedComponent } from "@/utils/devtools";
 import { error } from "@/utils/error";
 
 import { CircleItemContext } from "./context";
+import styles from "./styles.module.scss";
 
 import { type ComponentProps, type PropsWithChildren, type ReactElement, type ReactNode, use, useContext, useEffect, useMemo, useState } from "react";
 
@@ -89,6 +90,7 @@ export namespace Circle {
 
         return (
             <div
+                className={styles.default}
                 style={{
                     top,
                     left,
@@ -109,13 +111,13 @@ export namespace Circle {
         return (
             <div
                 {...props}
-                className={cn(props.className, "pointer-events-none fixed *:pointer-events-auto *:absolute *:-translate-1/2")}
+                className={cn(props.className, styles.items)}
                 style={{
                     ...props.style,
                     width: radius,
                     height: radius,
-                    top: top - Math.abs((height / 2) - (radius / 2)),
-                    left: left - Math.abs((width / 2) - (radius / 2)),
+                    top: top + ((height / 2) - (radius / 2)),
+                    left: left + ((width / 2) - (radius / 2)),
                 }}
             >
                 {Array.from({ length: numItems }, (_, i) => {

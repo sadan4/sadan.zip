@@ -198,8 +198,9 @@ function FriendModalNormal() {
         return loopArrayStartingAt(friends, friendIndex)
             .slice(0, 4)
             .map((friend, idx) => {
+                // index is an important key because of positioning
                 return (
-                    <Circle.DefaultPlacementCircleItem key={friend.name}>
+                    <Circle.DefaultPlacementCircleItem key={`${idx}-${friend.name}`}>
                         <FriendButton
                             friend={friend}
                             tooltipPosition={idx < 2 ? TooltipPosition.LEFT : TooltipPosition.RIGHT}
@@ -212,7 +213,6 @@ function FriendModalNormal() {
 
     return (
         <>
-
             <div
                 className="fixed inset-fill"
                 onWheel={(e) => {

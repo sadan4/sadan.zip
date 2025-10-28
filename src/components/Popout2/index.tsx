@@ -1,4 +1,6 @@
 import { useControlledState } from "@/hooks/controlledState";
+import { useForceUpdater } from "@/hooks/forceUpdater";
+import { useIntersection } from "@/hooks/intersection";
 import { useRect } from "@/hooks/rect";
 import cn from "@/utils/cn";
 import { namedContext, namespacedComponent } from "@/utils/devtools";
@@ -8,6 +10,7 @@ import styles from "./styles.module.scss";
 import { Clickable } from "../Clickable";
 
 import { type PropsWithChildren, use, useEffect, useMemo, useRef, useState } from "react";
+import { useComposedRefs } from "@/hooks/composedRefs";
 
 export interface PopoutRootProps extends PropsWithChildren {
     open?: boolean;
@@ -106,16 +109,39 @@ export namespace Popout2 {
     export function Trigger({ children }: PopoutTriggerProps) {
         const ctx = usePopoutContextInternal();
         const [el, setEl] = useState<HTMLElement | null>(null);
-        const rect = useRect(el);
+        const [dep, recalculateRect] = useForceUpdater();
+        const rect = useRect(el, [dep]);
+
+        useEffect(() => {
+            ctx.setRect(rect);
+        }, [rect, ctx]);
+
+        const flag = useIntersection(() => {
+            recalculateRect();
+        }, {
+            root: el,
+        });
 
         return (
-            <Clickable
-                ref={setEl}
-                className="contents"
-                onClick={ctx.open}
-            >
-                {children}
-            </Clickable>
+            <>
+                <div
+                    ref={useComposedRefs(recalculateRect, flag)}
+                    className="pointer-events-none absolute inset-fill inline bg-transparent"
+                    style={{
+                        top: 0,
+                        left: 0,
+                        width: ctx.rect?.width ?? 0,
+                        height: ctx.rect?.height ?? 0,
+                    }}
+                />
+                <Clickable
+                    ref={setEl}
+                    className="contents"
+                    onClick={ctx.open}
+                >
+                    {children}
+                </Clickable>
+            </>
         );
     }
 
