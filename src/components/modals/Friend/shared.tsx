@@ -151,7 +151,7 @@ export function FriendButton({ friend, tooltipPosition, mobile }: FriendButtonPr
                                 setTooltipVisible(false);
                             }}
                         >
-                            <Clickable
+                            <div
                                 // avoid calculations when not needed
                                 ref={mobile && setEl}
                                 onMouseOver={() => {
@@ -172,7 +172,7 @@ export function FriendButton({ friend, tooltipPosition, mobile }: FriendButtonPr
                                         />
                                     </Shadow>
                                 </PerspectiveHover>
-                            </Clickable>
+                            </div>
                         </Tooltip>
                     </PopoutTrigger>
                 </CircleCenter>
