@@ -5,15 +5,12 @@ import { LayerContext } from "./components/Layer/context";
 import { assert } from "./utils/error";
 import { routeTree } from "./routeTree.gen";
 
-import "./app.scss";
 import { useEffect, useState } from "react";
 
 const router = createRouter({
     routeTree,
     scrollRestoration: true,
-    context: {
-        solidBg: false,
-    } satisfies RouterContext as RouterContext,
+    defaultPreload: "intent",
 });
 
 declare module "@tanstack/react-router" {
@@ -48,5 +45,9 @@ export function App() {
         return uninstallF8Break;
     }, []);
 
-    return <RouterProvider router={router} />;
+    return (
+        <LayerContext value={ctx}>
+            <RouterProvider router={router} />
+        </LayerContext>
+    );
 }

@@ -22,11 +22,10 @@ const styleEl = function (): HTMLLinkElement {
 styleEl.href = cssUrl;
 
 import { LayerContext } from "@/components/Layer/context";
-import { type LoaderData, UseLoaderDataContext } from "@/main";
 import { installF8Break } from "@/utils/devtools";
 import { assert } from "@/utils/error";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
 installF8Break();
@@ -52,17 +51,6 @@ const preview: Preview = {
     },
     decorators: [
         (storyFn) => {
-            const mockLoaderData = useCallback(
-                () => {
-                    return {
-                        config: {
-                            solidBg: true,
-                        },
-                    } satisfies LoaderData;
-                },
-                [],
-            );
-
             const [ctx, setCtx] = useState<LayerContext>({
                 level: 0,
                 root: null,
@@ -80,14 +68,12 @@ const preview: Preview = {
             }, []);
 
             return (
-                <UseLoaderDataContext value={mockLoaderData}>
-                    <LayerContext
-                        value={ctx}
-                    >
-                        {createPortal(<Boilerplate />, document.body)}
-                        {storyFn()}
-                    </LayerContext>
-                </UseLoaderDataContext>
+                <LayerContext
+                    value={ctx}
+                >
+                    {createPortal(<Boilerplate />, document.body)}
+                    {storyFn()}
+                </LayerContext>
             );
         },
     ],

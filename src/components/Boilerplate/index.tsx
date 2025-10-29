@@ -1,3 +1,5 @@
+import styles from "./styles.module.scss";
+
 import { useEffect } from "react";
 
 export interface BoilerplateProps {
@@ -7,9 +9,9 @@ export interface BoilerplateProps {
 export function Boilerplate({ solidBg = false }: BoilerplateProps) {
     useEffect(() => {
         if (!solidBg) {
-            document.body.classList.add("snow");
+            document.body.classList.add(styles.snowGif);
             return () => {
-                document.body.classList.remove("snow");
+                document.body.classList.remove(styles.snowGif);
             };
         }
     }, [solidBg]);
