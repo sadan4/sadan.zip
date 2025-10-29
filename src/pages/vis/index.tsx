@@ -1,6 +1,6 @@
 import { Boilerplate } from "@/components/Boilerplate";
 import { Button } from "@/components/Button";
-import { DefaultFooter, FooterContainer } from "@/components/Footer";
+import { DefaultFooter, FooterContainer, FooterContent, FooterFooter } from "@/components/Footer";
 import { Box } from "@/components/layout/Box";
 import { Text } from "@/components/Text";
 import { TextArea } from "@/components/TextArea";
@@ -33,9 +33,9 @@ interface RawToken extends Omit<Token, "contents"> {
 }
 
 const knownColors: Record<string, string> = {
-    LiteralToken: cn("bg-accent-300/50 border-accent-300"),
+    LiteralToken: cn("border-accent-300 bg-accent-300/50"),
     BlankSpaceToken: cn("border-info-500 bg-transparent"),
-    MinusToken: cn("bg-warning-300/60 border-warning-300"),
+    MinusToken: cn("border-warning-300 bg-warning-300/60"),
     EofToken: cn("border-error-400 bg-transparent"),
     DoubleQuoteToken: cn("border-info-300 bg-info-300/50"),
 };
@@ -44,7 +44,7 @@ function colorForType(type: string) {
     if (!(type in knownColors)) {
         console.error("missing color", type);
 
-        return cn("bg-info-600/50 border-info-600");
+        return cn("border-info-600 bg-info-600/50");
     }
 
     return knownColors[type];
@@ -72,7 +72,7 @@ function EmptyToken(count: number) {
             {fill(count + 1, NBSP).join("")}
             <svg
                 ref={ref}
-                className="inset-fill fill-error-400 absolute"
+                className="absolute inset-fill fill-error-400"
             >
                 <rect
                     ref={rectRef}
@@ -110,7 +110,7 @@ function parseTokens(json: string): Token[] {
                                     !contents && (
                                         <li>
                                             <span className="">
-                                                <AlertCircleIcon className="stroke-warning-300 inline h-4 w-auto pr-1 align-text-top" />This token has no content!
+                                                <AlertCircleIcon className="inline h-4 w-auto stroke-warning-300 pr-1 align-text-top" />This token has no content!
                                             </span>
                                         </li>
                                     )
@@ -153,51 +153,54 @@ export default function Vis() {
     return (
         <>
             <Boilerplate />
-            <FooterContainer
-                footer={() => <DefaultFooter />}
-            >
-                <div className="flex h-full w-full flex-col items-center pt-[20vh]">
-                    <Text
-                        size="4xl"
-                        color="accent"
-                    >
-                        Token Visualizer
-                    </Text>
-                    <div className="mt-6 flex w-9/10 flex-col items-center gap-6">
-                        <TextArea
-                            size="lg"
-                            value={text}
-                            onChange={(e) => {
-                                setText(e.target.value);
-                            }}
-                            placeholder='some json here'
-                            className="h-[10vh] max-h-[25vh] min-h-20 w-[60vw] max-w-[60vw] min-w-50 resize"
-                        />
-                        <div className="flex h-9 gap-3">
-                            <Button
-                                onClick={() => {
-                                    paste().then(setText);
+            <FooterContainer >
+                <FooterContent>
+                    <div className="flex h-full w-full flex-col items-center pt-[20vh]">
+                        <Text
+                            size="4xl"
+                            color="accent"
+                        >
+                            Token Visualizer
+                        </Text>
+                        <div className="mt-6 flex w-9/10 flex-col items-center gap-6">
+                            <TextArea
+                                size="lg"
+                                value={text}
+                                onChange={(e) => {
+                                    setText(e.target.value);
                                 }}
-                            >
-                                Paste
-                            </Button>
-                            <Button
-                                color="secondary"
-                                colorType="outline"
-                                onClick={() => {
-                                    setText(defaultJson);
-                                }}
-                            >
-                                Fill With Example
-                            </Button>
+                                placeholder='some json here'
+                                className="h-[10vh] max-h-[25vh] min-h-20 w-[60vw] max-w-[60vw] min-w-50 resize"
+                            />
+                            <div className="flex h-9 gap-3">
+                                <Button
+                                    onClick={() => {
+                                        paste().then(setText);
+                                    }}
+                                >
+                                    Paste
+                                </Button>
+                                <Button
+                                    color="secondary"
+                                    colorType="outline"
+                                    onClick={() => {
+                                        setText(defaultJson);
+                                    }}
+                                >
+                                    Fill With Example
+                                </Button>
+                            </div>
+                            <Box className="inline w-full [&>*:not(:first-child)]:ml-0.5">
+                                {
+                                    tokens.length ? tokens.map((t) => <Fragment key={`${t.type}-${t.pos.start}`}><t.contents /></Fragment>) : null
+                                }
+                            </Box>
                         </div>
-                        <Box className="inline w-full [&>*:not(:first-child)]:ml-0.5">
-                            {
-                                tokens.length ? tokens.map((t) => <Fragment key={`${t.type}-${t.pos.start}`}><t.contents /></Fragment>) : null
-                            }
-                        </Box>
                     </div>
-                </div>
+                </FooterContent>
+                <FooterFooter>
+                    <DefaultFooter />
+                </FooterFooter>
             </FooterContainer>
         </>
     );

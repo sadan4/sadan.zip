@@ -168,7 +168,7 @@ export function BorderHoldRounded({ children, onHold, ref }: BorderHoldCircularP
                 }}
             >
                 <div
-                    className="contents"
+                    className="h-fit w-fit"
                     ref={setWrapper}
                 >
                     {children}

@@ -1,6 +1,6 @@
 import { namedContext } from "@/utils/devtools";
 
-import type { CircleItemProps } from ".";
+import type { CircleItemProps } from "./Circle";
 
 
 export interface CircleItemContext extends CircleItemProps {

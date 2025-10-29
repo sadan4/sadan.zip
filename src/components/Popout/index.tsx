@@ -1,103 +1,159 @@
+import { useControlledState } from "@/hooks/controlledState";
+import { useRect } from "@/hooks/rect";
 import cn from "@/utils/cn";
-import toCSS from "@/utils/toCSS";
-import * as Popover from "@radix-ui/react-popover";
+import { namedContext } from "@/utils/devtools";
+import { error } from "@/utils/error";
 
-import { PopoutDirection } from "./constants";
-import styles from "./style.module.scss";
+import { Position } from "./enums";
+import styles from "./styles.module.scss";
+import { Clickable } from "../Clickable";
 
-import { type PropsWithChildren, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { type PropsWithChildren, use, useEffect, useMemo, useRef, useState } from "react";
 
-export interface RenderPopoutProps {
-    close(): void;
-}
-
-export interface PopoutProps extends PropsWithChildren {
+export interface PopoutRootProps extends PropsWithChildren {
     open?: boolean;
-    onClose?: () => void;
-    onOpen?: () => void;
-    renderPopout(props: RenderPopoutProps): ReactNode;
-    openOnClick?: boolean;
-    side: PopoutDirection;
-    className?: string;
+    onClose?(): void;
+    onOpen?(): void;
 }
 
-export function Popout({ open, children, side, renderPopout: RenderPopout, onOpen, onClose, className }: PopoutProps) {
-    const isCenter = side === PopoutDirection.CENTER;
-    const [popoutOpen, setPopoutOpen] = useState(open ?? false);
+export interface PopoutTriggerProps extends PropsWithChildren {
+}
 
-    useEffect(() => {
-        if (open != null) {
-            setPopoutOpen(open);
-        }
-    }, [open]);
+export interface PopoutContentProps extends PropsWithChildren {
+    position?: Position;
+    onDismiss?(): void;
+}
 
-    const onOpenChange = useCallback((state: boolean) => {
-        if (state) {
-            onOpen?.();
-        } else {
-            onClose?.();
-        }
-        setPopoutOpen(state);
-    }, [onClose, onOpen]);
+declare module "react" {
+    interface CSSProperties {
+        "--pop-top"?: number;
+        "--pop-left"?: number;
+        "--pop-width"?: number;
+        "--pop-height"?: number;
+    }
+}
 
-    const closePopout = useCallback(() => {
-        setPopoutOpen(false);
-    }, []);
+interface PopoutContextInternal {
+    open(): void;
+    close(): void;
+    isOpen: boolean;
+    setRect(rect: DOMRectReadOnly | undefined): void;
+    rect?: DOMRectReadOnly;
+}
 
-    const contentRef = useRef<HTMLDivElement>(null);
-    const [triggerWidth, setTriggerWidth] = useState(0);
-    const [triggerHight, setTriggerHight] = useState(0);
+const PopoutContextInternal = namedContext<PopoutContextInternal | null>(null, "PopoutContextInternal");
 
-    useEffect(() => {
-        if (!contentRef.current)
-            return;
+function usePopoutContextInternal(): PopoutContextInternal {
+    const ctx = use(PopoutContextInternal);
 
-        const { width, height } = contentRef.current.getBoundingClientRect();
+    if (ctx == null) {
+        error("usePopoutContextInternal must be used within a Popout2.Root");
+    }
+    return ctx;
+}
 
-        setTriggerWidth(width);
-        setTriggerHight(height);
-    }, []);
+const positionMap: Record<Position, string> = {
+    [Position.TOP]: styles.top,
+    [Position.BOTTOM]: styles.bottom,
+    [Position.LEFT]: styles.left,
+    [Position.RIGHT]: styles.right,
+    [Position.CENTER]: styles.center,
+};
+
+export function PopoutRoot({ children, open: _value, onClose, onOpen }: PopoutRootProps) {
+    const [isOpen, setIsOpen] = useControlledState({
+        initialValue: false,
+        debugName: "Popout2.Open",
+        managedValue: _value,
+        handleChange(open) {
+            if (open) {
+                onOpen?.();
+            } else {
+                onClose?.();
+            }
+        },
+    });
+
+    const [rect, setRect] = useState<DOMRectReadOnly>();
+
+    const api = useMemo<PopoutContextInternal>(() => ({
+        open() {
+            setIsOpen(true);
+        },
+        close() {
+            setIsOpen(false);
+        },
+        setRect,
+        rect,
+        isOpen,
+    }), [isOpen, rect, setIsOpen]);
 
     return (
-        <Popover.Root
-            open={popoutOpen}
-            onOpenChange={onOpenChange}
+        <PopoutContextInternal value={api}>
+            {children}
+        </PopoutContextInternal>
+    );
+}
+
+export function PopoutTrigger({ children }: PopoutTriggerProps) {
+    const ctx = usePopoutContextInternal();
+    const [el, setEl] = useState<HTMLElement | null>(null);
+    const rect = useRect(el);
+
+    useEffect(() => {
+        ctx.setRect(rect);
+    }, [rect, ctx]);
+
+    return (
+        <>
+            <Clickable
+                ref={setEl}
+                className="contents"
+                onClick={ctx.open}
+            >
+                {children}
+            </Clickable>
+        </>
+    );
+}
+
+export function PopoutContent({ children, position = Position.TOP, onDismiss }: PopoutContentProps) {
+    const ctx = usePopoutContextInternal();
+    const ref = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (ctx.isOpen) {
+            ref.current?.showPopover();
+        } else {
+            ref.current?.hidePopover();
+        }
+    }, [ctx.isOpen]);
+
+    return (
+        <div
+            ref={ref}
+            popover="auto"
+            style={{
+                "--pop-top": ctx.rect?.top,
+                "--pop-left": ctx.rect?.left,
+                "--pop-width": ctx.rect?.width,
+                "--pop-height": ctx.rect?.height,
+            }}
         >
-            <Popover.Trigger asChild>
+            <div
+                className="fixed inset-fill"
+                onClick={() => {
+                    onDismiss?.();
+                    ctx.close();
+                }}
+            >
                 <div
-                    ref={contentRef}
-                    onClick={(ev) => {
-                        ev.stopPropagation();
-                    }}
-                    className={className}
+                    className={cn(styles.content, positionMap[position])}
+                    onClick={(e) => e.stopPropagation()}
                 >
                     {children}
                 </div>
-            </Popover.Trigger>
-            <div
-                className={cn(styles.popoutContentWrapper)}
-                style={{
-                    ["--trigger-width" as any]: toCSS.px(triggerWidth),
-                    ["--trigger-height" as any]: toCSS.px(triggerHight),
-                }}
-                data-center={isCenter}
-            >
-                <Popover.Content
-                    side={isCenter ? "bottom" : side}
-                    asChild
-                >
-                    <div
-                        className="foobar"
-                        style={isCenter
-                            ? {
-                                transform: toCSS.translate("-50%", "-50%"),
-                            }
-                            : {}}
-                    >
-                        <RenderPopout close={closePopout} />
-                    </div>
-                </Popover.Content>
             </div>
-        </Popover.Root>
+        </div>
     );
 }

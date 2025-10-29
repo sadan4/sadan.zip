@@ -3,7 +3,7 @@ import { Boilerplate } from "@/components/Boilerplate";
 import { Clickable } from "@/components/Clickable";
 import { Codeblock } from "@/components/Codeblock/Codeblock";
 import { CodeblockLang } from "@/components/Codeblock/enums";
-import { DefaultFooter, FooterContainer } from "@/components/Footer";
+import { DefaultFooter, FooterContainer, FooterContent, FooterFooter } from "@/components/Footer";
 import { Box } from "@/components/layout/Box";
 import { TabBar, TabBarPosition } from "@/components/layout/TabBar";
 import { Text } from "@/components/Text";
@@ -46,58 +46,63 @@ export default function Component_88x31_Button() {
     return (
         <>
             <Boilerplate />
-            <FooterContainer footer={() => <DefaultFooter />} >
-                <div className="mt-4 flex w-full justify-center">
-                    <Box className="mr-2 sm:w-full md:w-1/2">
-                        <Text
-                            size="3xl"
-                            color="primary"
-                            center
-                        >
-                            Add My Button
-                        </Text>
-                        <Sadan88x31Button />
-                        <TabBar
-                            tabsPosition={TabBarPosition.LEFT}
-                            tabs={[
-                                {
-                                    id: "html",
-                                    RenderTab() {
-                                        return (
-                                            <>
-                                                HTML
-                                            </>
-                                        );
+            <FooterContainer>
+                <FooterContent>
+                    <div className="mt-4 flex w-full justify-center">
+                        <Box className="mr-2 sm:w-full md:w-1/2">
+                            <Text
+                                size="3xl"
+                                color="primary"
+                                center
+                            >
+                                Add My Button
+                            </Text>
+                            <Sadan88x31Button />
+                            <TabBar
+                                tabsPosition={TabBarPosition.LEFT}
+                                tabs={[
+                                    {
+                                        id: "html",
+                                        RenderTab() {
+                                            return (
+                                                <>
+                                                    HTML
+                                                </>
+                                            );
+                                        },
+                                        Render() {
+                                            return (
+                                                <Codeblock lang={CodeblockLang.HTML}>
+                                                    {htmlExampleContent}
+                                                </Codeblock>
+                                            );
+                                        },
                                     },
-                                    Render() {
-                                        return (
-                                            <Codeblock lang={CodeblockLang.HTML}>
-                                                {htmlExampleContent}
-                                            </Codeblock>
-                                        );
+                                    {
+                                        id: "react",
+                                        RenderTab() {
+                                            return (
+                                                <>
+                                                    React
+                                                </>
+                                            );
+                                        },
+                                        Render() {
+                                            return (
+                                                <Codeblock lang={CodeblockLang.TSX}>
+                                                    {reactExampleContent}
+                                                </Codeblock>
+                                            );
+                                        },
                                     },
-                                },
-                                {
-                                    id: "react",
-                                    RenderTab() {
-                                        return (
-                                            <>
-                                                React
-                                            </>
-                                        );
-                                    },
-                                    Render() {
-                                        return (
-                                            <Codeblock lang={CodeblockLang.TSX}>
-                                                {reactExampleContent}
-                                            </Codeblock>
-                                        );
-                                    },
-                                },
-                            ]}
-                        />
-                    </Box>
-                </div>
+                                ]}
+                            />
+                        </Box>
+                    </div>
+                </FooterContent>
+                <FooterFooter>
+                    <DefaultFooter />
+                </FooterFooter>
             </FooterContainer>
         </>
     );

@@ -8,7 +8,7 @@ import { BorderHoldRounded } from "@effects/BorderHold";
 import PerspectiveHover from "@effects/PerspectiveHover";
 import Shadow from "@effects/Shadow";
 
-import { defaultPosition, FriendModalContext } from "./modals/Friend/context";
+import { defaultPosition, FriendModalContext } from "./modals/Friend/other";
 import { Modal, type ModalContext } from "./modal";
 
 import { type ComponentProps, lazy, useMemo, useRef, useState } from "react";
@@ -29,7 +29,8 @@ const FriendModal = lazy(() => import("@components/modals/Friend"));
 
 export default function Avatar({ round = false, ...props }: AvatarProps) {
     const modal = useRef<ModalContext>(null);
-    const [img, setImg] = useState<HTMLImageElement | null>(null);
+    const [img, setImg] = useState<HTMLDivElement | null>(null);
+    // update the rect before we open the modal to ensure the correct position;
     const { top, left, width, height } = useRect(img) ?? defaultPosition();
 
     const value = useMemo(() => ({
@@ -40,7 +41,8 @@ export default function Avatar({ round = false, ...props }: AvatarProps) {
     }), [left, top, width, height]);
 
     return (
-        <Clickable>
+        // put the ref on Clicable because it's before all the effects that might change the size/position
+        <Clickable ref={setImg}>
             <PerspectiveHover hoverFactor={4}>
                 <Shadow>
                     <BorderHoldRounded onHold={() => {
@@ -48,7 +50,6 @@ export default function Avatar({ round = false, ...props }: AvatarProps) {
                     }}
                     >
                         <img
-                            ref={setImg}
                             src={avatar}
                             alt="my discord profile picture, imagine a cute cat!"
                             {...props}

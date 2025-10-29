@@ -97,10 +97,14 @@
 
 @utility sb-track-* {
     --scrollbar-track-color: --value(--color-*);
+    /* stylelint-disable-next-line declaration-block-no-duplicate-custom-properties */
+    --scrollbar-track-color: --alpha(--value(--color-*) / --modifier(integer));
 }
 
 @utility sb-thumb-* {
     --scrollbar-thumb-color: --value(--color-*);
+    /* stylelint-disable-next-line declaration-block-no-duplicate-custom-properties */
+    --scrollbar-thumb-color: --alpha(--value(--color-*) / --modifier(integer));
 }
 
 @utility svg-x-* {

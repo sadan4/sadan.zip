@@ -14,11 +14,20 @@
             left: calc($left + ($width / 2));
         }
 
-        &.bottom {}
+        &.bottom {
+            top: calc($top + $height);
+            left: calc($left + ($width / 2));
+        }
 
-        &.left {}
+        &.left {
+            top: calc($top + ($height / 2));
+            left: $left;
+        }
 
-        &.right {}
+        &.right {
+            top: calc($top + ($height / 2));
+            left: calc($left + $width);
+        }
 
         &.center {
             top: calc($top + ($height / 2));

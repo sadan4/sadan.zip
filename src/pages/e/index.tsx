@@ -17,7 +17,7 @@ export default function Explorer() {
         <>
             <Boilerplate />
             <div className="flex h-full flex-col">
-                <div className="bg-primary-400/50 h-1/20">header</div>
+                <div className="h-1/20 bg-primary-400/50">header</div>
                 <div
                     className="relative flex grow"
                     ref={sidebarBoundingRef}
@@ -30,7 +30,7 @@ export default function Explorer() {
                             left sidebar
                         </ResizableSidebar>
                     </SidebarStateStoreProvider>
-                    <div className="bg-secondary-500/50 grow p-3">
+                    <div className="grow bg-secondary-500/50 p-3">
                         <div className="flex w-fit flex-col gap-3">
                             main body
                             <Button onClick={() => {

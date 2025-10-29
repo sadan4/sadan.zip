@@ -1,5 +1,5 @@
 import { Boilerplate } from "@/components/Boilerplate";
-import { DefaultFooter, FooterContainer } from "@/components/Footer";
+import { DefaultFooter, FooterContainer, FooterContent, FooterFooter } from "@/components/Footer";
 import { Input } from "@/components/Input";
 import { Box } from "@/components/layout/Box";
 import { HorizontalLine } from "@/components/Lines/HorizontalLine";
@@ -108,22 +108,25 @@ export default function Components() {
     return (
         <>
             <Boilerplate />
-            <FooterContainer
-                footer={() => <DefaultFooter />}
-            >
-                <div className="mt-4 flex flex-col items-center">
-                    <Text
-                        size="4xl"
-                        weight="extraBold"
-                    >
-                        Component Testing
-                    </Text>
-                    <Box className="mt-6 w-[40vw]">
-                        <TextExample />
-                        <HorizontalLine className="my-4" />
-                        <TextAreaExample />
-                    </Box>
-                </div>
+            <FooterContainer>
+                <FooterContent>
+                    <div className="mt-4 flex flex-col items-center">
+                        <Text
+                            size="4xl"
+                            weight="extraBold"
+                        >
+                            Component Testing
+                        </Text>
+                        <Box className="mt-6 w-[40vw]">
+                            <TextExample />
+                            <HorizontalLine className="my-4" />
+                            <TextAreaExample />
+                        </Box>
+                    </div>
+                </FooterContent>
+                <FooterFooter>
+                    <DefaultFooter />
+                </FooterFooter>
             </FooterContainer>
         </>
     );

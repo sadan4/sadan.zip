@@ -10,7 +10,7 @@ import { type ComponentPropsWithoutRef, type Ref, Suspense, useEffect, useImpera
 export interface ModalContext {
     open(): void;
     close(): void;
-    query(): boolean;
+    status: boolean;
     requestClose(): void;
 }
 
@@ -38,12 +38,11 @@ export function Modal({ children, ref: _ref, className, innerRef, open: _open, .
         },
         requestClose() {
             if (ref.current?.dispatchEvent(new Event("cancel", { cancelable: true }))) {
+                setOpen(false);
                 ref.current.close();
             }
         },
-        query() {
-            return open;
-        },
+        status: open,
     }), [open]);
 
     useImperativeHandle(_ref, () => api, [api]);
