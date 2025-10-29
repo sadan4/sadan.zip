@@ -11,6 +11,12 @@
 import { Route as rootRouteImport } from "./routes/__root"
 import { Route as LayoutRouteImport } from "./routes/_layout"
 import { Route as LayoutIndexRouteImport } from "./routes/_layout/index"
+import { Route as LayoutMinkyRouteImport } from "./routes/_layout/minky"
+import { Route as LayoutDemanglerRouteImport } from "./routes/_layout/demangler"
+import { Route as LayoutComponentsRouteImport } from "./routes/_layout/components"
+import { Route as LayoutVisIndexRouteImport } from "./routes/_layout/vis/index"
+import { Route as LayoutEIndexRouteImport } from "./routes/_layout/e/index"
+import { Route as LayoutDiscordIntlIndexRouteImport } from "./routes/_layout/discord-intl/index"
 import { Route as Layout88x31IndexRouteImport } from "./routes/_layout/88x31/index"
 
 const LayoutRoute = LayoutRouteImport.update({
@@ -22,6 +28,36 @@ const LayoutIndexRoute = LayoutIndexRouteImport.update({
   path: "/",
   getParentRoute: () => LayoutRoute,
 } as any)
+const LayoutMinkyRoute = LayoutMinkyRouteImport.update({
+  id: "/minky",
+  path: "/minky",
+  getParentRoute: () => LayoutRoute,
+} as any)
+const LayoutDemanglerRoute = LayoutDemanglerRouteImport.update({
+  id: "/demangler",
+  path: "/demangler",
+  getParentRoute: () => LayoutRoute,
+} as any)
+const LayoutComponentsRoute = LayoutComponentsRouteImport.update({
+  id: "/components",
+  path: "/components",
+  getParentRoute: () => LayoutRoute,
+} as any)
+const LayoutVisIndexRoute = LayoutVisIndexRouteImport.update({
+  id: "/vis/",
+  path: "/vis/",
+  getParentRoute: () => LayoutRoute,
+} as any)
+const LayoutEIndexRoute = LayoutEIndexRouteImport.update({
+  id: "/e/",
+  path: "/e/",
+  getParentRoute: () => LayoutRoute,
+} as any)
+const LayoutDiscordIntlIndexRoute = LayoutDiscordIntlIndexRouteImport.update({
+  id: "/discord-intl/",
+  path: "/discord-intl/",
+  getParentRoute: () => LayoutRoute,
+} as any)
 const Layout88x31IndexRoute = Layout88x31IndexRouteImport.update({
   id: "/88x31/",
   path: "/88x31/",
@@ -29,25 +65,69 @@ const Layout88x31IndexRoute = Layout88x31IndexRouteImport.update({
 } as any)
 
 export interface FileRoutesByFullPath {
+  "/components": typeof LayoutComponentsRoute
+  "/demangler": typeof LayoutDemanglerRoute
+  "/minky": typeof LayoutMinkyRoute
   "/": typeof LayoutIndexRoute
   "/88x31": typeof Layout88x31IndexRoute
+  "/discord-intl": typeof LayoutDiscordIntlIndexRoute
+  "/e": typeof LayoutEIndexRoute
+  "/vis": typeof LayoutVisIndexRoute
 }
 export interface FileRoutesByTo {
+  "/components": typeof LayoutComponentsRoute
+  "/demangler": typeof LayoutDemanglerRoute
+  "/minky": typeof LayoutMinkyRoute
   "/": typeof LayoutIndexRoute
   "/88x31": typeof Layout88x31IndexRoute
+  "/discord-intl": typeof LayoutDiscordIntlIndexRoute
+  "/e": typeof LayoutEIndexRoute
+  "/vis": typeof LayoutVisIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   "/_layout": typeof LayoutRouteWithChildren
+  "/_layout/components": typeof LayoutComponentsRoute
+  "/_layout/demangler": typeof LayoutDemanglerRoute
+  "/_layout/minky": typeof LayoutMinkyRoute
   "/_layout/": typeof LayoutIndexRoute
   "/_layout/88x31/": typeof Layout88x31IndexRoute
+  "/_layout/discord-intl/": typeof LayoutDiscordIntlIndexRoute
+  "/_layout/e/": typeof LayoutEIndexRoute
+  "/_layout/vis/": typeof LayoutVisIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: "/" | "/88x31"
+  fullPaths:
+    | "/components"
+    | "/demangler"
+    | "/minky"
+    | "/"
+    | "/88x31"
+    | "/discord-intl"
+    | "/e"
+    | "/vis"
   fileRoutesByTo: FileRoutesByTo
-  to: "/" | "/88x31"
-  id: "__root__" | "/_layout" | "/_layout/" | "/_layout/88x31/"
+  to:
+    | "/components"
+    | "/demangler"
+    | "/minky"
+    | "/"
+    | "/88x31"
+    | "/discord-intl"
+    | "/e"
+    | "/vis"
+  id:
+    | "__root__"
+    | "/_layout"
+    | "/_layout/components"
+    | "/_layout/demangler"
+    | "/_layout/minky"
+    | "/_layout/"
+    | "/_layout/88x31/"
+    | "/_layout/discord-intl/"
+    | "/_layout/e/"
+    | "/_layout/vis/"
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -70,6 +150,48 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof LayoutIndexRouteImport
       parentRoute: typeof LayoutRoute
     }
+    "/_layout/minky": {
+      id: "/_layout/minky"
+      path: "/minky"
+      fullPath: "/minky"
+      preLoaderRoute: typeof LayoutMinkyRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    "/_layout/demangler": {
+      id: "/_layout/demangler"
+      path: "/demangler"
+      fullPath: "/demangler"
+      preLoaderRoute: typeof LayoutDemanglerRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    "/_layout/components": {
+      id: "/_layout/components"
+      path: "/components"
+      fullPath: "/components"
+      preLoaderRoute: typeof LayoutComponentsRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    "/_layout/vis/": {
+      id: "/_layout/vis/"
+      path: "/vis"
+      fullPath: "/vis"
+      preLoaderRoute: typeof LayoutVisIndexRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    "/_layout/e/": {
+      id: "/_layout/e/"
+      path: "/e"
+      fullPath: "/e"
+      preLoaderRoute: typeof LayoutEIndexRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    "/_layout/discord-intl/": {
+      id: "/_layout/discord-intl/"
+      path: "/discord-intl"
+      fullPath: "/discord-intl"
+      preLoaderRoute: typeof LayoutDiscordIntlIndexRouteImport
+      parentRoute: typeof LayoutRoute
+    }
     "/_layout/88x31/": {
       id: "/_layout/88x31/"
       path: "/88x31"
@@ -81,13 +203,25 @@ declare module "@tanstack/react-router" {
 }
 
 interface LayoutRouteChildren {
+  LayoutComponentsRoute: typeof LayoutComponentsRoute
+  LayoutDemanglerRoute: typeof LayoutDemanglerRoute
+  LayoutMinkyRoute: typeof LayoutMinkyRoute
   LayoutIndexRoute: typeof LayoutIndexRoute
   Layout88x31IndexRoute: typeof Layout88x31IndexRoute
+  LayoutDiscordIntlIndexRoute: typeof LayoutDiscordIntlIndexRoute
+  LayoutEIndexRoute: typeof LayoutEIndexRoute
+  LayoutVisIndexRoute: typeof LayoutVisIndexRoute
 }
 
 const LayoutRouteChildren: LayoutRouteChildren = {
+  LayoutComponentsRoute: LayoutComponentsRoute,
+  LayoutDemanglerRoute: LayoutDemanglerRoute,
+  LayoutMinkyRoute: LayoutMinkyRoute,
   LayoutIndexRoute: LayoutIndexRoute,
   Layout88x31IndexRoute: Layout88x31IndexRoute,
+  LayoutDiscordIntlIndexRoute: LayoutDiscordIntlIndexRoute,
+  LayoutEIndexRoute: LayoutEIndexRoute,
+  LayoutVisIndexRoute: LayoutVisIndexRoute,
 }
 
 const LayoutRouteWithChildren =

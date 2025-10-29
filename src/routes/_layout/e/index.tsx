@@ -1,21 +1,26 @@
 import { Boilerplate } from "@/components/Boilerplate";
 import { Button } from "@/components/Button";
 import { createSidebarStateStore, ResizableSidebar, Side, SidebarStateStoreProvider } from "@/components/layout/ResizableSidebar";
+import { createFileRoute } from "@tanstack/react-router";
 
 import { useRef } from "react";
 import { useStore } from "zustand";
 
+export const Route = createFileRoute("/_layout/e/")({
+    component: Explorer,
+});
+
 const leftSidebarStateStore = createSidebarStateStore();
 const rightSidebarStateStore = createSidebarStateStore();
 
-export default function Explorer() {
+function Explorer() {
     const sidebarBoundingRef = useRef<HTMLDivElement>(null);
     const rightSidebarHidden = useStore(rightSidebarStateStore, ({ hidden }) => hidden);
     const leftSidebarHidden = useStore(leftSidebarStateStore, ({ hidden }) => hidden);
 
     return (
         <>
-            <Boilerplate />
+            <Boilerplate solidBg />
             <div className="flex h-full flex-col">
                 <div className="h-1/20 bg-primary-400/50">header</div>
                 <div

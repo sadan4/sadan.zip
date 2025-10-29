@@ -1,6 +1,5 @@
 import { Boilerplate } from "@/components/Boilerplate";
 import { Button } from "@/components/Button";
-import { DefaultFooter, FooterContainer, FooterContent, FooterFooter } from "@/components/Footer";
 import { Box } from "@/components/layout/Box";
 import { Text } from "@/components/Text";
 import { TextArea } from "@/components/TextArea";
@@ -10,14 +9,20 @@ import { fill } from "@/utils/array";
 import { paste } from "@/utils/clipboard";
 import cn from "@/utils/cn";
 import { NBSP } from "@/utils/constants";
+import { measureRect } from "@/utils/dom";
 import { assert } from "@/utils/error";
 import useResizeObserver from "@react-hook/resize-observer";
+import { createFileRoute } from "@tanstack/react-router";
 
 import defaultJson from "./default.json?raw";
 import styles from "./styles.module.scss";
 
 import { AlertCircleIcon } from "lucide-react";
 import { Fragment, type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+
+export const Route = createFileRoute("/_layout/vis/")({
+    component: Vis,
+});
 
 interface Token {
     type: string;
@@ -54,13 +59,12 @@ const REMOVE_FQN_REGEX = /.*\./;
 
 function EmptyToken(count: number) {
     const ref = useRef<SVGSVGElement>(null);
-    const rectRef = useRef<SVGRectElement>(null);
     const [dep, updateAngle] = useForceUpdater();
 
     useResizeObserver(ref, updateAngle);
     useLayoutEffect(() => {
-        if (ref.current && rectRef.current) {
-            const { width, height } = ref.current.getBoundingClientRect();
+        if (ref.current) {
+            const { width, height } = measureRect(ref.current);
 
             ref.current.style.setProperty("--width", `${width}px`);
             ref.current.style.setProperty("--height", `${height}px`);
@@ -75,7 +79,6 @@ function EmptyToken(count: number) {
                 className="absolute inset-fill fill-error-400"
             >
                 <rect
-                    ref={rectRef}
                     className={styles.emptyToken}
                 />
             </svg>
@@ -131,7 +134,7 @@ function parseTokens(json: string): Token[] {
     });
 }
 
-export default function Vis() {
+function Vis() {
     const [text, setText] = useState("");
     const [tokens, setTokens] = useState<Token[]>([]);
     // react refresh hack
@@ -153,55 +156,48 @@ export default function Vis() {
     return (
         <>
             <Boilerplate />
-            <FooterContainer >
-                <FooterContent>
-                    <div className="flex h-full w-full flex-col items-center pt-[20vh]">
-                        <Text
-                            size="4xl"
-                            color="accent"
+            <div className="flex h-full w-full flex-col items-center pt-[20vh]">
+                <Text
+                    size="4xl"
+                    color="accent"
+                >
+                    Token Visualizer
+                </Text>
+                <div className="mt-6 flex w-9/10 flex-col items-center gap-6">
+                    <TextArea
+                        size="lg"
+                        value={text}
+                        onChange={(e) => {
+                            setText(e.target.value);
+                        }}
+                        placeholder='some json here'
+                        className="h-[10vh] max-h-[25vh] min-h-20 w-[60vw] max-w-[60vw] min-w-50 resize"
+                    />
+                    <div className="flex h-9 gap-3">
+                        <Button
+                            onClick={() => {
+                                paste().then(setText);
+                            }}
                         >
-                            Token Visualizer
-                        </Text>
-                        <div className="mt-6 flex w-9/10 flex-col items-center gap-6">
-                            <TextArea
-                                size="lg"
-                                value={text}
-                                onChange={(e) => {
-                                    setText(e.target.value);
-                                }}
-                                placeholder='some json here'
-                                className="h-[10vh] max-h-[25vh] min-h-20 w-[60vw] max-w-[60vw] min-w-50 resize"
-                            />
-                            <div className="flex h-9 gap-3">
-                                <Button
-                                    onClick={() => {
-                                        paste().then(setText);
-                                    }}
-                                >
-                                    Paste
-                                </Button>
-                                <Button
-                                    color="secondary"
-                                    colorType="outline"
-                                    onClick={() => {
-                                        setText(defaultJson);
-                                    }}
-                                >
-                                    Fill With Example
-                                </Button>
-                            </div>
-                            <Box className="inline w-full [&>*:not(:first-child)]:ml-0.5">
-                                {
-                                    tokens.length ? tokens.map((t) => <Fragment key={`${t.type}-${t.pos.start}`}><t.contents /></Fragment>) : null
-                                }
-                            </Box>
-                        </div>
+                            Paste
+                        </Button>
+                        <Button
+                            color="secondary"
+                            colorType="outline"
+                            onClick={() => {
+                                setText(defaultJson);
+                            }}
+                        >
+                            Fill With Example
+                        </Button>
                     </div>
-                </FooterContent>
-                <FooterFooter>
-                    <DefaultFooter />
-                </FooterFooter>
-            </FooterContainer>
+                    <Box className="inline w-full [&>*:not(:first-child)]:ml-0.5">
+                        {
+                            tokens.length ? tokens.map((t) => <Fragment key={`${t.type}-${t.pos.start}`}><t.contents /></Fragment>) : null
+                        }
+                    </Box>
+                </div>
+            </div>
         </>
     );
 }

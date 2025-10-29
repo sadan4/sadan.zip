@@ -1,5 +1,4 @@
 import { Boilerplate } from "@/components/Boilerplate";
-import { DefaultFooter, FooterContainer, FooterContent, FooterFooter } from "@/components/Footer";
 import { Input } from "@/components/Input";
 import { Box } from "@/components/layout/Box";
 import { HorizontalLine } from "@/components/Lines/HorizontalLine";
@@ -7,8 +6,13 @@ import { Select, type SelectOption } from "@/components/Select";
 import { Text } from "@/components/Text";
 import { LabeledTextArea, TextArea } from "@/components/TextArea";
 import { textSize, textWeight } from "@/utils/cn";
+import { createFileRoute } from "@tanstack/react-router";
 
 import { useState } from "react";
+
+export const Route = createFileRoute("/_layout/components")({
+    component: Components,
+});
 
 const textSizeSelectOptions: SelectOption<keyof typeof textSize>[] = Object.keys(textSize)
     .map((size) => {
@@ -104,30 +108,23 @@ function TextAreaExample() {
     );
 }
 
-export default function Components() {
+function Components() {
     return (
         <>
             <Boilerplate />
-            <FooterContainer>
-                <FooterContent>
-                    <div className="mt-4 flex flex-col items-center">
-                        <Text
-                            size="4xl"
-                            weight="extraBold"
-                        >
-                            Component Testing
-                        </Text>
-                        <Box className="mt-6 w-[40vw]">
-                            <TextExample />
-                            <HorizontalLine className="my-4" />
-                            <TextAreaExample />
-                        </Box>
-                    </div>
-                </FooterContent>
-                <FooterFooter>
-                    <DefaultFooter />
-                </FooterFooter>
-            </FooterContainer>
+            <div className="mt-4 flex flex-col items-center">
+                <Text
+                    size="4xl"
+                    weight="extraBold"
+                >
+                    Component Testing
+                </Text>
+                <Box className="mt-6 w-[40vw]">
+                    <TextExample />
+                    <HorizontalLine className="my-4" />
+                    <TextAreaExample />
+                </Box>
+            </div>
         </>
     );
 }
