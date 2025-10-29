@@ -2,10 +2,6 @@
 @import "tailwindcss";
 
 /* stylelint-disable-next-line at-rule-no-unknown */
-
-/* @config "../tailwind.config.js"; */
-
-/* stylelint-disable-next-line at-rule-no-unknown */
 @theme {
     --color-bg-100: #1a1b26;
     --color-bg-200: #16161e;
@@ -95,6 +91,16 @@
     --color-error-950: oklch(0.272 0.10 17.25);
 }
 
+/* FIXME: fix the things that use this */
+/* stylelint-disable-next-line at-rule-no-unknown */
+@custom-variant ff {
+    /* http://browserhacks.com/#hack-48ca6fc2947b7850c571a2f69bdbffbd */
+    /* stylelint-disable-next-line */
+    @media screen and (min--moz-device-pixel-ratio:0) {
+        @slot;
+    }
+}
+
 @utility sb-track-* {
     --scrollbar-track-color: --value(--color-*);
     /* stylelint-disable-next-line declaration-block-no-duplicate-custom-properties */
@@ -137,7 +143,10 @@
 }
 
 @layer base {
-    pre, kbd, samp, code {
+    pre,
+    kbd,
+    samp,
+    code {
         font-family: comicsanslocal, comicsans, monospace;
         font-feature-settings: var(--default-mono-font-feature-settings, normal);
         font-variation-settings: var(--default-mono-font-variation-settings, normal);

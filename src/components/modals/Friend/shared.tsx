@@ -168,6 +168,7 @@ export function FriendButton({ friend, tooltipPosition, mobile }: FriendButtonPr
                                             src={friend.avatarUrl.toString()}
                                             // cursed, but doesn't work otherwise
                                             className="h-24 max-h-24 min-h-24 w-24 max-w-24 min-w-24 rounded-full select-none"
+                                            draggable={false}
                                         />
                                     </Shadow>
                                 </PerspectiveHover>

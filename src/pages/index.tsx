@@ -53,7 +53,7 @@ export default function App() {
                     <FooterContent>
                         <div className="flex flex-col items-center pt-52">
                             <Avatar
-                                className="h-52 w-52"
+                                className="h-52 ff:w-52"
                                 round
                             />
                             <Name />
