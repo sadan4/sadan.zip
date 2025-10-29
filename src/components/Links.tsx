@@ -11,23 +11,13 @@ import Steam from "./icons/Steam";
 import { Clickable } from "./Clickable";
 
 import type { ComponentProps, PropsWithChildren } from "react";
+import { Link } from "@tanstack/react-router";
 
 export interface LinkProps extends PropsWithChildren {
     href: HTMLAnchorElement["href"];
     target?:
       | `_${"blank" | "self" | "parent" | "top"}`
       | (HTMLAnchorElement["target"] & Record<never, never>);
-}
-export default function Link({ target = "_blank", href, children }: LinkProps) {
-    return (
-        <Clickable
-            tag="a"
-            href={href}
-            target={target}
-        >
-            {children}
-        </Clickable>
-    );
 }
 
 export function ThemeLink() {
@@ -48,7 +38,7 @@ export function SourceLink() {
 
 export function ButtonLink() {
     return (
-        <Link href="/88x31">
+        <Link to="/88x31">
             <Text tag="span">88x31</Text>
         </Link>
     );

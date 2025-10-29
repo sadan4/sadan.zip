@@ -1,9 +1,9 @@
 import Avatar from "@/components/Avatar";
 import { Boilerplate } from "@/components/Boilerplate";
-import { DefaultFooter, FooterContainer, FooterContent, FooterFooter } from "@/components/Footer";
 import { DiscordIconLink, FortniteDBIconLink, GithubIconLink, LastFMIconLink, NameMCIconLink, SteamIconLink } from "@/components/Links";
 import Name from "@/components/Name";
 import { Text } from "@/components/Text";
+import { createFileRoute } from "@tanstack/react-router";
 
 function Links() {
     return (
@@ -42,35 +42,28 @@ function Links() {
     );
 }
 
-export default function App() {
+export const Route = createFileRoute("/_layout/")({
+    component: App,
+});
+
+function App() {
     return (
         <>
             <Boilerplate />
-            <div className="h-full w-full">
-                <FooterContainer
-                    className="flex justify-center"
+            <div className="flex flex-col items-center pt-52">
+                <Avatar
+                    className="h-52 ff:w-52"
+                    round
+                />
+                <Name />
+                <Links />
+                <Text
+                    color="success"
+                    size="md"
+                    className="mt-6"
                 >
-                    <FooterContent>
-                        <div className="flex flex-col items-center pt-52">
-                            <Avatar
-                                className="h-52 ff:w-52"
-                                round
-                            />
-                            <Name />
-                            <Links />
-                            <Text
-                                color="success"
-                                size="md"
-                                className="mt-6"
-                            >
-                                Random loser on the internet.
-                            </Text>
-                        </div>
-                    </FooterContent>
-                    <FooterFooter>
-                        <DefaultFooter />
-                    </FooterFooter>
-                </FooterContainer>
+                    Random loser on the internet.
+                </Text>
             </div>
         </>
     );

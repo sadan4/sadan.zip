@@ -1,136 +1,31 @@
-import { installF8Break, namedContext, uninstallF8Break } from "@/utils/devtools";
+import { installF8Break, uninstallF8Break } from "@/utils/devtools";
+import { createRouter, RouterProvider } from "@tanstack/react-router";
 
 import { LayerContext } from "./components/Layer/context";
 import { assert } from "./utils/error";
+import { routeTree } from "./routeTree.gen";
 
 import "./app.scss";
-import { StrictMode, useContext, useEffect, useState } from "react";
-import { createBrowserRouter, RouterProvider, useLoaderData as useLoaderData_ } from "react-router";
+import { useEffect, useState } from "react";
 
-export interface LoaderData {
-    config: {
-        solidBg?: boolean;
-        noCursor?: boolean;
-    };
+const router = createRouter({
+    routeTree,
+    scrollRestoration: true,
+    context: {
+        solidBg: false,
+    } satisfies RouterContext as RouterContext,
+});
+
+declare module "@tanstack/react-router" {
+    interface Register {
+        router: typeof router;
+    }
 }
 
-// Yes, this can violate the rules of hooks, but we don't
-export const UseLoaderDataContext = namedContext<() => LoaderData>(useLoaderData_<LoaderData>, "LoaderDataContext");
 
-// eslint-disable-next-line react-refresh/only-export-components
-export function useLoaderData() {
-    return useContext(UseLoaderDataContext)();
+export interface RouterContext {
+    solidBg?: boolean;
 }
-
-const router = createBrowserRouter([
-    {
-        path: "/",
-        HydrateFallback: () => null,
-        children: [
-            {
-                index: true,
-                async lazy() {
-                    const Component = (await import("./pages")).default;
-
-                    return {
-                        Component,
-                    };
-                },
-            },
-            {
-                path: "e",
-                loader(): LoaderData {
-                    return {
-                        config: {
-                            solidBg: true,
-                            noCursor: true,
-                        },
-                    };
-                },
-                async lazy() {
-                    const Component = (await import("./pages/e")).default;
-
-                    return {
-                        Component,
-                    };
-                },
-            },
-            {
-                path: "vis",
-                loader(): LoaderData {
-                    return {
-                        config: {
-                            noCursor: true,
-                        },
-                    };
-                },
-                async lazy() {
-                    const Component = (await import("./pages/vis")).default;
-
-                    return {
-                        Component,
-                    };
-                },
-            },
-            {
-                path: "storybook",
-                loader() {
-                    location.pathname = "/storybook/index.html";
-                },
-            },
-            {
-                path: "demangler",
-                async lazy() {
-                    const Component = (await import("./pages/demangler")).default;
-
-                    return {
-                        Component,
-                    };
-                },
-            },
-            {
-                path: "minky",
-                async lazy() {
-                    const Component = (await import("./pages/minky")).default;
-
-                    return {
-                        Component,
-                    };
-                },
-            },
-            {
-                path: "components",
-                async lazy() {
-                    const Component = (await import("./pages/components")).default;
-
-                    return {
-                        Component,
-                    };
-                },
-            },
-            {
-                path: "discord-intl",
-                async lazy() {
-                    const Component = (await import("./pages/discord-intl")).default;
-
-                    return {
-                        Component,
-                    };
-                },
-            },
-            {
-                path: "88x31",
-                async lazy() {
-                    const Component = (await import("./pages/88x31")).default;
-
-                    return {
-                        Component,
-                    };
-                },
-            },
-        ],
-    },
-]);
 
 export function App() {
     const [ctx, setCtx] = useState<LayerContext>({
@@ -152,11 +47,6 @@ export function App() {
 
         return uninstallF8Break;
     }, []);
-    return (
-        <StrictMode>
-            <LayerContext value={ctx}>
-                <RouterProvider router={router} />
-            </LayerContext>
-        </StrictMode>
-    );
+
+    return <RouterProvider router={router} />;
 }

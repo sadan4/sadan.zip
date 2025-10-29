@@ -1,6 +1,7 @@
 /// <reference types="vitest/config" />
 import { storybookTest } from "@storybook/addon-vitest/vitest-plugin";
 import tailwindcss from "@tailwindcss/vite";
+import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import react from "@vitejs/plugin-react";
 
 // https://vite.dev/config/
@@ -15,6 +16,11 @@ const dirname = typeof __dirname !== "undefined" ? __dirname : path.dirname(file
 // More info at: https://storybook.js.org/docs/next/writing-tests/integrations/vitest-addon
 export default defineConfig({
     plugins: [
+        tanstackRouter({
+            target: "react",
+            autoCodeSplitting: true,
+            quoteStyle: "double",
+        }) as any,
         react({
             babel: {
                 plugins: [

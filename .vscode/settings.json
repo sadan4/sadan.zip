@@ -16,22 +16,31 @@
     "typescript.tsserver.experimental.enableProjectDiagnostics": true,
     "scss.showErrors": true,
     "scss.format.spaceAroundSelectorSeparator": true,
-	"stylelint.validate": [
-		"css",
-		"postcss",
-		"scss"
-	],
-	"[css]": {
-		"editor.codeActionsOnSave": {
-			"source.fixAll.stylelint": "always",
-		}
-	},
-	"[scss]": {
-		"editor.codeActionsOnSave": {
-			"source.fixAll.stylelint": "always",
-		}
+    "stylelint.validate": [
+        "css",
+        "postcss",
+        "scss"
+    ],
+    "[css]": {
+        "editor.codeActionsOnSave": {
+            "source.fixAll.stylelint": "always",
+        }
+    },
+    "[scss]": {
+        "editor.codeActionsOnSave": {
+            "source.fixAll.stylelint": "always",
+        }
     },
     "tailwindCSS.classFunctions": [
         "cn"
-    ]
+    ],
+    "files.readonlyInclude": {
+        "**/routeTree.gen.ts": true
+    },
+    "files.watcherExclude": {
+        "**/routeTree.gen.ts": true
+    },
+    "search.exclude": {
+        "**/routeTree.gen.ts": true
+    }
 }

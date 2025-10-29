@@ -1,21 +1,17 @@
-import { useLoaderData } from "@/main";
-
 import { useEffect } from "react";
 
 export interface BoilerplateProps {
+    solidBg?: boolean;
 }
 
-export function Boilerplate() {
-    const loaderData = useLoaderData();
-    const gifBg = !loaderData?.config?.solidBg;
-
+export function Boilerplate({ solidBg = false }: BoilerplateProps) {
     useEffect(() => {
-        if (gifBg) {
+        if (!solidBg) {
             document.body.classList.add("snow");
             return () => {
                 document.body.classList.remove("snow");
             };
         }
-    }, [gifBg]);
+    }, [solidBg]);
     return null;
 }
