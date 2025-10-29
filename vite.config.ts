@@ -7,14 +7,50 @@ import react from "@vitejs/plugin-react";
 // https://vite.dev/config/
 import path, { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { defineConfig } from "vite";
+import { type BuildEnvironmentOptions, defineConfig } from "vite";
 import devtoolsJson from "vite-plugin-devtools-json";
 import tsconfigPaths from "vite-tsconfig-paths";
 
 const dirname = typeof __dirname !== "undefined" ? __dirname : path.dirname(fileURLToPath(import.meta.url));
 
+const ssrBuildConfig: BuildEnvironmentOptions = {
+    sourcemap: true,
+    outDir: join(dirname, "dist", "server"),
+    ssr: true,
+    ssrEmitAssets: true,
+    copyPublicDir: false,
+    emptyOutDir: true,
+    rollupOptions: {
+        input: join(dirname, "src", "server.tsx"),
+        output: {
+            chunkFileNames: "js/[name]-[hash].js",
+            entryFileNames: "[name].js",
+            assetFileNames: "assets/[name]-[hash].[ext]",
+        },
+    },
+};
+
+
+const clientBuildConfig: BuildEnvironmentOptions = {
+    sourcemap: true,
+    // top-level await in esm
+    target: "es2022",
+    outDir: join(dirname, "dist", "client"),
+    emitAssets: true,
+    copyPublicDir: true,
+    emptyOutDir: true,
+    rollupOptions: {
+        input: join(dirname, "src", "client.tsx"),
+        output: {
+            chunkFileNames: "js/[hash].js",
+            entryFileNames: "[name].js",
+            assetFileNames: "assets/[hash].[ext]",
+        },
+    },
+};
+
 // More info at: https://storybook.js.org/docs/next/writing-tests/integrations/vitest-addon
-export default defineConfig({
+export default defineConfig(({ isSsrBuild }) => ({
     plugins: [
         tanstackRouter({
             target: "react",
@@ -71,29 +107,8 @@ export default defineConfig({
         tailwindcss(),
         tsconfigPaths(),
         devtoolsJson(),
-        {
-            name: "log-server-requests",
-            configureServer(server) {
-                server.middlewares.use((req, _res, next) => {
-                    console.log(`[Vite Dev Server] ${req.method} ${req.url}`);
-                    next();
-                });
-            },
-        },
     ],
-    build: {
-        sourcemap: true,
-        // top-level await in esm
-        target: "es2022",
-        emptyOutDir: false,
-        rollupOptions: {
-            output: {
-                chunkFileNames: "js/[hash].js",
-                entryFileNames: "js/[hash].js",
-                assetFileNames: "assets/[hash].[ext]",
-            },
-        },
-    },
+    build: isSsrBuild ? ssrBuildConfig : clientBuildConfig,
     css: {
         modules: {
             localsConvention: "camelCaseOnly",
@@ -133,4 +148,4 @@ export default defineConfig({
             },
         ],
     },
-});
+}));

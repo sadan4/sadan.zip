@@ -1,4 +1,5 @@
-import { DefaultFooter, FooterContainer, FooterContent, FooterFooter } from "@/components/Footer";
+import { DefaultFooter } from "@/components/Footer";
+import { ScrollArea } from "@/components/layout/ScrollArea";
 import { createFileRoute, Outlet } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_layout")({
@@ -8,14 +9,16 @@ export const Route = createFileRoute("/_layout")({
 function LayoutComponent() {
     return (
         <div className="h-full w-full">
-            <FooterContainer>
-                <FooterContent>
-                    <Outlet />
-                </FooterContent>
-                <FooterFooter>
-                    <DefaultFooter />
-                </FooterFooter>
-            </FooterContainer>
+            <ScrollArea className="h-full max-h-full">
+                <div className="grid h-full w-full grid-rows-[1fr_min-content]">
+                    <div>
+                        <Outlet />
+                    </div>
+                    <div className="flex justify-center">
+                        <DefaultFooter />
+                    </div>
+                </div>
+            </ScrollArea>
         </div>
     );
 }

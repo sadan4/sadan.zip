@@ -9,9 +9,9 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from "./routes/__root"
+import { Route as StorybookRouteImport } from "./routes/storybook"
 import { Route as LayoutRouteImport } from "./routes/_layout"
 import { Route as LayoutIndexRouteImport } from "./routes/_layout/index"
-import { Route as LayoutStorybookRouteImport } from "./routes/_layout/storybook"
 import { Route as LayoutMinkyRouteImport } from "./routes/_layout/minky"
 import { Route as LayoutDemanglerRouteImport } from "./routes/_layout/demangler"
 import { Route as LayoutComponentsRouteImport } from "./routes/_layout/components"
@@ -20,6 +20,11 @@ import { Route as LayoutEIndexRouteImport } from "./routes/_layout/e/index"
 import { Route as LayoutDiscordIntlIndexRouteImport } from "./routes/_layout/discord-intl/index"
 import { Route as Layout88x31IndexRouteImport } from "./routes/_layout/88x31/index"
 
+const StorybookRoute = StorybookRouteImport.update({
+  id: "/storybook",
+  path: "/storybook",
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LayoutRoute = LayoutRouteImport.update({
   id: "/_layout",
   getParentRoute: () => rootRouteImport,
@@ -27,11 +32,6 @@ const LayoutRoute = LayoutRouteImport.update({
 const LayoutIndexRoute = LayoutIndexRouteImport.update({
   id: "/",
   path: "/",
-  getParentRoute: () => LayoutRoute,
-} as any)
-const LayoutStorybookRoute = LayoutStorybookRouteImport.update({
-  id: "/storybook",
-  path: "/storybook",
   getParentRoute: () => LayoutRoute,
 } as any)
 const LayoutMinkyRoute = LayoutMinkyRouteImport.update({
@@ -71,10 +71,10 @@ const Layout88x31IndexRoute = Layout88x31IndexRouteImport.update({
 } as any)
 
 export interface FileRoutesByFullPath {
+  "/storybook": typeof StorybookRoute
   "/components": typeof LayoutComponentsRoute
   "/demangler": typeof LayoutDemanglerRoute
   "/minky": typeof LayoutMinkyRoute
-  "/storybook": typeof LayoutStorybookRoute
   "/": typeof LayoutIndexRoute
   "/88x31": typeof Layout88x31IndexRoute
   "/discord-intl": typeof LayoutDiscordIntlIndexRoute
@@ -82,10 +82,10 @@ export interface FileRoutesByFullPath {
   "/vis": typeof LayoutVisIndexRoute
 }
 export interface FileRoutesByTo {
+  "/storybook": typeof StorybookRoute
   "/components": typeof LayoutComponentsRoute
   "/demangler": typeof LayoutDemanglerRoute
   "/minky": typeof LayoutMinkyRoute
-  "/storybook": typeof LayoutStorybookRoute
   "/": typeof LayoutIndexRoute
   "/88x31": typeof Layout88x31IndexRoute
   "/discord-intl": typeof LayoutDiscordIntlIndexRoute
@@ -95,10 +95,10 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   "/_layout": typeof LayoutRouteWithChildren
+  "/storybook": typeof StorybookRoute
   "/_layout/components": typeof LayoutComponentsRoute
   "/_layout/demangler": typeof LayoutDemanglerRoute
   "/_layout/minky": typeof LayoutMinkyRoute
-  "/_layout/storybook": typeof LayoutStorybookRoute
   "/_layout/": typeof LayoutIndexRoute
   "/_layout/88x31/": typeof Layout88x31IndexRoute
   "/_layout/discord-intl/": typeof LayoutDiscordIntlIndexRoute
@@ -108,10 +108,10 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
+    | "/storybook"
     | "/components"
     | "/demangler"
     | "/minky"
-    | "/storybook"
     | "/"
     | "/88x31"
     | "/discord-intl"
@@ -119,10 +119,10 @@ export interface FileRouteTypes {
     | "/vis"
   fileRoutesByTo: FileRoutesByTo
   to:
+    | "/storybook"
     | "/components"
     | "/demangler"
     | "/minky"
-    | "/storybook"
     | "/"
     | "/88x31"
     | "/discord-intl"
@@ -131,10 +131,10 @@ export interface FileRouteTypes {
   id:
     | "__root__"
     | "/_layout"
+    | "/storybook"
     | "/_layout/components"
     | "/_layout/demangler"
     | "/_layout/minky"
-    | "/_layout/storybook"
     | "/_layout/"
     | "/_layout/88x31/"
     | "/_layout/discord-intl/"
@@ -144,10 +144,18 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   LayoutRoute: typeof LayoutRouteWithChildren
+  StorybookRoute: typeof StorybookRoute
 }
 
 declare module "@tanstack/react-router" {
   interface FileRoutesByPath {
+    "/storybook": {
+      id: "/storybook"
+      path: "/storybook"
+      fullPath: "/storybook"
+      preLoaderRoute: typeof StorybookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     "/_layout": {
       id: "/_layout"
       path: ""
@@ -160,13 +168,6 @@ declare module "@tanstack/react-router" {
       path: "/"
       fullPath: "/"
       preLoaderRoute: typeof LayoutIndexRouteImport
-      parentRoute: typeof LayoutRoute
-    }
-    "/_layout/storybook": {
-      id: "/_layout/storybook"
-      path: "/storybook"
-      fullPath: "/storybook"
-      preLoaderRoute: typeof LayoutStorybookRouteImport
       parentRoute: typeof LayoutRoute
     }
     "/_layout/minky": {
@@ -225,7 +226,6 @@ interface LayoutRouteChildren {
   LayoutComponentsRoute: typeof LayoutComponentsRoute
   LayoutDemanglerRoute: typeof LayoutDemanglerRoute
   LayoutMinkyRoute: typeof LayoutMinkyRoute
-  LayoutStorybookRoute: typeof LayoutStorybookRoute
   LayoutIndexRoute: typeof LayoutIndexRoute
   Layout88x31IndexRoute: typeof Layout88x31IndexRoute
   LayoutDiscordIntlIndexRoute: typeof LayoutDiscordIntlIndexRoute
@@ -237,7 +237,6 @@ const LayoutRouteChildren: LayoutRouteChildren = {
   LayoutComponentsRoute: LayoutComponentsRoute,
   LayoutDemanglerRoute: LayoutDemanglerRoute,
   LayoutMinkyRoute: LayoutMinkyRoute,
-  LayoutStorybookRoute: LayoutStorybookRoute,
   LayoutIndexRoute: LayoutIndexRoute,
   Layout88x31IndexRoute: Layout88x31IndexRoute,
   LayoutDiscordIntlIndexRoute: LayoutDiscordIntlIndexRoute,
@@ -250,6 +249,7 @@ const LayoutRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   LayoutRoute: LayoutRouteWithChildren,
+  StorybookRoute: StorybookRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
