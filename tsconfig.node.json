@@ -20,6 +20,7 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
+    "jsx": "preserve"
   },
   "include": ["vite.config.ts", "eslint.config.mts", "stylelint.config.ts", ".storybook/main.ts", "docgentest.ts", "index.ts"]
 }

@@ -3,6 +3,7 @@ import { useRect } from "@/hooks/rect";
 import cn from "@/utils/cn";
 import { friends } from "@/utils/friends";
 import { once } from "@/utils/functional";
+import { proxyLazy } from "@/utils/lazy";
 import { Clickable } from "@components/Clickable";
 import { BorderHoldRounded } from "@effects/BorderHold";
 import PerspectiveHover from "@effects/PerspectiveHover";
@@ -26,19 +27,22 @@ const preloadFriends = once(function preloadFriends() {
 });
 
 const FriendModal = lazy(() => import("@components/modals/Friend"));
+const defaultProxy = proxyLazy(defaultPosition);
 
 export default function Avatar({ round = false, ...props }: AvatarProps) {
     const modal = useRef<ModalContext>(null);
     const [img, setImg] = useState<HTMLDivElement | null>(null);
     // update the rect before we open the modal to ensure the correct position;
-    const { top, left, width, height } = useRect(img) ?? defaultPosition();
+    const rect = useRect(img);
 
-    const value = useMemo(() => ({
-        x: left,
-        y: top,
-        width,
-        height,
-    }), [left, top, width, height]);
+    const value = useMemo(() => (rect
+        ? {
+            x: rect.left,
+            y: rect.top,
+            width: rect.width,
+            height: rect.height,
+        }
+        : defaultProxy), [rect]);
 
     return (
         // put the ref on Clicable because it's before all the effects that might change the size/position

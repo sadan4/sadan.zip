@@ -1,9 +1,17 @@
 import { makeDemangler } from "@sadan4/demangler/wasm";
 import wasmBundleUrl from "@sadan4/demangler/wasm/compiled.wasm?url";
 
-const demangler = await makeDemangler(wasmBundleUrl);
+import { error } from "./error";
+
+// FIXME: fix the exports for @sadan4/demangler to export an interface instead of a class
+type Demangler = Awaited<ReturnType<typeof makeDemangler>>;
+
+const demangler: Demangler = (!import.meta.env.SSR as never) && await makeDemangler(wasmBundleUrl);
 
 export function demangle(mangled: string): string {
+    if (import.meta.env.SSR) {
+        error("demangle() called in SSR environment");
+    }
     return demangler.demangle(mangled) ?? mangled;
 }
 

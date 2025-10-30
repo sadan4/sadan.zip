@@ -12,9 +12,9 @@ import { pipeline } from "node:stream/promises";
 export async function render({
     req,
     res,
-    head,
+    cssPath,
 }: {
-    head: string;
+    cssPath: string;
     req: express.Request;
     res: express.Response;
 }) {
@@ -43,7 +43,7 @@ export async function render({
             router.update({
                 context: {
                     ...router.options.context,
-                    head,
+                    cssPath,
                 },
             });
             return router;

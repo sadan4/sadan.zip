@@ -1,23 +1,26 @@
 import { LayerContext } from "@/components/Layer/context";
 import { installF8Break, uninstallF8Break } from "@/utils/devtools";
 import { assert } from "@/utils/error";
-import { createRootRouteWithContext, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
+import { type AnyRouteMatch, createRootRouteWithContext, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
-
-import indexCss from "../index.css?url";
 
 import { useEffect, useState } from "react";
 
-
 export const Route = createRootRouteWithContext<RouterContext>()({
     component: RootComponent,
-    head() {
+    head(c) {
+        const { cssPath } = c.match.context;
+
         return {
             links: [
-                {
-                    rel: "stylesheet",
-                    href: indexCss,
-                },
+                ...cssPath
+                    ? [
+                        {
+                            rel: "stylesheet",
+                            href: cssPath,
+                        },
+                    ] satisfies AnyRouteMatch["links"]
+                    : [],
             ],
             meta: [
                 {
@@ -56,7 +59,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
                     : [],
                 {
                     type: "module",
-                    src: import.meta.env.PROD ? "/static/client.js" : "/src/client.tsx",
+                    src: import.meta.env.PROD ? "/client.js" : "/src/client.tsx",
                 },
             ],
         };
@@ -64,7 +67,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 });
 
 export interface RouterContext {
-    head: string;
+    cssPath: string;
 }
 
 function RootComponent() {

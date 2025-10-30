@@ -5,7 +5,7 @@
   "type": "module",
   "main": "index.ts",
   "scripts": {
-    "dev": "vite",
+    "dev": "node .",
     "build": "conc pnpm:build:vite pnpm:build:storybook",
     "build:vite": "conc pnpm:build:vite:client pnpm:build:vite:ssr",
     "build:vite:client": "vite build",
@@ -14,7 +14,7 @@
     "lint": "conc pnpm:lint:js pnpm:lint:styles",
     "lint:js": "eslint .",
     "lint:styles": "stylelint '**/*.{,s}css'",
-    "preview": "vite preview",
+    "preview": "NODE_ENV=production node .",
     "storybook": "storybook dev -p 6006"
   },
   "dependencies": {
@@ -34,6 +34,7 @@
     "fast-deep-equal": "^3.1.3",
     "get-port": "^7.1.0",
     "lucide-react": "^0.545.0",
+    "picocolors": "^1.1.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-shiki": "^0.9.0",
@@ -68,6 +69,8 @@
     "eslint-plugin-tailwindcss": "4.0.0-beta.0",
     "eslint-plugin-unused-imports": "^4.1.4",
     "jiti": "^2.4.2",
+    "open": "^10.2.0",
+    "ora": "^9.0.0",
     "playwright": "^1.55.0",
     "storybook": "^10.0.0",
     "stylelint": "^16.24.0",

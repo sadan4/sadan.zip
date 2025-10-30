@@ -1,8 +1,8 @@
 import { useRect } from "@/hooks/rect";
+import { useResizeObserver } from "@/hooks/resizeObserver";
 import { single } from "@/utils/array";
 import { parseCSSValue, PercentReference } from "@/utils/dom";
 import { ellipseCircumference } from "@/utils/math";
-import useResizeObserver from "@react-hook/resize-observer";
 import { animated } from "@react-spring/web";
 
 import { type BaseBorderHoldProps, useBorderHoldAnim } from "./common";
@@ -81,6 +81,10 @@ function calculateBorderLength(element: Element): [length: number, path: string]
     }
 
     function normalizeRadius(radius: string): [a: number, b: number] {
+        if (!radius) {
+            return [0, 0];
+        }
+
         let a: string,
             b = a = radius;
 
@@ -102,8 +106,8 @@ export function BorderHoldRounded({ children, onHold, ref }: BorderHoldCircularP
     const [borderLen, setBorderLen] = useState(-1);
 
     const { width, height } = useRect(wrapper) ?? {
-        width: 0,
-        height: 0,
+        width: 1,
+        height: 1,
     };
 
     const updateBorderLength = useCallback(() => {
@@ -132,48 +136,49 @@ export function BorderHoldRounded({ children, onHold, ref }: BorderHoldCircularP
     });
 
     return (
-        <svg
-            className={styles.roundedBorder}
-            style={{
-                width,
-                height,
-            }}
-            onPointerDown={() => setHeld(true)}
-            onContextMenu={(e) => {
-                // it's a pointer event, react is stupid https://developer.mozilla.org/en-US/docs/Web/API/Element/contextmenu_event#browser_compatibility
-                if ((e.nativeEvent as PointerEvent).pointerType !== "mouse") {
-                    e.preventDefault();
-                }
-            }}
-            onPointerUp={() => setHeld(false)}
-            onPointerLeave={() => setHeld(false)}
-        >
-            <animated.path
-                ref={borderRef}
-                style={{
-                    // mean(width, height) / 10
-                    strokeWidth: (width + height) / 20,
-                    strokeDasharray: progress.to((progress) => {
-                        const curLen = (borderLen * progress) / 100;
-
-                        return `${curLen} ${borderLen - curLen}`;
-                    }),
-                    opacity,
-                }}
-            />
-            <foreignObject
+        <div>
+            <svg
+                className={styles.roundedBorder}
                 style={{
                     width,
                     height,
                 }}
+                onPointerDown={() => setHeld(true)}
+                onContextMenu={(e) => {
+                // it's a pointer event, react is stupid https://developer.mozilla.org/en-US/docs/Web/API/Element/contextmenu_event#browser_compatibility
+                    if ((e.nativeEvent as PointerEvent).pointerType !== "mouse") {
+                        e.preventDefault();
+                    }
+                }}
+                onPointerUp={() => setHeld(false)}
+                onPointerLeave={() => setHeld(false)}
             >
-                <div
-                    className="h-fit w-fit"
-                    ref={setWrapper}
+                <animated.path
+                    ref={borderRef}
+                    style={{
+                        // mean(width, height) / 10
+                        strokeWidth: (width + height) / 20,
+                        strokeDasharray: progress.to((progress) => {
+                            const curLen = (borderLen * progress) / 100;
+
+                            return `${curLen} ${borderLen - curLen}`;
+                        }),
+                        opacity,
+                    }}
+                />
+                <foreignObject style={{
+                    width,
+                    height,
+                }}
                 >
-                    {children}
-                </div>
-            </foreignObject>
-        </svg>
+                    <div
+                        className="h-fit w-fit"
+                        ref={setWrapper}
+                    >
+                        {children}
+                    </div>
+                </foreignObject>
+            </svg>
+        </div>
     );
 }

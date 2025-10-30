@@ -698,6 +698,12 @@ export default TSEslint.config({ ignores: ["dist"] }, {
         ...reactHooks.configs["recommended-latest"].rules,
         "react-hooks/todo": "warn",
         "react-hooks/syntax": "error",
+        "react-hooks/exhaustive-deps": [
+            "warn",
+            {
+                additionalHooks: "(useIsomorphicLayoutEffect)",
+            },
+        ],
         "react-refresh/only-export-components": [
             "warn",
             { allowConstantExport: true },

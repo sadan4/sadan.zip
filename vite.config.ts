@@ -20,6 +20,7 @@ const ssrBuildConfig: BuildEnvironmentOptions = {
     ssrEmitAssets: true,
     copyPublicDir: false,
     emptyOutDir: true,
+    cssCodeSplit: false,
     rollupOptions: {
         input: join(dirname, "src", "server.tsx"),
         output: {
@@ -39,12 +40,14 @@ const clientBuildConfig: BuildEnvironmentOptions = {
     emitAssets: true,
     copyPublicDir: true,
     emptyOutDir: true,
+    manifest: true,
+    cssCodeSplit: false,
     rollupOptions: {
         input: join(dirname, "src", "client.tsx"),
         output: {
-            chunkFileNames: "js/[hash].js",
+            chunkFileNames: "js/[name]-[hash].js",
             entryFileNames: "[name].js",
-            assetFileNames: "assets/[hash].[ext]",
+            assetFileNames: "assets/[name]-[hash].[ext]",
         },
     },
 };

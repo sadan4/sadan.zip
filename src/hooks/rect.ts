@@ -1,11 +1,11 @@
 import { ScrollAreaContext } from "@/components/layout/ScrollArea/context";
 import { measureRect } from "@/utils/dom";
 import { deepEqual } from "@/utils/obj";
-import useResizeObserver from "@react-hook/resize-observer";
 
 import { useEventHandler } from "./eventListener";
 
 import { use, useEffect, useRef, useState } from "react";
+import { useResizeObserver } from "./resizeObserver";
 
 export function useRect(el: Element | null, extraDeps: unknown[] = []): DOMRect | undefined {
     const [size, _setSize] = useState<DOMRect>();
