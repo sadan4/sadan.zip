@@ -19,3 +19,7 @@ export function assert(cond: unknown, msg?: string): asserts cond {
 export function unreachable(msg?: string): never {
     throw new AssertionError(msg || "unreachable");
 }
+
+export function todo() {
+    error("todo");
+}
