@@ -1,9 +1,9 @@
 import { unreachable } from "@/utils/error";
-import { type Lazy, makeLazy } from "@/utils/lazy";
+import { makeLazy } from "@/utils/lazy";
+
+import * as themeGen from "./_themes.gen?gen";
 
 import * as monaco from "monaco-editor";
-import { convertTheme, type IVSCodeTheme } from "monaco-vscode-textmate-theme-converter";
-import { use } from "react";
 
 export const enum MonacoTheme {
     LIGHT,
@@ -17,23 +17,14 @@ export const enum MonacoTheme {
 
 export const DEFAULT_MONACO_THEME = MonacoTheme.TOKYO_NIGHT;
 
-type VSCodeTheme = {
-    default: (IVSCodeTheme | {
-        schema?: null | undefined;
-    }) & { name: string; };
-};
-
-function lazyTheme(getter: () => Promise<VSCodeTheme>): Lazy<Promise<string>> {
-    return makeLazy(async () => {
-        const { default: { name, ...json } } = await getter();
-        const monacoTheme = convertTheme(json as IVSCodeTheme);
-
-        monaco.editor.defineTheme(name, monacoTheme);
+function lazyTheme(name: string, theme: monaco.editor.IStandaloneThemeData) {
+    return makeLazy(() => {
+        monaco.editor.defineTheme(name, theme);
         return name;
     });
 }
 
-const TokyoNight = lazyTheme(() => import("./tokyoNight.json"));
+const TokyoNight = lazyTheme("TokyoNight", themeGen.TokyoNight);
 
 export function useThemeString(theme: MonacoTheme): string {
     switch (theme) {
@@ -46,7 +37,7 @@ export function useThemeString(theme: MonacoTheme): string {
         case MonacoTheme.HIGH_CONTRAST_LIGHT:
             return "hc-light";
         case MonacoTheme.TOKYO_NIGHT:
-            return use(TokyoNight());
+            return TokyoNight();
         default:
             unreachable();
     }

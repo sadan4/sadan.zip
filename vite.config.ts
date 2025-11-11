@@ -6,6 +6,7 @@ import react from "@vitejs/plugin-react";
 // https://vite.dev/config/
 import path, { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { generate } from "rollup-plugin-generate";
 import { defineConfig } from "vite";
 import devtoolsJson from "vite-plugin-devtools-json";
 import tsconfigPaths from "vite-tsconfig-paths";
@@ -23,6 +24,7 @@ export default defineConfig({
         tailwindcss(),
         tsconfigPaths(),
         devtoolsJson(),
+        generate({ emitDts: true }),
     ],
     build: {
         sourcemap: true,

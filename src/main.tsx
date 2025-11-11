@@ -6,6 +6,7 @@ import { assert } from "./utils/error";
 import "./app.scss";
 import { StrictMode, useContext, useEffect, useState } from "react";
 import { createBrowserRouter, RouterProvider, useLoaderData as useLoaderData_ } from "react-router";
+import * as themes from "./components/CodeEditor/Monaco/themes/_themes.gen";
 
 export interface LoaderData {
     config: {
