@@ -1,16 +1,19 @@
 import { assert } from "@/utils/error";
 import { type Lazy, makeLazy } from "@/utils/lazy";
+import { Language, lazyLoadGrammar } from "@/utils/textmate";
+import { hasGrammar } from "@/utils/textmate/grammars";
 
-import { useState } from "react";
+import { use } from "react";
 import { createHighlighterCore, createOnigurumaEngine } from "react-shiki/core";
 import type { HighlighterCore } from "shiki";
 
 let highlighter: HighlighterCore | undefined;
 
+// TODO: make all themes lazy
 const highlighterPromise: Lazy<Promise<HighlighterCore>> = makeLazy(async () => {
     const ret = await createHighlighterCore({
         themes: [import("@shikijs/themes/tokyo-night")],
-        langs: [import("@shikijs/langs/tsx"), import("@shikijs/langs/html")],
+        langs: [],
         engine: createOnigurumaEngine(import("shiki/wasm")),
     });
 
@@ -23,11 +26,26 @@ export function preloadHighlighter() {
     highlighterPromise();
 }
 
-export function useHighlighter(): HighlighterCore | undefined {
-    const [hl, setHl] = useState<HighlighterCore | undefined>(highlighter);
+const loadedThemes = new Set<Language>();
+const loadedLangs = new Set<Language>();
 
-    if (!hl) {
-        highlighterPromise().then(setHl);
+function needsLoad(language: Language): boolean {
+    return !loadedLangs.has(language) && hasGrammar(language);
+}
+
+export function useHighlighter(language: Language): HighlighterCore {
+    if (needsLoad(language)) {
+        // preload it
+        lazyLoadGrammar(language);
+    }
+
+    const hl = highlighter ?? use(highlighterPromise());
+
+    if (needsLoad(language)) {
+        const grammar = use(lazyLoadGrammar(language))();
+
+        hl.loadLanguageSync(grammar);
+        loadedLangs.add(language);
     }
 
     return hl;

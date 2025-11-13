@@ -1,14 +1,6 @@
-import type { Ref } from "react";
+import type { Language } from "@/utils/textmate";
 
-export const enum Language {
-    PLAINTEXT = "plaintext",
-    UNKNOWN = "",
-    JSON = "json",
-    TYPESCRIPT = "typescript",
-    JAVASCRIPT = "javascript",
-    TYPESCRIPT_REACT = "typescriptreact",
-    JAVASCRIPT_REACT = "javascriptreact",
-}
+import type { Ref } from "react";
 
 export interface CodeEditorProps<THandle> {
     initialCode?: string;

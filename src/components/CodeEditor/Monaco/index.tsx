@@ -1,12 +1,13 @@
 import { useControlledState } from "@/hooks/controlledState";
+import { useRect } from "@/hooks/rect";
 import { EMPTY_NULL_OBJECT } from "@/utils/constants";
 import { assert, error } from "@/utils/error";
 import { once } from "@/utils/functional";
-import { truthy } from "@/utils/types";
+import { Language } from "@/utils/textmate";
 
 import { registry } from "./grammars";
 import { DEFAULT_MONACO_THEME, type MonacoTheme, useThemeString } from "./themes";
-import { type CodeEditorProps, Language } from "../base";
+import { type CodeEditorProps } from "../base";
 
 import * as monaco from "monaco-editor";
 import editorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
@@ -15,7 +16,7 @@ import htmlWorker from "monaco-editor/esm/vs/language/html/html.worker?worker";
 import jsonWorker from "monaco-editor/esm/vs/language/json/json.worker?worker";
 import tsWorker from "monaco-editor/esm/vs/language/typescript/ts.worker?worker";
 import { wireTmGrammars } from "monaco-editor-textmate";
-import { useEffect, useImperativeHandle, useMemo, useRef } from "react";
+import { useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 
 export interface MonacoCodeEditorHandle {
     get editor(): monaco.editor.IStandaloneCodeEditor;
@@ -71,7 +72,8 @@ export function MonacoCodeEditor({
 }: MonacoCodeEditorProps) {
     monacoSetup();
 
-    const ref = useRef<HTMLDivElement>(null);
+    const [ref, setRef] = useState<HTMLDivElement | null>(null);
+    const rect = useRect(ref);
     const editor = useRef<monaco.editor.IStandaloneCodeEditor>(null);
     const themeString = useThemeString(theme);
 
@@ -91,13 +93,6 @@ export function MonacoCodeEditor({
         });
     }
 
-    function setupThemes() {
-        if (!editor.current) {
-            return;
-        }
-        wireTmGrammars(monaco, registry(), textmateLanguageMap, editor.current);
-    }
-
     useImperativeHandle(_ref, () => ({
         get editor() {
             return editor.current!;
@@ -105,7 +100,7 @@ export function MonacoCodeEditor({
     }));
 
     useEffect(() => {
-        if (ref.current == null) {
+        if (ref == null) {
             return;
         }
 
@@ -130,13 +125,25 @@ export function MonacoCodeEditor({
             mergedOptions.model = model;
         }
         mergedOptions.extraEditorClassName ??= className;
-        editor.current = monaco.editor.create(ref.current, {
+        editor.current = monaco.editor.create(ref, {
             ...mergedOptions,
             theme: themeString,
         });
+        updateLanguages(editor.current, language);
         handleEditorDidMount();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [ref]);
+
+    function updateLanguages(editor: monaco.editor.ICodeEditor, lang: Language) {
+        wireTmGrammars(monaco, registry(), new Map([[lang, lang]]), editor);
+    }
+
+    useEffect(() => {
+        if (!editor.current) {
+            return;
+        }
+        updateLanguages(editor.current, language);
+    }, [language]);
 
     // useEffect(() => {
     //     if (!editor.current) {
@@ -191,7 +198,7 @@ export function MonacoCodeEditor({
 
     useEffect(() => {
         editor.current?.layout();
-    }, [style]);
+    }, [style, rect]);
 
     useEffect(() => () => {
         editor.current?.dispose();
@@ -199,7 +206,7 @@ export function MonacoCodeEditor({
 
     return (
         <div
-            ref={ref}
+            ref={setRef}
             style={style}
             data-code-editor="monaco"
         />

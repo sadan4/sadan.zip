@@ -1,22 +1,23 @@
 import { copy } from "@/utils/clipboard";
 import cn from "@/utils/cn";
 import { assert, unreachable } from "@/utils/error";
+import { Language } from "@/utils/textmate";
 import { ScrollArea } from "@components/layout/ScrollArea";
 
 import { useHighlighter } from "./_internal/useHighlighter";
-import { CodeblockLang, HorizontalOverflowMode } from "./enums";
+import { HorizontalOverflowMode } from "./enums";
 import styles from "./styles.module.scss";
 import { Button } from "../Button";
 import { ScrollAreaDirection } from "../layout/ScrollArea/types";
 import { Tooltip } from "../Tooltip";
 
 import { CopyIcon } from "lucide-react";
-import { type ComponentProps } from "react";
-import ShikiHighlighter, { type Language } from "react-shiki/core";
+import { type ComponentProps, Suspense } from "react";
+import * as shiki from "react-shiki/core";
 
 export interface CodeblockProps extends Omit<ComponentProps<"div">, "children" | "lang"> {
     children: string;
-    lang: CodeblockLang;
+    lang: Language;
     lineNumbers?: boolean;
     /**
      * implies `lineNumbers ??= true`
@@ -33,12 +34,18 @@ export interface CodeblockProps extends Omit<ComponentProps<"div">, "children" |
     noCopy?: boolean;
 }
 
-const langMap: Record<CodeblockLang, Language> = {
-    [CodeblockLang.HTML]: "html",
-    [CodeblockLang.TSX]: "tsx",
+const langMap: Record<Language, shiki.Language> = {
+    [Language.HTML]: "html",
+    [Language.JSON]: "json",
+    [Language.JAVASCRIPT]: "javascript",
+    [Language.JAVASCRIPT_REACT]: "jsx",
+    [Language.TYPESCRIPT]: "typescript",
+    [Language.TYPESCRIPT_REACT]: "tsx",
+    [Language.PLAINTEXT]: "plaintext",
+    [Language.UNKNOWN]: "plaintext",
 };
 
-export function Codeblock({
+function CodeblockInner({
     lang,
     children,
     className,
@@ -53,14 +60,14 @@ export function Codeblock({
         lineNumbers = true;
     }
 
-    const highlighter = useHighlighter();
+    const highlighter = useHighlighter(lang);
 
     if (!highlighter) {
         return;
     }
 
     let hl = (
-        <ShikiHighlighter
+        <shiki.ShikiHighlighter
             highlighter={highlighter}
             theme="tokyo-night"
             language={langMap[lang]}
@@ -68,7 +75,7 @@ export function Codeblock({
             startingLineNumber={startingLineNumber ?? 1}
         >
             {children}
-        </ShikiHighlighter>
+        </shiki.ShikiHighlighter>
     );
 
     switch (overflowX) {
@@ -113,5 +120,13 @@ export function Codeblock({
                 )
             }
         </div>
+    );
+}
+
+export function Codeblock(props: CodeblockProps) {
+    return (
+        <Suspense fallback={null}>
+            <CodeblockInner {...props} />
+        </Suspense>
     );
 }

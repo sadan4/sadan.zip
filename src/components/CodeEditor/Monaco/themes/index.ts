@@ -1,7 +1,7 @@
 import { unreachable } from "@/utils/error";
 import { makeLazy } from "@/utils/lazy";
 
-import * as themeGen from "./_themes.gen?gen";
+import * as themeGen from "./_themes.gen&gen";
 
 import * as monaco from "monaco-editor";
 
@@ -25,6 +25,9 @@ function lazyTheme(name: string, theme: monaco.editor.IStandaloneThemeData) {
 }
 
 const TokyoNight = lazyTheme("TokyoNight", themeGen.TokyoNight);
+const TokyoNightStorm = lazyTheme("TokyoNightStorm", themeGen.TokyoNightStorm);
+const TokyoNightLight = lazyTheme("TokyoNightLight", themeGen.TokyoNightLight);
+
 
 export function useThemeString(theme: MonacoTheme): string {
     switch (theme) {
@@ -38,6 +41,10 @@ export function useThemeString(theme: MonacoTheme): string {
             return "hc-light";
         case MonacoTheme.TOKYO_NIGHT:
             return TokyoNight();
+        case MonacoTheme.TOKYO_NIGHT_STORM:
+            return TokyoNightStorm();
+        case MonacoTheme.TOKYO_NIGHT_LIGHT:
+            return TokyoNightLight();
         default:
             unreachable();
     }

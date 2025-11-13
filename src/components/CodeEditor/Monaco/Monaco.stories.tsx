@@ -2,8 +2,9 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 
 import sample from "./index.tsx?raw";
 import { MonacoCodeEditor } from ".";
-import { Language } from "../base";
+
 import { Uri } from "monaco-editor";
+import { Language } from "@/utils/textmate";
 
 const meta = {
     component: MonacoCodeEditor,
