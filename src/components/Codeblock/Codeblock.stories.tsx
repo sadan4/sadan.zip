@@ -1,7 +1,8 @@
+import { Language } from "@/utils/textmate";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
 import sampleTsx from "./Codeblock.tsx?raw";
-import { Codeblock, CodeblockLang } from ".";
+import { Codeblock } from ".";
 
 const meta = {
     component: Codeblock,
@@ -22,7 +23,7 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
     args: {
-        lang: CodeblockLang.TSX,
+        lang: Language.TYPESCRIPT_REACT,
         children: sampleTsx,
     },
 };

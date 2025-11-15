@@ -62,10 +62,6 @@ function CodeblockInner({
 
     const highlighter = useHighlighter(lang);
 
-    if (!highlighter) {
-        return;
-    }
-
     let hl = (
         <shiki.ShikiHighlighter
             highlighter={highlighter}

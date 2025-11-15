@@ -1,34 +1,26 @@
-import type { LazyLang } from "./_grammars.gen&gen";
-import { grammars } from "./_internal";
+import { html, javascript, javascriptreact, json, type LazyLang, typescript, typescriptreact } from "./_grammars.gen&gen";
 import { Language } from ".";
 import { error } from "../error";
-import { makeLazy } from "../lazy";
 
 export function lazyLoadGrammar(language: Language): Promise<LazyLang> {
     switch (language) {
         case Language.JSON: {
-            return import("./_grammars.gen&gen")
-                .then((mod) => mod.json);
+            return json();
         }
         case Language.TYPESCRIPT: {
-            return import("./_grammars.gen&gen")
-                .then((mod) => mod.typescript);
+            return typescript();
         }
         case Language.JAVASCRIPT: {
-            return import("./_grammars.gen&gen")
-                .then((mod) => mod.javascript);
+            return javascript();
         }
         case Language.TYPESCRIPT_REACT: {
-            return import("./_grammars.gen&gen")
-                .then((mod) => mod.typescriptreact);
+            return typescriptreact();
         }
         case Language.JAVASCRIPT_REACT: {
-            return import("./_grammars.gen&gen")
-                .then((mod) => mod.javascriptreact);
+            return javascriptreact();
         }
         case Language.HTML: {
-            return import("./_grammars.gen&gen")
-                .then((mod) => mod.html);
+            return html();
         }
 
         case Language.PLAINTEXT:
@@ -36,14 +28,4 @@ export function lazyLoadGrammar(language: Language): Promise<LazyLang> {
         default:
             error(`No grammar available for language: ${language}`);
     }
-}
-
-export const languagesWithGrammars = makeLazy(() => {
-    return new Set(Object.entries(grammars)
-        .filter(([, loader]) => loader !== null)
-        .map(([lang]) => lang as Language));
-});
-
-export function hasGrammar(language: string | Language): language is Language {
-    return languagesWithGrammars().has(language as Language);
 }

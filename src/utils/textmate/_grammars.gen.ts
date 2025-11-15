@@ -1,33 +1,96 @@
-import { grammars } from "./_internal";
-import { languagesWithGrammars } from "./grammars";
+import { Language } from "./language";
 import { dedent } from "../string";
 
-import type { GeneratorArgs } from "rollup-plugin-generate";
+import type { GeneratorArgs, GeneratorExportModuleSideEffects } from "rollup-plugin-generate";
+import type { LanguageRegistration } from "shiki";
 
-export async function generate(_: GeneratorArgs) {
-    const langs = languagesWithGrammars();
+const grammars: Record<Language, null | (() => Promise<LanguageRegistration[]>)> = {
+    async [Language.JSON]() {
+        const json = await import("@shikijs/langs/json");
 
-    const output = [
-        dedent`
-            // This file is generated. Do not edit.,
+        return json.default;
+    },
+    async [Language.JAVASCRIPT]() {
+        const js = await import("@shikijs/langs/javascript");
 
-            import { makeLazy, type Lazy } from "@/utils/lazy";
+        return js.default;
+    },
+    async [Language.TYPESCRIPT]() {
+        const ts = await import("@shikijs/langs/typescript");
+
+        return ts.default;
+    },
+    async [Language.TYPESCRIPT_REACT]() {
+        const tsx = await import("@shikijs/langs/tsx");
+
+        return tsx.default;
+    },
+    async [Language.JAVASCRIPT_REACT]() {
+        const jsx = await import("@shikijs/langs/jsx");
+
+        return jsx.default;
+    },
+    async [Language.HTML]() {
+        const html = await import("@shikijs/langs/html");
+
+        return html.default;
+    },
+    [Language.PLAINTEXT]: null,
+    [Language.UNKNOWN]: null,
+};
+
+const languagesWithGrammars = new Set(Object.entries(grammars)
+    .filter(([, loader]) => loader !== null)
+    .map(([lang]) => lang as Language));
+
+export const moduleSideEffects: GeneratorExportModuleSideEffects = false;
+
+export async function generate({ emitFile, emitChunk }: GeneratorArgs) {
+    const langs = languagesWithGrammars;
+
+    const typeFile = emitFile({
+        extension: "ts",
+        content: dedent`
+            // This file is generated. Do not edit.
 
             import * as shiki from "shiki";
 
-            export type LazyLang = Lazy<shiki.LanguageRegistration>;
+            export type LazyLang = shiki.LanguageRegistration[];
+        `,
+        nameHint: "types",
+        hasSideEffects: false,
+    });
+
+    const output = [
+        dedent`
+            // This file is generated. Do not edit.
+
+            import type { LazyLang } from "${typeFile}";
+
+            export type { LazyLang };
+
+            import type { Language } from "./language";
+
+            export const languagesWithGrammars: Set<Language> = new Set(${JSON.stringify(Array.from(languagesWithGrammars.values()))});
         `,
     ];
 
     for (const lang of langs) {
         const def = await grammars[lang]!();
 
-        output.push(dedent`
-            export const ${lang}: LazyLang = /* @__PURE__ */ makeLazy(() => {
-                const lang = ${JSON.stringify(def)};
-                return lang;
-            });
-        `);
+        const ref = emitChunk({
+            extension: "ts",
+            content: dedent`
+                // This file is generated. Do not edit.
+
+                import type { LazyLang } from "${typeFile}";
+                const lang: LazyLang = /* @__PURE__ */ JSON.parse(${JSON.stringify(JSON.stringify(def))});
+                export default lang;
+            `,
+            nameHint: lang,
+        });
+
+        output.push(`export function ${lang}(): Promise<LazyLang> { return import("${ref}").then(({default: d}) => d); }`);
     }
     return output.join("\n");
 }

@@ -5,23 +5,11 @@ export function dedent(
     ...values: unknown[]
 ) {
     const raw = typeof strings === "string" ? [strings] : strings.raw;
-    const escapeSpecialCharacters = Array.isArray(strings);
     // first, perform interpolation
     let result = "";
 
     for (let i = 0; i < raw.length; i++) {
-        let next = raw[i];
-
-        if (escapeSpecialCharacters) {
-            // handle escaped newlines, backticks, and interpolation characters
-            next = next
-                .replace(/\\\n[ \t]*/g, "")
-                .replace(/\\`/g, "`")
-                .replace(/\\\$/g, "$")
-                .replace(/\\\{/g, "{");
-        }
-
-        result += next;
+        result += raw[i];
 
         if (i < values.length) {
             const value = alignValue(values[i], result);
@@ -62,11 +50,6 @@ export function dedent(
 
     // dedent eats leading and trailing whitespace too
     result = result.trim();
-
-    // handle escaped newlines at the end to ensure they don't get stripped too
-    if (escapeSpecialCharacters) {
-        result = result.replace(/\\n/g, "\n");
-    }
 
     return result;
 }

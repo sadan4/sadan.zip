@@ -1,9 +1,16 @@
-import { type Lazy } from "@/utils/lazy";
-import * as shiki from "shiki";
-export type LazyLang = Lazy<shiki.LanguageRegistration>;
-export declare const json: LazyLang;
-export declare const javascript: LazyLang;
-export declare const typescript: LazyLang;
-export declare const typescriptreact: LazyLang;
-export declare const javascriptreact: LazyLang;
-export declare const html: LazyLang;
+/* eslint-disable */
+import * as shiki from 'shiki';
+import { Language } from './language.ts';
+
+type LazyLang = shiki.LanguageRegistration[];
+
+declare const languagesWithGrammars: Set<Language>;
+declare function json(): Promise<LazyLang>;
+declare function javascript(): Promise<LazyLang>;
+declare function typescript(): Promise<LazyLang>;
+declare function typescriptreact(): Promise<LazyLang>;
+declare function javascriptreact(): Promise<LazyLang>;
+declare function html(): Promise<LazyLang>;
+
+export { html, javascript, javascriptreact, json, languagesWithGrammars, typescript, typescriptreact };
+export type { LazyLang };

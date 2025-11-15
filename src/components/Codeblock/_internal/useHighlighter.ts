@@ -1,7 +1,6 @@
 import { assert } from "@/utils/error";
 import { type Lazy, makeLazy } from "@/utils/lazy";
-import { Language, lazyLoadGrammar } from "@/utils/textmate";
-import { hasGrammar } from "@/utils/textmate/grammars";
+import { hasGrammar, Language, lazyLoadGrammar } from "@/utils/textmate";
 
 import { use } from "react";
 import { createHighlighterCore, createOnigurumaEngine } from "react-shiki/core";
@@ -26,7 +25,7 @@ export function preloadHighlighter() {
     highlighterPromise();
 }
 
-const loadedThemes = new Set<Language>();
+// const loadedThemes = new Set<Language>();
 const loadedLangs = new Set<Language>();
 
 function needsLoad(language: Language): boolean {
@@ -42,11 +41,10 @@ export function useHighlighter(language: Language): HighlighterCore {
     const hl = highlighter ?? use(highlighterPromise());
 
     if (needsLoad(language)) {
-        const grammar = use(lazyLoadGrammar(language))();
-
-        hl.loadLanguageSync(grammar);
-        loadedLangs.add(language);
+        use(lazyLoadGrammar(language).then((lang) => {
+            hl.loadLanguageSync(lang);
+            loadedLangs.add(language);
+        }));
     }
-
     return hl;
 }

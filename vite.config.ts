@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 import { generate } from "rollup-plugin-generate";
 import { defineConfig } from "vite";
 import devtoolsJson from "vite-plugin-devtools-json";
+import inspect from "vite-plugin-inspect";
 import tsconfigPaths from "vite-tsconfig-paths";
 
 const dirname = typeof __dirname !== "undefined" ? __dirname : path.dirname(fileURLToPath(import.meta.url));
@@ -25,6 +26,9 @@ export default defineConfig({
         tsconfigPaths(),
         devtoolsJson(),
         generate({ emitDts: true }),
+        inspect({
+            build: true,
+        }),
     ],
     build: {
         sourcemap: true,

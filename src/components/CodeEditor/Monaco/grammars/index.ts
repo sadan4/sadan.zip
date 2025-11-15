@@ -1,7 +1,6 @@
 import { error } from "@/utils/error";
 import { makeLazy } from "@/utils/lazy";
-import { lazyLoadGrammar } from "@/utils/textmate";
-import { hasGrammar } from "@/utils/textmate/grammars";
+import { hasGrammar, lazyLoadGrammar } from "@/utils/textmate";
 
 import { Registry } from "monaco-textmate";
 
