@@ -1,4 +1,4 @@
-import { html, javascript, javascriptreact, json, type LazyLang, typescript, typescriptreact } from "./_grammars.gen&gen";
+import { html, js, json, jsx, type LazyLang, ts, tsx } from "./_grammars.gen&gen";
 import { Language } from ".";
 import { error } from "../error";
 
@@ -8,16 +8,16 @@ export function lazyLoadGrammar(language: Language): Promise<LazyLang> {
             return json();
         }
         case Language.TYPESCRIPT: {
-            return typescript();
+            return ts();
         }
         case Language.JAVASCRIPT: {
-            return javascript();
+            return js();
         }
         case Language.TYPESCRIPT_REACT: {
-            return typescriptreact();
+            return tsx();
         }
         case Language.JAVASCRIPT_REACT: {
-            return javascriptreact();
+            return jsx();
         }
         case Language.HTML: {
             return html();

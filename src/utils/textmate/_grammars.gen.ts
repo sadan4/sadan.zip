@@ -45,7 +45,7 @@ const languagesWithGrammars = new Set(Object.entries(grammars)
 
 export const moduleSideEffects: GeneratorExportModuleSideEffects = false;
 
-export async function generate({ emitFile, emitChunk }: GeneratorArgs) {
+export async function generate({ emitFile }: GeneratorArgs) {
     const langs = languagesWithGrammars;
 
     const typeFile = emitFile({
@@ -78,7 +78,7 @@ export async function generate({ emitFile, emitChunk }: GeneratorArgs) {
     for (const lang of langs) {
         const def = await grammars[lang]!();
 
-        const ref = emitChunk({
+        const ref = emitFile({
             extension: "ts",
             content: dedent`
                 // This file is generated. Do not edit.
@@ -90,7 +90,9 @@ export async function generate({ emitFile, emitChunk }: GeneratorArgs) {
             nameHint: lang,
         });
 
-        output.push(`export function ${lang}(): Promise<LazyLang> { return import("${ref}").then(({default: d}) => d); }`);
+        const [ident] = lang.match(/[^.]+$/)!;
+
+        output.push(`export function ${ident}(): Promise<LazyLang> { return import("${ref}").then(({default: d}) => d); }`);
     }
     return output.join("\n");
 }

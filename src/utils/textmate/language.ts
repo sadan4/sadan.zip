@@ -1,10 +1,10 @@
 export enum Language {
-    PLAINTEXT = "plaintext",
+    PLAINTEXT = "source.txt",
     UNKNOWN = "",
-    JSON = "json",
-    TYPESCRIPT = "typescript",
-    JAVASCRIPT = "javascript",
-    TYPESCRIPT_REACT = "typescriptreact",
-    JAVASCRIPT_REACT = "javascriptreact",
-    HTML = "html",
+    JSON = "source.json",
+    TYPESCRIPT = "source.ts",
+    JAVASCRIPT = "source.js",
+    TYPESCRIPT_REACT = "source.tsx",
+    JAVASCRIPT_REACT = "source.jsx",
+    HTML = "source.html",
 }
