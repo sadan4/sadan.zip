@@ -24,7 +24,7 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {
     args: {
         initialCode: sample,
-        language: Language.TYPESCRIPT,
+        language: Language.TYPESCRIPT_REACT,
         uri: Uri.file("sample.tsx"),
     },
 };

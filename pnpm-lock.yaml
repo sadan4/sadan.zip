@@ -58,6 +58,9 @@ importers:
       monaco-vscode-textmate-theme-converter:
         specifier: ^0.1.7
         version: 0.1.7(tslib@2.8.1)
+      onigasm:
+        specifier: ^2.2.5
+        version: 2.2.5
       react:
         specifier: ^19.2.0
         version: 19.2.0

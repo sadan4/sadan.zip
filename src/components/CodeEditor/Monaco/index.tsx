@@ -3,6 +3,7 @@ import { useRect } from "@/hooks/rect";
 import { EMPTY_NULL_OBJECT } from "@/utils/constants";
 import { assert, error } from "@/utils/error";
 import { once } from "@/utils/functional";
+import { loadOnigasmPromise } from "@/utils/onigasm";
 import { Language } from "@/utils/textmate";
 
 import { registry } from "./grammars";
@@ -16,7 +17,7 @@ import htmlWorker from "monaco-editor/esm/vs/language/html/html.worker?worker";
 import jsonWorker from "monaco-editor/esm/vs/language/json/json.worker?worker";
 import tsWorker from "monaco-editor/esm/vs/language/typescript/ts.worker?worker";
 import { wireTmGrammars } from "monaco-editor-textmate";
-import { useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { use, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 
 export interface MonacoCodeEditorHandle {
     get editor(): monaco.editor.IStandaloneCodeEditor;
@@ -71,6 +72,7 @@ export function MonacoCodeEditor({
     ref: _ref,
 }: MonacoCodeEditorProps) {
     monacoSetup();
+    use(loadOnigasmPromise());
 
     const [ref, setRef] = useState<HTMLDivElement | null>(null);
     const rect = useRect(ref);
@@ -98,6 +100,13 @@ export function MonacoCodeEditor({
             return editor.current!;
         },
     }));
+
+    const updateLanguages = useCallback(function updateLanguages(editor: monaco.editor.ICodeEditor) {
+        monaco.languages.register({ id: getLanguageString(language) });
+        wireTmGrammars(monaco, registry(), new Map([[getLanguageString(language), language]]), editor)
+            .then(() => monaco.editor.setTheme(themeString));
+    }, [language, themeString]);
+
 
     useEffect(() => {
         if (ref == null) {
@@ -129,57 +138,23 @@ export function MonacoCodeEditor({
             ...mergedOptions,
             theme: themeString,
         });
-        updateLanguages(editor.current, language);
+        updateLanguages(editor.current!);
         handleEditorDidMount();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [ref]);
-
-    function updateLanguages(editor: monaco.editor.ICodeEditor, lang: Language) {
-        wireTmGrammars(monaco, registry(), new Map([[lang, lang]]), editor);
-    }
 
     useEffect(() => {
         if (!editor.current) {
             return;
         }
-        updateLanguages(editor.current, language);
-    }, [language]);
-
-    // useEffect(() => {
-    //     if (!editor.current) {
-    //         return;
-    //     }
-    //     if (code === editor.current.getValue()) {
-    //         return;
-    //     }
-
-    //     const model = editor.current.getModel();
-
-    //     // lock = true;
-    //     editor.current.pushUndoStop();
-    //     model?.pushEditOperations(
-    //         [],
-    //         [
-    //             {
-    //                 range: model.getFullModelRange(),
-    //                 text: code,
-    //             },
-    //         ],
-    //         () => null,
-    //     );
-    //     editor.current.pushUndoStop();
-    //     // lock = false;
-    // }, [code]);
+        updateLanguages(editor.current);
+    }, [updateLanguages]);
 
     useEffect(() => {
         editor.current?.updateOptions({
             extraEditorClassName: className ?? "",
         });
     }, [className]);
-
-    useEffect(() => {
-        monaco.editor.setTheme(themeString);
-    }, [themeString]);
 
     useEffect(() => {
         if (!editor.current) {
@@ -213,6 +188,18 @@ export function MonacoCodeEditor({
     );
 }
 
-function getLanguageString(language: Language): string | undefined {
-    return language || undefined;
+
+const monacoLanguageStringMap: Readonly<Record<Language, string>> = Object.freeze({
+    [Language.TYPESCRIPT]: "typescript",
+    [Language.TYPESCRIPT_REACT]: "typescript",
+    [Language.JAVASCRIPT]: "javascript",
+    [Language.JAVASCRIPT_REACT]: "javascript",
+    [Language.JSON]: "json",
+    [Language.HTML]: "html",
+    [Language.PLAINTEXT]: "plaintext",
+    [Language.UNKNOWN]: "plaintext",
+} satisfies Record<Language, string>);
+
+function getLanguageString(language: Language): string {
+    return monacoLanguageStringMap[language] || error(`unsupported language: ${language}`);
 }

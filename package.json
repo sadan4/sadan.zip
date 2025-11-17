@@ -30,6 +30,7 @@
     "monaco-editor-textmate": "^4.0.0",
     "monaco-textmate": "^3.0.1",
     "monaco-vscode-textmate-theme-converter": "^0.1.7",
+    "onigasm": "^2.2.5",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-router": "^7.8.1",
