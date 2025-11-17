@@ -5,6 +5,7 @@ import { assert, error } from "@/utils/error";
 import { once } from "@/utils/functional";
 import { loadOnigasmPromise } from "@/utils/onigasm";
 import { Language } from "@/utils/textmate";
+import { getLanguageDeps } from "@/utils/textmate/grammars";
 
 import { registry } from "./grammars";
 import { DEFAULT_MONACO_THEME, type MonacoTheme, useThemeString } from "./themes";
@@ -101,9 +102,12 @@ export function MonacoCodeEditor({
         },
     }));
 
-    const updateLanguages = useCallback(function updateLanguages(editor: monaco.editor.ICodeEditor) {
+    const setupThemes = useCallback(function updateLanguages(editor: monaco.editor.ICodeEditor) {
         monaco.languages.register({ id: getLanguageString(language) });
-        wireTmGrammars(monaco, registry(), new Map([[getLanguageString(language), language]]), editor)
+
+        const map = getLanguageDeps(language).map((lang) => [getLanguageString(lang), lang] as const);
+
+        wireTmGrammars(monaco, registry(), new Map(map), editor)
             .then(() => monaco.editor.setTheme(themeString));
     }, [language, themeString]);
 
@@ -138,7 +142,11 @@ export function MonacoCodeEditor({
             ...mergedOptions,
             theme: themeString,
         });
-        updateLanguages(editor.current!);
+        requestIdleCallback(() => {
+            setupThemes(editor.current!);
+        }, {
+            timeout: 2000,
+        });
         handleEditorDidMount();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [ref]);
@@ -147,8 +155,8 @@ export function MonacoCodeEditor({
         if (!editor.current) {
             return;
         }
-        updateLanguages(editor.current);
-    }, [updateLanguages]);
+        setupThemes(editor.current);
+    }, [setupThemes]);
 
     useEffect(() => {
         editor.current?.updateOptions({
@@ -198,6 +206,7 @@ const monacoLanguageStringMap: Readonly<Record<Language, string>> = Object.freez
     [Language.HTML]: "html",
     [Language.PLAINTEXT]: "plaintext",
     [Language.UNKNOWN]: "plaintext",
+    [Language.CSS]: "css",
 } satisfies Record<Language, string>);
 
 function getLanguageString(language: Language): string {

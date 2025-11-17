@@ -7,4 +7,5 @@ export enum Language {
     TYPESCRIPT_REACT = "source.tsx",
     JAVASCRIPT_REACT = "source.jsx",
     HTML = "source.html",
+    CSS = "source.css",
 }

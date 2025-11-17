@@ -9,6 +9,7 @@ import { HorizontalOverflowMode } from "./enums";
 import styles from "./styles.module.scss";
 import { Button } from "../Button";
 import { ScrollAreaDirection } from "../layout/ScrollArea/types";
+import { Text } from "../Text";
 import { Tooltip } from "../Tooltip";
 
 import { CopyIcon } from "lucide-react";
@@ -43,6 +44,7 @@ const langMap: Record<Language, shiki.Language> = {
     [Language.TYPESCRIPT_REACT]: "tsx",
     [Language.PLAINTEXT]: "plaintext",
     [Language.UNKNOWN]: "plaintext",
+    [Language.CSS]: "css",
 };
 
 function CodeblockInner({
@@ -121,7 +123,7 @@ function CodeblockInner({
 
 export function Codeblock(props: CodeblockProps) {
     return (
-        <Suspense fallback={null}>
+        <Suspense fallback={<Text>Loading...</Text>}>
             <CodeblockInner {...props} />
         </Suspense>
     );

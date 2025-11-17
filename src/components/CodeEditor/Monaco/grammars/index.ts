@@ -1,23 +1,20 @@
-import { error } from "@/utils/error";
 import { makeLazy } from "@/utils/lazy";
-import { hasGrammar } from "@/utils/textmate";
+import { createOnigurumaEngine } from "@/utils/onigasm";
+import { hasGrammar, lazyLoadGrammar } from "@/utils/textmate";
 
-import guh from "./test.json";
-
-import { Registry } from "monaco-textmate";
+import { type IRawGrammar, Registry } from "vscode-textmate";
 
 export const registry = makeLazy(() => {
     return new Registry({
-        async getGrammarDefinition(scopeName) {
+        onigLib: createOnigurumaEngine(),
+        async loadGrammar(scopeName) {
             if (hasGrammar(scopeName)) {
-                // const [content] = await lazyLoadGrammar(scopeName);
+                const content = await lazyLoadGrammar(scopeName);
 
-                return {
-                    format: "json",
-                    content: guh,
-                };
+                return content as IRawGrammar;
             }
-            error(`No grammar found for scope name: ${scopeName}`);
+            console.warn(`No grammar found for scope name: ${scopeName}`);
+            return null;
         },
     });
 });

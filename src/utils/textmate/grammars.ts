@@ -1,4 +1,4 @@
-import { html, js, json, jsx, type LazyLang, ts, tsx } from "./_grammars.gen&gen";
+import { css, html, js, json, jsx, type LazyLang, ts, tsx } from "./_grammars.gen&gen";
 import { Language } from ".";
 import { error } from "../error";
 
@@ -22,10 +22,27 @@ export function lazyLoadGrammar(language: Language): Promise<LazyLang> {
         case Language.HTML: {
             return html();
         }
+        case Language.CSS: {
+            return css();
+        }
+
 
         case Language.PLAINTEXT:
         case Language.UNKNOWN:
         default:
             error(`No grammar available for language: ${language}`);
+    }
+}
+
+export function getLanguageDeps(language: Language): Language[] {
+    switch (language) {
+        case Language.HTML:
+            return [
+                ...getLanguageDeps(Language.CSS),
+                ...getLanguageDeps(Language.JAVASCRIPT),
+                Language.HTML,
+            ];
+        default:
+            return [language];
     }
 }

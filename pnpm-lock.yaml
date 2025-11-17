@@ -5,6 +5,9 @@ settings:
   excludeLinksFromLockfile: false
 
 patchedDependencies:
+  rollup-plugin-generate:
+    hash: lep3ym6mclq5zlsduuhw7jdcta
+    path: patches/rollup-plugin-generate.patch
   typescript:
     hash: kmtcpv4ql4eeph7o5eu3vojf5m
     path: patches/typescript.patch
@@ -52,15 +55,9 @@ importers:
       monaco-editor-textmate:
         specifier: ^4.0.0
         version: 4.0.0(monaco-editor@0.54.0)(monaco-textmate@3.0.1(onigasm@2.2.5))
-      monaco-textmate:
-        specifier: ^3.0.1
-        version: 3.0.1(onigasm@2.2.5)
       monaco-vscode-textmate-theme-converter:
         specifier: ^0.1.7
         version: 0.1.7(tslib@2.8.1)
-      onigasm:
-        specifier: ^2.2.5
-        version: 2.2.5
       react:
         specifier: ^19.2.0
         version: 19.2.0
@@ -82,6 +79,12 @@ importers:
       tailwindcss:
         specifier: ^4.1.8
         version: 4.1.8
+      vscode-oniguruma:
+        specifier: ^2.0.1
+        version: 2.0.1
+      vscode-textmate:
+        specifier: ^9.2.1
+        version: 9.2.1
       zustand:
         specifier: ^5.0.5
         version: 5.0.5(@types/react@19.2.2)(react@19.2.0)
@@ -164,7 +167,7 @@ importers:
         version: 1.55.0
       rollup-plugin-generate:
         specifier: ^1.2.0
-        version: 1.2.0
+        version: 1.2.0(patch_hash=lep3ym6mclq5zlsduuhw7jdcta)
       storybook:
         specifier: ^10.0.0
         version: 10.0.0(@testing-library/dom@10.4.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(vite@7.1.10(@types/node@24.0.0)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(sass@1.89.2)(stylus@0.62.0)(terser@5.43.1))
@@ -3916,6 +3919,12 @@ packages:
       jsdom:
         optional: true
 
+  vscode-oniguruma@2.0.1:
+    resolution: {integrity: sha512-poJU8iHIWnC3vgphJnrLZyI3YdqRlR27xzqDmpPXYzA93R4Gk8z7T6oqDzDoHjoikA2aS82crdXFkjELCdJsjQ==}
+
+  vscode-textmate@9.2.1:
+    resolution: {integrity: sha512-eXiUi2yYFv9bdvgrYtJynA7UemCEkpVNE50S9iBBA08LYG5t9+/TB+8IRS/YoYOubCez2OkSyZ1Q12eQMwzbrw==}
+
   webpack-virtual-modules@0.6.2:
     resolution: {integrity: sha512-66/V2i5hQanC51vBQKPH4aI8NMAcBW59FVBs+rC7eGHupMyfn34q7rZIE+ETlJ+XTevqfUhVVBgSUNSW2flEUQ==}
 
@@ -7154,7 +7163,7 @@ snapshots:
     optionalDependencies:
       '@babel/code-frame': 7.27.1
 
-  rollup-plugin-generate@1.2.0:
+  rollup-plugin-generate@1.2.0(patch_hash=lep3ym6mclq5zlsduuhw7jdcta):
     dependencies:
       '@rollup/pluginutils': 5.3.0(rollup@4.52.4)
       esbuild: 0.27.0
@@ -7836,6 +7845,10 @@ snapshots:
       - terser
       - tsx
       - yaml
+
+  vscode-oniguruma@2.0.1: {}
+
+  vscode-textmate@9.2.1: {}
 
   webpack-virtual-modules@0.6.2: {}
 

@@ -28,9 +28,7 @@
     "lucide-react": "^0.545.0",
     "monaco-editor": "^0.54.0",
     "monaco-editor-textmate": "^4.0.0",
-    "monaco-textmate": "^3.0.1",
     "monaco-vscode-textmate-theme-converter": "^0.1.7",
-    "onigasm": "^2.2.5",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-router": "^7.8.1",
@@ -38,6 +36,8 @@
     "scroll-into-view-if-needed": "^3.1.0",
     "shiki": "^3.13.0",
     "tailwindcss": "^4.1.8",
+    "vscode-oniguruma": "^2.0.1",
+    "vscode-textmate": "^9.2.1",
     "zustand": "^5.0.5"
   },
   "devDependencies": {
@@ -85,7 +85,8 @@
   "packageManager": "pnpm@9.15.2+sha512.93e57b0126f0df74ce6bff29680394c0ba54ec47246b9cf321f0121d8d9bb03f750a705f24edc3c1180853afd7c2c3b94196d0a3d53d3e069d9e2793ef11f321",
   "pnpm": {
     "patchedDependencies": {
-      "typescript": "patches/typescript.patch"
+      "typescript": "patches/typescript.patch",
+      "rollup-plugin-generate": "patches/rollup-plugin-generate.patch"
     }
   }
 }

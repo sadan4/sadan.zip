@@ -4,36 +4,41 @@ import { dedent } from "../string";
 import type { GeneratorArgs, GeneratorExportModuleSideEffects } from "rollup-plugin-generate";
 import type { LanguageRegistration } from "shiki";
 
-const grammars: Record<Language, null | (() => Promise<LanguageRegistration[]>)> = {
+const grammars: Record<Language, null | (() => Promise<LanguageRegistration>)> = {
     async [Language.JSON]() {
         const json = await import("@shikijs/langs/json");
 
-        return json.default;
+        return json.default[0];
     },
     async [Language.JAVASCRIPT]() {
         const js = await import("@shikijs/langs/javascript");
 
-        return js.default;
+        return js.default[0];
     },
     async [Language.TYPESCRIPT]() {
         const ts = await import("@shikijs/langs/typescript");
 
-        return ts.default;
+        return ts.default[0];
     },
     async [Language.TYPESCRIPT_REACT]() {
         const tsx = await import("@shikijs/langs/tsx");
 
-        return tsx.default;
+        return tsx.default[0];
     },
     async [Language.JAVASCRIPT_REACT]() {
         const jsx = await import("@shikijs/langs/jsx");
 
-        return jsx.default;
+        return jsx.default[0];
     },
     async [Language.HTML]() {
         const html = await import("@shikijs/langs/html");
 
-        return html.default;
+        return html.default.at(-1)!;
+    },
+    async [Language.CSS]() {
+        const css = await import("@shikijs/langs/css");
+
+        return css.default[0];
     },
     [Language.PLAINTEXT]: null,
     [Language.UNKNOWN]: null,
@@ -55,7 +60,7 @@ export async function generate({ emitFile }: GeneratorArgs) {
 
             import * as shiki from "shiki";
 
-            export type LazyLang = shiki.LanguageRegistration[];
+            export type LazyLang = shiki.LanguageRegistration;
         `,
         nameHint: "types",
         hasSideEffects: false,
