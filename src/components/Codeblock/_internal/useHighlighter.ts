@@ -1,6 +1,6 @@
 import { assert } from "@/utils/error";
 import { type Lazy, makeLazy } from "@/utils/lazy";
-import { createOnigurumaEngine } from "@/utils/onigasm";
+import { createOnigurumaEngine } from "@/utils/oniguruma";
 import { hasGrammar, Language, lazyLoadGrammar } from "@/utils/textmate";
 import type { LazyLang } from "@/utils/textmate/_grammars.gen&gen";
 import { getLanguageDeps } from "@/utils/textmate/grammars";

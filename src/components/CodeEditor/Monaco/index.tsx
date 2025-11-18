@@ -3,11 +3,11 @@ import { useRect } from "@/hooks/rect";
 import { EMPTY_NULL_OBJECT } from "@/utils/constants";
 import { assert, error } from "@/utils/error";
 import { once } from "@/utils/functional";
-import { loadOnigasmPromise } from "@/utils/onigasm";
+import { loadOnigasmPromise } from "@/utils/oniguruma";
 import { Language } from "@/utils/textmate";
 import { getLanguageDeps } from "@/utils/textmate/grammars";
 
-import { registry } from "./grammars";
+import { registry, wireTmGrammars } from "./grammars";
 import { DEFAULT_MONACO_THEME, type MonacoTheme, useThemeString } from "./themes";
 import { type CodeEditorProps } from "../base";
 
@@ -17,7 +17,6 @@ import cssWorker from "monaco-editor/esm/vs/language/css/css.worker?worker";
 import htmlWorker from "monaco-editor/esm/vs/language/html/html.worker?worker";
 import jsonWorker from "monaco-editor/esm/vs/language/json/json.worker?worker";
 import tsWorker from "monaco-editor/esm/vs/language/typescript/ts.worker?worker";
-import { wireTmGrammars } from "monaco-editor-textmate";
 import { use, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 
 export interface MonacoCodeEditorHandle {
@@ -107,7 +106,7 @@ export function MonacoCodeEditor({
 
         const map = getLanguageDeps(language).map((lang) => [getLanguageString(lang), lang] as const);
 
-        wireTmGrammars(monaco, registry(), new Map(map), editor)
+        wireTmGrammars(registry(), new Map(map), editor)
             .then(() => monaco.editor.setTheme(themeString));
     }, [language, themeString]);
 
