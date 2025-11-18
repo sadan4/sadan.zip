@@ -198,3 +198,15 @@ export function isFunction(func: any): func is ((...a: any[]) => any) {
 export function truthy<T>(i: T): i is Exclude<T, false | null | undefined | 0> {
     return !!i;
 }
+
+export type ShallowMutable<T> = {
+    -readonly [P in keyof T]: T[P];
+};
+
+export type ShallowReadonly<T> = {
+    readonly [P in keyof T]: T[P];
+};
+
+export type AssertedType0<T> = T extends (arg0: any, ...rest: any[]) => arg0 is infer U ? U : never;
+export type AssertedType<T> = AssertedType0<T>;
+export type AssertedType1<T> = T extends (arg0: any, arg1: any, ...rest: any[]) => arg1 is infer U ? U : never;

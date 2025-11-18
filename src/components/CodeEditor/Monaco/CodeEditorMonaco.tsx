@@ -8,7 +8,7 @@ import { Language } from "@/utils/textmate";
 import { getLanguageDeps } from "@/utils/textmate/grammars";
 
 import { registry, wireTmGrammars } from "./grammars";
-import { DEFAULT_MONACO_THEME, type MonacoTheme, useThemeString } from "./themes";
+import { DEFAULT_MONACO_THEME, type MonacoTheme, useMonacoTheme } from "./themes";
 import { type CodeEditorProps } from "../base";
 
 import * as monaco from "monaco-editor";
@@ -17,7 +17,7 @@ import cssWorker from "monaco-editor/esm/vs/language/css/css.worker?worker";
 import htmlWorker from "monaco-editor/esm/vs/language/html/html.worker?worker";
 import jsonWorker from "monaco-editor/esm/vs/language/json/json.worker?worker";
 import tsWorker from "monaco-editor/esm/vs/language/typescript/ts.worker?worker";
-import { use, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { Suspense, use, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 
 export interface MonacoCodeEditorHandle {
     get editor(): monaco.editor.IStandaloneCodeEditor;
@@ -59,7 +59,7 @@ const monacoSetup = once(() => {
     };
 });
 
-export function MonacoCodeEditor({
+function MonacoCodeEditorInner({
     initialCode = "",
     language = Language.UNKNOWN,
     onChange,
@@ -77,7 +77,7 @@ export function MonacoCodeEditor({
     const [ref, setRef] = useState<HTMLDivElement | null>(null);
     const rect = useRect(ref);
     const editor = useRef<monaco.editor.IStandaloneCodeEditor>(null);
-    const themeString = useThemeString(theme);
+    const themeString = useMonacoTheme(theme);
 
     const [code, setCode] = useControlledState({
         initialValue: initialCode,
@@ -210,4 +210,12 @@ const monacoLanguageStringMap: Readonly<Record<Language, string>> = Object.freez
 
 function getLanguageString(language: Language): string {
     return monacoLanguageStringMap[language] || error(`unsupported language: ${language}`);
+}
+
+export function MonacoCodeEditor(props: MonacoCodeEditorProps) {
+    return (
+        <Suspense fallback={null}>
+            <MonacoCodeEditorInner {...props} />
+        </Suspense>
+    );
 }

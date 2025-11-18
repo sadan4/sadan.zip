@@ -46,7 +46,6 @@ class TokenizerState implements monaco.languages.IState {
 /**
  * Wires up monaco-editor with monaco-textmate
  *
- * @param monaco monaco namespace this operation should apply to (usually the `monaco` global unless you have some other setup)
  * @param registry TmGrammar `Registry` this wiring should rely on to provide the grammars
  * @param languages `Map` of language ids (string) to TM names (string)
  */
@@ -69,18 +68,36 @@ export function wireTmGrammars(registry: Registry, languages: Map<string, string
 
             monaco.languages.setTokensProvider(languageId, {
                 getInitialState: () => new TokenizerState(INITIAL),
-                tokenize(line: string, state: TokenizerState) {
-                    const { ruleStack, tokens } = grammar.tokenizeLine(line, state.ruleStack);
+                tokenizeEncoded(line, state: TokenizerState) {
+                    const { ruleStack, tokens } = grammar.tokenizeLine2(line, state.ruleStack);
+
+                    const testingTokens = tokens.map((token, index) => {
+                        if (index % 2 === 1) {
+                            return 0b0000_0000_0000_0000_1100_0000_0000_0000 << 1;
+                        }
+                        return token;
+                    });
+
+                    window.monaco = monaco;
 
                     return {
                         endState: new TokenizerState(ruleStack),
-                        tokens: tokens.map((token) => ({
-                            ...token,
-                            // TODO: At the moment, monaco-editor doesn't seem to accept array of scopes
-                            scopes: editor ? TMToMonacoToken(editor, token.scopes) : token.scopes.at(-1)!,
-                        })),
+                        tokens: testingTokens,
                     };
                 },
+                // tokenize(line: string, state: TokenizerState) {
+                //     const { ruleStack, tokens } = grammar.tokenizeLine(line, state.ruleStack);
+
+                //     return {
+                //         endState: new TokenizerState(ruleStack),
+                //         tokens: tokens.map((token) => ({
+                //             ...token,
+                //             // TODO: At the moment, monaco-editor doesn't seem to accept array of scopes
+                //             // scopes: editor ? TMToMonacoToken(editor, token.scopes) : token.scopes.at(-1)!,
+                //             scopes: token.scopes,
+                //         })),
+                //     };
+                // },
             });
         }));
 }

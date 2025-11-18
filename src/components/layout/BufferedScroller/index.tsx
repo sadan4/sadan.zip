@@ -2,7 +2,7 @@ import { useControlledState } from "@/hooks/controlledState";
 import { getNewestEntry, useIntersection } from "@/hooks/intersection";
 import cn from "@/utils/cn";
 import { assert } from "@/utils/error";
-import { mapObject } from "@/utils/functional";
+import { mapObject } from "@/utils/obj";
 
 import { ScrollArea, type ScrollAreaProps } from "../ScrollArea";
 import { ScrollAreaContext } from "../ScrollArea/context";

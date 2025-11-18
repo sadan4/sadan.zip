@@ -1,10 +1,10 @@
+import { Language } from "@/utils/textmate";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
-import sample from "./index.tsx?raw";
-import { MonacoCodeEditor } from ".";
+import { MonacoCodeEditor } from "./CodeEditorMonaco";
+import sample from "./CodeEditorMonaco.tsx?raw";
 
 import { Uri } from "monaco-editor";
-import { Language } from "@/utils/textmate";
 
 const meta = {
     component: MonacoCodeEditor,
