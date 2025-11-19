@@ -1,4 +1,3 @@
-/* eslint-disable @stylistic/max-len */
 /* ---------------------------------------------------------
  * Copyright (C) Microsoft Corporation. All rights reserved.
  *--------------------------------------------------------*/
@@ -68,29 +67,37 @@ export class RegexSource {
         return CAPTURING_REGEX_SOURCE.test(regexSource);
     }
 
-    public static replaceCaptures(regexSource: string, captureSource: string, captureIndices: IOnigCaptureIndex[]): string {
-        return regexSource.replace(CAPTURING_REGEX_SOURCE, (match: string, index: string, commandIndex: string, command: string) => {
-            const capture = captureIndices[parseInt(index || commandIndex, 10)];
+    public static replaceCaptures(
+        regexSource: string,
+        captureSource: string,
+        captureIndices: IOnigCaptureIndex[],
+    ): string {
+        return regexSource
+            .replace(
+                CAPTURING_REGEX_SOURCE,
+                (match: string, index: string, commandIndex: string, command: string) => {
+                    const capture = captureIndices[parseInt(index || commandIndex, 10)];
 
-            if (capture) {
-                let result = captureSource.substring(capture.start, capture.end);
+                    if (capture) {
+                        let result = captureSource.substring(capture.start, capture.end);
 
-                // Remove leading dots that would make the selector invalid
-                while (result[0] === ".") {
-                    result = result.substring(1);
-                }
-                switch (command) {
-                    case "downcase":
-                        return result.toLowerCase();
-                    case "upcase":
-                        return result.toUpperCase();
-                    default:
-                        return result;
-                }
-            } else {
-                return match;
-            }
-        });
+                        // Remove leading dots that would make the selector invalid
+                        while (result[0] === ".") {
+                            result = result.substring(1);
+                        }
+                        switch (command) {
+                            case "downcase":
+                                return result.toLowerCase();
+                            case "upcase":
+                                return result.toUpperCase();
+                            default:
+                                return result;
+                        }
+                    } else {
+                        return match;
+                    }
+                },
+            );
     }
 }
 
