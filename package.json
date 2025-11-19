@@ -60,7 +60,6 @@
     "eslint-plugin-tailwindcss": "4.0.0-beta.0",
     "eslint-plugin-unused-imports": "^4.1.4",
     "jiti": "^2.4.2",
-    "jsonc-parser": "^3.3.1",
     "monaco-vscode-textmate-theme-converter": "^0.1.7",
     "playwright": "^1.55.0",
     "rollup-plugin-generate": "^1.2.2",
