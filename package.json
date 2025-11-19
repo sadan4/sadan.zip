@@ -36,7 +36,6 @@
     "shiki": "^3.13.0",
     "tailwindcss": "^4.1.8",
     "vscode-oniguruma": "^2.0.1",
-    "vscode-textmate": "^9.2.1",
     "zustand": "^5.0.5"
   },
   "devDependencies": {
@@ -64,7 +63,8 @@
     "jiti": "^2.4.2",
     "jsonc-parser": "^3.3.1",
     "playwright": "^1.55.0",
-    "rollup-plugin-generate": "^1.2.0",
+    "rollup-plugin-generate": "^1.2.2",
+    "rollup-plugin-visualizer": "^6.0.5",
     "storybook": "^10.0.0",
     "stylelint": "^16.24.0",
     "stylelint-config-standard": "^39.0.0",
@@ -84,8 +84,7 @@
   "packageManager": "pnpm@9.15.2+sha512.93e57b0126f0df74ce6bff29680394c0ba54ec47246b9cf321f0121d8d9bb03f750a705f24edc3c1180853afd7c2c3b94196d0a3d53d3e069d9e2793ef11f321",
   "pnpm": {
     "patchedDependencies": {
-      "typescript": "patches/typescript.patch",
-      "rollup-plugin-generate": "patches/rollup-plugin-generate.patch"
+      "typescript": "patches/typescript.patch"
     }
   }
 }

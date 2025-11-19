@@ -5,9 +5,6 @@ settings:
   excludeLinksFromLockfile: false
 
 patchedDependencies:
-  rollup-plugin-generate:
-    hash: lep3ym6mclq5zlsduuhw7jdcta
-    path: patches/rollup-plugin-generate.patch
   typescript:
     hash: kmtcpv4ql4eeph7o5eu3vojf5m
     path: patches/typescript.patch
@@ -79,9 +76,6 @@ importers:
       vscode-oniguruma:
         specifier: ^2.0.1
         version: 2.0.1
-      vscode-textmate:
-        specifier: ^9.2.1
-        version: 9.2.1
       zustand:
         specifier: ^5.0.5
         version: 5.0.5(@types/react@19.2.2)(react@19.2.0)
@@ -163,8 +157,11 @@ importers:
         specifier: ^1.55.0
         version: 1.55.0
       rollup-plugin-generate:
-        specifier: ^1.2.0
-        version: 1.2.0(patch_hash=lep3ym6mclq5zlsduuhw7jdcta)
+        specifier: ^1.2.2
+        version: 1.2.2
+      rollup-plugin-visualizer:
+        specifier: ^6.0.5
+        version: 6.0.5(rollup@4.52.4)
       storybook:
         specifier: ^10.0.0
         version: 10.0.0(@testing-library/dom@10.4.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(vite@7.1.10(@types/node@24.0.0)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(sass@1.89.2)(stylus@0.62.0)(terser@5.43.1))
@@ -2122,6 +2119,10 @@ packages:
     resolution: {integrity: sha512-Qq68+VkJlc8tjnPV1i7HtbIn7ohmjZa88qUvHMIK0ZKUXMCuV45cT7cEXALPUmeXCe0q1DWQkQTemHVaLIFSrg==}
     engines: {node: '>=18'}
 
+  define-lazy-prop@2.0.0:
+    resolution: {integrity: sha512-Ds09qNh8yw3khSjiJjiUInaGX9xlqZDY7JVryGxdxV7NPeuqQfplOpQ66yJFZut3jLa5zOwkXw1g9EI2uKh4Og==}
+    engines: {node: '>=8'}
+
   define-lazy-prop@3.0.0:
     resolution: {integrity: sha512-N+MeXYoqr3pOgn8xfyRPREN7gHakLYjhsHhWGT3fWAiL4IkAt0iDw14QiiEm2bE30c5XX5q0FtAA3CK5f9/BUg==}
     engines: {node: '>=12'}
@@ -2576,6 +2577,11 @@ packages:
   is-decimal@2.0.1:
     resolution: {integrity: sha512-AAB9hiomQs5DXWcRB1rqsxGUstbRroFOPPVAomNk/3XHR5JyEZChOyTWe2oayKnsSsr/kcGqF+z6yuH6HHpN0A==}
 
+  is-docker@2.2.1:
+    resolution: {integrity: sha512-F+i2BKsFrH66iaUFc0woD8sLy8getkwTwtOBjvs56Cx4CgJDeKQeqfz8wAYiSb8JOprWhHH5p77PbmYCvvUuXQ==}
+    engines: {node: '>=8'}
+    hasBin: true
+
   is-docker@3.0.0:
     resolution: {integrity: sha512-eljcgEDlEns/7AXFosB5K/2nCM4P7FQPkGc/DWLy5rmFEWvZayGrik1d9/QIY5nJ4f9YsVvBkA6kJpHn9rISdQ==}
     engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
@@ -2611,6 +2617,10 @@ packages:
 
   is-what@3.14.1:
     resolution: {integrity: sha512-sNxgpk9793nzSs7bA6JQJGeIuRBQhAaNGG77kzYQgMkrID+lS6SlK07K5LaptscDlSaIgH+GPFzf+d75FVxozA==}
+
+  is-wsl@2.2.0:
+    resolution: {integrity: sha512-fKzAra0rGJUUBwGBgNkHZuToZcn+TtXHpeCgmkMJMMYx1sQDYaCSyjJBSCa2nH1DGm7s3n1oBnohoVTBaN7Lww==}
+    engines: {node: '>=8'}
 
   is-wsl@3.1.0:
     resolution: {integrity: sha512-UcVfVfaK4Sc4m7X3dUSoHoozQGBEFeDC+zVo06t98xe8CzHSZZBekNXH+tu0NalHolcJ/QAGqS46Hef7QXBIMw==}
@@ -3060,6 +3070,10 @@ packages:
     resolution: {integrity: sha512-YgBpdJHPyQ2UE5x+hlSXcnejzAvD0b22U2OuAP+8OnlJT+PjWPxtgmGqKKc+RgTM63U9gN0YzrYc71R2WT/hTA==}
     engines: {node: '>=18'}
 
+  open@8.4.2:
+    resolution: {integrity: sha512-7x81NCL719oNbsq/3mh+hVrAWmFuEYUqrq/Iw3kUzH8ReypT9QQ0BLoJS7/G9k6N81XjW4qHWtjWwe/9eLy1EQ==}
+    engines: {node: '>=12'}
+
   optionator@0.9.4:
     resolution: {integrity: sha512-6IpQ7mKUxRcZNLIObR0hz7lxsapSSIYNZJwXPGeF0mTVqGKFIXj1DQcMoT22S3ROcLyY/rz0PWaWZ9ayWmad9g==}
     engines: {node: '>= 0.8.0'}
@@ -3356,8 +3370,21 @@ packages:
       rollup: ^3.29.4 || ^4
       typescript: ^4.5 || ^5.0
 
-  rollup-plugin-generate@1.2.0:
-    resolution: {integrity: sha512-GBCjszHBm3zaQ2rT6kQ1nJo/F0zg46R/CTyBoaYCBhMzVeDn7m7RAy50EB54fzouRkQWgtmnU5/NDqg2LKBUew==}
+  rollup-plugin-generate@1.2.2:
+    resolution: {integrity: sha512-9zEwUkwSo7xzPVHzF6niXjMl8AkTb8TkOYUOhKCp0jptonb8ILNDZMprQx5q7W/iKjrCArWSwJyIKfPGLrbeOw==}
+
+  rollup-plugin-visualizer@6.0.5:
+    resolution: {integrity: sha512-9+HlNgKCVbJDs8tVtjQ43US12eqaiHyyiLMdBwQ7vSZPiHMysGNo2E88TAp1si5wx8NAoYriI2A5kuKfIakmJg==}
+    engines: {node: '>=18'}
+    hasBin: true
+    peerDependencies:
+      rolldown: 1.x || ^1.0.0-beta
+      rollup: 2.x || 3.x || 4.x
+    peerDependenciesMeta:
+      rolldown:
+        optional: true
+      rollup:
+        optional: true
 
   rollup@4.52.4:
     resolution: {integrity: sha512-CLEVl+MnPAiKh5pl4dEWSyMTpuflgNQiLGhMv8ezD5W/qP8AKvmYpCOKRRNOh7oRKnauBZ4SyeYkMS+1VSyKwQ==}
@@ -3901,9 +3928,6 @@ packages:
 
   vscode-oniguruma@2.0.1:
     resolution: {integrity: sha512-poJU8iHIWnC3vgphJnrLZyI3YdqRlR27xzqDmpPXYzA93R4Gk8z7T6oqDzDoHjoikA2aS82crdXFkjELCdJsjQ==}
-
-  vscode-textmate@9.2.1:
-    resolution: {integrity: sha512-eXiUi2yYFv9bdvgrYtJynA7UemCEkpVNE50S9iBBA08LYG5t9+/TB+8IRS/YoYOubCez2OkSyZ1Q12eQMwzbrw==}
 
   webpack-virtual-modules@0.6.2:
     resolution: {integrity: sha512-66/V2i5hQanC51vBQKPH4aI8NMAcBW59FVBs+rC7eGHupMyfn34q7rZIE+ETlJ+XTevqfUhVVBgSUNSW2flEUQ==}
@@ -5737,6 +5761,8 @@ snapshots:
       bundle-name: 4.1.0
       default-browser-id: 5.0.0
 
+  define-lazy-prop@2.0.0: {}
+
   define-lazy-prop@3.0.0: {}
 
   defu@6.1.4:
@@ -6274,6 +6300,8 @@ snapshots:
 
   is-decimal@2.0.1: {}
 
+  is-docker@2.2.1: {}
+
   is-docker@3.0.0: {}
 
   is-extglob@2.1.1: {}
@@ -6295,6 +6323,10 @@ snapshots:
   is-plain-object@5.0.0: {}
 
   is-what@3.14.1: {}
+
+  is-wsl@2.2.0:
+    dependencies:
+      is-docker: 2.2.1
 
   is-wsl@3.1.0:
     dependencies:
@@ -6848,6 +6880,12 @@ snapshots:
       is-inside-container: 1.0.0
       wsl-utils: 0.1.0
 
+  open@8.4.2:
+    dependencies:
+      define-lazy-prop: 2.0.0
+      is-docker: 2.2.1
+      is-wsl: 2.2.0
+
   optionator@0.9.4:
     dependencies:
       deep-is: 0.1.4
@@ -7127,7 +7165,7 @@ snapshots:
     optionalDependencies:
       '@babel/code-frame': 7.27.1
 
-  rollup-plugin-generate@1.2.0(patch_hash=lep3ym6mclq5zlsduuhw7jdcta):
+  rollup-plugin-generate@1.2.2:
     dependencies:
       '@rollup/pluginutils': 5.3.0(rollup@4.52.4)
       esbuild: 0.27.0
@@ -7135,6 +7173,15 @@ snapshots:
       rollup: 4.52.4
       rollup-plugin-dts: 6.2.3(rollup@4.52.4)(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))
       typescript: 5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m)
+
+  rollup-plugin-visualizer@6.0.5(rollup@4.52.4):
+    dependencies:
+      open: 8.4.2
+      picomatch: 4.0.3
+      source-map: 0.7.4
+      yargs: 17.7.2
+    optionalDependencies:
+      rollup: 4.52.4
 
   rollup@4.52.4:
     dependencies:
@@ -7811,8 +7858,6 @@ snapshots:
       - yaml
 
   vscode-oniguruma@2.0.1: {}
-
-  vscode-textmate@9.2.1: {}
 
   webpack-virtual-modules@0.6.2: {}
 

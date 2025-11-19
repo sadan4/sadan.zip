@@ -1,4 +1,4 @@
-import { error } from "./error";
+import { assert, error } from "./error";
 
 /**
  * Inserts a separator between each pair of elements in the given array and returns the mutated array.
@@ -125,4 +125,20 @@ export function makeRange(start: number, end: number, step = 1): number[] {
     }
 
     return ret;
+}
+
+export function chunk<T>(array: T[], size: number): T[][] {
+    const { length } = array;
+
+    assert(size > 0);
+    if (size >= length) {
+        return [[...array]];
+    }
+
+    const result: T[][] = [];
+
+    for (let i = 0; i < length; i += size) {
+        result.push(array.slice(i, i + size));
+    }
+    return result;
 }

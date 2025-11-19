@@ -1,9 +1,9 @@
+import type { IOnigLib } from "@/components/CodeEditor/Monaco/vscode-textmate/main";
 import { makeLazy } from "@/utils/lazy";
 
 import type { RegexEngine } from "shiki";
 import { loadWASM, OnigScanner, OnigString } from "vscode-oniguruma";
 import onigurumaWasmURL from "vscode-oniguruma/release/onig.wasm?url";
-import type { IOnigLib } from "vscode-textmate";
 
 export const loadOnigasmPromise = makeLazy(async () => {
     const res = await fetch(onigurumaWasmURL);

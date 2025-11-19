@@ -25,22 +25,22 @@ const textmateThemes: Record<TextmateTheme, () => Promise<TMTheme>> = {
 
         return theme.default;
     },
-    async [TextmateTheme.CATPUCCIN_MOCHA](): Promise<TMTheme> {
+    async [TextmateTheme.CATPPUCCIN_MOCHA](): Promise<TMTheme> {
         const theme = await import("@shikijs/themes/catppuccin-mocha");
 
         return theme.default;
     },
-    async [TextmateTheme.CATPUCCIN_FRAPPE](): Promise<TMTheme> {
+    async [TextmateTheme.CATPPUCCIN_FRAPPE](): Promise<TMTheme> {
         const theme = await import("@shikijs/themes/catppuccin-frappe");
 
         return theme.default;
     },
-    async [TextmateTheme.CATPUCCIN_MACCHIATO](): Promise<TMTheme> {
+    async [TextmateTheme.CATPPUCCIN_MACCHIATO](): Promise<TMTheme> {
         const theme = await import("@shikijs/themes/catppuccin-macchiato");
 
         return theme.default;
     },
-    async [TextmateTheme.CATPUCCIN_LATTE](): Promise<TMTheme> {
+    async [TextmateTheme.CATPPUCCIN_LATTE](): Promise<TMTheme> {
         const theme = await import("@shikijs/themes/catppuccin-latte");
 
         return theme.default;

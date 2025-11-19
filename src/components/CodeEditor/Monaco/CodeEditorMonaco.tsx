@@ -106,7 +106,7 @@ function MonacoCodeEditorInner({
 
         const map = getLanguageDeps(language).map((lang) => [getLanguageString(lang), lang] as const);
 
-        wireTmGrammars(registry(), new Map(map), editor)
+        wireTmGrammars(registry(), new Map(map), editor, themeString)
             .then(() => monaco.editor.setTheme(themeString));
     }, [language, themeString]);
 

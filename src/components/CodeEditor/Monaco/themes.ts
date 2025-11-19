@@ -63,10 +63,10 @@ export function useMonacoTheme(theme: MonacoTheme): string {
         case TextmateTheme.ROSE_PINE_DAWN:
         case TextmateTheme.ROSE_PINE_MOON:
         case TextmateTheme.NORD:
-        case TextmateTheme.CATPUCCIN_MOCHA:
-        case TextmateTheme.CATPUCCIN_FRAPPE:
-        case TextmateTheme.CATPUCCIN_MACCHIATO:
-        case TextmateTheme.CATPUCCIN_LATTE:
+        case TextmateTheme.CATPPUCCIN_MOCHA:
+        case TextmateTheme.CATPPUCCIN_FRAPPE:
+        case TextmateTheme.CATPPUCCIN_MACCHIATO:
+        case TextmateTheme.CATPPUCCIN_LATTE:
         case TextmateTheme.DRACULA: {
             return registeredThemeMap.get(theme) ?? use(loadLazyTextmateThemeForMonaco(theme));
         }

@@ -1,9 +1,12 @@
+import { error } from "@/utils/error";
 import { makeLazy } from "@/utils/lazy";
 import { createOnigurumaEngine } from "@/utils/oniguruma";
 import { hasGrammar, lazyLoadGrammar } from "@/utils/textmate";
 
+import { INITIAL, type IRawGrammar, Registry, type StateStack } from "./vscode-textmate/main";
+import { ColorMap, ScopeStack, Theme } from "./vscode-textmate/theme";
+
 import * as monaco from "monaco-editor";
-import { INITIAL, type IRawGrammar, Registry, type StateStack } from "vscode-textmate";
 
 export const registry = makeLazy(() => {
     return new Registry({
@@ -19,6 +22,15 @@ export const registry = makeLazy(() => {
         },
     });
 });
+
+interface ThemeSetting {
+    scope: string;
+    settings: {
+        foreground?: string;
+        background?: string;
+        fontStyle?: string;
+    };
+}
 
 class TokenizerState implements monaco.languages.IState {
     constructor(private _ruleStack: StateStack) { }
@@ -49,7 +61,12 @@ class TokenizerState implements monaco.languages.IState {
  * @param registry TmGrammar `Registry` this wiring should rely on to provide the grammars
  * @param languages `Map` of language ids (string) to TM names (string)
  */
-export function wireTmGrammars(registry: Registry, languages: Map<string, string>, editor?: monaco.editor.ICodeEditor) {
+export function wireTmGrammars(
+    registry: Registry,
+    languages: Map<string, string>,
+    editor: monaco.editor.ICodeEditor,
+    theme: string,
+) {
     return Promise.all(Array.from(languages.keys())
         .map(async (languageId) => {
             const lang = languages.get(languageId);
@@ -66,92 +83,78 @@ export function wireTmGrammars(registry: Registry, languages: Map<string, string
                 return;
             }
 
+            const settings = getRulesForTheme(editor, theme);
+            const colorMap = (editor as any)._themeService._theme._tokenTheme._colorMap as ColorMap;
+
+            const themeMatcher = Theme.createFromRawTheme({ settings }, new class extends ColorMap {
+                override getColorMap(): string[] {
+                    return colorMap.getColorMap();
+                }
+
+                override getId(color: string | null): number {
+                    return colorMap.getId(color);
+                }
+            }());
+
             monaco.languages.setTokensProvider(languageId, {
                 getInitialState: () => new TokenizerState(INITIAL),
                 tokenizeEncoded(line, state: TokenizerState) {
-                    const { ruleStack, tokens } = grammar.tokenizeLine2(line, state.ruleStack);
+                    const { ruleStack, tokens } = grammar.tokenizeLine(line, state.ruleStack);
+                    const ret = new Uint32Array(tokens.length * 2);
 
-                    const testingTokens = tokens.map((token, index) => {
-                        if (index % 2 === 1) {
-                            return 0b0000_0000_0000_0000_1100_0000_0000_0000 << 1;
-                        }
-                        return token;
-                    });
+                    for (let i = 0; i < tokens.length; i++) {
+                        const tok = tokens[i];
+                        const pos = i * 2;
 
-                    window.monaco = monaco;
+                        const {
+                            backgroundId,
+                            foregroundId,
+                            fontStyle,
+                        } = themeMatcher.match(ScopeStack.fromArray(tok.scopes)) ?? themeMatcher.getDefaults();
+
+                        ret[pos] = tok.startIndex;
+
+                        const metadata = 0
+                          | ((fontStyle === -1 ? 0 : fontStyle & ((1 << 4) - 1)) << 11)
+                          | ((foregroundId & ((1 << 9) - 1)) << 15)
+                          | ((backgroundId & ((1 << 9) - 1)) << 24);
+
+                        ret[pos + 1] = metadata;
+                    }
 
                     return {
                         endState: new TokenizerState(ruleStack),
-                        tokens: testingTokens,
+                        tokens: ret,
                     };
                 },
-                // tokenize(line: string, state: TokenizerState) {
-                //     const { ruleStack, tokens } = grammar.tokenizeLine(line, state.ruleStack);
-
-                //     return {
-                //         endState: new TokenizerState(ruleStack),
-                //         tokens: tokens.map((token) => ({
-                //             ...token,
-                //             // TODO: At the moment, monaco-editor doesn't seem to accept array of scopes
-                //             // scopes: editor ? TMToMonacoToken(editor, token.scopes) : token.scopes.at(-1)!,
-                //             scopes: token.scopes,
-                //         })),
-                //     };
-                // },
             });
         }));
 }
 
-// as described in issue: https://github.com/NeekSandhu/monaco-textmate/issues/5
-function TMToMonacoToken(editor: monaco.editor.ICodeEditor, scopes: string[]) {
-    let scopeName = "";
+const themeRulesCache: Map<string, ThemeSetting[]> = new Map();
 
-    // get the scope name. Example: cpp , java, haskell
-    for (let i = scopes[0].length - 1; i >= 0; i -= 1) {
-        const char = scopes[0][i];
-
-        if (char === ".") {
-            break;
-        }
-        scopeName = char + scopeName;
+function getRulesForTheme(editor: monaco.editor.ICodeEditor, theme: string): ThemeSetting[] {
+    if (themeRulesCache.has(theme)) {
+        return themeRulesCache.get(theme)!;
     }
 
-    // iterate through all scopes from last to first
-    for (let i = scopes.length - 1; i >= 0; i -= 1) {
-        const scope = scopes[i];
+    const knownThemes: Map<string, any> = (editor as any)._themeService._knownThemes;
+    const themeData = knownThemes.get(theme);
 
-        /**
-         * Try all possible tokens from high specific token to low specific token
-         *
-         * Example:
-         * 0 meta.function.definition.parameters.cpp
-         * 1 meta.function.definition.parameters
-         *
-         * 2 meta.function.definition.cpp
-         * 3 meta.function.definition
-         *
-         * 4 meta.function.cpp
-         * 5 meta.function
-         *
-         * 6 meta.cpp
-         * 7 meta
-         */
-        for (let i = scope.length - 1; i >= 0; i -= 1) {
-            const char = scope[i];
-
-            if (char === ".") {
-                const token = scope.slice(0, i);
-
-                if ((editor as any)._themeService._theme._tokenTheme._match(`${token}.${scopeName}`)._foreground
-                  > 1) {
-                    return `${token}.${scopeName}`;
-                }
-                if ((editor as any)._themeService._theme._tokenTheme._match(token)._foreground > 1) {
-                    return token;
-                }
-            }
-        }
+    if (!themeData) {
+        error(`could not find theme data for theme: ${theme}`);
     }
 
-    return "";
+    const rules = themeData.themeData.rules as monaco.editor.ITokenThemeRule[];
+
+    const themeSettings: ThemeSetting[] = rules.map(({ token: scope, ...settings }) => {
+        return {
+            scope,
+            settings,
+        };
+    });
+
+    themeRulesCache.set(theme, themeSettings);
+
+    return themeSettings;
 }

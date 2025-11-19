@@ -2,6 +2,7 @@ import { copy } from "@/utils/clipboard";
 import cn from "@/utils/cn";
 import { assert, unreachable } from "@/utils/error";
 import { Language } from "@/utils/textmate";
+import { TextmateTheme } from "@/utils/textmate/theme";
 import { ScrollArea } from "@components/layout/ScrollArea";
 
 import { useHighlighter } from "./_internal/useHighlighter";
@@ -19,6 +20,7 @@ import * as shiki from "react-shiki/core";
 export interface CodeblockProps extends Omit<ComponentProps<"div">, "children" | "lang"> {
     children: string;
     lang: Language;
+    theme?: TextmateTheme;
     lineNumbers?: boolean;
     /**
      * implies `lineNumbers ??= true`
@@ -47,8 +49,22 @@ const langMap: Record<Language, shiki.Language> = {
     [Language.CSS]: "css",
 };
 
+const themeMap: Record<TextmateTheme, shiki.Theme> = {
+    [TextmateTheme.TOKYO_NIGHT]: "tokyo-night",
+    [TextmateTheme.ROSE_PINE]: "rose-pine",
+    [TextmateTheme.ROSE_PINE_DAWN]: "rose-pine-dawn",
+    [TextmateTheme.ROSE_PINE_MOON]: "rose-pine-moon",
+    [TextmateTheme.NORD]: "nord",
+    [TextmateTheme.CATPPUCCIN_MOCHA]: "catppuccin-mocha",
+    [TextmateTheme.CATPPUCCIN_FRAPPE]: "catppuccin-frappe",
+    [TextmateTheme.CATPPUCCIN_MACCHIATO]: "catppuccin-macchiato",
+    [TextmateTheme.CATPPUCCIN_LATTE]: "catppuccin-latte",
+    [TextmateTheme.DRACULA]: "dracula",
+};
+
 function CodeblockInner({
     lang,
+    theme = TextmateTheme.TOKYO_NIGHT,
     children,
     className,
     overflowX = HorizontalOverflowMode.WRAP,
@@ -62,12 +78,12 @@ function CodeblockInner({
         lineNumbers = true;
     }
 
-    const highlighter = useHighlighter(lang);
+    const highlighter = useHighlighter(lang, theme);
 
     let hl = (
         <shiki.ShikiHighlighter
             highlighter={highlighter}
-            theme="tokyo-night"
+            theme={themeMap[theme]}
             language={langMap[lang]}
             showLineNumbers={lineNumbers}
             startingLineNumber={startingLineNumber ?? 1}
