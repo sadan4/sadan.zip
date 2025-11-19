@@ -12,18 +12,6 @@ export function once<T extends (...args: any[]) => any>(fn: T): T {
     }) as T;
 }
 
-export function mapObject<T extends Object, U>(
-    obj: T,
-    fn: (value: T[keyof T], key: keyof T) => U,
-): { [K in keyof T]: U } {
-    const result = {} as { [K in keyof T]: U };
-
-    for (const key in obj) {
-        result[key] = fn(obj[key], key);
-    }
-    return result;
-}
-
 export function prop<O extends object, K extends keyof O>(key: K): (obj: O) => O[K] {
     return (obj) => obj[key];
 }

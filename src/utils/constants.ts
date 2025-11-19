@@ -11,3 +11,6 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum ut dui est. 
 In viverra eleifend tortor ultricies molestie. Duis ullamcorper, lacus ac vehicula malesuada, tortor leo rhoncus enim, eu tempor ipsum purus non ipsum. Integer rutrum ipsum sit amet ante laoreet malesuada. Morbi hendrerit vestibulum neque in dignissim. Pellentesque aliquet tempor sem non ultricies. Nulla ac imperdiet erat, sit amet finibus lacus. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Etiam ornare accumsan tellus, ac aliquet turpis imperdiet et.
 `;
 // cspell:enable
+
+export const EMPTY_OBJECT = Object.freeze({});
+export const EMPTY_NULL_OBJECT = Object.freeze(Object.create(null));

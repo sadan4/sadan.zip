@@ -1,4 +1,4 @@
-import { mapObject } from "@/utils/functional";
+import { mapObject } from "@/utils/obj";
 import { type SpringConfig, type SpringValue, useSpringValue } from "@react-spring/web";
 
 import { useRef } from "react";
@@ -14,7 +14,6 @@ export function useImperativeSprings<T extends Record<string, number>>(
     const init = useRef(initialValue);
 
     return mapObject(init.current, (initialValue) => {
-        // eslint-disable-next-line react-hooks/react-compiler
         // eslint-disable-next-line react-hooks/rules-of-hooks
         return useSpringValue(initialValue, {
             config,

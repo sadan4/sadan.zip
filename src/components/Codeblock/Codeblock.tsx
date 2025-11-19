@@ -1,22 +1,26 @@
 import { copy } from "@/utils/clipboard";
 import cn from "@/utils/cn";
 import { assert, unreachable } from "@/utils/error";
+import { Language } from "@/utils/textmate";
+import { TextmateTheme } from "@/utils/textmate/theme";
 import { ScrollArea } from "@components/layout/ScrollArea";
 
 import { useHighlighter } from "./_internal/useHighlighter";
-import { CodeblockLang, HorizontalOverflowMode } from "./enums";
+import { HorizontalOverflowMode } from "./enums";
 import styles from "./styles.module.scss";
 import { Button } from "../Button";
 import { ScrollAreaDirection } from "../layout/ScrollArea/types";
+import { Text } from "../Text";
 import { Tooltip } from "../Tooltip";
 
 import { CopyIcon } from "lucide-react";
-import { type ComponentProps } from "react";
-import ShikiHighlighter, { type Language } from "react-shiki/core";
+import { type ComponentProps, Suspense } from "react";
+import * as shiki from "react-shiki/core";
 
 export interface CodeblockProps extends Omit<ComponentProps<"div">, "children" | "lang"> {
     children: string;
-    lang: CodeblockLang;
+    lang: Language;
+    theme?: TextmateTheme;
     lineNumbers?: boolean;
     /**
      * implies `lineNumbers ??= true`
@@ -33,13 +37,34 @@ export interface CodeblockProps extends Omit<ComponentProps<"div">, "children" |
     noCopy?: boolean;
 }
 
-const langMap: Record<CodeblockLang, Language> = {
-    [CodeblockLang.HTML]: "html",
-    [CodeblockLang.TSX]: "tsx",
+const langMap: Record<Language, shiki.Language> = {
+    [Language.HTML]: "html",
+    [Language.JSON]: "json",
+    [Language.JAVASCRIPT]: "javascript",
+    [Language.JAVASCRIPT_REACT]: "jsx",
+    [Language.TYPESCRIPT]: "typescript",
+    [Language.TYPESCRIPT_REACT]: "tsx",
+    [Language.PLAINTEXT]: "plaintext",
+    [Language.UNKNOWN]: "plaintext",
+    [Language.CSS]: "css",
 };
 
-export function Codeblock({
+const themeMap: Record<TextmateTheme, shiki.Theme> = {
+    [TextmateTheme.TOKYO_NIGHT]: "tokyo-night",
+    [TextmateTheme.ROSE_PINE]: "rose-pine",
+    [TextmateTheme.ROSE_PINE_DAWN]: "rose-pine-dawn",
+    [TextmateTheme.ROSE_PINE_MOON]: "rose-pine-moon",
+    [TextmateTheme.NORD]: "nord",
+    [TextmateTheme.CATPPUCCIN_MOCHA]: "catppuccin-mocha",
+    [TextmateTheme.CATPPUCCIN_FRAPPE]: "catppuccin-frappe",
+    [TextmateTheme.CATPPUCCIN_MACCHIATO]: "catppuccin-macchiato",
+    [TextmateTheme.CATPPUCCIN_LATTE]: "catppuccin-latte",
+    [TextmateTheme.DRACULA]: "dracula",
+};
+
+function CodeblockInner({
     lang,
+    theme = TextmateTheme.TOKYO_NIGHT,
     children,
     className,
     overflowX = HorizontalOverflowMode.WRAP,
@@ -53,22 +78,18 @@ export function Codeblock({
         lineNumbers = true;
     }
 
-    const highlighter = useHighlighter();
-
-    if (!highlighter) {
-        return;
-    }
+    const highlighter = useHighlighter(lang, theme);
 
     let hl = (
-        <ShikiHighlighter
+        <shiki.ShikiHighlighter
             highlighter={highlighter}
-            theme="tokyo-night"
+            theme={themeMap[theme]}
             language={langMap[lang]}
             showLineNumbers={lineNumbers}
             startingLineNumber={startingLineNumber ?? 1}
         >
             {children}
-        </ShikiHighlighter>
+        </shiki.ShikiHighlighter>
     );
 
     switch (overflowX) {
@@ -113,5 +134,13 @@ export function Codeblock({
                 )
             }
         </div>
+    );
+}
+
+export function Codeblock(props: CodeblockProps) {
+    return (
+        <Suspense fallback={<Text>Loading...</Text>}>
+            <CodeblockInner {...props} />
+        </Suspense>
     );
 }

@@ -2,11 +2,11 @@ import _88x31Image from "@/assets/88x31.png";
 import { Boilerplate } from "@/components/Boilerplate";
 import { Clickable } from "@/components/Clickable";
 import { Codeblock } from "@/components/Codeblock/Codeblock";
-import { CodeblockLang } from "@/components/Codeblock/enums";
 import { DefaultFooter, FooterContainer, FooterContent, FooterFooter } from "@/components/Footer";
 import { Box } from "@/components/layout/Box";
 import { TabBar, TabBarPosition } from "@/components/layout/TabBar";
 import { Text } from "@/components/Text";
+import { Language } from "@/utils/textmate";
 
 import htmlExampleContent from "./_sample.html?raw";
 import reactExampleContent from "./_sample.tsx?raw";
@@ -72,7 +72,7 @@ export default function Component_88x31_Button() {
                                         },
                                         Render() {
                                             return (
-                                                <Codeblock lang={CodeblockLang.HTML}>
+                                                <Codeblock lang={Language.HTML}>
                                                     {htmlExampleContent}
                                                 </Codeblock>
                                             );
@@ -89,7 +89,7 @@ export default function Component_88x31_Button() {
                                         },
                                         Render() {
                                             return (
-                                                <Codeblock lang={CodeblockLang.TSX}>
+                                                <Codeblock lang={Language.TYPESCRIPT_REACT}>
                                                     {reactExampleContent}
                                                 </Codeblock>
                                             );
