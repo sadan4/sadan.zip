@@ -4,6 +4,10 @@ export function dedent(
     strings: TemplateStringsArray | string,
     ...values: unknown[]
 ) {
+    /*!
+     * https://github.com/dmnd/dedent
+     * @license MIT
+     */
     const raw = typeof strings === "string" ? [strings] : strings.raw;
     // first, perform interpolation
     let result = "";
@@ -58,6 +62,10 @@ export function dedent(
  * Adjusts the indentation of a multi-line interpolated value to match the current line.
  */
 function alignValue(value: unknown, precedingText: string): string | unknown {
+    /*!
+     * https://github.com/dmnd/dedent
+     * @license MIT
+     */
     if (typeof value !== "string" || !value.includes("\n")) {
         return value;
     }
