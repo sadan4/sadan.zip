@@ -1,4 +1,3 @@
-/* eslint-disable @stylistic/max-len */
 /* ---------------------------------------------------------
  * Copyright (C) Microsoft Corporation. All rights reserved.
  *--------------------------------------------------------*/
@@ -41,7 +40,11 @@ export const enum FindOption {
 }
 
 export interface OnigScanner {
-    findNextMatchSync(string: string | OnigString, startPosition: number, options: OrMask<FindOption>): IOnigMatch | null;
+    findNextMatchSync(
+        string: string | OnigString,
+        startPosition: number,
+        options: OrMask<FindOption>
+    ): IOnigMatch | null;
     dispose?(): void;
 }
 
