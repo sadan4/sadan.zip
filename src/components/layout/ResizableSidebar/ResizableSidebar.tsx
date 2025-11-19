@@ -5,10 +5,11 @@ import { type ResizeHandleAPI, VerticalResizeHandle } from "../ResizeHandle";
 
 import { type PropsWithChildren, type RefObject, useContext, useEffect, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
+import { useRect } from "@/hooks/rect";
 
 export interface SidebarProps extends PropsWithChildren {
     side: Side;
-    boundingElement: RefObject<HTMLDivElement | null>;
+    boundingElement: RefObject<HTMLElement | null>;
     defaultSize?: number;
 }
 
@@ -60,6 +61,14 @@ export function ResizableSidebar({
         };
     }, [side, sidebarApiRef, store]);
 
+    const [boundingEl, setBoundingEl] = useState<HTMLElement | null>(null);
+    const { top, height } = useRect(boundingEl) ?? {};
+
+    useEffect(() => {
+        setBoundingEl(boundingElement?.current ?? null);
+    }, [boundingElement]);
+
+
     return (
         <>
             {side === Side.LEFT && (
@@ -91,6 +100,10 @@ export function ResizableSidebar({
                     setShouldDispatch(!hidden);
                 }}
                 className={cn((hidden || handleHidden) && "pointer-events-none opacity-0", shouldDispatch || "pointer-events-none")}
+                style={{
+                    top,
+                    height,
+                }}
             />
             {side === Side.RIGHT && (
                 <div
