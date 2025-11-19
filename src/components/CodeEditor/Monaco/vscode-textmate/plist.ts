@@ -73,8 +73,13 @@ function _parse(content: string, filename: string | null, locationKeyName: strin
         while (pos < len) {
             const chCode = content.charCodeAt(pos);
 
-            // eslint-disable-next-line @stylistic/max-len
-            if (chCode !== ChCode.SPACE && chCode !== ChCode.TAB && chCode !== ChCode.CARRIAGE_RETURN && chCode !== ChCode.LINE_FEED) {
+
+            if (
+                chCode !== ChCode.SPACE
+                && chCode !== ChCode.TAB
+                && chCode !== ChCode.CARRIAGE_RETURN
+                && chCode !== ChCode.LINE_FEED
+            ) {
                 break;
             }
             advancePosBy(1);
@@ -346,13 +351,13 @@ function _parse(content: string, filename: string | null, locationKeyName: strin
             return (<any>String).fromCodePoint(parseInt(m0, 16));
         })
             .replace(/&amp;|&lt;|&gt;|&quot;|&apos;/g, function (_: string) {
-                // eslint-disable-next-line default-case
                 switch (_) {
                     case "&amp;": return "&";
                     case "&lt;": return "<";
                     case "&gt;": return ">";
                     case "&quot;": return '"';
                     case "&apos;": return "'";
+                    default: throw new Error("unreachable");
                 }
                 return _;
             });
@@ -452,7 +457,6 @@ function _parse(content: string, filename: string | null, locationKeyName: strin
 
         const tag = parseOpenTag();
 
-        // eslint-disable-next-line default-case
         switch (tag.name) {
             case "dict":
                 enterDict();
@@ -501,6 +505,7 @@ function _parse(content: string, filename: string | null, locationKeyName: strin
                 parseTagValue(tag);
                 acceptBool(false);
                 continue;
+            default: throw new Error("unreachable");
         }
 
         if (/^plist/.test(tag.name)) {
