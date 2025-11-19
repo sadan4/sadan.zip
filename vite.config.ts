@@ -7,7 +7,6 @@ import react from "@vitejs/plugin-react";
 import path, { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { generate } from "rollup-plugin-generate";
-import { visualizer } from "rollup-plugin-visualizer";
 import { defineConfig } from "vite";
 import devtoolsJson from "vite-plugin-devtools-json";
 import inspect from "vite-plugin-inspect";
@@ -28,8 +27,7 @@ export default defineConfig((_) => {
             tsconfigPaths(),
             devtoolsJson(),
             generate({ emitDts: true }),
-            !process.env.STORYBOOK && inspect({}),
-            visualizer({ template: "flamegraph" }),
+            !process.env.STORYBOOK && !process.env.CI && inspect({}),
         ],
         build: {
             sourcemap: true,
