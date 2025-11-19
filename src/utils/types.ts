@@ -210,3 +210,5 @@ export type ShallowReadonly<T> = {
 export type AssertedType0<T> = T extends (arg0: any, ...rest: any[]) => arg0 is infer U ? U : never;
 export type AssertedType<T> = AssertedType0<T>;
 export type AssertedType1<T> = T extends (arg0: any, arg1: any, ...rest: any[]) => arg1 is infer U ? U : never;
+
+export type TOmit<T, K extends keyof T> = Omit<T, K>;

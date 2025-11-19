@@ -1,4 +1,5 @@
 export {
+    getLanguageDeps,
     lazyLoadGrammar,
 } from "./grammars";
 export {

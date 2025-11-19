@@ -1,3 +1,4 @@
+import { useRect } from "@/hooks/rect";
 import { cn } from "@/utils/cn";
 
 import { defaultInitialSize, HIDE_THRESHOLD, Side, SidebarStateStoreContext, useSidebarStateStore } from "./store";
@@ -5,7 +6,6 @@ import { type ResizeHandleAPI, VerticalResizeHandle } from "../ResizeHandle";
 
 import { type PropsWithChildren, type RefObject, useContext, useEffect, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
-import { useRect } from "@/hooks/rect";
 
 export interface SidebarProps extends PropsWithChildren {
     side: Side;

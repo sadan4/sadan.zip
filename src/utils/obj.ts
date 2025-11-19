@@ -40,3 +40,17 @@ export function filterObject<T extends Object>(obj: T, fn: (key: keyof T, value:
 export function filterObject<T extends Object>(obj: T, fn: (key: keyof T, value: T[keyof T]) => boolean): Partial<T> {
     return Object.fromEntries(Object.entries(obj).filter(([key, value]) => fn(key as keyof T, value))) as any;
 }
+
+export function pick<T extends Object, K extends keyof T>(obj: T, keys: K[]): Pick<T, K> {
+    type R = Pick<T, K>;
+
+    const result: Partial<R> = {};
+
+    for (let i = 0; i < keys.length; i++) {
+        const key = keys[i];
+
+        result[key] = obj[key];
+    }
+
+    return result as R;
+}

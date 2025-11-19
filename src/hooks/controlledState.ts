@@ -7,7 +7,7 @@ import { type Dispatch, type SetStateAction, useCallback, useEffect, useRef, use
 export interface ControlledStateOptions<T> {
     managedValue: T | undefined;
     handleChange?: (newValue: NoInfer<T>) => void;
-    initialValue: T;
+    initialValue: T | (() => T);
     debugName?: string;
 }
 
