@@ -1,6 +1,3 @@
-/* eslint-disable @typescript-eslint/prefer-destructuring */
-/* eslint-disable no-useless-escape */
-/* eslint-disable @stylistic/max-len */
 /* ---------------------------------------------------------
  * Copyright (C) Microsoft Corporation. All rights reserved.
  *--------------------------------------------------------*/
@@ -14,7 +11,10 @@ export interface Matcher<T> {
     (matcherInput: T): boolean;
 }
 
-export function createMatchers<T>(selector: string, matchesName: (names: string[], matcherInput: T) => boolean): MatcherWithPriority<T>[] {
+export function createMatchers<T>(
+    selector: string,
+    matchesName: (names: string[], matcherInput: T) => boolean,
+): MatcherWithPriority<T>[] {
     const results = <MatcherWithPriority<T>[]>[];
     const tokenizer = newTokenizer(selector);
     let token = tokenizer.next();
@@ -104,10 +104,12 @@ export function createMatchers<T>(selector: string, matchesName: (names: string[
 }
 
 function isIdentifier(token: string | null): token is string {
+    // eslint-disable-next-line no-useless-escape
     return !!token && !!token.match(/[\w\.:]+/);
 }
 
 function newTokenizer(input: string): { next: () => string | null; } {
+    // eslint-disable-next-line no-useless-escape
     const regex = /([LR]:|[\w\.:][\w\.:\-]*|[\,\|\-\(\)])/g;
     let match = regex.exec(input);
 
@@ -117,7 +119,7 @@ function newTokenizer(input: string): { next: () => string | null; } {
                 return null;
             }
 
-            const res = match[0];
+            const [res] = match;
 
             match = regex.exec(input);
             return res;
