@@ -1,11 +1,84 @@
-/* eslint-disable no-prototype-builtins */
-/* eslint-disable @typescript-eslint/no-use-before-define */
-/* eslint-disable @stylistic/max-len */
 /* ---------------------------------------------------------
  * Copyright (C) Microsoft Corporation. All rights reserved.
  *--------------------------------------------------------*/
 
 import { CachedFn, isValidHexColor, type OrMask, strArrCmp, strcmp } from "./utils";
+
+export const enum FontStyle {
+    NotSet = -1,
+    None = 0,
+    Italic = 1,
+    Bold = 2,
+    Underline = 4,
+    Strikethrough = 8,
+}
+
+export class StyleAttributes {
+    constructor(
+        public readonly fontStyle: OrMask<FontStyle>,
+        public readonly foregroundId: number,
+        public readonly backgroundId: number,
+    ) {}
+}
+
+export class ParsedThemeRule {
+    constructor(
+        public readonly scope: ScopeName,
+        public readonly parentScopes: ScopeName[] | null,
+        public readonly index: number,
+        public readonly fontStyle: OrMask<FontStyle>,
+        public readonly foreground: string | null,
+        public readonly background: string | null,
+    ) {
+    }
+}
+
+export class ColorMap {
+    private readonly _isFrozen: boolean;
+    private _lastColorId: number;
+    private _id2color: string[];
+    private _color2id: { [color: string]: number; };
+
+    constructor(_colorMap?: string[]) {
+        this._lastColorId = 0;
+        this._id2color = [];
+        this._color2id = Object.create(null);
+
+        if (Array.isArray(_colorMap)) {
+            this._isFrozen = true;
+            for (let i = 0, len = _colorMap.length; i < len; i++) {
+                this._color2id[_colorMap[i]] = i;
+                this._id2color[i] = _colorMap[i];
+            }
+        } else {
+            this._isFrozen = false;
+        }
+    }
+
+    public getId(color: string | null): number {
+        if (color === null) {
+            return 0;
+        }
+        color = color.toUpperCase();
+
+        let value = this._color2id[color];
+
+        if (value) {
+            return value;
+        }
+        if (this._isFrozen) {
+            throw new Error(`Missing color in color map - ${color}`);
+        }
+        value = ++this._lastColorId;
+        this._color2id[color] = value;
+        this._id2color[value] = color;
+        return value;
+    }
+
+    public getColorMap(): string[] {
+        return this._id2color.slice(0);
+    }
+}
 
 export class Theme {
     public static createFromRawTheme(
@@ -22,7 +95,8 @@ export class Theme {
         return resolveParsedThemeRules(source, colorMap);
     }
 
-    private readonly _cachedMatchRoot = new CachedFn<ScopeName, ThemeTrieElementRule[]>((scopeName) => this._root.match(scopeName));
+    private readonly _cachedMatchRoot
+        = new CachedFn<ScopeName, ThemeTrieElementRule[]>((scopeName) => this._root.match(scopeName));
 
     constructor(
         private readonly _colorMap: ColorMap,
@@ -45,7 +119,9 @@ export class Theme {
 
         const { scopeName } = scopePath;
         const matchingTrieElements = this._cachedMatchRoot.get(scopeName);
-        const effectiveRule = matchingTrieElements.find((v) => _scopePathMatchesParentScopes(scopePath.parent, v.parentScopes));
+
+        const effectiveRule = matchingTrieElements
+            .find((v) => _scopePathMatchesParentScopes(scopePath.parent, v.parentScopes));
 
         if (!effectiveRule) {
             return null;
@@ -215,14 +291,6 @@ function _matchesScope(scopeName: ScopeName, scopePattern: ScopeName): boolean {
     return scopePattern === scopeName || (scopeName.startsWith(scopePattern) && scopeName[scopePattern.length] === ".");
 }
 
-export class StyleAttributes {
-    constructor(
-        public readonly fontStyle: OrMask<FontStyle>,
-        public readonly foregroundId: number,
-        public readonly backgroundId: number,
-    ) {}
-}
-
 /**
  * Parse a raw theme into rules.
  */
@@ -328,27 +396,6 @@ export function parseTheme(source: IRawTheme | undefined): ParsedThemeRule[] {
     return result;
 }
 
-export class ParsedThemeRule {
-    constructor(
-        public readonly scope: ScopeName,
-        public readonly parentScopes: ScopeName[] | null,
-        public readonly index: number,
-        public readonly fontStyle: OrMask<FontStyle>,
-        public readonly foreground: string | null,
-        public readonly background: string | null,
-    ) {
-    }
-}
-
-export const enum FontStyle {
-    NotSet = -1,
-    None = 0,
-    Italic = 1,
-    Bold = 2,
-    Underline = 4,
-    Strikethrough = 8,
-}
-
 export function fontStyleToString(fontStyle: OrMask<FontStyle>) {
     if (fontStyle === FontStyle.NotSet) {
         return "not set";
@@ -374,102 +421,6 @@ export function fontStyleToString(fontStyle: OrMask<FontStyle>) {
     return style.trim();
 }
 
-/**
- * Resolve rules (i.e. inheritance).
- */
-function resolveParsedThemeRules(parsedThemeRules: ParsedThemeRule[], _colorMap: string[] | undefined | ColorMap): Theme {
-    // Sort rules lexicographically, and then by index if necessary
-    parsedThemeRules.sort((a, b) => {
-        let r = strcmp(a.scope, b.scope);
-
-        if (r !== 0) {
-            return r;
-        }
-        r = strArrCmp(a.parentScopes, b.parentScopes);
-        if (r !== 0) {
-            return r;
-        }
-        return a.index - b.index;
-    });
-
-    // Determine defaults
-    let defaultFontStyle = FontStyle.None;
-    let defaultForeground = "#000000";
-    let defaultBackground = "#ffffff";
-
-    while (parsedThemeRules.length >= 1 && parsedThemeRules[0].scope === "") {
-        const incomingDefaults = parsedThemeRules.shift()!;
-
-        if (incomingDefaults.fontStyle !== FontStyle.NotSet) {
-            defaultFontStyle = incomingDefaults.fontStyle;
-        }
-        if (incomingDefaults.foreground !== null) {
-            defaultForeground = incomingDefaults.foreground;
-        }
-        if (incomingDefaults.background !== null) {
-            defaultBackground = incomingDefaults.background;
-        }
-    }
-
-    const colorMap = _colorMap instanceof ColorMap ? _colorMap : new ColorMap(_colorMap);
-    const defaults = new StyleAttributes(defaultFontStyle, colorMap.getId(defaultForeground), colorMap.getId(defaultBackground));
-    const root = new ThemeTrieElement(new ThemeTrieElementRule(0, null, FontStyle.NotSet, 0, 0), []);
-
-    for (let i = 0, len = parsedThemeRules.length; i < len; i++) {
-        const rule = parsedThemeRules[i];
-
-        root.insert(0, rule.scope, rule.parentScopes, rule.fontStyle, colorMap.getId(rule.foreground), colorMap.getId(rule.background));
-    }
-
-    return new Theme(colorMap, defaults, root);
-}
-
-export class ColorMap {
-    private readonly _isFrozen: boolean;
-    private _lastColorId: number;
-    private _id2color: string[];
-    private _color2id: { [color: string]: number; };
-
-    constructor(_colorMap?: string[]) {
-        this._lastColorId = 0;
-        this._id2color = [];
-        this._color2id = Object.create(null);
-
-        if (Array.isArray(_colorMap)) {
-            this._isFrozen = true;
-            for (let i = 0, len = _colorMap.length; i < len; i++) {
-                this._color2id[_colorMap[i]] = i;
-                this._id2color[i] = _colorMap[i];
-            }
-        } else {
-            this._isFrozen = false;
-        }
-    }
-
-    public getId(color: string | null): number {
-        if (color === null) {
-            return 0;
-        }
-        color = color.toUpperCase();
-
-        let value = this._color2id[color];
-
-        if (value) {
-            return value;
-        }
-        if (this._isFrozen) {
-            throw new Error(`Missing color in color map - ${color}`);
-        }
-        value = ++this._lastColorId;
-        this._color2id[color] = value;
-        this._id2color[value] = color;
-        return value;
-    }
-
-    public getColorMap(): string[] {
-        return this._id2color.slice(0);
-    }
-}
 
 const emptyParentScopes = Object.freeze(<ScopeName[]>[]);
 
@@ -480,7 +431,13 @@ export class ThemeTrieElementRule {
     foreground: number;
     background: number;
 
-    constructor(scopeDepth: number, parentScopes: readonly ScopeName[] | null, fontStyle: number, foreground: number, background: number) {
+    constructor(
+        scopeDepth: number,
+        parentScopes: readonly ScopeName[] | null,
+        fontStyle: number,
+        foreground: number,
+        background: number,
+    ) {
         this.scopeDepth = scopeDepth;
         this.parentScopes = parentScopes || emptyParentScopes;
         this.fontStyle = fontStyle;
@@ -489,7 +446,13 @@ export class ThemeTrieElementRule {
     }
 
     public clone(): ThemeTrieElementRule {
-        return new ThemeTrieElementRule(this.scopeDepth, this.parentScopes, this.fontStyle, this.foreground, this.background);
+        return new ThemeTrieElementRule(
+            this.scopeDepth,
+            this.parentScopes,
+            this.fontStyle,
+            this.foreground,
+            this.background,
+        );
     }
 
     public static cloneArr(arr: ThemeTrieElementRule[]): ThemeTrieElementRule[] {
@@ -520,17 +483,15 @@ export class ThemeTrieElementRule {
     }
 }
 
-export interface ITrieChildrenMap {
-    [segment: string]: ThemeTrieElement;
-}
+type ITrieChildrenMap = Map<string, ThemeTrieElement>;
 
 export class ThemeTrieElement {
     private readonly _rulesWithParentScopes: ThemeTrieElementRule[];
+    private readonly _children: ITrieChildrenMap = new Map();
 
     constructor(
         private readonly _mainRule: ThemeTrieElementRule,
         rulesWithParentScopes: ThemeTrieElementRule[] = [],
-        private readonly _children: ITrieChildrenMap = {},
     ) {
         this._rulesWithParentScopes = rulesWithParentScopes;
     }
@@ -599,8 +560,8 @@ export class ThemeTrieElement {
                 tail = scope.substring(dotIndex + 1);
             }
 
-            if (this._children.hasOwnProperty(head)) {
-                return this._children[head].match(tail);
+            if (this._children.has(head)) {
+                return this._children.get(head)!.match(tail);
             }
         }
 
@@ -610,7 +571,14 @@ export class ThemeTrieElement {
         return rules;
     }
 
-    public insert(scopeDepth: number, scope: ScopeName, parentScopes: ScopeName[] | null, fontStyle: number, foreground: number, background: number): void {
+    public insert(
+        scopeDepth: number,
+        scope: ScopeName,
+        parentScopes: ScopeName[] | null,
+        fontStyle: number,
+        foreground: number,
+        background: number,
+    ): void {
         if (scope === "") {
             this._doInsertHere(scopeDepth, parentScopes, fontStyle, foreground, background);
             return;
@@ -630,17 +598,26 @@ export class ThemeTrieElement {
 
         let child: ThemeTrieElement;
 
-        if (this._children.hasOwnProperty(head)) {
-            child = this._children[head];
+        if (this._children.has(head)) {
+            child = this._children.get(head)!;
         } else {
-            child = new ThemeTrieElement(this._mainRule.clone(), ThemeTrieElementRule.cloneArr(this._rulesWithParentScopes));
-            this._children[head] = child;
+            child = new ThemeTrieElement(
+                this._mainRule.clone(),
+                ThemeTrieElementRule.cloneArr(this._rulesWithParentScopes),
+            );
+            this._children.set(head, child);
         }
 
         child.insert(scopeDepth + 1, tail, parentScopes, fontStyle, foreground, background);
     }
 
-    private _doInsertHere(scopeDepth: number, parentScopes: ScopeName[] | null, fontStyle: number, foreground: number, background: number): void {
+    private _doInsertHere(
+        scopeDepth: number,
+        parentScopes: ScopeName[] | null,
+        fontStyle: number,
+        foreground: number,
+        background: number,
+    ): void {
         if (parentScopes === null) {
             // Merge into the main rule
             this._mainRule.acceptOverwrite(scopeDepth, fontStyle, foreground, background);
@@ -671,6 +648,78 @@ export class ThemeTrieElement {
             background = this._mainRule.background;
         }
 
-        this._rulesWithParentScopes.push(new ThemeTrieElementRule(scopeDepth, parentScopes, fontStyle, foreground, background));
+        this._rulesWithParentScopes.push(new ThemeTrieElementRule(
+            scopeDepth,
+            parentScopes,
+            fontStyle,
+            foreground,
+            background,
+        ));
     }
+}
+
+/**
+ * Resolve rules (i.e. inheritance).
+ */
+function resolveParsedThemeRules(
+    parsedThemeRules: ParsedThemeRule[],
+    _colorMap: string[] | undefined | ColorMap,
+): Theme {
+    // Sort rules lexicographically, and then by index if necessary
+    parsedThemeRules.sort((a, b) => {
+        let r = strcmp(a.scope, b.scope);
+
+        if (r !== 0) {
+            return r;
+        }
+        r = strArrCmp(a.parentScopes, b.parentScopes);
+        if (r !== 0) {
+            return r;
+        }
+        return a.index - b.index;
+    });
+
+    // Determine defaults
+    let defaultFontStyle = FontStyle.None;
+    let defaultForeground = "#000000";
+    let defaultBackground = "#ffffff";
+
+    while (parsedThemeRules.length >= 1 && parsedThemeRules[0].scope === "") {
+        const incomingDefaults = parsedThemeRules.shift()!;
+
+        if (incomingDefaults.fontStyle !== FontStyle.NotSet) {
+            defaultFontStyle = incomingDefaults.fontStyle;
+        }
+        if (incomingDefaults.foreground !== null) {
+            defaultForeground = incomingDefaults.foreground;
+        }
+        if (incomingDefaults.background !== null) {
+            defaultBackground = incomingDefaults.background;
+        }
+    }
+
+    const colorMap = _colorMap instanceof ColorMap ? _colorMap : new ColorMap(_colorMap);
+
+    const defaults = new StyleAttributes(
+        defaultFontStyle,
+        colorMap.getId(defaultForeground),
+        colorMap.getId(defaultBackground),
+    );
+
+    const root = new ThemeTrieElement(new ThemeTrieElementRule(0, null, FontStyle.NotSet, 0, 0), []);
+
+    for (let i = 0, len = parsedThemeRules.length; i < len; i++) {
+        const rule = parsedThemeRules[i];
+
+        root.insert(
+            0,
+            rule.scope,
+            rule.parentScopes,
+            rule.fontStyle,
+            colorMap.getId(rule.foreground),
+            colorMap.getId(rule.background),
+        );
+    }
+
+    return new Theme(colorMap, defaults, root);
 }
