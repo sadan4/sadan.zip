@@ -61,7 +61,7 @@ function getPercentReferenceValue(element: Element, reference: PercentReference)
     }
 }
 
-export function parseCSSValue(value: string, element: Element, precentReference: PercentReference): number {
+export function parseCSSValue(value: string, element: Element, percentReference: PercentReference): number {
     // px
     if (isDigit(value.slice(-1))) {
         return parseFloat(value);
@@ -71,7 +71,7 @@ export function parseCSSValue(value: string, element: Element, precentReference:
 
     switch (unit) {
         case "%": {
-            const referenceValue = getPercentReferenceValue(element, precentReference);
+            const referenceValue = getPercentReferenceValue(element, percentReference);
 
             return (parseFloat(num) / 100) * referenceValue;
         }

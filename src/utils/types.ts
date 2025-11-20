@@ -199,6 +199,27 @@ export function truthy<T>(i: T): i is Exclude<T, false | null | undefined | 0> {
     return !!i;
 }
 
+type Primitive = string | number | boolean | bigint | symbol | null | undefined;
+
+export function isPrimitive(value: any): value is Primitive {
+    const t = typeof value;
+
+    switch (t) {
+        case "string":
+        case "number":
+        case "boolean":
+        case "bigint":
+        case "symbol":
+        case "undefined":
+            return true;
+        case "object":
+            return value === null;
+        case "function":
+            return false;
+        // no default
+    }
+}
+
 export type ShallowMutable<T> = {
     -readonly [P in keyof T]: T[P];
 };
@@ -212,3 +233,5 @@ export type AssertedType<T> = AssertedType0<T>;
 export type AssertedType1<T> = T extends (arg0: any, arg1: any, ...rest: any[]) => arg1 is infer U ? U : never;
 
 export type TOmit<T, K extends keyof T> = Omit<T, K>;
+
+export type Reducer<State, Action> = (state: State, action: Action) => State;

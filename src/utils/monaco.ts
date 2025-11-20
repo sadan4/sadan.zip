@@ -1,3 +1,4 @@
+import { extensionForLanguage } from "./textmate/language";
 import { error } from "./error";
 import { getLanguageDeps, Language } from "./textmate";
 
@@ -62,4 +63,10 @@ export function makeTMLanguageMap(language: Language): Map<string, string> {
 
 export function isReadOnly(editor: monaco.editor.ICodeEditor): boolean {
     return editor.getOption(monaco.editor.EditorOption.readOnly);
+}
+
+let id = 0;
+
+export function uriForLanguage(language: Language): monaco.Uri {
+    return monaco.Uri.file(`source-${++id}${extensionForLanguage(language)}`);
 }

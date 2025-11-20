@@ -1,9 +1,14 @@
+import { useControlledState } from "@/hooks/controlledState";
 import cn from "@/utils/cn";
+import { NOOP } from "@/utils/constants";
 import { namedContext } from "@/utils/devtools";
 import { Clickable } from "@components/Clickable";
 import { AnimateHeight } from "@effects/AnimateHeight";
 import { useForceUpdater } from "@hooks/forceUpdater";
 import { animated, useSpring } from "@react-spring/web";
+
+import styles from "./styles.module.scss";
+import { ArrowPosition, ClickableArea } from "./utils";
 
 import { type PropsWithChildren, type ReactNode, type Ref, useContext, useEffect, useImperativeHandle, useState } from "react";
 
@@ -16,6 +21,10 @@ export interface AccordionProps extends PropsWithChildren {
     item: AccordionItem;
     className?: string;
     initialOpen?: boolean;
+    open?: boolean;
+    onToggle?(open: boolean): void;
+    clicableArea?: ClickableArea;
+    arrowPosition?: ArrowPosition;
 }
 
 interface AccordionContext {
@@ -27,8 +36,24 @@ interface AccordionContext {
 
 const AccordionContext = namedContext<AccordionContext | null>(null, "AccordionContext");
 
-export function Accordion({ item: { id, render: Render }, children, className, initialOpen }: AccordionProps) {
-    const [active, setActive] = useState(initialOpen ?? false);
+export function Accordion({
+    item: { id, render: Render },
+    children,
+    className,
+    initialOpen = false,
+    open: _open,
+    arrowPosition = ArrowPosition.RIGHT,
+    clicableArea = ClickableArea.ALL,
+    onToggle = NOOP,
+}: AccordionProps) {
+    // TODO: make controlled
+    const [active, setActive] = useControlledState({
+        initialValue: initialOpen,
+        managedValue: _open,
+        handleChange: onToggle,
+        debugName: "Accordion.active",
+    });
+
     const groupCtx = useContext(AccordionContext);
 
     const { rotation } = useSpring({
@@ -45,7 +70,7 @@ export function Accordion({ item: { id, render: Render }, children, className, i
         if (num !== undefined && num !== 0) {
             setActive(false);
         }
-    }, [groupCtx?.closeAllTrigger]);
+    }, [groupCtx?.closeAllTrigger, setActive]);
 
     useEffect(() => {
         if (!groupCtx) {
@@ -57,30 +82,47 @@ export function Accordion({ item: { id, render: Render }, children, className, i
         if (isActive != null) {
             setActive(isActive);
         }
-    }, [groupCtx, id]);
+    }, [groupCtx, id, setActive]);
+
+    function handleClick(area: ClickableArea) {
+        if (area & clicableArea) {
+            if (groupCtx) {
+                groupCtx.toggleActiveItem(id);
+            }
+            setActive((prev) => !prev);
+        }
+    }
 
     return (
         <div className={cn(className)}>
             <Clickable
-                className="flex items-center justify-between py-2 pr-2"
+                className={cn(styles.label, {
+                    [styles.right]: arrowPosition === ArrowPosition.RIGHT,
+                    [styles.left]: arrowPosition === ArrowPosition.LEFT,
+                    [styles.clickableRow]: clicableArea & ClickableArea.ROW,
+                    [styles.clickableArrow]: clicableArea & ClickableArea.ARROW,
+                })}
                 onMouseDown={(e) => {
                     if (e.detail > 1) {
                         e.preventDefault();
                     }
                 }}
                 onClick={() => {
-                    if (groupCtx) {
-                        groupCtx.toggleActiveItem(id);
-                    }
-                    setActive((prev) => !prev);
+                    handleClick(ClickableArea.ROW);
                 }}
             >
-                {children}
+                <div>
+                    {children}
+                </div>
                 <animated.svg
                     viewBox="-2.4 -2.4 28.8 28.8"
-                    className="stroke-fg-500 h-8 w-8 fill-none"
+                    className={styles.arrow}
                     style={{
                         transform: rotation.to((r) => `rotate(${r}deg)`),
+                    }}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        handleClick(ClickableArea.ARROW);
                     }}
                 >
                     <path

@@ -4,7 +4,7 @@ import { useRect } from "@/hooks/rect";
 import { EMPTY_NULL_OBJECT } from "@/utils/constants";
 import { assert, error } from "@/utils/error";
 import { once } from "@/utils/functional";
-import { getMonacoLanguageString, isReadOnly, makeTMLanguageMap, updateModelLanguage } from "@/utils/monaco";
+import { getMonacoLanguageString, isReadOnly, makeTMLanguageMap, updateModelLanguage, uriForLanguage } from "@/utils/monaco";
 import { loadOnigasmPromise } from "@/utils/oniguruma";
 import { hasGrammar, Language } from "@/utils/textmate";
 
@@ -133,7 +133,11 @@ function MonacoCodeEditorInner({
 
                 updateModelLanguage(model, language);
             } else {
-                model = monaco.editor.createModel(code, getMonacoLanguageString(language), uri);
+                model = monaco.editor.createModel(
+                    code,
+                    getMonacoLanguageString(language),
+                    uri ?? uriForLanguage(language),
+                );
             }
             mergedOptions.model = model;
         }

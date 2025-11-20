@@ -3,6 +3,7 @@ import { debounce } from "@/utils/functional";
 import { pick } from "@/utils/obj";
 import { Language } from "@/utils/textmate";
 import { TextmateTheme } from "@/utils/textmate/theme";
+import { TreeMode } from "@/utils/typescript";
 import { createSelectors } from "@/utils/zustand";
 
 import { create } from "zustand";
@@ -15,6 +16,7 @@ export interface ASTViewerStore {
     code: string;
     language: Language;
     theme: TextmateTheme;
+    treeMode: TreeMode;
     /**
      * Not debounced
      *
@@ -24,10 +26,11 @@ export interface ASTViewerStore {
 }
 
 // TODO: inline and replace with store.getInitialState() ?
-const DEFAULT_AST_VIEWER_STATE: Pick<ASTViewerStore, "code" | "language" | "theme"> = {
+const DEFAULT_AST_VIEWER_STATE: Pick<ASTViewerStore, "code" | "language" | "theme" | "treeMode"> = {
     code: "",
     language: Language.TYPESCRIPT_REACT,
     theme: TextmateTheme.TOKYO_NIGHT,
+    treeMode: TreeMode.GET_CHILDREN,
 };
 
 export const useASTViewerStore = createSelectors(create<ASTViewerStore>()(persist(
@@ -59,6 +62,10 @@ export const useASTViewerStore = createSelectors(create<ASTViewerStore>()(persis
                 if (!Object.values(Language).includes(state.language)) {
                     console.warn("invalid value for state.language, defaulting");
                     state.language = DEFAULT_AST_VIEWER_STATE.language;
+                }
+                if (!Object.values(TreeMode).includes(state.treeMode)) {
+                    console.warn("invalid value for state.treeMode, defaulting");
+                    state.treeMode = DEFAULT_AST_VIEWER_STATE.treeMode;
                 }
                 if (typeof state.theme !== "number" || !Object.hasOwn(TextmateTheme, state.theme)) {
                     console.warn("invalid value for state.theme, defaulting");

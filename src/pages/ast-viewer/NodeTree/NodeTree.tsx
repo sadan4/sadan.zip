@@ -1,0 +1,150 @@
+import { Clickable } from "@/components/Clickable";
+import { Accordion } from "@/components/layout/Accordion";
+import { Text } from "@/components/Text";
+import cn from "@/utils/cn";
+import { EMPTY_SET, NOOP } from "@/utils/constants";
+import { namedContext } from "@/utils/devtools";
+import { assert } from "@/utils/error";
+import { toggleSetItem } from "@/utils/set";
+import { getChildrenWithMode, getNodeKey, getNodeName, TreeMode } from "@/utils/typescript";
+
+import { use, useState } from "react";
+import type { Node, SourceFile } from "typescript";
+
+export interface NodeTreeProps {
+    onSelectNode?(node: Node | Node[]): void;
+    root: SourceFile;
+    treeMode: TreeMode;
+    reparseCount: number;
+}
+
+interface NodeTreeContext {
+    highlightedNodeKeys: ReadonlySet<string>;
+    selectedNodeKey: string | null;
+    collapsedNodeKeys: ReadonlySet<string>;
+    onNodeArrowClick(nodeKey: string): void;
+    onSelectNode: NodeTreeProps["onSelectNode"] & {};
+    treeMode: TreeMode;
+    reparseCount: number;
+}
+
+const NodeTreeContext = namedContext<NodeTreeContext | null>(null, "NodeTreeContext");
+
+function useNodeTreeContext(): NodeTreeContext {
+    const ctx = use(NodeTreeContext);
+
+    assert(ctx);
+
+    return ctx;
+}
+
+
+export function NodeTree({ onSelectNode = NOOP, root, treeMode, reparseCount }: NodeTreeProps) {
+    const [highlightedNodeKeys, setHighlightedNodeKeys] = useState<ReadonlySet<string>>(EMPTY_SET);
+    const [selectedNodeKey, setSelectedNodeKey] = useState<string | null>(null);
+    const [collapsedNodeKeys, setCollapsedNodeKeys] = useState<ReadonlySet<string>>(EMPTY_SET);
+
+    const ctx: NodeTreeContext = {
+        highlightedNodeKeys,
+        selectedNodeKey,
+        onSelectNode,
+        collapsedNodeKeys,
+        treeMode,
+        reparseCount,
+        onNodeArrowClick(nodeKey) {
+            setCollapsedNodeKeys((prev) => toggleSetItem(new Set(prev), nodeKey));
+        },
+    };
+
+    return (
+        <div className="flex h-full w-full flex-col px-1">
+            <div className="bg-cyan-600">
+                TSQuery Input Box
+            </div>
+            <div className="grow">
+                <NodeTreeContext value={ctx}>
+                    <NodeTreeNode
+                        node={root}
+                        nodeKey={getNodeKey(root)}
+                    />
+                </NodeTreeContext>
+            </div>
+        </div>
+    );
+}
+
+interface NodeTreeNodeProps {
+    node: Node;
+    nodeKey: string;
+}
+
+function NodeTreeNode({ node, nodeKey: key }: NodeTreeNodeProps) {
+    const {
+        highlightedNodeKeys,
+        selectedNodeKey,
+        collapsedNodeKeys,
+        onSelectNode,
+        treeMode,
+        reparseCount,
+        onNodeArrowClick,
+    } = useNodeTreeContext();
+
+    const name = getNodeName(node);
+    const childNodes = getChildrenWithMode(node, treeMode);
+    const isHighlighted = highlightedNodeKeys.has(key);
+    const isCollapsed = collapsedNodeKeys.has(key);
+    const isSelected = selectedNodeKey === key;
+
+    const children = (
+
+        <Clickable onClick={() => {
+            onSelectNode(node);
+        }}
+        >
+            <Text
+                className={cn(isHighlighted && "bg-warning-400/50")}
+                color={isSelected ? "accent" : undefined}
+            >
+                {name}
+            </Text>
+        </Clickable>
+
+    );
+
+    if (childNodes.length) {
+        return (
+            <Accordion
+                item={{
+                    id: key,
+                    render() {
+                        return (
+                            <div className="flex h-fit">
+                                <div className="w-4" />
+                                <div className="grow">
+                                    {childNodes.map((child) => {
+                                        const key = getNodeKey(child);
+
+                                        return (
+                                            <NodeTreeNode
+                                                key={`${key}-${reparseCount}`}
+                                                node={child}
+                                                nodeKey={key}
+                                            />
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        );
+                    },
+                }}
+                onToggle={() => {
+                    onNodeArrowClick(key);
+                }}
+                open={!isCollapsed}
+            >
+                {children}
+            </Accordion>
+        );
+    }
+    return children;
+}

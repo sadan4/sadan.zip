@@ -1,21 +1,33 @@
 import { Boilerplate } from "@/components/Boilerplate";
 import { MonacoCodeEditor, type MonacoCodeEditorHandle } from "@/components/CodeEditor/Monaco";
 import { ResizableSidebar, Side, SidebarStateStoreProvider } from "@/components/layout/ResizableSidebar";
+import { useConsoleHelpers } from "@/hooks/consoleHelpers";
+import { useSourceFile } from "@/hooks/sourceFile";
+import { TreeMode } from "@/utils/typescript";
 
+import { NodeTree } from "./NodeTree";
 import { leftAstSidebarStateStore, rightAstSidebarStateStore, updateASTViewerCode, useASTViewerStore } from "./store";
 
 import { useRef } from "react";
+import * as ts from "typescript";
 
 
 export default function ASTViewer() {
-    const sidebarBoundingRef = useRef<HTMLElement>(null);
-    const editorRef = useRef<MonacoCodeEditorHandle>(null);
-
     const { code, language, theme } = useASTViewerStore.useShallow(({ code, language, theme }) => ({
         code,
         language,
         theme,
     }));
+
+    const sidebarBoundingRef = useRef<HTMLElement>(null);
+    const editorRef = useRef<MonacoCodeEditorHandle>(null);
+    const [sourceFile, { reparseCount }] = useSourceFile(code, language);
+
+    useConsoleHelpers({
+        sourceFile,
+        ts,
+    });
+
 
     return (
         <>
@@ -36,17 +48,19 @@ export default function ASTViewer() {
                                 ref={editorRef}
                                 language={language}
                                 theme={theme}
-                                initialCode={code}
+                                code={code}
                                 onChange={(newCode) => {
                                     updateASTViewerCode(newCode);
                                 }}
                             />
                         </ResizableSidebar>
                     </SidebarStateStoreProvider>
-                    <div className="grow bg-secondary-500/50 p-3">
-                        <div className="flex w-fit flex-col gap-3">
-                            main body
-                        </div>
+                    <div className="grow">
+                        <NodeTree
+                            root={sourceFile}
+                            treeMode={TreeMode.GET_CHILDREN}
+                            reparseCount={reparseCount}
+                        />
                     </div>
                     <SidebarStateStoreProvider store={rightAstSidebarStateStore}>
                         <ResizableSidebar
