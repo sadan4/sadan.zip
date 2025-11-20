@@ -8,8 +8,8 @@ import { TreeMode } from "@/utils/typescript";
 import { NodeTree } from "./NodeTree";
 import { leftAstSidebarStateStore, rightAstSidebarStateStore, updateASTViewerCode, useASTViewerStore } from "./store";
 
-import { useRef } from "react";
-import * as ts from "typescript";
+import { useRef, useState } from "react";
+import ts from "typescript";
 
 
 export default function ASTViewer() {
@@ -22,12 +22,16 @@ export default function ASTViewer() {
     const sidebarBoundingRef = useRef<HTMLElement>(null);
     const editorRef = useRef<MonacoCodeEditorHandle>(null);
     const [sourceFile, { reparseCount }] = useSourceFile(code, language);
+    const [selectedNode, setSelectedNode] = useState<ts.Node | undefined>(undefined);
 
     useConsoleHelpers({
         sourceFile,
         ts,
     });
 
+    function onSelectNode(node: ts.Node) {
+        setSelectedNode(node);
+    }
 
     return (
         <>
@@ -60,6 +64,9 @@ export default function ASTViewer() {
                             root={sourceFile}
                             treeMode={TreeMode.GET_CHILDREN}
                             reparseCount={reparseCount}
+                            onSelectNode={onSelectNode}
+                            highlightedNodes={selectedNode && [selectedNode]}
+                            selectedNode={selectedNode}
                         />
                     </div>
                     <SidebarStateStoreProvider store={rightAstSidebarStateStore}>

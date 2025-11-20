@@ -235,3 +235,5 @@ export type AssertedType1<T> = T extends (arg0: any, arg1: any, ...rest: any[]) 
 export type TOmit<T, K extends keyof T> = Omit<T, K>;
 
 export type Reducer<State, Action> = (state: State, action: Action) => State;
+
+export type InitialState<T> = T | (() => T);

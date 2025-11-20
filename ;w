@@ -2,7 +2,6 @@ import { Clickable } from "@/components/Clickable";
 import { Accordion, ArrowPosition, ClickableArea } from "@/components/layout/Accordion";
 import { AccordionAnimation } from "@/components/layout/Accordion/utils";
 import { Text } from "@/components/Text";
-import { useShallowMemo } from "@/hooks/shallowMemo";
 import cn from "@/utils/cn";
 import { EMPTY_SET, NOOP } from "@/utils/constants";
 import { namedContext } from "@/utils/devtools";
@@ -10,15 +9,16 @@ import { assert } from "@/utils/error";
 import { toggleSetItem } from "@/utils/set";
 import { getChildrenWithMode, getNodeKey, getNodeName, TreeMode } from "@/utils/typescript";
 
-import { use, useMemo, useState } from "react";
+import { use, useEffect, useState } from "react";
 import type { Node, SourceFile } from "typescript";
+import { create } from "zustand";
 
 export interface NodeTreeProps {
-    onSelectNode(node: Node): void;
+    onSelectNode?(node: Node | Node[]): void;
     root: SourceFile;
     treeMode: TreeMode;
     reparseCount: number;
-    highlightedNodes?: Node[];
+    highlightedNodes?: Iterable<Node>;
     selectedNode?: Node;
 }
 
@@ -42,21 +42,11 @@ function useNodeTreeContext(): NodeTreeContext {
     return ctx;
 }
 
-export function NodeTree({
-    onSelectNode = NOOP,
-    root,
-    highlightedNodes,
-    selectedNode,
-    treeMode,
-    reparseCount,
-}: NodeTreeProps) {
-    const reqHlNodes = useShallowMemo(highlightedNodes);
+const NodeTreeStore = create()
 
-    const highlightedNodeKeys = useMemo(() => {
-        return new Set(reqHlNodes?.map((value) => getNodeKey(value)));
-    }, [reqHlNodes]);
-
-    const selectedNodeKey = selectedNode ? getNodeKey(selectedNode) : null;
+export function NodeTree({ onSelectNode = NOOP, root, treeMode, reparseCount }: NodeTreeProps) {
+    const [highlightedNodeKeys, setHighlightedNodeKeys] = useState<ReadonlySet<string>>(EMPTY_SET);
+    const [selectedNodeKey, setSelectedNodeKey] = useState<string | null>(null);
     const [collapsedNodeKeys, setCollapsedNodeKeys] = useState<ReadonlySet<string>>(EMPTY_SET);
 
     const ctx: NodeTreeContext = {
@@ -70,6 +60,10 @@ export function NodeTree({
             setCollapsedNodeKeys((prev) => toggleSetItem(new Set(prev), nodeKey));
         },
     };
+
+    useEffect(() => {
+
+    })
 
     return (
         <div className="flex h-full w-full flex-col px-1">

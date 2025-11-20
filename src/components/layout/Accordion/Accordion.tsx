@@ -8,7 +8,7 @@ import { useForceUpdater } from "@hooks/forceUpdater";
 import { animated, useSpring } from "@react-spring/web";
 
 import styles from "./styles.module.scss";
-import { ArrowPosition, ClickableArea } from "./utils";
+import { AccordionAnimation, ArrowPosition, ClickableArea } from "./utils";
 
 import { type PropsWithChildren, type ReactNode, type Ref, useContext, useEffect, useImperativeHandle, useState } from "react";
 
@@ -20,11 +20,13 @@ export interface AccordionItem {
 export interface AccordionProps extends PropsWithChildren {
     item: AccordionItem;
     className?: string;
+    arrowClassName?: string;
     initialOpen?: boolean;
     open?: boolean;
     onToggle?(open: boolean): void;
     clicableArea?: ClickableArea;
     arrowPosition?: ArrowPosition;
+    animation?: AccordionAnimation;
 }
 
 interface AccordionContext {
@@ -36,17 +38,29 @@ interface AccordionContext {
 
 const AccordionContext = namedContext<AccordionContext | null>(null, "AccordionContext");
 
+const rotationMap: Record<number, Record<ArrowPosition, number>> = Object.freeze({
+    0: {
+        [ArrowPosition.RIGHT]: 0,
+        [ArrowPosition.LEFT]: -90,
+    },
+    1: {
+        [ArrowPosition.RIGHT]: 180,
+        [ArrowPosition.LEFT]: 0,
+    },
+} satisfies Record<number, Record<ArrowPosition, number>>);
+
 export function Accordion({
     item: { id, render: Render },
     children,
     className,
+    arrowClassName,
     initialOpen = false,
     open: _open,
     arrowPosition = ArrowPosition.RIGHT,
     clicableArea = ClickableArea.ALL,
     onToggle = NOOP,
+    animation = AccordionAnimation.ALL,
 }: AccordionProps) {
-    // TODO: make controlled
     const [active, setActive] = useControlledState({
         initialValue: initialOpen,
         managedValue: _open,
@@ -57,7 +71,8 @@ export function Accordion({
     const groupCtx = useContext(AccordionContext);
 
     const { rotation } = useSpring({
-        rotation: active ? 180 : 0,
+        rotation: rotationMap[+active][arrowPosition],
+        immediate: !(animation & AccordionAnimation.ARROW),
         config: {
             mass: 0.5,
             friction: 50,
@@ -93,6 +108,12 @@ export function Accordion({
         }
     }
 
+    const content = (
+        <div>
+            {active && <Render />}
+        </div>
+    );
+
     return (
         <div className={cn(className)}>
             <Clickable
@@ -103,7 +124,7 @@ export function Accordion({
                     [styles.clickableArrow]: clicableArea & ClickableArea.ARROW,
                 })}
                 onMouseDown={(e) => {
-                    if (e.detail > 1) {
+                    if (clicableArea & ClickableArea.ROW && e.detail > 1) {
                         e.preventDefault();
                     }
                 }}
@@ -116,7 +137,7 @@ export function Accordion({
                 </div>
                 <animated.svg
                     viewBox="-2.4 -2.4 28.8 28.8"
-                    className={styles.arrow}
+                    className={cn(styles.arrow, arrowClassName)}
                     style={{
                         transform: rotation.to((r) => `rotate(${r}deg)`),
                     }}
@@ -133,14 +154,12 @@ export function Accordion({
                     />
                 </animated.svg>
             </Clickable>
-            <AnimateHeight>
-                <div style={{
-                    height: active ? "auto" : 0,
-                }}
-                >
-                    <Render />
-                </div>
-            </AnimateHeight>
+            {
+                animation & AccordionAnimation.CONTENT
+                    ? <AnimateHeight>{content}</AnimateHeight>
+                    : content
+            }
+            <AnimateHeight />
         </div>
     );
 }

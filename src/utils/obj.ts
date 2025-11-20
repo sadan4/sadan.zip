@@ -3,6 +3,9 @@ import type { AssertedType0, AssertedType1 } from "./types";
 export {
     default as deepEqual,
 } from "fast-deep-equal";
+export {
+    shallow as shallowEqual,
+} from "zustand/shallow";
 
 export function mapObject<T extends Object, U>(
     obj: T,
