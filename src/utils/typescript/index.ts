@@ -1,10 +1,14 @@
-import { error, unreachable } from "./error";
-import { Language } from "./textmate";
+import * as guh from "./publicApi.gen&gen";
+import { error, unreachable } from "../error";
+import { Language } from "../textmate";
+
+console.log(guh);
 
 import {
     type Node,
     ScriptKind,
     ScriptTarget,
+    type SourceFile,
     SyntaxKind,
     type TextChangeRange,
 } from "typescript";
@@ -86,64 +90,10 @@ export function getTextChanges(oldText: string, newText: string): TextChangeRang
         },
         newLength: newLen,
     };
+}
 
-    const minLen = Math.min(oldLen, newLen);
-    let i = 0;
+export type NodeRange = readonly [pos: number, end: number];
 
-    for (; i < minLen && oldText[i] === newText[i]; i++)
-        ;
-
-    // if (i === minLen) {
-    //     if (oldLen === newLen) {
-    //         return unchangedTextChangeRange;
-    //     } else if (oldLen < newLen) {
-    //         return {
-    //             span: {
-    //                 start: oldLen,
-    //                 length: 0,
-    //             },
-    //             newLength: newLen - oldLen,
-    //         };
-    //     } else {
-    //         return {
-    //             span: {
-    //                 start: newLen,
-    //                 length: oldLen - newLen,
-    //             },
-    //             newLength: 0,
-    //         };
-    //     }
-    // }
-    const startDiffIdx = i;
-    const stopIdx = minLen - startDiffIdx;
-
-    for (i = 1; i < stopIdx && oldText[oldLen - i] === newText[newLen - i]; i++)
-        ;
-
-    const endDiffOffset = i - 1;
-
-    if (oldLen === newLen) {
-        return {
-            span: {
-                start: startDiffIdx,
-                length: oldLen - startDiffIdx - endDiffOffset,
-            },
-            newLength: 0,
-        };
-    } else if (oldLen < newLen) {
-        return {
-            span: {
-                start: startDiffIdx,
-                length: oldLen - startDiffIdx - endDiffOffset,
-            },
-            newLength: (newLen - endDiffOffset) - startDiffIdx,
-        };
-    }
-    return {
-        span: {
-            start: startDiffIdx,
-            length: oldLen - startDiffIdx - endDiffOffset,
-        },
-        newLength: 0,
-    };
+export function getVisibleNodeRange(node: Node, sourceFile: SourceFile): NodeRange {
+    return [node.getStart(sourceFile, true), node.end];
 }

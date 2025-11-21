@@ -11,6 +11,7 @@ export interface SidebarProps extends PropsWithChildren {
     side: Side;
     boundingElement: RefObject<HTMLElement | null>;
     defaultSize?: number;
+    handleClassName?: string;
 }
 
 export function ResizableSidebar({
@@ -18,6 +19,7 @@ export function ResizableSidebar({
     defaultSize = defaultInitialSize(side),
     children,
     boundingElement,
+    handleClassName,
 }: SidebarProps) {
     const store = useContext(SidebarStateStoreContext)!;
     const [contentRef, setContentRef] = useState<HTMLDivElement | null>(null);
@@ -99,7 +101,7 @@ export function ResizableSidebar({
                     }
                     setShouldDispatch(!hidden);
                 }}
-                className={cn((hidden || handleHidden) && "pointer-events-none opacity-0", shouldDispatch || "pointer-events-none")}
+                className={cn((hidden || handleHidden) && "pointer-events-none opacity-0", shouldDispatch || "pointer-events-none", handleClassName)}
                 style={{
                     top,
                     height,

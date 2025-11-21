@@ -104,7 +104,7 @@ export function NodeTree({
     const onSelectNode = useRecent(_onSelectNode);
 
     return (
-        <div className="flex size-full flex-col px-1">
+        <div className="flex size-full flex-col">
             <div className="bg-cyan-600">
                 Input Box
             </div>
@@ -189,7 +189,7 @@ function NodeTreeNode({ node, nodeKey: key, onNodeArrowClick, onSelectNode }: No
                     id: key,
                     contents: (
                         <div className="flex h-fit">
-                            <div className="w-5" />
+                            <div className="w-5 shrink-0" />
                             <div className="grow">
                                 {childNodes.map((child) => {
                                     const key = getNodeKey(child);

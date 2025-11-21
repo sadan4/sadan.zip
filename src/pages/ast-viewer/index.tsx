@@ -4,11 +4,11 @@ import { ResizableSidebar, Side, SidebarStateStoreProvider } from "@/components/
 import { useConsoleHelpers } from "@/hooks/consoleHelpers";
 import { useSourceFile } from "@/hooks/sourceFile";
 import cn from "@/utils/cn";
-import { TreeMode } from "@/utils/typescript";
+import { getVisibleNodeRange, TreeMode } from "@/utils/typescript";
 
 import { NodeTree } from "./NodeTree";
 import { astViewerStore, leftAstSidebarStateStore, rightAstSidebarStateStore, updateASTViewerCode } from "./store";
-import styles from "./styles.module.css";
+import styles from "./styles.module.scss";
 
 import * as monaco from "monaco-editor";
 import { useRef, useState } from "react";
@@ -28,14 +28,15 @@ export default function ASTViewer() {
     const [selectedNode, setSelectedNode] = useState<ts.Node | undefined>(undefined);
 
     function rangeFromNode(node: ts.Node): monaco.Range {
-        const start = sourceFile.getLineAndCharacterOfPosition(node.pos);
-        const end = sourceFile.getLineAndCharacterOfPosition(node.end);
+        const [pos, end] = getVisibleNodeRange(node, sourceFile);
+        const startLineAndCharacter = sourceFile.getLineAndCharacterOfPosition(pos);
+        const endLineAndCharacter = sourceFile.getLineAndCharacterOfPosition(end);
 
         return new monaco.Range(
-            start.line + 1,
-            start.character + 1,
-            end.line + 1,
-            end.character + 1,
+            startLineAndCharacter.line + 1,
+            startLineAndCharacter.character + 1,
+            endLineAndCharacter.line + 1,
+            endLineAndCharacter.character + 1,
         );
     }
 
@@ -48,6 +49,11 @@ export default function ASTViewer() {
     });
 
     function onSelectNode(node: ts.Node) {
+        if (editorRef.current) {
+            const range = rangeFromNode(node);
+
+            editorRef.current.editor.revealRangeInCenterIfOutsideViewport(range, monaco.editor.ScrollType.Immediate);
+        }
         setSelectedNode(node);
     }
 
@@ -57,7 +63,7 @@ export default function ASTViewer() {
             <div className={cn(styles.container)}>
                 <header className={styles.header}>header</header>
                 <div
-                    className={styles.main}
+                    className={cn(styles.main, "handle-hover-info-300/25 handle-transparent")}
                     ref={sidebarBoundingRef}
                 >
                     <SidebarStateStoreProvider store={leftAstSidebarStateStore}>
@@ -65,6 +71,7 @@ export default function ASTViewer() {
                             boundingElement={sidebarBoundingRef}
                             side={Side.LEFT}
                             defaultSize={1 / 3}
+                            handleClassName={styles.handle}
                         >
                             <MonacoCodeEditor
                                 ref={editorRef}
@@ -93,6 +100,7 @@ export default function ASTViewer() {
                             boundingElement={sidebarBoundingRef}
                             side={Side.RIGHT}
                             defaultSize={1 - (1 / 3)}
+                            handleClassName={styles.handle}
                         >
                             Selected Node: {SyntaxKind[selectedNode?.kind ?? SyntaxKind.Unknown]}
                         </ResizableSidebar>

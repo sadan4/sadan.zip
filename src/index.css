@@ -89,6 +89,7 @@
     --color-error-800: oklch(0.4581 0.18 19.51);
     --color-error-900: oklch(0.4121 0.15 15.93);
     --color-error-950: oklch(0.272 0.10 17.25);
+    --color-transparent: transparent;
 }
 
 /* FIXME: fix the things that use this */
@@ -102,15 +103,23 @@
 }
 
 @utility sb-track-* {
-    --scrollbar-track-color: --value(--color-*);
-    /* stylelint-disable-next-line declaration-block-no-duplicate-custom-properties */
-    --scrollbar-track-color: --alpha(--value(--color-*) / --modifier(integer));
+    --opacity: calc(--modifier(integer) * 1%);
+    --scrollbar-track-color: --alpha(--value(--color-*, [color]) / var(--opacity, 100%));
 }
 
 @utility sb-thumb-* {
-    --scrollbar-thumb-color: --value(--color-*);
-    /* stylelint-disable-next-line declaration-block-no-duplicate-custom-properties */
-    --scrollbar-thumb-color: --alpha(--value(--color-*) / --modifier(integer));
+    --opacity: calc(--modifier(integer) * 1%);
+    --scrollbar-thumb-color: --alpha(--value(--color-*, [color]) / var(--opacity, 100%));
+}
+
+@utility handle-* {
+    --opacity: calc(--modifier(integer) * 1%);
+    --handle-color: --alpha(--value(--color-*, [color]) / var(--opacity, 100%));
+}
+
+@utility handle-hover-* {
+    --opacity: calc(--modifier(integer) * 1%);
+    --handle-color-hover: --alpha(--value(--color-*, [color]) / var(--opacity, 100%));
 }
 
 @utility svg-x-* {
