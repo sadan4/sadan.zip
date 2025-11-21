@@ -1,4 +1,4 @@
-import { useRect } from "@/hooks/rect";
+import { useRectFromRef } from "@/hooks/rect";
 import { cn } from "@/utils/cn";
 
 import { defaultInitialSize, HIDE_THRESHOLD, Side, SidebarStateStoreContext, useSidebarStateStore } from "./store";
@@ -28,7 +28,14 @@ export function ResizableSidebar({
         handleHidden,
     })));
 
+    const { top, height, width } = useRectFromRef(boundingElement) ?? {};
     const [shouldDispatch, setShouldDispatch] = useState(true);
+
+    useEffect(() => {
+        if (width != null) {
+            store.getState().setContainerWidth(width);
+        }
+    }, [store, width]);
 
     useEffect(() => {
         store.getState().setRef(contentRef);
@@ -61,20 +68,13 @@ export function ResizableSidebar({
         };
     }, [side, sidebarApiRef, store]);
 
-    const [boundingEl, setBoundingEl] = useState<HTMLElement | null>(null);
-    const { top, height } = useRect(boundingEl) ?? {};
-
-    useEffect(() => {
-        setBoundingEl(boundingElement?.current ?? null);
-    }, [boundingElement]);
-
 
     return (
         <>
             {side === Side.LEFT && (
                 <div
                     ref={setContentRef}
-                    className={cn(hidden && "hidden", "overflow-x-hidden")}
+                    className={cn(hidden && "hidden")}
                 >
                     {children}
                 </div>
@@ -104,11 +104,13 @@ export function ResizableSidebar({
                     top,
                     height,
                 }}
+                minPosition={side === Side.RIGHT ? 0.5 : undefined}
+                maxPosition={side === Side.LEFT ? 0.5 : undefined}
             />
             {side === Side.RIGHT && (
                 <div
                     ref={setContentRef}
-                    className={cn(hidden && "hidden", "overflow-x-hidden")}
+                    className={cn(hidden && "hidden")}
                 >
                     {children}
                 </div>

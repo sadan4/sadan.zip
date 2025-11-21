@@ -28,8 +28,22 @@ export interface ResizeHandleProps extends ComponentPropsWithoutRef<"div"> {
     boundingElementRef: RefObject<HTMLElement | null>;
     /**
      * a number in the range [0, 1] indicating the starting position of the handle relative to the width/height of the container
+     *
+     * @default 0.5
      */
     initialPosition?: number;
+    /**
+     * a number in the range [0, 1] indicating the minimum position of the handle relative to the width/height of the container
+     *
+     * @default 0
+     */
+    minPosition?: number;
+    /**
+     * a number in the range [0, 1] indicating the maximum position of the handle relative to the width/height of the container
+     *
+     * @default 1
+     */
+    maxPosition?: number;
     /**
      * Called with the new percentage whenever the handle is resized
      */

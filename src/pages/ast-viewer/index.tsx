@@ -3,30 +3,48 @@ import { MonacoCodeEditor, type MonacoCodeEditorHandle } from "@/components/Code
 import { ResizableSidebar, Side, SidebarStateStoreProvider } from "@/components/layout/ResizableSidebar";
 import { useConsoleHelpers } from "@/hooks/consoleHelpers";
 import { useSourceFile } from "@/hooks/sourceFile";
+import cn from "@/utils/cn";
 import { TreeMode } from "@/utils/typescript";
 
 import { NodeTree } from "./NodeTree";
-import { leftAstSidebarStateStore, rightAstSidebarStateStore, updateASTViewerCode, useASTViewerStore } from "./store";
+import { astViewerStore, leftAstSidebarStateStore, rightAstSidebarStateStore, updateASTViewerCode } from "./store";
+import styles from "./styles.module.css";
 
+import * as monaco from "monaco-editor";
 import { useRef, useState } from "react";
-import ts from "typescript";
+import ts, { SyntaxKind } from "typescript";
 
 
 export default function ASTViewer() {
-    const { code, language, theme } = useASTViewerStore.useShallow(({ code, language, theme }) => ({
+    const { code, language, theme } = astViewerStore.useShallow(({ code, language, theme }) => ({
         code,
         language,
         theme,
     }));
 
-    const sidebarBoundingRef = useRef<HTMLElement>(null);
+    const sidebarBoundingRef = useRef<HTMLDivElement>(null);
     const editorRef = useRef<MonacoCodeEditorHandle>(null);
     const [sourceFile, { reparseCount }] = useSourceFile(code, language);
     const [selectedNode, setSelectedNode] = useState<ts.Node | undefined>(undefined);
 
+    function rangeFromNode(node: ts.Node): monaco.Range {
+        const start = sourceFile.getLineAndCharacterOfPosition(node.pos);
+        const end = sourceFile.getLineAndCharacterOfPosition(node.end);
+
+        return new monaco.Range(
+            start.line + 1,
+            start.character + 1,
+            end.line + 1,
+            end.character + 1,
+        );
+    }
+
+    const editorHighlights = selectedNode ? [rangeFromNode(selectedNode)] : [];
+
     useConsoleHelpers({
         sourceFile,
         ts,
+        node: selectedNode,
     });
 
     function onSelectNode(node: ts.Node) {
@@ -36,10 +54,10 @@ export default function ASTViewer() {
     return (
         <>
             <Boilerplate />
-            <div className="flex h-full w-full flex-col">
-                <header>header</header>
-                <main
-                    className="flex grow"
+            <div className={cn(styles.container)}>
+                <header className={styles.header}>header</header>
+                <div
+                    className={styles.main}
                     ref={sidebarBoundingRef}
                 >
                     <SidebarStateStoreProvider store={leftAstSidebarStateStore}>
@@ -56,10 +74,11 @@ export default function ASTViewer() {
                                 onChange={(newCode) => {
                                     updateASTViewerCode(newCode);
                                 }}
+                                highlights={editorHighlights}
                             />
                         </ResizableSidebar>
                     </SidebarStateStoreProvider>
-                    <div className="grow">
+                    <div className="h-full shrink grow">
                         <NodeTree
                             root={sourceFile}
                             treeMode={TreeMode.GET_CHILDREN}
@@ -75,10 +94,10 @@ export default function ASTViewer() {
                             side={Side.RIGHT}
                             defaultSize={1 - (1 / 3)}
                         >
-                            right sidebar
+                            Selected Node: {SyntaxKind[selectedNode?.kind ?? SyntaxKind.Unknown]}
                         </ResizableSidebar>
                     </SidebarStateStoreProvider>
-                </main>
+                </div>
             </div>
         </>
     );

@@ -9,6 +9,7 @@ import { loadOnigasmPromise } from "@/utils/oniguruma";
 import { hasGrammar, Language } from "@/utils/textmate";
 
 import { registry, wireTmGrammars } from "./grammars";
+import styles from "./styles.module.scss";
 import { DEFAULT_MONACO_THEME, type MonacoTheme, useMonacoTheme } from "./themes";
 import { type CodeEditorProps } from "../base";
 
@@ -28,6 +29,7 @@ export interface MonacoCodeEditorProps extends CodeEditorProps<MonacoCodeEditorH
     theme?: MonacoTheme;
     options?: monaco.editor.IStandaloneEditorConstructionOptions;
     uri?: monaco.Uri;
+    highlights?: monaco.IRange[];
 }
 
 const monacoSetup = once(() => {
@@ -71,6 +73,7 @@ function MonacoCodeEditorInner({
     options = EMPTY_NULL_OBJECT,
     className,
     uri,
+    highlights,
     ref: _ref,
 }: MonacoCodeEditorProps) {
     monacoSetup();
@@ -81,6 +84,7 @@ function MonacoCodeEditorInner({
     const editor = useRef<monaco.editor.IStandaloneCodeEditor>(null);
     const themeString = useMonacoTheme(theme);
     const lock = useLock();
+    const decorations = useRef<monaco.editor.IEditorDecorationsCollection | null>(null);
 
     const [code, setCode] = useControlledState({
         initialValue: initialCode,
@@ -233,10 +237,31 @@ function MonacoCodeEditorInner({
         });
     }, [code, lock]);
 
+    useEffect(() => {
+        if (!editor.current) {
+            return;
+        }
+        if (!highlights?.length) {
+            decorations.current?.clear();
+            return;
+        }
+        decorations.current ??= editor.current.createDecorationsCollection();
+
+        const newDecorations = highlights.map((range) => ({
+            range,
+            options: {
+                className: styles.highlight,
+            },
+        }) satisfies monaco.editor.IModelDeltaDecoration);
+
+        decorations.current.set(newDecorations);
+    }, [highlights]);
+
     return (
         <div
-            ref={setRef}
             style={style}
+            ref={setRef}
+            className="h-full w-full"
             data-code-editor="monaco"
         />
     );

@@ -2,6 +2,7 @@ import { useEventHandler } from "@/hooks/eventListener";
 import { useRecent } from "@/hooks/recent";
 import cn from "@/utils/cn";
 import { assert } from "@/utils/error";
+import { clamp } from "@/utils/math";
 
 import type { ResizeHandleProps } from ".";
 import { Direction, getBounds } from "./bounds";
@@ -22,9 +23,12 @@ export function Vertical({
     initialPosition = 0.5,
     onReset,
     ref,
+    minPosition = 0,
+    maxPosition = 1,
     ...props
 }: VerticalResizeHandleProps) {
-    assert(initialPosition >= 0 && initialPosition <= 1, "Invalid initial position");
+    assert(initialPosition >= 0 && initialPosition <= 1 && minPosition < initialPosition && initialPosition < maxPosition, "Invalid initial position");
+    assert(minPosition >= 0 && maxPosition <= 1 && minPosition < maxPosition, "Invalid min/max position");
 
     const controller = useRef(new AbortController());
     const handleRef = useRef<HTMLDivElement>(null);
@@ -89,7 +93,7 @@ export function Vertical({
         }
 
         const { toPercentage, clampToBounds } = getBounds(Direction.VERTICAL, boundingElementRef.current);
-        const percent = toPercentage(clampToBounds(e.clientX));
+        const percent = clamp(minPosition, maxPosition, toPercentage(clampToBounds(e.clientX)));
 
         handleRef.current.style.setProperty("--drag-offset", `${percent}`);
         dispatchResize();

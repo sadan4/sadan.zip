@@ -1,17 +1,22 @@
 import { Clickable } from "@/components/Clickable";
 import { Accordion, ArrowPosition, ClickableArea } from "@/components/layout/Accordion";
 import { AccordionAnimation } from "@/components/layout/Accordion/utils";
+import { ScrollArea } from "@/components/layout/ScrollArea";
+import { ScrollAreaDirection } from "@/components/layout/ScrollArea/types";
 import { Text } from "@/components/Text";
+import { useRecent } from "@/hooks/recent";
 import { useShallowMemo } from "@/hooks/shallowMemo";
 import cn from "@/utils/cn";
-import { EMPTY_SET, NOOP } from "@/utils/constants";
+import { EMPTY_ARRAY, EMPTY_SET, NOOP } from "@/utils/constants";
 import { namedContext } from "@/utils/devtools";
-import { assert } from "@/utils/error";
+import { error } from "@/utils/error";
 import { toggleSetItem } from "@/utils/set";
 import { getChildrenWithMode, getNodeKey, getNodeName, TreeMode } from "@/utils/typescript";
 
-import { use, useMemo, useState } from "react";
+import { type RefObject, use, useEffect, useState } from "react";
 import type { Node, SourceFile } from "typescript";
+import { createStore, type StoreApi, useStore } from "zustand";
+import { useShallow } from "zustand/shallow";
 
 export interface NodeTreeProps {
     onSelectNode(node: Node): void;
@@ -22,68 +27,97 @@ export interface NodeTreeProps {
     selectedNode?: Node;
 }
 
-interface NodeTreeContext {
+interface NodeTreeStore {
     highlightedNodeKeys: ReadonlySet<string>;
     selectedNodeKey: string | null;
     collapsedNodeKeys: ReadonlySet<string>;
-    onNodeArrowClick(nodeKey: string): void;
-    onSelectNode: NodeTreeProps["onSelectNode"] & {};
     treeMode: TreeMode;
     reparseCount: number;
 }
 
-const NodeTreeContext = namedContext<NodeTreeContext | null>(null, "NodeTreeContext");
+function createNodeTreeStore(initialTreeMode: TreeMode): StoreApi<NodeTreeStore> {
+    return createStore<NodeTreeStore>((set, get) => ({
+        highlightedNodeKeys: EMPTY_SET,
+        selectedNodeKey: null,
+        collapsedNodeKeys: EMPTY_SET,
+        treeMode: initialTreeMode,
+        reparseCount: 0,
+    } satisfies NodeTreeStore));
+}
 
-function useNodeTreeContext(): NodeTreeContext {
-    const ctx = use(NodeTreeContext);
+function useCreateNodeTreeStore(initialTreeMode: TreeMode): StoreApi<NodeTreeStore> {
+    const [store] = useState(() => createNodeTreeStore(initialTreeMode));
 
-    assert(ctx);
+    return store;
+}
 
-    return ctx;
+const NodeTreeStoreContext = namedContext<StoreApi<NodeTreeStore> | null>(null, "NodeTreeStoreContext");
+
+function useNodeTreeStore<T extends (state: NodeTreeStore) => any>(selector: T): ReturnType<T> {
+    const store = use(NodeTreeStoreContext);
+
+    if (import.meta.env.DEV && !store) {
+        error("useNodeTreeStore must be used within a NodeTreeStoreProvider");
+    }
+
+    return useStore(store!, useShallow(selector));
 }
 
 export function NodeTree({
-    onSelectNode = NOOP,
+    onSelectNode: _onSelectNode = NOOP,
     root,
     highlightedNodes,
     selectedNode,
     treeMode,
     reparseCount,
 }: NodeTreeProps) {
+    const store = useCreateNodeTreeStore(treeMode);
     const reqHlNodes = useShallowMemo(highlightedNodes);
 
-    const highlightedNodeKeys = useMemo(() => {
-        return new Set(reqHlNodes?.map((value) => getNodeKey(value)));
-    }, [reqHlNodes]);
+    useEffect(() => {
+        const highlightedNodeKeys = new Set(reqHlNodes?.map((node) => getNodeKey(node)));
 
-    const selectedNodeKey = selectedNode ? getNodeKey(selectedNode) : null;
-    const [collapsedNodeKeys, setCollapsedNodeKeys] = useState<ReadonlySet<string>>(EMPTY_SET);
+        store.setState({ highlightedNodeKeys });
+    }, [reqHlNodes, store]);
 
-    const ctx: NodeTreeContext = {
-        highlightedNodeKeys,
-        selectedNodeKey,
-        onSelectNode,
-        collapsedNodeKeys,
-        treeMode,
-        reparseCount,
-        onNodeArrowClick(nodeKey) {
-            setCollapsedNodeKeys((prev) => toggleSetItem(new Set(prev), nodeKey));
-        },
-    };
+    useEffect(() => {
+        const selectedNodeKey = selectedNode ? getNodeKey(selectedNode) : null;
+
+        store.setState({ selectedNodeKey });
+    }, [selectedNode, store]);
+
+    useEffect(() => {
+        store.setState({
+            treeMode,
+            reparseCount,
+        });
+    }, [treeMode, reparseCount, store]);
+
+    const onNodeArrowClick = useRecent((nodeKey: string) => {
+        const collapsedNodeKeys = new Set(store.getState().collapsedNodeKeys);
+
+        toggleSetItem(collapsedNodeKeys, nodeKey);
+
+        store.setState({ collapsedNodeKeys });
+    });
+
+    const onSelectNode = useRecent(_onSelectNode);
 
     return (
-        <div className="flex h-full w-full flex-col px-1">
+        <div className="flex size-full flex-col px-1">
             <div className="bg-cyan-600">
-                TSQuery Input Box
+                Input Box
             </div>
-            <div className="grow">
-                <NodeTreeContext value={ctx}>
+            <ScrollArea dir={ScrollAreaDirection.BOTH}>
+                <NodeTreeStoreContext value={store}>
                     <NodeTreeNode
                         node={root}
                         nodeKey={getNodeKey(root)}
+                        onNodeArrowClick={onNodeArrowClick}
+                        onSelectNode={onSelectNode}
                     />
-                </NodeTreeContext>
-            </div>
+                </NodeTreeStoreContext>
+            </ScrollArea>
         </div>
     );
 }
@@ -91,31 +125,52 @@ export function NodeTree({
 interface NodeTreeNodeProps {
     node: Node;
     nodeKey: string;
+    onNodeArrowClick: RefObject<(nodeKey: string) => void>;
+    onSelectNode: RefObject<NodeTreeProps["onSelectNode"] & {}>;
 }
 
-function NodeTreeNode({ node, nodeKey: key }: NodeTreeNodeProps) {
-    const {
-        highlightedNodeKeys,
-        selectedNodeKey,
-        collapsedNodeKeys,
-        onSelectNode,
-        treeMode,
-        reparseCount,
-        onNodeArrowClick,
-    } = useNodeTreeContext();
-
+function NodeTreeNode({ node, nodeKey: key, onNodeArrowClick, onSelectNode }: NodeTreeNodeProps) {
     const name = getNodeName(node);
-    const childNodes = getChildrenWithMode(node, treeMode);
-    const isHighlighted = highlightedNodeKeys.has(key);
-    const isCollapsed = collapsedNodeKeys.has(key);
-    const isSelected = selectedNodeKey === key;
+
+    const {
+        childNodes,
+        isHighlighted,
+        isCollapsed,
+        isSelected,
+        reparseCount,
+    } = useNodeTreeStore(({
+        treeMode,
+        highlightedNodeKeys,
+        collapsedNodeKeys,
+        selectedNodeKey,
+        reparseCount,
+    }) => {
+        const isHighlighted = highlightedNodeKeys.has(key);
+        const isCollapsed = collapsedNodeKeys.has(key);
+        const isSelected = selectedNodeKey === key;
+        let childNodes = getChildrenWithMode(node, treeMode);
+
+        if (!childNodes.length) {
+            childNodes = EMPTY_ARRAY;
+        }
+
+        return {
+            childNodes,
+            isHighlighted,
+            isCollapsed,
+            isSelected,
+            reparseCount,
+        };
+    });
 
     const children = (
 
-        <Clickable onClick={(e) => {
-            e.stopPropagation();
-            onSelectNode(node);
-        }}
+        <Clickable
+            onClick={(e) => {
+                e.stopPropagation();
+                onSelectNode.current(node);
+            }}
+            className="w-fit"
         >
             <Text
                 className={cn(isHighlighted && "bg-warning-400/50")}
@@ -130,32 +185,31 @@ function NodeTreeNode({ node, nodeKey: key }: NodeTreeNodeProps) {
     if (childNodes.length) {
         return (
             <Accordion
-                className=""
                 item={{
                     id: key,
-                    render() {
-                        return (
-                            <div className="flex h-fit">
-                                <div className="w-5" />
-                                <div className="grow">
-                                    {childNodes.map((child) => {
-                                        const key = getNodeKey(child);
+                    contents: (
+                        <div className="flex h-fit">
+                            <div className="w-5" />
+                            <div className="grow">
+                                {childNodes.map((child) => {
+                                    const key = getNodeKey(child);
 
-                                        return (
-                                            <NodeTreeNode
-                                                key={`${key}-${reparseCount}`}
-                                                node={child}
-                                                nodeKey={key}
-                                            />
-                                        );
-                                    })}
-                                </div>
+                                    return (
+                                        <NodeTreeNode
+                                            key={`${key}-${reparseCount}`}
+                                            node={child}
+                                            nodeKey={key}
+                                            onNodeArrowClick={onNodeArrowClick}
+                                            onSelectNode={onSelectNode}
+                                        />
+                                    );
+                                })}
                             </div>
-                        );
-                    },
+                        </div>
+                    ),
                 }}
                 onToggle={() => {
-                    onNodeArrowClick(key);
+                    onNodeArrowClick.current(key);
                 }}
                 open={!isCollapsed}
                 clicableArea={ClickableArea.ARROW}

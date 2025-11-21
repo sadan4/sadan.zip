@@ -76,6 +76,8 @@ export const useASTViewerStore = createSelectors(create<ASTViewerStore>()(persis
     },
 )));
 
+export const astViewerStore = useASTViewerStore;
+
 export const updateASTViewerCode = debounce((newCode: string) => {
     useASTViewerStore.getState().updateCode(newCode);
 }, 750);

@@ -14,7 +14,7 @@ import { type PropsWithChildren, type ReactNode, type Ref, useContext, useEffect
 
 export interface AccordionItem {
     id: string;
-    render: () => ReactNode;
+    contents: ReactNode;
 }
 
 export interface AccordionProps extends PropsWithChildren {
@@ -50,7 +50,7 @@ const rotationMap: Record<number, Record<ArrowPosition, number>> = Object.freeze
 } satisfies Record<number, Record<ArrowPosition, number>>);
 
 export function Accordion({
-    item: { id, render: Render },
+    item: { id, contents },
     children,
     className,
     arrowClassName,
@@ -110,7 +110,7 @@ export function Accordion({
 
     const content = (
         <div>
-            {active && <Render />}
+            {active && contents}
         </div>
     );
 
@@ -159,7 +159,6 @@ export function Accordion({
                     ? <AnimateHeight>{content}</AnimateHeight>
                     : content
             }
-            <AnimateHeight />
         </div>
     );
 }

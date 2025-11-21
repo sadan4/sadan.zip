@@ -12,6 +12,15 @@ type WithSelectors<S> = S extends { getState: () => infer T; }
     }
     : never;
 
+
+type StoreSelectorImpl<T> = <U>(state: T) => U;
+
+export type StoreSelector<S> = S extends StoreApi<infer T>
+    ? StoreSelectorImpl<T>
+    : S extends UseBoundStore<infer T>
+        ? StoreSelectorImpl<ExtractState<T>>
+        : StoreSelectorImpl<S>;
+
 export function createSelectors<S extends UseBoundStore<StoreApi<object>>>(_store: S) {
     const store = _store as WithSelectors<typeof _store>;
 
