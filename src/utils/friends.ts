@@ -95,4 +95,10 @@ export const friends: Friend[] = [
         avatarUrl: new URL("https://avatars.githubusercontent.com/u/45497981?v=4"),
         _88x31url: new URL("https://vendicated.dev/assets/88x31/me.gif"),
     },
+    {
+        name: "rushii",
+        url: new URL("https://rushii.dev"),
+        avatarUrl: new URL("https://avatars.githubusercontent.com/u/33725716?v=4"),
+        _88x31url: new URL("https://rushii.dev/88x31/rushii.webp"),
+    },
 ];
