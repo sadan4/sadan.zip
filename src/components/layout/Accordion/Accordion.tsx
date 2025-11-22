@@ -68,6 +68,8 @@ export function Accordion({
         debugName: "Accordion.active",
     });
 
+    const isRowClickable = !!(clicableArea & ClickableArea.ROW);
+    const isArrowClickable = !!(clicableArea & ClickableArea.ARROW);
     const groupCtx = useContext(AccordionContext);
 
     const { rotation } = useSpring({
@@ -120,39 +122,45 @@ export function Accordion({
                 className={cn(styles.label, {
                     [styles.right]: arrowPosition === ArrowPosition.RIGHT,
                     [styles.left]: arrowPosition === ArrowPosition.LEFT,
-                    [styles.clickableRow]: clicableArea & ClickableArea.ROW,
-                    [styles.clickableArrow]: clicableArea & ClickableArea.ARROW,
+                    [styles.clickableRow]: isRowClickable,
+                    [styles.clickableArrow]: isArrowClickable,
                 })}
                 onMouseDown={(e) => {
-                    if (clicableArea & ClickableArea.ROW && e.detail > 1) {
+                    if (isRowClickable && e.detail > 1) {
                         e.preventDefault();
                     }
                 }}
                 onClick={() => {
                     handleClick(ClickableArea.ROW);
                 }}
+                tabIndex={isRowClickable ? 0 : undefined}
             >
                 <div>
                     {children}
                 </div>
-                <animated.svg
-                    viewBox="-2.4 -2.4 28.8 28.8"
-                    className={cn(styles.arrow, arrowClassName)}
-                    style={{
-                        transform: rotation.to((r) => `rotate(${r}deg)`),
-                    }}
+                <Clickable
+                    className={styles.arrowWrapper}
                     onClick={(e) => {
                         e.stopPropagation();
                         handleClick(ClickableArea.ARROW);
                     }}
+                    tabIndex={isArrowClickable && !isRowClickable ? 0 : undefined}
                 >
-                    <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="m6 9 6 6 6-6"
-                    />
-                </animated.svg>
+                    <animated.svg
+                        viewBox="-2.4 -2.4 28.8 28.8"
+                        className={cn(styles.arrow, arrowClassName)}
+                        style={{
+                            transform: rotation.to((r) => `rotate(${r}deg)`),
+                        }}
+                    >
+                        <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="m6 9 6 6 6-6"
+                        />
+                    </animated.svg>
+                </Clickable>
             </Clickable>
             {
                 animation & AccordionAnimation.CONTENT
