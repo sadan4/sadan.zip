@@ -24,17 +24,6 @@
             min-height: 0;
         }
 
-        >* :has(+ .handle) {
-            @include u.anim-prop(border-color);
-            @include u.anim-dur;
-
-            border-right: $handle-marker-color;
-        }
-
-        >* :has(+ .handle:hover) {
-            border-right: $handle-marker-color-hover;
-        }
-
         >.handle + * {
             @include u.anim-prop(border-color);
             @include u.anim-dur;
@@ -42,8 +31,21 @@
             border-left: $handle-marker-color;
         }
 
+        >*:has(+ .handle) {
+            @include u.anim-prop(border-color);
+            @include u.anim-dur;
+
+            border-right: $handle-marker-color;
+        }
+
         >.handle:hover + * {
             border-left: $handle-marker-color-hover;
         }
+
+
+        >*:has(+ .handle:hover) {
+            border-right: $handle-marker-color-hover;
+        }
+
     }
 }
