@@ -43,7 +43,10 @@ export default function Avatar({ round = false, ...props }: AvatarProps) {
     return (
         // put the ref on Clicable because it's before all the effects that might change the size/position
         <Clickable ref={setImg}>
-            <PerspectiveHover hoverFactor={4}>
+            <PerspectiveHover
+                hoverFactor={4}
+                className="touch-none"
+            >
                 <Shadow>
                     <BorderHoldRounded onHold={() => {
                         modal.current?.open();
