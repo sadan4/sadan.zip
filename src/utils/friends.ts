@@ -19,10 +19,10 @@ export const friends: Friend[] = [
         _88x31url: new URL("https://files.nin0.dev/88x31.png"),
     },
     {
-        name: "s4mi",
+        name: "maddie",
         discordId: "1298435571395330108",
-        url: new URL("https://s4mi.dev"),
-        avatarUrl: new URL("https://s4mi.dev/pfp.png"),
+        url: new URL("https://maddie.lgbt"),
+        avatarUrl: new URL("https://maddie.lgbt/pfp.png"),
     },
     {
         name: "zoot",
