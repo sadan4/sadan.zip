@@ -1,5 +1,5 @@
 export interface Friend {
-    discordId?: string;
+    discordId: string;
     name: string;
     avatarUrl: URL;
     url?: URL;
@@ -97,6 +97,7 @@ export const friends: Friend[] = [
     },
     {
         name: "rushii",
+        discordId: "295190422244950017",
         url: new URL("https://rushii.dev"),
         avatarUrl: new URL("https://avatars.githubusercontent.com/u/33725716?v=4"),
         _88x31url: new URL("https://rushii.dev/88x31/rushii.webp"),

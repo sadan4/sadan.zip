@@ -11,7 +11,6 @@ import { Tooltip } from "@/components/Tooltip";
 import type { TooltipPosition } from "@/components/Tooltip/constants";
 import { useRect } from "@/hooks/rect";
 import { discordUrl } from "@/utils/constants";
-import { error } from "@/utils/error";
 import type { Friend } from "@/utils/friends";
 
 import { FRIEND_CARD_CIRCLE_DIAMETER } from "./other";
@@ -56,7 +55,7 @@ function FriendCard({ friend }: FriendCardProps) {
                                 tag="a"
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex h-12 w-12 items-center justify-center rounded-full bg-bg-100"
+                                className="flex size-12 items-center justify-center rounded-full bg-bg-100"
                                 href={friend.url.toString()}
                             >
                                 <LinkIcon
@@ -67,7 +66,7 @@ function FriendCard({ friend }: FriendCardProps) {
                         : (
                             <Clickable
                                 tag="a"
-                                className="flex h-12 w-12 cursor-not-allowed items-center justify-center rounded-full bg-bg-100 brightness-50"
+                                className="flex size-12 cursor-not-allowed items-center justify-center rounded-full bg-bg-100 brightness-50"
                                 onClick={(e) => {
                                     e.preventDefault();
                                 }}
@@ -92,22 +91,16 @@ function FriendCard({ friend }: FriendCardProps) {
                     )
             }
             <Fragment key="discord">
-                {
-                    friend.discordId
-                        ? (
-                            <Clickable
-                                tag="a"
-                                href={discordUrl(friend.discordId)
-                                    .toString()}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex h-12 w-12 items-center justify-center rounded-full bg-bg-100"
-                            >
-                                <Discord className="h-8 w-8" />
-                            </Clickable>
-                        )
-                        : error()
-                }
+                <Clickable
+                    tag="a"
+                    href={discordUrl(friend.discordId)
+                        .toString()}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex size-12 items-center justify-center rounded-full bg-bg-100"
+                >
+                    <Discord className="size-8" />
+                </Clickable>
             </Fragment>
         </CircleItems>
     );
