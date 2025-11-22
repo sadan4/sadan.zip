@@ -95,7 +95,7 @@ export default function PerspectiveHover({ children, hoverFactor, className }: P
                 rotateY,
                 rotateZ,
             }}
-            className={cn("touch-none", className)}
+            className={className}
         >
             {children}
         </animated.div>
