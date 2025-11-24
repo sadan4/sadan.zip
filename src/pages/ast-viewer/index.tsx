@@ -7,12 +7,13 @@ import cn from "@/utils/cn";
 import { getVisibleNodeRange, TreeMode } from "@/utils/typescript";
 
 import { NodeTree } from "./NodeTree";
+import { PropViewer } from "./PropViewer";
 import { astViewerStore, leftAstSidebarStateStore, rightAstSidebarStateStore, updateASTViewerCode } from "./store";
 import styles from "./styles.module.scss";
 
 import * as monaco from "monaco-editor";
 import { useRef, useState } from "react";
-import ts, { SyntaxKind } from "typescript";
+import * as ts from "typescript";
 
 
 export default function ASTViewer() {
@@ -102,7 +103,7 @@ export default function ASTViewer() {
                             defaultSize={1 - (1 / 3)}
                             handleClassName={styles.handle}
                         >
-                            Selected Node: {SyntaxKind[selectedNode?.kind ?? SyntaxKind.Unknown]}
+                            { selectedNode && <PropViewer node={selectedNode} /> }
                         </ResizableSidebar>
                     </SidebarStateStoreProvider>
                 </div>

@@ -1,8 +1,5 @@
-import * as guh from "./publicApi.gen&gen";
 import { error, unreachable } from "../error";
 import { Language } from "../textmate";
-
-console.log(guh);
 
 import {
     type Node,
@@ -97,3 +94,13 @@ export type NodeRange = readonly [pos: number, end: number];
 export function getVisibleNodeRange(node: Node, sourceFile: SourceFile): NodeRange {
     return [node.getStart(sourceFile, true), node.end];
 }
+
+export function isNode(n: any): n is Node {
+    if (!n || typeof n !== "object") {
+        return false;
+    }
+
+    return typeof n.kind === "number" && typeof n.pos === "number" && typeof n.end === "number";
+}
+
+export * from "./publicApi";

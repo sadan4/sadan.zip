@@ -1,3 +1,4 @@
 .highlight {
-    background: red;
+    /* stylelint-disable-next-line custom-property-pattern */
+    background: var(--vscode-editor-findMatchHighlightBackground, red);
 }
