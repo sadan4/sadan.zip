@@ -48,8 +48,6 @@
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
     "@vitejs/plugin-react": "^5.0.4",
-    "@vitest/browser": "^3.2.4",
-    "@vitest/coverage-v8": "^3.2.4",
     "babel-plugin-react-compiler": "1.0.0",
     "concurrently": "^9.2.1",
     "eslint": "^9.25.0",
@@ -61,7 +59,6 @@
     "eslint-plugin-unused-imports": "^4.1.4",
     "jiti": "^2.4.2",
     "monaco-vscode-textmate-theme-converter": "^0.1.7",
-    "playwright": "^1.55.0",
     "rollup-plugin-generate": "^1.2.2",
     "storybook": "^10.0.0",
     "stylelint": "^16.24.0",
@@ -73,8 +70,7 @@
     "vite": "^7.1.10",
     "vite-plugin-devtools-json": "^1.0.0",
     "vite-plugin-inspect": "^11.3.3",
-    "vite-tsconfig-paths": "^5.1.4",
-    "vitest": "^3.2.4"
+    "vite-tsconfig-paths": "^5.1.4"
   },
   "optionalDependencies": {
     "wrangler": "^4.32.0"
