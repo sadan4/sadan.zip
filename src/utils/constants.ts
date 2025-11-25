@@ -13,8 +13,8 @@ In viverra eleifend tortor ultricies molestie. Duis ullamcorper, lacus ac vehicu
 // cspell:enable
 
 export const EMPTY_OBJECT = Object.freeze({});
-export const EMPTY_SET = Object.freeze(new Set<never>());
-export const EMPTY_MAP = Object.freeze(new Map<never, never>());
+export const EMPTY_SET: ReadonlySet<never> = Object.freeze(new Set<never>());
+export const EMPTY_MAP: ReadonlyMap<never, never> = Object.freeze(new Map<never, never>());
 export const EMPTY_ARRAY = Object.freeze([]);
 export const EMPTY_NULL_OBJECT = Object.freeze(Object.create(null));
 export const NOOP = () => { };

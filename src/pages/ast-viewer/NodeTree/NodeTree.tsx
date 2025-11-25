@@ -1,4 +1,6 @@
 import { Clickable } from "@/components/Clickable";
+import { ErrorIcon } from "@/components/icons/ErrorIcon";
+import { CheckedInput, type ErrorMessageProps } from "@/components/Input";
 import { ScrollArea } from "@/components/layout/ScrollArea";
 import { ScrollAreaContext } from "@/components/layout/ScrollArea/context";
 import { ScrollAreaDirection } from "@/components/layout/ScrollArea/types";
@@ -11,9 +13,10 @@ import { useShallowMemo } from "@/hooks/shallowMemo";
 import cn from "@/utils/cn";
 import { EMPTY_ARRAY, EMPTY_SET, NOOP } from "@/utils/constants";
 import { namedContext } from "@/utils/devtools";
-import { error } from "@/utils/error";
+import { assert, error } from "@/utils/error";
 import { toggleSetItem } from "@/utils/set";
 import { getChildrenWithMode, getNodeKey, getNodeName, getParent, TreeMode } from "@/utils/typescript";
+import * as tsquery from "@sadan4/tsquery";
 
 import { TreeAccordion } from "../TreeAccordion";
 
@@ -78,6 +81,7 @@ export function NodeTree({
 }: NodeTreeProps) {
     const store = useCreateNodeTreeStore(treeMode);
     const reqHlNodes = useShallowMemo(highlightedNodes);
+    const [queryResult, setQueryResult] = useState<ReadonlySet<Node>>(EMPTY_SET);
 
     useEffect(() => {
         const highlightedNodeKeys = new Set(reqHlNodes?.map((node) => getNodeKey(node)));
@@ -242,8 +246,26 @@ export function NodeTree({
 
     return (
         <div className="flex size-full flex-col">
-            <div className="bg-cyan-600">
-                Input Box
+            <div className="flex justify-center">
+                <div className="w-19/20">
+                    <CheckedInput
+                        className="my-2"
+                        debounce={1000}
+                        check={(value) => {
+                            if (!value) {
+                                return true;
+                            }
+                            try {
+                                const selector = tsquery.parse(value);
+
+                                return selector !== null;
+                            } catch {
+                                return false;
+                            }
+                        }}
+                        errorMessage={SelectorErrorMessage}
+                    />
+                </div>
             </div>
             <ScrollArea dir={ScrollAreaDirection.BOTH}>
                 <div
@@ -260,6 +282,31 @@ export function NodeTree({
                     </NodeTreeStoreContext>
                 </div>
             </ScrollArea>
+        </div>
+    );
+}
+
+function SelectorErrorMessage({ badValue, origCheck }: ErrorMessageProps) {
+    let err: Error;
+
+    try {
+        tsquery.parse(badValue);
+    } catch (e) {
+        err = e;
+    }
+    assert(err);
+    return (
+        <div
+            className="flex items-center gap-1"
+        >
+            <ErrorIcon className="size-4 fill-error-400"/>
+            <Text
+                color="error"
+                tag="span"
+                noselect
+            >
+                Invalid Selector
+            </Text>
         </div>
     );
 }

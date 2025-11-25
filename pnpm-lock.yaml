@@ -25,6 +25,9 @@ importers:
       '@sadan4/demangler':
         specifier: ^1.0.4
         version: 1.0.4
+      '@sadan4/tsquery':
+        specifier: ^7.0.0
+        version: 7.0.0(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))
       '@shikijs/themes':
         specifier: ^3.13.0
         version: 3.13.0
@@ -1463,6 +1466,11 @@ packages:
   '@sadan4/demangler@1.0.4':
     resolution: {integrity: sha512-MTabC/ZfT/HPxLLPS4j3hvFP6JRfVlbXm4nZCT+0CFXkTRTQMwja54wL5Eb0UxWsGA/BQkrNVBu5lhJ2uAAIqg==}
 
+  '@sadan4/tsquery@7.0.0':
+    resolution: {integrity: sha512-rwDbxBZ++DAz4XpXQ39P9h+thGN4e9crwy9JZXKuivUTqC3ccGcAsHpUQRp2SwRQhKgP4bLhUNJOkPLU6AKGcA==}
+    peerDependencies:
+      typescript: ^3 || ^4 || ^5
+
   '@shikijs/core@3.13.0':
     resolution: {integrity: sha512-3P8rGsg2Eh2qIHekwuQjzWhKI4jV97PhvYjYUzGqjvJfqdQPz+nMlfWahU24GZAyW1FxFI1sYjyhfh5CoLmIUA==}
 
@@ -1724,6 +1732,9 @@ packages:
 
   '@types/eslint@9.6.1':
     resolution: {integrity: sha512-FXx2pKgId/WyYo2jXw63kk7/+TY7u7AziEJxJAnSFzHlqTAS3Ync6SvgYAN/k4/PQpnnVuzoMuVnByKK2qp0ag==}
+
+  '@types/esquery@1.5.4':
+    resolution: {integrity: sha512-yYO4Q8H+KJHKW1rEeSzHxcZi90durqYgWVfnh5K6ZADVBjBv2e1NEveYX5yT2bffgN7RqzH3k9930m+i2yBoMA==}
 
   '@types/estree-jsx@1.0.5':
     resolution: {integrity: sha512-52CcUVNFyfb1A2ALocQw/Dd1BQFNmSdkuC3BkZ6iqhdMfQz7JWOFRuJFloOzjk+6WijU56m9oKXFAXc7o3Towg==}
@@ -5149,6 +5160,12 @@ snapshots:
 
   '@sadan4/demangler@1.0.4': {}
 
+  '@sadan4/tsquery@7.0.0(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))':
+    dependencies:
+      '@types/esquery': 1.5.4
+      esquery: 1.6.0
+      typescript: 5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m)
+
   '@shikijs/core@3.13.0':
     dependencies:
       '@shikijs/types': 3.13.0
@@ -5445,6 +5462,10 @@ snapshots:
     dependencies:
       '@types/estree': 1.0.8
       '@types/json-schema': 7.0.15
+
+  '@types/esquery@1.5.4':
+    dependencies:
+      '@types/estree': 1.0.8
 
   '@types/estree-jsx@1.0.5':
     dependencies:
