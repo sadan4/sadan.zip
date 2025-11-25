@@ -26,8 +26,8 @@ importers:
         specifier: ^1.0.4
         version: 1.0.4
       '@sadan4/tsquery':
-        specifier: ^7.0.0
-        version: 7.0.0(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))
+        specifier: ^7.1.0
+        version: 7.1.0(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))
       '@shikijs/themes':
         specifier: ^3.13.0
         version: 3.13.0
@@ -1466,8 +1466,8 @@ packages:
   '@sadan4/demangler@1.0.4':
     resolution: {integrity: sha512-MTabC/ZfT/HPxLLPS4j3hvFP6JRfVlbXm4nZCT+0CFXkTRTQMwja54wL5Eb0UxWsGA/BQkrNVBu5lhJ2uAAIqg==}
 
-  '@sadan4/tsquery@7.0.0':
-    resolution: {integrity: sha512-rwDbxBZ++DAz4XpXQ39P9h+thGN4e9crwy9JZXKuivUTqC3ccGcAsHpUQRp2SwRQhKgP4bLhUNJOkPLU6AKGcA==}
+  '@sadan4/tsquery@7.1.0':
+    resolution: {integrity: sha512-mBMaOpJ5vdGSO2gJCK5ru+IsChbbsKKnIyIOLwrh036REDjv9OsoDriLumTsR50LYjw+kE4qLVqpZ7wjvoc6Ww==}
     peerDependencies:
       typescript: ^3 || ^4 || ^5
 
@@ -5160,7 +5160,7 @@ snapshots:
 
   '@sadan4/demangler@1.0.4': {}
 
-  '@sadan4/tsquery@7.0.0(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))':
+  '@sadan4/tsquery@7.1.0(typescript@5.8.3(patch_hash=kmtcpv4ql4eeph7o5eu3vojf5m))':
     dependencies:
       '@types/esquery': 1.5.4
       esquery: 1.6.0

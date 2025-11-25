@@ -16,7 +16,7 @@ import { namedContext } from "@/utils/devtools";
 import { assert, error } from "@/utils/error";
 import { toggleSetItem } from "@/utils/set";
 import { getChildrenWithMode, getNodeKey, getNodeName, getParent, TreeMode } from "@/utils/typescript";
-import * as tsquery from "@sadan4/tsquery";
+import { parse } from "@sadan4/tsquery";
 
 import { TreeAccordion } from "../TreeAccordion";
 
@@ -256,7 +256,7 @@ export function NodeTree({
                                 return true;
                             }
                             try {
-                                const selector = tsquery.parse(value);
+                                const selector = parse(value);
 
                                 return selector !== null;
                             } catch {
@@ -286,15 +286,17 @@ export function NodeTree({
     );
 }
 
-function SelectorErrorMessage({ badValue, origCheck }: ErrorMessageProps) {
-    let err: Error;
+function SelectorErrorMessage({ badValue }: ErrorMessageProps) {
+    let err: Error | undefined;
 
+    parse(badValue);
     try {
-        tsquery.parse(badValue);
+        parse(badValue);
     } catch (e) {
-        err = e;
+        err = e as Error;
     }
-    assert(err);
+    assert(err instanceof Error);
+    console.error(err);
     return (
         <div
             className="flex items-center gap-1"
@@ -304,8 +306,9 @@ function SelectorErrorMessage({ badValue, origCheck }: ErrorMessageProps) {
                 color="error"
                 tag="span"
                 noselect
+                className="overflow-clip"
             >
-                Invalid Selector
+                {err.message}
             </Text>
         </div>
     );

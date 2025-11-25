@@ -19,7 +19,7 @@
     "@react-spring/shared": "^10.0.1",
     "@react-spring/web": "^10.0.1",
     "@sadan4/demangler": "^1.0.4",
-    "@sadan4/tsquery": "^7.0.0",
+    "@sadan4/tsquery": "^7.1.0",
     "@shikijs/themes": "^3.13.0",
     "@tailwindcss/vite": "^4.1.8",
     "@use-gesture/react": "^10.3.1",
