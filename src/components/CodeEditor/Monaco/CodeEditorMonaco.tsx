@@ -1,7 +1,8 @@
 import { useControlledState } from "@/hooks/controlledState";
 import { useLock } from "@/hooks/lock";
+import { useRecent } from "@/hooks/recent";
 import { useRect } from "@/hooks/rect";
-import { EMPTY_NULL_OBJECT } from "@/utils/constants";
+import { EMPTY_NULL_OBJECT, NOOP } from "@/utils/constants";
 import { assert, error } from "@/utils/error";
 import { once } from "@/utils/functional";
 import { getMonacoLanguageString, isReadOnly, makeTMLanguageMap, updateModelLanguage, uriForLanguage } from "@/utils/monaco";
@@ -30,6 +31,7 @@ export interface MonacoCodeEditorProps extends CodeEditorProps<MonacoCodeEditorH
     options?: monaco.editor.IStandaloneEditorConstructionOptions;
     uri?: monaco.Uri;
     highlights?: monaco.IRange[];
+    onDidChangeCursorPosition?: (e: monaco.editor.ICursorPositionChangedEvent) => void;
 }
 
 const monacoSetup = once(() => {
@@ -74,6 +76,7 @@ function MonacoCodeEditorInner({
     className,
     uri,
     highlights,
+    onDidChangeCursorPosition = NOOP,
     ref: _ref,
 }: MonacoCodeEditorProps) {
     monacoSetup();
@@ -85,6 +88,7 @@ function MonacoCodeEditorInner({
     const themeString = useMonacoTheme(theme);
     const lock = useLock();
     const decorations = useRef<monaco.editor.IEditorDecorationsCollection | null>(null);
+    const onDidChangeCursorPositionRef = useRecent(onDidChangeCursorPosition);
 
     const [code, setCode] = useControlledState({
         initialValue: initialCode,
@@ -95,6 +99,9 @@ function MonacoCodeEditorInner({
 
     function handleEditorDidMount() {
         assert(editor.current);
+        editor.current.onDidChangeCursorPosition((e) => {
+            onDidChangeCursorPositionRef.current(e);
+        });
         editor.current.onDidChangeModelContent(lock.bindIf(() => {
             const text = editor.current?.getModel()?.getValue() ?? "";
 

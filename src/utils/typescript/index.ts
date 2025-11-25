@@ -1,3 +1,4 @@
+import { markerMap } from "./publicApi.gen&gen";
 import { error, unreachable } from "../error";
 import { Language } from "../textmate";
 
@@ -7,6 +8,7 @@ import {
     ScriptTarget,
     type SourceFile,
     SyntaxKind,
+    type SyntaxList,
     type TextChangeRange,
 } from "typescript";
 
@@ -73,7 +75,12 @@ export function getChildrenWithMode(node: Node, mode: TreeMode): readonly Node[]
 }
 
 export function getNodeName({ kind }: Node): string {
-    return SyntaxKind[kind] ?? "<ERROR>";
+    const ret = SyntaxKind[kind];
+
+    if (markerMap.has(ret)) {
+        return markerMap.get(ret)!;
+    }
+    return ret ?? "<ERROR>";
 }
 
 export function getTextChanges(oldText: string, newText: string): TextChangeRange {
@@ -101,6 +108,47 @@ export function isNode(n: any): n is Node {
     }
 
     return typeof n.kind === "number" && typeof n.pos === "number" && typeof n.end === "number";
+}
+
+export function nodeFromPosition(node: Node, position: number): Node | undefined {
+    const { pos, end } = node;
+
+    if (position < pos || position >= end) {
+        return;
+    }
+
+    const children = node.getChildren();
+
+    for (const child of children) {
+        const res = nodeFromPosition(child, position);
+
+        if (res) {
+            return res;
+        }
+    }
+    return node;
+}
+
+export function isSyntaxList(node: Node): node is SyntaxList {
+    return node.kind === SyntaxKind.SyntaxList;
+}
+
+export function getParent(node: Node): Node | undefined {
+    if (!node.parent) {
+        return;
+    }
+
+    const { parent } = node;
+    const children = parent.getChildren();
+
+    if (children.includes(node)) {
+        return parent;
+    }
+    for (const child of children) {
+        if (isSyntaxList(child) && child.getChildren().includes(node)) {
+            return child;
+        }
+    }
 }
 
 export * from "./publicApi";

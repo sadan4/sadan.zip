@@ -199,25 +199,23 @@ export function truthy<T>(i: T): i is Exclude<T, false | null | undefined | 0> {
     return !!i;
 }
 
-type Primitive = string | number | boolean | bigint | symbol | null | undefined;
+export type Primitive = string | number | boolean | bigint | symbol | null | undefined;
 
 export function isPrimitive(value: any): value is Primitive {
     const t = typeof value;
 
-    switch (t) {
-        case "string":
-        case "number":
-        case "boolean":
-        case "bigint":
-        case "symbol":
-        case "undefined":
-            return true;
-        case "object":
-            return value === null;
-        case "function":
-            return false;
-        // no default
+    if (t === "object") {
+        return value === null;
+    } else if (t === "function") {
+        return false;
     }
+    return true;
+}
+
+export function isValidSingleJsonValue(value: any): value is Exclude<Primitive, symbol | bigint> {
+    const t = typeof value;
+
+    return t !== "symbol" && t !== "bigint" && isPrimitive(value);
 }
 
 export type ShallowMutable<T> = {

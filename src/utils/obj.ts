@@ -57,3 +57,14 @@ export function pick<T extends Object, K extends keyof T>(obj: T, keys: K[]): Pi
 
     return result as R;
 }
+
+export function getPropertyDescriptor(obj: object, prop: PropertyKey): PropertyDescriptor | undefined {
+    let cur: any = obj;
+    let res: PropertyDescriptor | undefined;
+
+    do {
+        res = Object.getOwnPropertyDescriptor(cur, prop);
+    } while (!res && (cur = Object.getPrototypeOf(cur)));
+
+    return res;
+}

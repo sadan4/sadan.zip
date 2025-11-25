@@ -14,7 +14,7 @@ import { type PropsWithChildren, type ReactNode, type Ref, useContext, useEffect
 
 export interface AccordionItem {
     id: string;
-    contents: ReactNode;
+    contents: ReactNode | (() => ReactNode);
 }
 
 export interface AccordionProps extends PropsWithChildren {
@@ -59,7 +59,7 @@ export function Accordion({
     arrowPosition = ArrowPosition.RIGHT,
     clicableArea = ClickableArea.ALL,
     onToggle = NOOP,
-    animation = AccordionAnimation.ALL,
+    animation = AccordionAnimation.NONE,
 }: AccordionProps) {
     const [active, setActive] = useControlledState({
         initialValue: initialOpen,
@@ -112,7 +112,7 @@ export function Accordion({
 
     const content = (
         <div>
-            {active && contents}
+            {active && <>{typeof contents === "function" ? contents() : contents}</>}
         </div>
     );
 

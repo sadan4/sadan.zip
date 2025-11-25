@@ -4,8 +4,9 @@ import { ResizableSidebar, Side, SidebarStateStoreProvider } from "@/components/
 import { useConsoleHelpers } from "@/hooks/consoleHelpers";
 import { useSourceFile } from "@/hooks/sourceFile";
 import cn from "@/utils/cn";
-import { getVisibleNodeRange, TreeMode } from "@/utils/typescript";
+import { getVisibleNodeRange, nodeFromPosition, TreeMode } from "@/utils/typescript";
 
+import { SourceFileContext } from "./PropViewer/context";
 import { NodeTree } from "./NodeTree";
 import { PropViewer } from "./PropViewer";
 import { astViewerStore, leftAstSidebarStateStore, rightAstSidebarStateStore, updateASTViewerCode } from "./store";
@@ -64,7 +65,7 @@ export default function ASTViewer() {
             <div className={cn(styles.container)}>
                 <header className={styles.header}>header</header>
                 <div
-                    className={cn(styles.main, "handle-hover-info-300/25 handle-transparent")}
+                    className={cn(styles.main, "handle-hover-info-300/25 handle-transparent sb-track-transparent")}
                     ref={sidebarBoundingRef}
                 >
                     <SidebarStateStoreProvider store={leftAstSidebarStateStore}>
@@ -83,6 +84,20 @@ export default function ASTViewer() {
                                     updateASTViewerCode(newCode);
                                 }}
                                 highlights={editorHighlights}
+                                onDidChangeCursorPosition={({ position }) => {
+                                    const offset = editorRef.current!.editor.getModel()?.getOffsetAt(position);
+
+                                    if (offset == null) {
+                                        return;
+                                    }
+
+                                    const node = nodeFromPosition(sourceFile, offset);
+
+                                    if (!node) {
+                                        return;
+                                    }
+                                    setSelectedNode(node);
+                                }}
                             />
                         </ResizableSidebar>
                     </SidebarStateStoreProvider>
@@ -103,7 +118,14 @@ export default function ASTViewer() {
                             defaultSize={1 - (1 / 3)}
                             handleClassName={styles.handle}
                         >
-                            { selectedNode && <PropViewer node={selectedNode} /> }
+                            <SourceFileContext value={sourceFile}>
+                                {selectedNode && (
+                                    <PropViewer
+                                        node={selectedNode}
+                                        onSelectNode={setSelectedNode}
+                                    />
+                                )}
+                            </SourceFileContext>
                         </ResizableSidebar>
                     </SidebarStateStoreProvider>
                 </div>

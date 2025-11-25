@@ -3,7 +3,7 @@ import { dedent } from "../string";
 
 import { join } from "node:path";
 import type { GeneratorArgs } from "rollup-plugin-generate";
-import { createProgram, type Program, type SourceFile, type Symbol, type Type, type TypeChecker } from "typescript";
+import { createProgram, type Program, type SourceFile, type Symbol, SyntaxKind, type Type, type TypeChecker } from "typescript";
 
 interface NodeEntry {
     name: string;
@@ -104,6 +104,28 @@ class DTSAnalyzer {
             .filter((p) => !p.startsWith("_"));
     }
 
+    private _markerMap: Map<string, string> | null = null;
+
+    getMarkerMap(): Map<string, string> {
+        if (this._markerMap) {
+            return this._markerMap;
+        }
+
+        const ret = new Map<string, string>();
+        const firstOrLastMarkers = Object.keys(SyntaxKind).filter((k) => k.startsWith("First") || k.startsWith("Last"));
+
+        for (const marker of firstOrLastMarkers) {
+            for (const key in SyntaxKind) {
+                if (SyntaxKind[key as keyof typeof SyntaxKind] === SyntaxKind[marker as keyof typeof SyntaxKind]) {
+                    ret.set(marker, key);
+                    break;
+                }
+            }
+        }
+
+        return (this._markerMap = ret);
+    }
+
     generate(): NodeEntry[] {
         const nodes: Map<string, Set<string>> = new Map();
 
@@ -118,6 +140,12 @@ class DTSAnalyzer {
 
             for (const kind of kinds) {
                 nodes.set(kind, (nodes.get(kind) ?? new Set()).union(props));
+            }
+        }
+
+        for (const [marker, resolved] of this.getMarkerMap()) {
+            if (nodes.has(resolved)) {
+                nodes.set(marker, nodes.get(resolved)!);
             }
         }
 
@@ -151,7 +179,7 @@ export function generate(_: GeneratorArgs) {
     return dedent`
         // This file is generated. Do not edit.
 
-        type PublicNodeProperties = Readonly<Map<string, Readonly<Set<string>>>>;
+        type PublicNodeProperties = ReadonlyMap<string, ReadonlySet<string>>;
 
         export const publicNodeProperties: PublicNodeProperties = Object.freeze(new Map([
             ${nodes
@@ -172,5 +200,7 @@ export function generate(_: GeneratorArgs) {
                 /* eslint-enable @stylistic/indent */
             }
         ]));
+
+        export const markerMap: ReadonlyMap<string, string> = Object.freeze(new Map(${JSON.stringify(Array.from(analyzer.getMarkerMap()))}));
     `;
 }

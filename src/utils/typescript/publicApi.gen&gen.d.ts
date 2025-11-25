@@ -1,4 +1,5 @@
 /* eslint-disable */
-type PublicNodeProperties = Readonly<Map<string, Readonly<Set<string>>>>;
+type PublicNodeProperties = ReadonlyMap<string, ReadonlySet<string>>;
 export declare const publicNodeProperties: PublicNodeProperties;
+export declare const markerMap: ReadonlyMap<string, string>;
 export {};

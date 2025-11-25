@@ -1,5 +1,7 @@
 import { useRecent } from "./recent";
 
+import type { RefCallback } from "react";
+
 
 export const enum KeybindModifiers {
     NONE = 0,
@@ -13,6 +15,7 @@ export const enum KeybindModifiers {
 
 // https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_key_values
 // https://www.toptal.com/developers/keycode
+// TODO: make this a enum
 export namespace KeybindKeys {
     export const ESCAPE = "Escape";
 
@@ -42,6 +45,11 @@ export namespace KeybindKeys {
     export const X = "x";
     export const Y = "y";
     export const Z = "z";
+
+    export const Right = "ArrowRight";
+    export const Left = "ArrowLeft";
+    export const Up = "ArrowUp";
+    export const Down = "ArrowDown";
 }
 
 export interface Keybind {
@@ -51,7 +59,7 @@ export interface Keybind {
     modifiers?: number;
     /**
      * The key to bind to.
-     * 
+     *
      * @see {@link KeybindKeys}
      */
     key: typeof KeybindKeys[keyof typeof KeybindKeys];
@@ -84,7 +92,7 @@ export function matchesEvent(ev: KeyboardEvent, keybind: Keybind): boolean {
     return makeModifierMask(ev) === (keybind.modifiers ?? KeybindModifiers.NONE);
 }
 
-export function useKeybinds(keybinds: Keybind[]): (ref: HTMLElement | null) => () => void {
+export function useKeybinds(keybinds: Keybind[]): RefCallback<HTMLElement> {
     const keybindsRef = useRecent(keybinds);
 
     function callValidBinds(mode: "down" | "up", ev: KeyboardEvent) {
@@ -105,11 +113,9 @@ export function useKeybinds(keybinds: Keybind[]): (ref: HTMLElement | null) => (
         const controller = new AbortController();
 
         ref.addEventListener("keydown", callValidBinds.bind(null, "down"), {
-            passive: true,
             signal: controller.signal,
         });
         ref.addEventListener("keyup", callValidBinds.bind(null, "up"), {
-            passive: true,
             signal: controller.signal,
         });
 
