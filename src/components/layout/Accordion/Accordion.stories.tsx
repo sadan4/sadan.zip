@@ -22,7 +22,7 @@ export const Default: Story = {
     args: {
         item: {
             id: "item-1",
-            render() {
+            contents() {
                 return <Text>Single Accordion Content</Text>;
             },
         },
@@ -41,7 +41,7 @@ export const OnlyOneOpen: Story = {
                 <Accordion
                     item={{
                         id: "1",
-                        render() {
+                        contents() {
                             return <Text size="md">This is the content of Accordion 1.</Text>;
                         },
                     }}
@@ -51,7 +51,7 @@ export const OnlyOneOpen: Story = {
                 <Accordion
                     item={{
                         id: "2",
-                        render() {
+                        contents() {
                             return <Text size="md">{lorem}</Text>;
                         },
                     }}
@@ -61,7 +61,7 @@ export const OnlyOneOpen: Story = {
                 <Accordion
                     item={{
                         id: "3",
-                        render() {
+                        contents() {
                             return <Text size="md">This is the content of Accordion 3.</Text>;
                         },
                     }}
@@ -104,7 +104,7 @@ export const CloseAllButton: Story = {
                     <Accordion
                         item={{
                             id: "1",
-                            render() {
+                            contents() {
                                 return <Text size="md">This is the content of Accordion 1.</Text>;
                             },
                         }}
@@ -114,7 +114,7 @@ export const CloseAllButton: Story = {
                     <Accordion
                         item={{
                             id: "2",
-                            render() {
+                            contents() {
                                 return <Text size="md">{lorem}</Text>;
                             },
                         }}
@@ -124,7 +124,7 @@ export const CloseAllButton: Story = {
                     <Accordion
                         item={{
                             id: "3",
-                            render() {
+                            contents() {
                                 return <Text size="md">This is the content of Accordion 3.</Text>;
                             },
                         }}

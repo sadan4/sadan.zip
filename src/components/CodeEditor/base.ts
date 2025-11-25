@@ -4,6 +4,7 @@ import type { Ref } from "react";
 
 export interface CodeEditorProps<THandle> {
     initialCode?: string;
+    code?: string;
     onChange?(newCode: string): void;
     language?: Language;
     width?: string;

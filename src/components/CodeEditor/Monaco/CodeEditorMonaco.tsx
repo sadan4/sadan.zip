@@ -1,13 +1,16 @@
 import { useControlledState } from "@/hooks/controlledState";
+import { useLock } from "@/hooks/lock";
+import { useRecent } from "@/hooks/recent";
 import { useRect } from "@/hooks/rect";
-import { EMPTY_NULL_OBJECT } from "@/utils/constants";
+import { EMPTY_NULL_OBJECT, NOOP } from "@/utils/constants";
 import { assert, error } from "@/utils/error";
 import { once } from "@/utils/functional";
+import { getMonacoLanguageString, isReadOnly, makeTMLanguageMap, updateModelLanguage, uriForLanguage } from "@/utils/monaco";
 import { loadOnigasmPromise } from "@/utils/oniguruma";
-import { Language } from "@/utils/textmate";
-import { getLanguageDeps } from "@/utils/textmate/grammars";
+import { hasGrammar, Language } from "@/utils/textmate";
 
 import { registry, wireTmGrammars } from "./grammars";
+import styles from "./styles.module.scss";
 import { DEFAULT_MONACO_THEME, type MonacoTheme, useMonacoTheme } from "./themes";
 import { type CodeEditorProps } from "../base";
 
@@ -27,6 +30,8 @@ export interface MonacoCodeEditorProps extends CodeEditorProps<MonacoCodeEditorH
     theme?: MonacoTheme;
     options?: monaco.editor.IStandaloneEditorConstructionOptions;
     uri?: monaco.Uri;
+    highlights?: monaco.IRange[];
+    onDidChangeCursorPosition?: (e: monaco.editor.ICursorPositionChangedEvent) => void;
 }
 
 const monacoSetup = once(() => {
@@ -61,6 +66,7 @@ const monacoSetup = once(() => {
 
 function MonacoCodeEditorInner({
     initialCode = "",
+    code: userCode,
     language = Language.UNKNOWN,
     onChange,
     theme = DEFAULT_MONACO_THEME,
@@ -69,6 +75,8 @@ function MonacoCodeEditorInner({
     options = EMPTY_NULL_OBJECT,
     className,
     uri,
+    highlights,
+    onDidChangeCursorPosition = NOOP,
     ref: _ref,
 }: MonacoCodeEditorProps) {
     monacoSetup();
@@ -78,21 +86,27 @@ function MonacoCodeEditorInner({
     const rect = useRect(ref);
     const editor = useRef<monaco.editor.IStandaloneCodeEditor>(null);
     const themeString = useMonacoTheme(theme);
+    const lock = useLock();
+    const decorations = useRef<monaco.editor.IEditorDecorationsCollection | null>(null);
+    const onDidChangeCursorPositionRef = useRecent(onDidChangeCursorPosition);
 
     const [code, setCode] = useControlledState({
         initialValue: initialCode,
-        managedValue: undefined,
+        managedValue: userCode,
         handleChange: onChange,
         debugName: "MonacoCodeEditor.code",
     });
 
     function handleEditorDidMount() {
         assert(editor.current);
-        editor.current.onDidChangeModelContent(() => {
+        editor.current.onDidChangeCursorPosition((e) => {
+            onDidChangeCursorPositionRef.current(e);
+        });
+        editor.current.onDidChangeModelContent(lock.bindIf(() => {
             const text = editor.current?.getModel()?.getValue() ?? "";
 
             setCode(text);
-        });
+        }));
     }
 
     useImperativeHandle(_ref, () => ({
@@ -102,11 +116,13 @@ function MonacoCodeEditorInner({
     }));
 
     const setupThemes = useCallback(function updateLanguages(editor: monaco.editor.ICodeEditor) {
-        monaco.languages.register({ id: getLanguageString(language) });
+        if (!hasGrammar(language)) {
+            return;
+        }
 
-        const map = getLanguageDeps(language).map((lang) => [getLanguageString(lang), lang] as const);
+        const langDepsMap = makeTMLanguageMap(language);
 
-        wireTmGrammars(registry(), new Map(map), editor, themeString)
+        wireTmGrammars(registry(), langDepsMap, editor, themeString)
             .then(() => monaco.editor.setTheme(themeString));
     }, [language, themeString]);
 
@@ -126,13 +142,13 @@ function MonacoCodeEditorInner({
             if (model) {
                 model.setValue(code);
 
-                const langStr = getLanguageString(language);
-
-                if (langStr) {
-                    monaco.editor.setModelLanguage(model, langStr);
-                }
+                updateModelLanguage(model, language);
             } else {
-                model = monaco.editor.createModel(code, getLanguageString(language), uri);
+                model = monaco.editor.createModel(
+                    code,
+                    getMonacoLanguageString(language),
+                    uri ?? uriForLanguage(language),
+                );
             }
             mergedOptions.model = model;
         }
@@ -186,30 +202,76 @@ function MonacoCodeEditorInner({
         editor.current?.dispose();
     }, []);
 
+    useEffect(() => {
+        const model = editor.current?.getModel();
+
+        if (!model) {
+            return;
+        }
+
+        updateModelLanguage(model, language);
+    }, [language]);
+
+    useEffect(() => {
+        const model = editor.current?.getModel();
+
+        if (!model) {
+            return;
+        }
+
+        const modelText = model.getValue();
+
+        if (modelText === code) {
+            return;
+        }
+
+        const e = editor.current!;
+        const readOnly = isReadOnly(e);
+
+        lock.lockWhile(() => {
+            if (readOnly) {
+                model.setValue(code);
+            } else {
+                e.executeEdits("", [
+                    {
+                        range: model.getFullModelRange(),
+                        text: code,
+                        forceMoveMarkers: true,
+                    },
+                ]);
+                e.pushUndoStop();
+            }
+        });
+    }, [code, lock]);
+
+    useEffect(() => {
+        if (!editor.current) {
+            return;
+        }
+        if (!highlights?.length) {
+            decorations.current?.clear();
+            return;
+        }
+        decorations.current ??= editor.current.createDecorationsCollection();
+
+        const newDecorations = highlights.map((range) => ({
+            range,
+            options: {
+                className: styles.highlight,
+            },
+        }) satisfies monaco.editor.IModelDeltaDecoration);
+
+        decorations.current.set(newDecorations);
+    }, [highlights]);
+
     return (
         <div
-            ref={setRef}
             style={style}
+            ref={setRef}
+            className="h-full w-full"
             data-code-editor="monaco"
         />
     );
-}
-
-
-const monacoLanguageStringMap: Readonly<Record<Language, string>> = Object.freeze({
-    [Language.TYPESCRIPT]: "typescript",
-    [Language.TYPESCRIPT_REACT]: "typescript",
-    [Language.JAVASCRIPT]: "javascript",
-    [Language.JAVASCRIPT_REACT]: "javascript",
-    [Language.JSON]: "json",
-    [Language.HTML]: "html",
-    [Language.PLAINTEXT]: "plaintext",
-    [Language.UNKNOWN]: "plaintext",
-    [Language.CSS]: "css",
-} satisfies Record<Language, string>);
-
-function getLanguageString(language: Language): string {
-    return monacoLanguageStringMap[language] || error(`unsupported language: ${language}`);
 }
 
 export function MonacoCodeEditor(props: MonacoCodeEditorProps) {

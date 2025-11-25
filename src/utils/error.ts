@@ -10,6 +10,14 @@ class AssertionError extends Error {
     }
 }
 
+class NotImplementedError extends Error {
+    name = "NotImplementedError";
+
+    constructor(msg?: string) {
+        super(msg);
+    }
+}
+
 export function assert(cond: unknown, msg?: string): asserts cond {
     if (!cond) {
         throw new AssertionError(msg);
@@ -20,6 +28,6 @@ export function unreachable(msg?: string): never {
     throw new AssertionError(msg || "unreachable");
 }
 
-export function todo() {
-    error("todo");
+export function todo(msg?: string) {
+    throw new NotImplementedError(msg);
 }

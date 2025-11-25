@@ -1,3 +1,4 @@
+import { useRectFromRef } from "@/hooks/rect";
 import { cn } from "@/utils/cn";
 
 import { defaultInitialSize, HIDE_THRESHOLD, Side, SidebarStateStoreContext, useSidebarStateStore } from "./store";
@@ -8,8 +9,9 @@ import { useShallow } from "zustand/react/shallow";
 
 export interface SidebarProps extends PropsWithChildren {
     side: Side;
-    boundingElement: RefObject<HTMLDivElement | null>;
+    boundingElement: RefObject<HTMLElement | null>;
     defaultSize?: number;
+    handleClassName?: string;
 }
 
 export function ResizableSidebar({
@@ -17,6 +19,7 @@ export function ResizableSidebar({
     defaultSize = defaultInitialSize(side),
     children,
     boundingElement,
+    handleClassName,
 }: SidebarProps) {
     const store = useContext(SidebarStateStoreContext)!;
     const [contentRef, setContentRef] = useState<HTMLDivElement | null>(null);
@@ -27,7 +30,14 @@ export function ResizableSidebar({
         handleHidden,
     })));
 
+    const { top, height, width } = useRectFromRef(boundingElement) ?? {};
     const [shouldDispatch, setShouldDispatch] = useState(true);
+
+    useEffect(() => {
+        if (width != null) {
+            store.getState().setContainerWidth(width);
+        }
+    }, [store, width]);
 
     useEffect(() => {
         store.getState().setRef(contentRef);
@@ -60,12 +70,13 @@ export function ResizableSidebar({
         };
     }, [side, sidebarApiRef, store]);
 
+
     return (
         <>
             {side === Side.LEFT && (
                 <div
                     ref={setContentRef}
-                    className={cn(hidden && "hidden", "overflow-x-hidden")}
+                    className={cn(hidden && "hidden")}
                 >
                     {children}
                 </div>
@@ -90,12 +101,18 @@ export function ResizableSidebar({
                     }
                     setShouldDispatch(!hidden);
                 }}
-                className={cn((hidden || handleHidden) && "pointer-events-none opacity-0", shouldDispatch || "pointer-events-none")}
+                className={cn((hidden || handleHidden) && "pointer-events-none opacity-0", shouldDispatch || "pointer-events-none", handleClassName)}
+                style={{
+                    top,
+                    height,
+                }}
+                minPosition={side === Side.RIGHT ? 0.5 : undefined}
+                maxPosition={side === Side.LEFT ? 0.5 : undefined}
             />
             {side === Side.RIGHT && (
                 <div
                     ref={setContentRef}
-                    className={cn(hidden && "hidden", "overflow-x-hidden")}
+                    className={cn(hidden && "hidden")}
                 >
                     {children}
                 </div>

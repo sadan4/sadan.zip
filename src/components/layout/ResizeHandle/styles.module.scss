@@ -5,14 +5,18 @@
         @include u.anim-prop(background-color);
         @include u.anim-dur;
 
+        $handle-color: var(--handle-color, u.alpha(var(--color-bg-300) 40%));
+
         --handle-width: .5rem;
 
         position: absolute;
-        background-color: u.alpha(var(--color-bg-300) 40%);
+        background-color: $handle-color;
 
         &.dragging,
         &:hover {
-            background-color: u.alpha(var(--color-info-700) 80%);
+            $handle-color: var(--handle-color-hover, u.alpha(var(--color-info-700) 80%));
+
+            background-color: $handle-color;
         }
     }
 

@@ -15,3 +15,14 @@ export function once<T extends (...args: any[]) => any>(fn: T): T {
 export function prop<O extends object, K extends keyof O>(key: K): (obj: O) => O[K] {
     return (obj) => obj[key];
 }
+
+export function debounce<
+    F extends (...args: any) => any,
+>(func: F, delay = 300): (...args: Parameters<F>) => undefined {
+    let timeout: number | NodeJS.Timeout;
+
+    return function (...args: Parameters<F>): undefined {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func(...args), delay);
+    };
+}

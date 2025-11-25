@@ -1,0 +1,34 @@
+@layer components {
+    .label {
+        display: flex;
+        align-items: center;
+        cursor: unset;
+
+        &.right {
+            justify-content: space-between;
+        }
+
+        &.left {
+            flex-direction: row-reverse;
+            justify-content: flex-end;
+        }
+
+        &.clickable-row {
+            cursor: pointer;
+        }
+
+        .arrow {
+            height: 2rem;
+            width: 2rem;
+            fill: none;
+            stroke: var(--color-fg-500);
+
+        }
+
+        &.clickable-arrow {
+            .arrow-wrapper {
+                cursor: pointer;
+            }
+        }
+    }
+}

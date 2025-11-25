@@ -15,6 +15,8 @@ export interface SidebarStateStore {
      * the value is in the range 0-1, representing the percentage of the sidebar's width relative to its container.
      */
     width: number;
+    readonly containerWidth: number;
+    setContainerWidth(width: number): void;
     /**
      * Set the current width of the sidebar.
      *
@@ -39,11 +41,12 @@ export function createSidebarStateStore(hideThreshold = HIDE_THRESHOLD) {
         width: DEFAULT_WIDTH,
         ref: null,
         sidebarApi: createRef(),
+        containerWidth: 0,
         setWidth(width) {
-            const { ref } = get();
+            const { ref, containerWidth } = get();
 
             if (ref) {
-                ref.style.width = `${width}%`;
+                ref.style.width = `${(width / 100) * containerWidth}px`;
             }
 
             let handleHidden = false;
@@ -52,7 +55,7 @@ export function createSidebarStateStore(hideThreshold = HIDE_THRESHOLD) {
                 if (width > (hideThreshold / 2)) {
                     width = hideThreshold;
                     if (ref) {
-                        ref.style.width = `${width}%`;
+                        ref.style.width = `${(width / 100) * containerWidth}px`;
                     }
                     handleHidden = true;
                     set({
@@ -70,6 +73,13 @@ export function createSidebarStateStore(hideThreshold = HIDE_THRESHOLD) {
                 handleHidden,
             });
         },
+        setContainerWidth(containerWidth) {
+            set({ containerWidth });
+
+            const { width, setWidth } = get();
+
+            setWidth(width);
+        },
         hide() {
             set({ hidden: true });
         },
@@ -85,13 +95,13 @@ export function createSidebarStateStore(hideThreshold = HIDE_THRESHOLD) {
             });
         },
         setRef(ref) {
-            const { hidden, width } = get();
+            const { hidden, width, containerWidth } = get();
 
             if (ref) {
                 if (hidden) {
                     ref.style.width = "0";
                 } else {
-                    ref.style.width = `${width}%`;
+                    ref.style.width = `${(width / 100) * containerWidth}px`;
                 }
             }
             set({ ref });

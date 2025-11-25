@@ -47,7 +47,7 @@ export interface StandardTextProps extends SizeProp, WeightProp {
     color?: keyof typeof textColors;
 }
 
-export type TextProps<T extends TextTags> = PropsWithChildren<ComponentProps<T>> & StandardTextProps & {
+export type TextProps<T extends TextTags = "div"> = PropsWithChildren<ComponentProps<T>> & StandardTextProps & {
     tag?: T;
 };
 

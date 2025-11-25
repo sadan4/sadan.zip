@@ -128,6 +128,23 @@ const router = createBrowserRouter([
                     };
                 },
             },
+            {
+                path: "ast-viewer",
+                loader(): LoaderData {
+                    return {
+                        config: {
+                            solidBg: true,
+                        },
+                    };
+                },
+                async lazy() {
+                    const Component = (await import("./pages/ast-viewer")).default;
+
+                    return {
+                        Component,
+                    };
+                },
+            },
         ],
     },
 ]);

@@ -199,6 +199,25 @@ export function truthy<T>(i: T): i is Exclude<T, false | null | undefined | 0> {
     return !!i;
 }
 
+export type Primitive = string | number | boolean | bigint | symbol | null | undefined;
+
+export function isPrimitive(value: any): value is Primitive {
+    const t = typeof value;
+
+    if (t === "object") {
+        return value === null;
+    } else if (t === "function") {
+        return false;
+    }
+    return true;
+}
+
+export function isValidSingleJsonValue(value: any): value is Exclude<Primitive, symbol | bigint> {
+    const t = typeof value;
+
+    return t !== "symbol" && t !== "bigint" && isPrimitive(value);
+}
+
 export type ShallowMutable<T> = {
     -readonly [P in keyof T]: T[P];
 };
@@ -210,3 +229,9 @@ export type ShallowReadonly<T> = {
 export type AssertedType0<T> = T extends (arg0: any, ...rest: any[]) => arg0 is infer U ? U : never;
 export type AssertedType<T> = AssertedType0<T>;
 export type AssertedType1<T> = T extends (arg0: any, arg1: any, ...rest: any[]) => arg1 is infer U ? U : never;
+
+export type TOmit<T, K extends keyof T> = Omit<T, K>;
+
+export type Reducer<State, Action> = (state: State, action: Action) => State;
+
+export type InitialState<T> = T | (() => T);
