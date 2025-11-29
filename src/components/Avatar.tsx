@@ -21,7 +21,7 @@ const preloadFriends = once(function preloadFriends() {
     for (const { avatarUrl } of friends) {
         const img = new Image();
 
-        img.src = avatarUrl.toString();
+        img.src = avatarUrl;
     }
 });
 

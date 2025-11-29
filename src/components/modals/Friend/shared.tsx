@@ -11,6 +11,7 @@ import { Tooltip } from "@/components/Tooltip";
 import type { TooltipPosition } from "@/components/Tooltip/constants";
 import { useRect } from "@/hooks/rect";
 import { discordUrl } from "@/utils/constants";
+import { assert } from "@/utils/error";
 import type { Friend } from "@/utils/friends";
 
 import { FRIEND_CARD_CIRCLE_DIAMETER } from "./other";
@@ -22,8 +23,8 @@ interface FriendCardProps {
     friend: Friend;
 }
 
-
 function C88X31({ friend }: FriendCardProps) {
+    assert(friend._88x31url, "missing 88x31 url");
     return (
         <Clickable
             tag="a"
@@ -34,7 +35,7 @@ function C88X31({ friend }: FriendCardProps) {
         >
             <img
                 className="h-[31px] w-[88px] [image-rendering:pixelated]"
-                src={friend._88x31url?.toString()}
+                src={friend._88x31url}
                 alt={`${friend.name} 88x31 banner`}
             />
         </Clickable>
@@ -91,16 +92,26 @@ function FriendCard({ friend }: FriendCardProps) {
                     )
             }
             <Fragment key="discord">
-                <Clickable
-                    tag="a"
-                    href={discordUrl(friend.discordId)
-                        .toString()}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex size-12 items-center justify-center rounded-full bg-bg-100"
-                >
-                    <Discord className="size-8" />
-                </Clickable>
+                {
+                    friend.discordId
+                        ? (
+                            <Clickable
+                                tag="a"
+                                href={discordUrl(friend.discordId)
+                                    .toString()}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex size-12 items-center justify-center rounded-full bg-bg-100"
+                            >
+                                <Discord className="size-8" />
+                            </Clickable>
+                        )
+                        : (
+                            <div className="flex size-12 cursor-not-allowed items-center justify-center rounded-full bg-bg-100 text-info-400 brightness-50">
+                                <Discord className="size-8" />
+                            </div>
+                        )
+                }
             </Fragment>
         </CircleItems>
     );
@@ -149,7 +160,7 @@ export function FriendButton({ friend, tooltipPosition, mobile }: FriendButtonPr
                                 ref={mobile && setEl}
                                 onMouseOver={() => {
                                     if (friend._88x31url) {
-                                        preload(friend._88x31url.toString(), { as: "image" });
+                                        preload(friend._88x31url, { as: "image" });
                                     }
                                 }}
                             >
@@ -158,7 +169,7 @@ export function FriendButton({ friend, tooltipPosition, mobile }: FriendButtonPr
                                 >
                                     <Shadow>
                                         <img
-                                            src={friend.avatarUrl.toString()}
+                                            src={friend.avatarUrl}
                                             // cursed, but doesn't work otherwise
                                             className="h-24 max-h-24 min-h-24 w-24 max-w-24 min-w-24 rounded-full select-none"
                                             draggable={false}
