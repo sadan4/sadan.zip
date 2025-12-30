@@ -27,3 +27,5 @@ dist-ssr
 *storybook.log
 storybook-static
 .vite-inspect
+dist.server
+builds

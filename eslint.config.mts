@@ -651,7 +651,7 @@ const tailwindCallees = Object.freeze({
 });
 
 export default TSEslint.config({ ignores: ["dist"] }, {
-    files: [`src/**/*.${extensions}`, `eslint.config.${extensions}`, `vite.config.${extensions}`, `stylelint.config.${extensions}`, `vitest.config.${extensions}`, `.storybook/*.${extensions}`],
+    files: [`src/**/*.${extensions}`, `server/**/*.${extensions}`, `eslint.config.${extensions}`, `vite.config.${extensions}`, `stylelint.config.${extensions}`, `vitest.config.${extensions}`, `.storybook/*.${extensions}`],
     plugins: {
         "@stylistic": stylistic,
         "@typescript-eslint": TSEslint.plugin,
