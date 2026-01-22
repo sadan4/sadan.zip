@@ -42,6 +42,10 @@ function Sadan88x31Button(props: Sadan88x31ButtonProps) {
     );
 }
 
+export const Route = createFileRoute("/_layout/e/")({
+    component: ButtonPage,
+});
+
 // 88x31 button page
 function ButtonPage() {
     return (
@@ -101,5 +105,3 @@ function ButtonPage() {
         </>
     );
 }
-
-export const Route = createFileRoute("/_layout/e/")();

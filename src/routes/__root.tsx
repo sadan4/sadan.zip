@@ -45,8 +45,8 @@ export const Route = createRootRouteWithContext<RouterContext>()({
                         {
                             type: "module",
                             children: dedent/* js */`
-                                import RefreshRuntime from "/@react-refresh"
-                                RefreshRuntime.injectIntoGlobalHook(window)
+                                import injectIntoGlobalHook from "/@react-refresh"
+                                injectIntoGlobalHook(window)
                                 window.$RefreshReg$ = () => {}
                                 window.$RefreshSig$ = () => (type) => type
                                 window.__vite_plugin_react_preamble_installed__ = true

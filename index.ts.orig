@@ -1,0 +1,118 @@
+import {extname, join} from 'node:path'
+import express from 'express'
+import getPort, { portNumbers } from 'get-port'
+import * as zlib from 'node:zlib'
+import type { ViteDevServer } from 'vite'
+
+const isTest = process.env.NODE_ENV === 'test' || !!process.env.VITE_TEST_BUILD
+
+
+const __dirname: string = import.meta.dirname;
+
+const EXPECTED_DEV_VITE_HEAD = '\n' +
+    '  <script type="module">import { injectIntoGlobalHook } from "/@react-refresh";\n' +
+    'injectIntoGlobalHook(window);\n' +
+    'window.$RefreshReg$ = () => {};\n' +
+    'window.$RefreshSig$ = () => (type) => type;</script>\n' +
+    '\n' +
+    '  <script type="module" src="/@vite/client"></script>\n';
+
+export async function createServer(
+  root = process.cwd(),
+  isProd = process.env.NODE_ENV === 'production',
+  hmrPort?: number,
+) {
+  const app = express()
+
+  let vite: ViteDevServer | undefined
+  if (!isProd) {
+    vite = await (
+      await import('vite')
+    ).createServer({
+      root,
+      logLevel: isTest ? 'error' : 'info',
+      server: {
+        middlewareMode: true,
+        watch: {
+          // During tests we edit the files too fast and sometimes chokidar
+          // misses change events, so enforce polling for consistency
+          usePolling: true,
+          interval: 100,
+        },
+        hmr: {
+          port: hmrPort,
+        },
+      },
+      appType: 'custom',
+    })
+    // use vite's connect instance as middleware
+    app.use(vite.middlewares)
+  } else {
+    app.use(
+      (await import('compression')).default({
+        brotli: {
+          flush: zlib.constants.BROTLI_OPERATION_FLUSH,
+        },
+        flush: zlib.constants.Z_SYNC_FLUSH,
+      }),
+    )
+  }
+
+  if (isProd) app.use(express.static(join(__dirname, "dist", "client"), { dotfiles: "allow" }));
+
+  app.use('*', async (req, res) => {
+    try {
+      const url = req.originalUrl
+
+      if (extname(url) !== '') {
+        console.warn(`${url} is not valid router path`)
+        res.status(404)
+        res.end(`${url} is not valid router path`)
+        return
+      }
+
+      // Best effort extraction of the head from vite's index transformation hook
+      let viteHead = !isProd
+        ? await vite!.transformIndexHtml(
+            url,
+            `<html><head></head><body></body></html>`,
+          )
+        : ''
+
+      viteHead = viteHead.substring(
+        viteHead.indexOf('<head>') + 6,
+        viteHead.indexOf('</head>'),
+      )
+
+      const entry = await (async () => {
+        if (!isProd) {
+          return vite!.ssrLoadModule('/src/server.tsx') as never;
+        } else {
+          return import('./dist/server/server.js') as any as typeof import("./src/server.tsx");
+        }
+      })()
+
+      console.info('Rendering: ', url, '...')
+      if (viteHead !== (isProd ? "" : EXPECTED_DEV_VITE_HEAD)) {
+        console.log({ viteHead });
+        // update __root.tsx head() to match changes in vite head injection
+        console.warn("unexpected vite head content, could cause bugs");
+      }
+      entry.render({ req, res });
+    } catch (e) {
+      !isProd && vite!.ssrFixStacktrace(e)
+      console.info(e.stack)
+      res.status(500).end(e.stack)
+    }
+  })
+
+  return { app, vite }
+}
+
+if (!isTest) {
+  createServer().then(async ({ app }) =>
+    app.listen(await getPort({ port: portNumbers(3000, 3100) }), () => {
+      console.info('Client Server: http://localhost:3000')
+    }),
+  )
+}

@@ -79,6 +79,8 @@
     "get-port": "^7.1.0",
     "jiti": "^2.4.2",
     "open": "^11.0.0",
+    "ora": "^9.1.0",
+    "picocolors": "^1.1.1",
     "rollup-plugin-generate": "^1.2.2",
     "storybook": "^10.0.0",
     "stylelint": "^16.24.0",

@@ -43,10 +43,10 @@ function Links() {
 }
 
 export const Route = createFileRoute("/_layout/")({
-    component: App,
+    component: HomePage,
 });
 
-function App() {
+function HomePage() {
     return (
         <>
             <Boilerplate />
