@@ -6,12 +6,12 @@ import { Text } from "@/components/Text";
 import { TextArea } from "@/components/TextArea";
 import { Tooltip } from "@/components/Tooltip";
 import { useForceUpdater } from "@/hooks/forceUpdater";
+import { useReiszeObserverFromRef } from "@/hooks/resizeObserver";
 import { fill } from "@/utils/array";
 import { paste } from "@/utils/clipboard";
 import cn from "@/utils/cn";
 import { NBSP } from "@/utils/constants";
 import { assert } from "@/utils/error";
-import useResizeObserver from "@react-hook/resize-observer";
 
 import defaultJson from "./default.json?raw";
 import styles from "./styles.module.scss";
@@ -53,17 +53,17 @@ function colorForType(type: string) {
 const REMOVE_FQN_REGEX = /.*\./;
 
 function EmptyToken(count: number) {
-    const ref = useRef<SVGSVGElement>(null);
+    const svgRef = useRef<SVGSVGElement>(null);
     const rectRef = useRef<SVGRectElement>(null);
     const [dep, updateAngle] = useForceUpdater();
 
-    useResizeObserver(ref, updateAngle);
+    useReiszeObserverFromRef(svgRef, updateAngle);
     useLayoutEffect(() => {
-        if (ref.current && rectRef.current) {
-            const { width, height } = ref.current.getBoundingClientRect();
+        if (svgRef.current && rectRef.current) {
+            const { width, height } = svgRef.current.getBoundingClientRect();
 
-            ref.current.style.setProperty("--width", `${width}px`);
-            ref.current.style.setProperty("--height", `${height}px`);
+            svgRef.current.style.setProperty("--width", `${width}px`);
+            svgRef.current.style.setProperty("--height", `${height}px`);
         }
     }, [dep]);
 
@@ -71,7 +71,7 @@ function EmptyToken(count: number) {
         <>
             {fill(count + 1, NBSP).join("")}
             <svg
-                ref={ref}
+                ref={svgRef}
                 className="absolute inset-fill fill-error-400"
             >
                 <rect

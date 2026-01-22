@@ -7,9 +7,7 @@ export function makeRouter() {
         routeTree,
         scrollRestoration: true,
         defaultPreload: "intent",
-        context: {
-            head: "",
-        },
+        context: {},
     });
 }
 declare module "@tanstack/react-router" {

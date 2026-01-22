@@ -1,5 +1,6 @@
 import { Text } from "@/components/Text";
 import { discordUrl } from "@/utils/constants";
+import { Link } from "@tanstack/react-router";
 
 import Discord from "./icons/Discord";
 import Github from "./icons/Github";
@@ -12,13 +13,14 @@ import { Clickable } from "./Clickable";
 
 import type { ComponentProps, PropsWithChildren } from "react";
 
-export interface LinkProps extends PropsWithChildren {
-    href: HTMLAnchorElement["href"];
+export interface ExternalLinkProps extends PropsWithChildren {
+    to: HTMLAnchorElement["href"];
     target?:
       | `_${"blank" | "self" | "parent" | "top"}`
       | (HTMLAnchorElement["target"] & Record<never, never>);
 }
-export default function Link({ target = "_blank", href, children }: LinkProps) {
+
+export default function ExternalLink({ target = "_blank", to: href, children }: ExternalLinkProps) {
     return (
         <Clickable
             tag="a"
@@ -32,23 +34,23 @@ export default function Link({ target = "_blank", href, children }: LinkProps) {
 
 export function ThemeLink() {
     return (
-        <Link href="https://github.com/enkia/tokyo-night-vscode-theme/tree/master">
+        <ExternalLink to="https://github.com/enkia/tokyo-night-vscode-theme/tree/master">
             <Text tag="span">Color Scheme</Text>
-        </Link>
+        </ExternalLink>
     );
 }
 
 export function SourceLink() {
     return (
-        <Link href="https://github.com/sadan4/sadan.zip">
+        <ExternalLink to="https://github.com/sadan4/sadan.zip">
             <Text tag="span">Source Code</Text>
-        </Link>
+        </ExternalLink>
     );
 }
 
 export function ButtonLink() {
     return (
-        <Link href="/88x31">
+        <Link to="/88x31">
             <Text tag="span">88x31</Text>
         </Link>
     );
@@ -63,11 +65,11 @@ export interface DiscordIconLinkProps extends IconLinkProps {
 
 export function DiscordIconLink({ userId, ...props }: DiscordIconLinkProps) {
     return (
-        <Link href={discordUrl(userId)
+        <ExternalLink to={discordUrl(userId)
             .toString()}
         >
             <Discord {...props} />
-        </Link>
+        </ExternalLink>
     );
 }
 
@@ -77,9 +79,9 @@ export interface NameMCIconLinkProps extends IconLinkProps {
 
 export function NameMCIconLink({ UUID, ...props }: NameMCIconLinkProps) {
     return (
-        <Link href={`https://namemc.com/profile/${UUID}`}>
+        <ExternalLink to={`https://namemc.com/profile/${UUID}`}>
             <NameMC {...props} />
-        </Link>
+        </ExternalLink>
     );
 }
 
@@ -89,9 +91,9 @@ export interface LastFMIconLinkProps extends IconLinkProps {
 
 export function LastFMIconLink({ username, ...props }: LastFMIconLinkProps) {
     return (
-        <Link href={`https://last.fm/user/${username}`}>
+        <ExternalLink to={`https://last.fm/user/${username}`}>
             <LastFM {...props} />
-        </Link>
+        </ExternalLink>
     );
 }
 
@@ -100,9 +102,9 @@ export interface SteamIconLinkProps extends IconLinkProps {
 }
 export function SteamIconLink({ userId, ...props }: SteamIconLinkProps) {
     return (
-        <Link href={`https://steamcommunity.com/id/${userId}`}>
+        <ExternalLink to={`https://steamcommunity.com/id/${userId}`}>
             <Steam {...props} />
-        </Link>
+        </ExternalLink>
     );
 }
 
@@ -112,9 +114,9 @@ export interface FortniteDBIconLinkProps extends IconLinkProps {
 
 export function FortniteDBIconLink({ username, ...props }: FortniteDBIconLinkProps) {
     return (
-        <Link href={`https://fortnitedb.com/profile/${username}`}>
+        <ExternalLink to={`https://fortnitedb.com/profile/${username}`}>
             <SaveTheWorld {...props} />
-        </Link>
+        </ExternalLink>
     );
 }
 
@@ -124,9 +126,9 @@ export interface GithubIconLinkProps extends IconLinkProps {
 
 export function GithubIconLink({ username, ...props }: GithubIconLinkProps) {
     return (
-        <Link href={`https://github.com/${username}`}>
+        <ExternalLink to={`https://github.com/${username}`}>
             <Github {...props} />
-        </Link>
+        </ExternalLink>
     );
 }
 
@@ -135,12 +137,12 @@ export interface FriendWebsiteLinkProps extends IconLinkProps {
 }
 export function FriendWebsiteLink({ href, width = 24, height = 24, ...props }: FriendWebsiteLinkProps) {
     return (
-        <Link href={href} >
+        <ExternalLink to={href} >
             <LinkIcon
                 width={width}
                 height={height}
                 {...props}
             />
-        </Link>
+        </ExternalLink>
     );
 }

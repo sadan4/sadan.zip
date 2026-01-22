@@ -27,16 +27,6 @@ const router = createBrowserRouter([
         HydrateFallback: () => null,
         children: [
             {
-                index: true,
-                async lazy() {
-                    const Component = (await import("./pages")).default;
-
-                    return {
-                        Component,
-                    };
-                },
-            },
-            {
                 path: "e",
                 loader(): LoaderData {
                     return {
@@ -111,16 +101,6 @@ const router = createBrowserRouter([
                 path: "discord-intl",
                 async lazy() {
                     const Component = (await import("./pages/discord-intl")).default;
-
-                    return {
-                        Component,
-                    };
-                },
-            },
-            {
-                path: "88x31",
-                async lazy() {
-                    const Component = (await import("./pages/88x31")).default;
 
                     return {
                         Component,

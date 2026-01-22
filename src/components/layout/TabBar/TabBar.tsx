@@ -1,4 +1,5 @@
 import { useImperativeSprings } from "@/hooks/imperativeSprings";
+import { useResizeObserver } from "@/hooks/resizeObserver";
 import { joinWithKey } from "@/utils/array";
 import cn from "@/utils/cn";
 import { assert } from "@/utils/error";
@@ -9,7 +10,6 @@ import { VerticalLine } from "@components/Lines/VerticalLine";
 import { Text } from "@components/Text";
 import { AnimateHeight } from "@effects/AnimateHeight";
 import { useEventHandler } from "@hooks/eventListener";
-import useResizeObserver from "@react-hook/resize-observer";
 import { animated } from "@react-spring/web";
 
 import { TabBarPosition } from "./enum";
@@ -143,7 +143,7 @@ export function TabBar({
 
     const [tab, setTab] = useState(selectedTab ?? initialSelectedTab ?? (tabs[0]?.id || ""));
     const [activeRect, setActiveRect] = useState<DOMRect | undefined>();
-    const activeTabRef = useRef<HTMLElement | null>(null);
+    const [activeTab, setActiveTab] = useState<HTMLElement | null>(null);
     const isManaged = selectedTab !== undefined;
 
 
@@ -162,8 +162,8 @@ export function TabBar({
     });
 
     useEventHandler("resize", () => {
-        if (activeTabRef.current) {
-            const size = activeTabRef.current.getBoundingClientRect();
+        if (activeTab) {
+            const size = activeTab.getBoundingClientRect();
 
             width.set(size.width);
             y.set(size.y + size.height);
@@ -172,8 +172,8 @@ export function TabBar({
         }
     });
 
-    useResizeObserver(activeTabRef, () => {
-        setActiveRect(activeTabRef.current?.getBoundingClientRect());
+    useResizeObserver(activeTab, () => {
+        setActiveRect(activeTab?.getBoundingClientRect());
     });
 
     useLayoutEffect(() => {
@@ -193,8 +193,11 @@ export function TabBar({
     }, [activeRect, width, x, y]);
 
     const handleActiveTabRef: RefCallback<HTMLElement | null> = useCallback((node) => {
-        updateRef(activeTabRef, node);
+        setActiveTab(node);
         setActiveRect(node?.getBoundingClientRect());
+        return () => {
+            setActiveTab(null);
+        };
     }, []);
 
 

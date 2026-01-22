@@ -1,9 +1,12 @@
-import {extname} from 'node:path'
+import {extname, join} from 'node:path'
 import express from 'express'
 import getPort, { portNumbers } from 'get-port'
 import * as zlib from 'node:zlib'
 
 const isTest = process.env.NODE_ENV === 'test' || !!process.env.VITE_TEST_BUILD
+
+
+const __dirname: string = import.meta.dirname;
 
 export async function createServer(
   root = process.cwd(),
@@ -49,7 +52,7 @@ export async function createServer(
     )
   }
 
-  if (isProd) app.use(express.static('./dist/client'))
+  if (isProd) app.use(express.static(join(__dirname, "dist", "client"), { dotfiles: "allow" }));
 
   app.use('*', async (req, res) => {
     try {
@@ -77,14 +80,17 @@ export async function createServer(
 
       const entry = await (async () => {
         if (!isProd) {
-          return vite.ssrLoadModule('/src/server.tsx')
+          return vite.ssrLoadModule('/src/server.tsx') as never;
         } else {
           return import('./dist/server/server.js') as any as typeof import("./src/server.tsx");
         }
       })()
 
       console.info('Rendering: ', url, '...')
-      entry.render({ req, res, head: viteHead })
+      if (viteHead !== "") {
+        throw new Error("expected viteHead to be empty, handle this and pass it");
+      }
+      entry.render({ req, res });
     } catch (e) {
       !isProd && vite.ssrFixStacktrace(e)
       console.info(e.stack)

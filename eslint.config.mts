@@ -706,6 +706,12 @@ export default TSEslint.config({ ignores: ["dist"] }, {
             "error",
             tailwindCallees,
         ],
+        "react-hooks/exhaustive-deps": [
+            "warn",
+            {
+                additionalHooks: "(useIsomorphicLayoutEffect)",
+            },
+        ],
         "tailwindcss/enforces-negative-arbitrary-values": ["error", tailwindCallees],
         "tailwindcss/enforces-shorthand": ["error", tailwindCallees],
         // maybe add no-arbitrary-value

@@ -1,5 +1,5 @@
 import { useForceUpdater } from "@/hooks/forceUpdater";
-import useResizeObserver from "@react-hook/resize-observer";
+import { useReiszeObserverFromRef } from "@/hooks/resizeObserver";
 import { animated, useSpringValue } from "@react-spring/web";
 
 import { type PropsWithChildren, useEffect, useRef } from "react";
@@ -15,7 +15,7 @@ export function AnimateHeight({ children, animateInitialHeight = false, show = t
     const height = useSpringValue(0);
     const [dep, updateHeight] = useForceUpdater();
 
-    useResizeObserver(ref, updateHeight);
+    useReiszeObserverFromRef(ref, updateHeight);
 
     useEffect(() => {
         if (ref.current) {

@@ -1,10 +1,11 @@
+import { useComposedRefs } from "@/hooks/composedRefs";
 import { useControlledState } from "@/hooks/controlledState";
 import { useForceUpdater } from "@/hooks/forceUpdater";
+import { useReiszeObserverFromRef } from "@/hooks/resizeObserver";
 import cn from "@/utils/cn";
 import { measureRect } from "@/utils/dom";
 import { unreachable } from "@/utils/error";
 import { updateRef } from "@/utils/ref";
-import useResizeObserver from "@react-hook/resize-observer";
 import { animated, to, useSpringValue, useTransition } from "@react-spring/web";
 
 import { TooltipPosition } from "./constants";
@@ -134,7 +135,7 @@ export function Tooltip({
     const triggerWidth = useSpringValue(0);
     const [dep, updateSizeVar] = useForceUpdater();
 
-    useResizeObserver(triggerRef, updateSizeVar);
+    useReiszeObserverFromRef(triggerRef, updateSizeVar);
 
     useLayoutEffect(() => {
         if (triggerRef.current && containerRef.current) {
@@ -180,10 +181,7 @@ export function Tooltip({
             className={cn(styles.tooltip, className)}
             onMouseEnter={show}
             onMouseLeave={hide}
-            ref={(value) => {
-                updateRef(containerRef, value);
-                updateRef(ref, value);
-            }}
+            ref={useComposedRefs(ref, containerRef)}
         >
             <LayerPortal>
                 {
