@@ -1,0 +1,305 @@
+import express from "express";
+import { extname, join } from "node:path";
+import * as zlib from "node:zlib";
+import type { ViteDevServer } from "vite";
+import getPort, {portNumbers} from "get-port";
+import type { Server } from "node:http";
+import open from "open"
+import { readFile } from "node:fs/promises";
+
+const isTest = process.env.NODE_ENV === 'test' || !!process.env.VITE_TEST_BUILD
+const __dirname = import.meta.dirname;
+
+interface CreateServerOptions {
+    root?: string;
+    isProd?: boolean;
+    hmrPort?: number;
+}
+
+async function createServer(arg: CreateServerOptions = {}) {
+    const {isProd = process.env.NODE_ENV === "production", root = process.cwd(), hmrPort} = arg;
+    const _self = this;
+    const isDev = !isProd;
+    const app = express();
+    let vite: ViteDevServer | undefined;
+    let cssPath: string = "";
+    if (isDev) {
+        vite = await (await import("vite")).createServer({
+            root,
+            logLevel: isTest ? "error" : "info",
+            server: {
+                middlewareMode: true,
+                watch: {
+                    // During tests we edit the files too fast and sometimes chokidar
+                    // misses change events, so enforce polling for consistency
+                    usePolling: true,
+                    interval: 100,
+                },
+                hmr: {
+                    port: hmrPort,
+                }
+            },
+            appType: "custom",
+        });
+        app.use(vite.middlewares)
+    } else {
+        app.use(
+        (await import('compression')).default({
+            brotli: {
+            flush: zlib.constants.BROTLI_OPERATION_FLUSH,
+            },
+            flush: zlib.constants.Z_SYNC_FLUSH,
+        }),
+        )
+        cssPath = `/${JSON.parse(await readFile(join(__dirname, "dist", "client", ".vite", "manifest.json"), "utf-8"))["style.css"].file}`;
+    }
+    if (isProd) {
+        app.use(express.static(join(__dirname, "dist", "client"), { dotfiles: "allow" }))
+    }
+
+
+    app.use("*", async (req, res) => {
+        try {
+            const url = req.originalUrl
+
+            if (extname(url) !== '') {
+                console.warn(`${url} is not valid router path`)
+                res.status(404)
+                res.end(`${url} is not valid router path`)
+                return
+            }
+
+            // Best effort extraction of the head from vite's index transformation hook
+            let viteHead = isDev
+                ? await vite!.transformIndexHtml(
+                    url,
+                    `<html><head></head><body></body></html>`,
+                )
+                : ''
+
+            viteHead = viteHead.substring(
+                viteHead.indexOf('<head>') + 6,
+                viteHead.indexOf('</head>'),
+            )
+
+            const entry = await (async () => {
+                if (isDev) {
+                    return vite!.ssrLoadModule('/src/server.tsx') as never
+                } else {
+                    // @ts-expect-error
+                    return import('./dist/server/server.js') as any as typeof import("./src/server.tsx")
+                }
+            })()
+
+            console.info('Rendering: ', url, '...')
+            entry.render({ req, res, cssPath })
+        } catch (e: any) {
+            if (isDev) {
+                vite!.ssrFixStacktrace(e)
+            }
+            console.info(e.stack)
+            res.status(500).end(e.stack)
+        }
+    });
+
+    const server = app.listen(await port(), () => {
+        bindCLIShortcuts(server)
+    })
+
+    return {app, vite};
+
+    async function bindCLIShortcuts(server: Server) {
+        if (!process.stdin.isTTY) {
+            return;
+        }
+        interface Shortcut {
+            description: string;
+            /**
+             * yield progress messages for spinner and return when done
+             */
+            action(): AsyncGenerator<[string, "warn"] | string, void, unknown> | void;
+        }
+        const SHORTCUTS: Record<string, Shortcut> = {
+            h: {
+                description: "show this help message",
+                action() {
+                    log("\tShortcuts");
+                    for (const [key, {description}] of Object.entries(SHORTCUTS)) {
+                        log(`${colors.dim("\tpress ")}${colors.bold(`${key} + enter`)}${colors.dim(` to ${description}`)}`)
+                    }
+                }
+            },
+            r: {
+                description: "restart the server",
+                async *action() {
+                    yield "shutting down server...";
+                    server.close(() => {
+                    })
+                    await new Promise(res => server.once("close", res));
+                    if (vite) {
+                        await vite.close();
+                    }
+                    yield "server shut down";
+                    yield "starting server...";
+                    // @ts-expect-error
+                    createServer.apply(_self, _args);
+                    yield "server restarted";
+                }
+            },
+            fr: {
+                description: "full restart the server",
+                async *action() {
+                    yield "Restarting server...";
+                    if (!process.execve) {
+                        yield ["Full restart not supported on this platform", "warn"];
+                    } else {
+                        process.execve(process.execPath, process.argv);
+                        yield ["Failed to restart server", "warn"];
+                        yield "Exiting...";
+                        process.exit(1);
+                    }
+                }
+            },
+            u: {
+                description: "show server url",
+                action() {
+                    const url = getServerUrl();
+                    if (!url) {
+                        warn("unknown server url");
+                    }
+                    log(`Server running at ${colors.green(url)}`);
+                }
+            },
+            o: {
+                description: "open in browser",
+                action() {
+                    const url = getServerUrl();
+                    if (!url) {
+                        warn("open failed: unknown server url");
+                        return;
+                    }
+                    openBrowser(url)
+                }
+            },
+            q: {
+                description: "quit",
+                async *action() {
+                    yield "Shutting down server...";
+                    await new Promise<void>((res) => {
+                        server.close((err) => {
+                            if (err) {
+                                log(colors.red("Error while shutting down the server: "));
+                                log(String(err));
+                            } else {
+                                log(colors.dim("Server shut down successfully."));
+                            }
+                            res();
+                        })
+                    })
+                    process.exit(0);
+                }
+            },
+            c: {
+                description: "clear the console",
+                action() {
+                    console.clear();
+                }
+            },
+            dbg: {
+                description: "enable debugger for current process",
+                action() {
+                    process.kill(process.pid, "SIGUSR1")
+                }
+            }
+        }
+        const { createInterface } = await import("node:readline");
+        const { default: colors } = await import("picocolors");
+        const { default: ora } = await import("ora");
+        const spinner = ora({
+            spinner: "line",
+            discardStdin: false,
+        });
+        let actionRunning = false;
+        log(
+            colors.dim(colors.green('  ➜')) +
+            colors.dim('  press ') +
+            colors.bold('h + enter') +
+            colors.dim(' to show help')
+        );
+
+        async function onInput(input: string) {
+            const key = input.trim();
+            if (actionRunning) {
+                if (key === "q") {
+                    if (spinner.isSpinning) {
+                        spinner.warn("Quit requested, exiting");
+                    }
+                } else {
+                    return;
+                }
+            }
+            const shortcut = SHORTCUTS[key];
+            if (!shortcut) {
+                return;
+            }
+            actionRunning = true;
+
+            try {
+                let ran = false;
+                for await (const msg of (shortcut.action() ?? ([] as string[]))) {
+                    ran = true;
+                    if (Array.isArray(msg)) {
+                        spinner.start(msg[0]);
+                        spinner[msg[1]]();
+                    } else {
+                    spinner.start(msg);
+                   }
+                }
+                if (ran) {
+                    spinner.succeed();
+                }
+                spinner.stop();
+            } catch (err: any) {
+                spinner.fail(err.message);
+                log(colors.dim(String(err)));
+            } finally {
+                actionRunning = false;
+            }
+        }
+
+        const rl = createInterface({ input: process.stdin });
+        rl.on("line", onInput);
+        server.on("close", rl.close.bind(rl));
+        function log(str: string) {
+            if (spinner.isSpinning) {
+                process.stdout.write("\n");
+            }
+            console.log(str)
+        }
+        function warn(str: string) {
+            log(`${colors.yellow("warn")} ${str}`);
+        }
+        function getServerUrl(): string | null {
+            let addr = server.address();
+            if (addr && typeof addr !== "string") {
+                let { address, port } = addr;
+                if (address === "127.0.0.1" || address === "::") {
+                    address = "localhost";
+                }
+                addr = `http://${address}:${port}/`;
+            }
+            return addr;
+        }
+        function openBrowser(url: string): void {
+            open(url)
+        }
+    }
+    async function port() {
+        const base = isDev ? 5173 : 4173;
+        return await getPort({ port: portNumbers(base, base + 100) });
+    }
+}
+
+if (!isTest) {
+    createServer();
+}

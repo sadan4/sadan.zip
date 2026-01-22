@@ -12,14 +12,19 @@
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
     "noEmit": true,
+    "esModuleInterop": true,
+    // needed for typeof import() that will be compiled at runtime
+    "jsx": "preserve",
 
     /* Linting */
     "strict": true,
+    "useUnknownInCatchVariables": false,
+    "noImplicitAny": false,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["vite.config.ts", "eslint.config.mts", "stylelint.config.ts", ".storybook/main.ts", "docgentest.ts"]
+  "include": ["vite.config.ts", "eslint.config.mts", "stylelint.config.ts", ".storybook/main.ts", "docgentest.ts", "index.ts"]
 }
