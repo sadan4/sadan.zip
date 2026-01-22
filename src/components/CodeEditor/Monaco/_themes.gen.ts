@@ -2,8 +2,56 @@ import { dedent } from "../../../utils/string";
 import { TextmateTheme } from "../../../utils/textmate/theme";
 import { lazyLoadTextmateTheme } from "../../../utils/textmate/themes";
 
-import { convertTheme, type IVSCodeTheme } from "monaco-vscode-textmate-theme-converter";
+import type * as monaco from "monaco-editor";
 import type { GeneratorArgs } from "rollup-plugin-generate";
+import type { ThemeRegistration } from "shiki";
+
+// from monaco-vscode-textmate-theme-converter
+function convertTheme(vscodeTheme: ThemeRegistration): monaco.editor.IStandaloneThemeData {
+    const monacoThemeRule: monaco.editor.ITokenThemeRule[] = [];
+
+    const returnTheme: monaco.editor.IStandaloneThemeData = {
+        inherit: false,
+        base: "vs-dark",
+        colors: vscodeTheme.colors ?? {},
+        rules: monacoThemeRule,
+        encodedTokensColors: [],
+    };
+
+    for (const color of vscodeTheme.tokenColors ?? []) {
+        if (typeof color.scope === "string") {
+            const split = color.scope.split(",");
+
+            if (split.length > 1) {
+                // @ts-expect-error copied from other code and it works
+                evalAsArray(color.scope = split);
+                continue;
+            }
+
+
+            monacoThemeRule.push({
+                ...color.settings, // token: color.scope.replace(/\s/g, '')
+                token: color.scope,
+            });
+            continue;
+        }
+
+        if (Array.isArray(color.scope)) {
+            evalAsArray(color.scope);
+        }
+
+        function evalAsArray(scopes: string[]) {
+            for (const scope of scopes) {
+                monacoThemeRule.push({
+                    ...color.settings,
+                    token: scope,
+                });
+            }
+        }
+    }
+
+    return returnTheme;
+}
 
 export async function generate({ emitFile }: GeneratorArgs) {
     const typeFile = emitFile({
@@ -33,7 +81,7 @@ export async function generate({ emitFile }: GeneratorArgs) {
 
     for (const theme of themes) {
         const tmTheme = await lazyLoadTextmateTheme(TextmateTheme[theme]);
-        const monacoTheme = convertTheme(tmTheme as IVSCodeTheme);
+        const monacoTheme = convertTheme(tmTheme);
 
         const themeFile = emitFile({
             content: dedent`
