@@ -2,7 +2,7 @@
 @import "tailwindcss";
 
 /* stylelint-disable-next-line at-rule-no-unknown */
-@theme {
+@theme static {
     --color-bg-100: #1a1b26;
     --color-bg-200: #16161e;
     --color-bg-300: #0c0e14;

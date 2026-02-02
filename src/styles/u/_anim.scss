@@ -13,3 +13,11 @@ $colors: color background-color border-color outline-color fill stroke;
 @mixin ease-in {
     transition-timing-function: ease-in;
 }
+
+@mixin blur-scale-fade($progress, $blur-factor: 10px) {
+    @include prop(scale opacity filter);
+    
+    scale: $progress;
+    opacity: $progress;
+    filter: blur(calc((1 - $progress) * $blur-factor));
+}
