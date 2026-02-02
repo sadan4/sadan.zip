@@ -31,7 +31,7 @@ export const Default: Story = {
                     ref={handle}
                 >
                     <div
-                        className="bg-secondary-800 flex h-16 w-16 items-center justify-center"
+                        className="flex h-16 w-16 items-center justify-center bg-secondary-800"
                         style={{
                             borderRadius,
                         }}

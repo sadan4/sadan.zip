@@ -1,13 +1,12 @@
-import { useLoaderData } from "@/main";
-
 import { SnowCanvas } from "./effects/SnowCanvas";
 
 export interface BoilerplateProps {
+    /**
+     * @default false
+     */
+    solidBg?: boolean;
 }
 
-export function Boilerplate() {
-    const loaderData = useLoaderData();
-    const showSnow = !loaderData?.config?.solidBg;
-
-    return showSnow ? <SnowCanvas /> : null;
+export function Boilerplate({ solidBg = false }: BoilerplateProps) {
+    return !solidBg ? <SnowCanvas /> : null;
 }

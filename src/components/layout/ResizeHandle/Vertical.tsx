@@ -13,6 +13,20 @@ import { useCallback, useEffect, useImperativeHandle, useRef, useState } from "r
 export interface VerticalResizeHandleProps extends ResizeHandleProps {
 }
 
+declare module "react" {
+    interface CSSProperties {
+        /**
+         * 0-1
+         */
+        "--initial-drag-offset"?: number;
+        // not passed as a style prop directly, no need to type it
+        // /**
+        //  * percent string
+        //  */
+        // "--drag-offset"?: string;
+    }
+}
+
 export function Vertical({
     className,
     style,
@@ -83,7 +97,7 @@ export function Vertical({
         },
     }), [dispatchResize, reset]);
 
-    useEventHandler("pointerup", stopDragging, window, {
+    useEventHandler("pointerup", stopDragging, undefined, {
         passive: true,
     });
 
@@ -97,7 +111,7 @@ export function Vertical({
 
         handleRef.current.style.setProperty("--drag-offset", `${percent}`);
         dispatchResize();
-    }, window, {
+    }, undefined, {
         passive: true,
     });
 
@@ -128,7 +142,7 @@ export function Vertical({
         <div
             className={cn(styles.verticalHandle, dragging && styles.dragging, className)}
             style={{
-                ["--initial-drag-offset" as any]: initialPosition,
+                "--initial-drag-offset": initialPosition,
                 ...style,
             }}
             ref={handleRef}

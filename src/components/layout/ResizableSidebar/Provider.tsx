@@ -1,15 +1,21 @@
+import { useChange } from "@/hooks/change";
+
 import { createSidebarStateStore, type SidebarStateStore, SidebarStateStoreContext, type SidebarStateStoreProviderProps } from "./store";
 
-import { useRef } from "react";
+import { useState } from "react";
 import type { StoreApi } from "zustand";
 
 export function SidebarStateStoreProvider({ children, store }: SidebarStateStoreProviderProps) {
-    const storeRef = useRef<StoreApi<SidebarStateStore>>(store);
+    const [state, setState] = useState<StoreApi<SidebarStateStore>>(() => store ?? createSidebarStateStore());
 
-    storeRef.current ??= createSidebarStateStore();
+    useChange((_, cur) => {
+        if (cur) {
+            setState(cur);
+        }
+    }, store);
 
     return (
-        <SidebarStateStoreContext value={storeRef.current}>
+        <SidebarStateStoreContext value={state}>
             {children}
         </SidebarStateStoreContext>
     );

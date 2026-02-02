@@ -1,9 +1,9 @@
+import { Input } from "@/components/Input";
 import { useControlledState } from "@/hooks/controlledState";
 import { border } from "@/styles";
 import cn from "@/utils/cn";
 import { assert } from "@/utils/error";
 import { prop } from "@/utils/functional";
-import { Input } from "@components/Input";
 import { animated, useSpringValue } from "@react-spring/web";
 
 import styles from "./styles.module.scss";
@@ -69,7 +69,7 @@ interface SelectMenuProps<T> {
 
 function SelectMenu<T>({ items, onChange, selectedItem, scrollAreaClassName }: SelectMenuProps<T>) {
     return (
-        <ScrollArea className={cn("bg-bg-300 sb-track-bg-300 border-fg-700 flex flex-col rounded-md border-3", scrollAreaClassName)}>
+        <ScrollArea className={cn("flex flex-col rounded-md border-3 border-fg-700 bg-bg-300 sb-track-bg-300", scrollAreaClassName)}>
             {items.map((item) => {
                 return (
                     <SelectItem
@@ -194,7 +194,7 @@ export function Select<T extends PropertyKey>({
                                 </div>
                                 <animated.svg
                                     viewBox="-2.4 -2.4 28.8 28.8"
-                                    className="stroke-fg-500 h-8 w-8 fill-none"
+                                    className="h-8 w-8 fill-none stroke-fg-500"
                                     style={{
                                         transform: rotation.to((r) => `rotate(${r}deg)`),
                                     }}

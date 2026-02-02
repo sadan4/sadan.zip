@@ -1,10 +1,10 @@
+import { AnimateHeight } from "@/components/effects/AnimateHeight";
 import { useComposedRefs } from "@/hooks/composedRefs";
+import { useDebouncedFn } from "@/hooks/debouncedFn";
 import { border } from "@/styles";
 import cn, { textColors, textSize, textWeight } from "@/utils/cn";
 import { error } from "@/utils/error";
 import { updateRef } from "@/utils/ref";
-import { AnimateHeight } from "@effects/AnimateHeight";
-import { useDebouncedFn } from "@hooks/debouncedFn";
 
 import styles from "./styles.module.scss";
 import { Clickable } from "../Clickable";

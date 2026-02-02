@@ -60,3 +60,20 @@ const textmateThemes: Record<TextmateTheme, () => Promise<TMTheme>> = {
 export function lazyLoadTextmateTheme(theme: TextmateTheme): Promise<TMTheme> {
     return textmateThemes[theme]();
 }
+
+export interface LineNumberColor {
+    foreground?: string;
+    activeForeground?: string;
+}
+
+export function getLineNumberColorForTheme({
+    colors: {
+        "editorLineNumber.foreground": foreground,
+        "editorLineNumber.activeForeground": activeForeground,
+    } = {},
+}: TMTheme): LineNumberColor {
+    return {
+        foreground,
+        activeForeground,
+    };
+}

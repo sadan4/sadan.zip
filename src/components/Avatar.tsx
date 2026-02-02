@@ -1,17 +1,19 @@
 import avatar from "@/assets/avatar.webp";
+import { Clickable } from "@/components/Clickable";
+import { BorderHoldRounded } from "@/components/effects/BorderHold";
+import PerspectiveHover from "@/components/effects/PerspectiveHover";
+import Shadow from "@/components/effects/Shadow";
 import { useRect } from "@/hooks/rect";
 import cn from "@/utils/cn";
 import { friends } from "@/utils/friends";
 import { once } from "@/utils/functional";
-import { Clickable } from "@components/Clickable";
-import { BorderHoldRounded } from "@effects/BorderHold";
-import PerspectiveHover from "@effects/PerspectiveHover";
-import Shadow from "@effects/Shadow";
+import { makeLazy, proxyLazy } from "@/utils/lazy";
 
+import { FriendModal } from "./modals/Friend";
 import { defaultPosition, FriendModalContext } from "./modals/Friend/other";
 import { Modal, type ModalContext } from "./modal";
 
-import { type ComponentProps, lazy, useMemo, useRef, useState } from "react";
+import { type ComponentProps, useMemo, useRef, useState } from "react";
 
 export interface AvatarProps extends ComponentProps<"img"> {
     round?: boolean;
@@ -25,20 +27,22 @@ const preloadFriends = once(function preloadFriends() {
     }
 });
 
-const FriendModal = lazy(() => import("@components/modals/Friend"));
+const defaultPositionProxy = makeLazy(() => proxyLazy(defaultPosition));
 
 export default function Avatar({ round = false, ...props }: AvatarProps) {
     const modal = useRef<ModalContext>(null);
     const [img, setImg] = useState<HTMLDivElement | null>(null);
     // update the rect before we open the modal to ensure the correct position;
-    const { top, left, width, height } = useRect(img) ?? defaultPosition();
+    const _rect = useRect(img);
 
-    const value = useMemo(() => ({
-        x: left,
-        y: top,
-        width,
-        height,
-    }), [left, top, width, height]);
+    const value = useMemo(() => (_rect
+        ? {
+            x: _rect.left,
+            y: _rect.top,
+            width: _rect.width,
+            height: _rect.height,
+        }
+        : defaultPositionProxy()), [_rect]);
 
     return (
         // put the ref on Clicable because it's before all the effects that might change the size/position

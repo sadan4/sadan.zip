@@ -1,10 +1,11 @@
+import { useComposedRefs } from "@/hooks/composedRefs";
 import { useControlledState } from "@/hooks/controlledState";
 import { useForceUpdater } from "@/hooks/forceUpdater";
+import { useReiszeObserverFromRef } from "@/hooks/resizeObserver";
 import cn from "@/utils/cn";
 import { measureRect } from "@/utils/dom";
 import { unreachable } from "@/utils/error";
 import { updateRef } from "@/utils/ref";
-import useResizeObserver from "@react-hook/resize-observer";
 import { animated, to, useSpringValue, useTransition } from "@react-spring/web";
 
 import { TooltipPosition } from "./constants";
@@ -49,6 +50,12 @@ export interface TooltipProps extends ComponentProps<"div"> {
      */
     noarrow?: boolean;
     tooltipClassName?: string;
+}
+
+declare module "react" {
+    interface CSSProperties {
+        "--pad"?: string;
+    }
 }
 
 function useTooltipAnim(shouldShow: boolean) {
@@ -134,7 +141,7 @@ export function Tooltip({
     const triggerWidth = useSpringValue(0);
     const [dep, updateSizeVar] = useForceUpdater();
 
-    useResizeObserver(triggerRef, updateSizeVar);
+    useReiszeObserverFromRef(triggerRef, updateSizeVar);
 
     useLayoutEffect(() => {
         if (triggerRef.current && containerRef.current) {
@@ -180,13 +187,12 @@ export function Tooltip({
             className={cn(styles.tooltip, className)}
             onMouseEnter={show}
             onMouseLeave={hide}
-            ref={(value) => {
-                updateRef(containerRef, value);
-                updateRef(ref, value);
-            }}
+            ref={useComposedRefs(ref, containerRef)}
         >
             <LayerPortal>
                 {
+                    // FIXME: vvv
+                    // eslint-disable-next-line react-hooks/refs
                     tooltipTransition(({ percentIn, ...styleProps }, show) => {
                         const triggerRect = triggerRef.current && measureRect(triggerRef.current);
 
@@ -209,7 +215,7 @@ export function Tooltip({
                                                     left: left + (width / 2),
                                                     top,
                                                     paddingBottom,
-                                                    ["--pad" as any]: paddingBottom,
+                                                    "--pad": paddingBottom,
                                                 };
                                             }
                                             case TooltipPosition.BOTTOM: {
@@ -222,7 +228,7 @@ export function Tooltip({
                                                     left: left + (width / 2),
                                                     top: height + top,
                                                     paddingTop,
-                                                    ["--pad" as any]: paddingTop,
+                                                    "--pad": paddingTop,
                                                 };
                                             }
                                             case TooltipPosition.LEFT: {
@@ -235,7 +241,7 @@ export function Tooltip({
                                                     top: top + (height / 2),
                                                     left,
                                                     paddingRight,
-                                                    ["--pad" as any]: paddingRight,
+                                                    "--pad": paddingRight,
                                                 };
                                             }
                                             case TooltipPosition.RIGHT: {
@@ -248,7 +254,7 @@ export function Tooltip({
                                                     top: top + (height / 2),
                                                     left: left + width,
                                                     paddingLeft,
-                                                    ["--pad" as any]: paddingLeft,
+                                                    "--pad": paddingLeft,
                                                 };
                                             }
 

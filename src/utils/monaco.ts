@@ -1,13 +1,17 @@
 import { extensionForLanguage } from "./textmate/language";
-import { error } from "./error";
+import { error, unavailableImport } from "./error";
 import { getLanguageDeps, Language } from "./textmate";
 
-import * as monaco from "monaco-editor";
+import type * as Monaco from "monaco-editor";
+export {
+    Monaco,
+};
+export const monaco: typeof import("monaco-editor") = import.meta.env.SSR ? unavailableImport("monaco-editor") : await import("monaco-editor");
 
 /**
  * null == undefined
  */
-export function cmpUri(uri1: monaco.Uri | null | undefined, uri2: monaco.Uri | null | undefined): boolean {
+export function cmpUri(uri1: Monaco.Uri | null | undefined, uri2: Monaco.Uri | null | undefined): boolean {
     if (uri1 == null) {
         return uri2 == null;
     }
@@ -18,8 +22,8 @@ export function cmpUri(uri1: monaco.Uri | null | undefined, uri2: monaco.Uri | n
 }
 
 export function cmpModel(
-    model1: monaco.editor.ITextModel | null | undefined,
-    model2: monaco.editor.ITextModel | null | undefined,
+    model1: Monaco.editor.ITextModel | null | undefined,
+    model2: Monaco.editor.ITextModel | null | undefined,
 ): boolean {
     if (model1 == null) {
         return model2 == null;
@@ -30,7 +34,7 @@ export function cmpModel(
     return model1 === model2 || model1.id === model2.id;
 }
 
-export function updateModelLanguage(model: monaco.editor.ITextModel, language: Language) {
+export function updateModelLanguage(model: Monaco.editor.ITextModel, language: Language) {
     monaco.editor.setModelLanguage(model, getMonacoLanguageString(language));
 }
 
@@ -61,12 +65,12 @@ export function makeTMLanguageMap(language: Language): Map<string, string> {
     return new Map(deps);
 }
 
-export function isReadOnly(editor: monaco.editor.ICodeEditor): boolean {
+export function isReadOnly(editor: Monaco.editor.ICodeEditor): boolean {
     return editor.getOption(monaco.editor.EditorOption.readOnly);
 }
 
 let id = 0;
 
-export function uriForLanguage(language: Language): monaco.Uri {
+export function uriForLanguage(language: Language): Monaco.Uri {
     return monaco.Uri.file(`source-${++id}${extensionForLanguage(language)}`);
 }

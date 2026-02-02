@@ -24,7 +24,7 @@ export const Default: Story = {
                     setTimeout(() => setText("Hold Me"), 5000);
                 }}
                 >
-                    <div className="bg-secondary-800 h-16 w-16 rounded-full">
+                    <div className="h-16 w-16 rounded-full bg-secondary-800">
                         <Text>
                             {text}
                         </Text>

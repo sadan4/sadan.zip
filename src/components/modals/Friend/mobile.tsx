@@ -21,7 +21,6 @@ export function FriendModalMobile() {
                     })}
                 </div>
             </ScrollArea>
-
         </div>
     );
 }

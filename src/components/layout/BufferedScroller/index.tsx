@@ -123,7 +123,8 @@ export function BufferedScroller<T>({
 
     function setChunkVisibility(chunkIdx: number, direction: "top" | "bottom", isVisible: boolean) {
         setVisibleChunks((prev) => {
-            const chunk = prev[chunkIdx] ??= {};
+            // eslint-disable-next-line logical-assignment-operators -- React compiler doesn't like ??=
+            const chunk = prev[chunkIdx] = prev[chunkIdx] ?? {};
 
             chunk[direction] = isVisible;
             return { ...prev };

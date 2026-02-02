@@ -109,34 +109,32 @@ export function FriendModalNormal() {
     }, [friendIndex, nextButton, prevButton]);
 
     return (
-        <>
-            <div
-                className="fixed inset-fill"
-                onWheel={(e) => {
-                    console.log("scroll", e);
-                }}
-            >
-                <CircleRoot>
-                    <CircleCenter>
-                        <div
-                            className={styles.closeIcon}
-                            style={{
-                                "--center-top": center?.y,
-                                "--center-left": center?.x,
-                                "--center-width": center?.width,
-                                "--center-height": center?.height,
-                            }}
-                        >
-                            <FriendModalCloseIcon />
-                        </div>
-                    </CircleCenter>
-                    <CircleItems
-                        diameter={NORMAL_MAIN_CIRCLE_DIAMETER}
-                        children={contents}
-                        offset={1}
-                    />
-                </CircleRoot>
-            </div>
-        </>
+        <div
+            className="fixed inset-fill"
+            onWheel={(e) => {
+                console.log("scroll", e);
+            }}
+        >
+            <CircleRoot>
+                <CircleCenter>
+                    <div
+                        className={styles.closeIcon}
+                        style={{
+                            "--center-top": center?.y,
+                            "--center-left": center?.x,
+                            "--center-width": center?.width,
+                            "--center-height": center?.height,
+                        }}
+                    >
+                        <FriendModalCloseIcon />
+                    </div>
+                </CircleCenter>
+                <CircleItems
+                    diameter={NORMAL_MAIN_CIRCLE_DIAMETER}
+                    children={contents}
+                    offset={1}
+                />
+            </CircleRoot>
+        </div>
     );
 }

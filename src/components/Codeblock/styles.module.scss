@@ -1,10 +1,22 @@
 @use "u";
 
 @layer components {
-    .codeblock {
+    .codeblock-wrapper {
         position: relative;
 
-        .overlay-container {
+        &.wrap .code > :is(pre, code) {
+            white-space: pre-wrap;
+            word-break: normal;
+            overflow-wrap: anywhere;
+        }
+
+        .code > pre {
+            overflow: unset;
+            border-radius: 0.5rem;
+            padding: 1.25rem 1.5rem;
+        }
+
+        > .overlay-container {
             $margin: 2.5%;
 
             position: absolute;
@@ -15,9 +27,10 @@
             height: calc(100% - 2 * $margin);
             display: flex;
             align-items: flex-end;
-            justify-content: flex-end;
+            justify-content: flex-start;
+            flex-direction: column;
 
-            .button-container {
+            > .button-container {
                 @include u.anim-prop(opacity);
                 @include u.anim-dur(250ms);
 
@@ -27,25 +40,42 @@
             }
         }
 
-        &:hover .overlay-container .button-container {
+        &:hover > .overlay-container > .button-container {
             opacity: 1;
         }
     }
-}
 
-.codeblock {
-
-    /* stylelint-disable-next-line selector-class-pattern */
-    &.wrap :global(.defaultStyles) :is(pre, code) {
-        white-space: pre-wrap;
-        word-break: normal;
-        overflow-wrap: anywhere;
+    .line-numbers-container {
+        counter-reset: line-number calc(var(--line-start, 1) - 1);
+        display: flex;
+        flex-direction: column;
     }
 
-    /* stylelint-disable-next-line selector-class-pattern */
-    :global(.defaultStyles) {
-        pre {
-            overflow: unset;
+    .line {
+        $num: var(--line-num-fg, #51597D);
+        $num-active: var(--line-num-active-fg, $num);
+        $max-digits: var(--num-max-digits, 1);
+
+        &::before {
+            @include u.anim-prop(color);
+            @include u.anim-dur(100ms);
+
+            counter-increment: line-number;
+            content: counter(line-number);
+            display: inline-flex;
+            justify-content: flex-end;
+            align-items: flex-start;
+            box-sizing: content-box;
+            min-width: 1ch;
+            padding-inline: 1ch calc($max-digits * 1ch + 1ch);
+            color: $num;
+            opacity: 1;
+            user-select: none;
+            pointer-events: none;
+        }
+
+        &:hover::before {
+            color: $num-active;
         }
     }
 }

@@ -108,10 +108,12 @@ export function CircleCenter({ children }: CircleCenterProps) {
 export function CircleItems({
     diameter,
     children,
-    numItems = children.length,
+    numItems: _numItems,
     offset = 0,
     ...props
 }: CircleItemsProps) {
+    // FIXME: Weird workaround to make react compiler happy
+    const numItems = _numItems ?? children.length;
     const angleStep = (2 * Math.PI) / numItems;
     const { rect: { top = 0, left = 0, width = 0, height = 0 } = {} } = useCircleContextInternal();
 

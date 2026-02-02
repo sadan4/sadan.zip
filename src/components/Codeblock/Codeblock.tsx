@@ -1,11 +1,15 @@
+import { ScrollArea } from "@/components/layout/ScrollArea";
+import { useDeepState } from "@/hooks/deepState";
 import { copy } from "@/utils/clipboard";
 import cn from "@/utils/cn";
 import { assert, unreachable } from "@/utils/error";
+import * as shiki from "@/utils/shiki";
 import { Language } from "@/utils/textmate";
+import { languageDisplayNames } from "@/utils/textmate/language";
 import { TextmateTheme } from "@/utils/textmate/theme";
-import { ScrollArea } from "@components/layout/ScrollArea";
+import { LineNumberColor } from "@/utils/textmate/themes";
 
-import { useHighlighter } from "./_internal/useHighlighter";
+import { highlightCode } from "./_internal/highlightCode";
 import { HorizontalOverflowMode } from "./enums";
 import styles from "./styles.module.scss";
 import { Button } from "../Button";
@@ -14,8 +18,7 @@ import { Text } from "../Text";
 import { Tooltip } from "../Tooltip";
 
 import { CopyIcon } from "lucide-react";
-import { type ComponentProps, Suspense } from "react";
-import * as shiki from "react-shiki/core";
+import { type ComponentProps, startTransition, Suspense, useCallback, useEffect, useState } from "react";
 
 export interface CodeblockProps extends Omit<ComponentProps<"div">, "children" | "lang"> {
     children: string;
@@ -37,30 +40,12 @@ export interface CodeblockProps extends Omit<ComponentProps<"div">, "children" |
     noCopy?: boolean;
 }
 
-const langMap: Record<Language, shiki.Language> = {
-    [Language.HTML]: "html",
-    [Language.JSON]: "json",
-    [Language.JAVASCRIPT]: "javascript",
-    [Language.JAVASCRIPT_REACT]: "jsx",
-    [Language.TYPESCRIPT]: "typescript",
-    [Language.TYPESCRIPT_REACT]: "tsx",
-    [Language.PLAINTEXT]: "plaintext",
-    [Language.UNKNOWN]: "plaintext",
-    [Language.CSS]: "css",
-};
-
-const themeMap: Record<TextmateTheme, shiki.Theme> = {
-    [TextmateTheme.TOKYO_NIGHT]: "tokyo-night",
-    [TextmateTheme.ROSE_PINE]: "rose-pine",
-    [TextmateTheme.ROSE_PINE_DAWN]: "rose-pine-dawn",
-    [TextmateTheme.ROSE_PINE_MOON]: "rose-pine-moon",
-    [TextmateTheme.NORD]: "nord",
-    [TextmateTheme.CATPPUCCIN_MOCHA]: "catppuccin-mocha",
-    [TextmateTheme.CATPPUCCIN_FRAPPE]: "catppuccin-frappe",
-    [TextmateTheme.CATPPUCCIN_MACCHIATO]: "catppuccin-macchiato",
-    [TextmateTheme.CATPPUCCIN_LATTE]: "catppuccin-latte",
-    [TextmateTheme.DRACULA]: "dracula",
-};
+declare module "react" {
+    interface CSSProperties {
+        "--line-num-fg"?: string;
+        "--line-num-active-fg"?: string;
+    }
+}
 
 function CodeblockInner({
     lang,
@@ -69,37 +54,77 @@ function CodeblockInner({
     className,
     overflowX = HorizontalOverflowMode.WRAP,
     startingLineNumber,
-    lineNumbers = startingLineNumber != null ? true : undefined,
+    lineNumbers: _lineNumbers,
     noCopy = false,
     ...props
 }: CodeblockProps) {
+    // NOTE: react compiler workaround
+    let lineNumbers = _lineNumbers;
+
+    if (lineNumbers === undefined) {
+        lineNumbers = startingLineNumber != null ? true : undefined;
+    }
     if (overflowX === HorizontalOverflowMode.WRAP) {
         assert(lineNumbers !== false, "lineNumbers must not be false when overflowX is WRAP");
         lineNumbers = true;
     }
 
-    const highlighter = useHighlighter(lang, theme);
+    const highlightToHtml = useCallback(() => {
+        assert(shiki.highlighter, "Highlighter not loaded");
+        return highlightCode({
+            lang,
+            theme,
+            highlighter: shiki.highlighter,
+            code: children,
+            showLineNumbers: lineNumbers,
+            startingLineNumber: startingLineNumber ?? 1,
+        });
+    }, [children, lang, lineNumbers, startingLineNumber, theme]);
 
-    let hl = (
-        <shiki.ShikiHighlighter
-            highlighter={highlighter}
-            theme={themeMap[theme]}
-            language={langMap[lang]}
-            showLineNumbers={lineNumbers}
-            startingLineNumber={startingLineNumber ?? 1}
-        >
-            {children}
-        </shiki.ShikiHighlighter>
+    // in ssr, the themes/grammars are always loaded
+    const [html, setHtml] = useState<string>(() => (import.meta.env.SSR ? highlightToHtml() : ""));
+
+    const [{ foreground, activeForeground }, setLineNumberColor]
+    = useDeepState<LineNumberColor>(import.meta.env.SSR ? shiki.getLineNumberColor(theme) : {});
+
+    useEffect(() => {
+        // don't suspend if we dont need to
+        if (shiki.themeNeedsLoad(theme) || shiki.grammarNeedsLoad(lang)) {
+            startTransition(async () => {
+                await Promise.all([shiki.loadTheme(theme), shiki.loadGrammar(lang)]);
+
+                startTransition(() => {
+                    setHtml(highlightToHtml());
+                    setLineNumberColor(shiki.getLineNumberColor(theme));
+                });
+            });
+        } else {
+            setHtml(highlightToHtml());
+            setLineNumberColor(shiki.getLineNumberColor(theme));
+        }
+    }, [setLineNumberColor, highlightToHtml, lang, theme]);
+
+    let highlightedCode = (
+        <div
+            dangerouslySetInnerHTML={{ __html: html }}
+            // we want a mismatch to avoid showing the fallback on suspense
+            suppressHydrationWarning
+            className={styles.code}
+            style={{
+                "--line-num-fg": foreground,
+                "--line-num-active-fg": activeForeground,
+            }}
+        />
     );
 
     switch (overflowX) {
         case HorizontalOverflowMode.SCROLL: {
-            hl = (
+            highlightedCode = (
                 <ScrollArea
                     className="max-h-[unset]"
                     dir={ScrollAreaDirection.HORIZONTAL}
                 >
-                    {hl}
+                    {highlightedCode}
                 </ScrollArea>
             );
             break;
@@ -117,29 +142,28 @@ function CodeblockInner({
     return (
         <div
             {...props}
-            className={cn(styles.codeblock, className)}
+            className={cn(styles.codeblockWrapper, className)}
         >
-            {hl}
-            {
-                !noCopy && (
-                    <div className={styles.overlayContainer}>
-                        <div className={styles.buttonContainer}>
-                            <Tooltip text="Copy">
-                                <Button onClick={() => copy(children)}>
-                                    <CopyIcon />
-                                </Button>
-                            </Tooltip>
-                        </div>
+            {highlightedCode}
+            <div className={styles.overlayContainer}>
+                <Text>{languageDisplayNames[lang]}</Text>
+                {!noCopy && (
+                    <div className={styles.buttonContainer}>
+                        <Tooltip text="Copy">
+                            <Button onClick={() => copy(children)}>
+                                <CopyIcon />
+                            </Button>
+                        </Tooltip>
                     </div>
-                )
-            }
+                )}
+            </div>
         </div>
     );
 }
 
 export function Codeblock(props: CodeblockProps) {
     return (
-        <Suspense fallback={<Text>Loading...</Text>}>
+        <Suspense name="Codeblock">
             <CodeblockInner {...props} />
         </Suspense>
     );

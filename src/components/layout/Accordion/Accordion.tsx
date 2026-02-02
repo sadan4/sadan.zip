@@ -1,10 +1,10 @@
+import { Clickable } from "@/components/Clickable";
+import { AnimateHeight } from "@/components/effects/AnimateHeight";
 import { useControlledState } from "@/hooks/controlledState";
+import { useForceUpdater } from "@/hooks/forceUpdater";
 import cn from "@/utils/cn";
 import { NOOP } from "@/utils/constants";
 import { namedContext } from "@/utils/devtools";
-import { Clickable } from "@components/Clickable";
-import { AnimateHeight } from "@effects/AnimateHeight";
-import { useForceUpdater } from "@hooks/forceUpdater";
 import { animated, useSpring } from "@react-spring/web";
 
 import styles from "./styles.module.scss";

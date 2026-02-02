@@ -1,9 +1,9 @@
 import { ScrollAreaContext } from "@/components/layout/ScrollArea/context";
 import { measureRect } from "@/utils/dom";
 import { deepEqual, pick } from "@/utils/obj";
-import useResizeObserver from "@react-hook/resize-observer";
 
 import { useEventHandler } from "./eventListener";
+import { useReiszeObserverFromRef, useResizeObserver } from "./resizeObserver";
 
 import { type RefObject, use, useCallback, useEffect, useRef, useState } from "react";
 
@@ -115,6 +115,7 @@ export function useRectFromRef<T extends keyof DOMRect>(
     keys: T[]
 ): Pick<DOMRect, T> | undefined;
 export function useRectFromRef(
+    // ref_ to trick react compiler to not erroring when .current is used during render
     ref: RefObject<Element | null>,
     extraDeps: unknown[] = [],
     keys: (keyof DOMRect)[] = [],
@@ -159,7 +160,7 @@ export function useRectFromRef(
         }
     }, scroller);
 
-    useResizeObserver(ref, () => {
+    useReiszeObserverFromRef(ref, () => {
         const el = ref.current;
 
         if (el) {

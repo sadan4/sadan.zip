@@ -1,5 +1,4 @@
 import { namedContext } from "@/utils/devtools";
-import { proxyLazy } from "@/utils/lazy";
 
 export interface FriendModalContext {
     x: number;
@@ -19,7 +18,7 @@ export function defaultPosition() {
     };
 }
 
-export const FriendModalContext = namedContext<FriendModalContext>(proxyLazy(defaultPosition), "FriendModalContext");
+export const FriendModalContext = namedContext<FriendModalContext>(null!, "FriendModalContext");
 
 export const NORMAL_MAIN_CIRCLE_DIAMETER = 500;
 export const FRIEND_CARD_CIRCLE_DIAMETER = 192;

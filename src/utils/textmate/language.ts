@@ -29,3 +29,15 @@ export function extensionForLanguage(language: Language): string {
 
     return (ext && `.${ext}`) ?? error(`Could not find extension for ${language}`);
 }
+
+export const languageDisplayNames = Object.freeze({
+    [Language.PLAINTEXT]: "txt",
+    [Language.UNKNOWN]: "UNKNOWN",
+    [Language.JSON]: "json",
+    [Language.TYPESCRIPT]: "ts",
+    [Language.JAVASCRIPT]: "js",
+    [Language.TYPESCRIPT_REACT]: "tsx",
+    [Language.JAVASCRIPT_REACT]: "jsx",
+    [Language.HTML]: "html",
+    [Language.CSS]: "css",
+} satisfies Record<Language, string>);

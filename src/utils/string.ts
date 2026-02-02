@@ -4,7 +4,7 @@ export function dedent(
     strings: TemplateStringsArray | string,
     ...values: unknown[]
 ) {
-    /*!
+    /**
      * https://github.com/dmnd/dedent
      * @license MIT
      */
@@ -56,28 +56,24 @@ export function dedent(
     result = result.trim();
 
     return result;
-}
-
-/**
- * Adjusts the indentation of a multi-line interpolated value to match the current line.
- */
-function alignValue(value: unknown, precedingText: string): string | unknown {
-    /*!
-     * https://github.com/dmnd/dedent
-     * @license MIT
+    /**
+     * Adjusts the indentation of a multi-line interpolated value to match the current line.
      */
-    if (typeof value !== "string" || !value.includes("\n")) {
+    function alignValue(value: unknown, precedingText: string): string | unknown {
+        if (typeof value !== "string" || !value.includes("\n")) {
+            return value;
+        }
+
+        const currentLine = precedingText.slice(precedingText.lastIndexOf("\n") + 1);
+        const indentMatch = currentLine.match(/^(\s+)/);
+
+        if (indentMatch) {
+            const [indent] = indentMatch;
+
+            return value.replace(/\n/g, `\n${indent}`);
+        }
+
         return value;
     }
-
-    const currentLine = precedingText.slice(precedingText.lastIndexOf("\n") + 1);
-    const indentMatch = currentLine.match(/^(\s+)/);
-
-    if (indentMatch) {
-        const [indent] = indentMatch;
-
-        return value.replace(/\n/g, `\n${indent}`);
-    }
-
-    return value;
 }
+

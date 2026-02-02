@@ -26,3 +26,7 @@ export function debounce<
         timeout = setTimeout(() => func(...args), delay);
     };
 }
+
+export function run<T>(f: () => T): T {
+    return f();
+}

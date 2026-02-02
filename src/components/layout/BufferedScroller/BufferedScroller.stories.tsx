@@ -46,10 +46,10 @@ export const WithBuffer: Story = {
 export const HeaderAndFooter: Story = {
     args: {
         renderHeader() {
-            return <div className="bg-accent-300/50 h-10 w-full text-center">Header</div>;
+            return <div className="h-10 w-full bg-accent-300/50 text-center">Header</div>;
         },
         renderFooter() {
-            return <div className="bg-secondary-500/50 h-10 w-full text-center">Footer</div>;
+            return <div className="h-10 w-full bg-secondary-500/50 text-center">Footer</div>;
         },
         alwaysRenderFooter: true,
     },
@@ -58,10 +58,10 @@ export const HeaderAndFooter: Story = {
 export const StickyHeaderAndFooter: Story = {
     args: {
         renderHeader() {
-            return <div className="bg-accent-300/50 sticky top-0 h-10 w-full text-center">Header</div>;
+            return <div className="sticky top-0 h-10 w-full bg-accent-300/50 text-center">Header</div>;
         },
         renderFooter() {
-            return <div className="bg-secondary-500/50 sticky bottom-0 h-10 w-full text-center">Footer</div>;
+            return <div className="sticky bottom-0 h-10 w-full bg-secondary-500/50 text-center">Footer</div>;
         },
         alwaysRenderFooter: true,
     },
