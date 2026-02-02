@@ -20,7 +20,7 @@ export interface UseBorderHoldAnimProps {
 
 export function useBorderHoldAnim({ onHold, held }: UseBorderHoldAnimProps) {
     const dispatched = useRef(false);
-
+    
     const { progress, opacity } = useSpring({
         from: {
             progress: 0,

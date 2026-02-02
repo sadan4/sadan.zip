@@ -19,13 +19,50 @@
             cursor: not-allowed;
         }
 
+        &.icon-button {
+            --check-progress: 0;
+
+            color: var(--button-text-color, var(--color-bg-100));
+            position: relative;
+
+
+            &.show-check {
+                --check-progress: 1;
+            }
+
+            > .icon,
+            > .check {
+                @include u.anim-dur;
+            }
+
+            > .icon {
+                @include u.anim-blur-scale-fade(calc(1 - var(--check-progress)));
+            }
+
+            // NOTE: must be second child, parent must have 2 children
+            > .check {
+                @include u.anim-blur-scale-fade(var(--check-progress));
+
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: inherit;
+                height: inherit;
+                padding: inherit;
+            }
+
+            &:is(.outline, .text) > .check{
+                color: var(--button-color-base);
+            }
+        }
+
         &.filled {
             &:hover {
-                --button-color: #{u.alpha(var(--button-color-base) 80%)};
+                --button-color: lch(from var(--button-color-base) calc(l * .85) c h);
             }
 
             &:active {
-                --button-color: #{u.alpha(var(--button-color-base) 65%)};
+                --button-color: lch(from var(--button-color-base) calc(l * .7) c h);
             }
 
             &:disabled {
@@ -86,52 +123,63 @@
             }
         }
 
-        &.primary {
+        &.primary,
+        .primary {
             --button-color-base: var(--color-primary-400);
         }
 
-        &.secondary {
+        &.secondary,
+        .secondary {
             --button-color-base: var(--color-secondary-500);
         }
 
-        &.accent {
+        &.accent,
+        .accent {
             --button-color-base: var(--color-accent-300);
-
-            &:is(.outline, .text):hover {
-                --hover-bg-opacity: 10%;
-            }
         }
 
-        &.neutral {
+        &:is(.outline, .text):hover.accent,
+        &:is(.outline, .text):hover .accent {
+            --hover-bg-opacity: 10%;
+        }
+
+        &.neutral,
+        .neutral {
             --button-color-base: var(--color-neutral-content);
-
-            &.filled {
-                --button-text-color: var(--color-neutral);
-            }
         }
 
+        &.filled.neutral,
+        &.filled .neutral {
+            --button-text-color: var(--color-neutral);
+        }
 
-        &.info {
+        &.info,
+        .info {
             --button-color-base: var(--color-info-500);
         }
 
-        &.info-700 {
+        &.info,
+        .info-700 {
             --button-color-base: var(--color-info-700);
-
-            &.filled {
-                --button-text-color: var(--color-fg-500);
-            }
         }
 
-        &.success {
+        &.filled.info-700,
+        &.filled .info-700 {
+            --button-text-color: var(--color-fg-500);
+        }
+
+        &.success,
+        .success {
             --button-color-base: var(--color-success-300);
         }
 
-        &.warning {
+        &.warning,
+        .warning {
             --button-color-base: var(--color-warning-300);
         }
 
-        &.error {
+        &.error,
+        .error {
             --button-color-base: var(--color-error-400);
         }
     }

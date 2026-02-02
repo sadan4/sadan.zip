@@ -98,6 +98,7 @@ const config = defineConfig(({ command }) => ({
                 loadPaths: [join(import.meta.dirname, "src", "styles")],
             },
         },
+        devSourcemap: true,
         // lightningcss: {
         //     cssModules: {
         //         // TODO: lightningcss does not support hash on class name alone

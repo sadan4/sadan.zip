@@ -12,10 +12,9 @@ import { LineNumberColor } from "@/utils/textmate/themes";
 import { highlightCode } from "./_internal/highlightCode";
 import { HorizontalOverflowMode } from "./enums";
 import styles from "./styles.module.scss";
-import { Button } from "../Button";
+import { IconButton } from "../Button";
 import { ScrollAreaDirection } from "../layout/ScrollArea/types";
 import { Text } from "../Text";
-import { Tooltip } from "../Tooltip";
 
 import { CopyIcon } from "lucide-react";
 import { type ComponentProps, startTransition, Suspense, useCallback, useEffect, useState } from "react";
@@ -149,11 +148,15 @@ function CodeblockInner({
                 <Text>{languageDisplayNames[lang]}</Text>
                 {!noCopy && (
                     <div className={styles.buttonContainer}>
-                        <Tooltip text="Copy">
-                            <Button onClick={() => copy(children)}>
-                                <CopyIcon />
-                            </Button>
-                        </Tooltip>
+                        <IconButton
+                            label="Copy"
+                            // FIXME: notice / something with error
+                            onClick={() => copy(children)
+                                .then(() => true)
+                                .catch(() => false)}
+                        >
+                            <CopyIcon />
+                        </IconButton>
                     </div>
                 )}
             </div>
