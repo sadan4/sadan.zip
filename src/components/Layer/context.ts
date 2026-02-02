@@ -1,5 +1,6 @@
 import { namedContext } from "@/utils/devtools";
 
+export type LayerElement = HTMLBodyElement | HTMLDivElement;
 export interface LayerContext {
     /**
      * starts at 0 being the layer closest to body
@@ -8,7 +9,7 @@ export interface LayerContext {
     /**
      * null in the gap bewteen rendering the new layer and the ref being set
      */
-    root: HTMLDivElement | null;
+    root: LayerElement | null;
 }
 
 

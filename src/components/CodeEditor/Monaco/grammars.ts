@@ -1,12 +1,11 @@
 import { error } from "@/utils/error";
 import { makeLazy } from "@/utils/lazy";
+import { Monaco, monaco } from "@/utils/monaco";
 import { createOnigurumaEngine } from "@/utils/oniguruma";
 import { hasGrammar, lazyLoadGrammar } from "@/utils/textmate";
 
 import { INITIAL, type IRawGrammar, Registry, type StateStack } from "./vscode-textmate/main";
 import { ColorMap, ScopeStack, Theme } from "./vscode-textmate/theme";
-
-import * as monaco from "monaco-editor";
 
 export const registry = makeLazy(() => {
     return new Registry({
@@ -32,7 +31,7 @@ interface ThemeSetting {
     };
 }
 
-class TokenizerState implements monaco.languages.IState {
+class TokenizerState implements Monaco.languages.IState {
     constructor(private _ruleStack: StateStack) { }
 
     public get ruleStack(): StateStack {
@@ -43,7 +42,7 @@ class TokenizerState implements monaco.languages.IState {
         return new TokenizerState(this._ruleStack);
     }
 
-    public equals(other: monaco.languages.IState): boolean {
+    public equals(other: Monaco.languages.IState): boolean {
         if (!other
           || !(other instanceof TokenizerState)
           || other !== this
@@ -64,7 +63,7 @@ class TokenizerState implements monaco.languages.IState {
 export function wireTmGrammars(
     registry: Registry,
     languages: Map<string, string>,
-    editor: monaco.editor.ICodeEditor,
+    editor: Monaco.editor.ICodeEditor,
     theme: string,
 ) {
     return Promise.all(Array.from(languages.keys())
@@ -133,7 +132,7 @@ export function wireTmGrammars(
 
 const themeRulesCache: Map<string, ThemeSetting[]> = new Map();
 
-function getRulesForTheme(editor: monaco.editor.ICodeEditor, theme: string): ThemeSetting[] {
+function getRulesForTheme(editor: Monaco.editor.ICodeEditor, theme: string): ThemeSetting[] {
     if (themeRulesCache.has(theme)) {
         return themeRulesCache.get(theme)!;
     }
@@ -145,7 +144,7 @@ function getRulesForTheme(editor: monaco.editor.ICodeEditor, theme: string): The
         error(`could not find theme data for theme: ${theme}`);
     }
 
-    const rules = themeData.themeData.rules as monaco.editor.ITokenThemeRule[];
+    const rules = themeData.themeData.rules as Monaco.editor.ITokenThemeRule[];
 
     const themeSettings: ThemeSetting[] = rules.map(({ token: scope, ...settings }) => {
         return {

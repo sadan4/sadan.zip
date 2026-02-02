@@ -14,6 +14,13 @@
                 "reveal": "always"
             },
             "group": "build"
-        }
+        },
+        {
+			"type": "eslint",
+			"problemMatcher": [
+				"$eslint-stylish"
+			],
+			"label": "eslint: lint whole folder"
+		},
     ]
 }

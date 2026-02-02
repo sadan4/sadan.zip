@@ -1,54 +1,68 @@
 {
-    "vite.autoStart": false,
-    "vite.browserType": "system",
-    "cSpell.words": [
-        "autofocus",
-        "CATPPUCCIN",
-        "elissa",
-        "esbuild",
-        "Fortnite",
-        "fres",
-        "globstarshort",
-        "Keybind",
-        "krstlskll",
-        "lucide",
-        "MACCHIATO",
-        "maddie",
-        "minky",
-        "Minky",
-        "mugman",
-        "NORD",
-        "noselect",
-        "Onigasm",
-        "ruid",
-        "rushii",
-        "shiki",
-        "shikijs",
-        "sqaaakoi",
-        "worf",
-        "zoot"
-    ],
-    "typescript.tsdk": "node_modules/typescript/lib",
-    "css.lint.unknownAtRules": "ignore",
-    "typescript.tsserver.experimental.enableProjectDiagnostics": true,
-    "scss.showErrors": true,
-    "scss.format.spaceAroundSelectorSeparator": true,
-	"stylelint.validate": [
-		"css",
-		"postcss",
-		"scss"
-	],
-	"[css]": {
-		"editor.codeActionsOnSave": {
-			"source.fixAll.stylelint": "always",
-		}
-	},
-	"[scss]": {
-		"editor.codeActionsOnSave": {
-			"source.fixAll.stylelint": "always",
-		}
-    },
-    "tailwindCSS.classFunctions": [
-        "cn"
-    ]
+  "search.exclude": {
+    "**/routeTree.gen.ts": true
+  },
+  "files.readonlyInclude": {
+    "**/routeTree.gen.ts": true
+  },
+  "vite.autoStart": false,
+  "vite.browserType": "system",
+  "cSpell.words": [
+    "instantiator",
+    "Onig",
+    "shiki",
+    "autofocus",
+    "CATPPUCCIN",
+    "elissa",
+    "esbuild",
+    "Fortnite",
+    "fres",
+    "globstarshort",
+    "Keybind",
+    "krstlskll",
+    "lucide",
+    "MACCHIATO",
+    "maddie",
+    "minky",
+    "Minky",
+    "mugman",
+    "NORD",
+    "noselect",
+    "Onigasm",
+    "ruid",
+    "rushii",
+    "shiki",
+    "shikijs",
+    "sqaaakoi",
+    "worf",
+    "zoot"
+  ],
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "css.lint.unknownAtRules": "ignore",
+  "typescript.tsserver.experimental.enableProjectDiagnostics": true,
+  "scss.showErrors": true,
+  "scss.format.spaceAroundSelectorSeparator": true,
+  "eslint.lintTask.enable": true,
+  "eslint.lintTask.command": "pnpm lint:js",
+  "eslint.lintTask.options": "",
+  // done by stylelint, which supports ignoring with a comment in the block
+  "scss.lint.emptyRules": "ignore",
+  "stylelint.validate": [
+    "css",
+    "postcss",
+    "scss"
+  ],
+  "[css]": {
+    "editor.codeActionsOnSave": {
+      "source.fixAll.stylelint": "always",
+    }
+  },
+  "[scss]": {
+    "editor.codeActionsOnSave": {
+      "source.fixAll.stylelint": "always",
+    }
+  },
+  "tailwindCSS.classFunctions": [
+    "cn"
+  ]
 }

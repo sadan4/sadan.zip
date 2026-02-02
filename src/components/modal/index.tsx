@@ -5,7 +5,7 @@ import { namedContext } from "@/utils/devtools";
 import styles from "./styles.module.scss";
 import { Layer } from "../Layer";
 
-import { type ComponentPropsWithoutRef, type Ref, Suspense, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { Activity, type ComponentPropsWithoutRef, type Ref, Suspense, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 
 export interface ModalContext {
     open(): void;
@@ -74,7 +74,12 @@ export function Modal({ children, ref: _ref, className, innerRef, open: _open, .
                             onClick={(e) => e.stopPropagation()}
                         >
                             <Layer>
-                                {open && children}
+                                <Activity
+                                    name="Modal.children"
+                                    mode={open ? "visible" : "hidden"}
+                                >
+                                    {children}
+                                </Activity>
                             </Layer>
                         </div>
                     </div>

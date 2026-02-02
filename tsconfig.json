@@ -1,7 +1,65 @@
 {
-  "files": [],
-  "references": [
-    { "path": "./tsconfig.app.json" },
-    { "path": "./tsconfig.node.json" }
-  ]
+  "compilerOptions": {
+    "target": "ESNext",
+    "jsx": "react-jsx",
+    "module": "ESNext",
+    "lib": [
+      "ESNext",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "types": [
+      "vite/client"
+    ],
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": false,
+    "noEmit": true,
+    /* Linting */
+    "skipLibCheck": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "allowJs": true,
+    // typescript does not support explicit fallthrough
+    // microsoft/typescript#62295
+    "noFallthroughCasesInSwitch": false, 
+    "noUncheckedSideEffectImports": true,
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ]
+    },
+    "plugins": [
+      {
+        "name": "typescript-plugin-css-modules",
+        "options": {
+          "namedExports": false,
+          "customTemplate": "scripts/cssModulesDts.cjs",
+          "goToDefinition": true,
+          "classnameTransform": "camelCaseOnly",
+          "rendererOptions": {
+            "sass": {
+              "loadPaths": [
+                "src/styles"
+              ]
+            }
+          }
+        }
+      }
+    ]
+  },
+  "include": [
+    "src",
+    "eslint.config.mts",
+    "stylelint.config.ts",
+    "vite.config.ts",
+    "scripts"
+  ],
+  "exclude": [
+    "dist",
+    "node_modules",
+    ".netlify",
+  ],
 }

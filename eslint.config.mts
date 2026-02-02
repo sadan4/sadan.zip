@@ -54,7 +54,6 @@ const ESLintRules: Partial<IESLintRules> = {
     "no-constant-condition": [
         "error",
         {
-            // @ts-expect-error Why is this erroring
             checkLoops: "allExceptWhileTrue",
         },
     ],
@@ -569,7 +568,15 @@ const styleRules: Partial<IStyleRules> = {
         "error",
         "always",
         {
-            markers: ["/", "#", "!", "@", "*"],
+            exceptions: [
+                "/",
+                "#",
+                "!",
+                "@",
+                "*",
+                // template literal tags
+                "js",
+            ],
         },
     ],
     "@stylistic/switch-colon-spacing": ["error"],
@@ -651,7 +658,7 @@ const tailwindCallees = Object.freeze({
 });
 
 export default TSEslint.config({ ignores: ["dist"] }, {
-    files: [`src/**/*.${extensions}`, `server/**/*.${extensions}`, `eslint.config.${extensions}`, `vite.config.${extensions}`, `stylelint.config.${extensions}`, `vitest.config.${extensions}`, `.storybook/*.${extensions}`],
+    files: [`src/**/*.${extensions}`, `server/**/*.${extensions}`, `eslint.config.${extensions}`, `vite.config.${extensions}`, `stylelint.config.${extensions}`, `scripts/**/*.${extensions}`, `vitest.config.${extensions}`, `.storybook/*.${extensions}`],
     plugins: {
         "@stylistic": stylistic,
         "@typescript-eslint": TSEslint.plugin,
@@ -696,6 +703,8 @@ export default TSEslint.config({ ignores: ["dist"] }, {
         ],
         "simple-import-sort/exports": "error",
         ...reactHooks.configs["recommended-latest"].rules,
+        // too noisy
+        "react-hooks/set-state-in-effect": "off",
         "react-hooks/todo": "warn",
         "react-hooks/syntax": "error",
         "react-refresh/only-export-components": [
@@ -705,6 +714,12 @@ export default TSEslint.config({ ignores: ["dist"] }, {
         "tailwindcss/classnames-order": [
             "error",
             tailwindCallees,
+        ],
+        "react-hooks/exhaustive-deps": [
+            "warn",
+            {
+                additionalHooks: "(useIsomorphicLayoutEffect)",
+            },
         ],
         "tailwindcss/enforces-negative-arbitrary-values": ["error", tailwindCallees],
         "tailwindcss/enforces-shorthand": ["error", tailwindCallees],

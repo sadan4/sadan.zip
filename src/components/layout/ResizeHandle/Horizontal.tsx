@@ -11,6 +11,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 export interface HorizontalResizeHandleProps extends ResizeHandleProps {
 }
 
+declare module "react" {
+    interface CSSProperties {
+        "--initial-drag-offset"?: number;
+    }
+}
+
 export function Horizontal({
     className,
     style,
@@ -103,7 +109,7 @@ export function Horizontal({
             ref={handleRef}
             className={cn(styles.horizontalHandle, dragging && styles.dragging, className)}
             style={{
-                ["--initial-drag-offset" as any]: initialPosition,
+                "--initial-drag-offset": initialPosition,
                 ...style,
             }}
             {...props}

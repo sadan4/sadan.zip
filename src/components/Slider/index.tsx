@@ -1,10 +1,10 @@
 import { useControlledState } from "@/hooks/controlledState";
 import { useForceUpdater } from "@/hooks/forceUpdater";
+import { useResizeObserver } from "@/hooks/resizeObserver";
 import cn from "@/utils/cn";
 import { parseCSSValue, PercentReference, rangeInputDefaultValue } from "@/utils/dom";
 import { assert } from "@/utils/error";
 import { clamp } from "@/utils/math";
-import useResizeObserver from "@react-hook/resize-observer";
 
 import styles from "./styles.module.scss";
 import { HorizontalLine } from "../Lines";
@@ -60,6 +60,15 @@ export interface SliderProps extends Omit<ComponentProps<"input">, "onChange" | 
     stickToMarkers?: boolean;
     renderMarkers?(props: RenderMarkersProps): ReactNode;
     renderMarker?(props: RenderMarkerProps): ReactNode;
+}
+
+declare module "react" {
+    interface CSSProperties {
+        /**
+         * Custom property for slider progress
+         */
+        "--progress"?: number;
+    }
 }
 
 export function Slider(props: SliderProps) {
@@ -121,13 +130,13 @@ export function Slider(props: SliderProps) {
                 [styles.reverse]: reverseVertical,
             })}
             style={{
-                ["--progress" as any]: valueToPercent(currentValue),
+                "--progress": valueToPercent(currentValue),
             }}
         >
             {shouldShowMarkers && (
                 <RenderMarkers
                     markers={markers}
-                    containerRef={containerRef}
+                    container={containerRef}
                     min={min}
                     max={max}
                     valueToPercent={valueToPercent}
@@ -167,7 +176,7 @@ export function Slider(props: SliderProps) {
 
 export interface RenderMarkersProps {
     markers: number[];
-    containerRef: HTMLDivElement | null;
+    container: HTMLDivElement | null;
     min: number;
     max: number;
     valueToPercent: (value: number) => number;
@@ -177,7 +186,7 @@ export interface RenderMarkersProps {
 }
 
 function DefaultRenderMarkers({
-    containerRef,
+    container,
     renderMarker: RenderMarker = DefaultRenderMarker,
     clampToRange,
     valueToPercent,
@@ -189,17 +198,17 @@ function DefaultRenderMarkers({
     const [dep, updateSize] = useForceUpdater();
     const [thumbWidth, setThumbWidth] = useState(0);
 
-    useResizeObserver(containerRef, updateSize);
+    useResizeObserver(container, updateSize);
 
     useEffect(() => {
         dep;
-        if (containerRef) {
-            const { width, height } = containerRef.getBoundingClientRect();
+        if (container) {
+            const { width, height } = container.getBoundingClientRect();
 
             const thumbWidth = parseCSSValue(
-                getComputedStyle(containerRef)
+                getComputedStyle(container)
                     .getPropertyValue("--thumb-width"),
-                containerRef,
+                container,
                 PercentReference.WIDTH,
             );
 
@@ -210,7 +219,7 @@ function DefaultRenderMarkers({
             setContainerWidth(0);
             setThumbWidth(0);
         }
-    }, [containerRef, dep]);
+    }, [container, dep]);
 
     return (
         <div className={cn("pointer-events-none absolute top-0 left-0 h-full w-full")}>
@@ -226,7 +235,7 @@ function DefaultRenderMarkers({
                             containerWidth={containerWidth}
                             containerHeight={containerHeight}
                             thumbWidth={thumbWidth}
-                            containerRef={containerRef}
+                            containerRef={container}
                             vertical={vertical}
                         />
                     );

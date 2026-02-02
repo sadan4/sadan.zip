@@ -1,78 +1,37 @@
-import { assert } from "@/utils/error";
-import { type Lazy, makeLazy } from "@/utils/lazy";
-import { createOnigurumaEngine } from "@/utils/oniguruma";
-import { hasGrammar, Language, lazyLoadGrammar } from "@/utils/textmate";
-import type { LazyLang } from "@/utils/textmate/_grammars.gen&gen";
+import { useDeepMemo } from "@/hooks/deepMemo";
+import { grammarNeedsLoad, highlighter, loadGrammar, loadTheme, themeNeedsLoad } from "@/utils/shiki";
+import { Language } from "@/utils/textmate";
 import { getLanguageDeps } from "@/utils/textmate/grammars";
 import type { TextmateTheme } from "@/utils/textmate/theme";
-import { lazyLoadTextmateTheme, type TMTheme } from "@/utils/textmate/themes";
 
-import { use } from "react";
-import { createHighlighterCore } from "react-shiki/core";
-import type { HighlighterCore } from "shiki";
+import { use, useMemo } from "react";
+import { type HighlighterCore } from "shiki";
 
-let highlighter: HighlighterCore | undefined;
-
-// TODO: make all themes lazy
-const highlighterPromise: Lazy<Promise<HighlighterCore>> = makeLazy(async () => {
-    const ret = await createHighlighterCore({
-        themes: [],
-        engine: createOnigurumaEngine(),
-        warnings: true,
-    });
-
-    assert(!highlighter);
-    highlighter = ret;
-    return ret;
-});
-
-export function preloadHighlighter() {
-    highlighterPromise();
-}
-
-const loadedThemes = new Set<TextmateTheme>();
-const loadedLangs = new Set<Language>();
-
-function grammarNeedsLoad(languages: Language[]): Language[];
-function grammarNeedsLoad(language: Language): boolean;
-function grammarNeedsLoad(language: Language | Language[]): boolean | Language[] {
-    if (Array.isArray(language)) {
-        return language.filter((lang) => grammarNeedsLoad(lang));
-    }
-    return !loadedLangs.has(language) && hasGrammar(language);
-}
-
-function themeNeedsLoad(theme: TextmateTheme): boolean {
-    return !loadedThemes.has(theme);
-}
 
 export function useHighlighter(language: Language, theme: TextmateTheme): HighlighterCore {
-    const toLoad = grammarNeedsLoad(getLanguageDeps(language));
-    let grammarPromises: readonly [Language, Promise<LazyLang>][] = [];
-    let themePromise: Promise<TMTheme> | null = null;
+    const grammarsToLoad = useDeepMemo(grammarNeedsLoad(getLanguageDeps(language)));
+    const hasGrammars = grammarsToLoad.length !== 0;
 
-    if (toLoad.length) {
-        // preload it
-        grammarPromises = toLoad.map((lang) => [lang, lazyLoadGrammar(lang)] as const);
-    }
-
-    if (themeNeedsLoad(theme)) {
-        themePromise = lazyLoadTextmateTheme(theme);
-    }
-
-    const hl = highlighter ?? use(highlighterPromise());
+    const themePromise = useMemo(() => {
+        if (themeNeedsLoad(theme)) {
+            return loadTheme(theme);
+        }
+    }, [theme]);
 
     if (themePromise) {
-        use(themePromise.then((tmTheme) => {
-            hl.loadThemeSync(tmTheme);
-            loadedThemes.add(theme);
-        }));
+        use(themePromise);
     }
-    if (grammarPromises.length) {
-        use(Promise.all(grammarPromises.map(([lang, p]) => p.then((loadedLang) => {
-            hl.loadLanguageSync(loadedLang);
-            loadedLangs.add(lang);
-        }))));
+
+    const grammarsPromise = useMemo(() => {
+        if (hasGrammars) {
+            return loadGrammar(language);
+        }
+    }, [hasGrammars, language]);
+
+    if (grammarsPromise) {
+        use(grammarsPromise);
     }
-    return hl;
+
+    // this will be loaded by the two previous promises
+    return highlighter!;
 }

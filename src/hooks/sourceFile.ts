@@ -1,4 +1,4 @@
-import { unreachable } from "@/utils/error";
+import { assert, unreachable } from "@/utils/error";
 import { extensionForLanguage, Language } from "@/utils/textmate";
 import { defaultScriptTarget, getTextChanges, scriptKindForLanguage } from "@/utils/typescript";
 
@@ -88,6 +88,7 @@ export function useSourceFile(
 
         let res: SourceFile | undefined;
 
+        assert(UpdateType.LANGUAGE === UpdateType.SCRIPT_TARGET, "expected to be the same");
         switch (action.type) {
             case UpdateType.CODE: {
                 const { oldCode } = action;
@@ -98,7 +99,6 @@ export function useSourceFile(
                 break;
             }
             case UpdateType.INIT:
-            case UpdateType.LANGUAGE:
             case UpdateType.SCRIPT_TARGET: {
                 incrementReparseCount(true);
                 res = createSourceFile(

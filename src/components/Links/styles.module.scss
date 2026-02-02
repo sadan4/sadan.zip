@@ -1,0 +1,17 @@
+@layer components {
+    .link,
+    .link>:global(.text) {
+        font-weight: 500;
+        color: var(--color-info-400);
+        text-decoration: inherit;
+    }
+
+    .link,
+    .link:hover>:global(.text) {
+        color: var(--color-info-500);
+    }
+
+    .text-link {
+        // empty
+    }
+}

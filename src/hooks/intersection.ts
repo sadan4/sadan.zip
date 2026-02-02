@@ -35,7 +35,9 @@ export function useIntersection(
         if (!el)
             return;
 
-        const { rootRef, root = rootRef?.current, ...rest } = opts;
+        const { rootRef, ...rest } = opts;
+        // FIXME: brought out of the above destructure for react compiler
+        const root = opts.root ?? rootRef?.current;
 
         if (root == null) {
             console.error("useIntersection: root is null");

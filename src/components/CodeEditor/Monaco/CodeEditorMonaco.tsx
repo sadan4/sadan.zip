@@ -3,35 +3,30 @@ import { useLock } from "@/hooks/lock";
 import { useRecent } from "@/hooks/recent";
 import { useRect } from "@/hooks/rect";
 import { EMPTY_NULL_OBJECT, NOOP } from "@/utils/constants";
-import { assert, error } from "@/utils/error";
+import { assert } from "@/utils/error";
 import { once } from "@/utils/functional";
-import { getMonacoLanguageString, isReadOnly, makeTMLanguageMap, updateModelLanguage, uriForLanguage } from "@/utils/monaco";
+import { getMonacoLanguageString, isReadOnly, makeTMLanguageMap, Monaco, monaco, updateModelLanguage, uriForLanguage } from "@/utils/monaco";
 import { loadOnigasmPromise } from "@/utils/oniguruma";
 import { hasGrammar, Language } from "@/utils/textmate";
+import { ClientOnly } from "@tanstack/react-router";
 
 import { registry, wireTmGrammars } from "./grammars";
 import styles from "./styles.module.scss";
 import { DEFAULT_MONACO_THEME, type MonacoTheme, useMonacoTheme } from "./themes";
 import { type CodeEditorProps } from "../base";
 
-import * as monaco from "monaco-editor";
-import editorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
-import cssWorker from "monaco-editor/esm/vs/language/css/css.worker?worker";
-import htmlWorker from "monaco-editor/esm/vs/language/html/html.worker?worker";
-import jsonWorker from "monaco-editor/esm/vs/language/json/json.worker?worker";
-import tsWorker from "monaco-editor/esm/vs/language/typescript/ts.worker?worker";
 import { Suspense, use, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 
 export interface MonacoCodeEditorHandle {
-    get editor(): monaco.editor.IStandaloneCodeEditor;
+    get editor(): Monaco.editor.IStandaloneCodeEditor;
 }
 
 export interface MonacoCodeEditorProps extends CodeEditorProps<MonacoCodeEditorHandle> {
     theme?: MonacoTheme;
-    options?: monaco.editor.IStandaloneEditorConstructionOptions;
-    uri?: monaco.Uri;
-    highlights?: monaco.IRange[];
-    onDidChangeCursorPosition?: (e: monaco.editor.ICursorPositionChangedEvent) => void;
+    options?: Monaco.editor.IStandaloneEditorConstructionOptions;
+    uri?: Monaco.Uri;
+    highlights?: Monaco.IRange[];
+    onDidChangeCursorPosition?: (e: Monaco.editor.ICursorPositionChangedEvent) => void;
 }
 
 const monacoSetup = once(() => {
@@ -39,29 +34,9 @@ const monacoSetup = once(() => {
         jsx: monaco.languages.typescript.JsxEmit.Preserve,
     });
     monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
-        noSemanticValidation: false,
+        noSemanticValidation: true,
         noSyntaxValidation: false,
     });
-    window.MonacoEnvironment = {
-        getWorker(name, label) {
-            if (label === "json") {
-                return new jsonWorker({ name });
-            }
-            if (label === "css" || label === "scss" || label === "less") {
-                return new cssWorker({ name });
-            }
-            if (label === "html" || label === "handlebars" || label === "razor") {
-                return new htmlWorker({ name });
-            }
-            if (label === "typescript" || label === "javascript") {
-                return new tsWorker({ name });
-            }
-            if (label === "editorWorkerService") {
-                return new editorWorker({ name });
-            }
-            error(`unknown label ${label}`);
-        },
-    };
 });
 
 function MonacoCodeEditorInner({
@@ -79,15 +54,15 @@ function MonacoCodeEditorInner({
     onDidChangeCursorPosition = NOOP,
     ref: _ref,
 }: MonacoCodeEditorProps) {
-    monacoSetup();
+    !import.meta.env.SSR && monacoSetup();
     use(loadOnigasmPromise());
 
     const [ref, setRef] = useState<HTMLDivElement | null>(null);
     const rect = useRect(ref);
-    const editor = useRef<monaco.editor.IStandaloneCodeEditor>(null);
+    const editor = useRef<Monaco.editor.IStandaloneCodeEditor>(null);
     const themeString = useMonacoTheme(theme);
     const lock = useLock();
-    const decorations = useRef<monaco.editor.IEditorDecorationsCollection | null>(null);
+    const decorations = useRef<Monaco.editor.IEditorDecorationsCollection | null>(null);
     const onDidChangeCursorPositionRef = useRecent(onDidChangeCursorPosition);
 
     const [code, setCode] = useControlledState({
@@ -115,7 +90,7 @@ function MonacoCodeEditorInner({
         },
     }));
 
-    const setupThemes = useCallback(function updateLanguages(editor: monaco.editor.ICodeEditor) {
+    const setupThemes = useCallback(function updateLanguages(editor: Monaco.editor.ICodeEditor) {
         if (!hasGrammar(language)) {
             return;
         }
@@ -132,7 +107,7 @@ function MonacoCodeEditorInner({
             return;
         }
 
-        const mergedOptions: monaco.editor.IStandaloneEditorConstructionOptions = {
+        const mergedOptions: Monaco.editor.IStandaloneEditorConstructionOptions = {
             ...options,
         };
 
@@ -259,7 +234,7 @@ function MonacoCodeEditorInner({
             options: {
                 className: styles.highlight,
             },
-        }) satisfies monaco.editor.IModelDeltaDecoration);
+        }) satisfies Monaco.editor.IModelDeltaDecoration);
 
         decorations.current.set(newDecorations);
     }, [highlights]);
@@ -277,7 +252,9 @@ function MonacoCodeEditorInner({
 export function MonacoCodeEditor(props: MonacoCodeEditorProps) {
     return (
         <Suspense fallback={null}>
-            <MonacoCodeEditorInner {...props} />
+            <ClientOnly>
+                <MonacoCodeEditorInner {...props} />
+            </ClientOnly>
         </Suspense>
     );
 }

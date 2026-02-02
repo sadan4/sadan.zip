@@ -1,4 +1,4 @@
-import { Language } from "./language";
+import { Language, languageDisplayNames } from "./language";
 import { dedent } from "../string";
 
 import type { GeneratorArgs, GeneratorExportModuleSideEffects } from "rollup-plugin-generate";
@@ -92,7 +92,7 @@ export async function generate({ emitFile }: GeneratorArgs) {
                 const lang: LazyLang = /* @__PURE__ */ JSON.parse(${JSON.stringify(JSON.stringify(def))});
                 export default lang;
             `,
-            nameHint: lang,
+            nameHint: languageDisplayNames[lang],
         });
 
         const [ident] = lang.match(/[^.]+$/)!;

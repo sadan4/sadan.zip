@@ -1,0 +1,34 @@
+diff --git a/dist/esm/start-manifest-plugin/plugin.js b/dist/esm/start-manifest-plugin/plugin.js
+index 3ea8ad7aaaa1bf99f6ee75d9d9cd0549b43f42e3..beb40e1766fba8f39588139710fc29512b999cc7 100644
+--- a/dist/esm/start-manifest-plugin/plugin.js
++++ b/dist/esm/start-manifest-plugin/plugin.js
+@@ -4,6 +4,7 @@ import { VIRTUAL_MODULES } from "@tanstack/start-server-core";
+ import { tsrSplit } from "@tanstack/router-plugin";
+ import { resolveViteId } from "../utils.js";
+ import { ENTRY_POINTS } from "../constants.js";
++import { resolve, normalize } from "node:path"
+ const getCSSRecursively = (chunk, chunksByFileName, basePath, cache, visited = /* @__PURE__ */ new Set()) => {
+   if (visited.has(chunk)) {
+     return [];
+@@ -60,7 +61,7 @@ function startManifestPlugin(opts) {
+         id: new RegExp(resolvedModuleId)
+       },
+       handler(id) {
+-        const { resolvedStartConfig } = opts.getConfig();
++        const { resolvedStartConfig, corePluginOpts: { defaultEntryPaths: { client: defaultClientEntry } }, startConfig: { client: { entry: userClientEntry } } } = opts.getConfig();
+         if (id === resolvedModuleId) {
+           if (this.environment.name !== resolvedStartConfig.serverFnProviderEnv) {
+             return `export default {}`;
+@@ -77,10 +78,11 @@ function startManifestPlugin(opts) {
+           const clientBundle = opts.getClientBundle();
+           const chunksByFileName = /* @__PURE__ */ new Map();
+           const routeChunks = {};
++          const entryPath = normalize(resolve(userClientEntry ?? defaultClientEntry));
+           for (const bundleEntry of Object.values(clientBundle)) {
+             if (bundleEntry.type === "chunk") {
+               chunksByFileName.set(bundleEntry.fileName, bundleEntry);
+-              if (bundleEntry.isEntry) {
++              if (bundleEntry.isEntry && normalize(bundleEntry.facadeModuleId) === entryPath) {
+                 if (entryFile) {
+                   throw new Error(
+                     `multiple entries detected: ${entryFile.fileName} ${bundleEntry.fileName}`

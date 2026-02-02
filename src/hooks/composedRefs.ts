@@ -19,19 +19,20 @@ export function useComposedRefs<T>(...refs: (Ref<T> | undefined)[]): RefCallback
         }
 
         return () => {
-            let err: Error | undefined;
+            const errs: Error[] = [];
 
             for (const cleanup of cleanups) {
                 try {
                     cleanup();
                 } catch (e: any) {
-                    err ??= new Error("Ref cleanup failed", { cause: e });
-                    console.error(err);
+                    errs.push(e);
+                    console.error(new Error("Ref cleanup failed", { cause: e }));
                 }
             }
-            if (err) {
-                throw err;
+            if (errs.length) {
+                throw new AggregateError(errs, "Ref cleanup failed");
             }
         };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- this is correct
     }, refs);
 }

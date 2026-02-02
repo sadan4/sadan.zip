@@ -11,7 +11,7 @@ interface ExProps extends ComponentProps<"div"> {
 function First({ className, ...props }: ExProps) {
     return (
         <div
-            className={cn("bg-accent-300/50 h-full w-auto", className)}
+            className={cn("h-full w-auto bg-accent-300/50", className)}
             {...props}
         />
     );
@@ -20,7 +20,7 @@ function First({ className, ...props }: ExProps) {
 function Second({ className, ...props }: ExProps) {
     return (
         <div
-            className={cn("bg-secondary-500/50 h-full w-auto grow", className)}
+            className={cn("h-full w-auto grow bg-secondary-500/50", className)}
             {...props}
         />
     );
@@ -102,7 +102,7 @@ export const ManyVerticalHandles: Story = {
                 ref={boundingElementRef}
             >
                 <div
-                    className="bg-accent-300/50 h-full w-auto"
+                    className="h-full w-auto bg-accent-300/50"
                     ref={firstRef}
                 />
                 <VerticalResizeHandle
@@ -118,7 +118,7 @@ export const ManyVerticalHandles: Story = {
                     ref={secondTrackRef}
                 >
                     <div
-                        className="bg-secondary-500/50 h-full"
+                        className="h-full bg-secondary-500/50"
                         ref={secondRef}
                     />
                     <VerticalResizeHandle
@@ -129,7 +129,7 @@ export const ManyVerticalHandles: Story = {
                             }
                         }}
                     />
-                    <div className="bg-warning-300/50 h-full grow" />
+                    <div className="h-full grow bg-warning-300/50" />
                 </div>
             </div>
         );
@@ -148,7 +148,7 @@ export const Horizontal: Story = {
             >
                 <div
                     ref={firstRef}
-                    className="bg-accent-300/50 w-full"
+                    className="w-full bg-accent-300/50"
                 />
                 <HorizontalResizeHandle
                     boundingElementRef={boundingElementRef}
@@ -158,7 +158,7 @@ export const Horizontal: Story = {
                         }
                     }}
                 />
-                <div className="bg-secondary-500/50 w-full grow" />
+                <div className="w-full grow bg-secondary-500/50" />
             </div>
         );
     },
@@ -177,7 +177,7 @@ export const ManyHorizontalHandles: Story = {
                 ref={boundingElementRef}
             >
                 <div
-                    className="bg-accent-300/50 w-full"
+                    className="w-full bg-accent-300/50"
                     ref={firstRef}
                 />
                 <HorizontalResizeHandle
@@ -193,7 +193,7 @@ export const ManyHorizontalHandles: Story = {
                     ref={secondTrackRef}
                 >
                     <div
-                        className="bg-secondary-500/50 w-full"
+                        className="w-full bg-secondary-500/50"
                         ref={secondRef}
                     />
                     <HorizontalResizeHandle
@@ -204,7 +204,7 @@ export const ManyHorizontalHandles: Story = {
                             }
                         }}
                     />
-                    <div className="bg-warning-300/50 w-full grow" />
+                    <div className="w-full grow bg-warning-300/50" />
                 </div>
             </div>
         );
@@ -223,7 +223,7 @@ export const HorizontalOnFinish: Story = {
             >
                 <div
                     ref={firstRef}
-                    className="bg-accent-300/50 w-full"
+                    className="w-full bg-accent-300/50"
                 />
                 <HorizontalResizeHandle
                     boundingElementRef={boundingElementRef}
@@ -233,7 +233,7 @@ export const HorizontalOnFinish: Story = {
                         }
                     }}
                 />
-                <div className="bg-secondary-500/50 w-full grow" />
+                <div className="w-full grow bg-secondary-500/50" />
             </div>
         );
     },

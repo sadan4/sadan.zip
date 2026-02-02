@@ -1,10 +1,10 @@
 import { error } from "@/utils/error";
+import { Monaco, monaco } from "@/utils/monaco";
 import { filterObject } from "@/utils/obj";
 import { TextmateTheme } from "@/utils/textmate/theme";
 
 import { loaderMap } from "./_themes.gen&gen";
 
-import * as monaco from "monaco-editor";
 import { use } from "react";
 
 
@@ -26,7 +26,7 @@ export const AllMonacoThemes = {
     ...filterObject(TextmateTheme, (_, v): v is TextmateTheme => typeof v === "number"),
 };
 
-const MonacoThemeStringMap: Record<BuiltinMonacoTheme, monaco.editor.BuiltinTheme> = {
+const MonacoThemeStringMap: Record<BuiltinMonacoTheme, Monaco.editor.BuiltinTheme> = {
     [MonacoTheme.LIGHT]: "vs",
     [MonacoTheme.DARK]: "vs-dark",
     [MonacoTheme.HIGH_CONTRAST]: "hc-black",
