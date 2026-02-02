@@ -1,19 +1,62 @@
 diff --git a/lib/lib.dom.d.ts b/lib/lib.dom.d.ts
-index edf900a5de22fd63305f87e32d5974716eda7ddd..7a9b11134433c7e474447526c3298fb48e01f509 100644
+index 14508e8dc3effb02a4bd808e61770aacbc8b13b7..888da9e108c5ad71af5d1f8f893419a99e059af1 100644
 --- a/lib/lib.dom.d.ts
 +++ b/lib/lib.dom.d.ts
-@@ -23140,10 +23140,10 @@ interface Text extends CharacterData, Slottable {
-     splitText(offset: number): Text;
- }
- 
+@@ -31735,25 +31735,25 @@ declare var SubtleCrypto: {
+  *
+  * [MDN Reference](https://developer.mozilla.org/docs/Web/API/Text)
+  */
+-interface Text extends CharacterData, Slottable {
+-    /**
+-     * The read-only **`wholeText`** property of the Text interface returns the full text of all Text nodes logically adjacent to the node.
+-     *
+-     * [MDN Reference](https://developer.mozilla.org/docs/Web/API/Text/wholeText)
+-     */
+-    readonly wholeText: string;
+-    /**
+-     * The **`splitText()`** method of the Text interface breaks the Text node into two nodes at the specified offset, keeping both nodes in the tree as siblings.
+-     *
+-     * [MDN Reference](https://developer.mozilla.org/docs/Web/API/Text/splitText)
+-     */
+-    splitText(offset: number): Text;
+-}
+-
 -declare var Text: {
 -    prototype: Text;
 -    new(data?: string): Text;
 -};
++// interface Text extends CharacterData, Slottable {
++//     /**
++//      * The read-only **`wholeText`** property of the Text interface returns the full text of all Text nodes logically adjacent to the node.
++//      *
++//      * [MDN Reference](https://developer.mozilla.org/docs/Web/API/Text/wholeText)
++//      */
++//     readonly wholeText: string;
++//     /**
++//      * The **`splitText()`** method of the Text interface breaks the Text node into two nodes at the specified offset, keeping both nodes in the tree as siblings.
++//      *
++//      * [MDN Reference](https://developer.mozilla.org/docs/Web/API/Text/splitText)
++//      */
++//     splitText(offset: number): Text;
++// }
++
 +// declare var Text: {
 +//     prototype: Text;
 +//     new(data?: string): Text;
 +// };
  
  /**
-  * A decoder for a specific method, that is a specific character encoding, like utf-8, iso-8859-2, koi8, cp1261, gbk, etc. A decoder takes a stream of bytes as input and emits a stream of code points. For a more scalable, non-native library, see StringView – a C-like representation of strings based on typed arrays.
+  * The **`TextDecoder`** interface represents a decoder for a specific text encoding, such as `UTF-8`, `ISO-8859-2`, `KOI8-R`, `GBK`, etc.
+diff --git a/lib/typescript.js b/lib/typescript.js
+index 0554fc3fc707ce3edbc3c4f8f4d77f8aa3def7ba..4a6a1f2326dbd579685626bd84c2d457200839cd 100644
+--- a/lib/typescript.js
++++ b/lib/typescript.js
+@@ -3766,7 +3766,7 @@ function skipWhile(array, predicate) {
+   }
+ }
+ function isNodeLikeSystem() {
+-  return typeof process !== "undefined" && !!process.nextTick && !process.browser && typeof require !== "undefined";
++  return typeof process !== "undefined" && !!process.nextTick && !process.browser && typeof require !== "undefined" && typeof __filename !== "undefined";
+ }
+ 
+ // src/compiler/debug.ts
