@@ -7,6 +7,11 @@ import { createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_/")({
     component: HomePage,
+    staticData: {
+        pageTitle: "Home",
+        description: "My silly website.",
+        imageUrl: "/assets/avatar.webp",
+    },
 });
 
 function Links() {
