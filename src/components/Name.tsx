@@ -53,14 +53,17 @@ const possibleNameStrings = [
     "Hop on Vencord",
 ];
 
-function clickMe(orig: string): TypewriterSource {
+const NAME = "sadan";
+const INITIAL_NAME = <Text {...nameTextProps}>{NAME}</Text>;
+
+function clickMe(): TypewriterSource {
     return {
         *type() {
             yield {
-                component: <Text {...nameTextProps}>{orig}</Text>,
+                component: INITIAL_NAME,
                 nextDelay: 1000,
             };
-            for (const val of makeTextComponentEraser(orig, 50, nameTextProps)()) {
+            for (const val of makeTextComponentEraser(NAME, 50, nameTextProps)()) {
                 yield val;
             }
 
@@ -83,13 +86,13 @@ function clickMe(orig: string): TypewriterSource {
                 yield val;
             }
 
-            const origFrames = textComponentTypewriter(50, orig, nameTextProps);
+            const origFrames = textComponentTypewriter(50, NAME, nameTextProps);
 
             for (const val of origFrames.type()) {
                 yield val;
             }
         },
-        erase: makeTextComponentEraser(orig, 50, nameTextProps),
+        erase: makeTextComponentEraser(NAME, 50, nameTextProps),
     };
 }
 
@@ -105,7 +108,7 @@ export default function Name() {
     useEffect(() => {
         const tryStart = () => {
             if (typewriterRef.current) {
-                typewriterRef.current.sendWord(clickMe("sadan"), true);
+                typewriterRef.current.sendWord(clickMe(), true);
             } else {
                 setTimeout(tryStart, 10);
             }
@@ -122,7 +125,7 @@ export default function Name() {
         >
             <Typewriter
                 className="mt-6 mb-6 flex min-h-10 justify-center text-balance break-all"
-                initialContent="sadan"
+                initialContent={INITIAL_NAME}
                 onTypingStateChange={(prevState) => {
                     setTyping(prevState);
                 }}
