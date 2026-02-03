@@ -11,7 +11,7 @@ export const Route = createFileRoute("/_/minky")({
         return {
             meta: [
                 {
-                    property: "pg:title",
+                    property: "og:title",
                     content: "Minky",
                 },
             ],
