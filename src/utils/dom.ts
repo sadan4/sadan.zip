@@ -109,3 +109,33 @@ export function measureRect(element: Element): DOMRect {
     range.selectNodeContents(element);
     return range.getBoundingClientRect();
 }
+
+/**
+ * @see {@link https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent/buttons|MDN}
+ */
+export const enum MouseButtons {
+    /**
+     * No button or un-initialized
+     */
+    NONE = 0,
+    /**
+     * Primary button (usually the left button)
+     */
+    PRIMARY = 1,
+    /**
+     * Secondary button (usually the right button)
+     */
+    SECONDARY = 2,
+    /**
+     * Auxiliary button (usually the mouse wheel button or middle button)
+     */
+    AUXILIARY = 4,
+    /**
+     * 4th button (typically the "Browser Back" button)
+     */
+    BACK = 8,
+    /**
+     * 5th button (typically the "Browser Forward" button)
+     */
+    FORWARD = 16,
+}

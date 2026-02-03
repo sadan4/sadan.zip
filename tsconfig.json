@@ -52,6 +52,7 @@
   },
   "include": [
     "src",
+    "server",
     "eslint.config.mts",
     "stylelint.config.ts",
     "vite.config.ts",

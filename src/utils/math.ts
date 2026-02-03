@@ -25,3 +25,5 @@ export function ellipseCircumference(a: number, b: number): number {
     // Ramanujan's second approximation (accurate and simple)
     return Math.PI * (a + b) * (1 + ((3 * h) / (10 + Math.sqrt(4 - (3 * h)))));
 }
+
+export const PI2 = Math.PI * 2;

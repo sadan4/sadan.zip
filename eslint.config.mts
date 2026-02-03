@@ -657,7 +657,7 @@ const tailwindCallees = Object.freeze({
     config: join(__dirname, "src", "index.css"),
 });
 
-export default TSEslint.config({ ignores: ["dist"] }, {
+export default TSEslint.config({ ignores: ["dist", "node_modules", ".vite-inspect"] }, {
     files: [`src/**/*.${extensions}`, `server/**/*.${extensions}`, `eslint.config.${extensions}`, `vite.config.${extensions}`, `stylelint.config.${extensions}`, `scripts/**/*.${extensions}`, `vitest.config.${extensions}`, `.storybook/*.${extensions}`],
     plugins: {
         "@stylistic": stylistic,

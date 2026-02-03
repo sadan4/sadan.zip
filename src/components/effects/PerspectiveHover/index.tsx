@@ -1,9 +1,9 @@
-import { measureRect } from "@/utils/dom";
+import { useRect } from "@/hooks/rect";
+import { MouseButtons } from "@/utils/dom";
 import toCSS from "@/utils/toCSS";
 import { animated, to, useSpring } from "@react-spring/web";
-import { useGesture } from "@use-gesture/react";
 
-import { type PropsWithChildren, useRef } from "react";
+import { type PropsWithChildren, useState } from "react";
 
 export interface PerspectiveHoverProps extends PropsWithChildren {
     /**
@@ -21,7 +21,8 @@ export default function PerspectiveHover({ children, hoverFactor, className }: P
         return (pointerX - posX - (width / 2)) / hoverFactor;
     }
 
-    const domRef = useRef<HTMLDivElement>(null);
+    const [el, setEl] = useState<HTMLDivElement | null>(null);
+    const rect = useRect(el);
 
     const [{ x, y, scale, zoom, rotateX, rotateY, rotateZ }, api] = useSpring(() => ({
         rotateX: 0,
@@ -38,53 +39,9 @@ export default function PerspectiveHover({ children, hoverFactor, className }: P
         },
     }));
 
-    useGesture({
-        onMove({ xy: [pointerX, pointerY], dragging, down }) {
-            if (dragging || !domRef.current)
-                return;
-
-            const { width, height, x, y } = measureRect(domRef.current);
-
-            api.start({
-                rotateX: calcX(pointerY, height, y),
-                rotateY: calcY(pointerX, width, x),
-                scale: down ? 1 : 1.1,
-            });
-        },
-        onHover({ hovering }) {
-            if (hovering)
-                return;
-            api.start({
-                rotateX: 0,
-                rotateY: 0,
-                scale: 1,
-            });
-        },
-        onMouseDown() {
-            api.start({
-                scale: 1,
-            });
-        },
-        onMouseUp() {
-            api.start({
-                scale: 1.1,
-            });
-        },
-        onMouseOut() {
-            api.start({
-                scale: 1,
-            });
-        },
-    }, {
-        target: domRef,
-        eventOptions: {
-            passive: false,
-        },
-    });
-
     return (
         <animated.div
-            ref={domRef}
+            ref={setEl}
             style={{
                 transform: toCSS.perspective(600),
                 x,
@@ -95,6 +52,36 @@ export default function PerspectiveHover({ children, hoverFactor, className }: P
                 rotateZ,
             }}
             className={className}
+            onMouseMove={(e) => {
+                if (!rect) {
+                    return;
+                }
+
+                const { width, height, x, y } = rect;
+
+                api.start({
+                    rotateX: calcX(e.clientY, height, y),
+                    rotateY: calcY(e.clientX, width, x),
+                    scale: e.buttons & MouseButtons.PRIMARY ? 1 : 1.1,
+                });
+            }}
+            onMouseDown={() => {
+                api.start({
+                    scale: 1,
+                });
+            }}
+            onMouseUp={() => {
+                api.start({
+                    scale: 1.1,
+                });
+            }}
+            onMouseOut={() => {
+                api.start({
+                    rotateX: 0,
+                    rotateY: 0,
+                    scale: 1,
+                });
+            }}
         >
             {children}
         </animated.div>

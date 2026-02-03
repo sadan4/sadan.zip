@@ -3,6 +3,7 @@ import { useResizeObserver } from "@/hooks/resizeObserver";
 import { single } from "@/utils/array";
 import { parseCSSValue, PercentReference } from "@/utils/dom";
 import { ellipseCircumference } from "@/utils/math";
+import { dedent } from "@/utils/string";
 import { animated } from "@react-spring/web";
 
 import { type BaseBorderHoldProps, useBorderHoldAnim } from "./common";
@@ -19,7 +20,7 @@ export interface BorderHoldCircularProps extends BaseBorderHoldProps {
 }
 
 
-function calculateBorderLength(element: Element): [length: number, path: string] {
+function makeBorderPath(element: Element): [length: number, path: string] {
     const { width, height } = element.getBoundingClientRect();
     const style = getComputedStyle(element);
     const [topLeftA, topLeftB] = normalizeRadius(style.borderTopLeftRadius);
@@ -40,10 +41,17 @@ function calculateBorderLength(element: Element): [length: number, path: string]
 
     function makePath(): string {
         if (isSquare) {
-            return makeSquarePath();
+            return dedent`
+                M ${width / 2} 0
+                H ${width}
+                V ${height}
+                H 0
+                V 0
+                Z
+            `;
         }
 
-        return `
+        return dedent`
             M ${width / 2} 0
             H ${width - topRightA}
             A ${topRightA} ${topRightB} 0 0 1 ${width} ${topRightB}
@@ -57,17 +65,9 @@ function calculateBorderLength(element: Element): [length: number, path: string]
         `;
     }
 
-    function makeSquarePath(): string {
-        return `
-            M ${width / 2} 0
-            H ${width}
-            V ${height}
-            H 0
-            V 0
-            Z
-        `;
-    }
-
+    /**
+     * return the difference bewteen the length of the curve and the sum of the radii
+     */
     function calcRadiusDelta(a: number, b: number): number {
         if (!a && !b) {
             return 0;
@@ -103,6 +103,7 @@ export function BorderHoldRounded({ children, onHold, ref }: BorderHoldCircularP
     const [wrapper, setWrapper] = useState<HTMLDivElement | null>(null);
     const [held, setHeld] = useState(false);
     const borderRef = useRef<SVGPathElement>(null);
+    const maskRef = useRef<SVGPathElement>(null);
     const [borderLen, setBorderLen] = useState(-1);
 
     const { width, height } = useRect(wrapper) ?? {
@@ -113,12 +114,11 @@ export function BorderHoldRounded({ children, onHold, ref }: BorderHoldCircularP
     const updateBorderLength = useCallback(() => {
         if (wrapper) {
             const child = single(wrapper.children);
-            const [length, path] = calculateBorderLength(child);
+            const [length, path] = makeBorderPath(child);
 
             setBorderLen(length);
-            if (borderRef.current) {
-                borderRef.current.setAttribute("d", path);
-            }
+            borderRef.current?.setAttribute("d", path);
+            maskRef.current?.setAttribute("d", path);
         }
     }, [wrapper]);
 
@@ -134,6 +134,9 @@ export function BorderHoldRounded({ children, onHold, ref }: BorderHoldCircularP
         held,
         onHold,
     });
+
+    // mean(width, height) / 10
+    const strokeWidth = (width + height) / 20;
 
     return (
         <div>
@@ -156,8 +159,7 @@ export function BorderHoldRounded({ children, onHold, ref }: BorderHoldCircularP
                 <animated.path
                     ref={borderRef}
                     style={{
-                    // mean(width, height) / 10
-                        strokeWidth: (width + height) / 20,
+                        strokeWidth,
                         strokeDasharray: progress.to((progress) => {
                             const curLen = (borderLen * progress) / 100;
 
@@ -165,21 +167,24 @@ export function BorderHoldRounded({ children, onHold, ref }: BorderHoldCircularP
                         }),
                         opacity,
                     }}
+                    mask="url(#m)"
                 />
-                <foreignObject
-                    style={{
-                        width,
-                        height,
-                    }}
+                <mask
+                    maskContentUnits="userSpaceOnUse"
+                    id="m"
                 >
-                    <div
-                        className="h-fit w-fit"
-                        ref={setWrapper}
-                    >
-                        {children}
-                    </div>
-                </foreignObject>
+                    <rect
+                        x={-strokeWidth}
+                        y={-strokeWidth}
+                        width={width + (strokeWidth * 2)}
+                        height={height + (strokeWidth * 2)}
+                    />
+                    <path ref={maskRef} />
+                </mask>
             </svg>
+            <div ref={setWrapper}>
+                {children}
+            </div>
         </div>
     );
 }

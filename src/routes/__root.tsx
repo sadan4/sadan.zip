@@ -10,30 +10,32 @@ import rootCss from "../index.css?url";
 import { useEffect, useState } from "react";
 
 export const Route = createRootRoute({
-    head: () => ({
-        meta: [
-            {
-                charSet: "UTF-8",
-            },
-            {
-                title: "sadan",
-            },
-            {
-                name: "viewport",
-                content: "width=device-width, initial-scale=1.0",
-            },
-            {
-                name: "referrer",
-                content: "same-origin",
-            },
-        ],
-        links: [
-            {
-                rel: "stylesheet",
-                href: rootCss,
-            },
-        ],
-    }),
+    head() {
+        return {
+            meta: [
+                {
+                    charSet: "UTF-8",
+                },
+                {
+                    title: "sadan",
+                },
+                {
+                    name: "viewport",
+                    content: "width=device-width, initial-scale=1.0",
+                },
+                {
+                    name: "referrer",
+                    content: "same-origin",
+                },
+            ],
+            links: [
+                {
+                    rel: "stylesheet",
+                    href: rootCss,
+                },
+            ],
+        };
+    },
 
     shellComponent: RootComponent,
 });

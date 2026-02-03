@@ -1,5 +1,4 @@
-import { animated, useSpring } from "@react-spring/web";
-import { useHover } from "@use-gesture/react";
+import { animated, useSpringValue } from "@react-spring/web";
 
 import type { PropsWithChildren } from "react";
 
@@ -8,20 +7,19 @@ export interface HoverScaleProps extends PropsWithChildren {
 }
 
 export default function HoverScale({ factor = 1.1, children }: HoverScaleProps) {
-    const [{ scale }, api] = useSpring(() => ({
-        scale: 1,
-    }));
-
-    const bind = useHover(({ hovering }) => {
-        api.start({ scale: hovering ? factor : 1 });
-    });
+    const scale = useSpringValue(1);
 
     return (
         <animated.div
             style={{
                 scale,
             }}
-            {...bind()}
+            onMouseOver={() => {
+                scale.start({ to: factor });
+            }}
+            onMouseOut={() => {
+                scale.start({ to: 1 });
+            }}
         >
             {children}
         </animated.div>

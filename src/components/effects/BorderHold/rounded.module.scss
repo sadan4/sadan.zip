@@ -1,16 +1,31 @@
 @layer components {
     .rounded-border {
+        position: absolute;
+        top: 0;
+        left: 0;
         overflow: visible;
 
-        >path {
+        > path {
+            overflow: visible;
             pointer-events: none;
             stroke: var(--border-hold-color, var(--color-info-500));
             stroke-linecap: round;
-            fill: #0f03;
         }
 
-        // >foreignObject {
-        //     overflow: visible;
-        // }
+        > mask {
+            mask-type: luminance;
+
+            > rect {
+            //     x: -100vw;
+            //     y: -100vh;
+            //     width: 200vw;
+            //     height: 200vh;
+                fill: white;
+            }
+
+            > path {
+                fill: black;
+            }
+        }
     }
 }

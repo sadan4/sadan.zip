@@ -11,6 +11,7 @@ import { fileURLToPath, URL } from "url";
 import { join } from "node:path";
 import { generate } from "rollup-plugin-generate";
 import { defineConfig } from "vite";
+import devtoolsJSON from "vite-plugin-devtools-json";
 import inspect from "vite-plugin-inspect";
 import viteTsConfigPaths from "vite-tsconfig-paths";
 
@@ -21,6 +22,7 @@ const config = defineConfig(({ command }) => ({
         },
     },
     plugins: [
+        devtoolsJSON(),
         monacoEditor({
             languages: ["typescript"],
             features: [],
@@ -73,18 +75,6 @@ const config = defineConfig(({ command }) => ({
         cssMinify: "lightningcss",
         sourcemap: true,
     },
-    // worker: {
-    //     format: "es",
-    //     rolldownOptions: {
-    //         output: {
-    //             // .worker.
-    //             assetFileNames: "a/[hash:16].w.[ext]",
-    //             chunkFileNames: "j/[hash:16].w.js",
-    //             // .entry.worker.
-    //             entryFileNames: "j/[hash:16].e.w.js",
-    //         },
-    //     },
-    // },
     css: {
         // I would like to use lightningcss, but it doesn not support localsConvention
         // SEE: parcel-bundler/lightningcss#633
@@ -99,14 +89,6 @@ const config = defineConfig(({ command }) => ({
             },
         },
         devSourcemap: true,
-        // lightningcss: {
-        //     cssModules: {
-        //         // TODO: lightningcss does not support hash on class name alone
-        //         // SEE: parcel-bundler/lightningcss#660
-        //         pattern: command === "serve" ? "[local]-[hash]" : undefined,
-
-        //     },
-        // },
     },
 }));
 
