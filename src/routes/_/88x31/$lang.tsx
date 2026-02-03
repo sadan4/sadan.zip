@@ -6,20 +6,19 @@ import { Box } from "@/components/layout/Box";
 import { TabBar, TabBarPosition } from "@/components/layout/TabBar";
 import { TextLink } from "@/components/Links";
 import { Text } from "@/components/Text";
+import { unreachable } from "@/utils/error";
+import { loadGrammar, loadTheme } from "@/utils/shiki";
 import { Language } from "@/utils/textmate";
+import { TextmateTheme } from "@/utils/textmate/theme";
 import { createFileRoute } from "@tanstack/react-router";
 
 import htmlExampleContent from "./-sample.html?raw";
 import _reactExampleContent from "./-sample.tsx?raw";
 
-const reactExampleContent = _reactExampleContent.trimEnd();
-
-import { unreachable } from "@/utils/error";
-import { loadGrammar, loadTheme } from "@/utils/shiki";
-import { TextmateTheme } from "@/utils/textmate/theme";
-
 import { type ComponentProps } from "react";
 import { z } from "zod";
+
+const reactExampleContent = _reactExampleContent.trimEnd();
 
 interface Sadan88x31ButtonProps extends Omit<ComponentProps<"a">, "href" | "rel"> {
 }

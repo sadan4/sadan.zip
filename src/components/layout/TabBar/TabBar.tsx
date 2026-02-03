@@ -3,10 +3,13 @@ import { AnimateHeight } from "@/components/effects/AnimateHeight";
 import { Box } from "@/components/layout/Box";
 import { VerticalLine } from "@/components/Lines/VerticalLine";
 import { Text } from "@/components/Text";
+import { useForceUpdater } from "@/hooks/forceUpdater";
 import { useImperativeSprings } from "@/hooks/imperativeSprings";
-import { useReiszeObserverFromRef, useResizeObserver } from "@/hooks/resizeObserver";
+import { useRect } from "@/hooks/rect";
+import { useReiszeObserverFromRef } from "@/hooks/resizeObserver";
 import { joinWithKey } from "@/utils/array";
 import cn from "@/utils/cn";
+import { measureRect } from "@/utils/dom";
 import { assert } from "@/utils/error";
 import { updateRef } from "@/utils/ref";
 import { animated } from "@react-spring/web";
@@ -14,7 +17,7 @@ import { animated } from "@react-spring/web";
 import { TabBarPosition } from "./enum";
 import styles from "./styles.module.scss";
 
-import { type ReactNode, type RefCallback, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { type ReactNode, type RefCallback, useCallback, useEffect, useRef, useState } from "react";
 
 export interface TabRowItemProps {
     isSelected: boolean;
@@ -140,9 +143,10 @@ export function TabBar({
 }: TabBarProps) {
     assert(!(selectedTab && initialSelectedTab), "You can only provide one of selectedTab or initialSelectedTab");
 
-    const [tab, setTab] = useState(selectedTab ?? initialSelectedTab ?? (tabs[0]?.id || ""));
-    const [activeRect, setActiveRect] = useState<DOMRect | undefined>();
+    const [tab, setTab] = useState(selectedTab ?? initialSelectedTab ?? tabs[0]?.id ?? "");
     const [activeTab, setActiveTab] = useState<HTMLElement | null>(null);
+    const [layoutMarkerDep, forceLayoutMarker] = useForceUpdater();
+    const activeRect = useRect(activeTab);
     const isManaged = selectedTab !== undefined;
     const tabsContainerRef = useRef<HTMLDivElement>(null);
 
@@ -160,28 +164,16 @@ export function TabBar({
         width: 0,
     });
 
-    function handleResize() {
-        if (activeTab) {
-            const size = activeTab.getBoundingClientRect();
+    useReiszeObserverFromRef(tabsContainerRef, forceLayoutMarker);
 
-            width.set(size.width);
-            y.set(size.y + size.height);
-            x.set(size.x);
-            setActiveRect(size);
-        }
-    }
-
-    useReiszeObserverFromRef(tabsContainerRef, handleResize);
-
-    useResizeObserver(activeTab, () => {
-        setActiveRect(activeTab?.getBoundingClientRect());
-    });
-
-    useLayoutEffect(() => {
+    useEffect(() => {
         if (activeRect) {
             const size = activeRect;
 
             if (x.get() === 0) {
+                // FIXME: horrible hack for a bug that i dont even know the cause of
+                const size = measureRect(activeTab!);
+
                 width.set(size.width);
                 y.set(size.y + size.height);
                 x.set(size.x);
@@ -191,16 +183,7 @@ export function TabBar({
                 x.start(size.x);
             }
         }
-    }, [activeRect, width, x, y]);
-
-    const handleActiveTabRef: RefCallback<HTMLElement | null> = useCallback((node) => {
-        setActiveTab(node);
-        setActiveRect(node?.getBoundingClientRect());
-        return () => {
-            setActiveTab(null);
-        };
-    }, []);
-
+    }, [activeRect, activeTab, layoutMarkerDep, width, x, y]);
 
     return (
         <div className={cn(styles.tabBar, className)}>
@@ -216,7 +199,7 @@ export function TabBar({
                         setActiveTab={setTab}
                         onTabChange={onTabChange}
                         isManaged={isManaged}
-                        setActiveTabRef={handleActiveTabRef}
+                        setActiveTabRef={setActiveTab}
                     />
                 )), (i) => (noSeparators ? null : <VerticalLine key={`vl-${i}`} />))}
                 <animated.div
