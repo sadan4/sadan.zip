@@ -27,7 +27,7 @@ export interface Friend {
     name: string;
     discordId: string | null;
     avatarUrl: string;
-    url: URL | null;
+    url: string | null;
     _88x31url: string | null;
 }
 
@@ -39,42 +39,42 @@ export const friends: Friend[] = [
     {
         name: "nin0",
         discordId: "886685857560539176",
-        url: new URL("https://nin0.dev"),
+        url: "https://nin0.dev",
         avatarUrl: nin0Avatar,
         _88x31url: nin088x31,
     },
     {
         name: "maddie",
         discordId: "1298435571395330108",
-        url: new URL("https://maddie.lgbt"),
+        url: "https://maddie.lgbt",
         avatarUrl: maddieAvatar,
         _88x31url: null,
     },
     {
         name: "zoot",
         discordId: "289556910426816513",
-        url: new URL("https://zt64.dev"),
+        url: "https://zt64.dev",
         avatarUrl: zootAvatar,
         _88x31url: zoot88x31,
     },
     {
         name: "elissa",
         discordId: "381494697073573899",
-        url: new URL("https://elissa.moe"),
+        url: "https://elissa.moe",
         avatarUrl: elissaAvatar,
         _88x31url: elissa88x31,
     },
     {
         name: "sqaaakoi",
         discordId: "259558259491340288",
-        url: new URL("https://sqaaakoi.xyz"),
+        url: "https://sqaaakoi.xyz",
         avatarUrl: sqaaakoiAvatar,
         _88x31url: null,
     },
     {
         name: "i3vie",
         discordId: "1215424013443272736",
-        url: new URL("https://i3vie.dev"),
+        url: "https://i3vie.dev",
         avatarUrl: i3vieAvatar,
         _88x31url: i3vie88x31,
     },
@@ -89,48 +89,48 @@ export const friends: Friend[] = [
         name: "fres",
         discordId: "843448897737064448",
         avatarUrl: fresAvatar,
-        url: new URL("https://slug.cat"),
+        url: "https://slug.cat",
         _88x31url: null,
     },
     {
         name: "wing",
         discordId: "298295889720770563",
-        url: new URL("https://wingio.xyz/"),
+        url: "https://wingio.xyz/",
         avatarUrl: wingAvatar,
         _88x31url: wing88x31,
     },
     {
         name: "krstlskll",
         discordId: "929208515883569182",
-        url: new URL("https://krstlskll69.github.io/"),
+        url: "https://krstlskll69.github.io/",
         avatarUrl: krstlskllAvatar,
         _88x31url: null,
     },
     {
         name: "mugman",
         discordId: "601836455006044163",
-        url: new URL("https://mugman.tech"),
+        url: "https://mugman.tech",
         avatarUrl: mugmanAvatar,
         _88x31url: mugman88x31,
     },
     {
         name: "worf",
         discordId: "262786101037498369",
-        url: new URL("https://worf.win/"),
+        url: "https://worf.win/",
         avatarUrl: worfAvatar,
         _88x31url: worf88x31,
     },
     {
         name: "vee",
         discordId: "343383572805058560",
-        url: new URL("https://vendicated.dev"),
+        url: "https://vendicated.dev",
         avatarUrl: veeAvatar,
         _88x31url: vee88x31,
     },
     {
         name: "rushii",
         discordId: null,
-        url: new URL("https://rushii.dev"),
+        url: "https://rushii.dev",
         avatarUrl: rushiiAvatar,
         _88x31url: rushii88x31,
     },

@@ -28,7 +28,7 @@ function C88X31({ friend }: FriendCardProps) {
     return (
         <Clickable
             tag="a"
-            href={friend.url?.toString() ?? "#"}
+            href={friend.url ?? "#"}
             target="_blank"
             rel="noopener noreferrer"
             className="block h-[31px] w-[88px]"
@@ -57,7 +57,7 @@ function FriendCard({ friend }: FriendCardProps) {
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="flex size-12 items-center justify-center rounded-full bg-bg-100"
-                                href={friend.url.toString()}
+                                href={friend.url}
                             >
                                 <LinkIcon
                                     className="h-9 w-9"
@@ -97,8 +97,7 @@ function FriendCard({ friend }: FriendCardProps) {
                         ? (
                             <Clickable
                                 tag="a"
-                                href={discordUrl(friend.discordId)
-                                    .toString()}
+                                href={discordUrl(friend.discordId)}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="flex size-12 items-center justify-center rounded-full bg-bg-100"

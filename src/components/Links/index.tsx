@@ -124,9 +124,7 @@ export interface DiscordIconLinkProps extends IconLinkProps {
 
 export function DiscordIconLink({ userId, ...props }: DiscordIconLinkProps) {
     return (
-        <ExternalLink to={discordUrl(userId)
-            .toString()}
-        >
+        <ExternalLink to={discordUrl(userId)}>
             <Discord {...props} />
         </ExternalLink>
     );
