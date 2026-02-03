@@ -1,3 +1,4 @@
+import { debounce } from "@/utils/functional";
 import { PI2 } from "@/utils/math";
 
 import styles from "./styles.module.scss";
@@ -121,8 +122,17 @@ export function SnowCanvas({
 
         function initSnowflakes() {
             const count = Math.floor((canvas.width * canvas.height) / 10000) * density / 10;
+            const arr = snowflakesRef.current;
 
-            snowflakesRef.current = Array.from({ length: count }, createSnowflake);
+            if (count > arr.length) {
+                const toAdd = count - arr.length;
+
+                for (let i = 0; i < toAdd; i++) {
+                    arr.push(createSnowflake());
+                }
+            } else if (count < arr.length) {
+                arr.length = count;
+            }
         }
 
         function animate(ctx: CanvasRenderingContext2D, snowColor: string) {
@@ -146,9 +156,11 @@ export function SnowCanvas({
         initSnowflakes();
         animate(_ctx, snowColor);
 
+        const resizeSnowflakes = debounce(initSnowflakes, 200);
+
         function handleResize() {
             resizeCanvas();
-            initSnowflakes();
+            resizeSnowflakes();
         }
 
         window.addEventListener("resize", handleResize);

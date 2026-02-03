@@ -4,6 +4,10 @@ import { createFileRoute, Outlet } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_")({
     component: RouteComponent,
+    staticData: {
+        description: "Browse typescript ASTs in the browser.",
+        pageTitle: "AST Viewer",
+    },
 });
 
 function RouteComponent() {

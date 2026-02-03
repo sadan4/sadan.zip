@@ -10,6 +10,10 @@ import { useState } from "react";
 
 export const Route = createFileRoute("/_/demangler")({
     component: Demangler,
+    staticData: {
+        description: "Demangle C++ symbols in the browser.",
+        pageTitle: "Demangler",
+    },
 });
 
 function Demangler() {

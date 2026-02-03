@@ -79,6 +79,11 @@ export const Route = createFileRoute("/_/88x31/$lang")({
             }
         }
     },
+    staticData: {
+        description: "My 88x31 button",
+        imageUrl: "/assets/88x31.png",
+        pageTitle: "88x31",
+    },
 });
 
 // 88x31 button page

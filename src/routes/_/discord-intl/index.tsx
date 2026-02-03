@@ -15,6 +15,10 @@ import { useState } from "react";
 
 export const Route = createFileRoute("/_/discord-intl/")({
     component: DiscordIntlLookup,
+    staticData: {
+        description: "Map hashed discord intl keys to their original strings.",
+        pageTitle: "Discord Intl",
+    },
 });
 
 
