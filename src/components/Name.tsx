@@ -1,5 +1,6 @@
 import { imageTypewriter, makeTextComponentEraser, textComponentTypewriter, Typewriter, type TypewriterFrame, type TypewriterImage, type TypewriterRef, type TypewriterSource } from "@/components/effects/Typewriter";
-import { range } from "@/utils/math";
+import { REPLACEMENT_CHARACTER } from "@/utils/constants";
+import { randInt } from "@/utils/math";
 
 import { Text, type TextProps } from "./Text";
 
@@ -51,6 +52,7 @@ const possibleNameStrings = [
     ":blobcatcozy:",
     ":wires:",
     "Hop on Vencord",
+    textComponentTypewriter(75, REPLACEMENT_CHARACTER.repeat(9), nameTextProps),
 ];
 
 const NAME = "sadan";
@@ -63,9 +65,8 @@ function clickMe(): TypewriterSource {
                 component: INITIAL_NAME,
                 nextDelay: 1000,
             };
-            for (const val of makeTextComponentEraser(NAME, 50, nameTextProps)()) {
-                yield val;
-            }
+
+            yield* makeTextComponentEraser(NAME, 50, nameTextProps)();
 
             const clickMeFrames = textComponentTypewriter(50, "Click Me!", nameTextProps);
 
@@ -75,29 +76,23 @@ function clickMe(): TypewriterSource {
             };
 
             for (const val of clickMeFrames.type()) {
-                _val = val;
-                yield val;
+                yield _val = val;
             }
             yield {
                 ..._val,
                 nextDelay: 750,
             };
-            for (const val of clickMeFrames.erase(_val.component)) {
-                yield val;
-            }
 
-            const origFrames = textComponentTypewriter(50, NAME, nameTextProps);
+            yield* clickMeFrames.erase(_val.component);
 
-            for (const val of origFrames.type()) {
-                yield val;
-            }
+            yield* textComponentTypewriter(50, NAME, nameTextProps).type();
         },
         erase: makeTextComponentEraser(NAME, 50, nameTextProps),
     };
 }
 
 const possibleNames = possibleNameStrings
-    .map((str) => textComponentTypewriter(50, str, nameTextProps))
+    .map((str) => (typeof str === "string" ? textComponentTypewriter(50, str, nameTextProps) : str))
     .concat(possibleImages.map((img) => imageTypewriter(img, nameTextProps)));
 
 export default function Name() {
@@ -136,9 +131,10 @@ export default function Name() {
 
                     let idx: number;
 
-                    while ((idx = range(0, possibleNames.length)) === lastIndex.current) {
-                        // guh
-                    }
+                    // TODO: just a tad cursed
+                    while ((idx = randInt(0, possibleNames.length)) === lastIndex.current)
+                        ;
+
                     typewriterRef.current?.sendWord(possibleNames[idx]);
                 }}
             />

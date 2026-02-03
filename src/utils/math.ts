@@ -6,7 +6,7 @@ export function isNaN(value: number): boolean {
     return Number.isNaN(value);
 }
 
-export function range(min: number, max: number) {
+export function randInt(min: number, max: number) {
     return Math.floor((Math.random() * (max - min)) + min);
 }
 
