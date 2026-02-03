@@ -1,5 +1,6 @@
 #!/usr/bin/env zsh
 
+set -x
 set -eo pipefail
 
 # https://unix.stackexchange.com/questions/76505/unix-portable-way-to-get-scripts-absolute-path-in-zsh
@@ -9,7 +10,7 @@ commonEsbuildArgs=(
     --sourcemap=linked
     --platform=node
     --format=cjs
-    --tsconfig=../tsconfig.app.json
+    --tsconfig=../tsconfig.json
     # doesn't play nice with bundling
     --external:jsdom
     --banner:js='#!/usr/bin/env node'
