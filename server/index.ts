@@ -7,6 +7,7 @@ import { exists, readdir } from "fs-extra";
 import { existsSync } from "node:fs";
 import { mkdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { Worker } from "node:worker_threads";
 import { WebSocket, WebSocketServer } from "ws";
 
 class Server {
@@ -129,7 +130,8 @@ class Server {
     }
 
     // microsoft/typescript#58561 insane "bug"
-    // const _watcherWorker = new Worker(join(__dirname, "watcher.cjs"));
+    // @ts-expect-error ^^
+    const _watcherWorker = new Worker(new URL("./watcher.ts", import.meta.url));
     const wss = new WebSocketServer({ port: 6767 });
 
     wss.on("connection", (ws: WebSocket) => {

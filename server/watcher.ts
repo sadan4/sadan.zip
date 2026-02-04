@@ -31,7 +31,7 @@ async function checkBuilds() {
 
     // eslint-disable-next-line no-cond-assign
     if (res = await checkBuild(appUrl[Channels.STABLE])) {
-        new Worker(join(__dirname, "parserWorker.cjs"), {
+        new Worker(new URL("./parserWorker", import.meta.url), {
             workerData: {
                 buildHash: res.headers.get(BUILD_ID_HEADER)!,
                 html: await res.text(),
