@@ -7,7 +7,7 @@ import * as shiki from "@/utils/shiki";
 import { Language } from "@/utils/textmate";
 import { languageDisplayNames } from "@/utils/textmate/language";
 import { TextmateTheme } from "@/utils/textmate/theme";
-import { LineNumberColor } from "@/utils/textmate/themes";
+import type { LineNumberColor } from "@/utils/textmate/themes";
 
 import { highlightCode } from "./_internal/highlightCode";
 import { HorizontalOverflowMode } from "./enums";

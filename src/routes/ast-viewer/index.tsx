@@ -5,7 +5,7 @@ import { ResizableSidebar, Side, SidebarStateStoreProvider } from "@/components/
 import { useConsoleHelpers } from "@/hooks/consoleHelpers";
 import { useSourceFile } from "@/hooks/sourceFile";
 import cn from "@/utils/cn";
-import { Monaco, monaco } from "@/utils/monaco";
+import { type Monaco, monaco } from "@/utils/monaco";
 import { getVisibleNodeRange, nodeFromPosition, TreeMode } from "@/utils/typescript";
 import { createFileRoute } from "@tanstack/react-router";
 

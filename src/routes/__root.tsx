@@ -2,7 +2,7 @@ import { LayerContext } from "@/components/Layer/context";
 import { installF8Break, uninstallF8Break } from "@/utils/devtools";
 import { assert } from "@/utils/error";
 import { TanStackDevtools } from "@tanstack/react-devtools";
-import { AnyRouteMatch, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
+import { type AnyRouteMatch, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 
 import rootCss from "../index.css?url";

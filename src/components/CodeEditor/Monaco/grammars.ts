@@ -1,6 +1,6 @@
 import { error } from "@/utils/error";
 import { makeLazy } from "@/utils/lazy";
-import { Monaco, monaco } from "@/utils/monaco";
+import { type Monaco, monaco } from "@/utils/monaco";
 import { createOnigurumaEngine } from "@/utils/oniguruma";
 import { hasGrammar, lazyLoadGrammar } from "@/utils/textmate";
 

@@ -1,5 +1,5 @@
 import { error } from "@/utils/error";
-import { Monaco, monaco } from "@/utils/monaco";
+import { type Monaco, monaco } from "@/utils/monaco";
 import { filterObject } from "@/utils/obj";
 import { TextmateTheme } from "@/utils/textmate/theme";
 

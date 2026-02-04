@@ -1,5 +1,5 @@
-import _metadata, { EditorFeature, EditorLanguage, IFeatureDefinition, IWorkerDefinition, NegatedEditorFeature } from "monaco-editor/esm/metadata.js";
-import { Plugin } from "vite";
+import _metadata, { type EditorFeature, type EditorLanguage, type IFeatureDefinition, type IWorkerDefinition, type NegatedEditorFeature } from "monaco-editor/esm/metadata.js";
+import type { Plugin } from "vite";
 
 export interface MonacoEditorOptions {
     /**

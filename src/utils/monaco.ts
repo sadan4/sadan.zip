@@ -4,7 +4,7 @@ import { getLanguageDeps, Language } from "./textmate";
 
 import type * as Monaco from "monaco-editor";
 export {
-    Monaco,
+    type Monaco,
 };
 export const monaco: typeof import("monaco-editor") = import.meta.env.SSR ? unavailableImport("monaco-editor") : await import("monaco-editor");
 

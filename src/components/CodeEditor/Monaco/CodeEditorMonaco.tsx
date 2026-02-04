@@ -5,7 +5,7 @@ import { useRect } from "@/hooks/rect";
 import { EMPTY_NULL_OBJECT, NOOP } from "@/utils/constants";
 import { assert } from "@/utils/error";
 import { once } from "@/utils/functional";
-import { getMonacoLanguageString, isReadOnly, makeTMLanguageMap, Monaco, monaco, updateModelLanguage, uriForLanguage } from "@/utils/monaco";
+import { getMonacoLanguageString, isReadOnly, makeTMLanguageMap, type Monaco, monaco, updateModelLanguage, uriForLanguage } from "@/utils/monaco";
 import { loadOnigasmPromise } from "@/utils/oniguruma";
 import { hasGrammar, Language } from "@/utils/textmate";
 import { ClientOnly } from "@tanstack/react-router";

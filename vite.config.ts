@@ -1,4 +1,4 @@
-import netlify from "@netlify/vite-plugin-tanstack-start";
+import { cloudflare } from "@cloudflare/vite-plugin";
 import tailwindcss from "@tailwindcss/vite";
 import { devtools } from "@tanstack/devtools-vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
@@ -15,7 +15,7 @@ import devtoolsJSON from "vite-plugin-devtools-json";
 import inspect from "vite-plugin-inspect";
 import viteTsConfigPaths from "vite-tsconfig-paths";
 
-const config = defineConfig(({ command }) => ({
+const config = defineConfig(({ command, isSsrBuild }) => ({
     resolve: {
         alias: {
             "@": fileURLToPath(new URL("./src", import.meta.url)),
@@ -55,21 +55,45 @@ const config = defineConfig(({ command }) => ({
                 plugins: ["babel-plugin-react-compiler"],
             },
         }),
-        // NOTE: bug in netlify on windows netlify/primitives#408
-        command !== "serve" && netlify(),
+        cloudflare({
+            viteEnvironment: {
+                name: "ssr",
+            },
+            config: {
+                observability: {
+                    enabled: false,
+                    head_sampling_rate: 1,
+                    logs: {
+                        enabled: true,
+                        head_sampling_rate: 1,
+                        persist: true,
+                        invocation_logs: true,
+                    },
+                    traces: {
+                        enabled: false,
+                        persist: true,
+                        head_sampling_rate: 1,
+                    },
+                },
+            },
+        }),
         // incompatible with netlify plugin
         !process.env.CI && inspect({
             build: true,
+            // breaks on dev
+            dev: false,
         }),
     ],
     build: {
         manifest: !process.env.CI,
         ssrManifest: !process.env.CI,
+        ssrEmitAssets: true,
         target: "es2022",
         rolldownOptions: {
             output: {
                 assetFileNames: "a/[hash:16].[ext]",
                 chunkFileNames: "j/[hash:16].js",
+                inlineDynamicImports: isSsrBuild || undefined,
             },
         },
         cssMinify: "lightningcss",

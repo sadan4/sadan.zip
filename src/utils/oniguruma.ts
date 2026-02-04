@@ -9,22 +9,22 @@ const vscodeOniguruma = import.meta.env.SSR ? (_vscodeOniguruma as any).default 
 
 export const loadOnigasmPromise = makeLazy(async () => {
     if (import.meta.env.SSR) {
-        const { fileURLToPath } = await import("node:url");
-        const { readFile } = await import("node:fs/promises");
-        const wasmPath = fileURLToPath(import.meta.resolve("vscode-oniguruma/release/onig.wasm"));
+        // const { fileURLToPath } = await import("node:url");
+        // const { readFile } = await import("node:fs/promises");
+        // const wasmPath = fileURLToPath(import.meta.resolve("vscode-oniguruma/release/onig.wasm"));
 
-        return vscodeOniguruma.loadWASM(await readFile(wasmPath));
-        // // @ts-expect-error cloudflare/vite-plugin handles this import
-        // const { default: onigWasmModule } = await import("vscode-oniguruma/release/onig.wasm") as { default: WebAssembly.Module; };
+        // return vscodeOniguruma.loadWASM(await readFile(wasmPath));
+        // @ts-expect-error cloudflare/vite-plugin handles this import
+        const { default: onigWasmModule } = await import("vscode-oniguruma/release/onig.wasm") as { default: WebAssembly.Module; };
 
-        // return vscodeOniguruma.loadWASM({
-        //     async instantiator(importObject) {
-        //         return {
-        //             instance: await WebAssembly.instantiate(onigWasmModule, importObject),
-        //             module: onigWasmModule,
-        //         };
-        //     },
-        // });
+        return vscodeOniguruma.loadWASM({
+            async instantiator(importObject) {
+                return {
+                    instance: await WebAssembly.instantiate(onigWasmModule, importObject),
+                    module: onigWasmModule,
+                };
+            },
+        });
     }
 
     const res = await fetch(onigurumaWasmURL);

@@ -1,13 +1,13 @@
 import { languageDisplayNames } from "./textmate/language";
 import { TextmateTheme } from "./textmate/theme";
-import { getLineNumberColorForTheme, lazyLoadTextmateTheme, LineNumberColor } from "./textmate/themes";
+import { getLineNumberColorForTheme, lazyLoadTextmateTheme, type LineNumberColor } from "./textmate/themes";
 import { assert } from "./error";
-import { Lazy, makeLazy } from "./lazy";
+import { type Lazy, makeLazy } from "./lazy";
 import { createOnigurumaEngine } from "./oniguruma";
 import { getLanguageDeps, hasGrammar, Language, lazyLoadGrammar } from "./textmate";
 
-import { createHighlighterCore, HighlighterCore } from "shiki/core";
-import { BundledLanguage, BundledTheme, SpecialLanguage } from "shiki/types";
+import { createHighlighterCore, type HighlighterCore } from "shiki/core";
+import type { BundledLanguage, BundledTheme, SpecialLanguage } from "shiki/types";
 
 type ShikiLanguage = BundledLanguage | SpecialLanguage;
 

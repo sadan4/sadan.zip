@@ -5,7 +5,7 @@ import { truthy } from "@/utils/types";
 
 import styles from "../styles.module.scss";
 
-import { HighlighterCore, ShikiTransformer } from "shiki/core";
+import type { HighlighterCore, ShikiTransformer } from "shiki/core";
 
 export interface HighlighterOptions {
     highlighter: HighlighterCore;

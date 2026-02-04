@@ -1,7 +1,7 @@
-import { StandardTextProps, Text } from "@/components/Text";
+import { type StandardTextProps, Text } from "@/components/Text";
 import cn from "@/utils/cn";
 import { discordUrl } from "@/utils/constants";
-import { ComponentPropsWithRef } from "@react-spring/web";
+import type { ComponentPropsWithRef } from "@react-spring/web";
 import { createLink } from "@tanstack/react-router";
 
 import styles from "./styles.module.scss";

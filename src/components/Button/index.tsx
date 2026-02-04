@@ -1,6 +1,6 @@
 import { useDebouncedFn } from "@/hooks/debouncedFn";
 import { cn, type textSize } from "@/utils/cn";
-import { Thenable } from "@/utils/types";
+import type { Thenable } from "@/utils/types";
 
 import { colors, colorTypes } from "./colors";
 import styles from "./styles.module.scss";
@@ -9,7 +9,7 @@ import { Text } from "../Text";
 import { Tooltip } from "../Tooltip";
 
 import { CheckIcon } from "lucide-react";
-import { type ComponentProps, MouseEvent, useId, useState } from "react";
+import { type ComponentProps, type MouseEvent, useId, useState } from "react";
 
 export interface BaseButtonProps extends ComponentProps<typeof Clickable<"button">> {
     /**
