@@ -1,3 +1,13 @@
+onlyBuiltDependencies:
+  - '@parcel/watcher'
+  - '@swc/core'
+  - esbuild
+  - less
+  - netlify-cli
+  - sharp
+  - unix-dgram
+  - workerd
+
 overrides:
   vite: npm:rolldown-vite@latest
 
