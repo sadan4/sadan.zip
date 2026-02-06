@@ -1,49 +1,48 @@
 import { markerMap } from "./publicApi.gen&gen";
-import { error, unreachable } from "../error";
+import { error, unavailableImport, unreachable } from "../error";
 import { Language } from "../textmate";
 
-import {
-    type Node,
-    ScriptKind,
-    ScriptTarget,
-    type SourceFile,
-    SyntaxKind,
-    type SyntaxList,
-    type TextChangeRange,
-} from "typescript";
+import type * as TS from "typescript";
 
-export function scriptKindForLanguage(language: Language): ScriptKind {
+const ts: typeof import("typescript") = import.meta.env.SSR ? unavailableImport<never>("typescript") : await import("typescript");
+
+export {
+    type TS,
+    ts,
+};
+
+export function scriptKindForLanguage(language: Language): TS.ScriptKind {
     switch (language) {
         case Language.JSON:
-            return ScriptKind.JSON;
+            return ts.ScriptKind.JSON;
         case Language.TYPESCRIPT:
-            return ScriptKind.TS;
+            return ts.ScriptKind.TS;
         case Language.JAVASCRIPT:
-            return ScriptKind.JS;
+            return ts.ScriptKind.JS;
         case Language.TYPESCRIPT_REACT:
-            return ScriptKind.TSX;
+            return ts.ScriptKind.TSX;
         case Language.JAVASCRIPT_REACT:
-            return ScriptKind.JSX;
+            return ts.ScriptKind.JSX;
         default:
             error(`unsupported language: ${language}`);
     }
 }
 
-export function defaultScriptTarget(language: Language): ScriptTarget {
+export function defaultScriptTarget(language: Language): TS.ScriptTarget {
     switch (language) {
         case Language.JSON:
-            return ScriptTarget.JSON;
+            return ts.ScriptTarget.JSON;
         case Language.TYPESCRIPT:
         case Language.JAVASCRIPT:
         case Language.TYPESCRIPT_REACT:
         case Language.JAVASCRIPT_REACT:
-            return ScriptTarget.ESNext;
+            return ts.ScriptTarget.ESNext;
         default:
             error(`unsupported language: ${language}`);
     }
 }
 
-export function getNodeKey({ pos, end, kind }: Node): string {
+export function getNodeKey({ pos, end, kind }: TS.Node): string {
     return `${pos}-${end}-${kind}`;
 }
 
@@ -57,12 +56,12 @@ export const treeModeStringMap = Object.freeze({
     [TreeMode.FOR_EACH_CHILD]: "node.forEachChild(child => /* ... */)",
 } satisfies Record<TreeMode, string>);
 
-export function getChildrenWithMode(node: Node, mode: TreeMode): readonly Node[] {
+export function getChildrenWithMode(node: TS.Node, mode: TreeMode): readonly TS.Node[] {
     switch (mode) {
         case TreeMode.GET_CHILDREN:
             return node.getChildren();
         case TreeMode.FOR_EACH_CHILD: {
-            const children: Node[] = [];
+            const children: TS.Node[] = [];
 
             node.forEachChild((child) => {
                 children.push(child);
@@ -74,8 +73,8 @@ export function getChildrenWithMode(node: Node, mode: TreeMode): readonly Node[]
     }
 }
 
-export function getNodeName({ kind }: Node): string {
-    const ret = SyntaxKind[kind];
+export function getNodeName({ kind }: TS.Node): string {
+    const ret = ts.SyntaxKind[kind];
 
     if (markerMap.has(ret)) {
         return markerMap.get(ret)!;
@@ -83,7 +82,7 @@ export function getNodeName({ kind }: Node): string {
     return ret ?? "<ERROR>";
 }
 
-export function getTextChanges(oldText: string, newText: string): TextChangeRange {
+export function getTextChanges(oldText: string, newText: string): TS.TextChangeRange {
     const { length: oldLen } = oldText;
     const { length: newLen } = newText;
 
@@ -98,11 +97,11 @@ export function getTextChanges(oldText: string, newText: string): TextChangeRang
 
 export type NodeRange = readonly [pos: number, end: number];
 
-export function getVisibleNodeRange(node: Node, sourceFile: SourceFile): NodeRange {
+export function getVisibleNodeRange(node: TS.Node, sourceFile: TS.SourceFile): NodeRange {
     return [node.getStart(sourceFile, true), node.end];
 }
 
-export function isNode(n: any): n is Node {
+export function isNode(n: any): n is TS.Node {
     if (!n || typeof n !== "object") {
         return false;
     }
@@ -110,7 +109,7 @@ export function isNode(n: any): n is Node {
     return typeof n.kind === "number" && typeof n.pos === "number" && typeof n.end === "number";
 }
 
-export function nodeFromPosition(node: Node, position: number): Node | undefined {
+export function nodeFromPosition(node: TS.Node, position: number): TS.Node | undefined {
     const { pos, end } = node;
 
     if (position < pos || position >= end) {
@@ -129,11 +128,11 @@ export function nodeFromPosition(node: Node, position: number): Node | undefined
     return node;
 }
 
-export function isSyntaxList(node: Node): node is SyntaxList {
-    return node.kind === SyntaxKind.SyntaxList;
+export function isSyntaxList(node: TS.Node): node is TS.SyntaxList {
+    return node.kind === ts.SyntaxKind.SyntaxList;
 }
 
-export function getParent(node: Node): Node | undefined {
+export function getParent(node: TS.Node): TS.Node | undefined {
     if (!node.parent) {
         return;
     }

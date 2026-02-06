@@ -6,14 +6,13 @@ import { useConsoleHelpers } from "@/hooks/consoleHelpers";
 import { useSourceFile } from "@/hooks/sourceFile";
 import cn from "@/utils/cn";
 import { type Monaco, monaco } from "@/utils/monaco";
-import { getVisibleNodeRange, nodeFromPosition, TreeMode } from "@/utils/typescript";
+import { getVisibleNodeRange, nodeFromPosition, TreeMode, type TS, ts } from "@/utils/typescript";
 import { createFileRoute } from "@tanstack/react-router";
 
 import { astViewerStore, leftAstSidebarStateStore, rightAstSidebarStateStore, updateASTViewerCode } from "./-store";
 import styles from "./styles.module.scss";
 
 import { useRef, useState } from "react";
-import * as ts from "typescript";
 
 export const Route = createFileRoute("/ast-viewer/")({
     component: ASTViewer,
@@ -31,9 +30,9 @@ function ASTViewer() {
     const sidebarBoundingRef = useRef<HTMLDivElement>(null);
     const editorRef = useRef<MonacoCodeEditorHandle>(null);
     const [sourceFile, { reparseCount }] = useSourceFile(code, language);
-    const [selectedNode, setSelectedNode] = useState<ts.Node | undefined>(undefined);
+    const [selectedNode, setSelectedNode] = useState<TS.Node | undefined>(undefined);
 
-    function rangeFromNode(node: ts.Node): Monaco.Range {
+    function rangeFromNode(node: TS.Node): Monaco.Range {
         const [pos, end] = getVisibleNodeRange(node, sourceFile);
         const startLineAndCharacter = sourceFile.getLineAndCharacterOfPosition(pos);
         const endLineAndCharacter = sourceFile.getLineAndCharacterOfPosition(end);
@@ -55,7 +54,7 @@ function ASTViewer() {
         monaco,
     });
 
-    function onSelectNode(node: ts.Node) {
+    function onSelectNode(node: TS.Node) {
         if (editorRef.current) {
             const range = rangeFromNode(node);
 

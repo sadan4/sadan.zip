@@ -1,9 +1,8 @@
 import { assert, unreachable } from "@/utils/error";
 import { extensionForLanguage, Language } from "@/utils/textmate";
-import { defaultScriptTarget, getTextChanges, scriptKindForLanguage } from "@/utils/typescript";
+import { defaultScriptTarget, getTextChanges, scriptKindForLanguage, type TS, ts } from "@/utils/typescript";
 
 import { useEffect, useReducer, useRef } from "react";
-import { createSourceFile, type SourceFile, updateSourceFile } from "typescript";
 
 export const enum UpdateType {
     CODE,
@@ -25,7 +24,7 @@ type Update =
   };
 
 // dumb react strict mode workaround
-const operatedOn = new WeakMap<SourceFile, SourceFile>();
+const operatedOn = new WeakMap<TS.SourceFile, TS.SourceFile>();
 
 interface SourceFileMetadata {
     reparseCount: number;
@@ -35,7 +34,7 @@ export function useSourceFile(
     code: string,
     language: Language,
     scriptTarget = defaultScriptTarget(language),
-): [SourceFile, SourceFileMetadata] {
+): [TS.SourceFile, SourceFileMetadata] {
     const codeRef = useRef(code);
     const languageRef = useRef(language);
     const scriptTargetRef = useRef(scriptTarget);
@@ -78,7 +77,7 @@ export function useSourceFile(
     return [sourceFile, { reparseCount }];
 
     // eslint-disable-next-line react-hooks/todo
-    function reducer(state: SourceFile, action: Update): SourceFile {
+    function reducer(state: TS.SourceFile, action: Update): TS.SourceFile {
         const filename = `file${extensionForLanguage(languageRef.current)}`;
         const newCode = codeRef.current;
 
@@ -86,7 +85,7 @@ export function useSourceFile(
             return operatedOn.get(state)!;
         }
 
-        let res: SourceFile | undefined;
+        let res: TS.SourceFile | undefined;
 
         assert(UpdateType.LANGUAGE === UpdateType.SCRIPT_TARGET, "expected to be the same");
         switch (action.type) {
@@ -95,13 +94,13 @@ export function useSourceFile(
                 const textChanges = getTextChanges(oldCode, newCode);
 
                 incrementReparseCount();
-                res = updateSourceFile(state, newCode, textChanges);
+                res = ts.updateSourceFile(state, newCode, textChanges);
                 break;
             }
             case UpdateType.INIT:
             case UpdateType.SCRIPT_TARGET: {
                 incrementReparseCount(true);
-                res = createSourceFile(
+                res = ts.createSourceFile(
                     filename,
                     newCode,
                     scriptTargetRef.current,
