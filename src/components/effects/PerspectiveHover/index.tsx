@@ -1,9 +1,8 @@
-import { useRect } from "@/hooks/rect";
-import { MouseButtons } from "@/utils/dom";
+import { measureRect, MouseButtons } from "@/utils/dom";
 import toCSS from "@/utils/toCSS";
 import { animated, to, useSpring } from "@react-spring/web";
 
-import { type PropsWithChildren, useState } from "react";
+import { type PropsWithChildren, use, useRef, useState } from "react";
 
 export interface PerspectiveHoverProps extends PropsWithChildren {
     /**
@@ -21,8 +20,8 @@ export default function PerspectiveHover({ children, hoverFactor, className }: P
         return (pointerX - posX - (width / 2)) / hoverFactor;
     }
 
-    const [el, setEl] = useState<HTMLDivElement | null>(null);
-    const rect = useRect(el);
+    const ref = useRef<HTMLDivElement>(null);
+    const rectRef = useRef<Record<"width" | "height" | "x" | "y", number>>(null);
 
     const [{ x, y, scale, zoom, rotateX, rotateY, rotateZ }, api] = useSpring(() => ({
         rotateX: 0,
@@ -41,7 +40,7 @@ export default function PerspectiveHover({ children, hoverFactor, className }: P
 
     return (
         <animated.div
-            ref={setEl}
+            ref={ref}
             style={{
                 transform: toCSS.perspective(600),
                 x,
@@ -53,11 +52,11 @@ export default function PerspectiveHover({ children, hoverFactor, className }: P
             }}
             className={className}
             onMouseMove={(e) => {
-                if (!rect) {
+                if (!ref.current) {
                     return;
                 }
 
-                const { width, height, x, y } = rect;
+                const { width, height, x, y } = rectRef.current ?? measureRect(ref.current);
 
                 api.start({
                     rotateX: calcX(e.clientY, height, y),
@@ -74,6 +73,11 @@ export default function PerspectiveHover({ children, hoverFactor, className }: P
                 api.start({
                     scale: 1.1,
                 });
+            }}
+            onMouseOver={() => {
+                if (ref.current) {
+                    rectRef.current = measureRect(ref.current);
+                }
             }}
             onMouseOut={() => {
                 api.start({
