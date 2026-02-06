@@ -9,6 +9,7 @@ import { Position } from "@/components/Popout/enums";
 import { Text } from "@/components/Text";
 import { Tooltip } from "@/components/Tooltip";
 import type { TooltipPosition } from "@/components/Tooltip/constants";
+import { useForceUpdater } from "@/hooks/forceUpdater";
 import { useRect } from "@/hooks/rect";
 import { discordUrl } from "@/utils/constants";
 import { assert } from "@/utils/error";
@@ -127,7 +128,8 @@ export function FriendButton({ friend, tooltipPosition, mobile }: FriendButtonPr
     const [popoutOpen, setPopoutOpen] = useState(false);
     const [tooltipVisible, setTooltipVisible] = useState(false);
     const [el, setEl] = useState<HTMLElement | null>(null);
-    const rect = useRect(el);
+    const [dep, updateRect] = useForceUpdater();
+    const rect = useRect(el, [dep]);
     const maskId = useId();
     const gradientId = useId();
 
@@ -141,7 +143,7 @@ export function FriendButton({ friend, tooltipPosition, mobile }: FriendButtonPr
             }}
         >
             <CircleRoot>
-                <CircleCenter>
+                <CircleCenter rect={rect}>
                     <PopoutTrigger>
                         <Tooltip
                             position={tooltipPosition}
@@ -155,11 +157,13 @@ export function FriendButton({ friend, tooltipPosition, mobile }: FriendButtonPr
                             }}
                         >
                             <div
-                                // avoid calculations when not needed
-                                ref={mobile && setEl}
+                                ref={setEl}
                                 onMouseOver={() => {
                                     if (friend._88x31url) {
                                         preload(friend._88x31url, { as: "image" });
+                                    }
+                                    if (el) {
+                                        updateRect();
                                     }
                                 }}
                             >

@@ -32,6 +32,7 @@ export interface CircleRootProps extends PropsWithChildren {
 }
 
 export interface CircleCenterProps extends PropsWithChildren {
+    rect?: DOMRectReadOnly;
 }
 
 interface CircleContextInternal {
@@ -86,14 +87,14 @@ export function CircleRoot({ children }: CircleRootProps) {
     );
 }
 
-export function CircleCenter({ children }: CircleCenterProps) {
+export function CircleCenter({ children, rect: rectProp }: CircleCenterProps) {
     const [el, setEl] = useState<HTMLDivElement | null>(null);
     const rect = useRect(el);
     const circleCtx = useCircleContextInternal();
 
     useEffect(() => {
-        circleCtx.setRect(rect);
-    }, [rect, circleCtx]);
+        circleCtx.setRect(rectProp ?? rect);
+    }, [rectProp, rect, circleCtx]);
 
     return (
         <div
