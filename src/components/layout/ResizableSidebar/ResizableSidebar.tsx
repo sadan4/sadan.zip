@@ -106,7 +106,6 @@ export function ResizableSidebar({
                 }}
                 className={cn((hidden || handleHidden) && "pointer-events-none opacity-0", shouldDispatch || "pointer-events-none", handleClassName)}
                 style={{
-                    top,
                     height,
                 }}
                 minPosition={side === Side.RIGHT ? 0.5 : undefined}

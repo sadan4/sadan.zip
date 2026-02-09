@@ -6,7 +6,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useRef } from "react";
 import { useStore } from "zustand";
 
-export const Route = createFileRoute("/_/e")({
+export const Route = createFileRoute("/e/guh123")({
     component: Explorer,
 });
 

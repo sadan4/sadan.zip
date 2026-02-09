@@ -1,108 +1,154 @@
-export interface QueryBundlesMessage {
-    type: "queryBundles";
-}
+import { z } from "zod";
 
-export interface GetBundleMetadataMessage {
-    type: "getBundleMetadata";
-    bundleHash: string;
-}
+export const messageBaseSchema = z.object({
+    type: z.string(),
+    messageId: z.number(),
+});
 
-export interface GetBundleDepGraphMessage {
-    type: "getBundleDepGraph";
-    bundleHash: string;
-}
+export type MessageBase = z.infer<typeof messageBaseSchema>;
 
-export interface GetAllBundleFilesMessage {
-    type: "getAllBundleFiles";
-    bundleHash: string;
-}
+export const queryBundlesMessageSchema = messageBaseSchema.safeExtend({
+    type: z.literal("queryBundles"),
+});
 
-export interface GetBundleFileMessage {
-    type: "getBundleFile";
-    bundleHash: string;
-    moduleNumber: string;
-}
+export type QueryBundlesMessage = z.infer<typeof queryBundlesMessageSchema>;
 
-export type MessageToServer =
-  | QueryBundlesMessage
-  | GetAllBundleFilesMessage
-  | GetBundleMetadataMessage
-  | GetBundleDepGraphMessage
-  | GetBundleFileMessage;
+export const getBundleMetadataMessageSchema = messageBaseSchema.extend({
+    type: z.literal("getBundleMetadata"),
+    bundleHash: z.string(),
+});
 
-export interface ModuleInfo {
-    [jsFilePath: string]: readonly string[];
-}
+export type GetBundleMetadataMessage = z.infer<typeof getBundleMetadataMessageSchema>;
 
-export interface BundleInfo {
-    buildHash: string;
-    buildNumber: string;
-    firstSeen: number;
-    modules: ModuleInfo;
+export const getBundleDepGraphMessageSchema = messageBaseSchema.extend({
+    type: z.literal("getBundleDepGraph"),
+    bundleHash: z.string(),
+});
+
+export type GetBundleDepGraphMessage = z.infer<typeof getBundleDepGraphMessageSchema>;
+
+export const getAllBundleFilesMessageSchema = messageBaseSchema.extend({
+    type: z.literal("getAllBundleFiles"),
+    bundleHash: z.string(),
+});
+
+export type GetAllBundleFilesMessage = z.infer<typeof getAllBundleFilesMessageSchema>;
+
+export const getBundleFileMessageSchema = messageBaseSchema.extend({
+    type: z.literal("getBundleFile"),
+    bundleHash: z.string(),
+    moduleNumber: z.string(),
+});
+
+export type GetBundleFileMessage = z.infer<typeof getBundleFileMessageSchema>;
+
+export const messageToServerSchema = z.discriminatedUnion("type", [
+    queryBundlesMessageSchema,
+    getBundleMetadataMessageSchema,
+    getBundleDepGraphMessageSchema,
+    getAllBundleFilesMessageSchema,
+    getBundleFileMessageSchema,
+]);
+
+export type MessageToServer = z.infer<typeof messageToServerSchema>;
+
+export const moduleInfoSchema = z.record(z.string(), z.array(z.string()));
+
+export type ModuleInfo = z.infer<typeof moduleInfoSchema>;
+
+export const bundleInfoSchema = z.object({
+    buildHash: z.string(),
+    buildNumber: z.string(),
+    firstSeen: z.number(),
+    modules: moduleInfoSchema,
     /**
      * can't be serialized as it contains symbols, but is cheap to parse, and guaranteed to be valid
      */
-    envVarText: string;
-}
+    envVarText: z.string(),
+});
 
-export interface BundlesResponseMessage {
-    type: "queryBundlesResponse";
-    bundles: BundleInfo[];
-}
+export const keyModulesSchema = z.object({
+    /**
+     * [moduleId, exportName][]
+     */
+    fluxDispatcherClass: z.array(z.tuple([z.string(), z.union([z.string(), z.symbol()])])),
+});
 
-export interface AllBundleFilesResponseMessage {
-    type: "getAllBundleFilesResponse";
-    bundleHash: string;
-    files: {
-        [moduleNumber: string]: string;
-    };
-}
+export type KeyModules = z.infer<typeof keyModulesSchema>;
 
-export interface BundleMetadataResponseMessage {
-    type: "getBundleMetadataResponse";
-    bundleHash: string;
-    metadata: BundleInfo;
-}
+export const mainDepsSchema = z.record(z.string(), z.object({
+    syncUses: z.array(z.string()),
+    lazyUses: z.array(z.string()),
+}));
 
-export interface BundleDepGraphResponseMessage {
-    type: "getBundleDepGraphResponse";
-    bundleHash: string;
-    depGraph: DepsJson;
-}
+export type MainDeps = z.infer<typeof mainDepsSchema>;
 
-export interface BundleFileResponseMessage {
-    type: "getBundleFileResponse";
-    bundleHash: string;
-    moduleNumber: string;
-    fileText: string;
-}
+export const depsJsonSchema = z.object({
+    deps: mainDepsSchema,
+    keyModules: keyModulesSchema,
+});
 
-export interface ErrorMessage {
-    type: "error";
-    sourceType: string;
-    message: string;
-}
+export type DepsJson = z.infer<typeof depsJsonSchema>;
 
-export type MessageToClient =
-  | BundlesResponseMessage
-  | AllBundleFilesResponseMessage
-  | BundleFileResponseMessage
-  | BundleMetadataResponseMessage
-  | BundleDepGraphResponseMessage
-  | ErrorMessage;
+export type BundleInfo = z.infer<typeof bundleInfoSchema>;
 
-export interface KeyModules {
-    fluxDispatcherClass: [moduleId: string, exportName: string | symbol][];
-}
+export const bundlesResponseMessageSchema = messageBaseSchema.extend({
+    type: z.literal("queryBundlesResponse"),
+    bundles: z.array(bundleInfoSchema),
+});
 
-export interface MainDeps {
-    [key: string]: {
-        syncUses: string[];
-        lazyUses: string[];
-    };
-}
+export type BundlesResponseMessage = z.infer<typeof bundlesResponseMessageSchema>;
 
-export interface DepsJson {
-    deps: MainDeps;
-    keyModules: KeyModules;
-}
+export const allBundleFilesResponseMessageSchema = messageBaseSchema.extend({
+    type: z.literal("getAllBundleFilesResponse"),
+    bundleHash: z.string(),
+    files: z.record(z.string(), z.string()),
+});
+
+export type AllBundleFilesResponseMessage = z.infer<typeof allBundleFilesResponseMessageSchema>;
+
+export const bundleMetadataResponseMessageSchema = messageBaseSchema.extend({
+    type: z.literal("getBundleMetadataResponse"),
+    bundleHash: z.string(),
+    metadata: bundleInfoSchema,
+});
+
+export type BundleMetadataResponseMessage = z.infer<typeof bundleMetadataResponseMessageSchema>;
+
+export const bundleDepGraphResponseMessageSchema = messageBaseSchema.extend({
+    type: z.literal("getBundleDepGraphResponse"),
+    bundleHash: z.string(),
+    depGraph: depsJsonSchema,
+});
+
+export type BundleDepGraphResponseMessage = z.infer<typeof bundleDepGraphResponseMessageSchema>;
+
+export const bundleFileResponseMessageSchema = messageBaseSchema.extend({
+    type: z.literal("getBundleFileResponse"),
+    bundleHash: z.string(),
+    moduleNumber: z.string(),
+    fileText: z.string(),
+});
+
+export type BundleFileResponseMessage = z.infer<typeof bundleFileResponseMessageSchema>;
+
+
+export const errorMessageSchema = messageBaseSchema.extend({
+    type: z.literal("error"),
+    sourceType: z.string(),
+    message: z.string(),
+});
+
+export type ErrorMessage = z.infer<typeof errorMessageSchema>;
+
+export const messageToClientSchema = z.discriminatedUnion("type", [
+    bundlesResponseMessageSchema,
+    allBundleFilesResponseMessageSchema,
+    bundleMetadataResponseMessageSchema,
+    bundleDepGraphResponseMessageSchema,
+    bundleFileResponseMessageSchema,
+    errorMessageSchema,
+]);
+
+export type MessageToClient = z.infer<typeof messageToClientSchema>;
+
