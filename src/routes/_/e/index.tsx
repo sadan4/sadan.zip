@@ -16,6 +16,7 @@ import { ExternalLinkIcon } from "lucide-react";
 
 export const Route = createFileRoute("/_/e/")({
     component: RouteComponent,
+    ssr: false,
 });
 
 interface BundleSelectorProps {
