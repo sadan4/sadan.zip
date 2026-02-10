@@ -149,7 +149,7 @@ class Server {
     // microsoft/typescript#58561 insane "bug"
     // @ts-expect-error ^^
     const _watcherWorker = new Worker(new URL("./watcher.ts", import.meta.url));
-    const wss = new WebSocketServer({ port: 6767 });
+    const wss = new WebSocketServer({ port: 8044 });
 
     wss.on("connection", (ws: WebSocket) => {
         new Server(ws);
