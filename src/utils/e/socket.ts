@@ -79,7 +79,6 @@ export async function sendMessage<T extends MessageToClient["type"] = never>(msg
             } else {
                 reject(new Error("Unexpected error while handling message from server", { cause: e }));
             }
-            return;
         }
         abort.abort();
     }, { signal });
