@@ -155,12 +155,15 @@ export function BufferedScroller<T>({
             && firstVisibleChunk !== Infinity
             && lastVisibleChunk !== -Infinity
         ) {
+            // Update first chunk if we've scrolled too far from the beginning
             if (firstVisibleChunk - firstChunk > bufferSize) {
                 first = Math.max(0, firstVisibleChunk - bufferSize);
             }
-            if (lastVisibleChunk === firstVisibleChunk || lastVisibleChunk - firstVisibleChunk > bufferSize) {
-                num = Math.max(0, lastVisibleChunk + bufferSize);
-            }
+
+            // Calculate numChunks relative to first, not as an absolute index
+            // We want enough chunks to cover from first to (lastVisible + buffer)
+            const desiredLastChunk = lastVisibleChunk + bufferSize;
+            num = Math.min(desiredLastChunk - first + 1, totalChunks - first);
         }
 
         // handle when a new chunk is added to the bottom and we are at the end of the list

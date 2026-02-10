@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-mkdir -p $HOME/.config/systemd/user/
+set -euo pipefail
+mkdir -p "$HOME/.config/systemd/user/"
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-cp $SCRIPT_DIR/../browser.service $HOME/.config/systemd/user/
+cp "$SCRIPT_DIR/../browser.service" "$HOME/.config/systemd/user/"
