@@ -1,29 +1,10 @@
 import { type BaseMessageToServer, type MessageToClient, messageToClientSchema, type MessageToServer, messageToServerSchema } from "../../../server/types";
+import { withResolvers } from "../async";
 
 import z from "zod";
 
 let _ws: WebSocket | null = null;
 const WS_URL = "wss://s-d-br.sadan.zip";
-
-function withResolvers<T>(): {
-    promise: Promise<T>;
-    resolve: (value: T | PromiseLike<T>) => void;
-    reject: (reason?: any) => void;
-} {
-    let resolve!: (value: T | PromiseLike<T>) => void;
-    let reject!: (reason?: any) => void;
-
-    const promise = new Promise<T>((res, rej) => {
-        resolve = res;
-        reject = rej;
-    });
-
-    return {
-        promise,
-        resolve,
-        reject,
-    };
-}
 
 async function ensureConnection() {
     if (!_ws) {

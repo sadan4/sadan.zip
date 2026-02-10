@@ -163,6 +163,7 @@ export function BufferedScroller<T>({
             // Calculate numChunks relative to first, not as an absolute index
             // We want enough chunks to cover from first to (lastVisible + buffer)
             const desiredLastChunk = lastVisibleChunk + bufferSize;
+
             num = Math.min(desiredLastChunk - first + 1, totalChunks - first);
         }
 
