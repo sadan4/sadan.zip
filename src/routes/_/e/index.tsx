@@ -72,18 +72,9 @@ function RouteComponent() {
     const { status, data } = useQuery({
         queryKey: ["getAvailableBundles"],
         async queryFn() {
-            try {
-                const res = await sendMessage<"queryBundlesResponse">({
-                    type: "queryBundles",
-                });
-
-                console.log(res);
-
-                return res;
-            } catch (e) {
-                console.error(e);
-                throw e;
-            }
+            return await sendMessage<"queryBundlesResponse">({
+                type: "queryBundles",
+            });
         },
     });
 
@@ -119,7 +110,6 @@ function RouteComponent() {
                             center
                         >
                             An error occurred while loading the bundles.
-                            Check console for more information.
                         </Text>
                     )}
                     {status === "success" && (
