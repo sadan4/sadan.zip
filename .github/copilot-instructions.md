@@ -21,7 +21,7 @@ This is a personal website built with modern web technologies. When working on t
 - `src/hooks/` - Custom React hooks
 - `src/utils/` - Utility functions
 - `src/styles/` - Global styles and SCSS partials
-- `server/` - Server-side code for Cloudflare Workers
+- `server/` - Server-side code for the explorer. This is not run on Cloudflare Workers
 - `scripts/` - Build and development scripts
 
 ## Code Style
@@ -81,7 +81,7 @@ This project uses TanStack Router's file-based routing:
 
 ### Monaco Editor
 - Monaco Editor is bundled with custom configuration
-- Only TypeScript language support is included
+- Only TypeScript and JavaScript language support is included
 - Located in `src/components/CodeEditor/Monaco/`
 
 ### Build Configuration
