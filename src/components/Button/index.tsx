@@ -147,7 +147,7 @@ export function IconButton({
                 {...props}
                 disabled={disabled}
                 onClick={(e) => {
-                    if (showCheck && !dispatchDuringAnim) {
+                    if (showCheck !== ButtonState.NORMAL && !dispatchDuringAnim) {
                         return;
                     }
                     Promise.resolve(onClick?.(e)).then((result) => {
