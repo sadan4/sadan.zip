@@ -128,10 +128,14 @@ class Server {
                     error(`unexpected message type: ${r.type}`);
             }
         } catch (e: any) {
-            let message = e?.message;
+            let message: string;
 
             if (e instanceof z.ZodError) {
                 message = z.prettifyError(e);
+            } else if (e?.message) {
+                message = e.message;
+            } else {
+                message = String(e);
             }
 
             this.sendMessage({
