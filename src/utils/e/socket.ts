@@ -3,7 +3,7 @@ import { type BaseMessageToServer, type MessageToClient, messageToClientSchema, 
 import z from "zod";
 
 let _ws: WebSocket | null = null;
-const WS_URL = "https://s-d-br.sadan.zip";
+const WS_URL = "wss://s-d-br.sadan.zip";
 
 async function ensureConnection() {
     if (!_ws) {
