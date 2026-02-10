@@ -5,11 +5,31 @@ import z from "zod";
 let _ws: WebSocket | null = null;
 const WS_URL = "wss://s-d-br.sadan.zip";
 
+function withResolvers<T>(): {
+    promise: Promise<T>;
+    resolve: (value: T | PromiseLike<T>) => void;
+    reject: (reason?: any) => void;
+} {
+    let resolve: (value: T | PromiseLike<T>) => void;
+    let reject: (reason?: any) => void;
+
+    const promise = new Promise<T>((res, rej) => {
+        resolve = res;
+        reject = rej;
+    });
+
+    return {
+        promise,
+        resolve: resolve!,
+        reject: reject!,
+    };
+}
+
 async function ensureConnection() {
     if (!_ws) {
         _ws = new WebSocket(WS_URL);
 
-        const { promise, resolve, reject } = Promise.withResolvers<WebSocket>();
+        const { promise, resolve, reject } = withResolvers<WebSocket>();
 
         _ws.addEventListener("open", () => {
             resolve(_ws!);
@@ -43,7 +63,7 @@ export async function sendMessage<T extends MessageToClient["type"] = never>(msg
     }
 
     const ws = await ensureConnection();
-    const { promise, resolve, reject } = Promise.withResolvers<Discriminate<MessageToClient, T>>();
+    const { promise, resolve, reject } = withResolvers<Discriminate<MessageToClient, T>>();
     const abort = new AbortController();
     const { signal } = abort;
 
