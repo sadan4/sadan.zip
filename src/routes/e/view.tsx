@@ -12,6 +12,7 @@ const viewBundleParamsSchema = z.object({
 export const Route = createFileRoute("/e/view")({
     component: ExplorerWrapper,
     validateSearch: zodValidator(viewBundleParamsSchema),
+    ssr: false,
     beforeLoad({ search: { buildHash } }) {
         if (buildHash === "") {
             throw redirect({
