@@ -21,37 +21,50 @@
 
         &.icon-button {
             --check-progress: 0;
+            --error-progress: 0;
 
-            color: var(--button-text-color, var(--color-bg-100));
             position: relative;
+            color: var(--button-color, var(--color-primary-400));
 
+            &.filled {
+                color: var(--button-text-color, var(--color-bg-100));
+            }
 
             &.show-check {
                 --check-progress: 1;
             }
 
+            &.show-error {
+                --error-progress: 1;
+            }
+
             > .icon,
-            > .check {
+            > .status-icon {
                 @include u.anim-dur;
             }
 
             > .icon {
-                @include u.anim-blur-scale-fade(calc(1 - var(--check-progress)));
+                @include u.anim-blur-scale-fade(calc(1 - max(var(--check-progress), var(--error-progress))));
             }
 
-            // NOTE: must be second child, parent must have 2 children
-            > .check {
-                @include u.anim-blur-scale-fade(var(--check-progress));
-
+            > .status-icon {
                 position: absolute;
                 top: 0;
                 left: 0;
                 width: inherit;
                 height: inherit;
                 padding: inherit;
+
+                &.check-icon {
+                    @include u.anim-blur-scale-fade(var(--check-progress));
+                }
+
+                &.error-icon {
+                    @include u.anim-blur-scale-fade(var(--error-progress));
+                }
             }
 
-            &:is(.outline, .text) > .check{
+            &:is(.outline, .text) > .status-icon {
                 color: var(--button-color-base);
             }
         }

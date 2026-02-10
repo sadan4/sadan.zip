@@ -1,3 +1,4 @@
+import { assert } from "./error";
 import { once } from "./functional";
 
 type AllEventMaps = HTMLElementEventMap & DocumentEventMap & WindowEventMap;
@@ -33,4 +34,10 @@ export function disposableEventHandler<K extends keyof AllEventMaps>(
     return once(() => {
         el?.removeEventListener(type, handler as EventListenerOrEventListenerObject);
     });
+}
+
+export function onAbort(signal: AbortSignal, cb: () => void): void {
+    assert(!signal.aborted, "signal already aborted");
+
+    signal.addEventListener("abort", cb, { once: true });
 }

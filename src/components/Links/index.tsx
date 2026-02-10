@@ -107,7 +107,7 @@ export function SourceLink() {
     );
 }
 
-export function ButtonLink() {
+export function PersonalButtonLink() {
     return (
         <Link to="/88x31">
             <Text tag="span">88x31</Text>

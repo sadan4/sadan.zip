@@ -2,6 +2,9 @@ import { z } from "zod";
 
 export const messageBaseSchema = z.object({
     type: z.string(),
+});
+
+const withMessageIdSchema = z.object({
     messageId: z.number(),
 });
 
@@ -42,13 +45,17 @@ export const getBundleFileMessageSchema = messageBaseSchema.extend({
 
 export type GetBundleFileMessage = z.infer<typeof getBundleFileMessageSchema>;
 
-export const messageToServerSchema = z.discriminatedUnion("type", [
+const baseMessageToServerSchema = z.discriminatedUnion("type", [
     queryBundlesMessageSchema,
     getBundleMetadataMessageSchema,
     getBundleDepGraphMessageSchema,
     getAllBundleFilesMessageSchema,
     getBundleFileMessageSchema,
 ]);
+
+export const messageToServerSchema = z.intersection(withMessageIdSchema, baseMessageToServerSchema);
+
+export type BaseMessageToServer = z.infer<typeof baseMessageToServerSchema>;
 
 export type MessageToServer = z.infer<typeof messageToServerSchema>;
 
@@ -135,13 +142,12 @@ export type BundleFileResponseMessage = z.infer<typeof bundleFileResponseMessage
 
 export const errorMessageSchema = messageBaseSchema.extend({
     type: z.literal("error"),
-    sourceType: z.string(),
     message: z.string(),
 });
 
 export type ErrorMessage = z.infer<typeof errorMessageSchema>;
 
-export const messageToClientSchema = z.discriminatedUnion("type", [
+const baseMessageToCLientSchema = z.discriminatedUnion("type", [
     bundlesResponseMessageSchema,
     allBundleFilesResponseMessageSchema,
     bundleMetadataResponseMessageSchema,
@@ -149,6 +155,10 @@ export const messageToClientSchema = z.discriminatedUnion("type", [
     bundleFileResponseMessageSchema,
     errorMessageSchema,
 ]);
+
+export type BaseMessageToClient = z.infer<typeof baseMessageToCLientSchema>;
+
+export const messageToClientSchema = z.intersection(withMessageIdSchema, baseMessageToCLientSchema);
 
 export type MessageToClient = z.infer<typeof messageToClientSchema>;
 

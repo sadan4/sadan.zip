@@ -59,7 +59,7 @@ function Flag({ onEnter, onExit }: FlagProps) {
     return (
         <div
             ref={setIntersectionRef}
-            className="pointer-events-none h-0 w-0 bg-transparent after:h-[1] after:w-[1] after:content-['']"
+            className="pointer-events-none h-px w-px bg-transparent after:h-[1] after:w-[1] after:content-['']"
         />
     );
 }
@@ -158,7 +158,7 @@ export function BufferedScroller<T>({
             if (firstVisibleChunk - firstChunk > bufferSize) {
                 first = Math.max(0, firstVisibleChunk - bufferSize);
             }
-            if (lastVisibleChunk - firstVisibleChunk > bufferSize) {
+            if (lastVisibleChunk === firstVisibleChunk || lastVisibleChunk - firstVisibleChunk > bufferSize) {
                 num = Math.max(0, lastVisibleChunk + bufferSize);
             }
         }

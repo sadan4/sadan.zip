@@ -30,7 +30,7 @@ export function ResizableSidebar({
         handleHidden,
     })));
 
-    const { top, height, width } = useRectFromRef(boundingElement) ?? {};
+    const { height, width } = useRectFromRef(boundingElement) ?? {};
     const [shouldDispatch, setShouldDispatch] = useState(true);
 
     useEffect(() => {
