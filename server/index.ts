@@ -40,6 +40,8 @@ class Server {
                 } as any as MessageToClient);
             };
 
+            console.debug("got message", { r });
+
             switch (r.type) {
                 case "queryBundles": {
                     const p = (await readdir(BUILDS_PATH, { withFileTypes: true }))
@@ -151,7 +153,10 @@ class Server {
     const _watcherWorker = new Worker(new URL("./watcher.ts", import.meta.url));
     const wss = new WebSocketServer({ port: 8044 });
 
+    console.log("WebSocket server started on port 8044");
+
     wss.on("connection", (ws: WebSocket) => {
+        console.log("got new connection", { ws });
         new Server(ws);
     });
 })();
