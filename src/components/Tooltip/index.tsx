@@ -6,7 +6,7 @@ import cn from "@/utils/cn";
 import { measureRect } from "@/utils/dom";
 import { unreachable } from "@/utils/error";
 import { updateRef } from "@/utils/ref";
-import { animated, type AnimatedProps, SpringValue, to, useSpringValue, useTransition } from "@react-spring/web";
+import { animated, type AnimatedProps, type SpringValue, to, useSpringValue, useTransition } from "@react-spring/web";
 
 import { TooltipPosition } from "./constants";
 import styles from "./styles.module.scss";
