@@ -6,14 +6,14 @@ import cn from "@/utils/cn";
 import { measureRect } from "@/utils/dom";
 import { unreachable } from "@/utils/error";
 import { updateRef } from "@/utils/ref";
-import { animated, to, useSpringValue, useTransition } from "@react-spring/web";
+import { animated, type AnimatedProps, SpringValue, to, useSpringValue, useTransition } from "@react-spring/web";
 
 import { TooltipPosition } from "./constants";
 import styles from "./styles.module.scss";
 import { LayerPortal } from "../Layer";
 import { Box } from "../layout/Box";
 
-import { type ComponentProps, type ReactNode, useLayoutEffect, useRef } from "react";
+import { type ComponentProps, type CSSProperties, type ReactNode, useLayoutEffect, useRef } from "react";
 
 export interface TooltipProps extends ComponentProps<"div"> {
     /**
@@ -110,6 +110,75 @@ const posMap: Record<TooltipPosition, string> = {
     [TooltipPosition.RIGHT]: styles.right,
 };
 
+function makeTooltipPositionStyles(
+    position: TooltipPosition,
+    triggerRect: DOMRect,
+    percentIn: SpringValue<number>,
+    triggerHeight: SpringValue<number>,
+    triggerWidth: SpringValue<number>,
+): AnimatedProps<CSSProperties> {
+    const { top, left, width, height } = triggerRect;
+
+    switch (position) {
+        case TooltipPosition.TOP: {
+            const paddingBottom = to(
+                [percentIn, triggerHeight],
+                (percentIn, triggerHeight) => `calc(1rem + ${percentIn * triggerHeight}px)`,
+            );
+
+            return {
+                left: left + (width / 2),
+                top,
+                paddingBottom,
+                "--pad": paddingBottom,
+            };
+        }
+        case TooltipPosition.BOTTOM: {
+            const paddingTop = to(
+                [percentIn, triggerHeight],
+                (percentIn, triggerHeight) => `calc(1rem + ${percentIn * triggerHeight}px)`,
+            );
+
+            return {
+                left: left + (width / 2),
+                top: height + top,
+                paddingTop,
+                "--pad": paddingTop,
+            };
+        }
+        case TooltipPosition.LEFT: {
+            const paddingRight = to(
+                [percentIn, triggerWidth],
+                (percentIn, triggerWidth) => `calc(1rem + ${percentIn * triggerWidth}px)`,
+            );
+
+            return {
+                top: top + (height / 2),
+                left,
+                paddingRight,
+                "--pad": paddingRight,
+            };
+        }
+        case TooltipPosition.RIGHT: {
+            const paddingLeft = to(
+                [percentIn, triggerWidth],
+                (percentIn, triggerWidth) => `calc(1rem + ${percentIn * triggerWidth}px)`,
+            );
+
+            return {
+                top: top + (height / 2),
+                left: left + width,
+                paddingLeft,
+                "--pad": paddingLeft,
+            };
+        }
+
+        default: {
+            unreachable();
+        }
+    }
+}
+
 export function Tooltip({
     text,
     show: _show,
@@ -201,68 +270,13 @@ export function Tooltip({
                                 className={cn(styles.container, posMap[position], tooltipClassName)}
                                 style={{
                                     ...styleProps,
-                                    ...(() => {
-                                        const { top, left, width, height } = triggerRect;
-
-                                        switch (position) {
-                                            case TooltipPosition.TOP: {
-                                                const paddingBottom = to(
-                                                    [percentIn, triggerHeight],
-                                                    (percentIn, triggerHeight) => `calc(1rem + ${percentIn * triggerHeight}px)`,
-                                                );
-
-                                                return {
-                                                    left: left + (width / 2),
-                                                    top,
-                                                    paddingBottom,
-                                                    "--pad": paddingBottom,
-                                                };
-                                            }
-                                            case TooltipPosition.BOTTOM: {
-                                                const paddingTop = to(
-                                                    [percentIn, triggerHeight],
-                                                    (percentIn, triggerHeight) => `calc(1rem + ${percentIn * triggerHeight}px)`,
-                                                );
-
-                                                return {
-                                                    left: left + (width / 2),
-                                                    top: height + top,
-                                                    paddingTop,
-                                                    "--pad": paddingTop,
-                                                };
-                                            }
-                                            case TooltipPosition.LEFT: {
-                                                const paddingRight = to(
-                                                    [percentIn, triggerWidth],
-                                                    (percentIn, triggerWidth) => `calc(1rem + ${percentIn * triggerWidth}px)`,
-                                                );
-
-                                                return {
-                                                    top: top + (height / 2),
-                                                    left,
-                                                    paddingRight,
-                                                    "--pad": paddingRight,
-                                                };
-                                            }
-                                            case TooltipPosition.RIGHT: {
-                                                const paddingLeft = to(
-                                                    [percentIn, triggerWidth],
-                                                    (percentIn, triggerWidth) => `calc(1rem + ${percentIn * triggerWidth}px)`,
-                                                );
-
-                                                return {
-                                                    top: top + (height / 2),
-                                                    left: left + width,
-                                                    paddingLeft,
-                                                    "--pad": paddingLeft,
-                                                };
-                                            }
-
-                                            default: {
-                                                unreachable();
-                                            }
-                                        }
-                                    })(),
+                                    ...makeTooltipPositionStyles(
+                                        position,
+                                        triggerRect,
+                                        percentIn,
+                                        triggerHeight,
+                                        triggerWidth,
+                                    ),
                                 }}
                             >
                                 {noWrapper
