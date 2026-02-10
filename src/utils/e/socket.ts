@@ -72,7 +72,13 @@ export async function sendMessage<T extends MessageToClient["type"] = never>(msg
             }
             resolve(msg as Discriminate<MessageToClient, T>);
         } catch (e) {
-            reject(new Error(undefined, { cause: e }));
+            if (e instanceof SyntaxError) {
+                reject(new Error("Failed to parse message from server", { cause: e }));
+            } else if (e instanceof z.ZodError) {
+                reject(new Error(`Invalid message received from server: ${z.prettifyError(e)}`, { cause: e }));
+            } else {
+                reject(new Error("Unexpected error while handling message from server", { cause: e }));
+            }
             return;
         }
         abort.abort();
