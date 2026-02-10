@@ -48,11 +48,15 @@ export async function sendMessage<T extends MessageToClient["type"] = never>(msg
     const { signal } = abort;
 
     ws.addEventListener("close", (ev) => {
+        // Invalidate cached WebSocket so future calls can establish a new connection
+        _ws = null;
         reject(new Error(`Connect Closed: ${ev.reason}`));
         abort.abort();
     }, { signal });
 
     ws.addEventListener("error", (ev) => {
+        // Invalidate cached WebSocket so future calls can establish a new connection
+        _ws = null;
         reject(new Error("Socket Error", { cause: ev }));
         abort.abort();
     }, { signal });
