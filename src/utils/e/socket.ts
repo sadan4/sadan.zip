@@ -73,6 +73,7 @@ export async function sendMessage<T extends MessageToClient["type"] = never>(msg
             resolve(msg as Discriminate<MessageToClient, T>);
         } catch (e) {
             reject(new Error(undefined, { cause: e }));
+            abort.abort();
             return;
         }
         abort.abort();
