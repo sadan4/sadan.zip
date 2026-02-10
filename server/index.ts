@@ -133,7 +133,7 @@ class Server {
             if (e instanceof z.ZodError) {
                 message = z.prettifyError(e);
             } else if (e?.message) {
-                message = e.message;
+                message = String(e.message);
             } else {
                 message = String(e);
             }
