@@ -5,11 +5,9 @@ import { Explorer } from "./-ui";
 
 import z from "zod";
 
-const viewBundleParamsSchema = z.union([
-    z.object({
-        buildHash: z.string().default(""),
-    }),
-]);
+const viewBundleParamsSchema = z.object({
+    buildHash: z.string().default(""),
+});
 
 export const Route = createFileRoute("/e/view")({
     component: ExplorerWrapper,
