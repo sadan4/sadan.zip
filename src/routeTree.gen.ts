@@ -12,11 +12,12 @@ import { Route as rootRouteImport } from "./routes/__root";
 import { Route as RouteImport } from "./routes/_";
 import { Route as AstViewerIndexRouteImport } from "./routes/ast-viewer/index";
 import { Route as IndexRouteImport } from "./routes/_/index";
+import { Route as EViewRouteImport } from "./routes/e/view";
 import { Route as MinkyRouteImport } from "./routes/_/minky";
-import { Route as ERouteImport } from "./routes/_/e";
 import { Route as DemanglerRouteImport } from "./routes/_/demangler";
 import { Route as ComponentsRouteImport } from "./routes/_/components";
 import { Route as VisIndexRouteImport } from "./routes/_/vis/index";
+import { Route as EIndexRouteImport } from "./routes/_/e/index";
 import { Route as DiscordIntlIndexRouteImport } from "./routes/_/discord-intl/index";
 import { Route as R88x31IndexRouteImport } from "./routes/_/88x31/index";
 import { Route as R88x31LangRouteImport } from "./routes/_/88x31/$lang";
@@ -35,14 +36,14 @@ const IndexRoute = IndexRouteImport.update({
   path: "/",
   getParentRoute: () => Route,
 } as any);
+const EViewRoute = EViewRouteImport.update({
+  id: "/e/view",
+  path: "/e/view",
+  getParentRoute: () => rootRouteImport,
+} as any);
 const MinkyRoute = MinkyRouteImport.update({
   id: "/minky",
   path: "/minky",
-  getParentRoute: () => Route,
-} as any);
-const ERoute = ERouteImport.update({
-  id: "/e",
-  path: "/e",
   getParentRoute: () => Route,
 } as any);
 const DemanglerRoute = DemanglerRouteImport.update({
@@ -58,6 +59,11 @@ const ComponentsRoute = ComponentsRouteImport.update({
 const VisIndexRoute = VisIndexRouteImport.update({
   id: "/vis/",
   path: "/vis/",
+  getParentRoute: () => Route,
+} as any);
+const EIndexRoute = EIndexRouteImport.update({
+  id: "/e/",
+  path: "/e/",
   getParentRoute: () => Route,
 } as any);
 const DiscordIntlIndexRoute = DiscordIntlIndexRouteImport.update({
@@ -80,24 +86,26 @@ export interface FileRoutesByFullPath {
   "/": typeof IndexRoute;
   "/components": typeof ComponentsRoute;
   "/demangler": typeof DemanglerRoute;
-  "/e": typeof ERoute;
   "/minky": typeof MinkyRoute;
+  "/e/view": typeof EViewRoute;
   "/ast-viewer/": typeof AstViewerIndexRoute;
   "/88x31/$lang": typeof R88x31LangRoute;
   "/88x31/": typeof R88x31IndexRoute;
   "/discord-intl/": typeof DiscordIntlIndexRoute;
+  "/e/": typeof EIndexRoute;
   "/vis/": typeof VisIndexRoute;
 }
 export interface FileRoutesByTo {
   "/components": typeof ComponentsRoute;
   "/demangler": typeof DemanglerRoute;
-  "/e": typeof ERoute;
   "/minky": typeof MinkyRoute;
+  "/e/view": typeof EViewRoute;
   "/": typeof IndexRoute;
   "/ast-viewer": typeof AstViewerIndexRoute;
   "/88x31/$lang": typeof R88x31LangRoute;
   "/88x31": typeof R88x31IndexRoute;
   "/discord-intl": typeof DiscordIntlIndexRoute;
+  "/e": typeof EIndexRoute;
   "/vis": typeof VisIndexRoute;
 }
 export interface FileRoutesById {
@@ -105,13 +113,14 @@ export interface FileRoutesById {
   "/_": typeof RouteWithChildren;
   "/_/components": typeof ComponentsRoute;
   "/_/demangler": typeof DemanglerRoute;
-  "/_/e": typeof ERoute;
   "/_/minky": typeof MinkyRoute;
+  "/e/view": typeof EViewRoute;
   "/_/": typeof IndexRoute;
   "/ast-viewer/": typeof AstViewerIndexRoute;
   "/_/88x31/$lang": typeof R88x31LangRoute;
   "/_/88x31/": typeof R88x31IndexRoute;
   "/_/discord-intl/": typeof DiscordIntlIndexRoute;
+  "/_/e/": typeof EIndexRoute;
   "/_/vis/": typeof VisIndexRoute;
 }
 export interface FileRouteTypes {
@@ -120,42 +129,46 @@ export interface FileRouteTypes {
     | "/"
     | "/components"
     | "/demangler"
-    | "/e"
     | "/minky"
+    | "/e/view"
     | "/ast-viewer/"
     | "/88x31/$lang"
     | "/88x31/"
     | "/discord-intl/"
+    | "/e/"
     | "/vis/";
   fileRoutesByTo: FileRoutesByTo;
   to:
     | "/components"
     | "/demangler"
-    | "/e"
     | "/minky"
+    | "/e/view"
     | "/"
     | "/ast-viewer"
     | "/88x31/$lang"
     | "/88x31"
     | "/discord-intl"
+    | "/e"
     | "/vis";
   id:
     | "__root__"
     | "/_"
     | "/_/components"
     | "/_/demangler"
-    | "/_/e"
     | "/_/minky"
+    | "/e/view"
     | "/_/"
     | "/ast-viewer/"
     | "/_/88x31/$lang"
     | "/_/88x31/"
     | "/_/discord-intl/"
+    | "/_/e/"
     | "/_/vis/";
   fileRoutesById: FileRoutesById;
 }
 export interface RootRouteChildren {
   Route: typeof RouteWithChildren;
+  EViewRoute: typeof EViewRoute;
   AstViewerIndexRoute: typeof AstViewerIndexRoute;
 }
 
@@ -182,18 +195,18 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof IndexRouteImport;
       parentRoute: typeof Route;
     };
+    "/e/view": {
+      id: "/e/view";
+      path: "/e/view";
+      fullPath: "/e/view";
+      preLoaderRoute: typeof EViewRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     "/_/minky": {
       id: "/_/minky";
       path: "/minky";
       fullPath: "/minky";
       preLoaderRoute: typeof MinkyRouteImport;
-      parentRoute: typeof Route;
-    };
-    "/_/e": {
-      id: "/_/e";
-      path: "/e";
-      fullPath: "/e";
-      preLoaderRoute: typeof ERouteImport;
       parentRoute: typeof Route;
     };
     "/_/demangler": {
@@ -215,6 +228,13 @@ declare module "@tanstack/react-router" {
       path: "/vis";
       fullPath: "/vis/";
       preLoaderRoute: typeof VisIndexRouteImport;
+      parentRoute: typeof Route;
+    };
+    "/_/e/": {
+      id: "/_/e/";
+      path: "/e";
+      fullPath: "/e/";
+      preLoaderRoute: typeof EIndexRouteImport;
       parentRoute: typeof Route;
     };
     "/_/discord-intl/": {
@@ -244,24 +264,24 @@ declare module "@tanstack/react-router" {
 interface RouteChildren {
   ComponentsRoute: typeof ComponentsRoute;
   DemanglerRoute: typeof DemanglerRoute;
-  ERoute: typeof ERoute;
   MinkyRoute: typeof MinkyRoute;
   IndexRoute: typeof IndexRoute;
   R88x31LangRoute: typeof R88x31LangRoute;
   R88x31IndexRoute: typeof R88x31IndexRoute;
   DiscordIntlIndexRoute: typeof DiscordIntlIndexRoute;
+  EIndexRoute: typeof EIndexRoute;
   VisIndexRoute: typeof VisIndexRoute;
 }
 
 const RouteChildren: RouteChildren = {
   ComponentsRoute: ComponentsRoute,
   DemanglerRoute: DemanglerRoute,
-  ERoute: ERoute,
   MinkyRoute: MinkyRoute,
   IndexRoute: IndexRoute,
   R88x31LangRoute: R88x31LangRoute,
   R88x31IndexRoute: R88x31IndexRoute,
   DiscordIntlIndexRoute: DiscordIntlIndexRoute,
+  EIndexRoute: EIndexRoute,
   VisIndexRoute: VisIndexRoute,
 };
 
@@ -269,6 +289,7 @@ const RouteWithChildren = Route._addFileChildren(RouteChildren);
 
 const rootRouteChildren: RootRouteChildren = {
   Route: RouteWithChildren,
+  EViewRoute: EViewRoute,
   AstViewerIndexRoute: AstViewerIndexRoute,
 };
 export const routeTree = rootRouteImport

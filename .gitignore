@@ -19,3 +19,4 @@ todos.json
 *.tsbuildinfo
 .vite-inspect
 dist.server
+builds

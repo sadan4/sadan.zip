@@ -23,5 +23,6 @@ export default defineConfig({
     output: {
         format: "esm",
         dir: "dist.server",
+        sourcemap: "inline",
     },
 });

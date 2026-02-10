@@ -59,7 +59,7 @@ function Flag({ onEnter, onExit }: FlagProps) {
     return (
         <div
             ref={setIntersectionRef}
-            className="pointer-events-none h-0 w-0 bg-transparent after:h-[1] after:w-[1] after:content-['']"
+            className="pointer-events-none h-px w-px bg-transparent after:h-[1] after:w-[1] after:content-['']"
         />
     );
 }
@@ -155,12 +155,15 @@ export function BufferedScroller<T>({
             && firstVisibleChunk !== Infinity
             && lastVisibleChunk !== -Infinity
         ) {
+            // Update first chunk if we've scrolled too far from the beginning
             if (firstVisibleChunk - firstChunk > bufferSize) {
                 first = Math.max(0, firstVisibleChunk - bufferSize);
             }
-            if (lastVisibleChunk - firstVisibleChunk > bufferSize) {
-                num = Math.max(0, lastVisibleChunk + bufferSize);
-            }
+
+            // Calculate numChunks relative to first, not as an absolute index
+            // We want enough chunks to cover from first to (lastVisible + buffer)
+            const desiredLastChunk = lastVisibleChunk + bufferSize;
+            num = Math.min(desiredLastChunk - first + 1, totalChunks - first);
         }
 
         // handle when a new chunk is added to the bottom and we are at the end of the list

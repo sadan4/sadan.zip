@@ -24,7 +24,7 @@ const config = defineConfig(({ command, isSsrBuild }) => ({
     plugins: [
         devtoolsJSON(),
         monacoEditor({
-            languages: ["typescript"],
+            languages: ["typescript", "javascript"],
             features: [],
         }),
         devtools(),

@@ -2,7 +2,7 @@ import { measureRect, MouseButtons } from "@/utils/dom";
 import toCSS from "@/utils/toCSS";
 import { animated, to, useSpring } from "@react-spring/web";
 
-import { type PropsWithChildren, use, useRef, useState } from "react";
+import { type PropsWithChildren, useRef } from "react";
 
 export interface PerspectiveHoverProps extends PropsWithChildren {
     /**

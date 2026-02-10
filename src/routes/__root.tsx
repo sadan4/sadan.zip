@@ -2,6 +2,7 @@ import { LayerContext } from "@/components/Layer/context";
 import { installF8Break, uninstallF8Break } from "@/utils/devtools";
 import { assert } from "@/utils/error";
 import { TanStackDevtools } from "@tanstack/react-devtools";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { type AnyRouteMatch, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 
@@ -70,6 +71,18 @@ export const Route = createRootRoute({
     shellComponent: RootComponent,
 });
 
+const queryClient = new QueryClient();
+
+declare global {
+    interface Window {
+        __TANSTACK_QUERY_CLIENT__: QueryClient;
+    }
+}
+
+if (!import.meta.env.SSR) {
+    window.__TANSTACK_QUERY_CLIENT__ = queryClient;
+}
+
 function RootComponent({ children }: { children: React.ReactNode; }) {
     const [layerCtx, setCtx] = useState<LayerContext>({
         level: 0,
@@ -100,20 +113,22 @@ function RootComponent({ children }: { children: React.ReactNode; }) {
                 <HeadContent />
             </head>
             <body id="root">
-                <LayerContext value={layerCtx}>
-                    {children}
-                </LayerContext>
-                <TanStackDevtools
-                    config={{
-                        position: "bottom-right",
-                    }}
-                    plugins={[
-                        {
-                            name: "Tanstack Router",
-                            render: <TanStackRouterDevtoolsPanel />,
-                        },
-                    ]}
-                />
+                <QueryClientProvider client={queryClient}>
+                    <LayerContext value={layerCtx}>
+                        {children}
+                    </LayerContext>
+                    <TanStackDevtools
+                        config={{
+                            position: "bottom-right",
+                        }}
+                        plugins={[
+                            {
+                                name: "Tanstack Router",
+                                render: <TanStackRouterDevtoolsPanel />,
+                            },
+                        ]}
+                    />
+                </QueryClientProvider>
                 <Scripts />
             </body>
         </html>

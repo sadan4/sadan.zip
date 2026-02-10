@@ -4,6 +4,8 @@ export function discordUrl(userId: string): string {
 
 export const NBSP = "\u00A0";
 
+export const EM_DASH = "\u2014";
+
 export const REPLACEMENT_CHARACTER = "\uFFFD";
 
 // cspell:disable

@@ -7,8 +7,9 @@ import styles from "./styles.module.scss";
 import { Clickable } from "../Clickable";
 import { Text } from "../Text";
 import { Tooltip } from "../Tooltip";
+import type { TooltipPosition } from "../Tooltip/constants";
 
-import { CheckIcon } from "lucide-react";
+import { CheckIcon, XIcon } from "lucide-react";
 import { type ComponentProps, type MouseEvent, useId, useState } from "react";
 
 export interface BaseButtonProps extends ComponentProps<typeof Clickable<"button">> {
@@ -98,7 +99,9 @@ export interface IconButtonProps extends BaseButtonProps {
      * @default "success"
      */
     checkColor?: BaseButtonProps["color"];
+    tooltipPosition?: TooltipPosition;
 }
+
 
 export function IconButton({
     children,
@@ -109,36 +112,50 @@ export function IconButton({
     disabled = false,
     label,
     onClick,
+    tooltipPosition,
     holdAnimDuration = 750,
     dispatchDuringAnim = true,
     ...props
 }: IconButtonProps) {
-    const [showCheck, setShowCheck] = useState(false);
+    const enum ButtonState {
+        GOOD,
+        BAD,
+        NORMAL,
+    }
+
+    const [showCheck, setShowCheck] = useState(ButtonState.NORMAL);
 
     const hideCheck = useDebouncedFn(() => {
-        setShowCheck(false);
+        setShowCheck(ButtonState.NORMAL);
     }, holdAnimDuration, true);
 
     return (
-        <Tooltip text={label}>
+        <Tooltip
+            text={label}
+            position={tooltipPosition}
+        >
             <Clickable
                 className={cn(
                     className,
                     styles.button,
                     styles.iconButton,
-                    showCheck && styles.showCheck,
                     colors[color],
                     colorTypes[colorType],
+                    showCheck === ButtonState.GOOD && styles.showCheck,
+                    showCheck === ButtonState.BAD && styles.showError,
                 )}
                 {...props}
                 disabled={disabled}
                 onClick={(e) => {
-                    if (showCheck && !dispatchDuringAnim) {
+                    if (showCheck !== ButtonState.NORMAL && !dispatchDuringAnim) {
                         return;
                     }
                     Promise.resolve(onClick?.(e)).then((result) => {
                         if (result === true) {
-                            setShowCheck(true);
+                            setShowCheck(ButtonState.GOOD);
+                            hideCheck();
+                        } else if (result === false) {
+                            setShowCheck(ButtonState.BAD);
                             hideCheck();
                         }
                     });
@@ -148,8 +165,11 @@ export function IconButton({
                 <div className={styles.icon}>
                     {children}
                 </div>
-                <div className={cn(styles.check, colors[checkColor])}>
+                <div className={cn(styles.statusIcon, styles.checkIcon, colors[checkColor])}>
                     <CheckIcon />
+                </div>
+                <div className={cn(styles.statusIcon, styles.errorIcon, colors.error)}>
+                    <XIcon />
                 </div>
             </Clickable>
         </Tooltip>
