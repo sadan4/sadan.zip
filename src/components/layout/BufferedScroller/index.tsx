@@ -159,7 +159,10 @@ export function BufferedScroller<T>({
                 first = Math.max(0, firstVisibleChunk - bufferSize);
             }
             if (lastVisibleChunk === firstVisibleChunk || lastVisibleChunk - firstVisibleChunk > bufferSize) {
-                num = Math.max(0, lastVisibleChunk + bufferSize);
+                // Calculate numChunks relative to first, not as an absolute index
+                // We want: visible chunks + buffers on both sides, capped to available chunks
+                const desiredLastChunk = lastVisibleChunk + bufferSize;
+                num = Math.min(desiredLastChunk - first + 1, totalChunks - first);
             }
         }
 
