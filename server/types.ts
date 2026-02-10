@@ -147,7 +147,7 @@ export const errorMessageSchema = messageBaseSchema.extend({
 
 export type ErrorMessage = z.infer<typeof errorMessageSchema>;
 
-const baseMessageToCLientSchema = z.discriminatedUnion("type", [
+const baseMessageToClientSchema = z.discriminatedUnion("type", [
     bundlesResponseMessageSchema,
     allBundleFilesResponseMessageSchema,
     bundleMetadataResponseMessageSchema,
@@ -156,9 +156,9 @@ const baseMessageToCLientSchema = z.discriminatedUnion("type", [
     errorMessageSchema,
 ]);
 
-export type BaseMessageToClient = z.infer<typeof baseMessageToCLientSchema>;
+export type BaseMessageToClient = z.infer<typeof baseMessageToClientSchema>;
 
-export const messageToClientSchema = z.intersection(withMessageIdSchema, baseMessageToCLientSchema);
+export const messageToClientSchema = z.intersection(withMessageIdSchema, baseMessageToClientSchema);
 
 export type MessageToClient = z.infer<typeof messageToClientSchema>;
 
