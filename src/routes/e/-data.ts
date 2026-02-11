@@ -1,6 +1,7 @@
 import { sendMessage } from "@/utils/e/socket";
 import { assert } from "@/utils/error";
 import { type Monaco, monaco } from "@/utils/monaco";
+import { defer } from "@/utils/scope";
 import { WebpackAstParser } from "@vencord-companion/webpack-ast-parser/WebpackAstParser";
 
 import { create } from "zustand";
@@ -100,28 +101,31 @@ export const useModuleViewerStore = create<ModuleViewerStore>((set, get) => ({
         return model;
     },
     async getModuleModel(moduleId) {
-        const { getModuleParser, moduleModelMap, buildHash, _pendingModels: pendingModels } = get();
+        const { getModuleParser, moduleModelMap, buildHash, _pendingModels } = get();
 
         if (moduleModelMap.has(moduleId)) {
             return moduleModelMap.get(moduleId)!;
         }
 
-        if (pendingModels.has(moduleId)) {
-            return pendingModels.get(moduleId)!;
+        if (_pendingModels.has(moduleId)) {
+            return _pendingModels.get(moduleId)!;
         }
 
         const promise = (async () => {
+            using _ = defer(() => {
+                _pendingModels.delete(moduleId);
+            });
+
             const code = (await getModuleParser(moduleId)).text;
             const uri = getModuleURI(buildHash, moduleId);
             const model = monaco.editor.createModel(code, "javascript", uri);
 
             moduleModelMap.set(moduleId, model);
-            pendingModels.delete(moduleId);
 
             return model;
         })();
 
-        pendingModels.set(moduleId, promise);
+        _pendingModels.set(moduleId, promise);
 
         return promise;
     },
@@ -153,11 +157,14 @@ export const useModuleViewerStore = create<ModuleViewerStore>((set, get) => ({
         }
 
         const promise = (async () => {
+            using _ = defer(() => {
+                _pendingParsers.delete(moduleId);
+            });
+
             const code = await getModuleCode(moduleId);
             const parser = WebpackAstParser.withFormattedModule(code, moduleId);
 
             parserMap.set(moduleId, parser);
-            _pendingParsers.delete(moduleId);
 
             return parser;
         })();
