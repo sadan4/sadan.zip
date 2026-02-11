@@ -42,7 +42,7 @@ const getValueDefaults = () => ({
     allModuleIds: [],
 });
 
-export const useModuleViewerStore = create<ModuleViewerStore>((set, get, store) => ({
+export const useModuleViewerStore = create<ModuleViewerStore>((set, get) => ({
     ...getValueDefaults(),
     init(newBuildHash: string) {
         const { buildHash, reset } = get();
@@ -141,3 +141,6 @@ export const useModuleViewerStore = create<ModuleViewerStore>((set, get, store) 
         return parser;
     },
 }));
+
+// make react compiler happy
+export const ModuleViewerStore = useModuleViewerStore;

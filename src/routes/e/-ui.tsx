@@ -12,7 +12,7 @@ import { monaco } from "@/utils/monaco";
 import { Language } from "@/utils/textmate";
 import { useQuery } from "@tanstack/react-query";
 
-import { useModuleViewerStore } from "./-data";
+import { ModuleViewerStore, useModuleViewerStore } from "./-data";
 import { Route } from "./view.{-$buildHash}.{-$moduleId}";
 
 import { ArrowBigRight } from "lucide-react";
@@ -89,15 +89,31 @@ function ModuleViewer() {
     });
 
     useEffect(() => {
+        if (!moduleId) {
+            setUri(pendingUri("// Select a Module"));
+
+            return;
+        }
+
+        // When a new module is selected, show a loading placeholder immediately.
+        setUri(pendingUri("// Loading..."));
+
+        let cancelled = false;
+
         !async function () {
-            if (!moduleId) {
+            const { uri } = await ModuleViewerStore.getState().getModuleModel(moduleId);
+
+            // don't race if we are called while this is pending
+            if (cancelled) {
                 return;
             }
 
-            const { uri } = await useModuleViewerStore.getState().getModuleModel(moduleId);
-
             setUri(uri);
         }();
+
+        return () => {
+            cancelled = true;
+        };
     }, [moduleId]);
 
     return (
@@ -182,7 +198,7 @@ export function Explorer() {
                                         return false;
                                     }
 
-                                    const { selectedModule } = useModuleViewerStore.getState();
+                                    const { selectedModule } = ModuleViewerStore.getState();
                                     const moduleId = el.value;
 
                                     if (selectedModule === moduleId) {
