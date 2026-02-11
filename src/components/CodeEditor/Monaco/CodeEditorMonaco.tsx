@@ -114,17 +114,11 @@ function MonacoCodeEditorInner({
         if (!mergedOptions.model) {
             let model = uri && monaco.editor.getModel(uri);
 
-            if (model) {
-                model.setValue(code);
-
-                updateModelLanguage(model, language);
-            } else {
-                model = monaco.editor.createModel(
-                    code,
-                    getMonacoLanguageString(language),
-                    uri ?? uriForLanguage(language),
-                );
-            }
+            model ||= monaco.editor.createModel(
+                code,
+                getMonacoLanguageString(language),
+                uri ?? uriForLanguage(language),
+            );
             mergedOptions.model = model;
         }
         mergedOptions.extraEditorClassName ??= className;
@@ -194,6 +188,23 @@ function MonacoCodeEditorInner({
             return;
         }
 
+        // TODO: should we use option.model as a marker for fully user controlled instead
+        // don't do anything if the user is managing the model
+        if (model.uri.toString() === uri?.toString()) {
+            return;
+            // the user provided a uri and it doesn't match the current model
+        } else if (uri) {
+            const newModel = monaco.editor.getModel(uri);
+
+            if (!newModel) {
+                console.warn("user changed uri but there is no model associated with it");
+                return;
+            }
+
+            editor.current?.setModel(newModel);
+            return;
+        }
+
         const modelText = model.getValue();
 
         if (modelText === code) {
@@ -217,7 +228,7 @@ function MonacoCodeEditorInner({
                 e.pushUndoStop();
             }
         });
-    }, [code, lock]);
+    }, [code, uri, lock]);
 
     useEffect(() => {
         if (!editor.current) {

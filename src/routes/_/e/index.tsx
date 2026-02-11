@@ -56,9 +56,10 @@ function BundleSelector({ bundle }: BundleSelectorProps) {
             </div>
             <div>
                 <TextLink
-                    to="/e/view"
-                    search={{
+                    to="/e/view/{-$buildHash}/{-$moduleId}"
+                    params={{
                         buildHash: bundle.buildHash,
+                        moduleId: null,
                     }}
                     color="primary"
                 >
