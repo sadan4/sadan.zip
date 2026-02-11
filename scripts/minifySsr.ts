@@ -6,6 +6,7 @@ import { rm } from "node:fs/promises";
 import { join, relative, resolve } from "node:path";
 
 const { dirname } = import.meta;
+const isWindowsOnArm = process.platform === "win32" && process.arch === "arm64";
 const projectRoot = resolve(dirname, "..");
 const ssrRoot = join(projectRoot, "dist", "server");
 const ssrJsDir = join(ssrRoot, "j");
@@ -15,6 +16,11 @@ const ssrTempOutput = join(ssrRoot, "index.temp.js");
 const ssrTempOutputMap = join(ssrRoot, "index.temp.js.map");
 
 function main() {
+    if (isWindowsOnArm) {
+        console.warn("Not minifying SSR bundle because cloudflare vite plugin is not supported on this platform");
+        return;
+    }
+
     const compiler = rspack({
         entry: ssrEntry,
         output: {
