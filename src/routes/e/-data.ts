@@ -14,7 +14,9 @@ interface ModuleViewerStore {
      */
     readonly moduleCodeMap: Map<string, string>;
     readonly moduleModelMap: Map<string, Monaco.editor.ITextModel>;
+    readonly _pendingModels: Map<string, Promise<Monaco.editor.ITextModel>>;
     readonly parserMap: Map<string, WebpackAstParser>;
+    readonly _pendingParsers: Map<string, Promise<WebpackAstParser>>;
     readonly selectedModule: string | null;
     readonly allModuleIds: string[];
     init(newBuildHash: string): void;
@@ -37,7 +39,9 @@ const getValueDefaults = () => ({
     buildHash: "",
     moduleCodeMap: new Map(),
     moduleModelMap: new Map(),
+    _pendingModels: new Map<string, Promise<Monaco.editor.ITextModel>>(),
     parserMap: new Map<string, WebpackAstParser>(),
+    _pendingParsers: new Map<string, Promise<WebpackAstParser>>(),
     selectedModule: null,
     allModuleIds: [],
 });
@@ -96,19 +100,30 @@ export const useModuleViewerStore = create<ModuleViewerStore>((set, get) => ({
         return model;
     },
     async getModuleModel(moduleId) {
-        const { getModuleParser, moduleModelMap, buildHash } = get();
+        const { getModuleParser, moduleModelMap, buildHash, _pendingModels: pendingModels } = get();
 
         if (moduleModelMap.has(moduleId)) {
             return moduleModelMap.get(moduleId)!;
         }
 
-        const code = (await getModuleParser(moduleId)).text;
-        const uri = getModuleURI(buildHash, moduleId);
-        const model = monaco.editor.createModel(code, "javascript", uri);
+        if (pendingModels.has(moduleId)) {
+            return pendingModels.get(moduleId)!;
+        }
 
-        moduleModelMap.set(moduleId, model);
+        const promise = (async () => {
+            const code = (await getModuleParser(moduleId)).text;
+            const uri = getModuleURI(buildHash, moduleId);
+            const model = monaco.editor.createModel(code, "javascript", uri);
 
-        return model;
+            moduleModelMap.set(moduleId, model);
+            pendingModels.delete(moduleId);
+
+            return model;
+        })();
+
+        pendingModels.set(moduleId, promise);
+
+        return promise;
     },
     getModuleParserSync(moduleId) {
         const { parserMap, moduleCodeMap } = get();
@@ -127,18 +142,29 @@ export const useModuleViewerStore = create<ModuleViewerStore>((set, get) => ({
         return parser;
     },
     async getModuleParser(moduleId: string) {
-        const { parserMap, getModuleCode } = get();
+        const { parserMap, getModuleCode, _pendingParsers } = get();
 
         if (parserMap.has(moduleId)) {
             return parserMap.get(moduleId)!;
         }
 
-        const code = await getModuleCode(moduleId);
-        const parser = WebpackAstParser.withFormattedModule(code, moduleId);
+        if (_pendingParsers.has(moduleId)) {
+            return _pendingParsers.get(moduleId)!;
+        }
 
-        parserMap.set(moduleId, parser);
+        const promise = (async () => {
+            const code = await getModuleCode(moduleId);
+            const parser = WebpackAstParser.withFormattedModule(code, moduleId);
 
-        return parser;
+            parserMap.set(moduleId, parser);
+            _pendingParsers.delete(moduleId);
+
+            return parser;
+        })();
+
+        _pendingParsers.set(moduleId, promise);
+
+        return promise;
     },
 }));
 

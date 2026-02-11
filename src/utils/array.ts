@@ -142,3 +142,7 @@ export function chunk<T>(array: T[], size: number): T[][] {
     }
     return result;
 }
+
+export function dedupe<T>(array: T[]): T[] {
+    return Array.from(new Set(array));
+}

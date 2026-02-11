@@ -6,6 +6,7 @@ import { Input } from "@/components/Input";
 import { BufferedScroller } from "@/components/layout/BufferedScroller";
 import { Text } from "@/components/Text";
 import { TooltipPosition } from "@/components/Tooltip/constants";
+import { dedupe } from "@/utils/array";
 import { sendMessage } from "@/utils/e/socket";
 import { makeLazy } from "@/utils/lazy";
 import { monaco } from "@/utils/monaco";
@@ -154,36 +155,21 @@ export function Explorer() {
         },
     });
 
-    const moduleIds = status === "success" ? Object.values(data.metadata.modules).flat() : [];
+    const moduleIds = status === "success"
+        // webpack will duplicate the same module across multiple chunks, so we need to dedupe them
+        ? dedupe(Object.values(data.metadata.modules)
+            .flat()
+            .toSorted((a, b) => +a - +b))
+        : [];
 
-    // <div className="flex w-fit flex-col gap-3">
-    //     main body
-    //     <Button onClick={() => {
-    //         leftSidebarHidden
-    //             ? leftSidebarStateStore.getState().show()
-    //             : leftSidebarStateStore.getState().hide();
-    //     }}
-    //     >
-    //         {leftSidebarHidden ? "Show" : "Hide"} Left Sidebar
-    //     </Button>
-    //     <Button onClick={() => {
-    //         rightSidebarHidden
-    //             ? rightSidebarStateStore.getState().show()
-    //             : rightSidebarStateStore.getState().hide();
-    //     }}
-    //     >
-    //         {rightSidebarHidden ? "Show" : "Hide"} Right Sidebar
-    //     </Button>
-    // </div>
     return (
         <>
             <Boilerplate solidBg />
             <div className="flex h-full flex-col">
-                <div className="h-1/20 bg-primary-400/50">header</div>
                 <div
-                    className="relative flex max-h-19/20 grow"
+                    className="relative flex min-h-0 grow"
                 >
-                    <div>
+                    <div className="flex shrink-0 flex-col">
                         <div className="flex items-center justify-between">
                             <Input
                                 ref={inputRef}
@@ -220,10 +206,12 @@ export function Explorer() {
                                 <ArrowBigRight />
                             </IconButton>
                         </div>
-                        <ModuleSelector
-                            modules={moduleIds}
-                            onSelectModule={setSelectedModule}
-                        />
+                        <div className="min-h-0 grow">
+                            <ModuleSelector
+                                modules={moduleIds}
+                                onSelectModule={setSelectedModule}
+                            />
+                        </div>
                     </div>
                     <div className="grow">
                         <ModuleViewer />
