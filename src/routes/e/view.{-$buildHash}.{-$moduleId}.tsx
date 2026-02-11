@@ -1,6 +1,5 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
-import { useModuleViewerStore } from "./-data";
 import { Explorer } from "./-ui";
 
 import z from "zod";
@@ -28,13 +27,19 @@ export const Route = createFileRoute("/e/view/{-$buildHash}/{-$moduleId}")({
         },
     },
     async loader({ params: { buildHash, moduleId } }) {
-        useModuleViewerStore.getState().init(buildHash);
-        useModuleViewerStore.setState({
+        if (import.meta.env.SSR) {
+            return;
+        }
+
+        const { ModuleViewerStore } = await import("./-data");
+
+        ModuleViewerStore.getState().init(buildHash);
+        ModuleViewerStore.setState({
             selectedModule: moduleId,
         });
         if (moduleId != null) {
             // preload code
-            await useModuleViewerStore.getState().getModuleCode(moduleId);
+            await ModuleViewerStore.getState().getModuleCode(moduleId);
         }
     },
     ssr: false,
