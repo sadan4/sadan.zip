@@ -3,12 +3,13 @@ import { getNewestEntry, useIntersection } from "@/hooks/intersection";
 import { useReiszeObserverFromRef } from "@/hooks/resizeObserver";
 import cn from "@/utils/cn";
 import { assert } from "@/utils/error";
+import { clamp, inRange } from "@/utils/math";
 import { mapObject } from "@/utils/obj";
 
 import { ScrollArea, type ScrollAreaProps } from "../ScrollArea";
 import { ScrollAreaContext } from "../ScrollArea/context";
 
-import { Fragment, type ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { type PropsWithChildren, type ReactNode, type UIEvent, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 export interface LazyScrollerRenderItemProps<T> {
     item: T;
@@ -60,32 +61,22 @@ function Flag({ onEnter, onExit }: FlagProps) {
     return (
         <div
             ref={setIntersectionRef}
+            aria-hidden
             className="pointer-events-none h-px w-px bg-transparent after:h-[1] after:w-[1] after:content-['']"
         />
     );
 }
 
-interface Chunk {
-    chunkIdx: number;
-    startIdx: number;
-    size: number;
+interface ScrollerChunkProps extends PropsWithChildren {
+    idx: number;
+    onHeightChange(idx: number, height: number): void;
 }
 
-interface MeasuredChunkProps {
-    chunkIdx: number;
-    onHeightChange(chunkIdx: number, height: number): void;
-    children: ReactNode;
-}
+function ScrollerChunk({ children, idx, onHeightChange }: ScrollerChunkProps) {
+    const ref = useRef<HTMLDivElement>(null);
 
-function MeasuredChunk({ chunkIdx, onHeightChange, children }: MeasuredChunkProps) {
-    const ref = useRef<HTMLDivElement | null>(null);
-
-    useReiszeObserverFromRef(ref, (entry) => {
-        const { height } = entry.contentRect;
-
-        if (Number.isFinite(height) && height >= 0) {
-            onHeightChange(chunkIdx, height);
-        }
+    useReiszeObserverFromRef(ref, ({ contentRect: { height } }) => {
+        onHeightChange(idx, height);
     });
 
     return (
@@ -95,44 +86,24 @@ function MeasuredChunk({ chunkIdx, onHeightChange, children }: MeasuredChunkProp
     );
 }
 
-interface PaddingSentinelProps {
+interface ScrollerPaddingProps {
     height: number;
-    onVisible(): void;
 }
 
-/**
- * Replaces a plain padding div with one observed by IntersectionObserver.
- * When any part of the padding becomes visible (e.g. the user drags the
- * scrollbar past all rendered chunks), {@link onVisible} fires exactly once.
- * The callback resets when the sentinel leaves the viewport, so it can
- * fire again on the next fast-scroll.
- */
-function PaddingSentinel({ height, onVisible }: PaddingSentinelProps) {
-    const scrollAreaHandle = useContext(ScrollAreaContext);
-    const wasVisible = useRef(false);
-
-    const setIntersectionRef = useIntersection((entries) => {
-        const entry = getNewestEntry(entries);
-        const { isIntersecting } = entry;
-
-        if (isIntersecting && !wasVisible.current) {
-            wasVisible.current = true;
-            onVisible();
-        } else if (!isIntersecting) {
-            wasVisible.current = false;
-        }
-    }, {
-        rootRef: scrollAreaHandle.ref,
-    });
-
+function ScrollerPadding({ height }: ScrollerPaddingProps) {
     return (
         <div
-            ref={height > 0 ? setIntersectionRef : undefined}
-            aria-hidden
             style={{ height }}
             className="pointer-events-none"
+            aria-hidden
         />
     );
+}
+
+interface Chunk {
+    chunkIdx: number;
+    startIdx: number;
+    size: number;
 }
 
 function makeChunks(items: readonly unknown[], batchSize: number, maxChunks: number, firstChunkIdx: number): Chunk[] {
@@ -166,7 +137,12 @@ export function BufferedScroller<T>({
     className,
     ...props
 }: BufferedScrollProps<T>) {
-    const scrollRef = useRef<HTMLDivElement | null>(null);
+    type VisibleChunks = Partial<Record<number, Partial<Record<"top" | "bottom", boolean>>>>;
+
+    /**
+     * chunkIdx -> height of chunk
+     */
+    type ChunkHeights = Partial<Record<number, number>>;
 
     const [batchSize] = useControlledState({
         initialValue: Math.min(Math.floor(items.length / 20), items.length),
@@ -175,10 +151,6 @@ export function BufferedScroller<T>({
 
     assert(batchSize === Math.floor(batchSize) && batchSize > 0, "batchSize must be a positive integer");
     Object.freeze(items);
-
-    type VisibleChunks = Partial<Record<number, Partial<Record<"top" | "bottom", boolean>>>>;
-
-    type ChunkHeights = Partial<Record<number, number>>;
 
     const totalChunks = Math.ceil(items.length / batchSize);
     const [visibleChunks, setVisibleChunks] = useState<VisibleChunks>({});
@@ -191,71 +163,35 @@ export function BufferedScroller<T>({
         [items, batchSize, numChunks, firstChunk],
     );
 
-    const avgItemHeight = useMemo(() => {
-        let totalMeasuredHeight = 0;
-        let totalMeasuredItems = 0;
-
-        for (const [chunkIdxStr, height] of Object.entries(chunkHeights)) {
-            const chunkIdx = +chunkIdxStr;
-
-            if (typeof height !== "number" || !Number.isFinite(height) || height <= 0) {
-                continue;
-            }
-
-            const startIdx = chunkIdx * batchSize;
-            const size = Math.min(batchSize, Math.max(0, items.length - startIdx));
-
-            if (size === 0) {
-                continue;
-            }
-
-            totalMeasuredHeight += height;
-            totalMeasuredItems += size;
-        }
-
-        if (totalMeasuredItems === 0) {
-            return 0;
-        }
-
-        return totalMeasuredHeight / totalMeasuredItems;
-    }, [batchSize, chunkHeights, items.length]);
-
-    const estimateChunkHeight = useCallback((chunkIdx: number) => {
-        const measured = chunkHeights[chunkIdx];
-
-        if (typeof measured === "number" && Number.isFinite(measured) && measured > 0) {
-            return measured;
-        }
-
-        if (avgItemHeight <= 0) {
-            return 0;
-        }
-
+    const getNumItemsInChunk = useCallback((chunkIdx: number): number => {
         const startIdx = chunkIdx * batchSize;
-        const size = Math.min(batchSize, Math.max(0, items.length - startIdx));
+        const size = clamp(0, batchSize, items.length - startIdx);
 
-        return avgItemHeight * size;
-    }, [chunkHeights, avgItemHeight, batchSize, items.length]);
+        return size;
+    }, [batchSize, items.length]);
 
-    const { topPaddingPx, bottomPaddingPx } = useMemo(() => {
-        let top = 0;
 
-        for (let i = 0; i < firstChunk; i++) {
-            top += estimateChunkHeight(i);
+    const averageItemHeight = useMemo(() => {
+        let totalHeight = 0;
+        let totalNumItems = 0;
+
+        for (const [chunkIdx, height] of Object.entries(chunkHeights)) {
+            if (!height) {
+                continue;
+            }
+
+            const numItems = getNumItemsInChunk(+chunkIdx);
+
+            if (!numItems) {
+                continue;
+            }
+
+            totalNumItems += numItems;
+            totalHeight += height;
         }
 
-        const lastRenderedExclusive = Math.min(totalChunks, firstChunk + numChunks);
-        let bottom = 0;
-
-        for (let i = lastRenderedExclusive; i < totalChunks; i++) {
-            bottom += estimateChunkHeight(i);
-        }
-
-        return {
-            topPaddingPx: Math.max(0, top),
-            bottomPaddingPx: Math.max(0, bottom),
-        };
-    }, [estimateChunkHeight, firstChunk, numChunks, totalChunks]);
+        return totalHeight / totalNumItems;
+    }, [chunkHeights, getNumItemsInChunk]);
 
     function setChunkVisibility(chunkIdx: number, direction: "top" | "bottom", isVisible: boolean) {
         setVisibleChunks((prev) => {
@@ -267,72 +203,121 @@ export function BufferedScroller<T>({
         });
     }
 
-    function setChunkHeight(chunkIdx: number, height: number) {
+    function onChunkHeight(chunkIdx: number, height: number) {
         setChunkHeights((prev) => {
-            const nextHeight = Math.ceil(height);
-
-            if (prev[chunkIdx] === nextHeight) {
+            height = Math.ceil(height);
+            if (prev[chunkIdx] === height) {
                 return prev;
             }
             return {
                 ...prev,
-                [chunkIdx]: nextHeight,
+                [chunkIdx]: height,
             };
         });
     }
 
-    /**
-     * Called when a padding sentinel becomes visible, meaning the viewport
-     * has jumped past all rendered chunks (fast scrollbar drag). Reads the
-     * current scroll position, estimates which chunk should be visible, and
-     * repositions the rendered window accordingly.
-     */
-    const jumpToScrollPosition = useCallback(() => {
-        const el = scrollRef.current;
+    // TODO: allow user to pass guess for element height
+    const guessChunkHeight = useCallback((chunkIdx: number): number => {
+        const exact = chunkHeights[chunkIdx];
 
-        if (!el || avgItemHeight <= 0) {
-            return;
+        if (exact) {
+            return exact;
+        }
+        // if we don't have an exact height, guess based on average item height
+        if (!averageItemHeight) {
+            return 0;
         }
 
+        const numItems = getNumItemsInChunk(chunkIdx);
+
+        return averageItemHeight * numItems;
+    }, [averageItemHeight, chunkHeights, getNumItemsInChunk]);
+
+    // calculate the padding needed above and below the rendered chunks to make the scrollbar accurate
+    const [paddingTop, paddingBottom] = useMemo(() => {
+        let top = 0;
+        let bottom = 0;
+
+        for (let i = 0; i < firstChunk; ++i) {
+            top += guessChunkHeight(i);
+        }
+
+        for (let i = firstChunk + numChunks; i < totalChunks; ++i) {
+            bottom += guessChunkHeight(i);
+        }
+
+
+        return [top, bottom];
+    }, [firstChunk, guessChunkHeight, numChunks, totalChunks]);
+
+    function reCalcVisibleChunks(el: HTMLDivElement) {
         const { scrollTop, clientHeight } = el;
         let acc = 0;
+        // guess the first chunk that should be visible
         let viewStartChunk = 0;
 
-        // Walk cumulative estimated chunk heights to find the chunk at scrollTop
-        for (let i = 0; i < totalChunks; i++) {
-            const h = estimateChunkHeight(i);
+        // react compiler doesn't like for loops without init statements
+        for (let _; viewStartChunk < totalChunks; ++viewStartChunk) {
+            // typescript no unused vars
+            _;
+            acc += guessChunkHeight(viewStartChunk);
 
-            if (acc + h > scrollTop) {
-                viewStartChunk = i;
+            if (acc > scrollTop) {
                 break;
             }
-
-            acc += h;
-            viewStartChunk = i;
         }
 
-        // If the estimated chunk is already rendered, let the normal flags handle it
-        if (viewStartChunk >= firstChunk && viewStartChunk < firstChunk + numChunks) {
+        // if we're already rendering the chunk we don't need to do anything
+        if (inRange(firstChunk, firstChunk + numChunks, viewStartChunk)) {
             return;
         }
 
-        // Estimate how many chunks fill the viewport
-        const avgChunkHeight = avgItemHeight * batchSize;
-
-        const viewportChunks = avgChunkHeight > 0
-            ? Math.ceil(clientHeight / avgChunkHeight) + 1
-            : 1;
-
+        const averageChunkHeight = averageItemHeight * batchSize;
+        // guess how many chunks fill the viewport
+        const maxChunksInViewAtOnce = Math.ceil(clientHeight / averageChunkHeight);
+        // TODO: will this do the wrong thing when buffer === infinity?
         const buffer = bufferSize === Infinity ? totalChunks : bufferSize;
-        const newFirst = Math.max(0, viewStartChunk - buffer);
-        const needed = viewportChunks + (2 * buffer);
-        const newNum = Math.min(needed, totalChunks - newFirst);
+        const newFirstChunk = Math.max(0, viewStartChunk - buffer);
+        const numNeededChunks = Math.min(maxChunksInViewAtOnce + (2 * buffer), totalChunks - newFirstChunk);
 
-        // Clear stale visibility data from the old chunk positions
         setVisibleChunks({});
-        setFirstChunk(newFirst);
-        setNumChunks(newNum);
-    }, [avgItemHeight, totalChunks, estimateChunkHeight, firstChunk, numChunks, batchSize, bufferSize]);
+        setFirstChunk(newFirstChunk);
+        setNumChunks(numNeededChunks);
+    }
+
+    // scrollTop: how far the user has scrolled
+    // clientHeight: the height of the visible area
+    function onScrollEnd({ currentTarget: el }: UIEvent<HTMLDivElement>) {
+        const { scrollTop: viewportTop, clientHeight: viewportHeight } = el;
+        // guess where we should be based on average chunk size
+        // TODO: this might be janky if the footer/header is large        
+        const viewportBottom = viewportTop + viewportHeight;
+        const lastChunkIdx = Math.min(firstChunk + numChunks, totalChunks);
+        let startOffset = 0;
+
+        // guess the offset where we are currently rendering chunks
+        for (let i = 0; i < firstChunk; ++i) {
+            startOffset += guessChunkHeight(i);
+        }
+
+        if (startOffset > viewportBottom) {
+            reCalcVisibleChunks(el);
+            return;
+        }
+
+        let endOffset = startOffset;
+
+        // guess the offset where we stop rendering chunks
+        for (let i = firstChunk; i < lastChunkIdx; ++i) {
+            endOffset += guessChunkHeight(i);
+        }
+
+        if (endOffset < viewportTop) {
+            reCalcVisibleChunks(el);
+            return;
+        }
+    }
+
 
     useEffect(() => {
         let first = firstChunk;
@@ -383,78 +368,25 @@ export function BufferedScroller<T>({
         setVisibleChunks({});
     }, [totalChunks]);
 
+    // reset chunk heights when things that could change it update
     useEffect(() => {
         setChunkHeights({});
-    }, [batchSize, items.length, totalChunks]);
-
-    // Scroll-event fallback: IntersectionObserver may not fire when the user
-    // drags the scrollbar so fast that the padding sentinel goes from "above
-    // viewport" to "below viewport" in a single frame. This listener checks if
-    // the viewport has no overlap with rendered content and triggers recovery.
-    useEffect(() => {
-        const el = scrollRef.current;
-
-        if (!el || avgItemHeight <= 0 || totalChunks === 0) {
-            return;
-        }
-
-        function handleScroll() {
-            const scrollEl = scrollRef.current;
-
-            if (!scrollEl) {
-                return;
-            }
-
-            const { scrollTop, clientHeight } = scrollEl;
-            // Calculate the scroll range covered by rendered chunks
-            let renderedStart = 0;
-
-            for (let i = 0; i < firstChunk; i++) {
-                renderedStart += estimateChunkHeight(i);
-            }
-
-            let renderedEnd = renderedStart;
-
-            for (let i = firstChunk; i < Math.min(firstChunk + numChunks, totalChunks); i++) {
-                renderedEnd += estimateChunkHeight(i);
-            }
-
-            const viewportTop = scrollTop;
-            const viewportBottom = scrollTop + clientHeight;
-
-            // If viewport overlaps with rendered content, no intervention needed
-            if (viewportBottom > renderedStart && viewportTop < renderedEnd) {
-                return;
-            }
-
-            // Viewport does not overlap rendered content; trigger recovery
-            jumpToScrollPosition();
-        }
-
-        el.addEventListener("scroll", handleScroll, { passive: true });
-
-        return () => {
-            el.removeEventListener("scroll", handleScroll);
-        };
-    }, [avgItemHeight, totalChunks, firstChunk, numChunks, estimateChunkHeight, jumpToScrollPosition]);
+    }, [totalChunks, batchSize, items.length]);
 
     return (
         <ScrollArea
-            ref={scrollRef}
+            onScrollEnd={onScrollEnd}
             className={cn(className)}
             {...props}
         >
-            <Fragment key="bufferedscroller-header">{renderHeader?.()}</Fragment>
-            <PaddingSentinel
-                height={topPaddingPx}
-                onVisible={jumpToScrollPosition}
-            />
+            <>{renderHeader?.()}</>
+            <ScrollerPadding height={paddingTop} />
             {chunks.map(({ chunkIdx, startIdx, size }) => {
                 return (
-                    <MeasuredChunk
+                    <ScrollerChunk
                         key={`chunk-${startIdx}`}
-                        chunkIdx={chunkIdx}
-                        onHeightChange={setChunkHeight}
+                        idx={chunkIdx}
+                        onHeightChange={onChunkHeight}
                     >
                         <Flag
                             key="chunk-start"
@@ -495,15 +427,12 @@ export function BufferedScroller<T>({
                                 setChunkVisibility(chunkIdx, "bottom", false);
                             }}
                         />
-                    </MeasuredChunk>
+                    </ScrollerChunk>
                 );
             })}
-            <PaddingSentinel
-                height={bottomPaddingPx}
-                onVisible={jumpToScrollPosition}
-            />
+            <ScrollerPadding height={paddingBottom} />
             {
-                (alwaysRenderFooter || firstChunk + numChunks >= totalChunks) && <Fragment key="bufferedscroller-footer">{renderFooter?.()}</Fragment>
+                (alwaysRenderFooter || firstChunk + numChunks >= totalChunks) && <>{renderFooter?.()}</>
             }
         </ScrollArea>
     );

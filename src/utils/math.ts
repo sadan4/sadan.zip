@@ -2,6 +2,17 @@ export function clamp(min: number, max: number, value: number): number {
     return Math.min(Math.max(value, min), max);
 }
 
+/**
+ * inclusive
+ */
+export function inRange(min: number, max: number, val: number): boolean {
+    return val >= min && val <= max;
+}
+
+export function inRangeExclusive(minInclusive: number, maxExclusive: number, val: number): boolean {
+    return val >= minInclusive && val < maxExclusive;
+}
+
 export function isNaN(value: number): boolean {
     return Number.isNaN(value);
 }
