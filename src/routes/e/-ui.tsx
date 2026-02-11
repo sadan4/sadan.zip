@@ -7,57 +7,48 @@ import { BufferedScroller } from "@/components/layout/BufferedScroller";
 import { Text } from "@/components/Text";
 import { TooltipPosition } from "@/components/Tooltip/constants";
 import { sendMessage } from "@/utils/e/socket";
+import { makeLazy } from "@/utils/lazy";
+import { monaco } from "@/utils/monaco";
 import { Language } from "@/utils/textmate";
-import { Format } from "@sadan4/devtools-pretty-printer";
 import { useQuery } from "@tanstack/react-query";
-import { formatModule } from "@vencord-companion/webpack-ast-parser/util";
 
-import { Route } from "./view";
+import { useModuleViewerStore } from "./-data";
+import { Route } from "./view.{-$buildHash}.{-$moduleId}";
 
 import { ArrowBigRight } from "lucide-react";
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 
-function useModuleCode(moduleId: string | null, bundleHash: string) {
-    const { status, data } = useQuery({
-        queryKey: [
-            "getBundleFile",
-            {
-                moduleId,
-                bundleHash,
-            },
-        ],
-        async queryFn() {
-            if (moduleId === null) {
-                return "// Select a Module";
-            }
+interface ModuleListItemProps {
+    moduleId: string;
+    onSelectModule(moduleId: string): void;
+}
 
-            const { fileText } = await sendMessage<"getBundleFileResponse">({
-                type: "getBundleFile",
-                bundleHash,
-                moduleNumber: moduleId,
-            });
+function ModuleListItem({ moduleId, onSelectModule }: ModuleListItemProps) {
+    const isSelectedModule = useModuleViewerStore(({ selectedModule }) => selectedModule === moduleId);
 
-            return Format(formatModule(fileText, moduleId, false));
-        },
-    });
-
-    if (status === "pending") {
-        return formatModule("// Loading...", moduleId ?? -1, false);
-    }
-    if (status === "error") {
-        return formatModule("// Error loading file", moduleId ?? -1, false);
-    }
-    return data;
+    return (
+        <Clickable
+            tag="li"
+            onClick={() => onSelectModule(moduleId)}
+        >
+            <Text
+                tag="span"
+                color={isSelectedModule ? "primary" : "white"}
+            >
+                {moduleId}
+            </Text>
+        </Clickable>
+    );
 }
 
 interface ModuleSelectorProps {
-    selectedModule: string | null;
     modules: string[];
     onSelectModule: (module: string) => void;
 }
 
-function ModuleSelector({ modules, onSelectModule, selectedModule }: ModuleSelectorProps) {
+
+function ModuleSelector({ modules, onSelectModule }: ModuleSelectorProps) {
     return (
         <BufferedScroller
             items={modules}
@@ -65,44 +56,72 @@ function ModuleSelector({ modules, onSelectModule, selectedModule }: ModuleSelec
             bufferSize={2}
             renderItem={({ item }) => {
                 return (
-                    <Clickable
+                    <ModuleListItem
                         key={item}
-                        tag="li"
-                        onClick={() => onSelectModule(item)}
-                    >
-                        <Text
-                            tag="span"
-                            color={item === selectedModule ? "primary" : "white"}
-                        >
-                            {item}
-                        </Text>
-                    </Clickable>
+                        moduleId={item}
+                        onSelectModule={onSelectModule}
+                    />
                 );
             }}
         />
     );
 }
 
-interface ModuleViewerProps {
-    moduleId: string | null;
-    bundleHash: string;
+const placeholderURI = makeLazy(() => monaco.Uri.parse("file:///placeholder.js"));
+const placeholderModel = makeLazy(() => monaco.editor.createModel("", "javascript", placeholderURI()));
+
+function pendingUri(str: string) {
+    const model = placeholderModel();
+
+    model.setValue(str);
+
+    return placeholderURI();
 }
 
-function ModuleViewer({ moduleId, bundleHash }: ModuleViewerProps) {
-    const code = useModuleCode(moduleId, bundleHash);
+function ModuleViewer() {
+    const moduleId = useModuleViewerStore(({ selectedModule }) => selectedModule);
+
+    const [uri, setUri] = useState(() => {
+        if (moduleId) {
+            return pendingUri("// Loading...");
+        }
+        return pendingUri("// Select a Module");
+    });
+
+    useEffect(() => {
+        !async function () {
+            if (!moduleId) {
+                return;
+            }
+
+            const { uri } = await useModuleViewerStore.getState().getModuleModel(moduleId);
+
+            setUri(uri);
+        }();
+    }, [moduleId]);
 
     return (
         <MonacoCodeEditor
             language={Language.JAVASCRIPT}
-            code={code}
+            uri={uri}
         />
     );
 }
 
 export function Explorer() {
-    const [selectedModule, setSelectedModule] = useState<string | null>(null);
+    const navigate = Route.useNavigate();
+
+    const setSelectedModule = useCallback((moduleId: string) => {
+        navigate({
+            to: "/e/view/{-$buildHash}/{-$moduleId}",
+            params: {
+                moduleId,
+            },
+        });
+    }, [navigate]);
+
+    const { buildHash } = Route.useParams();
     const inputRef = useRef<HTMLInputElement>(null);
-    const { buildHash } = Route.useSearch();
 
     const { status, data } = useQuery({
         queryKey: ["getBundleMetadata", { buildHash }],
@@ -163,6 +182,7 @@ export function Explorer() {
                                         return false;
                                     }
 
+                                    const { selectedModule } = useModuleViewerStore.getState();
                                     const moduleId = el.value;
 
                                     if (selectedModule === moduleId) {
@@ -171,7 +191,9 @@ export function Explorer() {
                                     if (!moduleIds.includes(moduleId)) {
                                         return false;
                                     }
+
                                     setSelectedModule(moduleId);
+
                                     return true;
                                 }}
                                 className="mr-2 ml-4 size-10"
@@ -183,16 +205,12 @@ export function Explorer() {
                             </IconButton>
                         </div>
                         <ModuleSelector
-                            selectedModule={selectedModule}
                             modules={moduleIds}
                             onSelectModule={setSelectedModule}
                         />
                     </div>
                     <div className="grow">
-                        <ModuleViewer
-                            moduleId={selectedModule}
-                            bundleHash={buildHash}
-                        />
+                        <ModuleViewer />
                     </div>
                 </div>
             </div>

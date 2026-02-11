@@ -12,7 +12,6 @@ import { Route as rootRouteImport } from "./routes/__root";
 import { Route as RouteImport } from "./routes/_";
 import { Route as AstViewerIndexRouteImport } from "./routes/ast-viewer/index";
 import { Route as IndexRouteImport } from "./routes/_/index";
-import { Route as EViewRouteImport } from "./routes/e/view";
 import { Route as MinkyRouteImport } from "./routes/_/minky";
 import { Route as DemanglerRouteImport } from "./routes/_/demangler";
 import { Route as ComponentsRouteImport } from "./routes/_/components";
@@ -21,6 +20,7 @@ import { Route as EIndexRouteImport } from "./routes/_/e/index";
 import { Route as DiscordIntlIndexRouteImport } from "./routes/_/discord-intl/index";
 import { Route as R88x31IndexRouteImport } from "./routes/_/88x31/index";
 import { Route as R88x31LangRouteImport } from "./routes/_/88x31/$lang";
+import { Route as EViewChar123BuildHashChar125Char123ModuleIdChar125RouteImport } from "./routes/e/view.{-$buildHash}.{-$moduleId}";
 
 const Route = RouteImport.update({
   id: "/_",
@@ -35,11 +35,6 @@ const IndexRoute = IndexRouteImport.update({
   id: "/",
   path: "/",
   getParentRoute: () => Route,
-} as any);
-const EViewRoute = EViewRouteImport.update({
-  id: "/e/view",
-  path: "/e/view",
-  getParentRoute: () => rootRouteImport,
 } as any);
 const MinkyRoute = MinkyRouteImport.update({
   id: "/minky",
@@ -81,25 +76,30 @@ const R88x31LangRoute = R88x31LangRouteImport.update({
   path: "/88x31/$lang",
   getParentRoute: () => Route,
 } as any);
+const EViewChar123BuildHashChar125Char123ModuleIdChar125Route =
+  EViewChar123BuildHashChar125Char123ModuleIdChar125RouteImport.update({
+    id: "/e/view/{-$buildHash}/{-$moduleId}",
+    path: "/e/view/{-$buildHash}/{-$moduleId}",
+    getParentRoute: () => rootRouteImport,
+  } as any);
 
 export interface FileRoutesByFullPath {
   "/": typeof IndexRoute;
   "/components": typeof ComponentsRoute;
   "/demangler": typeof DemanglerRoute;
   "/minky": typeof MinkyRoute;
-  "/e/view": typeof EViewRoute;
   "/ast-viewer/": typeof AstViewerIndexRoute;
   "/88x31/$lang": typeof R88x31LangRoute;
   "/88x31/": typeof R88x31IndexRoute;
   "/discord-intl/": typeof DiscordIntlIndexRoute;
   "/e/": typeof EIndexRoute;
   "/vis/": typeof VisIndexRoute;
+  "/e/view/{-$buildHash}/{-$moduleId}": typeof EViewChar123BuildHashChar125Char123ModuleIdChar125Route;
 }
 export interface FileRoutesByTo {
   "/components": typeof ComponentsRoute;
   "/demangler": typeof DemanglerRoute;
   "/minky": typeof MinkyRoute;
-  "/e/view": typeof EViewRoute;
   "/": typeof IndexRoute;
   "/ast-viewer": typeof AstViewerIndexRoute;
   "/88x31/$lang": typeof R88x31LangRoute;
@@ -107,6 +107,7 @@ export interface FileRoutesByTo {
   "/discord-intl": typeof DiscordIntlIndexRoute;
   "/e": typeof EIndexRoute;
   "/vis": typeof VisIndexRoute;
+  "/e/view/{-$buildHash}/{-$moduleId}": typeof EViewChar123BuildHashChar125Char123ModuleIdChar125Route;
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport;
@@ -114,7 +115,6 @@ export interface FileRoutesById {
   "/_/components": typeof ComponentsRoute;
   "/_/demangler": typeof DemanglerRoute;
   "/_/minky": typeof MinkyRoute;
-  "/e/view": typeof EViewRoute;
   "/_/": typeof IndexRoute;
   "/ast-viewer/": typeof AstViewerIndexRoute;
   "/_/88x31/$lang": typeof R88x31LangRoute;
@@ -122,6 +122,7 @@ export interface FileRoutesById {
   "/_/discord-intl/": typeof DiscordIntlIndexRoute;
   "/_/e/": typeof EIndexRoute;
   "/_/vis/": typeof VisIndexRoute;
+  "/e/view/{-$buildHash}/{-$moduleId}": typeof EViewChar123BuildHashChar125Char123ModuleIdChar125Route;
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath;
@@ -130,46 +131,46 @@ export interface FileRouteTypes {
     | "/components"
     | "/demangler"
     | "/minky"
-    | "/e/view"
     | "/ast-viewer/"
     | "/88x31/$lang"
     | "/88x31/"
     | "/discord-intl/"
     | "/e/"
-    | "/vis/";
+    | "/vis/"
+    | "/e/view/{-$buildHash}/{-$moduleId}";
   fileRoutesByTo: FileRoutesByTo;
   to:
     | "/components"
     | "/demangler"
     | "/minky"
-    | "/e/view"
     | "/"
     | "/ast-viewer"
     | "/88x31/$lang"
     | "/88x31"
     | "/discord-intl"
     | "/e"
-    | "/vis";
+    | "/vis"
+    | "/e/view/{-$buildHash}/{-$moduleId}";
   id:
     | "__root__"
     | "/_"
     | "/_/components"
     | "/_/demangler"
     | "/_/minky"
-    | "/e/view"
     | "/_/"
     | "/ast-viewer/"
     | "/_/88x31/$lang"
     | "/_/88x31/"
     | "/_/discord-intl/"
     | "/_/e/"
-    | "/_/vis/";
+    | "/_/vis/"
+    | "/e/view/{-$buildHash}/{-$moduleId}";
   fileRoutesById: FileRoutesById;
 }
 export interface RootRouteChildren {
   Route: typeof RouteWithChildren;
-  EViewRoute: typeof EViewRoute;
   AstViewerIndexRoute: typeof AstViewerIndexRoute;
+  EViewChar123BuildHashChar125Char123ModuleIdChar125Route: typeof EViewChar123BuildHashChar125Char123ModuleIdChar125Route;
 }
 
 declare module "@tanstack/react-router" {
@@ -194,13 +195,6 @@ declare module "@tanstack/react-router" {
       fullPath: "/";
       preLoaderRoute: typeof IndexRouteImport;
       parentRoute: typeof Route;
-    };
-    "/e/view": {
-      id: "/e/view";
-      path: "/e/view";
-      fullPath: "/e/view";
-      preLoaderRoute: typeof EViewRouteImport;
-      parentRoute: typeof rootRouteImport;
     };
     "/_/minky": {
       id: "/_/minky";
@@ -258,6 +252,13 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof R88x31LangRouteImport;
       parentRoute: typeof Route;
     };
+    "/e/view/{-$buildHash}/{-$moduleId}": {
+      id: "/e/view/{-$buildHash}/{-$moduleId}";
+      path: "/e/view/{-$buildHash}/{-$moduleId}";
+      fullPath: "/e/view/{-$buildHash}/{-$moduleId}";
+      preLoaderRoute: typeof EViewChar123BuildHashChar125Char123ModuleIdChar125RouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
   }
 }
 
@@ -289,8 +290,9 @@ const RouteWithChildren = Route._addFileChildren(RouteChildren);
 
 const rootRouteChildren: RootRouteChildren = {
   Route: RouteWithChildren,
-  EViewRoute: EViewRoute,
   AstViewerIndexRoute: AstViewerIndexRoute,
+  EViewChar123BuildHashChar125Char123ModuleIdChar125Route:
+    EViewChar123BuildHashChar125Char123ModuleIdChar125Route,
 };
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
