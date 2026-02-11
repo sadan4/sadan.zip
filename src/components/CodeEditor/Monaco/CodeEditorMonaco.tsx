@@ -188,6 +188,7 @@ function MonacoCodeEditorInner({
             return;
         }
 
+        // TODO: should we use option.model as a marker for fully user controlled instead
         // don't do anything if the user is managing the model
         if (model.uri.toString() === uri?.toString()) {
             return;
@@ -196,7 +197,7 @@ function MonacoCodeEditorInner({
             const newModel = monaco.editor.getModel(uri);
 
             if (!newModel) {
-                console.warn("user changed uri but there is no model assossicated with it");
+                console.warn("user changed uri but there is no model associated with it");
                 return;
             }
 
