@@ -33,13 +33,17 @@ export function getModuleURI(buildHash: string, moduleId: string) {
     return monaco.Uri.parse(`file:///bundle/${buildHash}/${moduleId}.js`);
 }
 
-export const useModuleViewerStore = create<ModuleViewerStore>((set, get, store) => ({
+const getValueDefaults = () => ({
     buildHash: "",
     moduleCodeMap: new Map(),
     moduleModelMap: new Map(),
     parserMap: new Map<string, WebpackAstParser>(),
     selectedModule: null,
     allModuleIds: [],
+});
+
+export const useModuleViewerStore = create<ModuleViewerStore>((set, get, store) => ({
+    ...getValueDefaults(),
     init(newBuildHash: string) {
         const { buildHash, reset } = get();
 
@@ -51,7 +55,13 @@ export const useModuleViewerStore = create<ModuleViewerStore>((set, get, store) 
         }
     },
     reset() {
-        set(store.getInitialState());
+        const { moduleModelMap } = get();
+
+        for (const [, model] of moduleModelMap) {
+            model.dispose();
+        }
+
+        set(getValueDefaults());
     },
     async getModuleCode(moduleId: string) {
         const { moduleCodeMap, buildHash } = get();
