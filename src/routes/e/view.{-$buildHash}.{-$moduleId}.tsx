@@ -1,8 +1,10 @@
+import { unavailableImport } from "@/utils/error";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
-import { Explorer } from "./-ui";
-
 import z from "zod";
+
+const data = import.meta.env.SSR ? unavailableImport("./-data") : require("./-data") as typeof import("./-data");
+const ui = import.meta.env.SSR ? unavailableImport("./-ui") : require("./-ui") as typeof import("./-ui");
 
 const viewBundleParamsSchema = z.object({
     buildHash: z.string().catch(""),
@@ -27,25 +29,19 @@ export const Route = createFileRoute("/e/view/{-$buildHash}/{-$moduleId}")({
         },
     },
     async loader({ params: { buildHash, moduleId } }) {
-        if (import.meta.env.SSR) {
-            return;
-        }
-
-        const { ModuleViewerStore } = await import("./-data");
-
-        ModuleViewerStore.getState().init(buildHash);
-        ModuleViewerStore.setState({
+        data.ModuleViewerStore.getState().init(buildHash);
+        data.ModuleViewerStore.setState({
             selectedModule: moduleId,
         });
         if (moduleId != null) {
             // preload code
-            await ModuleViewerStore.getState().getModuleCode(moduleId);
+            await data.ModuleViewerStore.getState().getModuleCode(moduleId);
         }
     },
     ssr: false,
 });
 
 function ExplorerWrapper() {
-    return <Explorer />;
+    return <ui.Explorer />;
 }
 

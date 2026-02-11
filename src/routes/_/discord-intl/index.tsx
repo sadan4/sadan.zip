@@ -9,9 +9,9 @@ import { copy } from "@/utils/clipboard";
 import cn from "@/utils/cn";
 import { createFileRoute } from "@tanstack/react-router";
 
-import mappings from "./key-mappings.json";
-
 import { useState } from "react";
+
+const mappings = import.meta.env.SSR ? {} : require("./key-mappings.json") as Record<string, string>;
 
 export const Route = createFileRoute("/_/discord-intl/")({
     component: DiscordIntlLookup,

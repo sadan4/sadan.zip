@@ -54,6 +54,17 @@ function main() {
                 {
                     test: /\.m?js$/,
                     extractSourceMap: true,
+                    loader: "builtin:swc-loader",
+                    options: {
+                        jsc: {
+                            parser: {
+                                syntax: "ecmascript",
+                                explicitResourceManagement: true,
+                            },
+                            // needed so swc doesn't down-level all syntax
+                            target: "es2024",
+                        },
+                    },
                 },
             ],
         },

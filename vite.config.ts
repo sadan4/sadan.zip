@@ -109,6 +109,10 @@ const config = defineConfig(async ({ command, isSsrBuild }) => {
             cssMinify: "lightningcss",
             sourcemap: true,
         },
+        json: {
+            namedExports: false,
+            stringify: true,
+        },
         css: {
             // I would like to use lightningcss, but it doesn not support localsConvention
             // SEE: parcel-bundler/lightningcss#633

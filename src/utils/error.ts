@@ -100,7 +100,7 @@ export function todo(msg?: string) {
     throw new NotImplementedError(msg);
 }
 
-export function unavailableImport<T>(importName?: string): T {
+export function unavailableImport<T = never>(importName?: string): T {
     const func = function () {};
 
     Object.defineProperty(func, "name", {
