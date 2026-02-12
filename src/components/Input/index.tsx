@@ -4,7 +4,7 @@ import { useDebouncedFn } from "@/hooks/debouncedFn";
 import { border } from "@/styles";
 import cn, { textColors, textSize, textWeight } from "@/utils/cn";
 import { error } from "@/utils/error";
-import { updateRef } from "@/utils/ref";
+import type { TOmit } from "@/utils/types";
 
 import styles from "./styles.module.scss";
 import { Clickable } from "../Clickable";
@@ -220,7 +220,7 @@ interface LenCheck {
     max?: number;
 }
 
-export interface CheckedInputProps extends Omit<InputProps, "onChange">, PropsWithChildren {
+export interface CheckedInputProps extends TOmit<InputProps, "onChange">, PropsWithChildren {
     labelColor?: keyof typeof textColors;
     labelSize?: keyof typeof textSize;
     labelWeight?: keyof typeof textWeight;
@@ -322,10 +322,7 @@ export function CheckedInput({
             )}
             <Input
                 {...props}
-                ref={(e) => {
-                    updateRef(ref, e);
-                    updateRef(_ref, e);
-                }}
+                ref={useComposedRefs(ref, _ref)}
                 className={cn(hasError && "ring-error-400/65 focus:ring-error-400", className)}
                 onChange={handleChange}
                 disabled={disabled}

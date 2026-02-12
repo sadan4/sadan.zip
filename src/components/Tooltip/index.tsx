@@ -5,7 +5,7 @@ import { useResizeObserverFromRef } from "@/hooks/resizeObserver";
 import cn from "@/utils/cn";
 import { measureRect } from "@/utils/dom";
 import { unreachable } from "@/utils/error";
-import { updateRef } from "@/utils/ref";
+import type { TOmit } from "@/utils/types";
 import { animated, type AnimatedProps, type SpringValue, to, useSpringValue, useTransition } from "@react-spring/web";
 
 import { TooltipPosition } from "./constants";
@@ -28,7 +28,7 @@ export interface TooltipProps extends ComponentProps<"div"> {
     onShow?(): void;
     onHide?(): void;
     className?: string;
-    triggerProps?: ComponentProps<"div">;
+    triggerProps?: TOmit<ComponentProps<"div">, "children">;
     /**
      * Don't use the default wrapper ({@link Box})
      */
@@ -185,7 +185,7 @@ export function Tooltip({
     onShow,
     onHide,
     className,
-    triggerProps,
+    triggerProps: { ref: _triggerRef, className: triggerClassName, ...triggerProps } = {},
     position = TooltipPosition.TOP,
     children,
     noWrapper = false,
@@ -296,11 +296,8 @@ export function Tooltip({
             </LayerPortal>
             <div
                 {...triggerProps}
-                ref={(value) => {
-                    updateRef(triggerProps?.ref, value);
-                    updateRef(triggerRef, value);
-                }}
-                className={cn(styles.trigger, triggerProps?.className)}
+                ref={useComposedRefs(triggerRef, _triggerRef)}
+                className={cn(styles.trigger, triggerClassName)}
             >
                 {children}
             </div>
