@@ -50,7 +50,10 @@ export function assert(cond: null | undefined | false | 0 | -0 | 0n | "" | HTMLA
 export function assert(cond: unknown, msg?: string): asserts cond;
 export function assert(cond: unknown, msg?: string): asserts cond {
     if (!cond) {
-        throw new AssertionError(msg);
+        const err = new AssertionError(msg);
+
+        AssertionError.captureStackTrace(err, assert);
+        throw err;
     }
 }
 
@@ -84,22 +87,34 @@ export function debug_assert(cond: unknown, msg?: string): asserts cond;
 export function debug_assert(cond: unknown, msg?: string): asserts cond {
     if (import.meta.env.DEV) {
         if (!cond) {
-            throw new DebugAssertionError(msg);
+            const err = new DebugAssertionError(msg);
+
+            DebugAssertionError.captureStackTrace(err, debug_assert);
+            throw err;
         }
     }
 }
 
 export function unreachable(msg?: string): never {
-    throw new AssertionError(msg || "unreachable");
+    const err = new AssertionError(msg || "unreachable");
+
+    AssertionError.captureStackTrace(err, unreachable);
+    throw err;
 }
 
 export function error(message?: string): never {
-    throw new Error(message);
+    const err = new Error(message);
+
+    Error.captureStackTrace(err, error);
+    throw err;
 }
 
 
 export function todo(msg?: string) {
-    throw new NotImplementedError(msg);
+    const err = new NotImplementedError(msg);
+
+    NotImplementedError.captureStackTrace(err, todo);
+    throw err;
 }
 
 export function unavailableImport<T = never>(importName?: string): T {
@@ -114,13 +129,22 @@ export function unavailableImport<T = never>(importName?: string): T {
 
     return new Proxy(func, {
         get() {
-            throw new UnavailableImportError(`${importName || "This import"} is unavailable in the current environment.`);
+            const err = new UnavailableImportError(`${importName || "This import"} is unavailable in the current environment.`);
+
+            UnavailableImportError.captureStackTrace(err, unavailableImport);
+            throw err;
         },
         apply() {
-            throw new UnavailableImportError(`${importName || "This import"} is unavailable in the current environment.`);
+            const err = new UnavailableImportError(`${importName || "This import"} is unavailable in the current environment.`);
+
+            UnavailableImportError.captureStackTrace(err, unavailableImport);
+            throw err;
         },
         construct() {
-            throw new UnavailableImportError(`${importName || "This import"} is unavailable in the current environment.`);
+            const err = new UnavailableImportError(`${importName || "This import"} is unavailable in the current environment.`);
+
+            UnavailableImportError.captureStackTrace(err, unavailableImport);
+            throw err;
         },
     }) as T;
 }
