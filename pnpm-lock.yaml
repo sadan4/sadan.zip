@@ -55,9 +55,6 @@ importers:
       '@tanstack/zod-adapter':
         specifier: ^1.159.5
         version: 1.159.5(@tanstack/react-router@1.157.16(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(zod@4.3.6)
-      '@vencord-companion/global-env-parser':
-        specifier: ^1.1.3
-        version: 1.1.3(ts-api-utils@2.4.0(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319)))(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
       classnames:
         specifier: ^2.5.1
         version: 2.5.1
@@ -158,12 +155,15 @@ importers:
       '@typescript-eslint/eslint-plugin':
         specifier: ^8.30.1
         version: 8.53.1(@typescript-eslint/parser@8.53.1(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319)))(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
+      '@vencord-companion/global-env-parser':
+        specifier: ^1.2.0
+        version: 1.2.0(ts-api-utils@2.4.0(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319)))(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
       '@vencord-companion/webpack-ast-parser':
-        specifier: ^1.1.3
-        version: 1.1.3(ts-api-utils@2.4.0(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319)))(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
+        specifier: ^1.2.0
+        version: 1.2.0(ts-api-utils@2.4.0(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319)))(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
       '@vencord-companion/webpack-chunk-parser':
-        specifier: ^1.1.3
-        version: 1.1.3(ts-api-utils@2.4.0(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319)))(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
+        specifier: ^1.2.0
+        version: 1.2.0(ts-api-utils@2.4.0(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319)))(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
       '@vitejs/plugin-react':
         specifier: ^5.1.3
         version: 5.1.3(rolldown-vite@7.3.1(@types/node@24.10.9)(esbuild@0.27.3)(jiti@2.6.1)(less@4.5.1)(sass-embedded@1.97.3)(sass@1.97.3)(stylus@0.62.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
@@ -2442,29 +2442,29 @@ packages:
   '@ungap/structured-clone@1.3.0':
     resolution: {integrity: sha512-WmoN8qaIAo7WTYWbAZuG8PYEhn5fkz7dZrqTBZ7dtt//lL2Gwms1IcnQ5yHqjDfX8Ft5j4YzDM23f87zBfDe9g==}
 
-  '@vencord-companion/ast-parser@1.1.3':
-    resolution: {integrity: sha512-uITNpAMfxnf67AO0q31u1YD8jkKmIH0GTbKcux4XV78WQ+57Z17Ej6Ozdg4tQroYrBZXiWdYMVPkVAiva+Mseg==}
+  '@vencord-companion/ast-parser@1.2.0':
+    resolution: {integrity: sha512-11lhFV0Swabnm7hI3t4IFRVeHb5zVut+6QZIjMd6zJ7buqFHHp0akeDtvww3a6qaqhv05GBe87mGXvDX8nlfiA==}
     peerDependencies:
       ts-api-utils: ^2.1.0
       typescript: ^5.0.0
 
-  '@vencord-companion/global-env-parser@1.1.3':
-    resolution: {integrity: sha512-1WAv5Hipzi24ki3FDW2TdMsAB8NB3k9aBJPzgUaomGzwzr6Cu10vx6aXHiWf2EFbiFa1LtdfR13fa2BrNepTcw==}
+  '@vencord-companion/global-env-parser@1.2.0':
+    resolution: {integrity: sha512-nwf97dnxXeCBOq1wlx2q/kPC+5y6VXmhKfHGefIWpEuIbkDZKQMI5tpMZN79rheu52PtNJIX6FeIG2FPN4VJww==}
     peerDependencies:
       ts-api-utils: ^2.1.0
       typescript: ^5.0.0
 
-  '@vencord-companion/shared@1.1.3':
-    resolution: {integrity: sha512-vzf86TKr3maQQgg0a/TcCOBkJuY7xq8taQb2pij0wjq2itBGuOQaGgU/sZU2RQGsVX1E4JHWYKqpUdeOwDOICw==}
+  '@vencord-companion/shared@1.2.0':
+    resolution: {integrity: sha512-YmSJFuHgQFJpsvV2W77K9/lNSpy7A4kQ58FeqIPgXMj5wXyDZEQWuZFL+yMPeU7cF6LD/7eC0Jgj6VvkvGzyhw==}
 
-  '@vencord-companion/webpack-ast-parser@1.1.3':
-    resolution: {integrity: sha512-3XrG9a6P5gGtsR/K1+SCLETOYyBJSovC+Nru0zBX8x13eZcHdgWhrydNPn46WnRn85nXM87KedcTUQsgZNwhrw==}
+  '@vencord-companion/webpack-ast-parser@1.2.0':
+    resolution: {integrity: sha512-tpkWQkHqt6XutT9j/jKmOTTH4DaRfGXAoommqJHKqGn3ygqs+mJVMpNrRIW2EQm7nLAjhjdelPfhkHVJZbaFzA==}
     peerDependencies:
       ts-api-utils: ^2.1.0
       typescript: ^5.0.0
 
-  '@vencord-companion/webpack-chunk-parser@1.1.3':
-    resolution: {integrity: sha512-pBcos+wO/nIS+0O3GfO9tJmERDLmd1ihdz8t+QypEo1dy7thCqQsgPqSrhI7C6ce7U7kFDQO/kvl5xlnJzl7Ng==}
+  '@vencord-companion/webpack-chunk-parser@1.2.0':
+    resolution: {integrity: sha512-9R57PWUzie6xFKtxb44w5+B2sPeI5R5cbjZZeMl1qz8OHXff3sSmhMbGKPklD5BOMSZs8/OsUFzFWjxrG87buQ==}
     peerDependencies:
       ts-api-utils: ^2.1.0
       typescript: ^5.0.0
@@ -7294,34 +7294,34 @@ snapshots:
 
   '@ungap/structured-clone@1.3.0': {}
 
-  '@vencord-companion/ast-parser@1.1.3(ts-api-utils@2.4.0(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319)))(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))':
+  '@vencord-companion/ast-parser@1.2.0(ts-api-utils@2.4.0(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319)))(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))':
     dependencies:
       '@sadan4/devtools-pretty-printer': 1.0.4
-      '@vencord-companion/shared': 1.1.3
+      '@vencord-companion/shared': 1.2.0
       ts-api-utils: 2.4.0(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
       typescript: 5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319)
 
-  '@vencord-companion/global-env-parser@1.1.3(ts-api-utils@2.4.0(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319)))(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))':
+  '@vencord-companion/global-env-parser@1.2.0(ts-api-utils@2.4.0(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319)))(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))':
     dependencies:
-      '@vencord-companion/ast-parser': 1.1.3(ts-api-utils@2.4.0(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319)))(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
-      '@vencord-companion/shared': 1.1.3
+      '@vencord-companion/ast-parser': 1.2.0(ts-api-utils@2.4.0(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319)))(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
+      '@vencord-companion/shared': 1.2.0
       ts-api-utils: 2.4.0(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
       typescript: 5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319)
 
-  '@vencord-companion/shared@1.1.3': {}
+  '@vencord-companion/shared@1.2.0': {}
 
-  '@vencord-companion/webpack-ast-parser@1.1.3(ts-api-utils@2.4.0(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319)))(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))':
+  '@vencord-companion/webpack-ast-parser@1.2.0(ts-api-utils@2.4.0(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319)))(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))':
     dependencies:
       '@sadan4/devtools-pretty-printer': 1.0.4
-      '@vencord-companion/ast-parser': 1.1.3(ts-api-utils@2.4.0(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319)))(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
-      '@vencord-companion/shared': 1.1.3
+      '@vencord-companion/ast-parser': 1.2.0(ts-api-utils@2.4.0(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319)))(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
+      '@vencord-companion/shared': 1.2.0
       ts-api-utils: 2.4.0(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
       typescript: 5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319)
 
-  '@vencord-companion/webpack-chunk-parser@1.1.3(ts-api-utils@2.4.0(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319)))(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))':
+  '@vencord-companion/webpack-chunk-parser@1.2.0(ts-api-utils@2.4.0(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319)))(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))':
     dependencies:
-      '@vencord-companion/ast-parser': 1.1.3(ts-api-utils@2.4.0(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319)))(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
-      '@vencord-companion/shared': 1.1.3
+      '@vencord-companion/ast-parser': 1.2.0(ts-api-utils@2.4.0(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319)))(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
+      '@vencord-companion/shared': 1.2.0
       ts-api-utils: 2.4.0(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
       typescript: 5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319)
 
