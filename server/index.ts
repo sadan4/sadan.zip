@@ -13,19 +13,21 @@ import z from "zod";
 
 class Server {
     static #VERIFY_OUTGOING_MESSAGES = true;
+    #ws: WebSocket;
 
-    constructor(private ws: WebSocket) {
-        ws.on("message", this.onMessage.bind(this));
+    constructor(ws: WebSocket) {
+        this.#ws = ws;
+        this.#ws.on("message", this.#onMessage.bind(this));
     }
 
-    private sendMessage<T extends MessageToClient>(message: T): void {
+    #sendMessage<T extends MessageToClient>(message: T): void {
         if (Server.#VERIFY_OUTGOING_MESSAGES) {
             messageToClientSchema.parse(message);
         }
-        this.ws.send(JSON.stringify(message));
+        this.#ws.send(JSON.stringify(message));
     }
 
-    private async onMessage(data: WebSocket.RawData, _isBinary: boolean) {
+    async #onMessage(data: WebSocket.RawData, _isBinary: boolean) {
         let _r: any;
 
         try {
@@ -34,7 +36,7 @@ class Server {
             const r = _r = messageToServerSchema.parse(_r);
 
             const reply = <T extends BaseMessageToClient>(message: Omit<T, "messageId">) => {
-                this.sendMessage({
+                this.#sendMessage({
                     messageId: r.messageId,
                     ...message,
                 } as any as MessageToClient);
@@ -138,7 +140,7 @@ class Server {
                 message = String(e);
             }
 
-            this.sendMessage({
+            this.#sendMessage({
                 type: "error",
                 messageId: _r?.messageId ?? -1,
                 message,
