@@ -254,7 +254,7 @@ function MonacoCodeEditorInner({
         <div
             style={style}
             ref={setRef}
-            className="h-full w-full"
+            className="h-full w-full contain-inline-size"
             data-code-editor="monaco"
         />
     );
