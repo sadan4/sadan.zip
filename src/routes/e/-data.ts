@@ -1,5 +1,6 @@
 import { sendMessage } from "@/utils/e/socket";
 import { assert } from "@/utils/error";
+import { makeLazy } from "@/utils/lazy";
 import { type Monaco, monaco } from "@/utils/monaco";
 import { defer } from "@/utils/scope";
 import { WebpackAstParser } from "@vencord-companion/webpack-ast-parser/WebpackAstParser";
@@ -20,9 +21,13 @@ interface ModuleViewerStore {
     readonly _pendingParsers: Map<string, Promise<WebpackAstParser>>;
     readonly selectedModule: string | null;
     readonly allModuleIds: string[];
+    readonly activePanel: ViewMode;
+    readonly moduleSidebarOpen: boolean;
     readonly _abort: AbortController;
     init(newBuildHash: string): void;
     reset(): void;
+    updateActivePanel(panel: ViewMode): void;
+    updateModuleSidebarOpen(open: boolean): void;
     /**
      * the code is unformatted
      */
@@ -37,6 +42,12 @@ export function getModuleURI(buildHash: string, moduleId: string) {
     return monaco.Uri.parse(`file:///bundle/${buildHash}/${moduleId}.js`);
 }
 
+export const enum ViewMode {
+    CODE,
+    MODULE_GRAPH,
+}
+
+
 const getValueDefaults = () => ({
     buildHash: "",
     moduleCodeMap: new Map(),
@@ -46,6 +57,8 @@ const getValueDefaults = () => ({
     _pendingParsers: new Map<string, Promise<WebpackAstParser>>(),
     selectedModule: null,
     allModuleIds: [],
+    activePanel: ViewMode.CODE,
+    moduleSidebarOpen: true,
     _abort: new AbortController(),
 });
 
@@ -73,6 +86,12 @@ export const useModuleViewerStore = create<ModuleViewerStore>((set, get) => ({
         _abort.abort();
 
         set(getValueDefaults());
+    },
+    updateActivePanel(activePanel: ViewMode) {
+        set({ activePanel });
+    },
+    updateModuleSidebarOpen(moduleSidebarOpen: boolean) {
+        set({ moduleSidebarOpen });
     },
     async getModuleCode(moduleId: string) {
         const { moduleCodeMap, buildHash } = get();
@@ -189,3 +208,6 @@ export const useModuleViewerStore = create<ModuleViewerStore>((set, get) => ({
 
 // make react compiler happy
 export const ModuleViewerStore = useModuleViewerStore;
+
+export const placeholderURI = makeLazy(() => monaco.Uri.parse("file:///placeholder.js"));
+export const placeholderModel = makeLazy(() => monaco.editor.createModel("", "javascript", placeholderURI()));

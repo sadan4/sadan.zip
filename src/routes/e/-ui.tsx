@@ -5,19 +5,18 @@ import { MonacoCodeEditor } from "@/components/CodeEditor/Monaco";
 import { Input } from "@/components/Input";
 import { BufferedScroller, type BufferedScrollerHandle } from "@/components/layout/BufferedScroller";
 import { Text } from "@/components/Text";
+import { ToggleButtonGroup } from "@/components/ToggleButtonGroup";
 import { TooltipPosition } from "@/components/Tooltip/constants";
 import { dedupe } from "@/utils/array";
 import { sendMessage } from "@/utils/e/socket";
-import { makeLazy } from "@/utils/lazy";
-import { monaco } from "@/utils/monaco";
 import { Language } from "@/utils/textmate";
 import { useQuery } from "@tanstack/react-query";
 
-import { ModuleViewerStore, useModuleViewerStore } from "./-data";
+import { ModuleViewerStore, placeholderModel, placeholderURI, useModuleViewerStore, ViewMode } from "./-data";
 import { Route } from "./view.{-$buildHash}.{-$moduleId}";
 
-import { ArrowBigRight } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ArrowBigRight, ChevronFirstIcon, ChevronLastIcon, FileCodeIcon, NetworkIcon } from "lucide-react";
+import { Activity, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 
 interface ModuleListItemProps {
@@ -78,9 +77,6 @@ function ModuleSelector({ modules, onSelectModule }: ModuleSelectorProps) {
     );
 }
 
-const placeholderURI = makeLazy(() => monaco.Uri.parse("file:///placeholder.js"));
-const placeholderModel = makeLazy(() => monaco.editor.createModel("", "javascript", placeholderURI()));
-
 function pendingUri(str: string) {
     const model = placeholderModel();
 
@@ -135,6 +131,18 @@ function ModuleViewer() {
     );
 }
 
+function ModuleGraph() {
+    return (
+        <Text
+            size="3xl"
+            weight="bold"
+            center
+        >
+            TODO: Module Graph View
+        </Text>
+    );
+}
+
 export function Explorer() {
     const navigate = Route.useNavigate();
 
@@ -149,6 +157,8 @@ export function Explorer() {
 
     const { buildHash } = Route.useParams();
     const inputRef = useRef<HTMLInputElement>(null);
+    const activePanel = useModuleViewerStore(({ activePanel }) => activePanel);
+    const moduleSidebarOpen = useModuleViewerStore(({ moduleSidebarOpen }) => moduleSidebarOpen);
 
     const { status, data } = useQuery({
         queryKey: ["getBundleMetadata", { buildHash }],
@@ -178,55 +188,108 @@ export function Explorer() {
         <>
             <Boilerplate solidBg />
             <div className="flex h-full flex-col">
+                <div className="flex items-center justify-between">
+                    <div className="pl-2">
+                        <IconButton
+                            label={`${moduleSidebarOpen ? "Hide" : "Show"} Module Sidebar`}
+                            colorType="outline"
+                            className="border-2 border-fg-700"
+                            tooltipPosition={TooltipPosition.RIGHT}
+                            color="neutral"
+                            onClick={() => {
+                                ModuleViewerStore.getState().updateModuleSidebarOpen(!moduleSidebarOpen);
+                                return null;
+                            }}
+                        >
+                            {moduleSidebarOpen ? <ChevronFirstIcon /> : <ChevronLastIcon />}
+                        </IconButton>
+                    </div>
+                    <div className="">
+                        <ToggleButtonGroup
+                            tooltipPosition={TooltipPosition.BOTTOM}
+                            className="m-2 rounded-lg border-2 border-fg-700 p-2"
+                            selectedItem={activePanel}
+                            onSelectItem={(panel) => {
+                                ModuleViewerStore.getState().updateActivePanel(panel);
+                            }}
+                            items={[
+                                {
+                                    id: ViewMode.CODE,
+                                    label: "Module Code",
+                                    renderIcon() {
+                                        return <FileCodeIcon />;
+                                    },
+                                },
+                                {
+                                    id: ViewMode.MODULE_GRAPH,
+                                    label: "Module Graph",
+                                    renderIcon() {
+                                        return <NetworkIcon />;
+                                    },
+                                },
+                            ]}
+                        />
+                    </div>
+                    <div />
+                </div>
                 <div
                     className="relative flex min-h-0 grow"
                 >
-                    <div className="flex shrink-0 flex-col">
-                        <div className="flex items-center justify-between">
-                            <Input
-                                ref={inputRef}
-                                placeholder="Enter a Module ID"
-                                className="m-2"
-                            />
-                            <IconButton
-                                onClick={() => {
-                                    const el: HTMLInputElement | null = inputRef.current;
+                    <Activity mode={moduleSidebarOpen ? "visible" : "hidden"}>
+                        <div className="flex shrink-0 flex-col">
+                            <div className="flex items-center justify-between">
+                                <Input
+                                    ref={inputRef}
+                                    placeholder="Enter a Module ID"
+                                    className="m-2"
+                                />
+                                <IconButton
+                                    onClick={() => {
+                                        const el: HTMLInputElement | null = inputRef.current;
 
-                                    if (!el) {
-                                        return false;
-                                    }
+                                        if (!el) {
+                                            return false;
+                                        }
 
-                                    const { selectedModule } = ModuleViewerStore.getState();
-                                    const moduleId = el.value;
+                                        const { selectedModule } = ModuleViewerStore.getState();
+                                        const moduleId = el.value;
 
-                                    if (selectedModule === moduleId) {
-                                        return null;
-                                    }
-                                    if (!moduleIds.includes(moduleId)) {
-                                        return false;
-                                    }
+                                        if (selectedModule === moduleId) {
+                                            return null;
+                                        }
+                                        if (!moduleIds.includes(moduleId)) {
+                                            return false;
+                                        }
 
-                                    setSelectedModule(moduleId);
+                                        setSelectedModule(moduleId);
 
-                                    return true;
-                                }}
-                                className="mr-2 ml-4 size-10"
-                                label="Jump To Module"
-                                tooltipPosition={TooltipPosition.RIGHT}
-                                colorType="outline"
-                            >
-                                <ArrowBigRight />
-                            </IconButton>
+                                        return true;
+                                    }}
+                                    className="mr-2 ml-4 size-10"
+                                    label="Jump To Module"
+                                    tooltipPosition={TooltipPosition.RIGHT}
+                                    colorType="outline"
+                                >
+                                    <ArrowBigRight />
+                                </IconButton>
+                            </div>
+                            <div className="min-h-0 grow">
+                                <ModuleSelector
+                                    modules={moduleIds}
+                                    onSelectModule={setSelectedModule}
+                                />
+                            </div>
                         </div>
-                        <div className="min-h-0 grow">
-                            <ModuleSelector
-                                modules={moduleIds}
-                                onSelectModule={setSelectedModule}
-                            />
-                        </div>
-                    </div>
-                    <div className="grow">
-                        <ModuleViewer />
+                    </Activity>
+                    <div className="shrink grow">
+                        <Activity mode={activePanel === ViewMode.CODE ? "visible" : "hidden"}>
+                            <div className="h-full w-max">
+                                <ModuleViewer />
+                            </div>
+                        </Activity>
+                        <Activity mode={activePanel === ViewMode.MODULE_GRAPH ? "visible" : "hidden"}>
+                            <ModuleGraph />
+                        </Activity>
                     </div>
                 </div>
             </div>

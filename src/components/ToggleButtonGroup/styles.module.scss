@@ -1,0 +1,38 @@
+@use "u";
+
+@layer components {
+    $anchor: --toggle-button-group-selected;
+
+    .wrapper {
+        anchor-scope: $anchor;
+
+        > .buttons {
+            position: relative;
+            display: flex;
+            justify-content: space-between;
+            gap: 1rem;
+
+            .selected {
+                anchor-name: $anchor;
+            }
+        }
+
+        > .marker {
+            $padding: 1rem;
+            $border-size: 2px;
+
+            @include u.anim-prop(top left);
+            @include u.anim-dur;
+
+            transition-timing-function: ease-in;
+            position: fixed;
+            position-anchor: $anchor;
+            top: calc(anchor(top) - ($padding / 2 - $border-size));
+            left: calc(anchor(left) - ($padding / 2 - $border-size));
+            pointer-events: none;
+            border-radius: inherit;
+            padding: $padding;
+            border: $border-size solid var(--color-accent-500)
+        }
+    }
+}
