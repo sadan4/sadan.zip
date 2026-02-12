@@ -73,7 +73,7 @@ export function BundleSelector() {
         },
     });
 
-    const sortedBundles = data?.bundles.toSorted((a, b) => a.firstSeen - b.firstSeen);
+    const sortedBundles = data?.bundles.toSorted((a, b) => b.firstSeen - a.firstSeen);
 
     return (
         <>
