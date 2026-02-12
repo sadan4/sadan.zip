@@ -80,10 +80,10 @@ export const bundleInfoSchema = z.object({
     buildNumber: z.string(),
     firstSeen: z.number(),
     /**
-     * The entry point of the module, May be undefined on bundles parsed before this field was added
+     * The entry point of the module, May be null on bundles parsed before this field was added
      * or if the entry point could not be found
      */
-    entryPoint: TModuleId.optional(),
+    entryPoint: TModuleId.nullable(),
     modules: moduleInfoSchema,
     /**
      * can't be serialized as it contains symbols, but is cheap to parse, and guaranteed to be valid
