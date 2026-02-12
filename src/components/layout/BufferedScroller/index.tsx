@@ -4,7 +4,7 @@ import { getNewestEntry, useIntersection } from "@/hooks/intersection";
 import { useResizeObserverFromRef } from "@/hooks/resizeObserver";
 import cn from "@/utils/cn";
 import { assert, debug_assert } from "@/utils/error";
-import { clamp, inRange } from "@/utils/math";
+import { clamp, inRange, inRangeExclusive } from "@/utils/math";
 import { mapObject } from "@/utils/obj";
 import { defer } from "@/utils/scope";
 
@@ -304,7 +304,7 @@ export function BufferedScroller<T>({
         }
 
         // if we're already rendering the chunk we don't need to do anything
-        if (inRange(firstChunk, firstChunk + numChunks, viewStartChunk)) {
+        if (inRangeExclusive(firstChunk, firstChunk + numChunks, viewStartChunk)) {
             return;
         }
 
