@@ -87,7 +87,6 @@ export function SnowCanvas({
         }
 
         const canvas = _canvas;
-
         const _ctx = canvas.getContext("2d");
 
         if (!_ctx) {
@@ -118,7 +117,7 @@ export function SnowCanvas({
         }
 
         function initSnowflakes() {
-            const count = Math.floor((canvas.width * canvas.height) / 10000) * density / 10;
+            const count = Math.floor(((canvas.width * canvas.height) / 10000) * density / 10);
             const arr = snowflakesRef.current;
 
             if (count > arr.length) {
