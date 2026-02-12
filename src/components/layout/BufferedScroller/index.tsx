@@ -13,32 +13,34 @@ import { ScrollAreaContext } from "../ScrollArea/context";
 
 import { type PropsWithChildren, type ReactNode, type Ref, type UIEvent, useCallback, useContext, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 
-export interface LazyScrollerRenderItemProps<T> {
-    item: T;
-    index: number;
-    array: readonly T[];
-}
+export namespace BufferedScroller {
+    export interface RenderItemProps<T> {
+        item: T;
+        index: number;
+        array: readonly T[];
+    }
 
-export interface BufferedScrollerScrollOptions extends ScrollOptions {
-    /**
-     * don't scroll if the item is already in view
-     * 
-     * false -> always scroll the item to the center
-     * true -> only scroll if the item is not currently in view
-     * 
-     * @default true
-     */
-    ifNeeded?: boolean;
-}
+    export interface ScrollOptions extends globalThis.ScrollOptions {
+        /**
+         * don't scroll if the item is already in view
+         * 
+         * false -> always scroll the item to the center
+         * true -> only scroll if the item is not currently in view
+         * 
+         * @default true
+         */
+        ifNeeded?: boolean;
+    }
 
-export interface BufferedScrollerHandle<T> {
-    scrollItemIntoView(idx: number, options?: BufferedScrollerScrollOptions): void;
-    scrollItemIntoView(predicate: Parameters<ReadonlyArray<T>["findIndex"]>[0], options?: BufferedScrollerScrollOptions): void;
+    export interface Handle<T> {
+        scrollItemIntoView(idx: number, options?: ScrollOptions): void;
+        scrollItemIntoView(predicate: Parameters<ReadonlyArray<T>["findIndex"]>[0], options?: ScrollOptions): void;
+    }
 }
 
 export interface BufferedScrollProps<T> extends ScrollAreaProps {
     renderHeader?(): ReactNode;
-    renderItem(props: LazyScrollerRenderItemProps<T>): ReactNode;
+    renderItem(props: BufferedScroller.RenderItemProps<NoInfer<T>>): ReactNode;
     renderFooter?(): ReactNode;
     alwaysRenderFooter?: boolean;
     items: Readonly<T[]>;
@@ -53,7 +55,7 @@ export interface BufferedScrollProps<T> extends ScrollAreaProps {
     /**
      * Used to scroll an item into view.
      */
-    handle?: Ref<BufferedScrollerHandle<T>>;
+    handle?: Ref<BufferedScroller.Handle<NoInfer<T>>>;
 }
 
 interface FlagProps {
@@ -421,7 +423,7 @@ export function BufferedScroller<T>({
                     top: clamp(0, scrollHeight, itemOffset - (viewportHeight / 2)),
                 });
             },
-        } satisfies BufferedScrollerHandle<T>;
+        } satisfies BufferedScroller.Handle<T>;
 
         return api;
     }, [averageItemHeight, hasNoPadding, items]);

@@ -3,42 +3,45 @@ import { assert } from "@/utils/error";
 import { makeLazy } from "@/utils/lazy";
 import { type Monaco, monaco } from "@/utils/monaco";
 import { defer } from "@/utils/scope";
+import type { Fields } from "@/utils/types";
 import { WebpackAstParser } from "@vencord-companion/webpack-ast-parser/WebpackAstParser";
+
+import type { TBundleHash, TModuleId } from "../../../server/types";
 
 import { create } from "zustand";
 
 interface ModuleViewerStore {
-    readonly buildHash: string;
+    readonly buildHash: TBundleHash;
     /**
      * moduleId -> code
      * 
      * the code is unformatted
      */
-    readonly moduleCodeMap: Map<string, string>;
-    readonly moduleModelMap: Map<string, Monaco.editor.ITextModel>;
-    readonly _pendingModels: Map<string, Promise<Monaco.editor.ITextModel>>;
-    readonly parserMap: Map<string, WebpackAstParser>;
-    readonly _pendingParsers: Map<string, Promise<WebpackAstParser>>;
-    readonly selectedModule: string | null;
-    readonly allModuleIds: string[];
+    readonly moduleCodeMap: Map<TModuleId, string>;
+    readonly moduleModelMap: Map<TModuleId, Monaco.editor.ITextModel>;
+    readonly _pendingModels: Map<TModuleId, Promise<Monaco.editor.ITextModel>>;
+    readonly parserMap: Map<TModuleId, WebpackAstParser>;
+    readonly _pendingParsers: Map<TModuleId, Promise<WebpackAstParser>>;
+    readonly selectedModule: TModuleId | null;
+    readonly allModuleIds: TModuleId[];
     readonly activePanel: ViewMode;
     readonly moduleSidebarOpen: boolean;
     readonly _abort: AbortController;
-    init(newBuildHash: string): void;
+    init(newBuildHash: TBundleHash): void;
     reset(): void;
     updateActivePanel(panel: ViewMode): void;
     updateModuleSidebarOpen(open: boolean): void;
     /**
      * the code is unformatted
      */
-    getModuleCode(moduleId: string): Promise<string>;
-    getModuleModelSync(moduleId: string): Monaco.editor.ITextModel;
-    getModuleModel(moduleId: string): Promise<Monaco.editor.ITextModel>;
-    getModuleParserSync(moduleId: string): WebpackAstParser;
-    getModuleParser(moduleId: string): Promise<WebpackAstParser>;
+    getModuleCode(moduleId: TModuleId): Promise<string>;
+    getModuleModelSync(moduleId: TModuleId): Monaco.editor.ITextModel;
+    getModuleModel(moduleId: TModuleId): Promise<Monaco.editor.ITextModel>;
+    getModuleParserSync(moduleId: TModuleId): WebpackAstParser;
+    getModuleParser(moduleId: TModuleId): Promise<WebpackAstParser>;
 }
 
-export function getModuleURI(buildHash: string, moduleId: string) {
+export function getModuleURI(buildHash: TBundleHash, moduleId: TModuleId) {
     return monaco.Uri.parse(`file:///bundle/${buildHash}/${moduleId}.js`);
 }
 
@@ -48,13 +51,13 @@ export const enum ViewMode {
 }
 
 
-const getValueDefaults = () => ({
-    buildHash: "",
+const getValueDefaults = (): Fields<ModuleViewerStore> => ({
+    buildHash: "" as TBundleHash,
     moduleCodeMap: new Map(),
     moduleModelMap: new Map(),
-    _pendingModels: new Map<string, Promise<Monaco.editor.ITextModel>>(),
-    parserMap: new Map<string, WebpackAstParser>(),
-    _pendingParsers: new Map<string, Promise<WebpackAstParser>>(),
+    _pendingModels: new Map(),
+    parserMap: new Map(),
+    _pendingParsers: new Map(),
     selectedModule: null,
     allModuleIds: [],
     activePanel: ViewMode.CODE,
@@ -64,7 +67,7 @@ const getValueDefaults = () => ({
 
 export const useModuleViewerStore = create<ModuleViewerStore>((set, get) => ({
     ...getValueDefaults(),
-    init(newBuildHash: string) {
+    init(newBuildHash) {
         const { buildHash, reset } = get();
 
         if (newBuildHash !== buildHash) {
@@ -93,7 +96,7 @@ export const useModuleViewerStore = create<ModuleViewerStore>((set, get) => ({
     updateModuleSidebarOpen(moduleSidebarOpen: boolean) {
         set({ moduleSidebarOpen });
     },
-    async getModuleCode(moduleId: string) {
+    async getModuleCode(moduleId) {
         const { moduleCodeMap, buildHash } = get();
 
         if (moduleCodeMap.has(moduleId)) {
@@ -173,7 +176,7 @@ export const useModuleViewerStore = create<ModuleViewerStore>((set, get) => ({
 
         return parser;
     },
-    async getModuleParser(moduleId: string) {
+    async getModuleParser(moduleId) {
         const { parserMap, getModuleCode, _pendingParsers, _abort } = get();
 
         if (parserMap.has(moduleId)) {

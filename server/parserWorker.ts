@@ -5,8 +5,8 @@ import { WebpackAstParser } from "@vencord-companion/webpack-ast-parser";
 import { WebpackLazyChunkParser, WebpackMainChunkParser } from "@vencord-companion/webpack-chunk-parser";
 
 import { BUILDS_PATH, type Channels, SYM_CJS_DEFAULT_PLACEHOLDER } from "./constants";
-import type { BundleInfo, DepsJson, KeyModules, MainDeps, ModuleInfo } from "./types";
-import { fetchAsset } from "./utils";
+import type { BundleInfo, DepsJson, KeyModules, MainDeps, ModuleInfo, TBundleHash, TModuleId } from "./types";
+import { entries, fetchAsset, keys } from "./utils";
 
 import { exists } from "fs-extra";
 import { JSDOM } from "jsdom";
@@ -15,7 +15,7 @@ import { dirname, join, resolve } from "node:path";
 import { workerData } from "node:worker_threads";
 
 export interface ParserWorkerData {
-    buildHash: string;
+    buildHash: TBundleHash;
     html: string;
     channel: Channels;
 }
@@ -40,7 +40,7 @@ async function getChunkText(channel: Channels, hash: string) {
 /**
  * map of module id -> module source
  */
-const moduleMap = new Map<string, string>();
+const moduleMap = new Map<TModuleId, string>();
 // time markers
 const PARSING_MAIN_JS_TIME = "Parsing web.js";
 const PARSING_LAZY_CHUNKS_TIME = "Parsing lazy chunks";
@@ -66,19 +66,19 @@ async function findBuildModules({ buildHash, html, channel }: ParserWorkerData) 
 
     const mainParser = new WebpackMainChunkParser(webJsContent);
     const buildNumber = mainParser.getBuildNumber() ?? error("Could not find build number");
-    const initialModules = mainParser.getDefinedModules() ?? error("could not parse main chunk");
+    const initialModules: Record<TModuleId, string> = mainParser.getDefinedModules() ?? error("could not parse main chunk");
 
     console.timeEnd(PARSING_MAIN_JS_TIME);
 
     const modules: ModuleInfo = {
-        [webJsUrl]: Object.keys(initialModules),
+        [webJsUrl]: keys(initialModules),
     };
 
     const writes = [] as Promise<void>[];
     const MODULES_PATH = join(BUILDS_PATH, buildHash, ".modules");
 
     await mkdir(MODULES_PATH);
-    for (const [moduleId, moduleSource] of Object.entries(initialModules)) {
+    for (const [moduleId, moduleSource] of entries(initialModules)) {
         moduleMap.set(moduleId, moduleSource);
         writes.push(writeFile(join(MODULES_PATH, `${moduleId}.js`), moduleSource, "utf8"));
     }
@@ -99,15 +99,15 @@ async function findBuildModules({ buildHash, html, channel }: ParserWorkerData) 
                 }
 
                 const parser = new WebpackLazyChunkParser(text);
-                const selfModules = parser.getDefinedModules();
+                const selfModules: Record<TModuleId, string> | undefined = parser.getDefinedModules();
 
                 if (!selfModules) {
                     error("could not parse lazy chunk");
                 }
 
-                modules[`${hash}.js`] = Object.keys(selfModules);
+                modules[`${hash}.js`] = keys(selfModules);
 
-                for (const [moduleId, moduleSource] of Object.entries(selfModules)) {
+                for (const [moduleId, moduleSource] of entries(selfModules)) {
                     const path = join(BUILDS_PATH, "chunks", hash, `${moduleId}.js`);
                     const targetPath = resolve(join(MODULES_PATH, `${moduleId}.js`));
 
@@ -157,28 +157,28 @@ function makeDependencyGraph(): [MainDeps, WebpackAstParser[]] {
     const deps: MainDeps = {};
     const parsers = [] as WebpackAstParser[];
 
-    for (const [id, text] of moduleMap) {
+    for (const [moduleId, text] of moduleMap) {
         try {
-            const parser = WebpackAstParser.withModule(text, id);
+            const parser = WebpackAstParser.withModule(text, moduleId);
 
             parsers.push(parser);
 
             const { sync = [], lazy = [] } = parser.getModulesThatThisModuleRequires() ?? {};
 
-            for (const dep of sync) {
-                (deps[dep] ??= {
+            for (const depModuleId of sync) {
+                (deps[depModuleId as TModuleId] ??= {
                     lazyUses: [],
                     syncUses: [],
-                }).syncUses.push(id);
+                }).syncUses.push(moduleId);
             }
-            for (const dep of lazy) {
-                (deps[dep] ??= {
+            for (const depModuleId of lazy) {
+                (deps[depModuleId as TModuleId] ??= {
                     lazyUses: [],
                     syncUses: [],
-                }).lazyUses.push(id);
+                }).lazyUses.push(moduleId);
             }
         } catch (e) {
-            console.error("Error parsing module for dependency graph:", id);
+            console.error("Error parsing module for dependency graph:", moduleId);
             throw e;
         }
     }
@@ -206,7 +206,7 @@ async function findKeyModules(parsers: WebpackAstParser[]): Promise<KeyModules> 
                     if (parser.moduleId == null) {
                         throw new Error("Module ID is not set for module");
                     }
-                    ret.fluxDispatcherClass.push([parser.moduleId, fluxDispatcherModuleExport]);
+                    ret.fluxDispatcherClass.push([parser.moduleId as TModuleId, fluxDispatcherModuleExport]);
 
                     const arr = (await parser.getAllReExportsForExport(fluxDispatcherModuleExport))
                         .filter(([, exportChain]) => exportChain.length === 1);
@@ -216,7 +216,7 @@ async function findKeyModules(parsers: WebpackAstParser[]): Promise<KeyModules> 
                             assert(exportName === WebpackAstParser.SYM_CJS_DEFAULT);
                             exportName = SYM_CJS_DEFAULT_PLACEHOLDER;
                         }
-                        ret.fluxDispatcherClass.push([moduleId, exportName]);
+                        ret.fluxDispatcherClass.push([moduleId as TModuleId, exportName]);
                     }
                 }
             }
@@ -237,10 +237,10 @@ async function processBuild(data: ParserWorkerData) {
 
     WebpackAstParser.setDefaultModuleCache({
         getLatestModuleFromNum(id) {
-            return Promise.resolve(moduleMap.get(`${id}`) ?? error(`module not found: ${id}`));
+            return Promise.resolve(moduleMap.get(`${id}` as TModuleId) ?? error(`module not found: ${id}`));
         },
         getModuleFromNum(id) {
-            return Promise.resolve(moduleMap.get(id) ?? error(`module not found: ${id}`));
+            return Promise.resolve(moduleMap.get(id as TModuleId) ?? error(`module not found: ${id}`));
         },
         getModuleFilepath(_id) {
             return undefined;
@@ -248,7 +248,7 @@ async function processBuild(data: ParserWorkerData) {
     });
     WebpackAstParser.setDefaultModuleDepManager({
         getModDeps(moduleId) {
-            return deps[moduleId] ?? error(`module not found: ${moduleId}`);
+            return deps[moduleId as TModuleId] ?? error(`module not found: ${moduleId}`);
         },
     });
 

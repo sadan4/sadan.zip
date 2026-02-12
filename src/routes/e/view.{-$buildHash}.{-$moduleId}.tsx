@@ -1,14 +1,16 @@
 import { unavailableImport } from "@/utils/error";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
+import { TBundleHash, TModuleId } from "../../../server/types";
+
 import z from "zod";
 
 const data = import.meta.env.SSR ? unavailableImport("./-data") : await import("./-data");
 const ui = import.meta.env.SSR ? unavailableImport("./-ui") : await import("./-ui");
 
 const viewBundleParamsSchema = z.object({
-    buildHash: z.string().catch(""),
-    moduleId: z.string()
+    buildHash: TBundleHash.catch("" as TBundleHash),
+    moduleId: TModuleId
         .nullable()
         .catch(null),
 });

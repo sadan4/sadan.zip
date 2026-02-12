@@ -1,5 +1,6 @@
 import { appUrl, BUILDS_PATH, Channels } from "./constants";
 import type { ParserWorkerData } from "./parserWorker";
+import type { TBundleHash } from "./types";
 
 import { join } from "path";
 
@@ -33,7 +34,7 @@ async function checkBuilds() {
     if (res = await checkBuild(appUrl[Channels.STABLE])) {
         new Worker(new URL("./parserWorker", import.meta.url), {
             workerData: {
-                buildHash: res.headers.get(BUILD_ID_HEADER)!,
+                buildHash: res.headers.get(BUILD_ID_HEADER)! as TBundleHash,
                 html: await res.text(),
                 channel: Channels.STABLE,
             } satisfies ParserWorkerData,

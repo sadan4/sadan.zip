@@ -237,3 +237,7 @@ export type Reducer<State, Action> = (state: State, action: Action) => State;
 export type InitialState<T> = T | (() => T);
 
 export type Booleanish = boolean | string | number | null | undefined;
+
+export type Fields<T extends object> = {
+    [K in keyof T as T[K] extends (...args: any[]) => any ? never : K]: T[K];
+};

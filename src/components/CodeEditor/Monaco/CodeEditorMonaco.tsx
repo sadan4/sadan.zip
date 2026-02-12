@@ -1,7 +1,7 @@
 import { useControlledState } from "@/hooks/controlledState";
 import { useLock } from "@/hooks/lock";
 import { useRecent } from "@/hooks/recent";
-import { useRect } from "@/hooks/rect";
+import { useResizeObserver } from "@/hooks/resizeObserver";
 import { EMPTY_NULL_OBJECT, NOOP } from "@/utils/constants";
 import { assert } from "@/utils/error";
 import { once } from "@/utils/functional";
@@ -16,7 +16,6 @@ import { DEFAULT_MONACO_THEME, type MonacoTheme, useMonacoTheme } from "./themes
 import { type CodeEditorProps } from "../base";
 
 import { Suspense, use, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { useResizeObserver } from "@/hooks/resizeObserver";
 
 export interface MonacoCodeEditorHandle {
     get editor(): Monaco.editor.IStandaloneCodeEditor;

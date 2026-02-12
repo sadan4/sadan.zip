@@ -3,21 +3,22 @@ import { IconButton } from "@/components/Button";
 import { Clickable } from "@/components/Clickable";
 import { MonacoCodeEditor } from "@/components/CodeEditor/Monaco";
 import { Input } from "@/components/Input";
-import { BufferedScroller, type BufferedScrollerHandle } from "@/components/layout/BufferedScroller";
+import { BufferedScroller } from "@/components/layout/BufferedScroller";
 import { Text } from "@/components/Text";
 import { ToggleButtonGroup } from "@/components/ToggleButtonGroup";
 import { TooltipPosition } from "@/components/Tooltip/constants";
 import { dedupe } from "@/utils/array";
 import { sendMessage } from "@/utils/e/socket";
+import { visibleIf } from "@/utils/react";
 import { Language } from "@/utils/textmate";
 import { useQuery } from "@tanstack/react-query";
 
 import { ModuleViewerStore, placeholderModel, placeholderURI, useModuleViewerStore, ViewMode } from "./-data";
 import { Route } from "./view.{-$buildHash}.{-$moduleId}";
+import type { TModuleId } from "../../../server/types";
 
 import { ArrowBigRight, ChevronFirstIcon, ChevronLastIcon, FileCodeIcon, NetworkIcon } from "lucide-react";
 import { Activity, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { visibleIf } from "@/utils/react";
 
 
 interface ModuleListItemProps {
@@ -44,13 +45,13 @@ function ModuleListItem({ moduleId, onSelectModule }: ModuleListItemProps) {
 }
 
 interface ModuleSelectorProps {
-    modules: string[];
-    onSelectModule: (module: string) => void;
+    modules: TModuleId[];
+    onSelectModule: (module: TModuleId) => void;
 }
 
 
 function ModuleSelector({ modules, onSelectModule }: ModuleSelectorProps) {
-    const scrollerHandle = useRef<BufferedScrollerHandle<string>>(null);
+    const scrollerHandle = useRef<BufferedScroller.Handle<TModuleId>>(null);
     const selectedModule = useModuleViewerStore(({ selectedModule }) => selectedModule);
 
     useEffect(() => {
@@ -147,7 +148,7 @@ function ModuleGraph() {
 export function Explorer() {
     const navigate = Route.useNavigate();
 
-    const setSelectedModule = useCallback((moduleId: string) => {
+    const setSelectedModule = useCallback((moduleId: TModuleId) => {
         navigate({
             to: "/e/view/{-$buildHash}/{-$moduleId}",
             params: {
@@ -253,16 +254,16 @@ export function Explorer() {
                                         }
 
                                         const { selectedModule } = ModuleViewerStore.getState();
-                                        const moduleId = el.value;
+                                        const inputModuleId = el.value;
 
-                                        if (selectedModule === moduleId) {
+                                        if (selectedModule === inputModuleId) {
                                             return null;
                                         }
-                                        if (!moduleIds.includes(moduleId)) {
+                                        if (!moduleIds.includes(inputModuleId as TModuleId)) {
                                             return false;
                                         }
 
-                                        setSelectedModule(moduleId);
+                                        setSelectedModule(inputModuleId as TModuleId);
 
                                         return true;
                                     }}

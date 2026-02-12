@@ -10,6 +10,15 @@ const withMessageIdSchema = z.object({
 
 export type MessageBase = z.infer<typeof messageBaseSchema>;
 
+export const TBundleHash = z.string().brand<"bundleHash", "inout">();
+
+export type TBundleHash = z.infer<typeof TBundleHash>;
+
+export const TModuleId = z.string().brand<"moduleId", "inout">();
+
+export type TModuleId = z.infer<typeof TModuleId>;
+
+
 export const queryBundlesMessageSchema = messageBaseSchema.safeExtend({
     type: z.literal("queryBundles"),
 });
@@ -18,29 +27,29 @@ export type QueryBundlesMessage = z.infer<typeof queryBundlesMessageSchema>;
 
 export const getBundleMetadataMessageSchema = messageBaseSchema.extend({
     type: z.literal("getBundleMetadata"),
-    bundleHash: z.string(),
+    bundleHash: TBundleHash,
 });
 
 export type GetBundleMetadataMessage = z.infer<typeof getBundleMetadataMessageSchema>;
 
 export const getBundleDepGraphMessageSchema = messageBaseSchema.extend({
     type: z.literal("getBundleDepGraph"),
-    bundleHash: z.string(),
+    bundleHash: TBundleHash,
 });
 
 export type GetBundleDepGraphMessage = z.infer<typeof getBundleDepGraphMessageSchema>;
 
 export const getAllBundleFilesMessageSchema = messageBaseSchema.extend({
     type: z.literal("getAllBundleFiles"),
-    bundleHash: z.string(),
+    bundleHash: TBundleHash,
 });
 
 export type GetAllBundleFilesMessage = z.infer<typeof getAllBundleFilesMessageSchema>;
 
 export const getBundleFileMessageSchema = messageBaseSchema.extend({
     type: z.literal("getBundleFile"),
-    bundleHash: z.string(),
-    moduleNumber: z.string(),
+    bundleHash: TBundleHash,
+    moduleNumber: TModuleId,
 });
 
 export type GetBundleFileMessage = z.infer<typeof getBundleFileMessageSchema>;
@@ -59,14 +68,22 @@ export type BaseMessageToServer = z.infer<typeof baseMessageToServerSchema>;
 
 export type MessageToServer = z.infer<typeof messageToServerSchema>;
 
-export const moduleInfoSchema = z.record(z.string(), z.array(z.string()));
+export const moduleInfoSchema = z.record(z.string(), z.array(TModuleId));
 
 export type ModuleInfo = z.infer<typeof moduleInfoSchema>;
 
+/**
+ * schema for info.json
+ */
 export const bundleInfoSchema = z.object({
-    buildHash: z.string(),
+    buildHash: TBundleHash,
     buildNumber: z.string(),
     firstSeen: z.number(),
+    /**
+     * The entry point of the module, May be undefined on bundles parsed before this field was added
+     * or if the entry point could not be found
+     */
+    entryPoint: TModuleId.optional(),
     modules: moduleInfoSchema,
     /**
      * can't be serialized as it contains symbols, but is cheap to parse, and guaranteed to be valid
@@ -78,14 +95,14 @@ export const keyModulesSchema = z.object({
     /**
      * [moduleId, exportName][]
      */
-    fluxDispatcherClass: z.array(z.tuple([z.string(), z.union([z.string(), z.symbol()])])),
+    fluxDispatcherClass: z.array(z.tuple([TModuleId, /* exportName */ z.union([z.string(), z.symbol()])])),
 });
 
 export type KeyModules = z.infer<typeof keyModulesSchema>;
 
-export const mainDepsSchema = z.record(z.string(), z.object({
-    syncUses: z.array(z.string()),
-    lazyUses: z.array(z.string()),
+export const mainDepsSchema = z.record(TModuleId, z.object({
+    syncUses: z.array(TModuleId),
+    lazyUses: z.array(TModuleId),
 }));
 
 export type MainDeps = z.infer<typeof mainDepsSchema>;
@@ -108,15 +125,15 @@ export type BundlesResponseMessage = z.infer<typeof bundlesResponseMessageSchema
 
 export const allBundleFilesResponseMessageSchema = messageBaseSchema.extend({
     type: z.literal("getAllBundleFilesResponse"),
-    bundleHash: z.string(),
-    files: z.record(z.string(), z.string()),
+    bundleHash: TBundleHash,
+    files: z.record(TModuleId, z.string()),
 });
 
 export type AllBundleFilesResponseMessage = z.infer<typeof allBundleFilesResponseMessageSchema>;
 
 export const bundleMetadataResponseMessageSchema = messageBaseSchema.extend({
     type: z.literal("getBundleMetadataResponse"),
-    bundleHash: z.string(),
+    bundleHash: TBundleHash,
     metadata: bundleInfoSchema,
 });
 
@@ -124,7 +141,7 @@ export type BundleMetadataResponseMessage = z.infer<typeof bundleMetadataRespons
 
 export const bundleDepGraphResponseMessageSchema = messageBaseSchema.extend({
     type: z.literal("getBundleDepGraphResponse"),
-    bundleHash: z.string(),
+    bundleHash: TBundleHash,
     depGraph: depsJsonSchema,
 });
 
@@ -132,8 +149,8 @@ export type BundleDepGraphResponseMessage = z.infer<typeof bundleDepGraphRespons
 
 export const bundleFileResponseMessageSchema = messageBaseSchema.extend({
     type: z.literal("getBundleFileResponse"),
-    bundleHash: z.string(),
-    moduleNumber: z.string(),
+    bundleHash: TBundleHash,
+    moduleNumber: TModuleId,
     fileText: z.string(),
 });
 

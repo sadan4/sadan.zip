@@ -1,7 +1,7 @@
 import { assert, error } from "@/utils/error";
 
 import { BUILDS_PATH } from "./constants";
-import { type AllBundleFilesResponseMessage, type BaseMessageToClient, type BundleDepGraphResponseMessage, type BundleFileResponseMessage, type BundleInfo, type BundleMetadataResponseMessage, type BundlesResponseMessage, type DepsJson, type MessageToClient, messageToClientSchema, messageToServerSchema } from "./types";
+import { type AllBundleFilesResponseMessage, type BaseMessageToClient, type BundleDepGraphResponseMessage, type BundleFileResponseMessage, type BundleInfo, bundleInfoSchema, type BundleMetadataResponseMessage, type BundlesResponseMessage, type DepsJson, type MessageToClient, messageToClientSchema, messageToServerSchema } from "./types";
 
 import { exists, readdir } from "fs-extra";
 import { existsSync } from "node:fs";
@@ -57,7 +57,7 @@ class Server {
 
                             const text = await readFile(p, "utf8");
 
-                            return JSON.parse(text) as BundleInfo;
+                            return bundleInfoSchema.parse(JSON.parse(text));
                         });
 
                     const bundles = (await Promise.all(p)).filter((x) => x != null);
