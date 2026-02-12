@@ -162,7 +162,7 @@ class Server {
     console.log("WebSocket server started on port 8044");
 
     wss.on("connection", (ws: WebSocket) => {
-        console.log("got new connection", { ws });
+        console.log("got new connection");
         new Server(ws);
     });
 })();
