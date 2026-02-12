@@ -7,8 +7,7 @@ export interface UseResizeObserverCallback {
     (entry: ResizeObserverEntry, observer: ResizeObserver): void;
 }
 
-// FIXME: fix spelling
-export function useReiszeObserverFromRef<T extends Element>(
+export function useResizeObserverFromRef<T extends Element>(
     target: RefObject<T | null>,
     callback: UseResizeObserverCallback,
 ) {

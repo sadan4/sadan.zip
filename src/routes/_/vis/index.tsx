@@ -5,7 +5,7 @@ import { Text } from "@/components/Text";
 import { TextArea } from "@/components/TextArea";
 import { Tooltip } from "@/components/Tooltip";
 import { useForceUpdater } from "@/hooks/forceUpdater";
-import { useReiszeObserverFromRef } from "@/hooks/resizeObserver";
+import { useResizeObserverFromRef } from "@/hooks/resizeObserver";
 import { fill } from "@/utils/array";
 import { paste } from "@/utils/clipboard";
 import cn from "@/utils/cn";
@@ -61,7 +61,7 @@ function EmptyToken(count: number) {
     const rectRef = useRef<SVGRectElement>(null);
     const [dep, updateAngle] = useForceUpdater();
 
-    useReiszeObserverFromRef(svgRef, updateAngle);
+    useResizeObserverFromRef(svgRef, updateAngle);
     useLayoutEffect(() => {
         if (svgRef.current && rectRef.current) {
             const { width, height } = svgRef.current.getBoundingClientRect();

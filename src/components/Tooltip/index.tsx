@@ -1,7 +1,7 @@
 import { useComposedRefs } from "@/hooks/composedRefs";
 import { useControlledState } from "@/hooks/controlledState";
 import { useForceUpdater } from "@/hooks/forceUpdater";
-import { useReiszeObserverFromRef } from "@/hooks/resizeObserver";
+import { useResizeObserverFromRef } from "@/hooks/resizeObserver";
 import cn from "@/utils/cn";
 import { measureRect } from "@/utils/dom";
 import { unreachable } from "@/utils/error";
@@ -210,7 +210,7 @@ export function Tooltip({
     const triggerWidth = useSpringValue(0);
     const [dep, updateSizeVar] = useForceUpdater();
 
-    useReiszeObserverFromRef(triggerRef, updateSizeVar);
+    useResizeObserverFromRef(triggerRef, updateSizeVar);
 
     useLayoutEffect(() => {
         if (triggerRef.current && containerRef.current) {

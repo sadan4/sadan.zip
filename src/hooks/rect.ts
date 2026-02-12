@@ -3,7 +3,7 @@ import { measureRect } from "@/utils/dom";
 import { deepEqual, pick } from "@/utils/obj";
 
 import { useEventHandler } from "./eventListener";
-import { useReiszeObserverFromRef, useResizeObserver } from "./resizeObserver";
+import { useResizeObserverFromRef, useResizeObserver } from "./resizeObserver";
 
 import { type RefObject, use, useCallback, useEffect, useRef, useState } from "react";
 
@@ -160,7 +160,7 @@ export function useRectFromRef(
         }
     }, scroller);
 
-    useReiszeObserverFromRef(ref, () => {
+    useResizeObserverFromRef(ref, () => {
         const el = ref.current;
 
         if (el) {

@@ -1,7 +1,7 @@
 import { useComposedRefs } from "@/hooks/composedRefs";
 import { useControlledState } from "@/hooks/controlledState";
 import { getNewestEntry, useIntersection } from "@/hooks/intersection";
-import { useReiszeObserverFromRef } from "@/hooks/resizeObserver";
+import { useResizeObserverFromRef } from "@/hooks/resizeObserver";
 import cn from "@/utils/cn";
 import { assert, debug_assert } from "@/utils/error";
 import { clamp, inRange } from "@/utils/math";
@@ -99,7 +99,7 @@ interface ScrollerChunkProps extends PropsWithChildren {
 function ScrollerChunk({ children, idx, onHeightChange }: ScrollerChunkProps) {
     const ref = useRef<HTMLDivElement>(null);
 
-    useReiszeObserverFromRef(ref, ({ contentRect: { height } }) => {
+    useResizeObserverFromRef(ref, ({ contentRect: { height } }) => {
         onHeightChange(idx, height);
     });
 
