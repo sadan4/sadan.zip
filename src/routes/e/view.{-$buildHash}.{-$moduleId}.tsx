@@ -3,8 +3,8 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 
 import z from "zod";
 
-const data = import.meta.env.SSR ? unavailableImport("./-data") : require("./-data") as typeof import("./-data");
-const ui = import.meta.env.SSR ? unavailableImport("./-ui") : require("./-ui") as typeof import("./-ui");
+const data = import.meta.env.SSR ? unavailableImport("./-data") : await import("./-data");
+const ui = import.meta.env.SSR ? unavailableImport("./-ui") : await import("./-ui");
 
 const viewBundleParamsSchema = z.object({
     buildHash: z.string().catch(""),

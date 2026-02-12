@@ -3,7 +3,7 @@ import { IconButton } from "@/components/Button";
 import { Clickable } from "@/components/Clickable";
 import { MonacoCodeEditor } from "@/components/CodeEditor/Monaco";
 import { Input } from "@/components/Input";
-import { BufferedScroller } from "@/components/layout/BufferedScroller";
+import { BufferedScroller, type BufferedScrollerHandle } from "@/components/layout/BufferedScroller";
 import { Text } from "@/components/Text";
 import { TooltipPosition } from "@/components/Tooltip/constants";
 import { dedupe } from "@/utils/array";
@@ -50,8 +50,18 @@ interface ModuleSelectorProps {
 
 
 function ModuleSelector({ modules, onSelectModule }: ModuleSelectorProps) {
+    const scrollerHandle = useRef<BufferedScrollerHandle<string>>(null);
+    const selectedModule = useModuleViewerStore(({ selectedModule }) => selectedModule);
+
+    useEffect(() => {
+        if (modules.length && selectedModule) {
+            scrollerHandle.current?.scrollItemIntoView((e) => e === selectedModule);
+        }
+    }, [modules.length, selectedModule]);
+
     return (
         <BufferedScroller
+            handle={scrollerHandle}
             items={modules}
             batchSize={75}
             bufferSize={2}

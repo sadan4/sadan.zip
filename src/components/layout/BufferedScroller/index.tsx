@@ -1,20 +1,39 @@
+import { useComposedRefs } from "@/hooks/composedRefs";
 import { useControlledState } from "@/hooks/controlledState";
 import { getNewestEntry, useIntersection } from "@/hooks/intersection";
 import { useReiszeObserverFromRef } from "@/hooks/resizeObserver";
 import cn from "@/utils/cn";
-import { assert } from "@/utils/error";
+import { assert, debug_assert } from "@/utils/error";
 import { clamp, inRange } from "@/utils/math";
 import { mapObject } from "@/utils/obj";
+import { defer } from "@/utils/scope";
 
 import { ScrollArea, type ScrollAreaProps } from "../ScrollArea";
 import { ScrollAreaContext } from "../ScrollArea/context";
 
-import { type PropsWithChildren, type ReactNode, type UIEvent, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { type PropsWithChildren, type ReactNode, type Ref, type UIEvent, useCallback, useContext, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 
 export interface LazyScrollerRenderItemProps<T> {
     item: T;
     index: number;
     array: readonly T[];
+}
+
+export interface BufferedScrollerScrollOptions extends ScrollOptions {
+    /**
+     * don't scroll if the item is already in view
+     * 
+     * false -> always scroll the item to the center
+     * true -> only scroll if the item is not currently in view
+     * 
+     * @default true
+     */
+    ifNeeded?: boolean;
+}
+
+export interface BufferedScrollerHandle<T> {
+    scrollItemIntoView(idx: number, options?: BufferedScrollerScrollOptions): void;
+    scrollItemIntoView(predicate: Parameters<ReadonlyArray<T>["findIndex"]>[0], options?: BufferedScrollerScrollOptions): void;
 }
 
 export interface BufferedScrollProps<T> extends ScrollAreaProps {
@@ -31,6 +50,10 @@ export interface BufferedScrollProps<T> extends ScrollAreaProps {
      * The number of batches to keep rendered above and below the viewport.
      */
     bufferSize?: number;
+    /**
+     * Used to scroll an item into view.
+     */
+    handle?: Ref<BufferedScrollerHandle<T>>;
 }
 
 interface FlagProps {
@@ -63,6 +86,7 @@ function Flag({ onEnter, onExit }: FlagProps) {
             ref={setIntersectionRef}
             aria-hidden
             className="pointer-events-none h-px w-px bg-transparent after:h-[1] after:w-[1] after:content-['']"
+            data-flag
         />
     );
 }
@@ -80,7 +104,10 @@ function ScrollerChunk({ children, idx, onHeightChange }: ScrollerChunkProps) {
     });
 
     return (
-        <div ref={ref}>
+        <div
+            data-scroller-chunk={idx}
+            ref={ref}
+        >
             {children}
         </div>
     );
@@ -135,6 +162,9 @@ export function BufferedScroller<T>({
     bufferSize = Infinity,
     alwaysRenderFooter = false,
     className,
+    ref,
+    handle,
+    onScrollEnd: _onScrollEnd,
     ...props
 }: BufferedScrollProps<T>) {
     type VisibleChunks = Partial<Record<number, Partial<Record<"top" | "bottom", boolean>>>>;
@@ -152,6 +182,7 @@ export function BufferedScroller<T>({
     assert(batchSize === Math.floor(batchSize) && batchSize > 0, "batchSize must be a positive integer");
     Object.freeze(items);
 
+    const scrollAreaRef = useRef<HTMLDivElement>(null);
     const totalChunks = Math.ceil(items.length / batchSize);
     const [visibleChunks, setVisibleChunks] = useState<VisibleChunks>({});
     const [chunkHeights, setChunkHeights] = useState<ChunkHeights>({});
@@ -171,6 +202,9 @@ export function BufferedScroller<T>({
     }, [batchSize, items.length]);
 
 
+    /**
+     * NaN when no items set yet
+     */
     const averageItemHeight = useMemo(() => {
         let totalHeight = 0;
         let totalNumItems = 0;
@@ -250,6 +284,8 @@ export function BufferedScroller<T>({
         return [top, bottom];
     }, [firstChunk, guessChunkHeight, numChunks, totalChunks]);
 
+    const hasNoPadding = paddingTop === 0 && paddingBottom === 0;
+
     function reCalcVisibleChunks(el: HTMLDivElement) {
         const { scrollTop, clientHeight } = el;
         let acc = 0;
@@ -287,7 +323,12 @@ export function BufferedScroller<T>({
 
     // scrollTop: how far the user has scrolled
     // clientHeight: the height of the visible area
-    function onScrollEnd({ currentTarget: el }: UIEvent<HTMLDivElement>) {
+    function onScrollEnd(ev: UIEvent<HTMLDivElement>) {
+        using _ = defer(() => {
+            _onScrollEnd?.(ev);
+        });
+
+        const { currentTarget: el } = ev;
         const { scrollTop: viewportTop, clientHeight: viewportHeight } = el;
         // guess where we should be based on average chunk size
         // TODO: this might be janky if the footer/header is large        
@@ -301,7 +342,9 @@ export function BufferedScroller<T>({
         }
 
         if (startOffset > viewportBottom) {
-            reCalcVisibleChunks(el);
+            setTimeout(() => {
+                reCalcVisibleChunks(el);
+            });
             return;
         }
 
@@ -313,11 +356,75 @@ export function BufferedScroller<T>({
         }
 
         if (endOffset < viewportTop) {
-            reCalcVisibleChunks(el);
+            setTimeout(() => {
+                reCalcVisibleChunks(el);
+            });
             return;
         }
     }
 
+    useImperativeHandle(handle, () => {
+        const api = {
+            scrollItemIntoView(arg, { ifNeeded = true, ...domOptions } = {}) {
+                const scrollArea = scrollAreaRef.current;
+
+                if (!scrollArea) {
+                    return;
+                }
+
+                const idx = typeof arg === "number" ? arg : items.findIndex(arg);
+
+                debug_assert(idx !== -1, "trying to scroll to item that does not exist");
+
+                if (idx === -1) {
+                    return;
+                }
+
+                const { clientHeight: viewportHeight, scrollTop, scrollHeight } = scrollArea;
+                let itemOffset: number | undefined;
+
+                // if average height is nan we haven't calculated the average height yet
+                // so we need to do it by hand
+                if (Number.isNaN(averageItemHeight)) {
+                    // calculate it by hand
+                    const renderedNodes = scrollArea.querySelectorAll("[data-scroller-chunk]>:not([data-flag])");
+                    let height = 0;
+
+                    for (let i = 0; i < renderedNodes.length; ++i) {
+                        height += renderedNodes[i].clientHeight;
+                    }
+
+                    itemOffset = idx * (height / renderedNodes.length);
+                } else {
+                    itemOffset = idx * averageItemHeight;
+                }
+
+                // if the item is already in the viewport, then we don't need to scroll
+                if (ifNeeded && inRange(scrollTop, scrollTop + viewportHeight, itemOffset)) {
+                    return;
+                }
+
+                // If we are called by a parent before we have setup padding
+                // scrolling will do nothing until the padding is setup
+                if (hasNoPadding && itemOffset > scrollHeight) {
+                    setTimeout(() => {
+                        api.scrollItemIntoView(arg, {
+                            ifNeeded,
+                            ...domOptions,
+                        });
+                    });
+                    return;
+                }
+
+                scrollArea.scrollTo({
+                    ...domOptions,
+                    top: clamp(0, scrollHeight, itemOffset - (viewportHeight / 2)),
+                });
+            },
+        } satisfies BufferedScrollerHandle<T>;
+
+        return api;
+    }, [averageItemHeight, hasNoPadding, items]);
 
     useEffect(() => {
         let first = firstChunk;
@@ -375,6 +482,7 @@ export function BufferedScroller<T>({
 
     return (
         <ScrollArea
+            ref={useComposedRefs(ref, scrollAreaRef)}
             onScrollEnd={onScrollEnd}
             className={cn(className)}
             {...props}
