@@ -11,6 +11,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { BundleInfo } from "../../../../server/types";
 
 import { ExternalLinkIcon } from "lucide-react";
+import { useMemo } from "react";
 
 interface BundleItemProps {
     bundle: BundleInfo;
@@ -73,7 +74,8 @@ export function BundleSelector() {
         },
     });
 
-    const sortedBundles = data?.bundles.toSorted((a, b) => b.firstSeen - a.firstSeen);
+    const bundles = data?.bundles;
+    const sortedBundles = useMemo(() => bundles?.toSorted((a, b) => b.firstSeen - a.firstSeen), [bundles]);
 
     return (
         <>
