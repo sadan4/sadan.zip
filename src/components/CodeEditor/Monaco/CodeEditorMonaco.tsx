@@ -15,7 +15,8 @@ import styles from "./styles.module.scss";
 import { DEFAULT_MONACO_THEME, type MonacoTheme, useMonacoTheme } from "./themes";
 import { type CodeEditorProps } from "../base";
 
-import { Suspense, use, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { Suspense, use, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useResizeObserver } from "@/hooks/resizeObserver";
 
 export interface MonacoCodeEditorHandle {
     get editor(): Monaco.editor.IStandaloneCodeEditor;
@@ -58,7 +59,6 @@ function MonacoCodeEditorInner({
     use(loadOnigasmPromise());
 
     const [ref, setRef] = useState<HTMLDivElement | null>(null);
-    const rect = useRect(ref);
     const editor = useRef<Monaco.editor.IStandaloneCodeEditor>(null);
     const themeString = useMonacoTheme(theme);
     const lock = useLock();
@@ -163,9 +163,13 @@ function MonacoCodeEditorInner({
         height,
     }), [height, width]);
 
-    useEffect(() => {
+    useLayoutEffect(() => {
         editor.current?.layout();
-    }, [style, rect]);
+    }, [style]);
+
+    useResizeObserver(ref, () => {
+        editor.current?.layout();
+    });
 
     useEffect(() => () => {
         editor.current?.dispose();
