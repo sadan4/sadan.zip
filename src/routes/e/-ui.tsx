@@ -283,7 +283,7 @@ export function Explorer() {
                     </Activity>
                     <div className="shrink grow">
                         <Activity mode={activePanel === ViewMode.CODE ? "visible" : "hidden"}>
-                            <div className="h-full w-max">
+                            <div className="bg-bg-100 size-full">
                                 <ModuleViewer />
                             </div>
                         </Activity>
