@@ -54,6 +54,8 @@ export function assert(cond: unknown, msg?: string): asserts cond {
     }
 }
 
+// debug_assert is snake case to make it stand out from other identifiers
+
 /**
  * An assertion with an expression that is always falsy will always fail.
  * 

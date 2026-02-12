@@ -17,7 +17,7 @@ import { ModuleViewerStore, useModuleViewerStore } from "./-data";
 import { Route } from "./view.{-$buildHash}.{-$moduleId}";
 
 import { ArrowBigRight } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 
 interface ModuleListItemProps {
@@ -165,12 +165,14 @@ export function Explorer() {
         },
     });
 
-    const moduleIds = status === "success"
+    const origModules = status === "success" && data.metadata.modules;
+
+    const moduleIds = useMemo(() => (origModules
         // webpack will duplicate the same module across multiple chunks, so we need to dedupe them
-        ? dedupe(Object.values(data.metadata.modules)
+        ? dedupe(Object.values(origModules)
             .flat()
             .toSorted((a, b) => +a - +b))
-        : [];
+        : []), [origModules]);
 
     return (
         <>
