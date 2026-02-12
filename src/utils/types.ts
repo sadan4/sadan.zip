@@ -235,3 +235,5 @@ export type TOmit<T, K extends keyof T> = Omit<T, K>;
 export type Reducer<State, Action> = (state: State, action: Action) => State;
 
 export type InitialState<T> = T | (() => T);
+
+export type Booleanish = boolean | string | number | null | undefined;

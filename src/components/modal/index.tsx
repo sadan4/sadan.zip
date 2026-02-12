@@ -6,6 +6,7 @@ import styles from "./styles.module.scss";
 import { Layer } from "../Layer";
 
 import { Activity, type ComponentPropsWithoutRef, type Ref, Suspense, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { visibleIf } from "@/utils/react";
 
 export interface ModalContext {
     open(): void;
@@ -76,7 +77,7 @@ export function Modal({ children, ref: _ref, className, innerRef, open: _open, .
                             <Layer>
                                 <Activity
                                     name="Modal.children"
-                                    mode={open ? "visible" : "hidden"}
+                                    mode={visibleIf(open)}
                                 >
                                     {children}
                                 </Activity>

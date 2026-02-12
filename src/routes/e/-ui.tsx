@@ -17,6 +17,7 @@ import { Route } from "./view.{-$buildHash}.{-$moduleId}";
 
 import { ArrowBigRight, ChevronFirstIcon, ChevronLastIcon, FileCodeIcon, NetworkIcon } from "lucide-react";
 import { Activity, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { visibleIf } from "@/utils/react";
 
 
 interface ModuleListItemProps {
@@ -235,7 +236,7 @@ export function Explorer() {
                 <div
                     className="relative flex min-h-0 grow"
                 >
-                    <Activity mode={moduleSidebarOpen ? "visible" : "hidden"}>
+                    <Activity mode={visibleIf(moduleSidebarOpen)}>
                         <div className="flex shrink-0 flex-col">
                             <div className="flex items-center justify-between">
                                 <Input
@@ -282,12 +283,12 @@ export function Explorer() {
                         </div>
                     </Activity>
                     <div className="shrink grow">
-                        <Activity mode={activePanel === ViewMode.CODE ? "visible" : "hidden"}>
+                        <Activity mode={visibleIf(activePanel === ViewMode.CODE)}>
                             <div className="size-full bg-bg-100">
                                 <ModuleViewer />
                             </div>
                         </Activity>
-                        <Activity mode={activePanel === ViewMode.MODULE_GRAPH ? "visible" : "hidden"}>
+                        <Activity mode={visibleIf(activePanel === ViewMode.MODULE_GRAPH)}>
                             <ModuleGraph />
                         </Activity>
                     </div>
