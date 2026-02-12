@@ -1,5 +1,5 @@
+import { useComposedRefs } from "@/hooks/composedRefs";
 import cn from "@/utils/cn";
-import { updateRef } from "@/utils/ref";
 
 import { ScrollAreaContext } from "./context";
 import styles from "./styles.module.scss";
@@ -33,10 +33,7 @@ export function ScrollArea({
         <ScrollAreaContext.Provider value={{ ref }}>
             <div
                 className={cn(styles.scrollbar, directionStyles[dir], className)}
-                ref={(e) => {
-                    updateRef(ref, e);
-                    updateRef(_ref, e);
-                }}
+                ref={useComposedRefs(_ref, ref)}
                 {...props}
             >
                 {children}

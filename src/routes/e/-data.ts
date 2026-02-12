@@ -1,6 +1,7 @@
 import { sendMessage } from "@/utils/e/socket";
 import { assert } from "@/utils/error";
 import { type Monaco, monaco } from "@/utils/monaco";
+import { defer } from "@/utils/scope";
 import { WebpackAstParser } from "@vencord-companion/webpack-ast-parser/WebpackAstParser";
 
 import { create } from "zustand";
@@ -14,9 +15,12 @@ interface ModuleViewerStore {
      */
     readonly moduleCodeMap: Map<string, string>;
     readonly moduleModelMap: Map<string, Monaco.editor.ITextModel>;
+    readonly _pendingModels: Map<string, Promise<Monaco.editor.ITextModel>>;
     readonly parserMap: Map<string, WebpackAstParser>;
+    readonly _pendingParsers: Map<string, Promise<WebpackAstParser>>;
     readonly selectedModule: string | null;
     readonly allModuleIds: string[];
+    readonly _abort: AbortController;
     init(newBuildHash: string): void;
     reset(): void;
     /**
@@ -37,9 +41,12 @@ const getValueDefaults = () => ({
     buildHash: "",
     moduleCodeMap: new Map(),
     moduleModelMap: new Map(),
+    _pendingModels: new Map<string, Promise<Monaco.editor.ITextModel>>(),
     parserMap: new Map<string, WebpackAstParser>(),
+    _pendingParsers: new Map<string, Promise<WebpackAstParser>>(),
     selectedModule: null,
     allModuleIds: [],
+    _abort: new AbortController(),
 });
 
 export const useModuleViewerStore = create<ModuleViewerStore>((set, get) => ({
@@ -55,11 +62,15 @@ export const useModuleViewerStore = create<ModuleViewerStore>((set, get) => ({
         }
     },
     reset() {
-        const { moduleModelMap } = get();
+        const { moduleModelMap, _abort } = get();
+
+        _abort.signal.throwIfAborted();
 
         for (const [, model] of moduleModelMap) {
             model.dispose();
         }
+
+        _abort.abort();
 
         set(getValueDefaults());
     },
@@ -96,19 +107,36 @@ export const useModuleViewerStore = create<ModuleViewerStore>((set, get) => ({
         return model;
     },
     async getModuleModel(moduleId) {
-        const { getModuleParser, moduleModelMap, buildHash } = get();
+        const { getModuleParser, moduleModelMap, buildHash, _pendingModels, _abort } = get();
 
         if (moduleModelMap.has(moduleId)) {
             return moduleModelMap.get(moduleId)!;
         }
 
-        const code = (await getModuleParser(moduleId)).text;
-        const uri = getModuleURI(buildHash, moduleId);
-        const model = monaco.editor.createModel(code, "javascript", uri);
+        if (_pendingModels.has(moduleId)) {
+            return _pendingModels.get(moduleId)!;
+        }
 
-        moduleModelMap.set(moduleId, model);
+        const promise = (async () => {
+            using _ = defer(() => {
+                _pendingModels.delete(moduleId);
+            });
 
-        return model;
+            const code = (await getModuleParser(moduleId)).text;
+            const uri = getModuleURI(buildHash, moduleId);
+
+            _abort.signal.throwIfAborted();
+
+            const model = monaco.editor.createModel(code, "javascript", uri);
+
+            moduleModelMap.set(moduleId, model);
+
+            return model;
+        })();
+
+        _pendingModels.set(moduleId, promise);
+
+        return promise;
     },
     getModuleParserSync(moduleId) {
         const { parserMap, moduleCodeMap } = get();
@@ -127,18 +155,35 @@ export const useModuleViewerStore = create<ModuleViewerStore>((set, get) => ({
         return parser;
     },
     async getModuleParser(moduleId: string) {
-        const { parserMap, getModuleCode } = get();
+        const { parserMap, getModuleCode, _pendingParsers, _abort } = get();
 
         if (parserMap.has(moduleId)) {
             return parserMap.get(moduleId)!;
         }
 
-        const code = await getModuleCode(moduleId);
-        const parser = WebpackAstParser.withFormattedModule(code, moduleId);
+        if (_pendingParsers.has(moduleId)) {
+            return _pendingParsers.get(moduleId)!;
+        }
 
-        parserMap.set(moduleId, parser);
+        const promise = (async () => {
+            using _ = defer(() => {
+                _pendingParsers.delete(moduleId);
+            });
 
-        return parser;
+            const code = await getModuleCode(moduleId);
+
+            _abort.signal.throwIfAborted();
+
+            const parser = WebpackAstParser.withFormattedModule(code, moduleId);
+
+            parserMap.set(moduleId, parser);
+
+            return parser;
+        })();
+
+        _pendingParsers.set(moduleId, promise);
+
+        return promise;
     },
 }));
 

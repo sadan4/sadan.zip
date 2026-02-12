@@ -9,9 +9,9 @@ import { copy } from "@/utils/clipboard";
 import cn from "@/utils/cn";
 import { createFileRoute } from "@tanstack/react-router";
 
-import mappings from "./key-mappings.json";
-
 import { useState } from "react";
+
+const mappings: Record<string, string> = import.meta.env.SSR ? {} as never : (await import("./key-mappings.json")).default;
 
 export const Route = createFileRoute("/_/discord-intl/")({
     component: DiscordIntlLookup,
@@ -24,7 +24,7 @@ export const Route = createFileRoute("/_/discord-intl/")({
 
 function DiscordIntlLookup() {
     const [search, setSearch] = useState("");
-    const result: string | null = (mappings as Record<string, string>)[search] || null;
+    const result: string | null = mappings[search] || null;
 
     return (
         <>

@@ -6,7 +6,7 @@ import { Text } from "@/components/Text";
 import { useForceUpdater } from "@/hooks/forceUpdater";
 import { useImperativeSprings } from "@/hooks/imperativeSprings";
 import { useRect } from "@/hooks/rect";
-import { useReiszeObserverFromRef } from "@/hooks/resizeObserver";
+import { useResizeObserverFromRef } from "@/hooks/resizeObserver";
 import { joinWithKey } from "@/utils/array";
 import cn from "@/utils/cn";
 import { measureRect } from "@/utils/dom";
@@ -164,7 +164,7 @@ export function TabBar({
         width: 0,
     });
 
-    useReiszeObserverFromRef(tabsContainerRef, forceLayoutMarker);
+    useResizeObserverFromRef(tabsContainerRef, forceLayoutMarker);
 
     useEffect(() => {
         if (activeRect) {
