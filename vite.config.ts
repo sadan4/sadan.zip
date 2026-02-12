@@ -37,7 +37,13 @@ const config = defineConfig(async ({ command, isSsrBuild }) => {
                 languages: ["typescript", "javascript"],
                 features: [],
             }),
-            devtools(),
+            devtools({
+                consolePiping: {
+                    enabled: true,
+                    // don't pipe warn and error logs, piping hides stack traces and the source
+                    levels: ["info", "log", "debug"],
+                },
+            }),
             // this is the plugin that enables path aliases
             viteTsConfigPaths({
                 projects: ["./tsconfig.json"],
