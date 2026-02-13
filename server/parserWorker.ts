@@ -65,6 +65,7 @@ async function findBuildModules({ buildHash, html, channel }: ParserWorkerData) 
     console.time(PARSING_MAIN_JS_TIME);
 
     const mainParser = new WebpackMainChunkParser(webJsContent);
+    const entryPoint = (mainParser.getEntrypointId() ?? error("Could not find entry point module id")) as TModuleId;
     const buildNumber = mainParser.getBuildNumber() ?? error("Could not find build number");
     const initialModules: Record<TModuleId, string> = mainParser.getDefinedModules() ?? error("could not parse main chunk");
 
@@ -134,6 +135,7 @@ async function findBuildModules({ buildHash, html, channel }: ParserWorkerData) 
         buildHash,
         buildNumber,
         modules,
+        entryPoint,
         envVarText: parser.text,
         firstSeen: Date.now(),
     };

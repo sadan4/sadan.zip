@@ -1,6 +1,7 @@
 import { assert, error } from "@/utils/error";
 
 import { BUILDS_PATH } from "./constants";
+import { migrateIfNeeded } from "./migration";
 import { type AllBundleFilesResponseMessage, type BaseMessageToClient, type BundleDepGraphResponseMessage, type BundleFileResponseMessage, type BundleInfo, bundleInfoSchema, type BundleMetadataResponseMessage, type BundlesResponseMessage, type DepsJson, type MessageToClient, messageToClientSchema, messageToServerSchema } from "./types";
 
 import { exists, readdir } from "fs-extra";
@@ -10,34 +11,6 @@ import { join } from "node:path";
 import { Worker } from "node:worker_threads";
 import { WebSocket, WebSocketServer } from "ws";
 import z from "zod";
-
-const enum Version {
-    V0 = 0,
-    /**
-     * {@link BundleInfo.entryPoint|entryPoint} field added to {@link BundleInfo}
-     */
-    V1 = 1,
-}
-
-const CURRENT_VERSION = Version.V1;
-
-async function readVersion() {
-    const versionPath = join(BUILDS_PATH, ".ver");
-
-    if (!await exists(versionPath)) {
-        throw new Error(`Version file not found. Trying to read ${versionPath}`);
-    }
-
-    const version = +(await readFile(versionPath, "utf8")).trim();
-
-    switch (version) {
-        case Version.V0:
-        case Version.V1:
-            return version;
-        default:
-            throw new Error(`Unsupported version: ${version}`);
-    }
-}
 
 class Server {
     static #VERIFY_OUTGOING_MESSAGES = true;
@@ -181,6 +154,8 @@ class Server {
     if (!existsSync(BUILDS_PATH)) {
         await mkdir(BUILDS_PATH);
     }
+
+    await migrateIfNeeded();
 
     // microsoft/typescript#58561 insane "bug"
     // @ts-expect-error ^^
