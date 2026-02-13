@@ -33,6 +33,7 @@ async function checkBuilds() {
     // eslint-disable-next-line no-cond-assign
     if (res = await checkBuild(appUrl[Channels.STABLE])) {
         new Worker(new URL("./parserWorker", import.meta.url), {
+            name: "Parser Worker",
             workerData: {
                 buildHash: res.headers.get(BUILD_ID_HEADER)! as TBundleHash,
                 html: await res.text(),
@@ -47,5 +48,7 @@ export function startWatching() {
     mkdir(join(BUILDS_PATH, "chunks"), { recursive: true });
     checkBuilds();
 }
+
+console.log("Starting build watcher...");
 
 startWatching();

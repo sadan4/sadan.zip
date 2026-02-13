@@ -5,8 +5,7 @@ Description=sadan.zip_browser
 Type=exec
 Restart=always
 ExecStartPre=pnpm install --frozen-lockfile
-ExecStartPre=pnpm build:server
-ExecStart=node dist.server/index
+ExecStart=pnpm start:server
 WorkingDirectory=%h/src/sadan.zip
 
 [Install]

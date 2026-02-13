@@ -37,15 +37,11 @@ async function getChunkText(channel: Channels, hash: string) {
     return text;
 }
 
-/**
- * map of module id -> module source
- */
-const moduleMap = new Map<TModuleId, string>();
 // time markers
 const PARSING_MAIN_JS_TIME = "Parsing web.js";
 const PARSING_LAZY_CHUNKS_TIME = "Parsing lazy chunks";
 
-async function findBuildModules({ buildHash, html, channel }: ParserWorkerData) {
+async function findBuildModules({ buildHash, html, channel }: ParserWorkerData, moduleMap: Map<TModuleId, string>) {
     const { window: { document: doc } } = new JSDOM(html);
     const scriptElements = [...doc.querySelectorAll("script")];
     const envScriptEl = scriptElements.find((el) => el.textContent?.includes("window.GLOBAL_ENV =")) ?? error("Could not find env script element");
@@ -153,9 +149,12 @@ async function findBuildModules({ buildHash, html, channel }: ParserWorkerData) 
 
 const MAKE_DEP_GRAPH_TIME = "Making dependency graph";
 
-function makeDependencyGraph(): [MainDeps, WebpackAstParser[]] {
+function makeDependencyGraph(moduleMap: Map<TModuleId, string>): [MainDeps, WebpackAstParser[]] {
     console.time(MAKE_DEP_GRAPH_TIME);
 
+    /**
+    * map of module id -> module source
+    */
     const deps: MainDeps = {};
     const parsers = [] as WebpackAstParser[];
 
@@ -198,7 +197,9 @@ async function findKeyModules(parsers: WebpackAstParser[]): Promise<KeyModules> 
 
     console.time(KEY_MODULES_TIME);
 
-    for (const parser of parsers) {
+    for (let i = 0; i < parsers.length; ++i) {
+        const parser = parsers[i];
+
         try {
             // Flux Dispatcher
             {
@@ -227,15 +228,18 @@ async function findKeyModules(parsers: WebpackAstParser[]): Promise<KeyModules> 
             console.error(e);
             throw e;
         }
+        delete parsers[i]; // free memory as we go
     }
     console.timeEnd(KEY_MODULES_TIME);
     return ret;
 }
 
 async function processBuild(data: ParserWorkerData) {
-    await findBuildModules(data);
+    const moduleMap: Map<TModuleId, string> = new Map();
 
-    const [deps, parsers] = makeDependencyGraph();
+    await findBuildModules(data, moduleMap);
+
+    const [deps, parsers] = makeDependencyGraph(moduleMap);
 
     WebpackAstParser.setDefaultModuleCache({
         getLatestModuleFromNum(id) {
@@ -268,6 +272,8 @@ async function processBuild(data: ParserWorkerData) {
 
     // we should exit right after this, but might as well free the memory
     moduleMap.clear();
+
+    console.log(`Finished processing build ${data.buildHash}`);
 }
 
 processBuild(workerData as ParserWorkerData).catch((e) => {
