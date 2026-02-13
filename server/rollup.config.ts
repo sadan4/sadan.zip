@@ -8,7 +8,7 @@ import { cleandir } from "rollup-plugin-cleandir";
 import tsconfigPaths from "rollup-plugin-tsconfig-paths";
 
 export default defineConfig({
-    input: "server/index.ts",
+    input: ["server/index.ts", "server/prof-mem.ts", "server/run-watcher.ts"],
     plugins: [
         nodeResolve({
             extensions: [".ts", ".js"],

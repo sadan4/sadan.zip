@@ -20,6 +20,11 @@ export interface ParserWorkerData {
     channel: Channels;
 }
 
+const IS_WINDOWS = process.platform === "win32";
+// just under 8192
+// windows has a hard limit of 8192 fs writes at once, can only be changed via native code
+const MAX_FS_OPS = IS_WINDOWS ? 7000 : Infinity;
+
 async function getChunkText(channel: Channels, hash: string) {
     const path = join(BUILDS_PATH, "chunks", `${hash}`, "raw.js");
 
@@ -75,9 +80,17 @@ async function findBuildModules({ buildHash, html, channel }: ParserWorkerData, 
     const MODULES_PATH = join(BUILDS_PATH, buildHash, ".modules");
 
     await mkdir(MODULES_PATH);
-    for (const [moduleId, moduleSource] of entries(initialModules)) {
-        moduleMap.set(moduleId, moduleSource);
-        writes.push(writeFile(join(MODULES_PATH, `${moduleId}.js`), moduleSource, "utf8"));
+    for (const batch of chunk(entries(initialModules), 1 << 12)) {
+        for (const [moduleId, moduleSource] of batch) {
+            moduleMap.set(moduleId, moduleSource);
+            writes.push(writeFile(join(MODULES_PATH, `${moduleId}.js`), moduleSource, "utf8"));
+        }
+        console.log("cur num writes:", writes.length);
+        if (IS_WINDOWS) {
+            console.log("flushing writes to disk...");
+            await Promise.all(writes);
+            writes.length = 0;
+        }
     }
 
     const chunkHashes = mainParser.getJsChunkHashes();
@@ -122,6 +135,12 @@ async function findBuildModules({ buildHash, html, channel }: ParserWorkerData, 
                 console.error(e);
             }
         }));
+        console.log("cur num writes:", writes.length);
+        if (writes.length > MAX_FS_OPS) {
+            console.log("flushing writes to disk...");
+            await Promise.all(writes);
+            writes.length = 0;
+        }
     }
 
     console.timeEnd(PARSING_LAZY_CHUNKS_TIME);
