@@ -125,11 +125,18 @@ function MonacoCodeEditorInner({
             ...mergedOptions,
             theme: themeString,
         });
-        requestIdleCallback(() => {
-            setupThemes(editor.current!);
-        }, {
-            timeout: 2000,
-        });
+        // @ts-expect-error
+        if (window.requestIdleCallback) {
+            requestIdleCallback(() => {
+                setupThemes(editor.current!);
+            }, {
+                timeout: 2000,
+            });
+        } else {
+            setTimeout(() => {
+                setupThemes(editor.current!);
+            }, 2000);
+        }
         handleEditorDidMount();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [ref]);
