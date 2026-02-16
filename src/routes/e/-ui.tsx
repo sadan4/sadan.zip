@@ -4,6 +4,7 @@ import { Clickable } from "@/components/Clickable";
 import { MonacoCodeEditor } from "@/components/CodeEditor/Monaco";
 import { Input } from "@/components/Input";
 import { BufferedScroller } from "@/components/layout/BufferedScroller";
+import { TextLink } from "@/components/Links";
 import { Text } from "@/components/Text";
 import { ToggleButtonGroup } from "@/components/ToggleButtonGroup";
 import { TooltipPosition } from "@/components/Tooltip/constants";
@@ -12,10 +13,12 @@ import { sendMessage } from "@/utils/e/socket";
 import { visibleIf } from "@/utils/react";
 import { Language } from "@/utils/textmate";
 import { useQuery } from "@tanstack/react-query";
+import { TAssert } from "@vencord-companion/webpack-ast-parser/util";
+import type { WebpackAstParser } from "@vencord-companion/webpack-ast-parser/WebpackAstParser";
 
 import { ModuleViewerStore, placeholderModel, placeholderURI, useModuleViewerStore, ViewMode } from "./-data";
 import { Route } from "./view.{-$buildHash}.{-$moduleId}";
-import type { TModuleId } from "../../../server/types";
+import { TModuleId } from "../../../server/types";
 
 import { ArrowBigRight, ChevronFirstIcon, ChevronLastIcon, FileCodeIcon, NetworkIcon } from "lucide-react";
 import { Activity, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -133,16 +136,95 @@ function ModuleViewer() {
     );
 }
 
-function ModuleGraph() {
+interface ModuleGraphProps {
+    parser: WebpackAstParser;
+}
+
+function ModuleGraph({ parser }: ModuleGraphProps) {
+    const buildHash = useModuleViewerStore(({ buildHash }) => buildHash);
+    const outgoingModules = useMemo(() => parser.getModulesThatThisModuleRequires(), [parser]);
+
     return (
-        <Text
-            size="3xl"
-            weight="bold"
-            center
-        >
-            TODO: Module Graph View
-        </Text>
+        <div className="flex h-full justify-evenly">
+            <div className="flex flex-col items-center gap-2">
+                <Text
+                    size="md"
+                    color="secondary"
+                >
+                    Modules that this module requires
+                </Text>
+                <Text size="lg">
+                    Sync:
+                </Text>
+                {!outgoingModules && (
+                    <Text
+                        color="error"
+                    >
+                        This module does not require any other modules
+                    </Text>
+                )}
+                {outgoingModules?.sync.map((moduleId) => {
+                    TAssert<TModuleId>(moduleId);
+                    return (
+                        <TextLink
+                            to="/e/view/{-$buildHash}/{-$moduleId}"
+                            params={{
+                                buildHash,
+                                moduleId,
+                            }}
+                        >{moduleId}
+                        </TextLink>
+                    );
+                })}
+            </div>
+            <div className="flex flex-col items-center gap-2">
+                <Text
+                    size="md"
+                    color="secondary"
+                >
+                    Module that require this module
+                </Text>
+                <Text
+                    size="2xl"
+                    color="error"
+                >
+                    TODO
+                </Text>
+            </div>
+        </div>
     );
+}
+
+function ModuleGraphWrapper() {
+    const moduleId = useModuleViewerStore(({ selectedModule }) => selectedModule);
+    const [parser, setParser] = useState<WebpackAstParser | null>(null);
+
+    useEffect(() => {
+        !async function () {
+            if (!moduleId) {
+                return;
+            }
+
+            const parser = await ModuleViewerStore.getState().getModuleParser(moduleId);
+
+            setParser(parser);
+        }();
+    }, [moduleId]);
+
+
+    if (!moduleId || !parser) {
+        return (
+            <Text
+                size="3xl"
+                weight="bold"
+                center
+            >
+                {moduleId ? "Loading Module Graph..." : "Select a Module"}
+            </Text>
+        );
+    }
+
+    return <ModuleGraph parser={parser} />;
 }
 
 export function Explorer() {
@@ -290,7 +372,7 @@ export function Explorer() {
                             </div>
                         </Activity>
                         <Activity mode={visibleIf(activePanel === ViewMode.MODULE_GRAPH)}>
-                            <ModuleGraph />
+                            <ModuleGraphWrapper />
                         </Activity>
                     </div>
                 </div>

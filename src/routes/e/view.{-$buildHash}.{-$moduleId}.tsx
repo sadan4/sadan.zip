@@ -32,13 +32,15 @@ export const Route = createFileRoute("/e/view/{-$buildHash}/{-$moduleId}")({
     },
     async loader({ params: { buildHash, moduleId } }) {
         data.ModuleViewerStore.getState().init(buildHash);
-        data.ModuleViewerStore.setState({
-            selectedModule: moduleId,
-        });
         if (moduleId != null) {
             // preload code
             await data.ModuleViewerStore.getState().getModuleCode(moduleId);
         }
+    },
+    onEnter({ params: { moduleId } }) {
+        data.ModuleViewerStore.setState({
+            selectedModule: moduleId,
+        });
     },
     ssr: false,
 });
