@@ -8,6 +8,7 @@ import { TextLink } from "@/components/Links";
 import { Text } from "@/components/Text";
 import { ToggleButtonGroup } from "@/components/ToggleButtonGroup";
 import { TooltipPosition } from "@/components/Tooltip/constants";
+import { type GeneratedGraph, useModuleGraph } from "@/hooks/moduleGraph";
 import { dedupe } from "@/utils/array";
 import { sendMessage } from "@/utils/e/socket";
 import { visibleIf } from "@/utils/react";
@@ -15,11 +16,13 @@ import { Language } from "@/utils/textmate";
 import { useQuery } from "@tanstack/react-query";
 import { TAssert } from "@vencord-companion/webpack-ast-parser/util";
 import type { WebpackAstParser } from "@vencord-companion/webpack-ast-parser/WebpackAstParser";
+import { Background, Controls, MiniMap, ReactFlow, ReactFlowProvider } from "@xyflow/react";
 
 import { ModuleViewerStore, placeholderModel, placeholderURI, useModuleViewerStore, ViewMode } from "./-data";
 import { Route } from "./view.{-$buildHash}.{-$moduleId}";
 import { TModuleId } from "../../../server/types";
 
+import "@xyflow/react/dist/style.css";
 import { ArrowBigRight, ChevronFirstIcon, ChevronLastIcon, FileCodeIcon, NetworkIcon } from "lucide-react";
 import { Activity, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -140,12 +143,15 @@ interface ModuleGraphProps {
     parser: WebpackAstParser;
 }
 
+// @ts-expect-error
+// eslint-disable-next-line unused-imports/no-unused-vars
 function ModuleGraph({ parser }: ModuleGraphProps) {
     const buildHash = useModuleViewerStore(({ buildHash }) => buildHash);
     const outgoingModules = useMemo(() => parser.getModulesThatThisModuleRequires(), [parser]);
 
     return (
         <div className="flex h-full justify-evenly">
+            <ReactFlow />
             <div className="flex flex-col items-center gap-2">
                 <Text
                     size="md"
@@ -195,24 +201,52 @@ function ModuleGraph({ parser }: ModuleGraphProps) {
     );
 }
 
+interface ModuleGraph2Props {
+    graph: GeneratedGraph;
+}
+
+function ModuleGraph2({ graph: { nodes, edges } }: ModuleGraph2Props) {
+    const navigate = Route.useNavigate();
+
+    return (
+        <div className="size-full bg-black">
+            <ReactFlow
+                nodes={nodes}
+                edges={edges}
+                colorMode="dark"
+                nodesDraggable={true}
+                onlyRenderVisibleElements={true}
+                nodesConnectable={false}
+                minZoom={0}
+                onNodeClick={(_e, node) => {
+                    const moduleId = node.id;
+                    const { selectedModule } = ModuleViewerStore.getState();
+
+                    if (moduleId === selectedModule) {
+                        return;
+                    }
+
+                    navigate({
+                        to: "/e/view/{-$buildHash}/{-$moduleId}",
+                        params: {
+                            moduleId: moduleId as TModuleId,
+                        },
+                    });
+                }}
+            >
+                <Controls />
+                <Background />
+                <MiniMap />
+            </ReactFlow>
+        </div>
+    );
+}
+
 function ModuleGraphWrapper() {
     const moduleId = useModuleViewerStore(({ selectedModule }) => selectedModule);
-    const [parser, setParser] = useState<WebpackAstParser | null>(null);
+    const graph = useModuleGraph();
 
-    useEffect(() => {
-        !async function () {
-            if (!moduleId) {
-                return;
-            }
-
-            const parser = await ModuleViewerStore.getState().getModuleParser(moduleId);
-
-            setParser(parser);
-        }();
-    }, [moduleId]);
-
-
-    if (!moduleId || !parser) {
+    if (!moduleId || !graph) {
         return (
             <Text
                 size="3xl"
@@ -224,7 +258,11 @@ function ModuleGraphWrapper() {
         );
     }
 
-    return <ModuleGraph parser={parser} />;
+    return (
+        <ReactFlowProvider>
+            <ModuleGraph2 graph={graph} />
+        </ReactFlowProvider>
+    );
 }
 
 export function Explorer() {

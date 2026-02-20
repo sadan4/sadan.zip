@@ -3,10 +3,10 @@ import { assert } from "@/utils/error";
 import { makeLazy } from "@/utils/lazy";
 import { type Monaco, monaco } from "@/utils/monaco";
 import { defer } from "@/utils/scope";
-import type { Fields } from "@/utils/types";
+import type { Fields, Thenable } from "@/utils/types";
 import { WebpackAstParser } from "@vencord-companion/webpack-ast-parser/WebpackAstParser";
 
-import type { TBundleHash, TModuleId } from "../../../server/types";
+import type { DepsJson, TBundleHash, TModuleId } from "../../../server/types";
 
 import { create } from "zustand";
 
@@ -27,6 +27,8 @@ interface ModuleViewerStore {
     readonly activePanel: ViewMode;
     readonly moduleSidebarOpen: boolean;
     readonly _abort: AbortController;
+    readonly _pendingDepsGraph: Promise<DepsJson> | null;
+    readonly _depsGraph: DepsJson | null;
     init(newBuildHash: TBundleHash): void;
     reset(): void;
     updateActivePanel(panel: ViewMode): void;
@@ -39,6 +41,7 @@ interface ModuleViewerStore {
     getModuleModel(moduleId: TModuleId): Promise<Monaco.editor.ITextModel>;
     getModuleParserSync(moduleId: TModuleId): WebpackAstParser;
     getModuleParser(moduleId: TModuleId): Promise<WebpackAstParser>;
+    getDepsGraph(): Thenable<DepsJson>;
 }
 
 export function getModuleURI(buildHash: TBundleHash, moduleId: TModuleId) {
@@ -63,6 +66,8 @@ const getValueDefaults = (): Fields<ModuleViewerStore> => ({
     activePanel: ViewMode.CODE,
     moduleSidebarOpen: true,
     _abort: new AbortController(),
+    _pendingDepsGraph: null,
+    _depsGraph: null,
 });
 
 export const useModuleViewerStore = create<ModuleViewerStore>((set, get) => ({
@@ -206,6 +211,29 @@ export const useModuleViewerStore = create<ModuleViewerStore>((set, get) => ({
         _pendingParsers.set(moduleId, promise);
 
         return promise;
+    },
+    getDepsGraph(): Thenable<DepsJson> {
+        const { _depsGraph, buildHash, _pendingDepsGraph } = get();
+
+        if (_depsGraph) {
+            return _depsGraph;
+        }
+
+        if (_pendingDepsGraph) {
+            return _pendingDepsGraph;
+        }
+
+        const p = sendMessage<"getBundleDepGraphResponse">({
+            type: "getBundleDepGraph",
+            bundleHash: buildHash,
+        }).then(({ depGraph }) => {
+            set({ _depsGraph: depGraph });
+            return depGraph;
+        });
+
+        set({ _pendingDepsGraph: p });
+
+        return p;
     },
 }));
 

@@ -1,12 +1,13 @@
 import { chunk } from "@/utils/array";
 import { assert, error } from "@/utils/error";
+import { entries, keys } from "@/utils/obj";
 import { GlobalEnvParser } from "@vencord-companion/global-env-parser";
 import { WebpackAstParser } from "@vencord-companion/webpack-ast-parser";
 import { WebpackLazyChunkParser, WebpackMainChunkParser } from "@vencord-companion/webpack-chunk-parser";
 
 import { BUILDS_PATH, type Channels, SYM_CJS_DEFAULT_PLACEHOLDER } from "./constants";
 import type { BundleInfo, DepsJson, KeyModules, MainDeps, ModuleInfo, TBundleHash, TModuleId } from "./types";
-import { entries, fetchAsset, keys } from "./utils";
+import { fetchAsset } from "./utils";
 
 import { exists } from "fs-extra";
 import { JSDOM } from "jsdom";

@@ -1,0 +1,5 @@
+// hack to override react-flow default styles
+.active-node.active-node {
+    color: var(--color-accent-500);
+    border-color: var(--color-accent-500);
+}

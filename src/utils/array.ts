@@ -94,13 +94,6 @@ export function loopArrayStartingAt<T>(array: T[], idx: number): T[] {
     return [...firstHalf, ...secondHalf];
 }
 
-/**
- * {@link Object.keys} but typed
- */
-export function keys<T extends Object>(obj: T): (keyof T)[] {
-    return Object.keys(obj) as (keyof T)[];
-}
-
 export function invertPair<A, B>([a, b]: [A, B]): [B, A] {
     return [b, a];
 }

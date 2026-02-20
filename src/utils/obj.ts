@@ -68,3 +68,9 @@ export function getPropertyDescriptor(obj: object, prop: PropertyKey): PropertyD
 
     return res;
 }
+
+export const keys = Object.keys as <T extends Record<PropertyKey, any>>(obj: T) => (keyof T)[];
+
+export const values = Object.values as <T extends Record<PropertyKey, any>>(obj: T) => T[keyof T][];
+
+export const entries = Object.entries as <T extends Record<PropertyKey, any>>(obj: T) => [keyof T, T[keyof T]][];

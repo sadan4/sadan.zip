@@ -197,3 +197,8 @@ body {
 :where([tabindex="-1"]:focus) {
     outline: none;
 }
+
+/* stylelint-disable-next-line selector-class-pattern */
+.react-flow__attribution {
+    display: none;
+}
