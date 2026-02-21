@@ -37,11 +37,6 @@ export const Route = createFileRoute("/e/view/{-$buildHash}/{-$moduleId}")({
             await data.ModuleViewerStore.getState().getModuleCode(moduleId);
         }
     },
-    onEnter({ params: { moduleId } }) {
-        data.ModuleViewerStore.setState({
-            selectedModule: moduleId,
-        });
-    },
     ssr: false,
 });
 

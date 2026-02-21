@@ -236,7 +236,10 @@ function ModuleGraph2({ graph: { nodes, edges } }: ModuleGraph2Props) {
             >
                 <Controls />
                 <Background />
-                <MiniMap />
+                <MiniMap
+                    pannable
+                    zoomable
+                />
             </ReactFlow>
         </div>
     );
@@ -277,7 +280,7 @@ export function Explorer() {
         });
     }, [navigate]);
 
-    const { buildHash } = Route.useParams();
+    const { buildHash, moduleId } = Route.useParams();
     const inputRef = useRef<HTMLInputElement>(null);
     const activePanel = useModuleViewerStore(({ activePanel }) => activePanel);
     const moduleSidebarOpen = useModuleViewerStore(({ moduleSidebarOpen }) => moduleSidebarOpen);
@@ -296,6 +299,10 @@ export function Explorer() {
             }
         },
     });
+
+    useEffect(() => {
+        ModuleViewerStore.setState({ selectedModule: moduleId });
+    }, [moduleId]);
 
     const origModules = status === "success" && data.metadata.modules;
 

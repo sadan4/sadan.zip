@@ -241,4 +241,17 @@ export const useModuleViewerStore = create<ModuleViewerStore>((set, get) => ({
 export const ModuleViewerStore = useModuleViewerStore;
 
 export const placeholderURI = makeLazy(() => monaco.Uri.parse("file:///placeholder.js"));
-export const placeholderModel = makeLazy(() => monaco.editor.createModel("", "javascript", placeholderURI()));
+export const placeholderModel = makeLazy(() => {
+    const uri = placeholderURI();
+
+    // during HMR, we can't create the same model twice, so we have to check if it's already created
+    if (import.meta.env.DEV) {
+        const existingModel = monaco.editor.getModel(uri);
+
+        if (existingModel) {
+            return existingModel;
+        }
+    }
+
+    return monaco.editor.createModel("", "javascript", uri);
+});
