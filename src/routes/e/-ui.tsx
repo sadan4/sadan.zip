@@ -17,6 +17,7 @@ import type { Monaco } from "@/utils/monaco";
 import { visibleIf } from "@/utils/react";
 import { Language } from "@/utils/textmate";
 import { useQuery } from "@tanstack/react-query";
+import { createLink } from "@tanstack/react-router";
 import { TAssert } from "@vencord-companion/webpack-ast-parser/util";
 import type { WebpackAstParser } from "@vencord-companion/webpack-ast-parser/WebpackAstParser";
 import { Background, Controls, MiniMap, ReactFlow, ReactFlowProvider } from "@xyflow/react";
@@ -26,7 +27,7 @@ import { Route } from "./view.{-$buildHash}.{-$moduleId}";
 import { TModuleId } from "../../../server/types";
 
 import "@xyflow/react/dist/style.css";
-import { ArrowBigRight, ChevronFirstIcon, ChevronLastIcon, FileCodeIcon, GithubIcon, NetworkIcon } from "lucide-react";
+import { ArrowBigRight, ChevronFirstIcon, ChevronLastIcon, FileCodeIcon, GithubIcon, NetworkIcon, Undo2Icon } from "lucide-react";
 import { Activity, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 
@@ -280,6 +281,8 @@ function ModuleGraph2({ graph: { nodes, edges } }: ModuleGraph2Props) {
     );
 }
 
+const IconButtonInternalLink = createLink(IconButton);
+
 function ModuleGraphWrapper() {
     const moduleId = useModuleViewerStore(({ selectedModule }) => selectedModule);
     const graph = useModuleGraph();
@@ -394,13 +397,26 @@ export function Explorer() {
                             ]}
                         />
                     </div>
-                    <div className="flex">
+                    <div className="flex gap-2">
+                        <IconButtonInternalLink
+                            tooltipPosition={TooltipPosition.BOTTOM}
+                            label="Return to Bundle Selector"
+                            onClick={undefined}
+                            color="primary"
+                            colorType="outline"
+                            // Monaco has a sidebar with z-5, which blocks our tooltip sometimes
+                            tooltipClassName="z-6"
+                            tag="a"
+                            to="/e"
+                        >
+                            <Undo2Icon />
+                        </IconButtonInternalLink>
                         <IconButton
+                            // FIXME: this should be on the bottom, but it clips off the screen
                             tooltipPosition={TooltipPosition.LEFT}
                             label={`Source${NBSP}Code.${NBSP}Star${NBSP}Me!`}
                             onClick={undefined}
                             color="secondary"
-                            className="border-2"
                             colorType="outline"
                             href={GITHUB_REPO_URL}
                             // Monaco has a sidebar with z-5, which blocks our tooltip sometimes
