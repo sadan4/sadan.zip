@@ -8,6 +8,8 @@ export const EM_DASH = "\u2014";
 
 export const REPLACEMENT_CHARACTER = "\uFFFD";
 
+export const GITHUB_REPO_URL = "https://github.com/sadan4/sadan.zip";
+
 // cspell:disable
 export const lorem = `
 Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum ut dui est. Cras commodo, erat eget finibus varius, augue est dignissim turpis, nec bibendum nisl justo vitae sem. Aenean sit amet vulputate tortor. Nullam eu vestibulum nisi. Phasellus hendrerit sollicitudin malesuada. Nullam est tellus, convallis in justo quis, efficitur laoreet erat. Duis nulla elit, sodales sed vulputate faucibus, commodo quis sapien. Donec in ligula non risus sagittis fermentum nec ac diam. Phasellus vel dictum nisi, sed pharetra justo.

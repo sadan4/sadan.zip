@@ -32,6 +32,7 @@
     "noselect",
     "Onig",
     "Onigasm",
+    "pannable",
     "ruid",
     "rushii",
     "shiki",
@@ -39,6 +40,7 @@
     "sqaaakoi",
     "vencord",
     "worf",
+    "zoomable",
     "zoot"
   ],
   "typescript.tsdk": "node_modules/typescript/lib",

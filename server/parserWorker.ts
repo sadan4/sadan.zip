@@ -2,11 +2,11 @@ import { chunk } from "@/utils/array";
 import { assert, error } from "@/utils/error";
 import { entries, keys } from "@/utils/obj";
 import { GlobalEnvParser } from "@vencord-companion/global-env-parser";
-import { WebpackAstParser } from "@vencord-companion/webpack-ast-parser";
+import { TAssert, WebpackAstParser } from "@vencord-companion/webpack-ast-parser";
 import { WebpackLazyChunkParser, WebpackMainChunkParser } from "@vencord-companion/webpack-chunk-parser";
 
 import { BUILDS_PATH, type Channels, SYM_CJS_DEFAULT_PLACEHOLDER } from "./constants";
-import type { BundleInfo, DepsJson, KeyModules, MainDeps, ModuleInfo, TBundleHash, TModuleId } from "./types";
+import { type BundleInfo, type DepsJson, type KeyModules, type MainDeps, type ModuleInfo, type TBundleHash, TModuleId } from "./types";
 import { fetchAsset } from "./utils";
 
 import { exists } from "fs-extra";
@@ -150,7 +150,10 @@ async function findBuildModules({ buildHash, html, channel }: ParserWorkerData, 
 
 const MAKE_DEP_GRAPH_TIME = "Making dependency graph";
 
-function makeDependencyGraph(moduleMap: Map<TModuleId, string>): [MainDeps, WebpackAstParser[]] {
+function makeDependencyGraph(
+    moduleMap: Map<TModuleId, string>,
+    parserCache: Map<TModuleId, WebpackAstParser>,
+): [MainDeps, WebpackAstParser[]] {
     console.time(MAKE_DEP_GRAPH_TIME);
 
     /**
@@ -161,8 +164,9 @@ function makeDependencyGraph(moduleMap: Map<TModuleId, string>): [MainDeps, Webp
 
     for (const [moduleId, text] of moduleMap) {
         try {
-            const parser = WebpackAstParser.withModule(text, moduleId);
+            const parser = parserCache.get(moduleId) ?? WebpackAstParser.withModule(text, moduleId);
 
+            parserCache.set(moduleId, parser);
             parsers.push(parser);
 
             const { sync = [], lazy = [] } = parser.getModulesThatThisModuleRequires() ?? {};
@@ -240,17 +244,19 @@ async function processBuild(data: ParserWorkerData) {
 
     await findBuildModules(data, moduleMap);
 
-    const [deps, parsers] = makeDependencyGraph(moduleMap);
+    const parserCache = new Map<TModuleId, WebpackAstParser>();
+    const [deps, parsers] = makeDependencyGraph(moduleMap, parserCache);
 
     WebpackAstParser.setDefaultModuleCache({
-        getLatestModuleFromNum(id) {
-            return Promise.resolve(moduleMap.get(`${id}` as TModuleId) ?? error(`module not found: ${id}`));
-        },
-        getModuleFromNum(id) {
-            return Promise.resolve(moduleMap.get(id as TModuleId) ?? error(`module not found: ${id}`));
-        },
         getModuleFilepath(_id) {
             return undefined;
+        },
+        getModuleParser(_requestor, id, _latest) {
+            TAssert<TModuleId>(id);
+            if (!parserCache.has(id)) {
+                parserCache.set(id, WebpackAstParser.withFormattedModule(moduleMap.get(id) ?? error(`module not found: ${id}`), id));
+            }
+            return Promise.resolve(parserCache.get(id)!);
         },
     });
     WebpackAstParser.setDefaultModuleDepManager({

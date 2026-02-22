@@ -1,6 +1,5 @@
 export {
     MonacoCodeEditor,
-    type MonacoCodeEditorHandle,
     type MonacoCodeEditorProps,
 } from "./CodeEditorMonaco";
 export {

@@ -19,12 +19,17 @@
             cursor: not-allowed;
         }
 
+
         &.icon-button {
             --check-progress: 0;
             --error-progress: 0;
 
             position: relative;
             color: var(--button-color, var(--color-primary-400));
+
+            &:is(a) {
+                display: block;
+            }
 
             &.filled {
                 color: var(--button-text-color, var(--color-bg-100));
@@ -104,7 +109,7 @@
             }
 
             &.outline {
-                border-width: 1px;
+                border-width: 2px;
                 border-style: solid;
                 border-color: var(--button-color);
 

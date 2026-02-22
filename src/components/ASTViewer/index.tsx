@@ -1,4 +1,4 @@
-import { MonacoCodeEditor, type MonacoCodeEditorHandle } from "@/components/CodeEditor/Monaco";
+import { MonacoCodeEditor } from "@/components/CodeEditor/Monaco";
 import { useConsoleHelpers } from "@/hooks/consoleHelpers";
 import { useSourceFile } from "@/hooks/sourceFile";
 import cn from "@/utils/cn";
@@ -40,7 +40,7 @@ export function ASTViewer() {
     }));
 
     const sidebarBoundingRef = useRef<HTMLDivElement>(null);
-    const editorRef = useRef<MonacoCodeEditorHandle>(null);
+    const editorRef = useRef<MonacoCodeEditor.Handle>(null);
     const [sourceFile, { reparseCount }] = useSourceFile(code, language);
     const [selectedNode, setSelectedNode] = useState<TS.Node | undefined>(undefined);
 

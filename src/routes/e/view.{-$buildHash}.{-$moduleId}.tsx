@@ -1,5 +1,6 @@
 import { unavailableImport } from "@/utils/error";
 import { createFileRoute, redirect } from "@tanstack/react-router";
+import { zodValidator } from "@tanstack/zod-adapter";
 
 import { TBundleHash, TModuleId } from "../../../server/types";
 
@@ -13,6 +14,37 @@ const viewBundleParamsSchema = z.object({
     moduleId: TModuleId
         .nullable()
         .catch(null),
+});
+
+const searchParamsSchema = z.object({
+    /**
+     * range line start.
+     * 1-based.
+     */
+    sl: z.number()
+        .optional()
+        .catch(undefined),
+    /**
+     * range character start.
+     * 1-based.
+     */
+    sc: z.number()
+        .optional()
+        .catch(undefined),
+    /**
+     * range line end.
+     * 1-based.
+     */
+    el: z.number()
+        .optional()
+        .catch(undefined),
+    /**
+     * range character end.
+     * 1-based.
+     */
+    ec: z.number()
+        .optional()
+        .catch(undefined),
 });
 
 export const Route = createFileRoute("/e/view/{-$buildHash}/{-$moduleId}")({
@@ -31,17 +63,18 @@ export const Route = createFileRoute("/e/view/{-$buildHash}/{-$moduleId}")({
         },
     },
     async loader({ params: { buildHash, moduleId } }) {
+        if (!import.meta.env.SSR) {
+            const lsp = await import("./-lsp");
+
+            await lsp.registerLSPHandlers();
+        }
         data.ModuleViewerStore.getState().init(buildHash);
         if (moduleId != null) {
             // preload code
             await data.ModuleViewerStore.getState().getModuleCode(moduleId);
         }
     },
-    onEnter({ params: { moduleId } }) {
-        data.ModuleViewerStore.setState({
-            selectedModule: moduleId,
-        });
-    },
+    validateSearch: zodValidator(searchParamsSchema),
     ssr: false,
 });
 

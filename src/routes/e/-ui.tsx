@@ -10,10 +10,14 @@ import { ToggleButtonGroup } from "@/components/ToggleButtonGroup";
 import { TooltipPosition } from "@/components/Tooltip/constants";
 import { type GeneratedGraph, useModuleGraph } from "@/hooks/moduleGraph";
 import { dedupe } from "@/utils/array";
+import { GITHUB_REPO_URL, NBSP } from "@/utils/constants";
 import { sendMessage } from "@/utils/e/socket";
+import { debug_assert } from "@/utils/error";
+import type { Monaco } from "@/utils/monaco";
 import { visibleIf } from "@/utils/react";
 import { Language } from "@/utils/textmate";
 import { useQuery } from "@tanstack/react-query";
+import { createLink } from "@tanstack/react-router";
 import { TAssert } from "@vencord-companion/webpack-ast-parser/util";
 import type { WebpackAstParser } from "@vencord-companion/webpack-ast-parser/WebpackAstParser";
 import { Background, Controls, MiniMap, ReactFlow, ReactFlowProvider } from "@xyflow/react";
@@ -23,7 +27,7 @@ import { Route } from "./view.{-$buildHash}.{-$moduleId}";
 import { TModuleId } from "../../../server/types";
 
 import "@xyflow/react/dist/style.css";
-import { ArrowBigRight, ChevronFirstIcon, ChevronLastIcon, FileCodeIcon, NetworkIcon } from "lucide-react";
+import { ArrowBigRight, ChevronFirstIcon, ChevronLastIcon, FileCodeIcon, GithubIcon, NetworkIcon, Undo2Icon } from "lucide-react";
 import { Activity, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 
@@ -95,6 +99,8 @@ function pendingUri(str: string) {
 
 function ModuleViewer() {
     const moduleId = useModuleViewerStore(({ selectedModule }) => selectedModule);
+    const { sl, sc, el, ec } = Route.useSearch();
+    const [codeEditor, setCodeEditor] = useState<MonacoCodeEditor.Handle | null>(null);
 
     const [uri, setUri] = useState(() => {
         if (moduleId) {
@@ -131,8 +137,38 @@ function ModuleViewer() {
         };
     }, [moduleId]);
 
+    useEffect(() => {
+        if (!codeEditor || !moduleId) {
+            return;
+        }
+        if (sl == null || sc == null) {
+            debug_assert(el == null && ec == null, "when sl and sc are null, el and ec should be null");
+            return;
+        }
+        if (el == null || ec == null || (sl === el && sc === ec)) {
+            const pos = {
+                lineNumber: sl,
+                column: sc,
+            } satisfies Monaco.IPosition;
+
+            codeEditor.editor.setPosition(pos);
+            codeEditor.editor.revealPositionInCenter(pos);
+        } else {
+            const range = {
+                startLineNumber: sl,
+                startColumn: sc,
+                endLineNumber: el,
+                endColumn: ec,
+            } satisfies Monaco.IRange;
+
+            codeEditor.editor.setSelection(range);
+            codeEditor.editor.revealRangeInCenter(range);
+        }
+    }, [moduleId, uri, sl, sc, el, ec, codeEditor]);
+
     return (
         <MonacoCodeEditor
+            ref={setCodeEditor}
             language={Language.JAVASCRIPT}
             uri={uri}
         />
@@ -236,11 +272,16 @@ function ModuleGraph2({ graph: { nodes, edges } }: ModuleGraph2Props) {
             >
                 <Controls />
                 <Background />
-                <MiniMap />
+                <MiniMap
+                    pannable
+                    zoomable
+                />
             </ReactFlow>
         </div>
     );
 }
+
+const IconButtonInternalLink = createLink(IconButton);
 
 function ModuleGraphWrapper() {
     const moduleId = useModuleViewerStore(({ selectedModule }) => selectedModule);
@@ -277,7 +318,7 @@ export function Explorer() {
         });
     }, [navigate]);
 
-    const { buildHash } = Route.useParams();
+    const { buildHash, moduleId } = Route.useParams();
     const inputRef = useRef<HTMLInputElement>(null);
     const activePanel = useModuleViewerStore(({ activePanel }) => activePanel);
     const moduleSidebarOpen = useModuleViewerStore(({ moduleSidebarOpen }) => moduleSidebarOpen);
@@ -296,6 +337,10 @@ export function Explorer() {
             }
         },
     });
+
+    useEffect(() => {
+        ModuleViewerStore.setState({ selectedModule: moduleId });
+    }, [moduleId]);
 
     const origModules = status === "success" && data.metadata.modules;
 
@@ -352,7 +397,36 @@ export function Explorer() {
                             ]}
                         />
                     </div>
-                    <div />
+                    <div className="flex gap-2">
+                        <IconButtonInternalLink
+                            tooltipPosition={TooltipPosition.BOTTOM}
+                            label="Return to Bundle Selector"
+                            onClick={undefined}
+                            color="primary"
+                            colorType="outline"
+                            // Monaco has a sidebar with z-5, which blocks our tooltip sometimes
+                            tooltipClassName="z-6"
+                            tag="a"
+                            to="/e"
+                        >
+                            <Undo2Icon />
+                        </IconButtonInternalLink>
+                        <IconButton
+                            // FIXME: this should be on the bottom, but it clips off the screen
+                            tooltipPosition={TooltipPosition.LEFT}
+                            label={`Source${NBSP}Code.${NBSP}Star${NBSP}Me!`}
+                            onClick={undefined}
+                            color="secondary"
+                            colorType="outline"
+                            href={GITHUB_REPO_URL}
+                            // Monaco has a sidebar with z-5, which blocks our tooltip sometimes
+                            tooltipClassName="z-6"
+                            target="_blank"
+                            tag="a"
+                        >
+                            <GithubIcon />
+                        </IconButton>
+                    </div>
                 </div>
                 <div
                     className="relative flex min-h-0 grow"

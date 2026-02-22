@@ -1,10 +1,11 @@
 import { useDebouncedFn } from "@/hooks/debouncedFn";
 import { cn, type textSize } from "@/utils/cn";
 import type { Thenable } from "@/utils/types";
+import { TAssert } from "@vencord-companion/webpack-ast-parser/util";
 
 import { colors, colorTypes } from "./colors";
 import styles from "./styles.module.scss";
-import { Clickable } from "../Clickable";
+import { Clickable, type ClickableTags } from "../Clickable";
 import { Text } from "../Text";
 import { Tooltip } from "../Tooltip";
 import type { TooltipPosition } from "../Tooltip/constants";
@@ -12,7 +13,7 @@ import type { TooltipPosition } from "../Tooltip/constants";
 import { CheckIcon, XIcon } from "lucide-react";
 import { type ComponentProps, type MouseEvent, useId, useState } from "react";
 
-export interface BaseButtonProps extends ComponentProps<typeof Clickable<"button">> {
+export type BaseButtonProps<Tag extends ClickableTags> = ComponentProps<typeof Clickable<Tag>> & {
     /**
      * The color of the button
      */
@@ -29,9 +30,9 @@ export interface BaseButtonProps extends ComponentProps<typeof Clickable<"button
      * The accessible label for the button
      */
     label?: string;
-}
+};
 
-export interface ButtonProps extends BaseButtonProps {
+export interface ButtonProps extends BaseButtonProps<"button"> {
     /**
      * The size of the button text
      */
@@ -72,11 +73,11 @@ export function Button({ children, className, color = "primary", size = "md", wr
     );
 }
 
-export interface IconButtonProps extends BaseButtonProps {
+export type IconButtonProps<Tag extends "a" | "button"> = BaseButtonProps<Tag> & {
     /**
      * return `true` to show a success animation
      */
-    onClick: ((event: MouseEvent<HTMLButtonElement>) => Thenable<boolean | null>) | undefined;
+    onClick: ((event: MouseEvent<Tag extends "a" ? HTMLAnchorElement : HTMLButtonElement>) => Thenable<boolean | null>) | undefined;
     /**
      * label for button
      */
@@ -98,12 +99,14 @@ export interface IconButtonProps extends BaseButtonProps {
      * 
      * @default "success"
      */
-    checkColor?: BaseButtonProps["color"];
+    checkColor?: BaseButtonProps<Tag>["color"];
     tooltipPosition?: TooltipPosition;
-}
+    tooltipClassName?: string;
+    tag?: Tag;
+};
 
 
-export function IconButton({
+export function IconButton<T extends "a" | "button" = "button">({
     children,
     className,
     color = "primary",
@@ -115,8 +118,10 @@ export function IconButton({
     tooltipPosition,
     holdAnimDuration = 750,
     dispatchDuringAnim = true,
+    tag = "button" as T,
+    tooltipClassName,
     ...props
-}: IconButtonProps) {
+}: IconButtonProps<T>) {
     const enum ButtonState {
         GOOD,
         BAD,
@@ -133,8 +138,9 @@ export function IconButton({
         <Tooltip
             text={label}
             position={tooltipPosition}
+            tooltipClassName={tooltipClassName}
         >
-            <Clickable
+            <Clickable<"button">
                 className={cn(
                     className,
                     styles.button,
@@ -144,13 +150,16 @@ export function IconButton({
                     showCheck === ButtonState.GOOD && styles.showCheck,
                     showCheck === ButtonState.BAD && styles.showError,
                 )}
-                {...props}
+                {...props as any}
+                tag={tag as "button"}
                 disabled={disabled}
-                onClick={(e) => {
+                onClick={(e: unknown) => {
                     if (showCheck !== ButtonState.NORMAL && !dispatchDuringAnim) {
                         return;
                     }
+                    TAssert<MouseEvent<T extends "a" ? HTMLAnchorElement : HTMLButtonElement>>(e);
                     Promise.resolve(onClick?.(e)).then((result) => {
+                        TAssert<boolean | null>(result);
                         if (result === true) {
                             setShowCheck(ButtonState.GOOD);
                             hideCheck();
@@ -160,7 +169,6 @@ export function IconButton({
                         }
                     });
                 }}
-                tag="button"
             >
                 <div className={styles.icon}>
                     {children}
