@@ -1,9 +1,9 @@
 import { ModuleViewerStore, parseModuleURI } from "@/routes/e/-data";
+import { error } from "@/utils/error";
 import { type Monaco, monaco } from "@/utils/monaco";
 import { isWebpackModule } from "@vencord-companion/webpack-ast-parser/util";
 
 import { toMonacoRange, toParserPosition } from "../../../util";
-import { error } from "@/utils/error";
 
 export class WebpackExportHover implements Monaco.languages.HoverProvider {
     private constructor() {

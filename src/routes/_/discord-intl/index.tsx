@@ -11,7 +11,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { useState } from "react";
 
-const mappings: Record<string, string> = import.meta.env.SSR ? {} as never : (await import("./key-mappings.json")).default;
+const mappings: Record<string, string> = import.meta.env.SSR ? {} as never : (await import("@/utils/discordI18n/key-mappings.json")).default;
 
 export const Route = createFileRoute("/_/discord-intl/")({
     component: DiscordIntlLookup,

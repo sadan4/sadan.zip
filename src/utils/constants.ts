@@ -9,6 +9,7 @@ export const EM_DASH = "\u2014";
 export const REPLACEMENT_CHARACTER = "\uFFFD";
 
 export const GITHUB_REPO_URL = "https://github.com/sadan4/sadan.zip";
+export const GITHUB_REPO_CREATE_ISSUE_URL = "https://github.com/sadan4/sadan.zip/issues/new";
 
 // cspell:disable
 export const lorem = `
