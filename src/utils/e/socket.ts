@@ -3,11 +3,15 @@ import { withResolvers } from "../async";
 
 import z from "zod";
 
+let _pendingWs: Promise<WebSocket> | null = null;
 let _ws: WebSocket | null = null;
 const WS_URL = "wss://s-d-br.sadan.zip";
 
-async function ensureConnection() {
-    if (!_ws) {
+function ensureConnection() {
+    if (_ws?.readyState === WebSocket.OPEN) {
+        return Promise.resolve(_ws);
+    }
+    if (!_pendingWs) {
         _ws = new WebSocket(WS_URL);
 
         const { promise, resolve, reject } = withResolvers<WebSocket>();
@@ -16,9 +20,10 @@ async function ensureConnection() {
             resolve(_ws!);
         }, { once: true });
         setTimeout(() => reject(new Error("Timeout while connecting")), 10_000);
-        return promise;
+
+        _pendingWs = promise;
     }
-    return Promise.resolve(_ws);
+    return _pendingWs;
 }
 
 type Discriminate<U extends { type: string; }, K extends U["type"]> = U extends { type: K; } ? U : never;
