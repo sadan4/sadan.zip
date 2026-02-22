@@ -21,7 +21,9 @@ function ensureConnection() {
         }, { once: true });
         setTimeout(() => reject(new Error("Timeout while connecting")), 10_000);
 
-        _pendingWs = promise;
+        _pendingWs = promise.finally(() => {
+            _pendingWs = null;
+        });
     }
     return _pendingWs;
 }
