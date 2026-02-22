@@ -294,10 +294,16 @@ export const useModuleViewerSettingsStore = create<IModuleViewerSettings>()(pers
 } satisfies IModuleViewerSettings as IModuleViewerSettings), {
     name: "module-viewer-settings",
     version: 1,
-    onRehydrateStorage(_state) {
-        const state = IModuleViewerSettings.parse(_state);
+    onRehydrateStorage() {
+        return (_state, error) => {
+            if (error || !_state) {
+                return;
+            }
 
-        Object.assign(_state, state);
+            const state = IModuleViewerSettings.parse(_state);
+
+            Object.assign(_state, state);
+        };
     },
     skipHydration: import.meta.env.SSR,
 }));
