@@ -2,7 +2,7 @@ import cn from "@/utils/cn";
 
 import styles from "./styles.module.scss";
 
-import { type ComponentPropsWithRef, type PropsWithChildren } from "react";
+import { type ComponentPropsWithRef, type KeyboardEvent, type PropsWithChildren } from "react";
 
 export type ClickableTags = "a" | "div" | "span" | "li" | "button";
 
@@ -14,6 +14,7 @@ export function Clickable<T extends ClickableTags = "div">(_props: ClickableProp
     const {
         tag = "div",
         onMouseUp,
+        onKeyDown,
         children,
         className,
         ...props
@@ -31,6 +32,21 @@ export function Clickable<T extends ClickableTags = "div">(_props: ClickableProp
                 onMouseUp?.(e);
             }}
             className={cn(styles.clickable, className)}
+            onKeyDown={(e: KeyboardEvent<HTMLElement>) => {
+                onKeyDown?.(e as any);
+                if (!e.defaultPrevented && tag !== "a" && tag !== "button") {
+                    const el = e.currentTarget;
+
+                    switch (e.key) {
+                        case " ":
+                        case "Enter": {
+                            el.click();
+                            break;
+                        }
+                        default:
+                    }
+                }
+            }}
             {...props}
         >
             {children}
