@@ -11,3 +11,15 @@ export enum TextmateTheme {
     DRACULA,
     CATPPUCCIN = CATPPUCCIN_MOCHA,
 }
+export const themeDisplayNames = Object.freeze({
+    [TextmateTheme.TOKYO_NIGHT]: "Tokyo Night",
+    [TextmateTheme.ROSE_PINE]: "Rose Pine",
+    [TextmateTheme.ROSE_PINE_DAWN]: "Rose Pine Dawn",
+    [TextmateTheme.ROSE_PINE_MOON]: "Rose Pine Moon",
+    [TextmateTheme.NORD]: "Nord",
+    [TextmateTheme.CATPPUCCIN_MOCHA]: "Catppuccin Mocha",
+    [TextmateTheme.CATPPUCCIN_FRAPPE]: "Catppuccin Frappe",
+    [TextmateTheme.CATPPUCCIN_MACCHIATO]: "Catppuccin Macchiato",
+    [TextmateTheme.CATPPUCCIN_LATTE]: "Catppuccin Latte",
+    [TextmateTheme.DRACULA]: "Dracula",
+} satisfies Record<TextmateTheme, string>);

@@ -34,3 +34,7 @@ export function run<T>(f: () => T): T {
 export function identity<T>(x: T): T {
     return x;
 }
+
+export function isNumber(x: any): x is number {
+    return typeof x === "number";
+}

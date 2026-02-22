@@ -3,6 +3,7 @@ import { assert } from "@/utils/error";
 import { makeLazy } from "@/utils/lazy";
 import { type Monaco, monaco } from "@/utils/monaco";
 import { defer } from "@/utils/scope";
+import { TextmateTheme } from "@/utils/textmate/theme";
 import type { Fields, Thenable } from "@/utils/types";
 import { WebpackAstParser } from "@vencord-companion/webpack-ast-parser/WebpackAstParser";
 
@@ -282,13 +283,15 @@ export function parseModuleURI(uri: Monaco.Uri): ParsedModuleURI | undefined {
 
 const IModuleViewerSettings = z.object({
     openModulesInNewTab: z.boolean().catch(false),
+    editorTheme: z.enum(TextmateTheme).catch(TextmateTheme.TOKYO_NIGHT),
 });
 
 export type IModuleViewerSettings = z.infer<typeof IModuleViewerSettings>;
 
 export const useModuleViewerSettingsStore = create<IModuleViewerSettings>()(persist(() => ({
-    openModulesInNewTab: false as boolean,
-}), {
+    openModulesInNewTab: false,
+    editorTheme: TextmateTheme.TOKYO_NIGHT,
+} satisfies IModuleViewerSettings as IModuleViewerSettings), {
     name: "module-viewer-settings",
     version: 1,
     onRehydrateStorage(_state) {

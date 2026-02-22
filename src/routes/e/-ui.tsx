@@ -8,30 +8,34 @@ import { BufferedScroller } from "@/components/layout/BufferedScroller";
 import { HorizontalLine } from "@/components/Lines";
 import { TextLink } from "@/components/Links";
 import { Modal, ModalContext } from "@/components/modal";
+import { Select, type SelectOption } from "@/components/Select";
 import { LabeledSwitch } from "@/components/Switch/index";
 import { Text } from "@/components/Text";
 import { ToggleButtonGroup } from "@/components/ToggleButtonGroup";
 import { TooltipPosition } from "@/components/Tooltip/constants";
 import { type GeneratedGraph, useModuleGraph } from "@/hooks/moduleGraph";
 import { dedupe } from "@/utils/array";
+import cn from "@/utils/cn";
 import { GITHUB_REPO_URL, NBSP } from "@/utils/constants";
 import { sendMessage } from "@/utils/e/socket";
 import { debug_assert } from "@/utils/error";
+import { isNumber } from "@/utils/functional";
 import type { Monaco } from "@/utils/monaco";
 import { visibleIf } from "@/utils/react";
 import { Language } from "@/utils/textmate";
+import { TextmateTheme, themeDisplayNames } from "@/utils/textmate/theme";
 import { useQuery } from "@tanstack/react-query";
 import { createLink } from "@tanstack/react-router";
 import { TAssert } from "@vencord-companion/webpack-ast-parser/util";
 import type { WebpackAstParser } from "@vencord-companion/webpack-ast-parser/WebpackAstParser";
 import { Background, Controls, MiniMap, ReactFlow, ReactFlowProvider } from "@xyflow/react";
 
-import { ModuleViewerStore, placeholderModel, placeholderURI, useModuleViewerSettingsStore, useModuleViewerStore, ViewMode } from "./-data";
+import { ModuleViewerSettingsStore, ModuleViewerStore, placeholderModel, placeholderURI, useModuleViewerSettingsStore, useModuleViewerStore, ViewMode } from "./-data";
 import { Route } from "./view.{-$buildHash}.{-$moduleId}";
 import { TModuleId } from "../../../server/types";
 
 import "@xyflow/react/dist/style.css";
-import { ArrowBigRight, ChevronFirstIcon, ChevronLastIcon, FileCodeIcon, GithubIcon, NetworkIcon, SettingsIcon, TriangleAlertIcon, Undo2Icon } from "lucide-react";
+import { ArrowBigRight, BadgeInfoIcon, ChevronFirstIcon, ChevronLastIcon, FileCodeIcon, GithubIcon, NetworkIcon, SettingsIcon, TriangleAlertIcon, Undo2Icon } from "lucide-react";
 import { Activity, type PropsWithChildren, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 
@@ -105,6 +109,7 @@ function ModuleViewer() {
     const moduleId = useModuleViewerStore(({ selectedModule }) => selectedModule);
     const { sl, sc, el, ec } = Route.useSearch();
     const [codeEditor, setCodeEditor] = useState<MonacoCodeEditor.Handle | null>(null);
+    const editorTheme = useModuleViewerSettingsStore(({ editorTheme }) => editorTheme);
 
     const [uri, setUri] = useState(() => {
         if (moduleId) {
@@ -174,6 +179,7 @@ function ModuleViewer() {
         <MonacoCodeEditor
             ref={setCodeEditor}
             language={Language.JAVASCRIPT}
+            theme={editorTheme}
             uri={uri}
         />
     );
@@ -331,6 +337,7 @@ function ExperimentalSetting({ children }: ExperimentalSettingProps) {
 
 function SettingsModal() {
     const openModulesInNewTab = useModuleViewerSettingsStore(({ openModulesInNewTab }) => openModulesInNewTab);
+    const selectedTheme = useModuleViewerSettingsStore(({ editorTheme }) => editorTheme);
 
     return (
         <Box className="w-[25vw]">
@@ -342,23 +349,68 @@ function SettingsModal() {
                 Settings
             </Text>
             <HorizontalLine />
-            <ExperimentalSetting>
-                <LabeledSwitch
-                    value={openModulesInNewTab}
-                    onChange={(value) => {
-                        useModuleViewerSettingsStore.setState({ openModulesInNewTab: value });
-                    }}
-                >
-                    Open modules in new tab
-                </LabeledSwitch>
-                <Text
-                    size="sm"
-                    color="white-600"
-                >
-                    When enabled, modules opened via jump to definition(ctrl-click)
-                    inside of the editor will be opened in a new tab instead of the current tab
-                </Text>
-            </ExperimentalSetting>
+            <div className="flex flex-col gap-6">
+
+                <ExperimentalSetting>
+                    <LabeledSwitch
+                        value={openModulesInNewTab}
+                        onChange={(value) => {
+                            useModuleViewerSettingsStore.setState({ openModulesInNewTab: value });
+                        }}
+                    >
+                        Open modules in new tab
+                    </LabeledSwitch>
+                    <Text
+                        size="sm"
+                        color="white-600"
+                    >
+                        When enabled, modules opened via jump to definition(ctrl-click)
+                        inside of the editor will be opened in a new tab instead of the current tab
+                    </Text>
+                </ExperimentalSetting>
+                <div className="flex flex-col gap-2">
+                    <div className="flex items-center justify-between">
+                        <Text size="md">
+                            Editor Theme
+                        </Text>
+                        <Select
+                            selectedValue={selectedTheme}
+                            onChange={(editorTheme) => {
+                                ModuleViewerSettingsStore.setState({ editorTheme });
+                            }}
+                            items={Object
+                                .values(TextmateTheme)
+                                .filter(isNumber)
+                                .map((theme: TextmateTheme) => {
+                                    const name = themeDisplayNames[theme];
+
+                                    return {
+                                        label: name,
+                                        typedValue: name,
+                                        value: theme,
+                                        key: theme,
+                                    } satisfies SelectOption<TextmateTheme>;
+                                })}
+                            className="w-48"
+                            scrollAreaClassName={cn("max-h-[25vh]")}
+                        />
+                    </div>
+                    <Text
+                        color="white-600"
+                        size="sm"
+                    >
+                        The color theme for the code editor.
+                        This does not change the theme of the rest of the app. Sorry :(
+                    </Text>
+                    <Text
+                        color="info"
+                        size="sm"
+                        // FIXME: don't require a reload, this is a bug
+                    >
+                        <BadgeInfoIcon className="mr-1 inline size-4" />You must reload the page for the theme to take effect.
+                    </Text>
+                </div>
+            </div>
         </Box>
     );
 }
