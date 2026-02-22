@@ -340,7 +340,7 @@ function SettingsModal() {
     const selectedTheme = useModuleViewerSettingsStore(({ editorTheme }) => editorTheme);
 
     return (
-        <Box className="w-[25vw]">
+        <Box className="w-[95vw] sm:w-[75vw] md:w-[50vw] lg:w-[35vw]">
             <Text
                 center
                 size="2xl"
