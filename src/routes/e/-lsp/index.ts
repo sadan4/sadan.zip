@@ -30,6 +30,7 @@ async function _register() {
 
     WebpackAstParser.setDefaultModuleCache({
         getModuleFilepath(id) {
+            // FIXME: ensure this model is available when monaco loads it
             return getModuleURI(buildHash, id as TModuleId).toString();
         },
         getModuleParser(_requestor, id, _latest) {

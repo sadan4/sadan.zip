@@ -1,4 +1,4 @@
-import { getModuleURI, ModuleViewerStore, parseModuleURI } from "@/routes/e/-data";
+import { ModuleViewerStore, parseModuleURI } from "@/routes/e/-data";
 import { error, unreachable } from "@/utils/error";
 import { type Monaco, monaco } from "@/utils/monaco";
 import { Position as WP_Position } from "@vencord-companion/shared/Position";
