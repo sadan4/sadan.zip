@@ -26,6 +26,7 @@ import { TModuleId } from "../../../server/types";
 import "@xyflow/react/dist/style.css";
 import { ArrowBigRight, ChevronFirstIcon, ChevronLastIcon, FileCodeIcon, NetworkIcon } from "lucide-react";
 import { Activity, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { Monaco } from "@/utils/monaco";
 
 
 interface ModuleListItemProps {
@@ -143,17 +144,23 @@ function ModuleViewer() {
             return;
         }
         if (el == null || ec == null || (sl === el && sc === ec)) {
-            codeEditor.editor.setPosition({
+            const pos = {
                 lineNumber: sl,
                 column: sc,
-            });
+            } satisfies Monaco.IPosition;
+
+            codeEditor.editor.setPosition(pos);
+            codeEditor.editor.revealPositionInCenter(pos);
         } else {
-            codeEditor.editor.setSelection({
+            const range = {
                 startLineNumber: sl,
                 startColumn: sc,
                 endLineNumber: el,
                 endColumn: ec,
-            });
+            } satisfies Monaco.IRange;
+
+            codeEditor.editor.setSelection(range);
+            codeEditor.editor.revealRangeInCenter(range);
         }
     }, [moduleId, uri, sl, sc, el, ec, codeEditor]);
 
