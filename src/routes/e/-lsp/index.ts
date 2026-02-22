@@ -74,7 +74,7 @@ async function _register() {
             if (ModuleViewerSettingsStore.getState().openModulesInNewTab) {
                 // FIXME: look into Router.buildLocation
                 const url = new URL(
-                    `/e/view/${encodeURI(parsed.buildHash)}/${encodeURI(parsed.moduleId)}`,
+                    `/e/view/${encodeURIComponent(parsed.buildHash)}/${encodeURIComponent(parsed.moduleId)}`,
                     location.origin,
                 );
 
