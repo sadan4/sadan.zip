@@ -30,3 +30,7 @@ export function debounce<
 export function run<T>(f: () => T): T {
     return f();
 }
+
+export function identity<T>(x: T): T {
+    return x;
+}

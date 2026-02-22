@@ -11,6 +11,7 @@ import { TooltipPosition } from "@/components/Tooltip/constants";
 import { type GeneratedGraph, useModuleGraph } from "@/hooks/moduleGraph";
 import { dedupe } from "@/utils/array";
 import { sendMessage } from "@/utils/e/socket";
+import { debug_assert } from "@/utils/error";
 import { visibleIf } from "@/utils/react";
 import { Language } from "@/utils/textmate";
 import { useQuery } from "@tanstack/react-query";
@@ -95,6 +96,8 @@ function pendingUri(str: string) {
 
 function ModuleViewer() {
     const moduleId = useModuleViewerStore(({ selectedModule }) => selectedModule);
+    const { sl, sc, el, ec } = Route.useSearch();
+    const [codeEditor, setCodeEditor] = useState<MonacoCodeEditor.Handle | null>(null);
 
     const [uri, setUri] = useState(() => {
         if (moduleId) {
@@ -131,8 +134,32 @@ function ModuleViewer() {
         };
     }, [moduleId]);
 
+    useEffect(() => {
+        if (!codeEditor || !moduleId) {
+            return;
+        }
+        if (sl == null || sc == null) {
+            debug_assert(el == null && ec == null, "when sl and sc are null, el and ec should be null");
+            return;
+        }
+        if (el == null || ec == null || (sl === el && sc === ec)) {
+            codeEditor.editor.setPosition({
+                lineNumber: sl,
+                column: sc,
+            });
+        } else {
+            codeEditor.editor.setSelection({
+                startLineNumber: sl,
+                startColumn: sc,
+                endLineNumber: el,
+                endColumn: ec,
+            });
+        }
+    }, [moduleId, uri, sl, sc, el, ec, codeEditor]);
+
     return (
         <MonacoCodeEditor
+            ref={setCodeEditor}
             language={Language.JAVASCRIPT}
             uri={uri}
         />

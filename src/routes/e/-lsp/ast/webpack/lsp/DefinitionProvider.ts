@@ -1,9 +1,10 @@
-import { ModuleViewerStore, parseModuleURI } from "@/routes/e/-data";
-import { assert, error } from "@/utils/error";
+import { getModuleURI, ModuleViewerStore, parseModuleURI } from "@/routes/e/-data";
+import { error, unreachable } from "@/utils/error";
 import { type Monaco, monaco } from "@/utils/monaco";
 import { Position as WP_Position } from "@vencord-companion/shared/Position";
 import { isWebpackModule } from "@vencord-companion/webpack-ast-parser/util";
 
+import type { TModuleId } from "../../../../../../../server/types";
 import { toMoancoRange } from "../../../util";
 
 export class DefinitionProvider implements Monaco.languages.DefinitionProvider {
@@ -22,7 +23,7 @@ export class DefinitionProvider implements Monaco.languages.DefinitionProvider {
                 return;
             }
 
-            const { buildHash: currentBuildHash, getModuleParser } = ModuleViewerStore.getState();
+            const { buildHash: currentBuildHash, getModuleParser, getModuleModel } = ModuleViewerStore.getState();
             const { buildHash, moduleId } = parseModuleURI(model.uri) ?? {};
 
             if (buildHash !== currentBuildHash) {
@@ -43,12 +44,22 @@ export class DefinitionProvider implements Monaco.languages.DefinitionProvider {
             const monacoDefs: Monaco.languages.Location[] = [];
 
             for (const def of defs) {
-                assert(def.locationType === "file_path", "Expected file path location");
-
-                monacoDefs.push({
-                    range: toMoancoRange(def.range),
-                    uri: monaco.Uri.file(def.filePath),
-                });
+                switch (def.locationType) {
+                    case "file_path":
+                        monacoDefs.push({
+                            range: toMoancoRange(def.range),
+                            uri: monaco.Uri.file(def.filePath),
+                        });
+                        break;
+                    case "inline":
+                        monacoDefs.push({
+                            range: toMoancoRange(def.range),
+                            uri: (await getModuleModel(def.moduleId as TModuleId)).uri,
+                        });
+                        break;
+                    default:
+                        unreachable();
+                }
             }
 
             return monacoDefs;

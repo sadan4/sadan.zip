@@ -17,11 +17,7 @@ import { type CodeEditorProps } from "../base";
 
 import { Suspense, use, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
 
-export interface MonacoCodeEditorHandle {
-    get editor(): Monaco.editor.IStandaloneCodeEditor;
-}
-
-export interface MonacoCodeEditorProps extends CodeEditorProps<MonacoCodeEditorHandle> {
+export interface MonacoCodeEditorProps extends CodeEditorProps<MonacoCodeEditor.Handle> {
     theme?: MonacoTheme;
     options?: Monaco.editor.IStandaloneEditorConstructionOptions;
     uri?: Monaco.Uri;
@@ -268,6 +264,12 @@ function MonacoCodeEditorInner({
             data-code-editor="monaco"
         />
     );
+}
+
+export namespace MonacoCodeEditor {
+    export interface Handle {
+        get editor(): Monaco.editor.IStandaloneCodeEditor;
+    }
 }
 
 export function MonacoCodeEditor(props: MonacoCodeEditorProps) {
