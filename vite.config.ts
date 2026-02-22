@@ -35,7 +35,6 @@ const config = defineConfig(async ({ command, isSsrBuild }) => {
             devtoolsJSON(),
             monacoEditor({
                 languages: ["typescript", "javascript"],
-                features: [],
             }),
             devtools({
                 consolePiping: {

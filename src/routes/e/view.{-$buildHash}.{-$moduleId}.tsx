@@ -1,6 +1,7 @@
 import { unavailableImport } from "@/utils/error";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
+import { registerLSPHandlers } from "./-lsp";
 import { TBundleHash, TModuleId } from "../../../server/types";
 
 import z from "zod";
@@ -31,6 +32,7 @@ export const Route = createFileRoute("/e/view/{-$buildHash}/{-$moduleId}")({
         },
     },
     async loader({ params: { buildHash, moduleId } }) {
+        await registerLSPHandlers();
         data.ModuleViewerStore.getState().init(buildHash);
         if (moduleId != null) {
             // preload code

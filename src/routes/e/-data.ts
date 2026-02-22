@@ -255,3 +255,25 @@ export const placeholderModel = makeLazy(() => {
 
     return monaco.editor.createModel("", "javascript", uri);
 });
+
+const MODULE_URI_REGEX = /^file:\/\/\/bundle\/([^/]+?)\/([^/.]+?)\.js$/;
+
+export interface ParsedModuleURI {
+    buildHash: TBundleHash;
+    moduleId: TModuleId;
+}
+
+export function parseModuleURI(uri: Monaco.Uri): ParsedModuleURI | undefined {
+    const match = MODULE_URI_REGEX.exec(uri.toString());
+
+    if (!match) {
+        return undefined;
+    }
+
+    const [, buildHash, moduleId] = match;
+
+    return {
+        buildHash: buildHash as TBundleHash,
+        moduleId: moduleId as TModuleId,
+    };
+}
