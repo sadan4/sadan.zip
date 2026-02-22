@@ -3,8 +3,12 @@ import { IconButton } from "@/components/Button";
 import { Clickable } from "@/components/Clickable";
 import { MonacoCodeEditor } from "@/components/CodeEditor/Monaco";
 import { Input } from "@/components/Input";
+import { Box } from "@/components/layout/Box";
 import { BufferedScroller } from "@/components/layout/BufferedScroller";
+import { HorizontalLine } from "@/components/Lines";
 import { TextLink } from "@/components/Links";
+import { Modal, ModalContext } from "@/components/modal";
+import { LabeledSwitch } from "@/components/Switch/index";
 import { Text } from "@/components/Text";
 import { ToggleButtonGroup } from "@/components/ToggleButtonGroup";
 import { TooltipPosition } from "@/components/Tooltip/constants";
@@ -22,13 +26,13 @@ import { TAssert } from "@vencord-companion/webpack-ast-parser/util";
 import type { WebpackAstParser } from "@vencord-companion/webpack-ast-parser/WebpackAstParser";
 import { Background, Controls, MiniMap, ReactFlow, ReactFlowProvider } from "@xyflow/react";
 
-import { ModuleViewerStore, placeholderModel, placeholderURI, useModuleViewerStore, ViewMode } from "./-data";
+import { ModuleViewerStore, placeholderModel, placeholderURI, useModuleViewerSettingsStore, useModuleViewerStore, ViewMode } from "./-data";
 import { Route } from "./view.{-$buildHash}.{-$moduleId}";
 import { TModuleId } from "../../../server/types";
 
 import "@xyflow/react/dist/style.css";
-import { ArrowBigRight, ChevronFirstIcon, ChevronLastIcon, FileCodeIcon, GithubIcon, NetworkIcon, Undo2Icon } from "lucide-react";
-import { Activity, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ArrowBigRight, ChevronFirstIcon, ChevronLastIcon, FileCodeIcon, GithubIcon, NetworkIcon, SettingsIcon, TriangleAlertIcon, Undo2Icon } from "lucide-react";
+import { Activity, type PropsWithChildren, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 
 interface ModuleListItemProps {
@@ -306,6 +310,59 @@ function ModuleGraphWrapper() {
     );
 }
 
+interface ExperimentalSettingProps extends PropsWithChildren {
+}
+
+function ExperimentalSetting({ children }: ExperimentalSettingProps) {
+    return (
+        <>
+            <div className="flex w-full flex-col rounded-md border-2 border-warning-300/50 p-2">
+                <Text
+                    color="warning"
+                    className="mb-2 flex items-center gap-2"
+                >
+                    <TriangleAlertIcon className="inline" />This Setting is Experimental. Expect and report any bugs!
+                </Text>
+                {children}
+            </div>
+        </>
+    );
+}
+
+function SettingsModal() {
+    const openModulesInNewTab = useModuleViewerSettingsStore(({ openModulesInNewTab }) => openModulesInNewTab);
+
+    return (
+        <Box className="w-[25vw]">
+            <Text
+                center
+                size="2xl"
+                color="primary"
+            >
+                Settings
+            </Text>
+            <HorizontalLine />
+            <ExperimentalSetting>
+                <LabeledSwitch
+                    value={openModulesInNewTab}
+                    onChange={(value) => {
+                        useModuleViewerSettingsStore.setState({ openModulesInNewTab: value });
+                    }}
+                >
+                    Open modules in new tab
+                </LabeledSwitch>
+                <Text
+                    size="sm"
+                    color="white-600"
+                >
+                    When enabled, modules opened via jump to definition(ctrl-click)
+                    inside of the editor will be opened in a new tab instead of the current tab
+                </Text>
+            </ExperimentalSetting>
+        </Box>
+    );
+}
+
 export function Explorer() {
     const navigate = Route.useNavigate();
 
@@ -322,6 +379,7 @@ export function Explorer() {
     const inputRef = useRef<HTMLInputElement>(null);
     const activePanel = useModuleViewerStore(({ activePanel }) => activePanel);
     const moduleSidebarOpen = useModuleViewerStore(({ moduleSidebarOpen }) => moduleSidebarOpen);
+    const settingsModal = useRef<ModalContext>(null);
 
     const { status, data } = useQuery({
         queryKey: ["getBundleMetadata", { buildHash }],
@@ -398,11 +456,28 @@ export function Explorer() {
                         />
                     </div>
                     <div className="flex gap-2">
+                        <IconButton
+                            label={`Open${NBSP}Settings`}
+                            colorType="outline"
+                            onClick={() => {
+                                if (settingsModal.current) {
+                                    settingsModal.current.open();
+                                    return true;
+                                }
+                                return false;
+                            }}
+                            tooltipClassName="z-5"
+                            tooltipPosition={TooltipPosition.BOTTOM}
+                        >
+                            <SettingsIcon />
+                        </IconButton>
+                        <Modal ref={settingsModal}>
+                            <SettingsModal />
+                        </Modal>
                         <IconButtonInternalLink
                             tooltipPosition={TooltipPosition.BOTTOM}
                             label="Return to Bundle Selector"
                             onClick={undefined}
-                            color="primary"
                             colorType="outline"
                             // Monaco has a sidebar with z-5, which blocks our tooltip sometimes
                             tooltipClassName="z-6"

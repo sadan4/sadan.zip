@@ -8,7 +8,9 @@ import { WebpackAstParser } from "@vencord-companion/webpack-ast-parser/WebpackA
 
 import type { DepsJson, TBundleHash, TModuleId } from "../../../server/types";
 
+import z from "zod";
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
 interface ModuleViewerStore {
     readonly buildHash: TBundleHash;
@@ -277,3 +279,25 @@ export function parseModuleURI(uri: Monaco.Uri): ParsedModuleURI | undefined {
         moduleId: moduleId as TModuleId,
     };
 }
+
+const IModuleViewerSettings = z.object({
+    openModulesInNewTab: z.boolean().catch(false),
+});
+
+export type IModuleViewerSettings = z.infer<typeof IModuleViewerSettings>;
+
+export const useModuleViewerSettingsStore = create<IModuleViewerSettings>()(persist(() => ({
+    openModulesInNewTab: false as boolean,
+}), {
+    name: "module-viewer-settings",
+    version: 1,
+    onRehydrateStorage(_state) {
+        const state = IModuleViewerSettings.parse(_state);
+
+        Object.assign(_state, state);
+    },
+    skipHydration: import.meta.env.SSR,
+}));
+
+// make react compiler happy
+export const ModuleViewerSettingsStore = useModuleViewerSettingsStore;
