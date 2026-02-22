@@ -5,7 +5,7 @@ import { Position as WP_Position } from "@vencord-companion/shared/Position";
 import { isWebpackModule } from "@vencord-companion/webpack-ast-parser/util";
 
 import type { TModuleId } from "../../../../../../../server/types";
-import { toMoancoRange } from "../../../util";
+import { toMonacoRange } from "../../../util";
 
 export class DefinitionProvider implements Monaco.languages.DefinitionProvider {
     private constructor() {
@@ -47,13 +47,13 @@ export class DefinitionProvider implements Monaco.languages.DefinitionProvider {
                 switch (def.locationType) {
                     case "file_path":
                         monacoDefs.push({
-                            range: toMoancoRange(def.range),
+                            range: toMonacoRange(def.range),
                             uri: monaco.Uri.file(def.filePath),
                         });
                         break;
                     case "inline":
                         monacoDefs.push({
-                            range: toMoancoRange(def.range),
+                            range: toMonacoRange(def.range),
                             uri: (await getModuleModel(def.moduleId as TModuleId)).uri,
                         });
                         break;
