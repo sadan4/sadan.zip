@@ -10,8 +10,10 @@ import { ToggleButtonGroup } from "@/components/ToggleButtonGroup";
 import { TooltipPosition } from "@/components/Tooltip/constants";
 import { type GeneratedGraph, useModuleGraph } from "@/hooks/moduleGraph";
 import { dedupe } from "@/utils/array";
+import { GITHUB_REPO_URL, NBSP } from "@/utils/constants";
 import { sendMessage } from "@/utils/e/socket";
 import { debug_assert } from "@/utils/error";
+import type { Monaco } from "@/utils/monaco";
 import { visibleIf } from "@/utils/react";
 import { Language } from "@/utils/textmate";
 import { useQuery } from "@tanstack/react-query";
@@ -24,9 +26,8 @@ import { Route } from "./view.{-$buildHash}.{-$moduleId}";
 import { TModuleId } from "../../../server/types";
 
 import "@xyflow/react/dist/style.css";
-import { ArrowBigRight, ChevronFirstIcon, ChevronLastIcon, FileCodeIcon, NetworkIcon } from "lucide-react";
+import { ArrowBigRight, ChevronFirstIcon, ChevronLastIcon, FileCodeIcon, GithubIcon, NetworkIcon } from "lucide-react";
 import { Activity, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { Monaco } from "@/utils/monaco";
 
 
 interface ModuleListItemProps {
@@ -393,7 +394,23 @@ export function Explorer() {
                             ]}
                         />
                     </div>
-                    <div />
+                    <div className="flex">
+                        <IconButton
+                            tooltipPosition={TooltipPosition.LEFT}
+                            label={`Source${NBSP}Code.${NBSP}Star${NBSP}Me!`}
+                            onClick={undefined}
+                            color="secondary"
+                            className="border-2"
+                            colorType="outline"
+                            href={GITHUB_REPO_URL}
+                            // Monaco has a sidebar with z-5, which blocks our tooltip sometimes
+                            tooltipClassName="z-6"
+                            target="_blank"
+                            tag="a"
+                        >
+                            <GithubIcon />
+                        </IconButton>
+                    </div>
                 </div>
                 <div
                     className="relative flex min-h-0 grow"
