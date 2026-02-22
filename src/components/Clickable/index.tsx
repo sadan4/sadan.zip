@@ -40,6 +40,7 @@ export function Clickable<T extends ClickableTags = "div">(_props: ClickableProp
                     switch (e.key) {
                         case " ":
                         case "Enter": {
+                            e.preventDefault();
                             el.click();
                             break;
                         }
