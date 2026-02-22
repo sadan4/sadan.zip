@@ -93,6 +93,52 @@ export function Switch({ initialValue, value, onChange }: SwitchProps) {
                     setState(SwitchState.HELD);
                 }
             }}
+            onKeyDown={(e) => {
+                e.preventDefault();
+                if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) {
+                    return;
+                }
+                switch (e.key) {
+                    case "Enter":
+                    case " ":
+                        break;
+                    default:
+                        return;
+                }
+                setState(SwitchState.HELD);
+            }}
+            onKeyUp={(e) => {
+                e.preventDefault();
+                if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) {
+                    return;
+                }
+                switch (e.key) {
+                    case "Enter":
+                    case " ":
+                        break;
+                    default:
+                        return;
+                }
+                if (state !== SwitchState.HELD) {
+                    return;
+                }
+                if (!isManaged) {
+                    if (enabled) {
+                        setState(SwitchState.OFF);
+                    } else {
+                        setState(SwitchState.ON);
+                    }
+                } else {
+                    setState(enabled ? SwitchState.ON : SwitchState.OFF);
+                }
+                onChange?.(!enabled);
+                setInternalEnabled(!enabled);
+            }}
+            onBlur={() => {
+                if (state === SwitchState.HELD) {
+                    setState(enabled ? SwitchState.ON : SwitchState.OFF);
+                }
+            }}
             onPointerUp={() => {
                 if (state !== SwitchState.HELD) {
                     return;

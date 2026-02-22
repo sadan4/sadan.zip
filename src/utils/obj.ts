@@ -19,6 +19,19 @@ export function mapObject<T extends Object, U>(
     return result;
 }
 
+export function mapValues<T extends Object, U>(
+    obj: T,
+    fn: (value: T[keyof T]) => U,
+): { [K in keyof T]: U } {
+    const result = {} as { [K in keyof T]: U };
+
+    for (const key in obj) {
+        result[key] = fn(obj[key]);
+    }
+
+    return result;
+}
+
 export function filterObject<
     T extends Object,
     K extends keyof T,

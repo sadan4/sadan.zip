@@ -3,12 +3,15 @@ import { assert } from "@/utils/error";
 import { makeLazy } from "@/utils/lazy";
 import { type Monaco, monaco } from "@/utils/monaco";
 import { defer } from "@/utils/scope";
+import { TextmateTheme } from "@/utils/textmate/theme";
 import type { Fields, Thenable } from "@/utils/types";
 import { WebpackAstParser } from "@vencord-companion/webpack-ast-parser/WebpackAstParser";
 
 import type { DepsJson, TBundleHash, TModuleId } from "../../../server/types";
 
+import z from "zod";
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
 interface ModuleViewerStore {
     readonly buildHash: TBundleHash;
@@ -277,3 +280,33 @@ export function parseModuleURI(uri: Monaco.Uri): ParsedModuleURI | undefined {
         moduleId: moduleId as TModuleId,
     };
 }
+
+const IModuleViewerSettings = z.object({
+    openModulesInNewTab: z.boolean().catch(false),
+    editorTheme: z.enum(TextmateTheme).catch(TextmateTheme.TOKYO_NIGHT),
+});
+
+export type IModuleViewerSettings = z.infer<typeof IModuleViewerSettings>;
+
+export const useModuleViewerSettingsStore = create<IModuleViewerSettings>()(persist(() => ({
+    openModulesInNewTab: false,
+    editorTheme: TextmateTheme.TOKYO_NIGHT,
+} satisfies IModuleViewerSettings as IModuleViewerSettings), {
+    name: "module-viewer-settings",
+    version: 1,
+    onRehydrateStorage() {
+        return (_state, error) => {
+            if (error || !_state) {
+                return;
+            }
+
+            const state = IModuleViewerSettings.parse(_state);
+
+            Object.assign(_state, state);
+        };
+    },
+    skipHydration: import.meta.env.SSR,
+}));
+
+// make react compiler happy
+export const ModuleViewerSettingsStore = useModuleViewerSettingsStore;

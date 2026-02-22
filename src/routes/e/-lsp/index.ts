@@ -2,11 +2,12 @@ import { getRouter } from "@/router";
 import { unreachable } from "@/utils/error";
 import { once } from "@/utils/functional";
 import { type Monaco, monaco } from "@/utils/monaco";
+import { entries, mapValues } from "@/utils/obj";
 import { WebpackAstParser } from "@vencord-companion/webpack-ast-parser/WebpackAstParser";
 
 import { DefinitionProvider } from "./ast/webpack/lsp/DefinitionProvider";
 import type { DepsJson, TModuleId } from "../../../../server/types";
-import { getModuleURI, ModuleViewerStore, parseModuleURI } from "../-data";
+import { getModuleURI, ModuleViewerSettingsStore, ModuleViewerStore, parseModuleURI } from "../-data";
 
 async function _register() {
     let { buildHash, getDepsGraph } = ModuleViewerStore.getState();
@@ -54,30 +55,48 @@ async function _register() {
 
             console.log("Opening module", parsed.moduleId, "in build", parsed.buildHash);
 
-            getRouter().navigate({
-                to: "/e/view/{-$buildHash}/{-$moduleId}",
-                params: {
-                    buildHash: parsed.buildHash,
-                    moduleId: parsed.moduleId,
-                },
-                search: selectionOrPosition
-                    ? monaco.Range.isIRange(selectionOrPosition)
-                        ? {
-                            sl: selectionOrPosition.startLineNumber,
-                            sc: selectionOrPosition.startColumn,
-                            el: selectionOrPosition.endLineNumber,
-                            ec: selectionOrPosition.endColumn,
-                        }
-                        : {
-                            sl: selectionOrPosition.lineNumber,
-                            sc: selectionOrPosition?.column,
-                            el: selectionOrPosition.lineNumber,
-                            ec: selectionOrPosition?.column,
-                        }
-                    : undefined,
-            });
+            const search = selectionOrPosition
+                ? monaco.Range.isIRange(selectionOrPosition)
+                    ? {
+                        sl: selectionOrPosition.startLineNumber,
+                        sc: selectionOrPosition.startColumn,
+                        el: selectionOrPosition.endLineNumber,
+                        ec: selectionOrPosition.endColumn,
+                    } as const
+                    : {
+                        sl: selectionOrPosition.lineNumber,
+                        sc: selectionOrPosition?.column,
+                        el: selectionOrPosition.lineNumber,
+                        ec: selectionOrPosition?.column,
+                    } as const
+                : undefined;
 
-            return false;
+            if (ModuleViewerSettingsStore.getState().openModulesInNewTab) {
+                // FIXME: look into Router.buildLocation
+                const url = new URL(
+                    `/e/view/${encodeURIComponent(parsed.buildHash)}/${encodeURIComponent(parsed.moduleId)}`,
+                    location.origin,
+                );
+
+                if (search) {
+                    for (const [key, value] of entries(mapValues(search, String))) {
+                        url.searchParams.set(key, value);
+                    }
+                }
+
+                window.open(url.toString(), "_blank", "noopener,noreferrer");
+            } else {
+                getRouter().navigate({
+                    to: "/e/view/{-$buildHash}/{-$moduleId}",
+                    params: {
+                        buildHash: parsed.buildHash,
+                        moduleId: parsed.moduleId,
+                    },
+                    search,
+                });
+            }
+
+            return true;
         }
     }());
 }
