@@ -1,13 +1,12 @@
 import { ModuleViewerStore, parseModuleURI } from "@/routes/e/-data";
 import { error, unreachable } from "@/utils/error";
 import { type Monaco, monaco } from "@/utils/monaco";
-import { Position as WP_Position } from "@vencord-companion/shared/Position";
 import { isWebpackModule } from "@vencord-companion/webpack-ast-parser/util";
 
 import type { TModuleId } from "../../../../../../../server/types";
-import { toMonacoRange } from "../../../util";
+import { toMonacoRange, toParserPosition } from "../../../util";
 
-export class DefinitionProvider implements Monaco.languages.DefinitionProvider {
+export class WebpackDefinitionProvider implements Monaco.languages.DefinitionProvider {
     private constructor() {
     }
 
@@ -34,8 +33,7 @@ export class DefinitionProvider implements Monaco.languages.DefinitionProvider {
             }
 
             const parser = await getModuleParser(moduleId);
-            const pos = new WP_Position(position.lineNumber - 1, position.column - 1);
-            const defs = await parser.generateDefinitions(pos);
+            const defs = await parser.generateDefinitions(toParserPosition(position));
 
             if (!defs) {
                 return;

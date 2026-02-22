@@ -5,9 +5,10 @@ import { type Monaco, monaco } from "@/utils/monaco";
 import { entries, mapValues } from "@/utils/obj";
 import { WebpackAstParser } from "@vencord-companion/webpack-ast-parser/WebpackAstParser";
 
-import { DefinitionProvider } from "./ast/webpack/lsp/DefinitionProvider";
+import { WebpackDefinitionProvider } from "./ast/webpack/lsp/DefinitionProvider";
 import type { DepsJson, TModuleId } from "../../../../server/types";
 import { getModuleURI, ModuleViewerSettingsStore, ModuleViewerStore, parseModuleURI } from "../-data";
+import { WebpackExportHover } from "./ast/webpack/hover/ExportHover";
 
 async function _register() {
     let { buildHash, getDepsGraph } = ModuleViewerStore.getState();
@@ -39,7 +40,8 @@ async function _register() {
         },
     });
 
-    DefinitionProvider.register();
+    WebpackExportHover.register();
+    WebpackDefinitionProvider.register();
 
     monaco.editor.registerEditorOpener(new class implements Monaco.editor.ICodeEditorOpener {
         openCodeEditor(

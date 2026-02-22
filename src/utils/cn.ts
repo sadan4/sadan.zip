@@ -15,7 +15,6 @@ export interface ResizeProp {
     resize?: keyof typeof resizeClasses;
 }
 
-
 export const bgColors = {
     black: "bg-bg-100",
     "black-200": "bg-bg-200",
