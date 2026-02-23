@@ -110,13 +110,21 @@ const posMap: Record<TooltipPosition, string> = {
     [TooltipPosition.RIGHT]: styles.right,
 };
 
-function makeTooltipPositionStyles(
-    position: TooltipPosition,
-    triggerRect: DOMRect,
-    percentIn: SpringValue<number>,
-    triggerHeight: SpringValue<number>,
-    triggerWidth: SpringValue<number>,
-): AnimatedProps<CSSProperties> {
+interface MakeTooltipPositionStylesOptions {
+    position: TooltipPosition;
+    triggerRect: DOMRect;
+    percentIn: SpringValue<number>;
+    triggerHeight: SpringValue<number>;
+    triggerWidth: SpringValue<number>;
+}
+
+function makeTooltipPositionStyles({
+    position,
+    triggerRect,
+    percentIn,
+    triggerHeight,
+    triggerWidth,
+}: MakeTooltipPositionStylesOptions): AnimatedProps<CSSProperties> {
     const { top, left, width, height } = triggerRect;
 
     switch (position) {
@@ -270,13 +278,13 @@ export function Tooltip({
                                 className={cn(styles.container, posMap[position], tooltipClassName)}
                                 style={{
                                     ...styleProps,
-                                    ...makeTooltipPositionStyles(
+                                    ...makeTooltipPositionStyles({
                                         position,
                                         triggerRect,
                                         percentIn,
                                         triggerHeight,
                                         triggerWidth,
-                                    ),
+                                    }),
                                 }}
                             >
                                 {noWrapper

@@ -32,18 +32,11 @@ function Sadan88x31Button(props: Sadan88x31ButtonProps) {
             tag="a"
             href="/"
             rel="nofollow"
-            style={{
-                width: "88px",
-                height: "31px",
-            }}
+            className="size-88x31"
         >
             <img
                 src={_88x31Image}
-                style={{
-                    imageRendering: "pixelated",
-                    width: "88px",
-                    height: "31px",
-                }}
+                className="size-88x31 pixelated"
             />
         </Clickable>
     );
