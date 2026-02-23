@@ -1,5 +1,5 @@
 import { ModuleViewerStore, parseModuleURI } from "@/routes/e/-data";
-import { error, unreachable } from "@/utils/error";
+import { error } from "@/utils/error";
 import { type Monaco, monaco } from "@/utils/monaco";
 import { isWebpackModule } from "@vencord-companion/webpack-ast-parser/util";
 
@@ -42,22 +42,10 @@ export class WebpackDefinitionProvider implements Monaco.languages.DefinitionPro
             const monacoDefs: Monaco.languages.Location[] = [];
 
             for (const def of defs) {
-                switch (def.locationType) {
-                    case "file_path":
-                        monacoDefs.push({
-                            range: toMonacoRange(def.range),
-                            uri: monaco.Uri.file(def.filePath),
-                        });
-                        break;
-                    case "inline":
-                        monacoDefs.push({
-                            range: toMonacoRange(def.range),
-                            uri: (await getModuleModel(def.moduleId as TModuleId)).uri,
-                        });
-                        break;
-                    default:
-                        unreachable();
-                }
+                monacoDefs.push({
+                    range: toMonacoRange(def.range),
+                    uri: (await getModuleModel(def.moduleId as TModuleId)).uri,
+                });
             }
 
             return monacoDefs;

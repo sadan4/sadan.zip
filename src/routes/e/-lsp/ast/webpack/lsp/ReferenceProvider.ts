@@ -1,5 +1,4 @@
 import { ModuleViewerStore, parseModuleURI } from "@/routes/e/-data";
-import { unreachable } from "@/utils/error";
 import { type Monaco, monaco } from "@/utils/monaco";
 import { isWebpackModule } from "@vencord-companion/webpack-ast-parser/util";
 
@@ -36,30 +35,15 @@ export class WebpackReferenceProvider implements Monaco.languages.ReferenceProvi
             }
 
             for (const ref of refs) {
-                switch (ref.locationType) {
-                    case "file_path": {
-                        monacoRefs.push({
-                            range: toMonacoRange(ref.range),
-                            uri: (await getModuleModel(ref.moduleId as TModuleId)).uri,
-                        });
-                        break;
-                    }
-                    case "inline": {
-                        monacoRefs.push({
-                            range: toMonacoRange(ref.range),
-                            uri: (await getModuleModel(ref.moduleId as TModuleId)).uri,
-                        });
-                        break;
-                    }
-                    default: {
-                        unreachable();
-                    }
-                }
+                monacoRefs.push({
+                    range: toMonacoRange(ref.range),
+                    uri: (await getModuleModel(ref.moduleId as TModuleId)).uri,
+                });
             }
 
             return monacoRefs;
         } catch (e) {
-            console.error("[WebpackReferenceProvider]", e);
+            console.error(e);
         }
     }
 
