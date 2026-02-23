@@ -9,6 +9,8 @@ export enum TextmateTheme {
     CATPPUCCIN_MACCHIATO,
     CATPPUCCIN_LATTE,
     DRACULA,
+    GRUVBOX,
+    OXOCARBON,
     CATPPUCCIN = CATPPUCCIN_MOCHA,
 }
 export const themeDisplayNames = Object.freeze({
@@ -21,5 +23,7 @@ export const themeDisplayNames = Object.freeze({
     [TextmateTheme.CATPPUCCIN_FRAPPE]: "Catppuccin Frappe",
     [TextmateTheme.CATPPUCCIN_MACCHIATO]: "Catppuccin Macchiato",
     [TextmateTheme.CATPPUCCIN_LATTE]: "Catppuccin Latte",
+    [TextmateTheme.GRUVBOX]: "Gruvbox",
+    [TextmateTheme.OXOCARBON]: "Oxocarbon",
     [TextmateTheme.DRACULA]: "Dracula",
 } satisfies Record<TextmateTheme, string>);

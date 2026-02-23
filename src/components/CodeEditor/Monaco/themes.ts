@@ -67,6 +67,8 @@ export function useMonacoTheme(theme: MonacoTheme): string {
         case TextmateTheme.CATPPUCCIN_FRAPPE:
         case TextmateTheme.CATPPUCCIN_MACCHIATO:
         case TextmateTheme.CATPPUCCIN_LATTE:
+        case TextmateTheme.GRUVBOX:
+        case TextmateTheme.OXOCARBON:
         case TextmateTheme.DRACULA: {
             return registeredThemeMap.get(theme) ?? use(loadLazyTextmateThemeForMonaco(theme));
         }

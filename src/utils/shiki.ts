@@ -23,7 +23,7 @@ export const langMap: Record<Language, ShikiLanguage> = Object.freeze({
     [Language.CSS]: "css",
 });
 
-export const themeMap: Record<TextmateTheme, BundledTheme> = Object.freeze({
+export const themeMap: Record<TextmateTheme, BundledTheme | "Oxocarbon Dark"> = Object.freeze({
     [TextmateTheme.TOKYO_NIGHT]: "tokyo-night",
     [TextmateTheme.ROSE_PINE]: "rose-pine",
     [TextmateTheme.ROSE_PINE_DAWN]: "rose-pine-dawn",
@@ -33,6 +33,8 @@ export const themeMap: Record<TextmateTheme, BundledTheme> = Object.freeze({
     [TextmateTheme.CATPPUCCIN_FRAPPE]: "catppuccin-frappe",
     [TextmateTheme.CATPPUCCIN_MACCHIATO]: "catppuccin-macchiato",
     [TextmateTheme.CATPPUCCIN_LATTE]: "catppuccin-latte",
+    [TextmateTheme.GRUVBOX]: "gruvbox-dark-hard",
+    [TextmateTheme.OXOCARBON]: "Oxocarbon Dark",
     [TextmateTheme.DRACULA]: "dracula",
 });
 export let highlighter: HighlighterCore | undefined;
