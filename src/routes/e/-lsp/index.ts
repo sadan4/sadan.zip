@@ -8,6 +8,7 @@ import { WebpackAstParser } from "@vencord-companion/webpack-ast-parser/WebpackA
 import { WebpackExportHover } from "./ast/webpack/hover/ExportHover";
 import { WebpackI18nHover } from "./ast/webpack/hover/I18nHover";
 import { WebpackDefinitionProvider } from "./ast/webpack/lsp/DefinitionProvider";
+import { WebpackReferenceProvider } from "./ast/webpack/lsp/ReferenceProvider";
 import type { DepsJson, TModuleId } from "../../../../server/types";
 import { getModuleURI, ModuleViewerSettingsStore, ModuleViewerStore, parseModuleURI } from "../-data";
 
@@ -44,6 +45,7 @@ async function _register() {
     WebpackExportHover.register();
     WebpackI18nHover.register();
     WebpackDefinitionProvider.register();
+    WebpackReferenceProvider.register();
 
     monaco.editor.registerEditorOpener(new class implements Monaco.editor.ICodeEditorOpener {
         openCodeEditor(

@@ -55,6 +55,16 @@ const textmateThemes: Record<TextmateTheme, () => Promise<TMTheme>> = {
 
         return theme.default;
     },
+    async [TextmateTheme.OXOCARBON](): Promise<TMTheme> {
+        const theme = await import("./oxocarbon-color-theme.json");
+
+        return theme as TMTheme;
+    },
+    async [TextmateTheme.GRUVBOX](): Promise<TMTheme> {
+        const theme = await import("@shikijs/themes/gruvbox-dark-hard");
+
+        return theme.default;
+    },
 };
 
 export function lazyLoadTextmateTheme(theme: TextmateTheme): Promise<TMTheme> {
