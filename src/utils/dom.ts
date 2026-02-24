@@ -220,3 +220,15 @@ export function makeBorderPath(element: Element): [length: number, path: string]
         return [parsedA, parsedB];
     }
 }
+
+export function download(url: string, fileName?: string) {
+    const a = document.createElement("a");
+
+    a.href = url;
+
+    if (fileName) {
+        a.download = fileName;
+    }
+
+    a.click();
+}

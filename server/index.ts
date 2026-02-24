@@ -2,18 +2,33 @@ import { assert, error } from "@/utils/error";
 
 import { BUILDS_PATH } from "./constants";
 import { migrateIfNeeded } from "./migration";
-import { type AllBundleFilesResponseMessage, type BaseMessageToClient, type BundleDepGraphResponseMessage, type BundleFileResponseMessage, BundleInfo, type BundleMetadataResponseMessage, type BundlesResponseMessage, type DepsJson, MessageToClient, MessageToServer, ModuleInfo } from "./types";
+import {
+    type AllBundleFilesResponseMessage,
+    type BaseMessageToClient,
+    BundleArchiveResponseMessage,
+    type BundleDepGraphResponseMessage,
+    type BundleFileResponseMessage,
+    BundleInfo,
+    type BundleMetadataResponseMessage,
+    type BundlesResponseMessage,
+    type DepsJson,
+    MessageToClient,
+    MessageToServer,
+    ModuleInfo,
+} from "./types";
 
 import { exists, readdir } from "fs-extra";
 import { existsSync } from "node:fs";
 import { mkdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { Worker } from "node:worker_threads";
+import * as tar from "tar";
 import { WebSocket, WebSocketServer } from "ws";
 import z from "zod";
 
 class Server {
     static #VERIFY_OUTGOING_MESSAGES = true;
+    static #BUNDLE_HASH_REGEX = /^[a-z0-9]+?$/i;
     #ws: WebSocket;
 
     constructor(ws: WebSocket) {
@@ -71,7 +86,7 @@ class Server {
                 }
                 case "getAllBundleFiles": {
                     // prevent path traversal
-                    assert(r.bundleHash.match(/^[a-z0-9]+?$/i), "invalid bundleHash");
+                    assert(r.bundleHash.match(Server.#BUNDLE_HASH_REGEX), "invalid bundleHash");
 
                     const bundlePath = join(BUILDS_PATH, r.bundleHash, ".modules");
                     const moduleFiles = await Promise.all((await readdir(bundlePath)).map(async (fileName) => [fileName.substring(0, fileName.length - 3), await readFile(join(bundlePath, fileName), "utf8")] as const));
@@ -85,7 +100,7 @@ class Server {
                 }
                 case "getBundleFile": {
                     // prevent path traversal
-                    assert(r.bundleHash.match(/^[a-z0-9]+?$/i), "invalid bundleHash");
+                    assert(r.bundleHash.match(Server.#BUNDLE_HASH_REGEX), "invalid bundleHash");
                     assert(r.moduleNumber.match(/^[0-9]+?$/i), "invalid moduleNumber");
 
                     const filePath = join(BUILDS_PATH, r.bundleHash, ".modules", `${r.moduleNumber}.js`);
@@ -101,7 +116,7 @@ class Server {
                 }
                 case "getBundleMetadata": {
                     // prevent path traversal
-                    assert(r.bundleHash.match(/^[a-z0-9]+?$/i), "invalid bundleHash");
+                    assert(r.bundleHash.match(Server.#BUNDLE_HASH_REGEX), "invalid bundleHash");
 
                     const infoPath = join(BUILDS_PATH, r.bundleHash, "info.json");
                     const moduleInfoPath = join(BUILDS_PATH, r.bundleHash, "modules.json");
@@ -119,7 +134,7 @@ class Server {
                 }
                 case "getBundleDepGraph": {
                     // prevent path traversal
-                    assert(r.bundleHash.match(/^[a-z0-9]+?$/i), "invalid bundleHash");
+                    assert(r.bundleHash.match(Server.#BUNDLE_HASH_REGEX), "invalid bundleHash");
 
                     const p = join(BUILDS_PATH, r.bundleHash, "deps.json");
 
@@ -128,6 +143,34 @@ class Server {
                         bundleHash: r.bundleHash,
                         depGraph: JSON.parse(await readFile(p, "utf8")) as DepsJson,
                     });
+                    break;
+                }
+                case "getBundleArchive": {
+                    // prevent path traversal
+                    assert(r.bundleHash.match(Server.#BUNDLE_HASH_REGEX), "invalid bundleHash");
+
+                    const bundlePath = join(BUILDS_PATH, r.bundleHash);
+
+                    const tarStream = tar.create({
+                        cwd: bundlePath,
+                        zstd: true,
+                    }, ["."]);
+
+                    const chunks = [];
+
+                    for await (const chunk of tarStream) {
+                        chunks.push(chunk);
+                    }
+
+                    const tarBuf = Buffer.concat(chunks);
+                    const b64 = tarBuf.toString("base64");
+
+                    reply<BundleArchiveResponseMessage>({
+                        type: "getBundleArchiveResponse",
+                        bundleHash: r.bundleHash,
+                        b64,
+                    });
+
                     break;
                 }
                 default:

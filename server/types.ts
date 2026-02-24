@@ -54,12 +54,20 @@ export const GetBundleFileMessage = MessageBase.extend({
 
 export type GetBundleFileMessage = z.infer<typeof GetBundleFileMessage>;
 
+export const GetBundleArchiveMessage = MessageBase.extend({
+    type: z.literal("getBundleArchive"),
+    bundleHash: TBundleHash,
+});
+
+export type GetBundleArchiveMessage = z.infer<typeof GetBundleArchiveMessage>;
+
 const BaseMessageToServer = z.discriminatedUnion("type", [
     QueryBundlesMessage,
     GetBundleMetadataMessage,
     GetBundleDepGraphMessage,
     GetAllBundleFilesMessage,
     GetBundleFileMessage,
+    GetBundleArchiveMessage,
 ]);
 
 export const MessageToServer = z.intersection(WithMessageId, BaseMessageToServer);
@@ -156,6 +164,14 @@ export const BundleFileResponseMessage = MessageBase.extend({
 
 export type BundleFileResponseMessage = z.infer<typeof BundleFileResponseMessage>;
 
+export const BundleArchiveResponseMessage = MessageBase.extend({
+    type: z.literal("getBundleArchiveResponse"),
+    bundleHash: TBundleHash,
+    b64: z.string(),
+});
+
+export type BundleArchiveResponseMessage = z.infer<typeof BundleArchiveResponseMessage>;
+
 
 export const ErrorMessage = MessageBase.extend({
     type: z.literal("error"),
@@ -170,6 +186,7 @@ const BaseMessageToClient = z.discriminatedUnion("type", [
     BundleMetadataResponseMessage,
     BundleDepGraphResponseMessage,
     BundleFileResponseMessage,
+    BundleArchiveResponseMessage,
     ErrorMessage,
 ]);
 
