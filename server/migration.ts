@@ -1,7 +1,7 @@
 import type { Thenable } from "@/utils/types";
 
 import { BUILDS_PATH } from "./constants";
-import { type BundleInfo, bundleInfoSchema } from "./types";
+import { BundleInfo } from "./types";
 
 import { exists } from "fs-extra";
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
@@ -22,7 +22,7 @@ const migrations = Object.freeze({
     [Version.V0]() {
     },
     async [Version.V1]() {
-        const bundleInfoMaybeEntryPoint = bundleInfoSchema.partial({ entryPoint: true });
+        const bundleInfoMaybeEntryPoint = BundleInfo.partial({ entryPoint: true });
 
         for (const entry of await readdir(BUILDS_PATH, { withFileTypes: true })) {
             if (!entry.isDirectory()) {

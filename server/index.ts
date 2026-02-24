@@ -2,7 +2,7 @@ import { assert, error } from "@/utils/error";
 
 import { BUILDS_PATH } from "./constants";
 import { migrateIfNeeded } from "./migration";
-import { type AllBundleFilesResponseMessage, type BaseMessageToClient, type BundleDepGraphResponseMessage, type BundleFileResponseMessage, type BundleInfo, bundleInfoSchema, type BundleMetadataResponseMessage, type BundlesResponseMessage, type DepsJson, type MessageToClient, messageToClientSchema, messageToServerSchema } from "./types";
+import { type AllBundleFilesResponseMessage, type BaseMessageToClient, type BundleDepGraphResponseMessage, type BundleFileResponseMessage, BundleInfo, type BundleMetadataResponseMessage, type BundlesResponseMessage, type DepsJson, MessageToClient, MessageToServer } from "./types";
 
 import { exists, readdir } from "fs-extra";
 import { existsSync } from "node:fs";
@@ -23,7 +23,7 @@ class Server {
 
     #sendMessage<T extends MessageToClient>(message: T): void {
         if (Server.#VERIFY_OUTGOING_MESSAGES) {
-            messageToClientSchema.parse(message);
+            MessageToClient.parse(message);
         }
         this.#ws.send(JSON.stringify(message));
     }
@@ -34,7 +34,7 @@ class Server {
         try {
             _r = JSON.parse(data.toString());
 
-            const r = _r = messageToServerSchema.parse(_r);
+            const r = _r = MessageToServer.parse(_r);
 
             const reply = <T extends BaseMessageToClient>(message: Omit<T, "messageId">) => {
                 this.#sendMessage({
@@ -58,7 +58,7 @@ class Server {
 
                             const text = await readFile(p, "utf8");
 
-                            return bundleInfoSchema.parse(JSON.parse(text));
+                            return BundleInfo.parse(JSON.parse(text));
                         });
 
                     const bundles = (await Promise.all(p)).filter((x) => x != null);
