@@ -311,6 +311,8 @@ export const useModuleViewerSettingsStore = create<IModuleViewerSettings>()(pers
 }));
 
 export async function downloadBundle(bundleHash: TBundleHash): Promise<boolean> {
+    let uri: string = "";
+
     try {
         const res = await sendMessage<"getBundleArchiveResponse">({
             type: "getBundleArchive",
@@ -321,7 +323,8 @@ export async function downloadBundle(bundleHash: TBundleHash): Promise<boolean> 
         const buf = Uint8Array.fromBase64(res.b64);
         const fileName = `${bundleHash}.tzst`;
         const file = new File([buf], fileName);
-        const uri = URL.createObjectURL(file);
+
+        uri = URL.createObjectURL(file);
 
         download(uri, fileName);
     } catch (e) {
@@ -329,6 +332,8 @@ export async function downloadBundle(bundleHash: TBundleHash): Promise<boolean> 
         console.error(`Failed to download bundle: ${e instanceof Error ? e.message : String(e)}`);
 
         return false;
+    } finally {
+        URL.revokeObjectURL(uri);
     }
     return true;
 }
