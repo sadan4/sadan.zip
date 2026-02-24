@@ -452,7 +452,7 @@ export function Explorer() {
         ModuleViewerStore.setState({ selectedModule: moduleId });
     }, [moduleId]);
 
-    const origModules = status === "success" && data.metadata.modules;
+    const origModules = status === "success" && data.moduleInfo;
 
     const moduleIds = useMemo(() => (origModules
         // webpack will duplicate the same module across multiple chunks, so we need to dedupe them

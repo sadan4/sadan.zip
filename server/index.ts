@@ -2,7 +2,7 @@ import { assert, error } from "@/utils/error";
 
 import { BUILDS_PATH } from "./constants";
 import { migrateIfNeeded } from "./migration";
-import { type AllBundleFilesResponseMessage, type BaseMessageToClient, type BundleDepGraphResponseMessage, type BundleFileResponseMessage, BundleInfo, type BundleMetadataResponseMessage, type BundlesResponseMessage, type DepsJson, MessageToClient, MessageToServer } from "./types";
+import { type AllBundleFilesResponseMessage, type BaseMessageToClient, type BundleDepGraphResponseMessage, type BundleFileResponseMessage, BundleInfo, type BundleMetadataResponseMessage, type BundlesResponseMessage, type DepsJson, MessageToClient, MessageToServer, ModuleInfo } from "./types";
 
 import { exists, readdir } from "fs-extra";
 import { existsSync } from "node:fs";
@@ -103,12 +103,16 @@ class Server {
                     // prevent path traversal
                     assert(r.bundleHash.match(/^[a-z0-9]+?$/i), "invalid bundleHash");
 
-                    const p = join(BUILDS_PATH, r.bundleHash, "info.json");
+                    const infoPath = join(BUILDS_PATH, r.bundleHash, "info.json");
+                    const moduleInfoPath = join(BUILDS_PATH, r.bundleHash, "modules.json");
+                    const metadata = BundleInfo.parse(JSON.parse(await readFile(infoPath, "utf8")));
+                    const moduleInfo = ModuleInfo.parse(JSON.parse(await readFile(moduleInfoPath, "utf8")));
 
                     reply<BundleMetadataResponseMessage>({
                         type: "getBundleMetadataResponse",
                         bundleHash: r.bundleHash,
-                        metadata: JSON.parse(await readFile(p, "utf8")) as BundleInfo,
+                        metadata,
+                        moduleInfo,
                     });
 
                     break;

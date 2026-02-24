@@ -84,7 +84,6 @@ export const BundleInfo = z.object({
      * or if the entry point could not be found
      */
     entryPoint: TModuleId.nullable(),
-    modules: ModuleInfo,
     /**
      * can't be serialized as it contains symbols, but is cheap to parse, and guaranteed to be valid
      */
@@ -135,6 +134,7 @@ export const BundleMetadataResponseMessage = MessageBase.extend({
     type: z.literal("getBundleMetadataResponse"),
     bundleHash: TBundleHash,
     metadata: BundleInfo,
+    moduleInfo: ModuleInfo,
 });
 
 export type BundleMetadataResponseMessage = z.infer<typeof BundleMetadataResponseMessage>;

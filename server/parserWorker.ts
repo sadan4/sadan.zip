@@ -131,11 +131,14 @@ async function findBuildModules({ buildHash, html, channel }: ParserWorkerData, 
     const bundleInfo: BundleInfo = {
         buildHash,
         buildNumber,
-        modules,
         entryPoint,
         envVarText: parser.text,
         firstSeen: Date.now(),
     };
+
+    const moduleInfo: ModuleInfo = modules;
+
+    writes.push(writeFile(join(BUILDS_PATH, buildHash, "modules.json"), JSON.stringify(moduleInfo, null, 2), "utf8"));
 
     writes.push(writeFile(join(BUILDS_PATH, buildHash, "info.json"), JSON.stringify(bundleInfo, null, 2)));
 
