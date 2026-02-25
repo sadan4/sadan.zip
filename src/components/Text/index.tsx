@@ -85,7 +85,8 @@ export function Text<T extends TextTags = "div">(props: TextProps<T>) {
                 )
             }
             {...rest}
-        >{children}
+        >
+            {children}
         </Tag>
     );
 

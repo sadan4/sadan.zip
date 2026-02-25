@@ -21,6 +21,8 @@
 
 
         &.icon-button {
+            // not actually how much it's loaded, but how far the animation has progressed.
+            --loading-progress: 0;
             --check-progress: 0;
             --error-progress: 0;
 
@@ -43,13 +45,17 @@
                 --error-progress: 1;
             }
 
+            &.show-loading {
+                --loading-progress: 1;
+            }
+
             > .icon,
             > .status-icon {
                 @include u.anim-dur;
             }
 
             > .icon {
-                @include u.anim-blur-scale-fade(calc(1 - max(var(--check-progress), var(--error-progress))));
+                @include u.anim-blur-scale-fade(calc(1 - max(var(--check-progress), var(--error-progress), var(--loading-progress))));
             }
 
             > .status-icon {
@@ -66,6 +72,25 @@
 
                 &.error-icon {
                     @include u.anim-blur-scale-fade(var(--error-progress));
+                }
+
+                &.loading-icon {
+                    @include u.anim-blur-scale-fade(var(--loading-progress));
+
+                    @keyframes spin {
+                        from {
+                            rotate: 0deg;
+                        }
+
+                        to {
+                            rotate: 360deg;
+                        }
+                    }
+
+                    animation-name: spin;
+                    animation-timing-function: linear;
+                    animation-iteration-count: infinite;
+                    animation-duration: .75s;
                 }
             }
 
