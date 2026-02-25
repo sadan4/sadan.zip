@@ -99,41 +99,6 @@ export function rectCanBeFullyContainedBy(inner: Rect, outer: Rect): boolean {
     return rectWidthCanBeContainedBy(inner, outer) && rectHeightCanBeContainedBy(inner, outer);
 }
 
-export function computeRectClipOffsets(el: Rect, bounds: Rect): RectOffset {
-    if (rectFullyContainedBy(el, bounds)) {
-        return NO_OFFSET;
-    }
-
-    let top = 0;
-
-    if (rectHeightCanBeContainedBy(el, bounds)) {
-        // too far up
-        if (el.top < bounds.top) {
-            top = bounds.top - el.top;
-        // too far down
-        } else if (el.bottom > bounds.bottom) {
-            top = bounds.bottom - el.bottom;
-        }
-    }
-
-    let left = 0;
-
-    if (rectWidthCanBeContainedBy(el, bounds)) {
-        // too far left
-        if (el.left < bounds.left) {
-            left = bounds.left - el.left;
-        // too far right
-        } else if (el.right > bounds.right) {
-            left = bounds.right - el.right;
-        }
-    }
-
-    return {
-        top,
-        left,
-    };
-}
-
 export function measureRect(element: Element): DOMRect {
     const { display } = getComputedStyle(element);
 

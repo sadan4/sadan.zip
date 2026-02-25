@@ -19,3 +19,5 @@ overrides:
 patchedDependencies:
   '@tanstack/start-plugin-core': patches/@tanstack__start-plugin-core.patch
   typescript: patches/typescript.patch
+
+verifyDepsBeforeRun: install

@@ -8,12 +8,14 @@ import { useResizeObserver } from "@/hooks/resizeObserver";
 import cn from "@/utils/cn";
 import {
     compareRectOffsets,
-    computeRectClipOffsets,
     measureRect,
     mergeRectOffsets,
     NO_OFFSET,
     omitRectOffset,
+    rectFullyContainedBy,
+    rectHeightCanBeContainedBy,
     type RectOffset,
+    rectWidthCanBeContainedBy,
     removeMarginFromRect,
 } from "@/utils/dom/rect";
 import { unreachable } from "@/utils/error";
@@ -26,44 +28,7 @@ import { LayerPortal } from "../Layer";
 import { LayerContext } from "../Layer/context";
 import { Box } from "../layout/Box";
 
-import { type ComponentProps, type CSSProperties, Fragment, type FragmentInstance, type PropsWithChildren, type ReactNode, use, useLayoutEffect, useMemo, useRef, useState } from "react";
-
-export interface TooltipProps extends ComponentProps<"div"> {
-    /**
-     * The content of the tooltip
-     */
-    text: ReactNode;
-    /**
-     * The position of the tooltip, leave blank for default (TOP)
-     */
-    position?: TooltipPosition;
-    show?: boolean;
-    onShow?(): void;
-    onHide?(): void;
-    className?: string;
-    triggerProps?: TOmit<ComponentProps<"div">, "children">;
-    /**
-     * Don't use the default wrapper ({@link Box})
-     */
-    noWrapper?: boolean;
-    /**
-     * Delay in ms before showing the tooltip on hover
-     *
-     * @default 250
-     */
-    hoverShowDelay?: number;
-    /**
-     * @default 250
-     */
-    lingerDelay?: number;
-    /**
-     * Don't show the arrow point to the trigger element
-     *
-     * @default false
-     */
-    noarrow?: boolean;
-    tooltipClassName?: string;
-}
+import { type ComponentProps, type CSSProperties, Fragment, type FragmentInstance, type ReactNode, type RefObject, use, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 declare module "react" {
     interface CSSProperties {
@@ -71,57 +36,80 @@ declare module "react" {
     }
 }
 
-function useTooltipAnim(shouldShow: boolean) {
-    const scaleBy = 0.1;
+const EDGE_MARGIN = 8;
 
-    return useTransition(shouldShow, {
-        from: {
-            opacity: 0,
-            scale: 0.95,
-            percentIn: -scaleBy,
-        },
-        enter: {
-            opacity: 1,
-            scale: 1,
-            percentIn: 0,
-        },
-        leave: {
-            opacity: 0,
-            scale: 0.95,
-            percentIn: scaleBy,
-        },
-        config: {
-            tension: 2400,
-            friction: 52,
-        },
-    });
-}
+const MAPPER_FLIP = Object.freeze({
+    [TooltipPosition.TOP]: TooltipPosition.BOTTOM,
+    [TooltipPosition.BOTTOM]: TooltipPosition.TOP,
+    [TooltipPosition.LEFT]: TooltipPosition.RIGHT,
+    [TooltipPosition.RIGHT]: TooltipPosition.LEFT,
+} as const);
 
-function TooltipArrow() {
-    return (
-        <svg
-            height="24"
-            width="24"
-            viewBox="0 0 24 24"
-            className={styles.arrow}
-        >
-            <path
-                className={styles.border}
-                d="m8.96,8.98l-8.96,-8.98l23.99,0l-8.92,8.98a3.53,2.05 180 0 1 -6.11,0z"
-            />
-            <path
-                d="m8.96,8.98l-8.96,-8.98l23.99,0l-8.92,8.98a3.53,2.05 180 0 1 -6.11,0z"
-            />
-        </svg>
-    );
-}
+const MAPPER_NOOP = Object.freeze({
+    [TooltipPosition.TOP]: TooltipPosition.TOP,
+    [TooltipPosition.BOTTOM]: TooltipPosition.BOTTOM,
+    [TooltipPosition.LEFT]: TooltipPosition.LEFT,
+    [TooltipPosition.RIGHT]: TooltipPosition.RIGHT,
+} as const);
 
-const posMap: Record<TooltipPosition, string> = {
+const positionStyleMap: Record<TooltipPosition, string> = {
     [TooltipPosition.TOP]: styles.top,
     [TooltipPosition.BOTTOM]: styles.bottom,
     [TooltipPosition.LEFT]: styles.left,
     [TooltipPosition.RIGHT]: styles.right,
 };
+
+
+// keep in sync with scss file
+const PAD = "var(--pad, 1rem)";
+
+
+function makeArrowStyles(
+    position: TooltipPosition,
+    targetPos: RectOffset | undefined,
+    baseRect: DOMRectReadOnly | undefined,
+): CSSProperties {
+    switch (position) {
+        case TooltipPosition.TOP: {
+            // FIXME: handle this case
+            return {
+                translate: "-50%",
+            };
+        }
+        case TooltipPosition.BOTTOM: {
+            let left: number | undefined;
+
+            if (targetPos && baseRect) {
+                left = Math.abs(baseRect.left - targetPos.left);
+            }
+
+            return {
+                top: 0,
+                rotate: "180deg",
+                translate: `-50% calc(-100% + ${PAD})`,
+                left,
+            };
+        }
+        case TooltipPosition.LEFT: {
+            // FIXME: handle this case
+            return {
+                left: "100%",
+                rotate: "270deg",
+                translate: `calc(-1 * ${PAD}) -50%`,
+            };
+        }
+        case TooltipPosition.RIGHT: {
+            // FIXME: handle this case
+            return {
+                left: PAD,
+                rotate: "90deg",
+                translate: "-100% -50%",
+            };
+        }
+        default:
+            unreachable();
+    }
+}
 
 interface MakeTooltipPositionStylesOptions {
     position: TooltipPosition;
@@ -219,7 +207,64 @@ function getInitialPos(position: TooltipPosition, targetRect: DOMRectReadOnly) {
     };
 }
 
-interface PositionLayerReferenceProps extends PropsWithChildren {
+function useTooltipAnim(shouldShow: boolean) {
+    const scaleBy = 0.1;
+
+    return useTransition(shouldShow, {
+        from: {
+            opacity: 0,
+            scale: 0.95,
+            percentIn: -scaleBy,
+        },
+        enter: {
+            opacity: 1,
+            scale: 1,
+            percentIn: 0,
+        },
+        leave: {
+            opacity: 0,
+            scale: 0.95,
+            percentIn: scaleBy,
+        },
+        config: {
+            tension: 2400,
+            friction: 52,
+        },
+    });
+}
+
+interface TooltipArrowProps {
+    targetElement: HTMLElement;
+    contentFragment: RefObject<FragmentInstance | null>;
+    position: TooltipPosition;
+}
+
+function TooltipArrow({ targetElement, contentFragment, position }: TooltipArrowProps) {
+    const rect = useRect(targetElement);
+    const contentRect = useFragmentRect(contentFragment);
+    const targetPos = useMemo(() => rect && getInitialPos(position, rect), [position, rect]);
+
+    return (
+        <svg
+            height="24"
+            width="24"
+            viewBox="0 0 24 24"
+            className={styles.arrow}
+            style={makeArrowStyles(position, targetPos, contentRect)}
+        >
+            <path
+                className={styles.border}
+                d="m8.96,8.98l-8.96,-8.98l23.99,0l-8.92,8.98a3.53,2.05 180 0 1 -6.11,0z"
+            />
+            <path
+                d="m8.96,8.98l-8.96,-8.98l23.99,0l-8.92,8.98a3.53,2.05 180 0 1 -6.11,0z"
+            />
+        </svg>
+    );
+}
+
+
+interface PositionLayerReferenceProps {
     position: TooltipPosition;
     referenceElement: HTMLElement;
     /**
@@ -227,9 +272,89 @@ interface PositionLayerReferenceProps extends PropsWithChildren {
      */
     bumpIntoView?: boolean;
     className: string;
+    children: (actualPosition: TooltipPosition) => ReactNode;
 }
 
-const EDGE_MARGIN = 8;
+function computeRectClipOffsets(
+    el: DOMRectReadOnly,
+    bounds: DOMRectReadOnly,
+    avoid: Pick<DOMRectReadOnly, "top" | "bottom" | "left" | "right">,
+): [RectOffset, mapper: Record<TooltipPosition, TooltipPosition>] {
+    let mapper: Record<TooltipPosition, TooltipPosition> = MAPPER_NOOP;
+
+    if (rectFullyContainedBy(el, bounds)) {
+        return [NO_OFFSET, mapper];
+    }
+
+    let top = 0;
+
+    if (rectHeightCanBeContainedBy(el, bounds)) {
+        // too far up
+        if (el.top < bounds.top) {
+            if (avoid.bottom > bounds.top) {
+                mapper = MAPPER_FLIP;
+            }
+            top = Math.max(bounds.top, avoid.bottom) - el.top;
+        // too far down
+        } else if (el.bottom > bounds.bottom) {
+            if (avoid.top < bounds.bottom) {
+                mapper = MAPPER_FLIP;
+            }
+            top = Math.min(bounds.bottom, avoid.top) - el.bottom;
+        }
+    }
+
+    let left = 0;
+
+    if (rectWidthCanBeContainedBy(el, bounds)) {
+        // too far left
+        if (el.left < bounds.left) {
+            if (avoid.right > bounds.left) {
+                mapper = MAPPER_FLIP;
+            }
+            left = Math.max(bounds.left, avoid.right) - el.left;
+        // too far right
+        } else if (el.right > bounds.right) {
+            if (avoid.left < bounds.right) {
+                mapper = MAPPER_FLIP;
+            }
+            left = Math.min(bounds.right, avoid.left) - el.right;
+        }
+    }
+
+    return [
+        {
+            top,
+            left,
+        },
+        mapper,
+    ];
+}
+
+function makeAvoidBounds(rect: DOMRectReadOnly, position: TooltipPosition): Pick<DOMRectReadOnly, "top" | "bottom" | "left" | "right"> {
+    switch (position) {
+        case TooltipPosition.TOP:
+        case TooltipPosition.BOTTOM: {
+            return {
+                top: rect.top,
+                bottom: rect.bottom,
+                right: -Infinity,
+                left: Infinity,
+            };
+        }
+        case TooltipPosition.LEFT:
+        case TooltipPosition.RIGHT: {
+            return {
+                left: rect.left,
+                right: rect.right,
+                top: -Infinity,
+                bottom: Infinity,
+            };
+        }
+        default:
+            unreachable();
+    }
+}
 
 function PositionLayerReference({
     position,
@@ -238,8 +363,12 @@ function PositionLayerReference({
     className,
     children,
 }: PositionLayerReferenceProps) {
-    const [basePos] = useState(() => getInitialPos(position, measureRect(referenceElement)));
+    const [referenceRect] = useState(() => measureRect(referenceElement));
+    const basePos = useMemo(() => getInitialPos(position, referenceRect), [referenceRect, position]);
+    const avoidBounds = useMemo(() => makeAvoidBounds(referenceRect, position), [referenceRect, position]);
     const [offset, _setOffset] = useState<RectOffset>(NO_OFFSET);
+    const [actualPosition, setActualPosition] = useState(position);
+    // use a ref so we don't cause an infinite loop of renders
     const offsetRef = useRecent(offset);
     const finalPos = bumpIntoView ? mergeRectOffsets(basePos, offset) : basePos;
     const childrenRef = useRef<FragmentInstance>(null);
@@ -247,7 +376,6 @@ function PositionLayerReference({
     const root = use(LayerContext).root ?? document.body;
     const _rootRect = useRect(root);
     const rootRect = useMemo(() => _rootRect && removeMarginFromRect(_rootRect, EDGE_MARGIN), [_rootRect]);
-    const intersectionObserver = useIntersection(recomputeOffset, { root });
 
     function setOffset(newOffset: RectOffset) {
         _setOffset((oldOffset) => {
@@ -264,25 +392,71 @@ function PositionLayerReference({
             return;
         }
 
-        const newOffset = computeRectClipOffsets(omitRectOffset(childRect, offsetRef.current), rootRect);
+        // If we include the offset, then we will just flip back and forth between being in view and out of view
+        const [newOffset, mapper] = computeRectClipOffsets(
+            omitRectOffset(childRect, offsetRef.current),
+            rootRect,
+            avoidBounds,
+        );
+
+        setActualPosition(mapper[position]);
+
 
         setOffset(newOffset);
     }
 
-    useLayoutEffect(recomputeOffset, [rootRect, childRect, position, offsetRef]);
+    useLayoutEffect(recomputeOffset, [rootRect, childRect, position, offsetRef, referenceRect, avoidBounds]);
 
     return (
         <div
-            ref={intersectionObserver}
+            ref={useIntersection(recomputeOffset, { root })}
             style={finalPos}
             className={className}
         >
             <Fragment ref={childrenRef}>
-                {children}
+                {children(actualPosition)}
             </Fragment>
         </div>
     );
 }
+
+export interface TooltipProps extends ComponentProps<"div"> {
+    /**
+     * The content of the tooltip
+     */
+    text: ReactNode;
+    /**
+     * The position of the tooltip, leave blank for default (TOP)
+     */
+    position?: TooltipPosition;
+    show?: boolean;
+    onShow?(): void;
+    onHide?(): void;
+    className?: string;
+    triggerProps?: TOmit<ComponentProps<"div">, "children">;
+    /**
+     * Don't use the default wrapper ({@link Box})
+     */
+    noWrapper?: boolean;
+    /**
+     * Delay in ms before showing the tooltip on hover
+     *
+     * @default 250
+     */
+    hoverShowDelay?: number;
+    /**
+     * @default 250
+     */
+    lingerDelay?: number;
+    /**
+     * Don't show the arrow point to the trigger element
+     *
+     * @default false
+     */
+    noarrow?: boolean;
+    tooltipClassName?: string;
+}
+
 
 export function Tooltip({
     text,
@@ -314,6 +488,7 @@ export function Tooltip({
     const triggerHeight = useSpringValue(0);
     const triggerWidth = useSpringValue(0);
     const [dep, updateSizeVar] = useForceUpdater();
+    const tooltipContentFragment = useRef<FragmentInstance>(null);
 
     useResizeObserver(triggerEl, updateSizeVar);
 
@@ -369,30 +544,40 @@ export function Tooltip({
                         <PositionLayerReference
                             position={position}
                             referenceElement={triggerEl}
-                            className={cn(styles.container, posMap[position], tooltipClassName)}
+                            className={cn(styles.container, positionStyleMap[position], tooltipClassName)}
                         >
-                            <animated.div
-                                style={{
-                                    ...styleProps,
-                                    ...makeTooltipPositionStyles({
-                                        position,
-                                        percentIn,
-                                        triggerHeight,
-                                        triggerWidth,
-                                    }),
-                                }}
-                            >
-                                {noWrapper
-                                    ? text
-                                    : (
-                                        <Box className={styles.box}>
-                                            <div className={styles.wrapper}>
-                                                {text}
-                                            </div>
-                                        </Box>
+                            {(actualPosition) => (
+                                <animated.div
+                                    style={{
+                                        ...styleProps,
+                                        ...makeTooltipPositionStyles({
+                                            position: actualPosition,
+                                            percentIn,
+                                            triggerHeight,
+                                            triggerWidth,
+                                        }),
+                                    }}
+                                >
+                                    <Fragment ref={tooltipContentFragment}>
+                                        {noWrapper
+                                            ? text
+                                            : (
+                                                <Box className={styles.box}>
+                                                    <div className={styles.wrapper}>
+                                                        {text}
+                                                    </div>
+                                                </Box>
+                                            )}
+                                    </Fragment>
+                                    {noarrow || (
+                                        <TooltipArrow
+                                            position={actualPosition}
+                                            targetElement={triggerEl}
+                                            contentFragment={tooltipContentFragment}
+                                        />
                                     )}
-                                {noarrow || <TooltipArrow />}
-                            </animated.div>
+                                </animated.div>
+                            )}
                         </PositionLayerReference>
                     );
                 })}

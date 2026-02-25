@@ -16,8 +16,9 @@
 
     // FIXME: use more specific selectors than descendant for .arrow and the rest
     .container {
-        $max-content-size: 16rem;
+        // Keep in sync with js file
         $pad: var(--pad, 1rem);
+        $max-content-size: 16rem;
 
         position: fixed;
 
@@ -36,40 +37,18 @@
 
         &.top {
             translate: -50% -100%;
-
-            .arrow {
-                translate: -50%;
-            }
         }
 
         &.bottom {
             translate: -50%;
-
-            .arrow {
-                top: 0;
-                rotate: 180deg;
-                translate: -50% calc(-100% + $pad);
-            }
         }
 
         &.left {
             translate: -100% -50%;
-
-            .arrow {
-                left: 100%;
-                rotate: 270deg;
-                translate: calc(-1 * $pad) -50%;
-            }
         }
 
         &.right {
             translate: 0 -50%;
-
-            .arrow {
-                left: $pad;
-                rotate: 90deg;
-                translate: -100% -50%;
-            }
         }
 
         .wrapper {
