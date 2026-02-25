@@ -14,6 +14,7 @@
         }
     }
 
+    // FIXME: use more specific selectors than descendant for .arrow and the rest
     .container {
         $max-content-size: 16rem;
         $pad: var(--pad, 1rem);
@@ -36,7 +37,7 @@
         &.top {
             translate: -50% -100%;
 
-            > .arrow {
+            .arrow {
                 translate: -50%;
             }
         }
@@ -44,7 +45,7 @@
         &.bottom {
             translate: -50%;
 
-            > .arrow {
+            .arrow {
                 top: 0;
                 rotate: 180deg;
                 translate: -50% calc(-100% + $pad);
@@ -54,7 +55,7 @@
         &.left {
             translate: -100% -50%;
 
-            > .arrow {
+            .arrow {
                 left: 100%;
                 rotate: 270deg;
                 translate: calc(-1 * $pad) -50%;
@@ -64,7 +65,7 @@
         &.right {
             translate: 0 -50%;
 
-            > .arrow {
+            .arrow {
                 left: $pad;
                 rotate: 90deg;
                 translate: -100% -50%;
@@ -77,19 +78,19 @@
 
         &.left,
         &.right {
-            > .arrow {
+            .arrow {
                 top: 50%;
             }
         }
 
         &.top,
         &.bottom {
-            > .arrow {
+            .arrow {
                 left: 50%;
             }
         }
 
-        > .box {
+        .box {
             $box-padding: 1rem;
 
             padding: calc($box-padding / 2) $box-padding;

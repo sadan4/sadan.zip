@@ -1,11 +1,11 @@
 import { ScrollAreaContext } from "@/components/layout/ScrollArea/context";
-import { measureRect } from "@/utils/dom";
+import { cloneRect, measureRect, mergeAllDOMRects } from "@/utils/dom/rect";
 import { deepEqual, pick } from "@/utils/obj";
 
 import { useEventHandler } from "./eventListener";
-import { useResizeObserverFromRef, useResizeObserver } from "./resizeObserver";
+import { useResizeObserver, useResizeObserverFromRef } from "./resizeObserver";
 
-import { type RefObject, use, useCallback, useEffect, useRef, useState } from "react";
+import { type FragmentInstance, type RefObject, use, useCallback, useEffect, useRef, useState } from "react";
 
 function useRectMapper<T extends keyof DOMRect>(keys: T[]): (rect: DOMRect) => Pick<DOMRect, T> {
     return useCallback((rect) => {
@@ -30,7 +30,7 @@ export function useRect(
     keys: (keyof DOMRect)[] = [],
 ): DOMRect | undefined {
     const mapper = useRectMapper(keys);
-    const [size, _setSize] = useState<DOMRect>();
+    const [size, _setSize] = useState(() => (el ? cloneRect(measureRect(el)) : undefined));
     const sizeRef = useRef(size);
     const { ref: { current: scroller } } = use(ScrollAreaContext);
 
@@ -204,6 +204,74 @@ export function useRectFromRef(
             setSize(newRect);
         }
     });
+
+    return size;
+}
+
+function measureFragmentRect(fragment: FragmentInstance): DOMRect {
+    return mergeAllDOMRects(fragment.getClientRects());
+}
+
+export function useFragmentRect(
+    ref: RefObject<FragmentInstance | null | undefined>,
+    extraDeps?: unknown[]
+): DOMRect | undefined;
+export function useFragmentRect<T extends keyof DOMRect>(
+    fragment: RefObject<FragmentInstance | null | undefined>,
+    extraDeps: unknown[] | undefined,
+    keys: T[],
+): Pick<DOMRect, T> | undefined;
+
+export function useFragmentRect<T extends keyof DOMRect>(
+    fragmentRef: RefObject<FragmentInstance | null | undefined>,
+    extraDeps: unknown[] = [],
+    keys: T[] = [],
+): Pick<DOMRect, T> | undefined {
+    type P = Pick<DOMRect, T>;
+
+    const mapper = useRectMapper(keys);
+    const [size, _setSize] = useState<P>();
+    const { ref: { current: scroller } } = use(ScrollAreaContext);
+
+    const setSize = useCallback((fragment: FragmentInstance) => {
+        const picked = mapper(measureFragmentRect(fragment).toJSON());
+
+        _setSize((oldSize) => {
+            if (deepEqual(oldSize, picked)) {
+                return oldSize;
+            }
+            return picked;
+        });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [mapper, ...extraDeps]);
+
+    function updateSizeIfNeeded() {
+        const f = fragmentRef.current;
+
+        if (f) {
+            setSize(f);
+        }
+    }
+
+    useEffect(() => {
+        const f = fragmentRef.current;
+
+        if (f) {
+            setSize(f);
+
+            const observer = new ResizeObserver(() => setSize(f));
+
+            f.observeUsing(observer);
+
+            return () => {
+                observer.disconnect();
+            };
+        }
+    }, [fragmentRef, setSize]);
+
+    useEventHandler("scrollend", updateSizeIfNeeded, scroller);
+    useEventHandler("scrollend", updateSizeIfNeeded);
+    useEventHandler("resize", updateSizeIfNeeded);
 
     return size;
 }

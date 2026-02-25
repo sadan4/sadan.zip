@@ -1,7 +1,7 @@
 import { useRect } from "@/hooks/rect";
 import { useResizeObserver } from "@/hooks/resizeObserver";
 import { single } from "@/utils/array";
-import { makeBorderPath } from "@/utils/dom";
+import { makeBorderPath } from "@/utils/dom/path";
 import { animated } from "@react-spring/web";
 
 import { type BaseBorderHoldProps, useBorderHoldAnim } from "./common";

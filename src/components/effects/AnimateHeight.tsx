@@ -1,6 +1,6 @@
 import { useForceUpdater } from "@/hooks/forceUpdater";
 import { useResizeObserver } from "@/hooks/resizeObserver";
-import { measureRect } from "@/utils/dom";
+import { measureRect } from "@/utils/dom/rect";
 import { animated, useSpringValue } from "@react-spring/web";
 
 import { type PropsWithChildren, useEffect, useRef, useState } from "react";

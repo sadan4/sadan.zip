@@ -1,9 +1,21 @@
 import { useComposedRefs } from "@/hooks/composedRefs";
 import { useControlledState } from "@/hooks/controlledState";
 import { useForceUpdater } from "@/hooks/forceUpdater";
-import { useResizeObserverFromRef } from "@/hooks/resizeObserver";
+import { useIntersection } from "@/hooks/intersection";
+import { useRecent } from "@/hooks/recent";
+import { useFragmentRect, useRect } from "@/hooks/rect";
+import { useResizeObserver } from "@/hooks/resizeObserver";
 import cn from "@/utils/cn";
-import { measureRect } from "@/utils/dom";
+import {
+    compareRectOffsets,
+    computeRectClipOffsets,
+    measureRect,
+    mergeRectOffsets,
+    NO_OFFSET,
+    omitRectOffset,
+    type RectOffset,
+    removeMarginFromRect,
+} from "@/utils/dom/rect";
 import { unreachable } from "@/utils/error";
 import type { TOmit } from "@/utils/types";
 import { animated, type AnimatedProps, type SpringValue, to, useSpringValue, useTransition } from "@react-spring/web";
@@ -11,9 +23,10 @@ import { animated, type AnimatedProps, type SpringValue, to, useSpringValue, use
 import { TooltipPosition } from "./constants";
 import styles from "./styles.module.scss";
 import { LayerPortal } from "../Layer";
+import { LayerContext } from "../Layer/context";
 import { Box } from "../layout/Box";
 
-import { type ComponentProps, type CSSProperties, type ReactNode, useLayoutEffect, useRef } from "react";
+import { type ComponentProps, type CSSProperties, Fragment, type FragmentInstance, type PropsWithChildren, type ReactNode, use, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 export interface TooltipProps extends ComponentProps<"div"> {
     /**
@@ -112,7 +125,6 @@ const posMap: Record<TooltipPosition, string> = {
 
 interface MakeTooltipPositionStylesOptions {
     position: TooltipPosition;
-    triggerRect: DOMRect;
     percentIn: SpringValue<number>;
     triggerHeight: SpringValue<number>;
     triggerWidth: SpringValue<number>;
@@ -120,13 +132,10 @@ interface MakeTooltipPositionStylesOptions {
 
 function makeTooltipPositionStyles({
     position,
-    triggerRect,
     percentIn,
     triggerHeight,
     triggerWidth,
 }: MakeTooltipPositionStylesOptions): AnimatedProps<CSSProperties> {
-    const { top, left, width, height } = triggerRect;
-
     switch (position) {
         case TooltipPosition.TOP: {
             const paddingBottom = to(
@@ -135,8 +144,6 @@ function makeTooltipPositionStyles({
             );
 
             return {
-                left: left + (width / 2),
-                top,
                 paddingBottom,
                 "--pad": paddingBottom,
             };
@@ -148,8 +155,6 @@ function makeTooltipPositionStyles({
             );
 
             return {
-                left: left + (width / 2),
-                top: height + top,
                 paddingTop,
                 "--pad": paddingTop,
             };
@@ -161,8 +166,6 @@ function makeTooltipPositionStyles({
             );
 
             return {
-                top: top + (height / 2),
-                left,
                 paddingRight,
                 "--pad": paddingRight,
             };
@@ -174,8 +177,6 @@ function makeTooltipPositionStyles({
             );
 
             return {
-                top: top + (height / 2),
-                left: left + width,
                 paddingLeft,
                 "--pad": paddingLeft,
             };
@@ -185,6 +186,102 @@ function makeTooltipPositionStyles({
             unreachable();
         }
     }
+}
+
+function getInitialPos(position: TooltipPosition, targetRect: DOMRectReadOnly) {
+    let { top, left, width, height } = targetRect;
+
+    switch (position) {
+        case TooltipPosition.BOTTOM: {
+            top += height;
+            // fallthrough
+        }
+        case TooltipPosition.TOP: {
+            left += width / 2;
+            break;
+        }
+        case TooltipPosition.RIGHT: {
+            left += width;
+            // fallthrough
+        }
+        case TooltipPosition.LEFT: {
+            top += height / 2;
+            break;
+        }
+        default: {
+            unreachable();
+        }
+    }
+
+    return {
+        top,
+        left,
+    };
+}
+
+interface PositionLayerReferenceProps extends PropsWithChildren {
+    position: TooltipPosition;
+    referenceElement: HTMLElement;
+    /**
+     * @default true
+     */
+    bumpIntoView?: boolean;
+    className: string;
+}
+
+const EDGE_MARGIN = 8;
+
+function PositionLayerReference({
+    position,
+    referenceElement,
+    bumpIntoView = true,
+    className,
+    children,
+}: PositionLayerReferenceProps) {
+    const [basePos] = useState(() => getInitialPos(position, measureRect(referenceElement)));
+    const [offset, _setOffset] = useState<RectOffset>(NO_OFFSET);
+    const offsetRef = useRecent(offset);
+    const finalPos = bumpIntoView ? mergeRectOffsets(basePos, offset) : basePos;
+    const childrenRef = useRef<FragmentInstance>(null);
+    const childRect = useFragmentRect(childrenRef);
+    const root = use(LayerContext).root ?? document.body;
+    const _rootRect = useRect(root);
+    const rootRect = useMemo(() => _rootRect && removeMarginFromRect(_rootRect, EDGE_MARGIN), [_rootRect]);
+    const intersectionObserver = useIntersection(recomputeOffset, { root });
+
+    function setOffset(newOffset: RectOffset) {
+        _setOffset((oldOffset) => {
+            return compareRectOffsets(oldOffset, newOffset) ? oldOffset : newOffset;
+        });
+    }
+
+    function recomputeOffset() {
+        if (!rootRect) {
+            return;
+        }
+
+        if (!childRect?.width || !childRect.height) {
+            return;
+        }
+
+        const newOffset = computeRectClipOffsets(omitRectOffset(childRect, offsetRef.current), rootRect);
+
+        setOffset(newOffset);
+    }
+
+    useLayoutEffect(recomputeOffset, [rootRect, childRect, position, offsetRef]);
+
+    return (
+        <div
+            ref={intersectionObserver}
+            style={finalPos}
+            className={className}
+        >
+            <Fragment ref={childrenRef}>
+                {children}
+            </Fragment>
+        </div>
+    );
 }
 
 export function Tooltip({
@@ -212,17 +309,17 @@ export function Tooltip({
     });
 
     const timeoutRef = useRef<NodeJS.Timeout>(undefined);
-    const triggerRef = useRef<HTMLDivElement>(null);
+    const [triggerEl, setTriggerEl] = useState<HTMLElement | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const triggerHeight = useSpringValue(0);
     const triggerWidth = useSpringValue(0);
     const [dep, updateSizeVar] = useForceUpdater();
 
-    useResizeObserverFromRef(triggerRef, updateSizeVar);
+    useResizeObserver(triggerEl, updateSizeVar);
 
     useLayoutEffect(() => {
-        if (triggerRef.current && containerRef.current) {
-            const { width, height } = measureRect(triggerRef.current);
+        if (triggerEl && containerRef.current) {
+            const { width, height } = measureRect(triggerEl);
 
             if (!triggerHeight.hasAnimated) {
                 triggerHeight.set(height);
@@ -232,7 +329,7 @@ export function Tooltip({
                 triggerWidth.start(width);
             }
         }
-    }, [dep, triggerHeight, triggerWidth]);
+    }, [dep, triggerEl, triggerHeight, triggerWidth]);
 
     const tooltipTransition = useTooltipAnim(shouldShow);
 
@@ -267,20 +364,18 @@ export function Tooltip({
             ref={useComposedRefs(ref, containerRef)}
         >
             <LayerPortal>
-                {
-                    // FIXME: vvv
-                    // eslint-disable-next-line react-hooks/refs
-                    tooltipTransition(({ percentIn, ...styleProps }, show) => {
-                        const triggerRect = triggerRef.current && measureRect(triggerRef.current);
-
-                        return show && triggerRect && (
+                {triggerEl && tooltipTransition(({ percentIn, ...styleProps }, show) => {
+                    return show && (
+                        <PositionLayerReference
+                            position={position}
+                            referenceElement={triggerEl}
+                            className={cn(styles.container, posMap[position], tooltipClassName)}
+                        >
                             <animated.div
-                                className={cn(styles.container, posMap[position], tooltipClassName)}
                                 style={{
                                     ...styleProps,
                                     ...makeTooltipPositionStyles({
                                         position,
-                                        triggerRect,
                                         percentIn,
                                         triggerHeight,
                                         triggerWidth,
@@ -298,13 +393,13 @@ export function Tooltip({
                                     )}
                                 {noarrow || <TooltipArrow />}
                             </animated.div>
-                        );
-                    })
-                }
+                        </PositionLayerReference>
+                    );
+                })}
             </LayerPortal>
             <div
                 {...triggerProps}
-                ref={useComposedRefs(triggerRef, _triggerRef)}
+                ref={useComposedRefs(setTriggerEl, _triggerRef)}
                 className={cn(styles.trigger, triggerClassName)}
             >
                 {children}

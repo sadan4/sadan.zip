@@ -2,7 +2,8 @@ import { useControlledState } from "@/hooks/controlledState";
 import { useForceUpdater } from "@/hooks/forceUpdater";
 import { useResizeObserver } from "@/hooks/resizeObserver";
 import cn from "@/utils/cn";
-import { parseCSSValue, PercentReference, rangeInputDefaultValue } from "@/utils/dom";
+import { makeDefaultForInputRange } from "@/utils/dom";
+import { parseCSSValue, PercentReference } from "@/utils/dom/css";
 import { assert } from "@/utils/error";
 import { clamp } from "@/utils/math";
 
@@ -79,7 +80,7 @@ export function Slider(props: SliderProps) {
         size = "sm",
         vertical = false,
         reverseVertical = false,
-        initialValue = rangeInputDefaultValue(min, max),
+        initialValue = makeDefaultForInputRange(min, max),
         onChange,
         markers = [],
         stickToMarkers = false,

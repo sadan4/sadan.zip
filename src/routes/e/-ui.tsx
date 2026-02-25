@@ -574,8 +574,7 @@ export function Explorer() {
                             <Undo2Icon />
                         </IconButtonInternalLink>
                         <IconButton
-                            // FIXME: this should be on the bottom, but it clips off the screen
-                            tooltipPosition={TooltipPosition.LEFT}
+                            tooltipPosition={TooltipPosition.BOTTOM}
                             label={`Source${NBSP}Code.${NBSP}Star${NBSP}Me!`}
                             onClick={undefined}
                             color="secondary"

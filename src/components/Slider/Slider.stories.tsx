@@ -1,4 +1,4 @@
-import { rangeInputDefaultValue } from "@/utils/dom";
+import { makeDefaultForInputRange } from "@/utils/dom";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
 import { Slider } from ".";
@@ -96,7 +96,7 @@ export const WeaklyControlled: Story = {
 
     },
     render(props) {
-        const [value, setValue] = useState(rangeInputDefaultValue(props.min, props.max));
+        const [value, setValue] = useState(makeDefaultForInputRange(props.min, props.max));
 
         return (
             <div>
@@ -116,7 +116,7 @@ export const Controlled: Story = {
 
     },
     render(props) {
-        const [value, setValue] = useState(rangeInputDefaultValue(props.min, props.max));
+        const [value, setValue] = useState(makeDefaultForInputRange(props.min, props.max));
         const [content, setContent] = useState<number | null>(null);
 
         return (
