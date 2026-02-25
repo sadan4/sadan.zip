@@ -179,18 +179,23 @@ export function IconButton<T extends "a" | "button" = "button">({
                     } else {
                         // promise
                         setShowCheck(loadingAnimation ? ButtonState.LOADING : ButtonState.NORMAL);
-                        Promise.resolve(res).then((result) => {
-                            TAssert<boolean | null>(result);
-                            if (result === true) {
-                                setShowCheck(ButtonState.GOOD);
-                                hideCheck();
-                            } else if (result === false) {
+                        Promise.resolve(res)
+                            .then((result) => {
+                                TAssert<boolean | null>(result);
+                                if (result === true) {
+                                    setShowCheck(ButtonState.GOOD);
+                                    hideCheck();
+                                } else if (result === false) {
+                                    setShowCheck(ButtonState.BAD);
+                                    hideCheck();
+                                } else {
+                                    setShowCheck(ButtonState.NORMAL);
+                                }
+                            })
+                            .catch(() => {
                                 setShowCheck(ButtonState.BAD);
                                 hideCheck();
-                            } else {
-                                setShowCheck(ButtonState.NORMAL);
-                            }
-                        });
+                            });
                     }
                 }}
             >
