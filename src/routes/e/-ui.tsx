@@ -30,12 +30,33 @@ import { TAssert } from "@vencord-companion/webpack-ast-parser/util";
 import type { WebpackAstParser } from "@vencord-companion/webpack-ast-parser/WebpackAstParser";
 import { Background, Controls, MiniMap, ReactFlow, ReactFlowProvider } from "@xyflow/react";
 
-import { downloadBundle, ModuleViewerSettingsStore, ModuleViewerStore, placeholderModel, placeholderURI, useModuleViewerSettingsStore, useModuleViewerStore, ViewMode } from "./-data";
+import {
+    downloadBundle,
+    ModuleViewerSettingsStore,
+    ModuleViewerStore,
+    placeholderModel,
+    placeholderURI,
+    useModuleViewerSettingsStore,
+    useModuleViewerStore,
+    ViewMode,
+} from "./-data";
 import { Route } from "./view.{-$buildHash}.{-$moduleId}";
 import { TModuleId } from "../../../server/types";
 
 import "@xyflow/react/dist/style.css";
-import { ArrowBigRight, BadgeInfoIcon, ChevronFirstIcon, ChevronLastIcon, DownloadIcon, FileCodeIcon, GithubIcon, NetworkIcon, SettingsIcon, TriangleAlertIcon, Undo2Icon } from "lucide-react";
+import {
+    ArrowBigRight,
+    BadgeInfoIcon,
+    ChevronFirstIcon,
+    ChevronLastIcon,
+    DownloadIcon,
+    FileCodeIcon,
+    GithubIcon,
+    NetworkIcon,
+    SettingsIcon,
+    TriangleAlertIcon,
+    Undo2Icon,
+} from "lucide-react";
 import { Activity, type PropsWithChildren, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 
