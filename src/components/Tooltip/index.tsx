@@ -207,74 +207,6 @@ function getInitialPos(position: TooltipPosition, targetRect: DOMRectReadOnly) {
     };
 }
 
-function useTooltipAnim(shouldShow: boolean) {
-    const scaleBy = 0.1;
-
-    return useTransition(shouldShow, {
-        from: {
-            opacity: 0,
-            scale: 0.95,
-            percentIn: -scaleBy,
-        },
-        enter: {
-            opacity: 1,
-            scale: 1,
-            percentIn: 0,
-        },
-        leave: {
-            opacity: 0,
-            scale: 0.95,
-            percentIn: scaleBy,
-        },
-        config: {
-            tension: 2400,
-            friction: 52,
-        },
-    });
-}
-
-interface TooltipArrowProps {
-    targetElement: HTMLElement;
-    contentFragment: RefObject<FragmentInstance | null>;
-    position: TooltipPosition;
-}
-
-function TooltipArrow({ targetElement, contentFragment, position }: TooltipArrowProps) {
-    const rect = useRect(targetElement);
-    const contentRect = useFragmentRect(contentFragment);
-    const targetPos = useMemo(() => rect && getInitialPos(position, rect), [position, rect]);
-
-    return (
-        <svg
-            height="24"
-            width="24"
-            viewBox="0 0 24 24"
-            className={styles.arrow}
-            style={makeArrowStyles(position, targetPos, contentRect)}
-        >
-            <path
-                className={styles.border}
-                d="m8.96,8.98l-8.96,-8.98l23.99,0l-8.92,8.98a3.53,2.05 180 0 1 -6.11,0z"
-            />
-            <path
-                d="m8.96,8.98l-8.96,-8.98l23.99,0l-8.92,8.98a3.53,2.05 180 0 1 -6.11,0z"
-            />
-        </svg>
-    );
-}
-
-
-interface PositionLayerReferenceProps {
-    position: TooltipPosition;
-    referenceElement: HTMLElement;
-    /**
-     * @default true
-     */
-    bumpIntoView?: boolean;
-    className: string;
-    children: (actualPosition: TooltipPosition) => ReactNode;
-}
-
 function computeRectClipOffsets(
     el: DOMRectReadOnly,
     bounds: DOMRectReadOnly,
@@ -355,6 +287,75 @@ function makeAvoidBounds(rect: DOMRectReadOnly, position: TooltipPosition): Pick
             unreachable();
     }
 }
+
+function useTooltipAnim(shouldShow: boolean) {
+    const scaleBy = 0.1;
+
+    return useTransition(shouldShow, {
+        from: {
+            opacity: 0,
+            scale: 0.95,
+            percentIn: -scaleBy,
+        },
+        enter: {
+            opacity: 1,
+            scale: 1,
+            percentIn: 0,
+        },
+        leave: {
+            opacity: 0,
+            scale: 0.95,
+            percentIn: scaleBy,
+        },
+        config: {
+            tension: 2400,
+            friction: 52,
+        },
+    });
+}
+
+interface TooltipArrowProps {
+    targetElement: HTMLElement;
+    contentFragment: RefObject<FragmentInstance | null>;
+    position: TooltipPosition;
+}
+
+function TooltipArrow({ targetElement, contentFragment, position }: TooltipArrowProps) {
+    const rect = useRect(targetElement);
+    const contentRect = useFragmentRect(contentFragment);
+    const targetPos = useMemo(() => rect && getInitialPos(position, rect), [position, rect]);
+
+    return (
+        <svg
+            height="24"
+            width="24"
+            viewBox="0 0 24 24"
+            className={styles.arrow}
+            style={makeArrowStyles(position, targetPos, contentRect)}
+        >
+            <path
+                className={styles.border}
+                d="m8.96,8.98l-8.96,-8.98l23.99,0l-8.92,8.98a3.53,2.05 180 0 1 -6.11,0z"
+            />
+            <path
+                d="m8.96,8.98l-8.96,-8.98l23.99,0l-8.92,8.98a3.53,2.05 180 0 1 -6.11,0z"
+            />
+        </svg>
+    );
+}
+
+
+interface PositionLayerReferenceProps {
+    position: TooltipPosition;
+    referenceElement: HTMLElement;
+    /**
+     * @default true
+     */
+    bumpIntoView?: boolean;
+    className: string;
+    children: (actualPosition: TooltipPosition) => ReactNode;
+}
+
 
 function PositionLayerReference({
     position,
