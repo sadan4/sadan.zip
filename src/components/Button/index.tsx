@@ -10,7 +10,7 @@ import { Text } from "../Text";
 import { Tooltip } from "../Tooltip";
 import type { TooltipPosition } from "../Tooltip/constants";
 
-import { CheckIcon, XIcon } from "lucide-react";
+import { CheckIcon, Loader2Icon, XIcon } from "lucide-react";
 import { type ComponentProps, type MouseEvent, useId, useState } from "react";
 
 export type BaseButtonProps<Tag extends ClickableTags> = ComponentProps<typeof Clickable<Tag>> & {
@@ -91,7 +91,7 @@ export type IconButtonProps<Tag extends "a" | "button"> = BaseButtonProps<Tag> &
     /**
      * whether to dispatch the onClick during animation frame
      * 
-     * @default true
+     * @default false
      */
     dispatchDuringAnim?: boolean;
     /**
@@ -100,6 +100,12 @@ export type IconButtonProps<Tag extends "a" | "button"> = BaseButtonProps<Tag> &
      * @default "success"
      */
     checkColor?: BaseButtonProps<Tag>["color"];
+    /**
+     * show a loading animation while the promise is pending
+     * 
+     * @default true
+     */
+    loadingAnimation?: boolean;
     tooltipPosition?: TooltipPosition;
     tooltipClassName?: string;
     tag?: Tag;
@@ -117,7 +123,8 @@ export function IconButton<T extends "a" | "button" = "button">({
     onClick,
     tooltipPosition,
     holdAnimDuration = 750,
-    dispatchDuringAnim = true,
+    loadingAnimation = false,
+    dispatchDuringAnim = false,
     tag = "button" as T,
     tooltipClassName,
     ...props
@@ -125,6 +132,7 @@ export function IconButton<T extends "a" | "button" = "button">({
     const enum ButtonState {
         GOOD,
         BAD,
+        LOADING,
         NORMAL,
     }
 
@@ -149,6 +157,8 @@ export function IconButton<T extends "a" | "button" = "button">({
                     colorTypes[colorType],
                     showCheck === ButtonState.GOOD && styles.showCheck,
                     showCheck === ButtonState.BAD && styles.showError,
+                    showCheck === ButtonState.LOADING && styles.showLoading,
+                    showCheck !== ButtonState.NORMAL && !dispatchDuringAnim && "cursor-not-allowed",
                 )}
                 {...props as any}
                 tag={tag as "button"}
@@ -158,16 +168,30 @@ export function IconButton<T extends "a" | "button" = "button">({
                         return;
                     }
                     TAssert<MouseEvent<T extends "a" ? HTMLAnchorElement : HTMLButtonElement>>(e);
-                    Promise.resolve(onClick?.(e)).then((result) => {
-                        TAssert<boolean | null>(result);
-                        if (result === true) {
-                            setShowCheck(ButtonState.GOOD);
-                            hideCheck();
-                        } else if (result === false) {
-                            setShowCheck(ButtonState.BAD);
-                            hideCheck();
-                        }
-                    });
+
+                    const res = onClick?.(e);
+
+                    if (res === null) {
+                        // noop
+                    } else if (typeof res === "boolean") {
+                        setShowCheck(res ? ButtonState.GOOD : ButtonState.BAD);
+                        hideCheck();
+                    } else {
+                        // promise
+                        setShowCheck(loadingAnimation ? ButtonState.LOADING : ButtonState.NORMAL);
+                        Promise.resolve(res).then((result) => {
+                            TAssert<boolean | null>(result);
+                            if (result === true) {
+                                setShowCheck(ButtonState.GOOD);
+                                hideCheck();
+                            } else if (result === false) {
+                                setShowCheck(ButtonState.BAD);
+                                hideCheck();
+                            } else {
+                                setShowCheck(ButtonState.NORMAL);
+                            }
+                        });
+                    }
                 }}
             >
                 <div className={styles.icon}>
@@ -178,6 +202,9 @@ export function IconButton<T extends "a" | "button" = "button">({
                 </div>
                 <div className={cn(styles.statusIcon, styles.errorIcon, colors.error)}>
                     <XIcon />
+                </div>
+                <div className={cn(styles.statusIcon, styles.loadingIcon)}>
+                    <Loader2Icon />
                 </div>
             </Clickable>
         </Tooltip>

@@ -15,6 +15,7 @@ import { ToggleButtonGroup } from "@/components/ToggleButtonGroup";
 import { TooltipPosition } from "@/components/Tooltip/constants";
 import { type GeneratedGraph, useModuleGraph } from "@/hooks/moduleGraph";
 import { dedupe } from "@/utils/array";
+import { sleep } from "@/utils/async";
 import cn from "@/utils/cn";
 import { GITHUB_REPO_URL, NBSP } from "@/utils/constants";
 import { sendMessage } from "@/utils/e/socket";
@@ -35,7 +36,7 @@ import { Route } from "./view.{-$buildHash}.{-$moduleId}";
 import { TModuleId } from "../../../server/types";
 
 import "@xyflow/react/dist/style.css";
-import { ArrowBigRight, BadgeInfoIcon, ChevronFirstIcon, ChevronLastIcon, DownloadIcon, FileCodeIcon, GithubIcon, NetworkIcon, SettingsIcon, TriangleAlertIcon, Undo2Icon } from "lucide-react";
+import { AppWindowIcon, ArrowBigRight, BadgeInfoIcon, ChevronFirstIcon, ChevronLastIcon, DownloadIcon, FileCodeIcon, GithubIcon, NetworkIcon, SettingsIcon, TriangleAlertIcon, Undo2Icon } from "lucide-react";
 import { Activity, type PropsWithChildren, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 
@@ -513,6 +514,7 @@ export function Explorer() {
                             colorType="outline"
                             tooltipClassName="z-5"
                             tooltipPosition={TooltipPosition.BOTTOM}
+                            loadingAnimation
                             onClick={() => {
                                 return downloadBundle(buildHash);
                             }}

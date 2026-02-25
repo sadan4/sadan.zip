@@ -6,7 +6,7 @@ import { TBundleHash, TModuleId } from "../../../server/types";
 
 import z from "zod";
 
-let data: typeof import("./-data") = import.meta.env.SSR ? unavailableImport("./-data") : undefined;
+let data: typeof import("./-data") = import.meta.env.SSR ? unavailableImport("./-data") : null!;
 const ui = import.meta.env.SSR ? unavailableImport("./-ui") : await import("./-ui");
 
 const viewBundleParamsSchema = z.object({
