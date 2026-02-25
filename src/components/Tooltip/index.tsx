@@ -28,7 +28,7 @@ import { LayerPortal } from "../Layer";
 import { LayerContext } from "../Layer/context";
 import { Box } from "../layout/Box";
 
-import { type ComponentProps, type CSSProperties, Fragment, type FragmentInstance, type ReactNode, type RefObject, use, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { type ComponentProps, type CSSProperties, Fragment, type FragmentInstance, type ReactNode, type RefObject, use, useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 declare module "react" {
     interface CSSProperties {
@@ -351,7 +351,7 @@ interface PositionLayerReferenceProps {
     /**
      * @default true
      */
-    bumpIntoView?: boolean;
+    bumpIntoView: boolean;
     className: string;
     children: (actualPosition: TooltipPosition) => ReactNode;
 }
@@ -360,7 +360,7 @@ interface PositionLayerReferenceProps {
 function PositionLayerReference({
     position,
     referenceElement,
-    bumpIntoView = true,
+    bumpIntoView,
     className,
     children,
 }: PositionLayerReferenceProps) {
@@ -378,14 +378,18 @@ function PositionLayerReference({
     const _rootRect = useRect(root);
     const rootRect = useMemo(() => _rootRect && removeMarginFromRect(_rootRect, EDGE_MARGIN), [_rootRect]);
 
-    function setOffset(newOffset: RectOffset) {
-        _setOffset((oldOffset) => {
-            return compareRectOffsets(oldOffset, newOffset) ? oldOffset : newOffset;
-        });
-    }
+    const setOffset = useCallback((newOffset: RectOffset) => {
+        if (bumpIntoView) {
+            _setOffset((oldOffset) => {
+                return compareRectOffsets(oldOffset, newOffset) ? oldOffset : newOffset;
+            });
+        } else {
+            _setOffset(NO_OFFSET);
+        }
+    }, [bumpIntoView]);
 
     function recomputeOffset() {
-        if (!rootRect) {
+        if (!rootRect || !bumpIntoView) {
             return;
         }
 
@@ -406,7 +410,16 @@ function PositionLayerReference({
         setOffset(newOffset);
     }
 
-    useLayoutEffect(recomputeOffset, [rootRect, childRect, position, offsetRef, referenceRect, avoidBounds]);
+    useLayoutEffect(recomputeOffset, [
+        rootRect,
+        childRect,
+        position,
+        offsetRef,
+        referenceRect,
+        avoidBounds,
+        bumpIntoView,
+        setOffset,
+    ]);
 
     return (
         <div
@@ -454,8 +467,14 @@ export interface TooltipProps extends ComponentProps<"div"> {
      *
      * @default false
      */
-    noarrow?: boolean;
+    noArrow?: boolean;
     tooltipClassName?: string;
+    /**
+     * if the tooltip is outside of the viewport, adjust the position
+     * 
+     * @default true
+     */
+    bumpIntoView?: boolean;
 }
 
 
@@ -471,8 +490,9 @@ export function Tooltip({
     noWrapper = false,
     hoverShowDelay = 250,
     lingerDelay = 250,
-    noarrow = noWrapper,
+    noArrow = noWrapper,
     tooltipClassName,
+    bumpIntoView = true,
     ref,
     ...props
 }: TooltipProps) {
@@ -546,6 +566,7 @@ export function Tooltip({
                             position={position}
                             referenceElement={triggerEl}
                             className={cn(styles.container, positionStyleMap[position], tooltipClassName)}
+                            bumpIntoView={bumpIntoView}
                         >
                             {(actualPosition) => (
                                 <animated.div
@@ -570,7 +591,7 @@ export function Tooltip({
                                                 </Box>
                                             )}
                                     </Fragment>
-                                    {noarrow || (
+                                    {noArrow || (
                                         <TooltipArrow
                                             position={actualPosition}
                                             targetElement={triggerEl}
