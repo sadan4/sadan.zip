@@ -6,7 +6,7 @@ import { TBundleHash, TModuleId } from "../../../server/types";
 
 import z from "zod";
 
-const data = import.meta.env.SSR ? unavailableImport("./-data") : await import("./-data");
+let data: typeof import("./-data") = import.meta.env.SSR ? unavailableImport("./-data") : undefined;
 const ui = import.meta.env.SSR ? unavailableImport("./-ui") : await import("./-ui");
 
 const viewBundleParamsSchema = z.object({
@@ -63,6 +63,7 @@ export const Route = createFileRoute("/e/view/{-$buildHash}/{-$moduleId}")({
         },
     },
     async loader({ params: { buildHash, moduleId } }) {
+        data ||= await import("./-data");
         if (!import.meta.env.SSR) {
             const lsp = await import("./-lsp");
 

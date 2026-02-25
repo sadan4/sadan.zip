@@ -30,12 +30,12 @@ import { TAssert } from "@vencord-companion/webpack-ast-parser/util";
 import type { WebpackAstParser } from "@vencord-companion/webpack-ast-parser/WebpackAstParser";
 import { Background, Controls, MiniMap, ReactFlow, ReactFlowProvider } from "@xyflow/react";
 
-import { ModuleViewerSettingsStore, ModuleViewerStore, placeholderModel, placeholderURI, useModuleViewerSettingsStore, useModuleViewerStore, ViewMode } from "./-data";
+import { downloadBundle, ModuleViewerSettingsStore, ModuleViewerStore, placeholderModel, placeholderURI, useModuleViewerSettingsStore, useModuleViewerStore, ViewMode } from "./-data";
 import { Route } from "./view.{-$buildHash}.{-$moduleId}";
 import { TModuleId } from "../../../server/types";
 
 import "@xyflow/react/dist/style.css";
-import { ArrowBigRight, BadgeInfoIcon, ChevronFirstIcon, ChevronLastIcon, FileCodeIcon, GithubIcon, NetworkIcon, SettingsIcon, TriangleAlertIcon, Undo2Icon } from "lucide-react";
+import { ArrowBigRight, BadgeInfoIcon, ChevronFirstIcon, ChevronLastIcon, DownloadIcon, FileCodeIcon, GithubIcon, NetworkIcon, SettingsIcon, TriangleAlertIcon, Undo2Icon } from "lucide-react";
 import { Activity, type PropsWithChildren, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 
@@ -452,7 +452,7 @@ export function Explorer() {
         ModuleViewerStore.setState({ selectedModule: moduleId });
     }, [moduleId]);
 
-    const origModules = status === "success" && data.metadata.modules;
+    const origModules = status === "success" && data.moduleInfo;
 
     const moduleIds = useMemo(() => (origModules
         // webpack will duplicate the same module across multiple chunks, so we need to dedupe them
@@ -509,23 +509,36 @@ export function Explorer() {
                     </div>
                     <div className="flex gap-2">
                         <IconButton
-                            label={`Open${NBSP}Settings`}
+                            label="Download Bundle"
                             colorType="outline"
-                            onClick={() => {
-                                if (settingsModal.current) {
-                                    settingsModal.current.open();
-                                    return true;
-                                }
-                                return false;
-                            }}
                             tooltipClassName="z-5"
                             tooltipPosition={TooltipPosition.BOTTOM}
+                            onClick={() => {
+                                return downloadBundle(buildHash);
+                            }}
                         >
-                            <SettingsIcon />
+                            <DownloadIcon />
                         </IconButton>
-                        <Modal ref={settingsModal}>
-                            <SettingsModal />
-                        </Modal>
+                        <>
+                            <IconButton
+                                label={`Open${NBSP}Settings`}
+                                colorType="outline"
+                                onClick={() => {
+                                    if (settingsModal.current) {
+                                        settingsModal.current.open();
+                                        return true;
+                                    }
+                                    return false;
+                                }}
+                                tooltipClassName="z-5"
+                                tooltipPosition={TooltipPosition.BOTTOM}
+                            >
+                                <SettingsIcon />
+                            </IconButton>
+                            <Modal ref={settingsModal}>
+                                <SettingsModal />
+                            </Modal>
+                        </>
                         <IconButtonInternalLink
                             tooltipPosition={TooltipPosition.BOTTOM}
                             label="Return to Bundle Selector"

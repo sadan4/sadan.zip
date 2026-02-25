@@ -1,3 +1,8 @@
+packages: []
+
+ignoredBuiltDependencies:
+  - core-js
+
 onlyBuiltDependencies:
   - '@parcel/watcher'
   - '@swc/core'
@@ -14,7 +19,3 @@ overrides:
 patchedDependencies:
   '@tanstack/start-plugin-core': patches/@tanstack__start-plugin-core.patch
   typescript: patches/typescript.patch
-
-# pnpm is very stupid and old version will error if this field is absent
-packages: []
-  

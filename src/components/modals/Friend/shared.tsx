@@ -32,10 +32,10 @@ function C88X31({ friend }: FriendCardProps) {
             href={friend.url ?? "#"}
             target="_blank"
             rel="noopener noreferrer"
-            className="block h-[31px] w-[88px]"
+            className="block size-88x31"
         >
             <img
-                className="h-[31px] w-[88px] [image-rendering:pixelated]"
+                className="size-88x31 pixelated"
                 src={friend._88x31url}
                 alt={`${friend.name} 88x31 banner`}
             />
@@ -57,7 +57,7 @@ function FriendCard({ friend }: FriendCardProps) {
                                 tag="a"
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex size-12 items-center justify-center rounded-full bg-bg-100"
+                                className="flex size-12 items-center justify-center rounded-full bg-bg-100 text-info-400"
                                 href={friend.url}
                             >
                                 <LinkIcon
@@ -68,7 +68,7 @@ function FriendCard({ friend }: FriendCardProps) {
                         : (
                             <Clickable
                                 tag="a"
-                                className="flex size-12 cursor-not-allowed items-center justify-center rounded-full bg-bg-100 brightness-50"
+                                className="flex size-12 cursor-not-allowed items-center justify-center rounded-full bg-bg-100 text-info-400 brightness-50"
                                 onClick={(e) => {
                                     e.preventDefault();
                                 }}
@@ -101,7 +101,7 @@ function FriendCard({ friend }: FriendCardProps) {
                                 href={discordUrl(friend.discordId)}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex size-12 items-center justify-center rounded-full bg-bg-100"
+                                className="flex size-12 items-center justify-center rounded-full bg-bg-100 text-info-400"
                             >
                                 <Discord className="size-8" />
                             </Clickable>

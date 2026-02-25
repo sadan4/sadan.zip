@@ -1,7 +1,7 @@
 import type { Thenable } from "@/utils/types";
 
 import { BUILDS_PATH } from "./constants";
-import { type BundleInfo, bundleInfoSchema } from "./types";
+import { BundleInfo, ModuleInfo } from "./types";
 
 import { exists } from "fs-extra";
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
@@ -13,16 +13,37 @@ enum Version {
      * {@link BundleInfo.entryPoint|entryPoint} field added to {@link BundleInfo}
      */
     V1,
+    /**
+     * Move module from bundle info to separate file to decrease size
+     */
+    V2,
 }
 
-const CURRENT_VERSION = Version.V1;
+const CURRENT_VERSION = Version.V2;
 const VERSION_FILE = join(BUILDS_PATH, ".ver");
+
+async function *forEachBundle() {
+    for (const entry of await readdir(BUILDS_PATH, { withFileTypes: true })) {
+        if (!entry.isDirectory()) {
+            continue;
+        }
+
+        const entryPath = resolve(entry.parentPath, entry.name);
+        const infoPath = join(entryPath, "info.json");
+
+        if (!await exists(infoPath)) {
+            continue;
+        }
+
+        yield entryPath;
+    }
+}
 
 const migrations = Object.freeze({
     [Version.V0]() {
     },
     async [Version.V1]() {
-        const bundleInfoMaybeEntryPoint = bundleInfoSchema.partial({ entryPoint: true });
+        const bundleInfoMaybeEntryPoint = BundleInfo.partial({ entryPoint: true });
 
         for (const entry of await readdir(BUILDS_PATH, { withFileTypes: true })) {
             if (!entry.isDirectory()) {
@@ -48,6 +69,32 @@ const migrations = Object.freeze({
             await writeFile(infoPath, JSON.stringify(info, null, 2), "utf8");
         }
     },
+    async [Version.V2]() {
+        const bundleInfoMaybeModules = BundleInfo
+            .extend({ modules: ModuleInfo })
+            .partial({ modules: true });
+
+        for await (const entryPath of forEachBundle()) {
+            const modulesJsonPath = join(entryPath, "modules.json");
+
+            if (await exists(modulesJsonPath)) {
+                continue;
+            }
+
+            const infoPath = join(entryPath, "info.json");
+            const info = bundleInfoMaybeModules.parse(JSON.parse(await readFile(infoPath, "utf8")));
+
+            if (!info.modules) {
+                console.warn("no modules.json and no modules field in info.json");
+            }
+
+            await writeFile(modulesJsonPath, JSON.stringify(info.modules ?? {}, null, 2), "utf8");
+
+            const { modules: _, ...bundleInfoWithoutModules } = info;
+
+            await writeFile(infoPath, JSON.stringify(bundleInfoWithoutModules, null, 2), "utf8");
+        }
+    },
 } satisfies Record<Version, () => Thenable<void>>);
 
 async function writeVersion(version: Version): Promise<void> {
@@ -63,9 +110,11 @@ async function readVersion(): Promise<Version> {
 
     const version = +(await readFile(VERSION_FILE, "utf8")).trim();
 
+    // FIXME: version system is kinda dumb rn
     switch (version) {
         case Version.V0:
         case Version.V1:
+        case Version.V2:
             return version;
         default:
             throw new Error(`Unsupported version: ${version}. Latest supported version is ${CURRENT_VERSION}.`);

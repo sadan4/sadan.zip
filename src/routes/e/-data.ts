@@ -1,3 +1,4 @@
+import { download } from "@/utils/dom";
 import { sendMessage } from "@/utils/e/socket";
 import { assert } from "@/utils/error";
 import { makeLazy } from "@/utils/lazy";
@@ -9,6 +10,7 @@ import { WebpackAstParser } from "@vencord-companion/webpack-ast-parser/WebpackA
 
 import type { DepsJson, TBundleHash, TModuleId } from "../../../server/types";
 
+import "core-js/proposals/array-buffer-base64";
 import z from "zod";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
@@ -307,6 +309,26 @@ export const useModuleViewerSettingsStore = create<IModuleViewerSettings>()(pers
     },
     skipHydration: import.meta.env.SSR,
 }));
+
+export async function downloadBundle(bundleHash: TBundleHash): Promise<boolean> {
+    try {
+        const res = await sendMessage<"getBundleArchiveResponse">({
+            type: "getBundleArchive",
+            bundleHash,
+        });
+
+        // @ts-ignore we include it via core-js, typescript only added it in 6.0
+        const buf = Uint8Array.fromBase64(res.b64);
+
+        download(new File([buf], `${bundleHash}.tar.zst`));
+    } catch (e) {
+        // FIXME: better error handling
+        console.error(`Failed to download bundle: ${e instanceof Error ? e.message : String(e)}`);
+
+        return false;
+    }
+    return true;
+}
 
 // make react compiler happy
 export const ModuleViewerSettingsStore = useModuleViewerSettingsStore;

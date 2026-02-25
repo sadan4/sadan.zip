@@ -1,4 +1,4 @@
-import { type BaseMessageToServer, type MessageToClient, messageToClientSchema, type MessageToServer, messageToServerSchema } from "../../../server/types";
+import { type BaseMessageToServer, MessageToClient, MessageToServer } from "../../../server/types";
 import { withResolvers } from "../async";
 
 import z from "zod";
@@ -41,7 +41,7 @@ export async function sendMessage<T extends MessageToClient["type"] = never>(msg
 
     (msg as MessageToServer).messageId = id;
     try {
-        messageToServerSchema.parse(msg);
+        MessageToServer.parse(msg);
     } catch (e) {
         if (e instanceof z.ZodError) {
             throw new Error(`Invalid message format: ${z.prettifyError(e)}`);
@@ -72,7 +72,7 @@ export async function sendMessage<T extends MessageToClient["type"] = never>(msg
     ws.addEventListener("message", (ev: MessageEvent<string>) => {
         try {
             const _data = JSON.parse(ev.data);
-            const msg = messageToClientSchema.parse(_data);
+            const msg = MessageToClient.parse(_data);
 
             if (msg.messageId !== id) {
                 return;
