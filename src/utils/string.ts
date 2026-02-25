@@ -77,3 +77,12 @@ export function dedent(
     }
 }
 
+export type DisposableString = string & Disposable;
+
+export function disposableString(str: string, func: (str: string) => void): DisposableString {
+    return Object.assign(String(str), {
+        [Symbol.dispose]() {
+            func(str);
+        },
+    });
+}

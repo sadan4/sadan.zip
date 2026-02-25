@@ -1,6 +1,6 @@
 import { error, unreachable } from "./error";
 import { ellipseCircumference } from "./math";
-import { dedent } from "./string";
+import { dedent, type DisposableString, disposableString } from "./string";
 
 export function getLineHeight(element: Element) {
     // Get computed style
@@ -221,7 +221,16 @@ export function makeBorderPath(element: Element): [length: number, path: string]
     }
 }
 
-export function download(url: string, fileName?: string) {
+export function withObjectURL(obj: Blob | MediaSource): DisposableString {
+    return disposableString(URL.createObjectURL(obj), URL.revokeObjectURL);
+}
+
+export function download(file: File) {
+    using url = withObjectURL(file);
+    downloadUrl(url, file.name);
+}
+
+export function downloadUrl(url: string, fileName: string) {
     const a = document.createElement("a");
 
     a.href = url;
