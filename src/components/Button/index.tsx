@@ -103,7 +103,7 @@ export type IconButtonProps<Tag extends "a" | "button"> = BaseButtonProps<Tag> &
     /**
      * show a loading animation while the promise is pending
      * 
-     * @default true
+     * @default false
      */
     loadingAnimation?: boolean;
     tooltipPosition?: TooltipPosition;
