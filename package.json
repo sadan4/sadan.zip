@@ -16,6 +16,8 @@
     "lint:types": "tsc -b",
     "lint:css": "stylelint '**/*.{,s}css'",
     "lint:js": "eslint --cache .",
+    "lint:js:vscode:files": "pnpm lint:js | grep -P ^[\\\\w/].*\\\\.[mc]?[jt]sx?$",
+    "lint:js:vscode": "bash -c 'code $(pnpm --silent eslint:vscode:files)'",
     "lint": "conc pnpm:lint:types pnpm:lint:css pnpm:lint:js",
     "storybook": "storybook dev -p 6006",
     "deploy": "wrangler deploy",
