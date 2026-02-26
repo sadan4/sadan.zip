@@ -24,4 +24,4 @@ export const EMPTY_SET = Object.freeze(new Set<never>());
 export const EMPTY_MAP = Object.freeze(new Map<never, never>());
 export const EMPTY_ARRAY = Object.freeze([]);
 export const EMPTY_NULL_OBJECT = Object.freeze(Object.create(null));
-export const NOOP = () => { };
+export const NOOP = Object.freeze(() => { });

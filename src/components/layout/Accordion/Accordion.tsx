@@ -9,7 +9,7 @@ import { animated, useSpring } from "@react-spring/web";
 import styles from "./styles.module.scss";
 import { AccordionAnimation, ArrowPosition, ClickableArea } from "./utils";
 
-import { createContext, type PropsWithChildren, type ReactNode, type Ref, useContext, useEffect, useImperativeHandle, useState } from "react";
+import { createContext, type PropsWithChildren, type ReactNode, type Ref, useContext, useEffect, useImperativeHandle, useMemo, useState } from "react";
 
 export interface AccordionItem {
     id: string;
@@ -195,7 +195,7 @@ export function AccordionGroup({ children, onlyOneOpen = true, ref }: AccordionG
         };
     });
 
-    const api: AccordionContext = {
+    const api = useMemo<AccordionContext>(() => ({
         toggleActiveItem(id: string): void {
             if (!onlyOneOpen) {
                 return;
@@ -218,7 +218,7 @@ export function AccordionGroup({ children, onlyOneOpen = true, ref }: AccordionG
             return activeItemId === id;
         },
         closeAllTrigger: dep,
-    };
+    }), [activeItemId, dep, onlyOneOpen]);
 
     return (
         <AccordionContext value={api}>

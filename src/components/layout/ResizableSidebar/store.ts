@@ -1,5 +1,3 @@
-import { error } from "@/utils/error";
-
 import type { ResizeHandleAPI } from "../ResizeHandle";
 
 import { createContext, createRef, type PropsWithChildren, type RefObject, useContext } from "react";
@@ -133,13 +131,7 @@ export const enum Side {
     RIGHT,
 }
 
-export function defaultInitialSize(side: Side) {
-    switch (side) {
-        case Side.LEFT:
-            return DEFAULT_WIDTH / 100;
-        case Side.RIGHT:
-            return 1 - (DEFAULT_WIDTH / 100);
-        default:
-            error("unhandled case");
-    }
-}
+export const DEFAULT_SIZE_MAP = Object.freeze({
+    [Side.LEFT]: DEFAULT_WIDTH / 100,
+    [Side.RIGHT]: 1 - (DEFAULT_WIDTH / 100),
+} satisfies Record<Side, number>);

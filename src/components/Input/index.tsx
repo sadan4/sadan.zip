@@ -38,7 +38,7 @@ export function Input({
     ref: _ref,
     initialValue,
     value,
-    onClear = () => { },
+    onClear,
     onChange,
     clearButton = false,
     focusAfterClear = false,
@@ -75,10 +75,10 @@ export function Input({
                             className="pointer-events-auto -mr-2 p-2"
                             onClick={() => {
                                 if (isManaged) {
-                                    onClear();
+                                    onClear?.();
                                 } else if (ref.current) {
                                     ref.current.value = "";
-                                    onClear();
+                                    onClear?.();
                                 }
                                 if (focusAfterClear) {
                                     ref.current?.focus();

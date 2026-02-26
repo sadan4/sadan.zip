@@ -109,7 +109,7 @@ export interface SelectProps<T extends PropertyKey> extends PropsWithChildren {
 export function Select<T extends PropertyKey>({
     items,
     customChildren = false,
-    defaultValue = getDefaultItemValue(items),
+    defaultValue: _defaultValue,
     onChange,
     selectedValue,
     children,
@@ -120,7 +120,7 @@ export function Select<T extends PropertyKey>({
     onOpenChange,
 }: SelectProps<T>) {
     const [selectedItem, setSelectedItem] = useControlledState({
-        initialValue: defaultValue,
+        initialValue: _defaultValue ?? getDefaultItemValue(items),
         debugName: "Select",
         managedValue: selectedValue,
         handleChange: onChange,

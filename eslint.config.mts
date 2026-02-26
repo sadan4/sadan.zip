@@ -698,6 +698,8 @@ const eslintReactRules: Partial<Record<`@eslint-react/${string}`, Linter.RuleEnt
     "@eslint-react/no-unnecessary-use-callback": "error",
     "@eslint-react/no-unnecessary-use-memo": "error",
     "@eslint-react/no-unnecessary-use-prefix": "error",
+    "@eslint-react/no-unstable-context-value": "error",
+    "@eslint-react/no-unstable-default-props": "error",
 };
 
 const extensions = "{js,mjs,cjs,jsx,mjsx,cjsx,ts,mts,cts,tsx,mtsx,ctsx}";

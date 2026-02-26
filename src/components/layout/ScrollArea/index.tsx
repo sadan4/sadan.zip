@@ -5,7 +5,7 @@ import { ScrollAreaContext } from "./context";
 import styles from "./styles.module.scss";
 import { ScrollAreaDirection, type ScrollAreaType } from "./types";
 
-import { type ComponentPropsWithRef, useRef } from "react";
+import { type ComponentPropsWithRef, useMemo, useRef } from "react";
 
 export interface ScrollAreaProps extends Omit<ComponentPropsWithRef<"div">, "dir"> {
     type?: ScrollAreaType;
@@ -28,9 +28,10 @@ export function ScrollArea({
     ...props
 }: ScrollAreaProps) {
     const ref = useRef<HTMLDivElement | null>(null);
+    const contextValue = useMemo(() => ({ ref }), []);
 
     return (
-        <ScrollAreaContext value={{ ref }}>
+        <ScrollAreaContext value={contextValue}>
             <div
                 className={cn(styles.scrollbar, directionStyles[dir], className)}
                 ref={useComposedRefs(_ref, ref)}

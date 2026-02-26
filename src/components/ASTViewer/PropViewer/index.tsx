@@ -14,7 +14,7 @@ import { PropViewerContext, SourceFileContext } from "./context";
 import { TreeAccordion } from "../TreeAccordion";
 
 import { ExternalLinkIcon, RedoDotIcon } from "lucide-react";
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useMemo, useState } from "react";
 import type { Node, SourceFile } from "typescript";
 
 interface ObjectProp<T> {
@@ -450,14 +450,16 @@ export function PropViewer({ node, onSelectNode }: PropViewerProps) {
     const cbRef = useRecent(onSelectNode);
     const [open, setOpen] = useState(true);
 
+    const contextValue = useMemo<PropViewerContext>(() => (
+        {
+            onSelectNode(node) {
+                cbRef.current(node);
+            },
+        }
+    ), [cbRef]);
+
     return (
-        <PropViewerContext
-            value={{
-                onSelectNode(node) {
-                    cbRef.current(node);
-                },
-            }}
-        >
+        <PropViewerContext value={contextValue} >
             <ScrollArea className="pl-2">
                 <TreeAccordion
                     contents={() => (

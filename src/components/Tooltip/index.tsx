@@ -6,6 +6,7 @@ import { useRecent } from "@/hooks/recent";
 import { useFragmentRect, useRect } from "@/hooks/rect";
 import { useResizeObserver } from "@/hooks/resizeObserver";
 import cn from "@/utils/cn";
+import { EMPTY_OBJECT } from "@/utils/constants";
 import {
     compareRectOffsets,
     measureRect,
@@ -491,7 +492,7 @@ export function Tooltip({
     onShow,
     onHide,
     className,
-    triggerProps: { ref: _triggerRef, className: triggerClassName, ...triggerProps } = {},
+    triggerProps: { ref: _triggerRef, className: triggerClassName, ...triggerProps } = EMPTY_OBJECT,
     position = TooltipPosition.TOP,
     children,
     noWrapper = false,
