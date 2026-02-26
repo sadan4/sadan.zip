@@ -30,7 +30,7 @@ export function useRect(
     keys: (keyof DOMRect)[] = [],
 ): DOMRect | undefined {
     const mapper = useRectMapper(keys);
-    const [size, _setSize] = useState(() => (el ? cloneRect(measureRect(el)) : undefined));
+    const [size, _setSize] = useState(() => (el ? mapper(cloneRect(measureRect(el))) : undefined));
     const sizeRef = useRef(size);
     const { ref: { current: scroller } } = use(ScrollAreaContext);
 

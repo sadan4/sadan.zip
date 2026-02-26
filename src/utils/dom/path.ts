@@ -49,7 +49,7 @@ export function makeBorderPath(element: Element): [length: number, path: string]
     }
 
     /**
-     * return the difference bewteen the length of the curve and the sum of the radii
+     * return the difference between the length of the curve and the sum of the radii
      */
     function calcRadiusDelta(a: number, b: number): number {
         if (!a && !b) {

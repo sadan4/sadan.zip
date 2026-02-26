@@ -37,8 +37,8 @@ export function makeEmptyDomRect(): DOMRect {
 export function mergeDOMRects(a: Rect, b: Rect): Rect {
     const x = Math.min(a.left, b.left);
     const y = Math.min(a.top, b.top);
-    const width = Math.max(a.width, b.width);
-    const height = Math.max(a.height, b.height);
+    const width = Math.max(a.right, b.right) - x;
+    const height = Math.max(a.bottom, b.bottom) - y;
 
     return new DOMRectReadOnly(x, y, width, height);
 }
@@ -55,7 +55,7 @@ export function cloneRect(rect: Rect): DOMRect {
 }
 
 /**
- * removes a margin from each edge of the rect, making it's area smaller
+ * removes a margin from each edge of the rect, making its area smaller
  */
 export function removeMarginFromRect(rect: Rect, margin: number): Rect {
     const m2 = margin * 2;
@@ -69,7 +69,7 @@ export function removeMarginFromRect(rect: Rect, margin: number): Rect {
 }
 
 /**
- * adds a margin to each edge of the rect, making it's area larger
+ * adds a margin to each edge of the rect, making its area larger
  */
 export function addMarginToRect(rect: Rect, margin: number): Rect {
     return removeMarginFromRect(rect, -margin);

@@ -471,7 +471,7 @@ export interface TooltipProps extends ComponentProps<"div"> {
     tooltipClassName?: string;
     /**
      * if the tooltip is outside of the viewport, adjust the position
-     * 
+     *
      * @default true
      */
     bumpIntoView?: boolean;
