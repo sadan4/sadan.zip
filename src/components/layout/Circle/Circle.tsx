@@ -192,12 +192,12 @@ export function CircleItems({
                 const c = (child ?? (() => null))(placementProps);
 
                 return (
-                    <CircleItemContext.Provider
+                    <CircleItemContext
                         value={placementProps}
                         key={(c as ReactElement)?.key}
                     >
                         {c}
-                    </CircleItemContext.Provider>
+                    </CircleItemContext>
                 );
             })}
         </div>

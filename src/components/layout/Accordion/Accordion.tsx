@@ -220,8 +220,8 @@ export function AccordionGroup({ children, onlyOneOpen = true, ref }: AccordionG
     };
 
     return (
-        <AccordionContext.Provider value={api}>
+        <AccordionContext value={api}>
             {children}
-        </AccordionContext.Provider>
+        </AccordionContext>
     );
 }

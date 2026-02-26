@@ -86,7 +86,6 @@ export function makeTextComponentEraser(
             component: (
                 <Text
                     {...extraProps}
-                    children=""
                 />
             ),
             nextDelay,

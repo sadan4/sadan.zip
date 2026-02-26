@@ -685,6 +685,11 @@ const eslintReactRules: Partial<Record<`@eslint-react/${string}`, Linter.RuleEnt
     // magic numbers :(
     "@eslint-react/jsx-shorthand-boolean": "warn",
     "@eslint-react/jsx-shorthand-fragment": "error",
+    "@eslint-react/no-array-index-key": "error",
+    "@eslint-react/no-children-prop": "warn",
+    "@eslint-react/no-context-provider": "warn",
+    "@eslint-react/no-forward-ref": "warn",
+    "@eslint-react/no-implicit-key": "error",
 };
 
 const extensions = "{js,mjs,cjs,jsx,mjsx,cjsx,ts,mts,cts,tsx,mtsx,ctsx}";

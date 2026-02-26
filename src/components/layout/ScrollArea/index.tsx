@@ -30,7 +30,7 @@ export function ScrollArea({
     const ref = useRef<HTMLDivElement | null>(null);
 
     return (
-        <ScrollAreaContext.Provider value={{ ref }}>
+        <ScrollAreaContext value={{ ref }}>
             <div
                 className={cn(styles.scrollbar, directionStyles[dir], className)}
                 ref={useComposedRefs(_ref, ref)}
@@ -38,6 +38,6 @@ export function ScrollArea({
             >
                 {children}
             </div>
-        </ScrollAreaContext.Provider>
+        </ScrollAreaContext>
     );
 }
