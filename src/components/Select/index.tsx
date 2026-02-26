@@ -13,7 +13,7 @@ import { ScrollAreaContext } from "../layout/ScrollArea/context";
 import { Text } from "../Text";
 
 import { CircleCheck } from "lucide-react";
-import { type Key, type PropsWithChildren, type ReactNode, useContext, useEffect, useRef, useState } from "react";
+import { type Key, type PropsWithChildren, type ReactNode, use, useEffect, useRef, useState } from "react";
 import scrollIntoView from "scroll-into-view-if-needed";
 
 export interface SelectOption<T> {
@@ -36,7 +36,7 @@ interface SelectItemProps<T> {
 
 function SelectItem<T>({ item: { label, value, disabled }, isSelected, onChange }: SelectItemProps<T>) {
     const ref = useRef<HTMLDivElement>(null);
-    const ctx = useContext(ScrollAreaContext).ref;
+    const ctx = use(ScrollAreaContext).ref;
 
     useEffect(() => {
         if (isSelected && ref.current) {

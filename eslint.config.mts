@@ -700,6 +700,9 @@ const eslintReactRules: Partial<Record<`@eslint-react/${string}`, Linter.RuleEnt
     "@eslint-react/no-unnecessary-use-prefix": "error",
     "@eslint-react/no-unstable-context-value": "error",
     "@eslint-react/no-unstable-default-props": "error",
+    // TODO: add
+    // "@eslint-react/no-unused-props": "warn",
+    "@eslint-react/no-use-context": "error",
 };
 
 const extensions = "{js,mjs,cjs,jsx,mjsx,cjsx,ts,mts,cts,tsx,mtsx,ctsx}";

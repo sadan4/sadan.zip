@@ -1,6 +1,6 @@
 import type { ResizeHandleAPI } from "../ResizeHandle";
 
-import { createContext, createRef, type PropsWithChildren, type RefObject, useContext } from "react";
+import { createContext, createRef, type PropsWithChildren, type RefObject, use } from "react";
 import { createStore, type ExtractState, type StoreApi, useStore } from "zustand";
 
 export interface SidebarStateStore {
@@ -117,7 +117,7 @@ export interface SidebarStateStoreProviderProps extends PropsWithChildren {
 }
 
 export function useSidebarStateStore<R>(selector: (state: ExtractState<StoreApi<SidebarStateStore>>) => R): R {
-    const store = useContext(SidebarStateStoreContext);
+    const store = use(SidebarStateStoreContext);
 
     if (!store) {
         throw new Error("useSidebarStateStore must be used within a SidebarStateStoreProvider");

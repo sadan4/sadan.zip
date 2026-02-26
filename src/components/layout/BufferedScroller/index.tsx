@@ -11,7 +11,7 @@ import { defer } from "@/utils/scope";
 import { ScrollArea, type ScrollAreaProps } from "../ScrollArea";
 import { ScrollAreaContext } from "../ScrollArea/context";
 
-import { type PropsWithChildren, type ReactNode, type Ref, type UIEvent, useCallback, useContext, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { type PropsWithChildren, type ReactNode, type Ref, type UIEvent, use, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 
 export namespace BufferedScroller {
     export interface RenderItemProps<T> {
@@ -64,7 +64,7 @@ interface FlagProps {
 }
 
 function Flag({ onEnter, onExit }: FlagProps) {
-    const scrollAreaHandle = useContext(ScrollAreaContext);
+    const scrollAreaHandle = use(ScrollAreaContext);
     const lastState = useRef<boolean>(null);
 
     const setIntersectionRef = useIntersection((entries) => {

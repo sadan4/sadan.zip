@@ -4,10 +4,10 @@
 import { CircleItemContext } from "./context";
 import styles from "./styles.module.scss";
 
-import { type PropsWithChildren, useContext } from "react";
+import { type PropsWithChildren, use } from "react";
 
 export function DefaultPlacementCircleItem({ children }: PropsWithChildren) {
-    const { x: left, y: top } = useContext(CircleItemContext);
+    const { x: left, y: top } = use(CircleItemContext);
 
     return (
         <div

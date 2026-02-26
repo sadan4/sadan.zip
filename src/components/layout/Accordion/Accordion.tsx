@@ -9,7 +9,7 @@ import { animated, useSpring } from "@react-spring/web";
 import styles from "./styles.module.scss";
 import { AccordionAnimation, ArrowPosition, ClickableArea } from "./utils";
 
-import { createContext, type PropsWithChildren, type ReactNode, type Ref, useContext, useEffect, useImperativeHandle, useMemo, useState } from "react";
+import { createContext, type PropsWithChildren, type ReactNode, type Ref, use, useEffect, useImperativeHandle, useMemo, useState } from "react";
 
 export interface AccordionItem {
     id: string;
@@ -71,7 +71,7 @@ export function Accordion({
 
     const isRowClickable = !!(clicableArea & ClickableArea.ROW);
     const isArrowClickable = !!(clicableArea & ClickableArea.ARROW);
-    const groupCtx = useContext(AccordionContext);
+    const groupCtx = use(AccordionContext);
 
     const { rotation } = useSpring({
         rotation: rotationMap[+active][arrowPosition],
