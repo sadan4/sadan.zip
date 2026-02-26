@@ -686,7 +686,8 @@ const tailwindCallees = Object.freeze({
     config: join(__dirname, "src", "index.css"),
 });
 
-export default TSEslint.config({ ignores: ["dist", "dist.server", "builds", "node_modules", ".vite-inspect"] }, {
+// TODO: re-add stories when storybook is re-added
+export default TSEslint.config({ ignores: ["dist", "src/**/*.stories.tsx", "dist.server", "builds", "node_modules", ".vite-inspect"] }, {
     files: [`src/**/*.${extensions}`, `server/**/*.${extensions}`, `eslint.config.${extensions}`, `vite.config.${extensions}`, `stylelint.config.${extensions}`, `scripts/**/*.${extensions}`, `vitest.config.${extensions}`, `.storybook/*.${extensions}`],
     plugins: {
         "@stylistic": stylistic,
