@@ -240,12 +240,14 @@ function ModuleGraph({ parser }: ModuleGraphProps) {
                     TAssert<TModuleId>(moduleId);
                     return (
                         <TextLink
+                            key={moduleId}
                             to="/e/view/{-$buildHash}/{-$moduleId}"
                             params={{
                                 buildHash,
                                 moduleId,
                             }}
-                        >{moduleId}
+                        >
+                            {moduleId}
                         </TextLink>
                     );
                 })}
