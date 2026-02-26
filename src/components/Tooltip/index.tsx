@@ -219,6 +219,7 @@ function computeRectClipOffsets(
     }
 
     let top = 0;
+    let left = 0;
 
     if (rectHeightCanBeContainedBy(el, bounds)) {
         // too far up
@@ -235,8 +236,6 @@ function computeRectClipOffsets(
             top = Math.min(bounds.bottom, avoid.top) - el.bottom;
         }
     }
-
-    let left = 0;
 
     if (rectWidthCanBeContainedBy(el, bounds)) {
         // too far left

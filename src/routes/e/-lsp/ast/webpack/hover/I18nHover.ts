@@ -99,13 +99,13 @@ export class WebpackI18nHover implements Monaco.languages.HoverProvider {
     }
 
     static #makeCopyString(props: CopyHoverDataArgs): Monaco.IMarkdownString {
-        const uri = this.#createCommandUri(props).toString();
+        const uri = WebpackI18nHover.#createCommandUri(props).toString();
 
         return {
             value: `$(copy) [Copy As Find](${uri})`,
             supportThemeIcons: true,
             isTrusted: {
-                enabledCommands: [this.#COMMAND_NAME],
+                enabledCommands: [WebpackI18nHover.#COMMAND_NAME],
             },
         };
     }
@@ -119,11 +119,11 @@ export class WebpackI18nHover implements Monaco.languages.HoverProvider {
     }
 
     static #createCommandUri(props: CopyHoverDataArgs): Monaco.Uri {
-        return monaco.Uri.parse(`command:${this.#COMMAND_NAME}?${encodeURIComponent(JSON.stringify([props]))}`);
+        return monaco.Uri.parse(`command:${WebpackI18nHover.#COMMAND_NAME}?${encodeURIComponent(JSON.stringify([props]))}`);
     }
 
     public static register() {
-        monaco.languages.registerHoverProvider({ language: "javascript" }, new this());
-        monaco.editor.registerCommand(this.#COMMAND_NAME, this.#handleCopyHoverData);
+        monaco.languages.registerHoverProvider({ language: "javascript" }, new WebpackI18nHover());
+        monaco.editor.registerCommand(WebpackI18nHover.#COMMAND_NAME, WebpackI18nHover.#handleCopyHoverData);
     }
 }

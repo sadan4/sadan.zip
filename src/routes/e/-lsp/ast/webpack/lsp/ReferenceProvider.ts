@@ -48,6 +48,6 @@ export class WebpackReferenceProvider implements Monaco.languages.ReferenceProvi
     }
 
     public static register() {
-        monaco.languages.registerReferenceProvider({ language: "javascript" }, new this());
+        monaco.languages.registerReferenceProvider({ language: "javascript" }, new WebpackReferenceProvider());
     }
 }
