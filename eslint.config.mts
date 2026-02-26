@@ -695,6 +695,9 @@ const eslintReactRules: Partial<Record<`@eslint-react/${string}`, Linter.RuleEnt
     "@eslint-react/no-missing-context-display-name": "error",
     "@eslint-react/no-missing-key": "error",
     "@eslint-react/no-misused-capture-owner-stack": "error",
+    "@eslint-react/no-unnecessary-use-callback": "error",
+    "@eslint-react/no-unnecessary-use-memo": "error",
+    "@eslint-react/no-unnecessary-use-prefix": "error",
 };
 
 const extensions = "{js,mjs,cjs,jsx,mjsx,cjsx,ts,mts,cts,tsx,mtsx,ctsx}";

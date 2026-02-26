@@ -17,7 +17,7 @@ import defaultJson from "./default.json?raw";
 import styles from "./styles.module.scss";
 
 import { AlertCircleIcon } from "lucide-react";
-import { Fragment, type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Fragment, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 interface Token {
     type: string;
@@ -140,7 +140,7 @@ function Vis() {
     const [tokens, setTokens] = useState<Token[]>([]);
     // react refresh hack
 
-    const updateTokens = useCallback(() => {
+    function updateTokens() {
         if (text) {
             try {
                 setTokens(parseTokens(text));
@@ -150,9 +150,9 @@ function Vis() {
         } else {
             setTokens([]);
         }
-    }, [text]);
+    }
 
-    useEffect(updateTokens, [updateTokens]);
+    useEffect(updateTokens, [text]);
 
     return (
         <>

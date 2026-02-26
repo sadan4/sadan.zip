@@ -3,11 +3,11 @@ import cn from "@/utils/cn";
 import { entries } from "@/utils/obj";
 import type { Edge as GraphEdge, Node as GraphNode } from "@xyflow/react";
 
-import { type DepsJson, TModuleId } from "../../server/types";
+import { type DepsJson, MainDepsEntryValue, TModuleId } from "../../server/types";
 import styles from "../routes/e/-styles.module.scss";
 
 import ELK, { type ElkNode } from "elkjs";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 export interface GeneratedGraph {
     nodes: GraphNode[];
@@ -26,31 +26,6 @@ export function useModuleGraph(depth = 1): GeneratedGraph | null {
     const [depGraph, setDepGraph] = useState<DepsJson | null>(null);
     const [laidOutGraph, setLaidOutGraph] = useState<GeneratedGraph | null>(null);
 
-    const depMap = useMemo(() => {
-        if (!depGraph)
-            return null;
-        return new Map(entries(depGraph.deps));
-    }, [depGraph]);
-
-    const reverseDepMap = useMemo(() => {
-        if (!depMap) {
-            return null;
-        }
-
-        const ret = new Map<TModuleId, TModuleId[]>();
-
-        // TODO: support lazy uses
-        for (const [to, from] of depMap) {
-            for (const fromId of from.syncUses) {
-                if (!ret.has(fromId)) {
-                    ret.set(fromId, []);
-                }
-                ret.get(fromId)!.push(to);
-            }
-        }
-        return ret;
-    }, [depMap]);
-
     useEffect(() => {
         if (!buildHash) {
             return;
@@ -63,6 +38,22 @@ export function useModuleGraph(depth = 1): GeneratedGraph | null {
     }, [buildHash]);
 
     useEffect(() => {
+        let depMap: Map<TModuleId, MainDepsEntryValue> | null = null;
+        let reverseDepMap: Map<TModuleId, TModuleId[]> | null = null;
+
+        if (depGraph) {
+            depMap = new Map(entries(depGraph.deps));
+            reverseDepMap = new Map();
+            for (const [to, from] of depMap) {
+                for (const fromId of from.syncUses) {
+                    if (!reverseDepMap.has(fromId)) {
+                        reverseDepMap.set(fromId, []);
+                    }
+                    reverseDepMap.get(fromId)!.push(to);
+                }
+            }
+        }
+
         !async function () {
             const graph = await layoutGraph({
                 depMap,
@@ -73,7 +64,7 @@ export function useModuleGraph(depth = 1): GeneratedGraph | null {
 
             setLaidOutGraph(graph);
         }();
-    }, [depMap, depth, reverseDepMap, selectedModuleId]);
+    }, [depGraph, depth, selectedModuleId]);
 
     return laidOutGraph;
 }
