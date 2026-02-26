@@ -105,6 +105,7 @@ function CodeblockInner({
 
     let highlightedCode = (
         <div
+            // eslint-disable-next-line @eslint-react/dom/no-dangerously-set-innerhtml -- from shiki
             dangerouslySetInnerHTML={{ __html: html }}
             // we want a mismatch to avoid showing the fallback on suspense
             suppressHydrationWarning

@@ -221,6 +221,8 @@ export function FriendButton({ friend, tooltipPosition, mobile }: FriendButtonPr
                                 </radialGradient>
                                 <mask
                                     id={maskId}
+                                    // facebook/react#35920
+                                    // eslint-disable-next-line @eslint-react/dom/no-unknown-property
                                     mask-type="alpha"
                                 >
                                     <circle

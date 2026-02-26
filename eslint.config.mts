@@ -2,7 +2,7 @@
 import eslintReact from "@eslint-react/eslint-plugin";
 import stylistic, { type RuleOptions } from "@stylistic/eslint-plugin";
 
-import { Linter } from "eslint";
+import { type Linter } from "eslint";
 import type { ESLintRules as IESLintRules } from "eslint/rules";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
@@ -707,6 +707,19 @@ const eslintReactRules: Partial<Record<`@eslint-react/${string}`, Linter.RuleEnt
     "@eslint-react/prefer-namespace-import": "error",
     "@eslint-react/set-state-in-render": "error",
     "@eslint-react/use-state": "error",
+    // react-rsc
+    "@eslint-react/rsc/function-definition": "error",
+    // react-dom
+    "@eslint-react/dom/no-dangerously-set-innerhtml": "error",
+    "@eslint-react/dom/no-dangerously-set-innerhtml-with-children": "error",
+    "@eslint-react/dom/no-missing-iframe-sandbox": "error",
+    "@eslint-react/dom/no-namespace": "error",
+    "@eslint-react/dom/no-string-style-prop": "error",
+    "@eslint-react/dom/no-unknown-property": "warn",
+    "@eslint-react/dom/no-unsafe-iframe-sandbox": "error",
+    "@eslint-react/dom/no-unsafe-target-blank": "error",
+    "@eslint-react/dom/no-void-elements-with-children": "error",
+
 };
 
 const extensions = "{js,mjs,cjs,jsx,mjsx,cjsx,ts,mts,cts,tsx,mtsx,ctsx}";
@@ -725,13 +738,16 @@ export default TSEslint.config({ ignores: ["dist", "src/**/*.stories.tsx", "dist
         "simple-import-sort": simpleImportSort,
         "unused-imports": unusedImports,
         "react-hooks": reactHooks,
-        "@eslint-react": eslintReact,
         "react-refresh": reactRefresh,
         tailwindcss,
+        // eslint-react has a handful of plugins, add them all
+        ...eslintReact.configs.all.plugins,
     },
     settings: {
         "react-x": {
             additionalEffectHooks: "(useIsomorphicLayoutEffect)",
+            polymorphicPropName: "tag",
+            compilationMode: "infer",
         },
     },
     languageOptions: {
