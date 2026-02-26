@@ -704,6 +704,11 @@ const eslintReactRules: Partial<Record<`@eslint-react/${string}`, Linter.RuleEnt
     // "@eslint-react/no-unused-props": "warn",
     "@eslint-react/no-use-context": "error",
     "@eslint-react/no-useless-fragment": "error",
+    "@eslint-react/prefer-destructuring-assignment": "error",
+    "@eslint-react/prefer-namespace-import": "error",
+    // TODO: add
+    // "@eslint-react/set-state-in-render": "error",
+    // "@eslint-react/use-state": "error",
 };
 
 const extensions = "{js,mjs,cjs,jsx,mjsx,cjsx,ts,mts,cts,tsx,mtsx,ctsx}";
