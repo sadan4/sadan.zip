@@ -240,8 +240,6 @@ export function useFragmentRect<T extends keyof DOMRect>(
             return picked;
         });
     }, [mapper]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [mapper, ...extraDeps]);
 
     function updateSizeIfNeeded() {
         const f = fragmentRef.current;
@@ -267,7 +265,6 @@ export function useFragmentRect<T extends keyof DOMRect>(
         }
         // eslint-disable-next-line @eslint-react/exhaustive-deps
     }, [fragmentRef, setSize, ...extraDeps]);
-    }, [fragmentRef, setSize]);
 
     useEventHandler("scrollend", updateSizeIfNeeded, scroller);
     useEventHandler("scrollend", updateSizeIfNeeded);
