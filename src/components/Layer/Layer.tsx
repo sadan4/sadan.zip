@@ -31,7 +31,6 @@ export function Layer({ children }: LayerProps) {
 }
 
 export interface LayerPortalProps extends PropsWithChildren {
-
 }
 
 export function LayerPortal({ children }: LayerPortalProps) {

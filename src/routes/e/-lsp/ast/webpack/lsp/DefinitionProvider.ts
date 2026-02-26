@@ -55,6 +55,6 @@ export class WebpackDefinitionProvider implements Monaco.languages.DefinitionPro
     }
 
     public static register() {
-        monaco.languages.registerDefinitionProvider({ language: "javascript" }, new this());
+        monaco.languages.registerDefinitionProvider({ language: "javascript" }, new WebpackDefinitionProvider());
     }
 }

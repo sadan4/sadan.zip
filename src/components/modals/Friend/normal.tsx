@@ -110,10 +110,7 @@ export function FriendModalNormal() {
 
     return (
         <div
-            className="fixed inset-fill"
-            onWheel={(e) => {
-                console.log("scroll", e);
-            }}
+            className="flex items-center justify-center overflow-clip"
         >
             <CircleRoot>
                 <CircleCenter>

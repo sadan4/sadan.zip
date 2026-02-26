@@ -1,4 +1,5 @@
-import { measureRect, MouseButtons } from "@/utils/dom";
+import { MouseButtons } from "@/utils/dom";
+import { measureRect } from "@/utils/dom/rect";
 import toCSS from "@/utils/toCSS";
 import { animated, to, useSpring } from "@react-spring/web";
 

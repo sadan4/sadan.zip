@@ -9,7 +9,9 @@
       "DOM.Iterable"
     ],
     "types": [
-      "vite/client"
+      "vite/client",
+      "react/canary",
+      "react-dom/canary",
     ],
     /* Bundler mode */
     "moduleResolution": "bundler",

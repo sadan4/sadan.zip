@@ -48,6 +48,6 @@ export class WebpackExportHover implements Monaco.languages.HoverProvider {
     }
 
     public static register() {
-        monaco.languages.registerHoverProvider({ language: "javascript" }, new this());
+        monaco.languages.registerHoverProvider({ language: "javascript" }, new WebpackExportHover());
     }
 }

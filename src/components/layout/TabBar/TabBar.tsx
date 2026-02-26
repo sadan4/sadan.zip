@@ -9,7 +9,7 @@ import { useRect } from "@/hooks/rect";
 import { useResizeObserverFromRef } from "@/hooks/resizeObserver";
 import { joinWithKey } from "@/utils/array";
 import cn from "@/utils/cn";
-import { measureRect } from "@/utils/dom";
+import { measureRect } from "@/utils/dom/rect";
 import { assert } from "@/utils/error";
 import { updateRef } from "@/utils/ref";
 import { animated } from "@react-spring/web";
