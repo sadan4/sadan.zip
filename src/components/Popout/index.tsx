@@ -106,15 +106,13 @@ export function PopoutTrigger({ children }: PopoutTriggerProps) {
     }, [rect, ctx]);
 
     return (
-        <>
-            <Clickable
-                ref={setEl}
-                className="contents"
-                onClick={ctx.open}
-            >
-                {children}
-            </Clickable>
-        </>
+        <Clickable
+            ref={setEl}
+            className="contents"
+            onClick={ctx.open}
+        >
+            {children}
+        </Clickable>
     );
 }
 

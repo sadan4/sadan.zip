@@ -344,17 +344,15 @@ interface ExperimentalSettingProps extends PropsWithChildren {
 
 function ExperimentalSetting({ children }: ExperimentalSettingProps) {
     return (
-        <>
-            <div className="flex w-full flex-col rounded-md border-2 border-warning-300/50 p-2">
-                <Text
-                    color="warning"
-                    className="mb-2 flex items-center gap-2"
-                >
-                    <TriangleAlertIcon className="inline" />This Setting is Experimental. Expect and report any bugs!
-                </Text>
-                {children}
-            </div>
-        </>
+        <div className="flex w-full flex-col rounded-md border-2 border-warning-300/50 p-2">
+            <Text
+                color="warning"
+                className="mb-2 flex items-center gap-2"
+            >
+                <TriangleAlertIcon className="inline" />This Setting is Experimental. Expect and report any bugs!
+            </Text>
+            {children}
+        </div>
     );
 }
 
@@ -543,26 +541,24 @@ export function Explorer() {
                         >
                             <DownloadIcon />
                         </IconButton>
-                        <>
-                            <IconButton
-                                label={`Open${NBSP}Settings`}
-                                colorType="outline"
-                                onClick={() => {
-                                    if (settingsModal.current) {
-                                        settingsModal.current.open();
-                                        return true;
-                                    }
-                                    return false;
-                                }}
-                                tooltipClassName="z-6"
-                                tooltipPosition={TooltipPosition.BOTTOM}
-                            >
-                                <SettingsIcon />
-                            </IconButton>
-                            <Modal ref={settingsModal}>
-                                <SettingsModal />
-                            </Modal>
-                        </>
+                        <IconButton
+                            label={`Open${NBSP}Settings`}
+                            colorType="outline"
+                            onClick={() => {
+                                if (settingsModal.current) {
+                                    settingsModal.current.open();
+                                    return true;
+                                }
+                                return false;
+                            }}
+                            tooltipClassName="z-6"
+                            tooltipPosition={TooltipPosition.BOTTOM}
+                        >
+                            <SettingsIcon />
+                        </IconButton>
+                        <Modal ref={settingsModal}>
+                            <SettingsModal />
+                        </Modal>
                         <IconButtonInternalLink
                             tooltipPosition={TooltipPosition.BOTTOM}
                             label={`Return${NBSP}to${NBSP}Bundle${NBSP}Selector`}

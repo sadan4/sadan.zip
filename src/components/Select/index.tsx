@@ -164,81 +164,79 @@ export function Select<T extends PropertyKey>({
     }
 
     return (
-        <>
-            <div
-                ref={ref}
-                className="relative"
+        <div
+            ref={ref}
+            className="relative"
+        >
+            <Clickable
+                className={cn(
+                    styles.select,
+                    className,
+                    border.interactive,
+                    border.autofocus,
+                    border.animate,
+                    open && border.focused,
+                )}
+                onClick={(e) => {
+                    if (e.detail > 1) {
+                        e.preventDefault();
+                    }
+                    setOpen((o) => !o);
+                }}
             >
-                <Clickable
-                    className={cn(
-                        styles.select,
-                        className,
-                        border.interactive,
-                        border.autofocus,
-                        border.animate,
-                        open && border.focused,
-                    )}
-                    onClick={(e) => {
-                        if (e.detail > 1) {
-                            e.preventDefault();
-                        }
-                        setOpen((o) => !o);
-                    }}
-                >
-                    { customChildren
-                        ? children
-                        : (
-                            <>
-                                <div className="flex-1/1">
-                                    {currentLabel}
-                                </div>
-                                <animated.svg
-                                    viewBox="-2.4 -2.4 28.8 28.8"
-                                    className="h-8 w-8 fill-none stroke-fg-500"
-                                    style={{
-                                        transform: rotation.to((r) => `rotate(${r}deg)`),
-                                    }}
-                                >
-                                    <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth="2"
-                                        d="m6 9 6 6 6-6"
-                                    />
-                                </animated.svg>
-                            </>
-                        )}
-                </Clickable>
-                {/* TODO: portal this */}
-                <div className={cn("absolute top-6/5 left-0 w-full")}>
-                    {open && (
-                        <div
-                            onBlur={({ relatedTarget }) => {
-                                assert(ref.current, "how are we running this without ref.current being set");
-                                if (ref.current.contains(relatedTarget)) {
-                                    return;
-                                }
-                                setOpen(false);
-                            }}
-                            ref={menuRef}
-                            tabIndex={-1}
-                        >
-                            <SelectMenu
-                                items={items}
-                                scrollAreaClassName={scrollAreaClassName}
-                                selectedItem={selectedItem}
-                                onChange={(label) => {
-                                    setSelectedItem(label);
-                                    if (closeOnSelect) {
-                                        setOpen(false);
-                                    }
+                { customChildren
+                    ? children
+                    : (
+                        <>
+                            <div className="flex-1/1">
+                                {currentLabel}
+                            </div>
+                            <animated.svg
+                                viewBox="-2.4 -2.4 28.8 28.8"
+                                className="h-8 w-8 fill-none stroke-fg-500"
+                                style={{
+                                    transform: rotation.to((r) => `rotate(${r}deg)`),
                                 }}
-                            />
-                        </div>
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth="2"
+                                    d="m6 9 6 6 6-6"
+                                />
+                            </animated.svg>
+                        </>
                     )}
-                </div>
+            </Clickable>
+            {/* TODO: portal this */}
+            <div className={cn("absolute top-6/5 left-0 w-full")}>
+                {open && (
+                    <div
+                        onBlur={({ relatedTarget }) => {
+                            assert(ref.current, "how are we running this without ref.current being set");
+                            if (ref.current.contains(relatedTarget)) {
+                                return;
+                            }
+                            setOpen(false);
+                        }}
+                        ref={menuRef}
+                        tabIndex={-1}
+                    >
+                        <SelectMenu
+                            items={items}
+                            scrollAreaClassName={scrollAreaClassName}
+                            selectedItem={selectedItem}
+                            onChange={(label) => {
+                                setSelectedItem(label);
+                                if (closeOnSelect) {
+                                    setOpen(false);
+                                }
+                            }}
+                        />
+                    </div>
+                )}
             </div>
-        </>
+        </div>
     );
 }
 

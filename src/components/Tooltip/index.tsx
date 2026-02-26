@@ -435,6 +435,7 @@ function PositionLayerReference({
             style={finalPos}
             className={className}
         >
+            {/* eslint-disable-next-line @eslint-react/no-useless-fragment -- Rel1cx/eslint-react#1567 */}
             <Fragment ref={childrenRef}>
                 {children(actualPosition)}
             </Fragment>
