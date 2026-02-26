@@ -11,7 +11,6 @@ import {
     measureRect,
     mergeRectOffsets,
     NO_OFFSET,
-    omitRectOffset,
     rectFullyContainedBy,
     rectHeightCanBeContainedBy,
     type RectOffset,
@@ -19,6 +18,7 @@ import {
     removeMarginFromRect,
 } from "@/utils/dom/rect";
 import { unreachable } from "@/utils/error";
+import { measureFragmentRect } from "@/utils/react";
 import type { TOmit } from "@/utils/types";
 import { animated, type AnimatedProps, type SpringValue, to, useSpringValue, useTransition } from "@react-spring/web";
 
@@ -373,7 +373,7 @@ function PositionLayerReference({
     const offsetRef = useRecent(offset);
     const finalPos = bumpIntoView ? mergeRectOffsets(basePos, offset) : basePos;
     const childrenRef = useRef<FragmentInstance>(null);
-    const childRect = useFragmentRect(childrenRef);
+    const [childRect, setChildRect] = useState<DOMRectReadOnly | null>(null);
     const root = use(LayerContext).root ?? document.body;
     const _rootRect = useRect(root);
     const rootRect = useMemo(() => _rootRect && removeMarginFromRect(_rootRect, EDGE_MARGIN), [_rootRect]);
@@ -393,13 +393,21 @@ function PositionLayerReference({
             return;
         }
 
-        if (!childRect?.width || !childRect.height) {
+        const cRect = childRect ?? (childrenRef.current && measureFragmentRect(childrenRef.current));
+
+        if (!cRect?.width || !cRect.height) {
             return;
+        }
+
+        // if we keep getting the child rect, then the offset will compound on itself
+        // only use/update the child rect if we don't have an offset
+        if (compareRectOffsets(offsetRef.current, NO_OFFSET)) {
+            setChildRect(cRect);
         }
 
         // If we include the offset, then we will just flip back and forth between being in view and out of view
         const [newOffset, mapper] = computeRectClipOffsets(
-            omitRectOffset(childRect, offsetRef.current),
+            cRect,
             rootRect,
             avoidBounds,
         );

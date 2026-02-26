@@ -1,6 +1,7 @@
 import { ScrollAreaContext } from "@/components/layout/ScrollArea/context";
-import { cloneRect, measureRect, mergeAllDOMRects } from "@/utils/dom/rect";
+import { cloneRect, measureRect } from "@/utils/dom/rect";
 import { deepEqual, pick } from "@/utils/obj";
+import { measureFragmentRect } from "@/utils/react";
 
 import { useEventHandler } from "./eventListener";
 import { useResizeObserver, useResizeObserverFromRef } from "./resizeObserver";
@@ -206,10 +207,6 @@ export function useRectFromRef(
     });
 
     return size;
-}
-
-function measureFragmentRect(fragment: FragmentInstance): DOMRect {
-    return mergeAllDOMRects(fragment.getClientRects());
 }
 
 export function useFragmentRect(

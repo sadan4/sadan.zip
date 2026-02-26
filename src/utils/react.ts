@@ -1,7 +1,8 @@
+import { mergeAllDOMRects } from "./dom/rect";
 import { assert } from "./error";
 import { isFunction } from "./types";
 
-import { type Activity, type ActivityProps, Fragment, type ReactNode, type SetStateAction } from "react";
+import { type Activity, type ActivityProps, Fragment, type FragmentInstance, type ReactNode, type SetStateAction } from "react";
 
 export function nextStateValue<T>(prevState: T, nextState: SetStateAction<T>): T {
     return isFunction(nextState) ? nextState(prevState) : nextState;
@@ -42,4 +43,8 @@ export function areChildrenEmpty(children: ReactNode): boolean {
         }
     }
     return false;
+}
+
+export function measureFragmentRect(fragment: FragmentInstance): DOMRect {
+    return mergeAllDOMRects(fragment.getClientRects());
 }

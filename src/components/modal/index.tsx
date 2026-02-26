@@ -1,12 +1,12 @@
 import { useComposedRefs } from "@/hooks/composedRefs";
 import cn from "@/utils/cn";
 import { namedContext } from "@/utils/devtools";
+import { visibleIf } from "@/utils/react";
 
 import styles from "./styles.module.scss";
 import { Layer } from "../Layer";
 
 import { Activity, type ComponentPropsWithoutRef, type Ref, Suspense, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
-import { visibleIf } from "@/utils/react";
 
 export interface ModalContext {
     open(): void;
@@ -79,7 +79,9 @@ export function Modal({ children, ref: _ref, className, innerRef, open: _open, .
                                     name="Modal.children"
                                     mode={visibleIf(open)}
                                 >
-                                    {children}
+                                    <div className="fixed inset-fill">
+                                        {children}
+                                    </div>
                                 </Activity>
                             </Layer>
                         </div>
