@@ -28,6 +28,7 @@ export function createSelectors<S extends UseBoundStore<StoreApi<object>>>(_stor
     for (const key of Object.keys(store.getState())) {
         (store.use as any)[key] = () => store((state) => (state as any)[key]);
     }
+    // eslint-disable-next-line @eslint-react/component-hook-factories -- called once per store at top level
     store.useShallow = function useShallowStore(...args: Parameters<typeof store.useShallow>) {
         return store(useShallow(...args));
     } as any;

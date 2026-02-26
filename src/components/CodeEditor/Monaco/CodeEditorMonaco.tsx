@@ -80,6 +80,7 @@ function MonacoCodeEditorInner({
     }
 
     useImperativeHandle(_ref, () => ({
+        // eslint-disable-next-line react-hooks/todo
         get editor() {
             return editor.current!;
         },
@@ -106,17 +107,18 @@ function MonacoCodeEditorInner({
             ...options,
         };
 
+        // eslint-disable-next-line logical-assignment-operators -- make react compiler happy
         if (!mergedOptions.model) {
-            let model = uri && monaco.editor.getModel(uri);
-
-            model ||= monaco.editor.createModel(
+            mergedOptions.model = (uri && monaco.editor.getModel(uri)) || monaco.editor.createModel(
                 code,
                 getMonacoLanguageString(language),
                 uri ?? uriForLanguage(language),
             );
-            mergedOptions.model = model;
         }
-        mergedOptions.extraEditorClassName ??= className;
+        // eslint-disable-next-line logical-assignment-operators -- make react compiler happy
+        if (mergedOptions.extraEditorClassName == null) {
+            mergedOptions.extraEditorClassName = className;
+        }
         editor.current = monaco.editor.create(ref, {
             ...mergedOptions,
             theme: themeString,
@@ -245,7 +247,11 @@ function MonacoCodeEditorInner({
             decorations.current?.clear();
             return;
         }
-        decorations.current ??= editor.current.createDecorationsCollection();
+
+        // eslint-disable-next-line logical-assignment-operators -- make react compiler happy
+        if (decorations.current == null) {
+            decorations.current = editor.current.createDecorationsCollection();
+        }
 
         const newDecorations = highlights.map((range) => ({
             range,

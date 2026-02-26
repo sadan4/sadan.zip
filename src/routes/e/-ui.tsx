@@ -281,8 +281,8 @@ function ModuleGraph2({ graph: { nodes, edges } }: ModuleGraph2Props) {
                 nodes={nodes}
                 edges={edges}
                 colorMode="dark"
-                nodesDraggable={true}
-                onlyRenderVisibleElements={true}
+                nodesDraggable
+                onlyRenderVisibleElements
                 nodesConnectable={false}
                 minZoom={0}
                 onNodeClick={(_e, node) => {
