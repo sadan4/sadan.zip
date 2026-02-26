@@ -4,13 +4,12 @@ import { useControlledState } from "@/hooks/controlledState";
 import { useForceUpdater } from "@/hooks/forceUpdater";
 import cn from "@/utils/cn";
 import { NOOP } from "@/utils/constants";
-import { namedContext } from "@/utils/devtools";
 import { animated, useSpring } from "@react-spring/web";
 
 import styles from "./styles.module.scss";
 import { AccordionAnimation, ArrowPosition, ClickableArea } from "./utils";
 
-import { type PropsWithChildren, type ReactNode, type Ref, useContext, useEffect, useImperativeHandle, useState } from "react";
+import { createContext, type PropsWithChildren, type ReactNode, type Ref, useContext, useEffect, useImperativeHandle, useState } from "react";
 
 export interface AccordionItem {
     id: string;
@@ -36,7 +35,9 @@ interface AccordionContext {
     closeAllTrigger: number;
 }
 
-const AccordionContext = namedContext<AccordionContext | null>(null, "AccordionContext");
+const AccordionContext = createContext<AccordionContext | null>(null);
+
+AccordionContext.displayName = "AccordionContext";
 
 const rotationMap: Record<number, Record<ArrowPosition, number>> = Object.freeze({
     0: {

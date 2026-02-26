@@ -1,9 +1,8 @@
-import { namedContext } from "@/utils/devtools";
 import { error } from "@/utils/error";
 
 import type { ResizeHandleAPI } from "../ResizeHandle";
 
-import { createRef, type PropsWithChildren, type RefObject, useContext } from "react";
+import { createContext, createRef, type PropsWithChildren, type RefObject, useContext } from "react";
 import { createStore, type ExtractState, type StoreApi, useStore } from "zustand";
 
 export interface SidebarStateStore {
@@ -112,7 +111,8 @@ export function createSidebarStateStore(hideThreshold = HIDE_THRESHOLD) {
     }));
 }
 
-export const SidebarStateStoreContext = namedContext<StoreApi<SidebarStateStore> | null>(null, "SidebarStateContext");
+export const SidebarStateStoreContext = createContext<StoreApi<SidebarStateStore> | null>(null);
+SidebarStateStoreContext.displayName = "SidebarStateStoreContext";
 
 export interface SidebarStateStoreProviderProps extends PropsWithChildren {
     store?: StoreApi<SidebarStateStore>;

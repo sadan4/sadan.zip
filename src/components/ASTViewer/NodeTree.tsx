@@ -10,14 +10,13 @@ import { useRecent } from "@/hooks/recent";
 import { useShallowMemo } from "@/hooks/shallowMemo";
 import cn from "@/utils/cn";
 import { EMPTY_ARRAY, EMPTY_SET, NOOP } from "@/utils/constants";
-import { namedContext } from "@/utils/devtools";
 import { error } from "@/utils/error";
 import { toggleSetItem } from "@/utils/set";
 import { getChildrenWithMode, getNodeKey, getNodeName, getParent, TreeMode } from "@/utils/typescript";
 
 import { TreeAccordion } from "./TreeAccordion";
 
-import { type RefObject, use, useEffect, useRef, useState } from "react";
+import { createContext, type RefObject, use, useEffect, useRef, useState } from "react";
 import scrollIntoView from "scroll-into-view-if-needed";
 import type { Node, SourceFile } from "typescript";
 import { createStore, type StoreApi, useStore } from "zustand";
@@ -56,7 +55,9 @@ function useCreateNodeTreeStore(initialTreeMode: TreeMode): StoreApi<NodeTreeSto
     return store;
 }
 
-const NodeTreeStoreContext = namedContext<StoreApi<NodeTreeStore> | null>(null, "NodeTreeStoreContext");
+const NodeTreeStoreContext = createContext<StoreApi<NodeTreeStore> | null>(null);
+
+NodeTreeStoreContext.displayName = "NodeTreeStoreContext";
 
 function useNodeTreeStore<T extends (state: NodeTreeStore) => any>(selector: T): ReturnType<T> {
     const store = use(NodeTreeStoreContext);

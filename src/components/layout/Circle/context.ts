@@ -1,11 +1,12 @@
-import { namedContext } from "@/utils/devtools";
-
 import type { CircleItemProps } from "./Circle";
+
+import { createContext } from "react";
 
 
 export interface CircleItemContext extends CircleItemProps {
 
 }
 
-export const CircleItemContext = namedContext<CircleItemContext>(null!, "CircleItemContext");
+export const CircleItemContext = createContext<CircleItemContext>(null!);
+CircleItemContext.displayName = "CircleItemContext";
 

@@ -1,14 +1,13 @@
 import { useControlledState } from "@/hooks/controlledState";
 import { useRect } from "@/hooks/rect";
 import cn from "@/utils/cn";
-import { namedContext } from "@/utils/devtools";
 import { error } from "@/utils/error";
 
 import { Position } from "./enums";
 import styles from "./styles.module.scss";
 import { Clickable } from "../Clickable";
 
-import { type PropsWithChildren, use, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, type PropsWithChildren, use, useEffect, useMemo, useRef, useState } from "react";
 
 export interface PopoutRootProps extends PropsWithChildren {
     open?: boolean;
@@ -41,7 +40,9 @@ interface PopoutContextInternal {
     rect?: DOMRectReadOnly;
 }
 
-const PopoutContextInternal = namedContext<PopoutContextInternal | null>(null, "PopoutContextInternal");
+const PopoutContextInternal = createContext<PopoutContextInternal | null>(null);
+
+PopoutContextInternal.displayName = "PopoutContextInternal";
 
 function usePopoutContextInternal(): PopoutContextInternal {
     const ctx = use(PopoutContextInternal);

@@ -1,26 +1,25 @@
 import { useComposedRefs } from "@/hooks/composedRefs";
 import cn from "@/utils/cn";
-import { namedContext } from "@/utils/devtools";
 import { visibleIf } from "@/utils/react";
 
+import { ModalContext } from "./context";
 import styles from "./styles.module.scss";
 import { Layer } from "../Layer";
 
 import { Activity, type ComponentPropsWithoutRef, type Ref, Suspense, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 
-export interface ModalContext {
-    open(): void;
-    close(): void;
-    status: boolean;
-    requestClose(): void;
-}
+export {
+    ModalContext,
+} from "./context";
 
-export const ModalContext = namedContext<ModalContext | null>(null!, "ModalContext");
 
 export interface ModalProps extends ComponentPropsWithoutRef<"dialog"> {
     innerRef?: Ref<HTMLDialogElement>;
     ref: Ref<ModalContext>;
     open?: boolean;
+}
+
+export namespace Modal {
 }
 
 export function Modal({ children, ref: _ref, className, innerRef, open: _open, ...props }: ModalProps) {

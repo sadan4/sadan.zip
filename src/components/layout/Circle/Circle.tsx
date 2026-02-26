@@ -1,13 +1,12 @@
 import { useRect } from "@/hooks/rect";
 import cn from "@/utils/cn";
-import { namedContext } from "@/utils/devtools";
 import { error } from "@/utils/error";
 
 import { CircleItemContext } from "./context";
 import { DefaultPlacementCircleItem } from "./DefaultPlacementCircleItem";
 import styles from "./styles.module.scss";
 
-import { type ComponentProps, type PropsWithChildren, type ReactElement, type ReactNode, use, useEffect, useMemo, useState } from "react";
+import { type ComponentProps, createContext, type PropsWithChildren, type ReactElement, type ReactNode, use, useEffect, useMemo, useState } from "react";
 
 export interface CircleItemProps {
     x: number;
@@ -40,7 +39,9 @@ interface CircleContextInternal {
     setRect(rect: DOMRectReadOnly | undefined): void;
 }
 
-const CircleContextInternal = namedContext<CircleContextInternal | null>(null, "CircleContextInternal");
+const CircleContextInternal = createContext<CircleContextInternal | null>(null);
+
+CircleContextInternal.displayName = "CircleContextInternal";
 
 function useCircleContextInternal(): CircleContextInternal {
     const ctx = use(CircleContextInternal);

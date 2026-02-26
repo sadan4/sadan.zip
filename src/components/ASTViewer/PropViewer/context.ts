@@ -1,11 +1,12 @@
-import { namedContext } from "@/utils/devtools";
-
+import { createContext } from "react";
 import type { Node, SourceFile } from "typescript";
 
-export const SourceFileContext = namedContext<SourceFile>(null!, "SourceFileContext");
+export const SourceFileContext = createContext<SourceFile>(null!);
+SourceFileContext.displayName = "SourceFileContext";
 
 export interface PropViewerContext {
     onSelectNode(node: Node): void;
 }
 
-export const PropViewerContext = namedContext<PropViewerContext>(null!, "PropViewerContext");
+export const PropViewerContext = createContext<PropViewerContext>(null!);
+PropViewerContext.displayName = "PropViewerContext";
