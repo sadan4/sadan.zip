@@ -530,7 +530,7 @@ export function Explorer() {
                     </div>
                     <div className="flex gap-2">
                         <IconButton
-                            label="Download Bundle"
+                            label={`Download${NBSP}Bundle`}
                             colorType="outline"
                             tooltipClassName="z-5"
                             tooltipPosition={TooltipPosition.BOTTOM}
@@ -552,7 +552,7 @@ export function Explorer() {
                                     }
                                     return false;
                                 }}
-                                tooltipClassName="z-5"
+                                tooltipClassName="z-6"
                                 tooltipPosition={TooltipPosition.BOTTOM}
                             >
                                 <SettingsIcon />
@@ -563,7 +563,7 @@ export function Explorer() {
                         </>
                         <IconButtonInternalLink
                             tooltipPosition={TooltipPosition.BOTTOM}
-                            label="Return to Bundle Selector"
+                            label={`Return${NBSP}to${NBSP}Bundle${NBSP}Selector`}
                             onClick={undefined}
                             colorType="outline"
                             // Monaco has a sidebar with z-5, which blocks our tooltip sometimes
