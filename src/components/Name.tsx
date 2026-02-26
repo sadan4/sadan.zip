@@ -100,16 +100,22 @@ export default function Name() {
     const lastIndex = useRef(-1);
     const [typing, setTyping] = useState(false);
 
+    // TODO: this is a bit cursed
     useEffect(() => {
-        const tryStart = () => {
+        let timeout: NodeJS.Timeout;
+
+        function tryStart() {
             if (typewriterRef.current) {
                 typewriterRef.current.sendWord(clickMe(), true);
             } else {
-                setTimeout(tryStart, 10);
+                timeout = setTimeout(tryStart, 10);
             }
-        };
+        }
 
-        return clearTimeout.bind(null, setTimeout(tryStart, 10));
+        tryStart();
+
+
+        return () => clearTimeout(timeout);
     }, []);
     return (
         <div

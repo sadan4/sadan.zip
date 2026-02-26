@@ -719,6 +719,11 @@ const eslintReactRules: Partial<Record<`@eslint-react/${string}`, Linter.RuleEnt
     "@eslint-react/dom/no-unsafe-iframe-sandbox": "error",
     "@eslint-react/dom/no-unsafe-target-blank": "error",
     "@eslint-react/dom/no-void-elements-with-children": "error",
+    // react-web-api
+    "@eslint-react/web-api/no-leaked-event-listener": "error",
+    "@eslint-react/web-api/no-leaked-interval": "error",
+    "@eslint-react/web-api/no-leaked-resize-observer": "error",
+    "@eslint-react/web-api/no-leaked-timeout": "error",
 
 };
 

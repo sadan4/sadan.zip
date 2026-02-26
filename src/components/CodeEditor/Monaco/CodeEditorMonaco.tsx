@@ -99,6 +99,8 @@ function MonacoCodeEditorInner({
 
 
     useEffect(() => {
+        let timeout: NodeJS.Timeout;
+
         if (ref == null) {
             return;
         }
@@ -131,11 +133,13 @@ function MonacoCodeEditorInner({
                 timeout: 2000,
             });
         } else {
-            setTimeout(() => {
+            timeout = setTimeout(() => {
                 setupThemes(editor.current!);
             }, 2000);
         }
         handleEditorDidMount();
+
+        return () => clearTimeout(timeout);
         // TODO: look into what deps are needed here
         // eslint-disable-next-line @eslint-react/exhaustive-deps
     }, [ref]);
