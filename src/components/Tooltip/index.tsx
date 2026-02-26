@@ -572,7 +572,7 @@ export function Tooltip({
                         <PositionLayerReference
                             position={position}
                             referenceElement={triggerEl}
-                            className={cn(styles.container, positionStyleMap[position], tooltipClassName)}
+                            className={cn(styles.positionWrapper, positionStyleMap[position], tooltipClassName)}
                             bumpIntoView={bumpIntoView}
                         >
                             {(actualPosition) => (
@@ -586,6 +586,7 @@ export function Tooltip({
                                             triggerWidth,
                                         }),
                                     }}
+                                    className={styles.container}
                                 >
                                     <Fragment ref={tooltipContentFragment}>
                                         {noWrapper

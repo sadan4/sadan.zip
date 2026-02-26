@@ -7,33 +7,19 @@
         width: fit-content;
 
 
-        .trigger {
+        > .trigger {
             width: fit-content;
             height: fit-content;
             display: contents;
         }
     }
 
-    // FIXME: use more specific selectors than descendant for .arrow and the rest
-    .container {
+    .position-wrapper {
         // Keep in sync with js file
         $pad: var(--pad, 1rem);
         $max-content-size: 16rem;
 
         position: fixed;
-
-        .arrow {
-            position: absolute;
-
-            > path {
-                fill: var(--color-bg-100)
-            }
-
-            > path.border {
-                stroke: u.alpha(var(--color-fg-600) 25%);
-                stroke-width: 3px;
-            }
-        }
 
         &.top {
             translate: -50% -100%;
@@ -51,29 +37,44 @@
             translate: 0 -50%;
         }
 
-        .wrapper {
-            text-align: center;
+        > .container {
+            > .arrow {
+                position: absolute;
+
+                > path {
+                    fill: var(--color-bg-100)
+                }
+
+                > path.border {
+                    stroke: u.alpha(var(--color-fg-600) 25%);
+                    stroke-width: 3px;
+                }
+            }
+
+            > .box {
+                $box-padding: 1rem;
+
+                padding: calc($box-padding / 2) $box-padding;
+
+                > .wrapper {
+                    text-align: center;
+                }
+            }
+
         }
 
         &.left,
         &.right {
-            .arrow {
+            > .container > .arrow {
                 top: 50%;
             }
         }
 
         &.top,
         &.bottom {
-            .arrow {
+            > .container > .arrow {
                 left: 50%;
             }
         }
-
-        .box {
-            $box-padding: 1rem;
-
-            padding: calc($box-padding / 2) $box-padding;
-        }
-
     }
 }
