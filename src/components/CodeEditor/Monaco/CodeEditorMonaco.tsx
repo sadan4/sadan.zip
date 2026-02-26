@@ -134,7 +134,8 @@ function MonacoCodeEditorInner({
             }, 2000);
         }
         handleEditorDidMount();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+        // TODO: look into what deps are needed here
+        // eslint-disable-next-line @eslint-react/exhaustive-deps
     }, [ref]);
 
     useEffect(() => {

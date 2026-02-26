@@ -32,7 +32,7 @@ export function useCSSObserver(
             });
             return () => {
                 // this is what i want
-                // eslint-disable-next-line react-hooks/exhaustive-deps
+                // eslint-disable-next-line @eslint-react/exhaustive-deps
                 observer.takeRecords().forEach(() => cb.current());
                 observer.disconnect();
             };

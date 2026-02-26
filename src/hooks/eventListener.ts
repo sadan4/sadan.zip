@@ -41,7 +41,6 @@ export function useEventHandler<K extends keyof AllEventMaps, E extends HTMLElem
 
         const el = element === undefined ? window : element;
 
-        // eslint-disable-next-line react-hooks/unsupported-syntax -- needed to properly call event handlers
         const wrappedHandler = function (this: E, ev: AllEventMaps[K]) {
             return handlerRef.current.call(this, ev);
         };

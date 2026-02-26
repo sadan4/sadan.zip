@@ -14,7 +14,7 @@ function useRectMapper<T extends keyof DOMRect>(keys: T[]): (rect: DOMRect) => P
             return rect;
         }
         return pick(rect, keys);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
     }, keys);
 }
 
@@ -51,7 +51,7 @@ export function useRect(
 
             setSize(newRect);
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
     }, [el, mapper, ...extraDeps]);
 
     useEventHandler("scrollend", () => {
@@ -144,7 +144,7 @@ export function useRectFromRef(
 
             setSize(newRect);
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
     }, [ref, mapper, ...extraDeps]);
 
     useEventHandler("scrollend", () => {
@@ -239,7 +239,7 @@ export function useFragmentRect<T extends keyof DOMRect>(
             }
             return picked;
         });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
     }, [mapper, ...extraDeps]);
 
     function updateSizeIfNeeded() {

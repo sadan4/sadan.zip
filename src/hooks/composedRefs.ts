@@ -33,6 +33,6 @@ export function useComposedRefs<T>(...refs: (Ref<T> | undefined)[]): RefCallback
                 throw new AggregateError(errs, "Ref cleanup failed");
             }
         };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- this is correct
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- this is correct
     }, refs);
 }
