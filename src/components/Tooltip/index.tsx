@@ -606,6 +606,7 @@ export function Tooltip({
                                             position={actualPosition}
                                             targetElement={triggerEl}
                                             contentFragment={tooltipContentFragmentRef}
+                                            contentFragment={tooltipContentFragment}
                                         />
                                     )}
                                 </animated.div>
