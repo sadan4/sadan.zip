@@ -261,17 +261,17 @@ export function CheckedInput({
 }: CheckedInputProps) {
     const [error, setError] = useState<ReactNode>(null);
     const ref = useRef<HTMLInputElement>(null);
-    const checkInitialRender = useRef(_checkInitialRender);
+    const checkInitialRenderRef = useRef(_checkInitialRender);
     const hasError = !!error;
 
     // validate on initial render
     useEffect(() => {
         if (ref.current) {
-            checkInitialRender.current = false;
+            checkInitialRenderRef.current = false;
 
             const valid = validate(ref.current.value, check);
 
-            if (checkInitialRender.current) {
+            if (checkInitialRenderRef.current) {
                 if (valid) {
                     onValidChange?.(undefined, ref.current.value);
                 } else {

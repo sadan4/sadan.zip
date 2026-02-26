@@ -724,7 +724,10 @@ const eslintReactRules: Partial<Record<`@eslint-react/${string}`, Linter.RuleEnt
     "@eslint-react/web-api/no-leaked-interval": "error",
     "@eslint-react/web-api/no-leaked-resize-observer": "error",
     "@eslint-react/web-api/no-leaked-timeout": "error",
-
+    // react-naming-contention
+    "@eslint-react/naming-convention/context-name": "error",
+    "@eslint-react/naming-convention/id-name": "warn",
+    "@eslint-react/naming-convention/ref-name": "error",
 };
 
 const extensions = "{js,mjs,cjs,jsx,mjsx,cjsx,ts,mts,cts,tsx,mtsx,ctsx}";

@@ -32,7 +32,7 @@ declare module "react" {
     }
 }
 
-interface PopoutContextInternal {
+interface InternalPopoutContext {
     open(): void;
     close(): void;
     isOpen: boolean;
@@ -40,12 +40,12 @@ interface PopoutContextInternal {
     rect?: DOMRectReadOnly;
 }
 
-const PopoutContextInternal = createContext<PopoutContextInternal | null>(null);
+const InternalPopoutContext = createContext<InternalPopoutContext | null>(null);
 
-PopoutContextInternal.displayName = "PopoutContextInternal";
+InternalPopoutContext.displayName = "InternalPopoutContext";
 
-function usePopoutContextInternal(): PopoutContextInternal {
-    const ctx = use(PopoutContextInternal);
+function usePopoutContextInternal(): InternalPopoutContext {
+    const ctx = use(InternalPopoutContext);
 
     if (ctx == null) {
         error("usePopoutContextInternal must be used within a Popout2.Root");
@@ -77,7 +77,7 @@ export function PopoutRoot({ children, open: _value, onClose, onOpen }: PopoutRo
 
     const [rect, setRect] = useState<DOMRectReadOnly>();
 
-    const api = useMemo<PopoutContextInternal>(() => ({
+    const api = useMemo<InternalPopoutContext>(() => ({
         open() {
             setIsOpen(true);
         },
@@ -90,9 +90,9 @@ export function PopoutRoot({ children, open: _value, onClose, onOpen }: PopoutRo
     }), [isOpen, rect, setIsOpen]);
 
     return (
-        <PopoutContextInternal value={api}>
+        <InternalPopoutContext value={api}>
             {children}
-        </PopoutContextInternal>
+        </InternalPopoutContext>
     );
 }
 

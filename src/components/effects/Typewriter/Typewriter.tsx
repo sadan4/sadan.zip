@@ -33,24 +33,23 @@ function isTypewriterSource(source: any): source is TypewriterSource {
 
 
 export function Typewriter({ ref, initialContent, onTypingStateChange, ...props }: TypewriterProps) {
-    // const [typing, setTyping] = useState(false);
-    const typing = useRef(false);
-    const eraser = useRef<TypewriterSource["erase"]>(defaultEraser);
+    const typingRef = useRef(false);
+    const eraserRef = useRef<TypewriterSource["erase"]>(defaultEraser);
     const isInitialTypewriterSource = isTypewriterSource(initialContent);
     const [content, setContent] = useState(isInitialTypewriterSource ? "" : initialContent);
     const id = useId();
 
     const sendWord = useCallback(async (source: TypewriterSource, dontDeleteOld?: boolean) => {
-        if (typing.current) {
+        if (typingRef.current) {
             console.warn("Typewriter: sendWord called while already typing");
             return;
         }
-        typing.current = true;
+        typingRef.current = true;
         onTypingStateChange?.(true);
         // remove old content with the eraser
         if (content && !dontDeleteOld) {
             let con: ReactNode = content;
-            const gen = eraser.current(con);
+            const gen = eraserRef.current(con);
             let cur = gen.next(con);
 
             while (!cur.done) {
@@ -76,16 +75,16 @@ export function Typewriter({ ref, initialContent, onTypingStateChange, ...props 
             }
         }
         // set the new eraser
-        eraser.current = source.erase;
+        eraserRef.current = source.erase;
         // release the lock
-        typing.current = false;
+        typingRef.current = false;
         onTypingStateChange?.(false);
     }, [content, onTypingStateChange]);
 
     useImperativeHandle(ref, () => {
         return {
             sendWord,
-            isTyping: typing,
+            isTyping: typingRef,
         };
     }, [sendWord]);
     useEffect(() => {

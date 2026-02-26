@@ -90,18 +90,18 @@ interface ModuleSelectorProps {
 
 
 function ModuleSelector({ modules, onSelectModule }: ModuleSelectorProps) {
-    const scrollerHandle = useRef<BufferedScroller.Handle<TModuleId>>(null);
+    const scrollerRef = useRef<BufferedScroller.Handle<TModuleId>>(null);
     const selectedModule = useModuleViewerStore(({ selectedModule }) => selectedModule);
 
     useEffect(() => {
         if (modules.length && selectedModule) {
-            scrollerHandle.current?.scrollItemIntoView((e) => e === selectedModule);
+            scrollerRef.current?.scrollItemIntoView((e) => e === selectedModule);
         }
     }, [modules.length, selectedModule]);
 
     return (
         <BufferedScroller
-            handle={scrollerHandle}
+            handle={scrollerRef}
             items={modules}
             batchSize={75}
             bufferSize={2}
@@ -452,7 +452,7 @@ export function Explorer() {
     const inputRef = useRef<HTMLInputElement>(null);
     const activePanel = useModuleViewerStore(({ activePanel }) => activePanel);
     const moduleSidebarOpen = useModuleViewerStore(({ moduleSidebarOpen }) => moduleSidebarOpen);
-    const settingsModal = useRef<ModalContext>(null);
+    const settingsModalRef = useRef<ModalContext>(null);
 
     const { status, data } = useQuery({
         queryKey: ["getBundleMetadata", { buildHash }],
@@ -545,8 +545,8 @@ export function Explorer() {
                             label={`Open${NBSP}Settings`}
                             colorType="outline"
                             onClick={() => {
-                                if (settingsModal.current) {
-                                    settingsModal.current.open();
+                                if (settingsModalRef.current) {
+                                    settingsModalRef.current.open();
                                     return true;
                                 }
                                 return false;
@@ -556,7 +556,7 @@ export function Explorer() {
                         >
                             <SettingsIcon />
                         </IconButton>
-                        <Modal ref={settingsModal}>
+                        <Modal ref={settingsModalRef}>
                             <SettingsModal />
                         </Modal>
                         <IconButtonInternalLink

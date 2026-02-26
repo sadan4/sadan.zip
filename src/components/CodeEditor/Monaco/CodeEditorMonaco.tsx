@@ -54,10 +54,10 @@ function MonacoCodeEditorInner({
     use(loadOnigasmPromise());
 
     const [ref, setRef] = useState<HTMLDivElement | null>(null);
-    const editor = useRef<Monaco.editor.IStandaloneCodeEditor>(null);
+    const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor>(null);
     const themeString = useMonacoTheme(theme);
     const lock = useLock();
-    const decorations = useRef<Monaco.editor.IEditorDecorationsCollection | null>(null);
+    const decorationsRef = useRef<Monaco.editor.IEditorDecorationsCollection | null>(null);
     const onDidChangeCursorPositionRef = useRecent(onDidChangeCursorPosition);
 
     const [code, setCode] = useControlledState({
@@ -68,12 +68,12 @@ function MonacoCodeEditorInner({
     });
 
     function handleEditorDidMount() {
-        assert(editor.current);
-        editor.current.onDidChangeCursorPosition((e) => {
+        assert(editorRef.current);
+        editorRef.current.onDidChangeCursorPosition((e) => {
             onDidChangeCursorPositionRef.current(e);
         });
-        editor.current.onDidChangeModelContent(lock.bindIf(() => {
-            const text = editor.current?.getModel()?.getValue() ?? "";
+        editorRef.current.onDidChangeModelContent(lock.bindIf(() => {
+            const text = editorRef.current?.getModel()?.getValue() ?? "";
 
             setCode(text);
         }));
@@ -82,7 +82,7 @@ function MonacoCodeEditorInner({
     useImperativeHandle(_ref, () => ({
         // eslint-disable-next-line react-hooks/todo
         get editor() {
-            return editor.current!;
+            return editorRef.current!;
         },
     }));
 
@@ -121,20 +121,20 @@ function MonacoCodeEditorInner({
         if (mergedOptions.extraEditorClassName == null) {
             mergedOptions.extraEditorClassName = className;
         }
-        editor.current = monaco.editor.create(ref, {
+        editorRef.current = monaco.editor.create(ref, {
             ...mergedOptions,
             theme: themeString,
         });
         // @ts-expect-error
         if (window.requestIdleCallback) {
             requestIdleCallback(() => {
-                setupThemes(editor.current!);
+                setupThemes(editorRef.current!);
             }, {
                 timeout: 2000,
             });
         } else {
             timeout = setTimeout(() => {
-                setupThemes(editor.current!);
+                setupThemes(editorRef.current!);
             }, 2000);
         }
         handleEditorDidMount();
@@ -145,26 +145,26 @@ function MonacoCodeEditorInner({
     }, [ref]);
 
     useEffect(() => {
-        if (!editor.current) {
+        if (!editorRef.current) {
             return;
         }
-        setupThemes(editor.current);
+        setupThemes(editorRef.current);
     }, [setupThemes]);
 
     useEffect(() => {
-        editor.current?.updateOptions({
+        editorRef.current?.updateOptions({
             extraEditorClassName: className ?? "",
         });
     }, [className]);
 
     useEffect(() => {
-        if (!editor.current) {
+        if (!editorRef.current) {
             return;
         }
 
         const { model: _, ...newOptions } = options;
 
-        editor.current.updateOptions(newOptions);
+        editorRef.current.updateOptions(newOptions);
     }, [options]);
 
     const style = useMemo(() => ({
@@ -173,19 +173,19 @@ function MonacoCodeEditorInner({
     }), [height, width]);
 
     useLayoutEffect(() => {
-        editor.current?.layout();
+        editorRef.current?.layout();
     }, [style]);
 
     useResizeObserver(ref, () => {
-        editor.current?.layout();
+        editorRef.current?.layout();
     });
 
     useEffect(() => () => {
-        editor.current?.dispose();
+        editorRef.current?.dispose();
     }, []);
 
     useEffect(() => {
-        const model = editor.current?.getModel();
+        const model = editorRef.current?.getModel();
 
         if (!model) {
             return;
@@ -195,7 +195,7 @@ function MonacoCodeEditorInner({
     }, [language]);
 
     useEffect(() => {
-        const model = editor.current?.getModel();
+        const model = editorRef.current?.getModel();
 
         if (!model) {
             return;
@@ -214,7 +214,7 @@ function MonacoCodeEditorInner({
                 return;
             }
 
-            editor.current?.setModel(newModel);
+            editorRef.current?.setModel(newModel);
             return;
         }
 
@@ -224,7 +224,7 @@ function MonacoCodeEditorInner({
             return;
         }
 
-        const e = editor.current!;
+        const e = editorRef.current!;
         const readOnly = isReadOnly(e);
 
         lock.lockWhile(() => {
@@ -244,17 +244,17 @@ function MonacoCodeEditorInner({
     }, [code, uri, lock]);
 
     useEffect(() => {
-        if (!editor.current) {
+        if (!editorRef.current) {
             return;
         }
         if (!highlights?.length) {
-            decorations.current?.clear();
+            decorationsRef.current?.clear();
             return;
         }
 
         // eslint-disable-next-line logical-assignment-operators -- make react compiler happy
-        if (decorations.current == null) {
-            decorations.current = editor.current.createDecorationsCollection();
+        if (decorationsRef.current == null) {
+            decorationsRef.current = editorRef.current.createDecorationsCollection();
         }
 
         const newDecorations = highlights.map((range) => ({
@@ -264,7 +264,7 @@ function MonacoCodeEditorInner({
             },
         }) satisfies Monaco.editor.IModelDeltaDecoration);
 
-        decorations.current.set(newDecorations);
+        decorationsRef.current.set(newDecorations);
     }, [highlights]);
 
     return (

@@ -518,7 +518,7 @@ export function Tooltip({
     const triggerHeight = useSpringValue(0);
     const triggerWidth = useSpringValue(0);
     const [dep, updateSizeVar] = useForceUpdater();
-    const tooltipContentFragment = useRef<FragmentInstance>(null);
+    const tooltipContentFragmentRef = useRef<FragmentInstance>(null);
 
     useResizeObserver(triggerEl, updateSizeVar);
 
@@ -590,7 +590,7 @@ export function Tooltip({
                                     }}
                                     className={styles.container}
                                 >
-                                    <Fragment ref={tooltipContentFragment}>
+                                    <Fragment ref={tooltipContentFragmentRef}>
                                         {noWrapper
                                             ? text
                                             : (
@@ -605,7 +605,7 @@ export function Tooltip({
                                         <TooltipArrow
                                             position={actualPosition}
                                             targetElement={triggerEl}
-                                            contentFragment={tooltipContentFragment}
+                                            contentFragment={tooltipContentFragmentRef}
                                         />
                                     )}
                                 </animated.div>

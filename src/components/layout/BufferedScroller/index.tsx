@@ -65,16 +65,16 @@ interface FlagProps {
 
 function Flag({ onEnter, onExit }: FlagProps) {
     const scrollAreaHandle = use(ScrollAreaContext);
-    const lastState = useRef<boolean>(null);
+    const lastStateRef = useRef<boolean>(null);
 
     const setIntersectionRef = useIntersection((entries) => {
         const entry = getNewestEntry(entries);
         const { isIntersecting } = entry;
 
         // no change
-        if (lastState.current === isIntersecting)
+        if (lastStateRef.current === isIntersecting)
             return;
-        else if ((lastState.current = isIntersecting)) {
+        else if ((lastStateRef.current = isIntersecting)) {
             onEnter?.();
         } else {
             onExit?.();

@@ -11,9 +11,9 @@ export function useImperativeSprings<T extends Record<string, number>>(
     initialValue: T,
     config: SpringConfig = {},
 ): mapSpringValue<T> {
-    const init = useRef(initialValue);
+    const initRef = useRef(initialValue);
 
-    return mapObject(init.current, (initialValue) => {
+    return mapObject(initRef.current, (initialValue) => {
         // eslint-disable-next-line @eslint-react/rules-of-hooks
         return useSpringValue(initialValue, {
             config,

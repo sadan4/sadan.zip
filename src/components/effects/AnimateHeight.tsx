@@ -12,7 +12,7 @@ export interface AnimateHeightProps extends PropsWithChildren {
 
 export function AnimateHeight({ children, animateInitialHeight = false, show = true }: AnimateHeightProps) {
     const [el, setEl] = useState<HTMLDivElement | null>(null);
-    const initialRender = useRef(!animateInitialHeight);
+    const initialRenderRef = useRef(!animateInitialHeight);
     const height = useSpringValue(animateInitialHeight ? 0 : "auto");
     const [dep, updateHeight] = useForceUpdater();
 
@@ -22,12 +22,12 @@ export function AnimateHeight({ children, animateInitialHeight = false, show = t
         if (el) {
             const { height: h } = measureRect(el);
 
-            if (initialRender.current) {
+            if (initialRenderRef.current) {
                 height.set(h);
             } else {
                 height.start(h);
             }
-            initialRender.current = false;
+            initialRenderRef.current = false;
         }
     }, [el, height, dep]);
 

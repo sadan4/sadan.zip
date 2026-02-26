@@ -34,17 +34,17 @@ export interface CircleCenterProps extends PropsWithChildren {
     rect?: DOMRectReadOnly;
 }
 
-interface CircleContextInternal {
+interface InternalCircleContext {
     rect: DOMRectReadOnly | undefined;
     setRect(rect: DOMRectReadOnly | undefined): void;
 }
 
-const CircleContextInternal = createContext<CircleContextInternal | null>(null);
+const InternalCircleContext = createContext<InternalCircleContext | null>(null);
 
-CircleContextInternal.displayName = "CircleContextInternal";
+InternalCircleContext.displayName = "InternalCircleContext";
 
-function useCircleContextInternal(): CircleContextInternal {
-    const ctx = use(CircleContextInternal);
+function useCircleContextInternal(): InternalCircleContext {
+    const ctx = use(InternalCircleContext);
 
     if (ctx == null) {
         error("useCircleContextInternal must be used within a Circle.Root");
@@ -82,9 +82,9 @@ export function CircleRoot({ children }: CircleRootProps) {
     }), [rect]);
 
     return (
-        <CircleContextInternal value={api}>
+        <InternalCircleContext value={api}>
             {children}
-        </CircleContextInternal>
+        </InternalCircleContext>
     );
 }
 
