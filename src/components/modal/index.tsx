@@ -1,6 +1,5 @@
 import { useComposedRefs } from "@/hooks/composedRefs";
 import cn from "@/utils/cn";
-import { namedContext } from "@/utils/devtools";
 import { visibleIf } from "@/utils/react";
 
 import { ModalContext } from "./context";
