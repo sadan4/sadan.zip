@@ -1,0 +1,25 @@
+diff --git a/dist/index.js b/dist/index.js
+index a15bcf474ac50ae9901d983e6255875acde08a94..0edb6fea468f179e08c5a40a14f0c3f3555b496b 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -7076,14 +7076,18 @@ function create(context) {
+ 			});
+ 			return;
+ 		}
+-		if (setter.type !== AST_NODE_TYPES.Identifier || !setter.name.startsWith("set")) {
++		let { name: setterName } = setter;
++		if (setterName.startsWith("_")) {
++			setterName = setterName.slice(1);
++		}
++		if (setter.type !== AST_NODE_TYPES.Identifier || !setterName.startsWith("set")) {
+ 			context.report({
+ 				messageId: "invalidSetterName",
+ 				node: setter
+ 			});
+ 			return;
+ 		}
+-		if (snakeCase(setter.name) !== `set_${snakeCase(value.name)}`) context.report({
++		if (snakeCase(setterName) !== `set_${snakeCase(value.name)}`) context.report({
+ 			messageId: "invalidSetterName",
+ 			node: setter
+ 		});

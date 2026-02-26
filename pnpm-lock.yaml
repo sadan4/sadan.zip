@@ -11,6 +11,9 @@ patchedDependencies:
   '@tanstack/start-plugin-core':
     hash: dbbe4907787e13f9bb421090824fb6f9251a31611126507692291b495218ca74
     path: patches/@tanstack__start-plugin-core.patch
+  eslint-plugin-react-x:
+    hash: d65d07081bf2cf5e7a66b6c6594f6a6ff8863d0e9619a6ad062f34e3d5a10ead
+    path: patches/eslint-plugin-react-x.patch
   typescript:
     hash: 6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319
     path: patches/typescript.patch
@@ -6205,7 +6208,7 @@ snapshots:
       eslint-plugin-react-naming-convention: 3.0.0-beta.57(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
       eslint-plugin-react-rsc: 3.0.0-beta.57(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
       eslint-plugin-react-web-api: 3.0.0-beta.57(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
-      eslint-plugin-react-x: 3.0.0-beta.57(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
+      eslint-plugin-react-x: 3.0.0-beta.57(patch_hash=d65d07081bf2cf5e7a66b6c6594f6a6ff8863d0e9619a6ad062f34e3d5a10ead)(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
       ts-api-utils: 2.4.0(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
       typescript: 5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319)
     transitivePeerDependencies:
@@ -8637,7 +8640,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  eslint-plugin-react-x@3.0.0-beta.57(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319)):
+  eslint-plugin-react-x@3.0.0-beta.57(patch_hash=d65d07081bf2cf5e7a66b6c6594f6a6ff8863d0e9619a6ad062f34e3d5a10ead)(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319)):
     dependencies:
       '@eslint-react/ast': 3.0.0-beta.57(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
       '@eslint-react/core': 3.0.0-beta.57(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))

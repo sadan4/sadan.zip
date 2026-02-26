@@ -669,6 +669,7 @@ const reactHooksRules: Partial<Record<`react-hooks/${string}`, Linter.RuleEntry>
 };
 
 const eslintReactRules: Partial<Record<`@eslint-react/${string}`, Linter.RuleEntry>> = {
+    // react-x rules
     "@eslint-react/exhaustive-deps": "error",
     "@eslint-react/rules-of-hooks": "error",
     "@eslint-react/set-state-in-effect": "off", // too noisy
@@ -681,8 +682,6 @@ const eslintReactRules: Partial<Record<`@eslint-react/${string}`, Linter.RuleEnt
     "@eslint-react/jsx-key-before-spread": "warn",
     "@eslint-react/jsx-no-comment-textnodes": "warn",
     "@eslint-react/jsx-no-duplicate-props": "error",
-    // https://www.eslint-react.xyz/docs/rules/jsx-shorthand-boolean#rule-options
-    // magic numbers :(
     "@eslint-react/jsx-shorthand-boolean": "warn",
     "@eslint-react/jsx-shorthand-fragment": "error",
     "@eslint-react/no-array-index-key": "error",
@@ -706,9 +705,8 @@ const eslintReactRules: Partial<Record<`@eslint-react/${string}`, Linter.RuleEnt
     "@eslint-react/no-useless-fragment": "error",
     "@eslint-react/prefer-destructuring-assignment": "error",
     "@eslint-react/prefer-namespace-import": "error",
-    // TODO: add
-    // "@eslint-react/set-state-in-render": "error",
-    // "@eslint-react/use-state": "error",
+    "@eslint-react/set-state-in-render": "error",
+    "@eslint-react/use-state": "error",
 };
 
 const extensions = "{js,mjs,cjs,jsx,mjsx,cjsx,ts,mts,cts,tsx,mtsx,ctsx}";

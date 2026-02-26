@@ -1,4 +1,3 @@
-import { Input } from "@/components/Input";
 import { useControlledState } from "@/hooks/controlledState";
 import { border } from "@/styles";
 import cn from "@/utils/cn";
@@ -13,7 +12,7 @@ import { ScrollAreaContext } from "../layout/ScrollArea/context";
 import { Text } from "../Text";
 
 import { CircleCheck } from "lucide-react";
-import { type Key, type PropsWithChildren, type ReactNode, use, useEffect, useRef, useState } from "react";
+import { type Key, type PropsWithChildren, type ReactNode, use, useEffect, useRef } from "react";
 import scrollIntoView from "scroll-into-view-if-needed";
 
 export interface SelectOption<T> {
@@ -240,22 +239,22 @@ export function Select<T extends PropertyKey>({
     );
 }
 
-export function SearchableSelect<T extends PropertyKey>({ onChange, ...props }: SelectProps<T>) {
-    const [open, _setOpen] = useState(false);
+// export function SearchableSelect<T extends PropertyKey>({ onChange, ...props }: SelectProps<T>) {
+//     const [open, _setOpen] = useState(false);
 
-    return (
-        <Select
-            open={open}
-            {...props}
-            onChange={(value) => {
-                onChange?.(value);
-            }}
-            customChildren
-            className={cn(border.directDisable, "p-0")}
-        >
-            <Input
-                onChange={() => { }}
-            />
-        </Select>
-    );
-}
+//     return (
+//         <Select
+//             open={open}
+//             {...props}
+//             onChange={(value) => {
+//                 onChange?.(value);
+//             }}
+//             customChildren
+//             className={cn(border.directDisable, "p-0")}
+//         >
+//             <Input
+//                 onChange={() => { }}
+//             />
+//         </Select>
+//     );
+// }
