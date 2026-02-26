@@ -690,6 +690,8 @@ const eslintReactRules: Partial<Record<`@eslint-react/${string}`, Linter.RuleEnt
     "@eslint-react/no-context-provider": "warn",
     "@eslint-react/no-forward-ref": "warn",
     "@eslint-react/no-implicit-key": "error",
+    "@eslint-react/no-leaked-conditional-rendering": "error",
+    "@eslint-react/no-missing-component-display-name": "error",
 };
 
 const extensions = "{js,mjs,cjs,jsx,mjsx,cjsx,ts,mts,cts,tsx,mtsx,ctsx}";

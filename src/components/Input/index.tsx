@@ -115,16 +115,14 @@ export function LabeledInput({
 }: LabeledInputProps) {
     return (
         <div className={cn("flex flex-col gap-1", wrapperClassName)}>
-            {children && (
-                <Text
-                    color={labelColor}
-                    size={labelSize}
-                    weight={labelWeight}
-                    className="w-fit"
-                >
-                    {children}
-                </Text>
-            ) }
+            <Text
+                color={labelColor}
+                size={labelSize}
+                weight={labelWeight}
+                className="w-fit"
+            >
+                {children}
+            </Text>
             <Input {...props} />
         </div>
     );
@@ -311,15 +309,13 @@ export function CheckedInput({
 
     return (
         <div className={cn("flex flex-col gap-1", wrapperClassName)}>
-            {children && (
-                <Text
-                    color={labelColor}
-                    size={labelSize}
-                    weight={labelWeight}
-                >
-                    {children}
-                </Text>
-            )}
+            <Text
+                color={labelColor}
+                size={labelSize}
+                weight={labelWeight}
+            >
+                {children}
+            </Text>
             <Input
                 {...props}
                 ref={useComposedRefs(ref, _ref)}
