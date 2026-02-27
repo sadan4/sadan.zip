@@ -20,3 +20,8 @@ todos.json
 .vite-inspect
 dist.server
 builds
+
+
+# Added by cargo
+
+/target

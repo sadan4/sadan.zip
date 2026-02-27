@@ -9,8 +9,10 @@
   "vite.browserType": "system",
   "cSpell.words": [
     "autofocus",
+    "bindgen",
     "Booleanish",
     "CATPPUCCIN",
+    "cdylib",
     "cleandir",
     "dagre",
     "elissa",
@@ -23,6 +25,7 @@
     "instantiator",
     "Keybind",
     "krstlskll",
+    "libsadancore",
     "lucide",
     "MACCHIATO",
     "maddie",

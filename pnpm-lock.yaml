@@ -31,6 +31,9 @@ importers:
       '@sadan4/demangler':
         specifier: ^1.0.4
         version: 1.0.4
+      '@sadan4/libsadancore':
+        specifier: link:./crates/libsadancore/pkg
+        version: link:crates/libsadancore/pkg
       '@tailwindcss/vite':
         specifier: ^4.0.6
         version: 4.1.18(rolldown-vite@7.3.1(@types/node@24.10.9)(esbuild@0.27.3)(jiti@2.6.1)(less@4.5.1)(sass-embedded@1.97.3)(sass@1.97.3)(stylus@0.62.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))

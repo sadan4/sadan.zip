@@ -1,0 +1,16 @@
+[workspace]
+package.edition = "2024"
+members = [ "crates/*" ]
+resolver = "3"
+
+[workspace.dependencies]
+wasm-bindgen = "0.2.113"
+anyhow = "1.0.102"
+
+[workspace.dependencies.web-sys]
+version = "0.3.4"
+
+[workspace.lints]
+
+[profile.release]
+lto = true
