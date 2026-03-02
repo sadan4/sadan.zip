@@ -1,0 +1,21 @@
+[package]
+name = "explorer_server"
+version = "0.1.0"
+edition.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+napi.workspace = true
+napi-derive.workspace = true
+explorer_types = { workspace = true, features = ["napi"] }
+tokio = { workspace = true, features = ["full"] }
+reqwest.workspace = true
+anyhow.workspace = true
+
+[build-dependencies]
+napi-build.workspace = true
+
+[lints]
+workspace = true

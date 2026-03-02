@@ -32,6 +32,7 @@
     "minky",
     "Minky",
     "mugman",
+    "napi",
     "noopener",
     "NORD",
     "noreferrer",
@@ -45,6 +46,7 @@
     "shiki",
     "shikijs",
     "sqaaakoi",
+    "Threadsafe",
     "vencord",
     "worf",
     "zoomable",
@@ -77,5 +79,6 @@
   },
   "tailwindCSS.classFunctions": [
     "cn"
-  ]
+  ],
+  "rust-analyzer.check.command": "clippy",
 }

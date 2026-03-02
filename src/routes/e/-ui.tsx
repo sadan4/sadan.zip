@@ -24,7 +24,6 @@ import type { Monaco } from "@/utils/monaco";
 import { visibleIf } from "@/utils/react";
 import { Language } from "@/utils/textmate";
 import { TextmateTheme, themeDisplayNames } from "@/utils/textmate/theme";
-import { add } from "@sadan4/dbe-des";
 import { useQuery } from "@tanstack/react-query";
 import { createLink } from "@tanstack/react-router";
 import { TAssert } from "@vencord-companion/webpack-ast-parser/util";
@@ -50,7 +49,6 @@ import {
     BadgeInfoIcon,
     ChevronFirstIcon,
     ChevronLastIcon,
-    DiamondIcon,
     DownloadIcon,
     FileCodeIcon,
     GithubIcon,
@@ -531,17 +529,6 @@ export function Explorer() {
                         />
                     </div>
                     <div className="flex gap-2">
-                        <IconButton
-                            label="test 123"
-                            colorType="outline"
-                            tooltipClassName="z-6"
-                            onClick={() => {
-                                console.log(add(6, 7));
-                                return null;
-                            }}
-                        >
-                            <DiamondIcon />
-                        </IconButton>
                         <IconButton
                             label={`Download${NBSP}Bundle`}
                             colorType="outline"

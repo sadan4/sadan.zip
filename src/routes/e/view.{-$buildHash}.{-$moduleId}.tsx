@@ -66,10 +66,8 @@ export const Route = createFileRoute("/e/view/{-$buildHash}/{-$moduleId}")({
         data ||= await import("./-data");
         if (!import.meta.env.SSR) {
             const lsp = await import("./-lsp");
-            const { default: initWasm } = await import("@sadan4/dbe-des");
 
             await lsp.registerLSPHandlers();
-            await initWasm();
         }
         data.ModuleViewerStore.getState().init(buildHash);
         if (moduleId != null) {

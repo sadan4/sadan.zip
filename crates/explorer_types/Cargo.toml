@@ -1,0 +1,15 @@
+[package]
+name = "explorer_types"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+serde.workspace = true
+napi = { workspace = true, optional = true }
+napi-derive = { workspace = true, optional = true }
+
+[features]
+napi = ["dep:napi", "dep:napi-derive"]
+
+[lints]
+workspace = true

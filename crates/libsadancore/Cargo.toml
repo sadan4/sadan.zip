@@ -10,6 +10,10 @@ crate-type = ["cdylib"]
 [dependencies]
 wasm-bindgen.workspace = true
 anyhow.workspace = true
+console_error_panic_hook.workspace = true
+js-sys.workspace = true
+tar.workspace = true
+zstd.workspace = true
 
 [dependencies.web-sys]
 workspace = true
@@ -26,10 +30,21 @@ features = [
 workspace = true
 
 [package.metadata.wasm-pack.profile.dev]
-wasm-opt = ["-Oz"]
+# doesn't work with dwarf debug info
+wasm-opt = false
+
+[package.metadata.wasm-pack.profile.dev.wasm-bindgen]
+# Should we enable wasm-bindgen's debug assertions in its generated JS glue?
+debug-js-glue = true
+# Should wasm-bindgen demangle the symbols in the "name" custom section?
+demangle-name-section = true
+# # Should we emit the DWARF debug info custom sections?
+dwarf-debug-info = true
+# Should we omit the default import path?
+omit-default-module-path = false
 
 [package.metadata.wasm-pack.profile.profiling]
-wasm-opt = ["-Oz"]
+wasm-opt = ["-O4"]
 
 [package.metadata.wasm-pack.profile.release]
-wasm-opt = ["-Oz"]
+wasm-opt = ["-O4"]

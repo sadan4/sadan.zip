@@ -1,4 +1,3 @@
-import { download } from "@/utils/dom";
 import { sendMessage } from "@/utils/e/socket";
 import { assert } from "@/utils/error";
 import { makeLazy } from "@/utils/lazy";
@@ -6,6 +5,7 @@ import { type Monaco, monaco } from "@/utils/monaco";
 import { defer } from "@/utils/scope";
 import { TextmateTheme } from "@/utils/textmate/theme";
 import type { Fields, Thenable } from "@/utils/types";
+import { deserialize } from "@sadan4/libsadancore";
 import { WebpackAstParser } from "@vencord-companion/webpack-ast-parser/WebpackAstParser";
 
 import type { DepsJson, TBundleHash, TModuleId } from "../../../server/types";
@@ -320,7 +320,7 @@ export async function downloadBundle(bundleHash: TBundleHash): Promise<boolean> 
         // @ts-ignore we include it via core-js, typescript only added it in 6.0
         const buf = Uint8Array.fromBase64(res.b64);
 
-        download(new File([buf], `${bundleHash}.tar.zst`));
+        deserialize(buf);
     } catch (e) {
         // FIXME: better error handling
         console.error(`Failed to download bundle: ${e instanceof Error ? e.message : String(e)}`);

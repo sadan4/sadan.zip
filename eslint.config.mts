@@ -17,7 +17,7 @@ import TSEslint from "typescript-eslint";
 type _tsLintRules = typeof import("./node_modules/@typescript-eslint/eslint-plugin/dist/rules");
 
 type ITSLintRules = {
-    [K in keyof _tsLintRules & string as `@typescript-eslint/${K}`]: _tsLintRules[K] extends { defaultOptions: infer Options extends any[]; } ? Linter.RuleEntry<Options> : never;
+    [K in keyof _tsLintRules & string as `@typescript-eslint/${K}`]: _tsLintRules[K] extends { meta: { defaultOptions?: infer Options extends any[]; }; } ? Linter.RuleEntry<Options> : never;
 };
 
 type IStyleRules = {
