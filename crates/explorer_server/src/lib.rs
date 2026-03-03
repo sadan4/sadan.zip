@@ -1,9 +1,9 @@
-use napi::{
-    Status,
-    threadsafe_function::ThreadsafeFunction,
-};
+use napi::{Status, threadsafe_function::ThreadsafeFunction};
 use napi_derive::napi;
+mod util;
 mod watcher;
+mod migrations;
+
 
 #[napi]
 #[allow(
@@ -22,4 +22,9 @@ pub async fn start(handle_build: ThreadsafeFunction<String, (), String, Status, 
         })
         .await;
     });
+}
+
+#[napi_derive::module_init]
+fn init() {
+    tracing_subscriber::fmt().init();
 }

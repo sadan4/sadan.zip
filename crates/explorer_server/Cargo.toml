@@ -13,6 +13,8 @@ explorer_types = { workspace = true, features = ["napi"] }
 tokio = { workspace = true, features = ["full"] }
 reqwest.workspace = true
 anyhow.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
 
 [build-dependencies]
 napi-build.workspace = true
