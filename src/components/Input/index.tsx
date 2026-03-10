@@ -267,8 +267,6 @@ export function CheckedInput({
     // validate on initial render
     useEffect(() => {
         if (ref.current) {
-            checkInitialRenderRef.current = false;
-
             const valid = validate(ref.current.value, check);
 
             if (checkInitialRenderRef.current) {
@@ -277,6 +275,7 @@ export function CheckedInput({
                 } else {
                     onInvalidChange?.(undefined, ref.current.value);
                 }
+                checkInitialRenderRef.current = false;
             }
             if (!valid) {
                 setError((
