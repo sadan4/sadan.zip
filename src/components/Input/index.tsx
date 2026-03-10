@@ -38,7 +38,7 @@ export function Input({
     ref: _ref,
     initialValue,
     value,
-    onClear = () => { },
+    onClear,
     onChange,
     clearButton = false,
     focusAfterClear = false,
@@ -75,10 +75,10 @@ export function Input({
                             className="pointer-events-auto -mr-2 p-2"
                             onClick={() => {
                                 if (isManaged) {
-                                    onClear();
+                                    onClear?.();
                                 } else if (ref.current) {
                                     ref.current.value = "";
-                                    onClear();
+                                    onClear?.();
                                 }
                                 if (focusAfterClear) {
                                     ref.current?.focus();
@@ -115,16 +115,14 @@ export function LabeledInput({
 }: LabeledInputProps) {
     return (
         <div className={cn("flex flex-col gap-1", wrapperClassName)}>
-            {children && (
-                <Text
-                    color={labelColor}
-                    size={labelSize}
-                    weight={labelWeight}
-                    className="w-fit"
-                >
-                    {children}
-                </Text>
-            ) }
+            <Text
+                color={labelColor}
+                size={labelSize}
+                weight={labelWeight}
+                className="w-fit"
+            >
+                {children}
+            </Text>
             <Input {...props} />
         </div>
     );
@@ -263,22 +261,21 @@ export function CheckedInput({
 }: CheckedInputProps) {
     const [error, setError] = useState<ReactNode>(null);
     const ref = useRef<HTMLInputElement>(null);
-    const checkInitialRender = useRef(_checkInitialRender);
+    const checkInitialRenderRef = useRef(_checkInitialRender);
     const hasError = !!error;
 
     // validate on initial render
     useEffect(() => {
         if (ref.current) {
-            checkInitialRender.current = false;
-
             const valid = validate(ref.current.value, check);
 
-            if (checkInitialRender.current) {
+            if (checkInitialRenderRef.current) {
                 if (valid) {
                     onValidChange?.(undefined, ref.current.value);
                 } else {
                     onInvalidChange?.(undefined, ref.current.value);
                 }
+                checkInitialRenderRef.current = false;
             }
             if (!valid) {
                 setError((
@@ -311,15 +308,13 @@ export function CheckedInput({
 
     return (
         <div className={cn("flex flex-col gap-1", wrapperClassName)}>
-            {children && (
-                <Text
-                    color={labelColor}
-                    size={labelSize}
-                    weight={labelWeight}
-                >
-                    {children}
-                </Text>
-            )}
+            <Text
+                color={labelColor}
+                size={labelSize}
+                weight={labelWeight}
+            >
+                {children}
+            </Text>
             <Input
                 {...props}
                 ref={useComposedRefs(ref, _ref)}

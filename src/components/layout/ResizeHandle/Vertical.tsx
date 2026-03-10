@@ -44,7 +44,7 @@ export function Vertical({
     assert(initialPosition >= 0 && initialPosition <= 1 && minPosition < initialPosition && initialPosition < maxPosition, "Invalid initial position");
     assert(minPosition >= 0 && maxPosition <= 1 && minPosition < maxPosition, "Invalid min/max position");
 
-    const controller = useRef(new AbortController());
+    const controllerRef = useRef(new AbortController());
     const handleRef = useRef<HTMLDivElement>(null);
     const [dragging, setDragging] = useState(false);
     const onResizeHandler = useRecent(onResize);
@@ -58,8 +58,8 @@ export function Vertical({
 
             if (final) {
                 onResizeFinishHandler.current?.(num);
-                controller.current.abort();
-                controller.current = new AbortController();
+                controllerRef.current.abort();
+                controllerRef.current = new AbortController();
             } else {
                 onResizeHandler.current?.(num);
             }
@@ -155,7 +155,7 @@ export function Vertical({
                 if (e.isPrimary) {
                     setDragging(true);
                     // prevent selection while we are dragging, this controller will be aborted when we finish resizing
-                    window.addEventListener("selectstart", (e) => e.preventDefault(), { signal: controller.current.signal });
+                    window.addEventListener("selectstart", (e) => e.preventDefault(), { signal: controllerRef.current.signal });
                 }
                 props.onPointerDown?.(e);
             }}

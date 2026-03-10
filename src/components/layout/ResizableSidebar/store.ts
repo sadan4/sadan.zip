@@ -1,9 +1,6 @@
-import { namedContext } from "@/utils/devtools";
-import { error } from "@/utils/error";
-
 import type { ResizeHandleAPI } from "../ResizeHandle";
 
-import { createRef, type PropsWithChildren, type RefObject, useContext } from "react";
+import { createContext, createRef, type PropsWithChildren, type RefObject, use } from "react";
 import { createStore, type ExtractState, type StoreApi, useStore } from "zustand";
 
 export interface SidebarStateStore {
@@ -112,14 +109,15 @@ export function createSidebarStateStore(hideThreshold = HIDE_THRESHOLD) {
     }));
 }
 
-export const SidebarStateStoreContext = namedContext<StoreApi<SidebarStateStore> | null>(null, "SidebarStateContext");
+export const SidebarStateStoreContext = createContext<StoreApi<SidebarStateStore> | null>(null);
+SidebarStateStoreContext.displayName = "SidebarStateStoreContext";
 
 export interface SidebarStateStoreProviderProps extends PropsWithChildren {
     store?: StoreApi<SidebarStateStore>;
 }
 
 export function useSidebarStateStore<R>(selector: (state: ExtractState<StoreApi<SidebarStateStore>>) => R): R {
-    const store = useContext(SidebarStateStoreContext);
+    const store = use(SidebarStateStoreContext);
 
     if (!store) {
         throw new Error("useSidebarStateStore must be used within a SidebarStateStoreProvider");
@@ -133,13 +131,7 @@ export const enum Side {
     RIGHT,
 }
 
-export function defaultInitialSize(side: Side) {
-    switch (side) {
-        case Side.LEFT:
-            return DEFAULT_WIDTH / 100;
-        case Side.RIGHT:
-            return 1 - (DEFAULT_WIDTH / 100);
-        default:
-            error("unhandled case");
-    }
-}
+export const DEFAULT_SIZE_MAP = Object.freeze({
+    [Side.LEFT]: DEFAULT_WIDTH / 100,
+    [Side.RIGHT]: 1 - (DEFAULT_WIDTH / 100),
+} satisfies Record<Side, number>);

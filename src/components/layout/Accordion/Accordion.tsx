@@ -4,13 +4,12 @@ import { useControlledState } from "@/hooks/controlledState";
 import { useForceUpdater } from "@/hooks/forceUpdater";
 import cn from "@/utils/cn";
 import { NOOP } from "@/utils/constants";
-import { namedContext } from "@/utils/devtools";
 import { animated, useSpring } from "@react-spring/web";
 
 import styles from "./styles.module.scss";
 import { AccordionAnimation, ArrowPosition, ClickableArea } from "./utils";
 
-import { type PropsWithChildren, type ReactNode, type Ref, useContext, useEffect, useImperativeHandle, useState } from "react";
+import { createContext, type PropsWithChildren, type ReactNode, type Ref, use, useEffect, useImperativeHandle, useMemo, useState } from "react";
 
 export interface AccordionItem {
     id: string;
@@ -36,7 +35,9 @@ interface AccordionContext {
     closeAllTrigger: number;
 }
 
-const AccordionContext = namedContext<AccordionContext | null>(null, "AccordionContext");
+const AccordionContext = createContext<AccordionContext | null>(null);
+
+AccordionContext.displayName = "AccordionContext";
 
 const rotationMap: Record<number, Record<ArrowPosition, number>> = Object.freeze({
     0: {
@@ -70,7 +71,7 @@ export function Accordion({
 
     const isRowClickable = !!(clicableArea & ClickableArea.ROW);
     const isArrowClickable = !!(clicableArea & ClickableArea.ARROW);
-    const groupCtx = useContext(AccordionContext);
+    const groupCtx = use(AccordionContext);
 
     const { rotation } = useSpring({
         rotation: rotationMap[+active][arrowPosition],
@@ -194,7 +195,7 @@ export function AccordionGroup({ children, onlyOneOpen = true, ref }: AccordionG
         };
     });
 
-    const api: AccordionContext = {
+    const api = useMemo<AccordionContext>(() => ({
         toggleActiveItem(id: string): void {
             if (!onlyOneOpen) {
                 return;
@@ -217,11 +218,11 @@ export function AccordionGroup({ children, onlyOneOpen = true, ref }: AccordionG
             return activeItemId === id;
         },
         closeAllTrigger: dep,
-    };
+    }), [activeItemId, dep, onlyOneOpen]);
 
     return (
-        <AccordionContext.Provider value={api}>
+        <AccordionContext value={api}>
             {children}
-        </AccordionContext.Provider>
+        </AccordionContext>
     );
 }

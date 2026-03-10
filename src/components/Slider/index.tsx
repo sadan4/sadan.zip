@@ -2,6 +2,7 @@ import { useControlledState } from "@/hooks/controlledState";
 import { useForceUpdater } from "@/hooks/forceUpdater";
 import { useResizeObserver } from "@/hooks/resizeObserver";
 import cn from "@/utils/cn";
+import { EMPTY_ARRAY } from "@/utils/constants";
 import { makeDefaultForInputRange } from "@/utils/dom";
 import { parseCSSValue, PercentReference } from "@/utils/dom/css";
 import { assert } from "@/utils/error";
@@ -50,7 +51,7 @@ export interface SliderProps extends Omit<ComponentProps<"input">, "onChange" | 
      * called when the value changes
      */
     onChange?(value: number): void;
-    markers?: number[];
+    markers?: readonly number[];
     /**
      * If false, don't show the markers provided
      */
@@ -72,24 +73,22 @@ declare module "react" {
     }
 }
 
-export function Slider(props: SliderProps) {
-    const {
-        min = 0,
-        max = 100,
-        value,
-        size = "sm",
-        vertical = false,
-        reverseVertical = false,
-        initialValue = makeDefaultForInputRange(min, max),
-        onChange,
-        markers = [],
-        stickToMarkers = false,
-        showMarkers = true,
-        disabled = false,
-        renderMarkers: RenderMarkers = DefaultRenderMarkers,
-        renderMarker = DefaultRenderMarker,
-    } = props;
-
+export function Slider({
+    min = 0,
+    max = 100,
+    value,
+    size = "sm",
+    vertical = false,
+    reverseVertical = false,
+    initialValue: _initialValue,
+    onChange,
+    markers = EMPTY_ARRAY,
+    stickToMarkers = false,
+    showMarkers = true,
+    disabled = false,
+    renderMarkers: RenderMarkers = DefaultRenderMarkers,
+    renderMarker = DefaultRenderMarker,
+}: SliderProps) {
     if (stickToMarkers) {
         assert(markers.length, "markers must be non-empty when stickToMarkers is true");
     }
@@ -97,7 +96,7 @@ export function Slider(props: SliderProps) {
     const [containerRef, setContainerRef] = useState<HTMLDivElement | null>(null);
 
     const [currentValue, setCurrentValue] = useControlledState({
-        initialValue,
+        initialValue: _initialValue ?? makeDefaultForInputRange(min, max),
         managedValue: value,
         debugName: "Slider",
         handleChange: onChange,
@@ -176,7 +175,7 @@ export function Slider(props: SliderProps) {
 }
 
 export interface RenderMarkersProps {
-    markers: number[];
+    markers: readonly number[];
     container: HTMLDivElement | null;
     min: number;
     max: number;

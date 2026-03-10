@@ -1,7 +1,8 @@
 // For more info, see https://github.com/storybookjs/eslint-plugin-storybook#configuration-flat-config-format
+import eslintReact from "@eslint-react/eslint-plugin";
 import stylistic, { type RuleOptions } from "@stylistic/eslint-plugin";
 
-import { Linter } from "eslint";
+import { type Linter } from "eslint";
 import type { ESLintRules as IESLintRules } from "eslint/rules";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
@@ -650,6 +651,85 @@ const styleRules: Partial<IStyleRules> = {
     ],
 };
 
+const reactHooksRules: Partial<Record<`react-hooks/${string}`, Linter.RuleEntry>> = {
+    // not done by @eslint-react/eslint-plugin
+    "react-hooks/config": "error",
+    "react-hooks/gating": "error",
+    "react-hooks/globals": "error",
+    "react-hooks/preserve-manual-memoization": "error",
+    "react-hooks/incompatible-library": "warn",
+    // undocumented rules???
+    "react-hooks/todo": "warn",
+    "react-hooks/syntax": "error",
+    // experimental in @eslint-react/eslint-plugin
+    "react-hooks/immutability": "error",
+    "react-hooks/refs": "error",
+    "react-hooks/purity": "error",
+    "react-hooks/set-state-in-render": "error",
+};
+
+const eslintReactRules: Partial<Record<`@eslint-react/${string}`, Linter.RuleEntry>> = {
+    // react-x rules
+    "@eslint-react/exhaustive-deps": "error",
+    "@eslint-react/rules-of-hooks": "error",
+    "@eslint-react/set-state-in-effect": "off", // too noisy
+    "@eslint-react/unsupported-syntax": "warn",
+    "@eslint-react/no-nested-component-definitions": "error",
+    "@eslint-react/use-memo": "error",
+    "@eslint-react/component-hook-factories": "error",
+    "@eslint-react/error-boundaries": "error",
+    "@eslint-react/jsx-dollar": "warn",
+    "@eslint-react/jsx-key-before-spread": "warn",
+    "@eslint-react/jsx-no-comment-textnodes": "warn",
+    "@eslint-react/jsx-no-duplicate-props": "error",
+    "@eslint-react/jsx-shorthand-boolean": "warn",
+    "@eslint-react/jsx-shorthand-fragment": "error",
+    "@eslint-react/no-array-index-key": "error",
+    "@eslint-react/no-children-prop": "warn",
+    "@eslint-react/no-context-provider": "warn",
+    "@eslint-react/no-forward-ref": "warn",
+    "@eslint-react/no-implicit-key": "error",
+    "@eslint-react/no-leaked-conditional-rendering": "error",
+    "@eslint-react/no-missing-component-display-name": "error",
+    "@eslint-react/no-missing-context-display-name": "error",
+    "@eslint-react/no-missing-key": "error",
+    "@eslint-react/no-misused-capture-owner-stack": "error",
+    "@eslint-react/no-unnecessary-use-callback": "error",
+    "@eslint-react/no-unnecessary-use-memo": "error",
+    "@eslint-react/no-unnecessary-use-prefix": "error",
+    "@eslint-react/no-unstable-context-value": "error",
+    "@eslint-react/no-unstable-default-props": "error",
+    // TODO: add
+    // "@eslint-react/no-unused-props": "warn",
+    "@eslint-react/no-use-context": "error",
+    "@eslint-react/no-useless-fragment": "error",
+    "@eslint-react/prefer-destructuring-assignment": "error",
+    "@eslint-react/prefer-namespace-import": "error",
+    "@eslint-react/set-state-in-render": "error",
+    "@eslint-react/use-state": "error",
+    // react-rsc
+    "@eslint-react/rsc/function-definition": "error",
+    // react-dom
+    "@eslint-react/dom/no-dangerously-set-innerhtml": "error",
+    "@eslint-react/dom/no-dangerously-set-innerhtml-with-children": "error",
+    "@eslint-react/dom/no-missing-iframe-sandbox": "error",
+    "@eslint-react/dom/no-namespace": "error",
+    "@eslint-react/dom/no-string-style-prop": "error",
+    "@eslint-react/dom/no-unknown-property": "warn",
+    "@eslint-react/dom/no-unsafe-iframe-sandbox": "error",
+    "@eslint-react/dom/no-unsafe-target-blank": "error",
+    "@eslint-react/dom/no-void-elements-with-children": "error",
+    // react-web-api
+    "@eslint-react/web-api/no-leaked-event-listener": "error",
+    "@eslint-react/web-api/no-leaked-interval": "error",
+    "@eslint-react/web-api/no-leaked-resize-observer": "error",
+    "@eslint-react/web-api/no-leaked-timeout": "error",
+    // react-naming-contention
+    "@eslint-react/naming-convention/context-name": "error",
+    "@eslint-react/naming-convention/id-name": "warn",
+    "@eslint-react/naming-convention/ref-name": "error",
+};
+
 const extensions = "{js,mjs,cjs,jsx,mjsx,cjsx,ts,mts,cts,tsx,mtsx,ctsx}";
 
 const tailwindCallees = Object.freeze({
@@ -657,7 +737,8 @@ const tailwindCallees = Object.freeze({
     config: join(__dirname, "src", "index.css"),
 });
 
-export default TSEslint.config({ ignores: ["dist", "dist.server", "builds", "node_modules", ".vite-inspect"] }, {
+// TODO: re-add stories when storybook is re-added
+export default TSEslint.config({ ignores: ["dist", "src/**/*.stories.tsx", "dist.server", "builds", "node_modules", ".vite-inspect"] }, {
     files: [`src/**/*.${extensions}`, `server/**/*.${extensions}`, `eslint.config.${extensions}`, `vite.config.${extensions}`, `stylelint.config.${extensions}`, `scripts/**/*.${extensions}`, `vitest.config.${extensions}`, `.storybook/*.${extensions}`],
     plugins: {
         "@stylistic": stylistic,
@@ -667,6 +748,15 @@ export default TSEslint.config({ ignores: ["dist", "dist.server", "builds", "nod
         "react-hooks": reactHooks,
         "react-refresh": reactRefresh,
         tailwindcss,
+        // eslint-react has a handful of plugins, add them all
+        ...eslintReact.configs.all.plugins,
+    },
+    settings: {
+        "react-x": {
+            additionalEffectHooks: "(useIsomorphicLayoutEffect)",
+            polymorphicPropName: "tag",
+            compilationMode: "infer",
+        },
     },
     languageOptions: {
         parser: TSEslint.parser,
@@ -680,6 +770,8 @@ export default TSEslint.config({ ignores: ["dist", "dist.server", "builds", "nod
         ...TSLintRules,
         // Style Rules
         ...styleRules,
+        ...reactHooksRules,
+        ...eslintReactRules,
         "unused-imports/no-unused-imports": "error",
         "unused-imports/no-unused-vars": [
             "warn",
@@ -702,11 +794,6 @@ export default TSEslint.config({ ignores: ["dist", "dist.server", "builds", "nod
             },
         ],
         "simple-import-sort/exports": "error",
-        ...reactHooks.configs["recommended-latest"].rules,
-        // too noisy
-        "react-hooks/set-state-in-effect": "off",
-        "react-hooks/todo": "warn",
-        "react-hooks/syntax": "error",
         "react-refresh/only-export-components": [
             "warn",
             { allowConstantExport: true },
@@ -714,12 +801,6 @@ export default TSEslint.config({ ignores: ["dist", "dist.server", "builds", "nod
         "tailwindcss/classnames-order": [
             "error",
             tailwindCallees,
-        ],
-        "react-hooks/exhaustive-deps": [
-            "warn",
-            {
-                additionalHooks: "(useIsomorphicLayoutEffect)",
-            },
         ],
         "tailwindcss/enforces-negative-arbitrary-values": ["error", tailwindCallees],
         "tailwindcss/enforces-shorthand": ["error", tailwindCallees],

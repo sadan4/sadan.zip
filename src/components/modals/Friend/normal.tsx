@@ -96,7 +96,9 @@ export function FriendModalNormal() {
             .slice(0, 4)
             .map((friend, idx) => {
                 // index is an important key because of positioning
+                // FIXME: is index really needed
                 return (
+                    // eslint-disable-next-line @eslint-react/no-array-index-key
                     <DefaultPlacementCircleItem key={`${idx}-${friend.name}`}>
                         <FriendButton
                             friend={friend}
@@ -128,9 +130,10 @@ export function FriendModalNormal() {
                 </CircleCenter>
                 <CircleItems
                     diameter={NORMAL_MAIN_CIRCLE_DIAMETER}
-                    children={contents}
                     offset={1}
-                />
+                >
+                    {contents}
+                </CircleItems>
             </CircleRoot>
         </div>
     );

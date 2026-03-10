@@ -6,6 +6,7 @@ import { useRecent } from "@/hooks/recent";
 import { useFragmentRect, useRect } from "@/hooks/rect";
 import { useResizeObserver } from "@/hooks/resizeObserver";
 import cn from "@/utils/cn";
+import { EMPTY_OBJECT } from "@/utils/constants";
 import {
     compareRectOffsets,
     measureRect,
@@ -434,6 +435,7 @@ function PositionLayerReference({
             style={finalPos}
             className={className}
         >
+            {/* eslint-disable-next-line @eslint-react/no-useless-fragment -- Rel1cx/eslint-react#1567 */}
             <Fragment ref={childrenRef}>
                 {children(actualPosition)}
             </Fragment>
@@ -491,7 +493,7 @@ export function Tooltip({
     onShow,
     onHide,
     className,
-    triggerProps: { ref: _triggerRef, className: triggerClassName, ...triggerProps } = {},
+    triggerProps: { ref: _triggerRef, className: triggerClassName, ...triggerProps } = EMPTY_OBJECT,
     position = TooltipPosition.TOP,
     children,
     noWrapper = false,
@@ -516,7 +518,7 @@ export function Tooltip({
     const triggerHeight = useSpringValue(0);
     const triggerWidth = useSpringValue(0);
     const [dep, updateSizeVar] = useForceUpdater();
-    const tooltipContentFragment = useRef<FragmentInstance>(null);
+    const tooltipContentFragmentRef = useRef<FragmentInstance>(null);
 
     useResizeObserver(triggerEl, updateSizeVar);
 
@@ -588,7 +590,7 @@ export function Tooltip({
                                     }}
                                     className={styles.container}
                                 >
-                                    <Fragment ref={tooltipContentFragment}>
+                                    <Fragment ref={tooltipContentFragmentRef}>
                                         {noWrapper
                                             ? text
                                             : (
@@ -603,7 +605,7 @@ export function Tooltip({
                                         <TooltipArrow
                                             position={actualPosition}
                                             targetElement={triggerEl}
-                                            contentFragment={tooltipContentFragment}
+                                            contentFragment={tooltipContentFragmentRef}
                                         />
                                     )}
                                 </animated.div>

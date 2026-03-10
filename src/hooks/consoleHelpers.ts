@@ -74,7 +74,7 @@ export function useConsoleHelpers(helpers: Record<string, any>, { settable = "se
         helpersRef,
         settableRef,
         silenceWarnings,
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line @eslint-react/exhaustive-deps
         ...Object.keys(helpers),
     ]);
 }

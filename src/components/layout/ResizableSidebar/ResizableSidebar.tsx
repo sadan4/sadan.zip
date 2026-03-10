@@ -1,10 +1,10 @@
 import { useRectFromRef } from "@/hooks/rect";
 import { cn } from "@/utils/cn";
 
-import { defaultInitialSize, HIDE_THRESHOLD, Side, SidebarStateStoreContext, useSidebarStateStore } from "./store";
+import { DEFAULT_SIZE_MAP, HIDE_THRESHOLD, Side, SidebarStateStoreContext, useSidebarStateStore } from "./store";
 import { type ResizeHandleAPI, VerticalResizeHandle } from "../ResizeHandle";
 
-import { type PropsWithChildren, type RefObject, useContext, useEffect, useRef, useState } from "react";
+import { type PropsWithChildren, type RefObject, use, useEffect, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 
 export interface SidebarProps extends PropsWithChildren {
@@ -16,12 +16,12 @@ export interface SidebarProps extends PropsWithChildren {
 
 export function ResizableSidebar({
     side,
-    defaultSize = defaultInitialSize(side),
+    defaultSize = DEFAULT_SIZE_MAP[side],
     children,
     boundingElement,
     handleClassName,
 }: SidebarProps) {
-    const store = useContext(SidebarStateStoreContext)!;
+    const store = use(SidebarStateStoreContext)!;
     const [contentRef, setContentRef] = useState<HTMLDivElement | null>(null);
     const sidebarApiRef = useRef<ResizeHandleAPI | null>(null);
 

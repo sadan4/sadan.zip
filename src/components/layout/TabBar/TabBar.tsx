@@ -26,8 +26,8 @@ export interface TabRowItemProps {
 
 export interface Tab {
     readonly id: string;
-    RenderTab(props: TabRowItemProps): ReactNode;
-    Render(): ReactNode;
+    renderTab(props: TabRowItemProps): ReactNode;
+    render(): ReactNode;
 }
 export interface TabBarProps {
     tabs: Tab[];
@@ -50,7 +50,7 @@ const positionClasses: Record<TabBarPosition, string> = {
 
 const fallbackTab: Tab = {
     id: "FALLBACK_TAB",
-    Render() {
+    render() {
         return (
             <Text
                 size="xl"
@@ -61,7 +61,7 @@ const fallbackTab: Tab = {
             </Text>
         );
     },
-    RenderTab() {
+    renderTab() {
         return (
             <Text
                 size="lg"
@@ -122,10 +122,10 @@ function TabButton({
             }}
             ref={setRef}
         >
-            <tabProp.RenderTab
-                isSelected={isActive}
-                selectedTab={activeTabId}
-            />
+            {tabProp.renderTab({
+                isSelected: isActive,
+                selectedTab: activeTabId,
+            })}
         </Clickable>
     );
 }
@@ -215,7 +215,7 @@ export function TabBar({
                 className={cn(styles.content, contentClassName)}
             >
                 <AnimateHeight>
-                    <selectedTabObj.Render />
+                    {selectedTabObj.render()}
                 </AnimateHeight>
             </Box>
         </div>

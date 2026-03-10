@@ -1,4 +1,5 @@
-import { namedContext } from "@/utils/devtools";
+import { createContext } from "react";
+
 
 export interface FriendModalContext {
     x: number;
@@ -18,7 +19,8 @@ export function defaultPosition() {
     };
 }
 
-export const FriendModalContext = namedContext<FriendModalContext>(null!, "FriendModalContext");
+export const FriendModalContext = createContext<FriendModalContext | null>(null!);
+FriendModalContext.displayName = "FriendModalContext";
 
 export const NORMAL_MAIN_CIRCLE_DIAMETER = 500;
 export const FRIEND_CARD_CIRCLE_DIAMETER = 192;

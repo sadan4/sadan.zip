@@ -1,13 +1,12 @@
 import { useRect } from "@/hooks/rect";
 import cn from "@/utils/cn";
-import { namedContext } from "@/utils/devtools";
 import { error } from "@/utils/error";
 
 import { CircleItemContext } from "./context";
 import { DefaultPlacementCircleItem } from "./DefaultPlacementCircleItem";
 import styles from "./styles.module.scss";
 
-import { type ComponentProps, type PropsWithChildren, type ReactElement, type ReactNode, use, useEffect, useMemo, useState } from "react";
+import { type ComponentProps, createContext, type PropsWithChildren, type ReactElement, type ReactNode, use, useEffect, useMemo, useState } from "react";
 
 export interface CircleItemProps {
     x: number;
@@ -35,15 +34,17 @@ export interface CircleCenterProps extends PropsWithChildren {
     rect?: DOMRectReadOnly;
 }
 
-interface CircleContextInternal {
+interface InternalCircleContext {
     rect: DOMRectReadOnly | undefined;
     setRect(rect: DOMRectReadOnly | undefined): void;
 }
 
-const CircleContextInternal = namedContext<CircleContextInternal | null>(null, "CircleContextInternal");
+const InternalCircleContext = createContext<InternalCircleContext | null>(null);
 
-function useCircleContextInternal(): CircleContextInternal {
-    const ctx = use(CircleContextInternal);
+InternalCircleContext.displayName = "InternalCircleContext";
+
+function useCircleContextInternal(): InternalCircleContext {
+    const ctx = use(InternalCircleContext);
 
     if (ctx == null) {
         error("useCircleContextInternal must be used within a Circle.Root");
@@ -81,9 +82,9 @@ export function CircleRoot({ children }: CircleRootProps) {
     }), [rect]);
 
     return (
-        <CircleContextInternal value={api}>
+        <InternalCircleContext value={api}>
             {children}
-        </CircleContextInternal>
+        </InternalCircleContext>
     );
 }
 
@@ -192,12 +193,12 @@ export function CircleItems({
                 const c = (child ?? (() => null))(placementProps);
 
                 return (
-                    <CircleItemContext.Provider
+                    <CircleItemContext
                         value={placementProps}
                         key={(c as ReactElement)?.key}
                     >
                         {c}
-                    </CircleItemContext.Provider>
+                    </CircleItemContext>
                 );
             })}
         </div>

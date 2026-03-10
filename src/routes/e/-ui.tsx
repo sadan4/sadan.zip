@@ -90,18 +90,18 @@ interface ModuleSelectorProps {
 
 
 function ModuleSelector({ modules, onSelectModule }: ModuleSelectorProps) {
-    const scrollerHandle = useRef<BufferedScroller.Handle<TModuleId>>(null);
+    const scrollerRef = useRef<BufferedScroller.Handle<TModuleId>>(null);
     const selectedModule = useModuleViewerStore(({ selectedModule }) => selectedModule);
 
     useEffect(() => {
         if (modules.length && selectedModule) {
-            scrollerHandle.current?.scrollItemIntoView((e) => e === selectedModule);
+            scrollerRef.current?.scrollItemIntoView((e) => e === selectedModule);
         }
     }, [modules.length, selectedModule]);
 
     return (
         <BufferedScroller
-            handle={scrollerHandle}
+            handle={scrollerRef}
             items={modules}
             batchSize={75}
             bufferSize={2}
@@ -240,12 +240,14 @@ function ModuleGraph({ parser }: ModuleGraphProps) {
                     TAssert<TModuleId>(moduleId);
                     return (
                         <TextLink
+                            key={moduleId}
                             to="/e/view/{-$buildHash}/{-$moduleId}"
                             params={{
                                 buildHash,
                                 moduleId,
                             }}
-                        >{moduleId}
+                        >
+                            {moduleId}
                         </TextLink>
                     );
                 })}
@@ -281,8 +283,8 @@ function ModuleGraph2({ graph: { nodes, edges } }: ModuleGraph2Props) {
                 nodes={nodes}
                 edges={edges}
                 colorMode="dark"
-                nodesDraggable={true}
-                onlyRenderVisibleElements={true}
+                nodesDraggable
+                onlyRenderVisibleElements
                 nodesConnectable={false}
                 minZoom={0}
                 onNodeClick={(_e, node) => {
@@ -342,17 +344,15 @@ interface ExperimentalSettingProps extends PropsWithChildren {
 
 function ExperimentalSetting({ children }: ExperimentalSettingProps) {
     return (
-        <>
-            <div className="flex w-full flex-col rounded-md border-2 border-warning-300/50 p-2">
-                <Text
-                    color="warning"
-                    className="mb-2 flex items-center gap-2"
-                >
-                    <TriangleAlertIcon className="inline" />This Setting is Experimental. Expect and report any bugs!
-                </Text>
-                {children}
-            </div>
-        </>
+        <div className="flex w-full flex-col rounded-md border-2 border-warning-300/50 p-2">
+            <Text
+                color="warning"
+                className="mb-2 flex items-center gap-2"
+            >
+                <TriangleAlertIcon className="inline" />This Setting is Experimental. Expect and report any bugs!
+            </Text>
+            {children}
+        </div>
     );
 }
 
@@ -452,7 +452,7 @@ export function Explorer() {
     const inputRef = useRef<HTMLInputElement>(null);
     const activePanel = useModuleViewerStore(({ activePanel }) => activePanel);
     const moduleSidebarOpen = useModuleViewerStore(({ moduleSidebarOpen }) => moduleSidebarOpen);
-    const settingsModal = useRef<ModalContext>(null);
+    const settingsModalRef = useRef<ModalContext>(null);
 
     const { status, data } = useQuery({
         queryKey: ["getBundleMetadata", { buildHash }],
@@ -541,26 +541,24 @@ export function Explorer() {
                         >
                             <DownloadIcon />
                         </IconButton>
-                        <>
-                            <IconButton
-                                label={`Open${NBSP}Settings`}
-                                colorType="outline"
-                                onClick={() => {
-                                    if (settingsModal.current) {
-                                        settingsModal.current.open();
-                                        return true;
-                                    }
-                                    return false;
-                                }}
-                                tooltipClassName="z-6"
-                                tooltipPosition={TooltipPosition.BOTTOM}
-                            >
-                                <SettingsIcon />
-                            </IconButton>
-                            <Modal ref={settingsModal}>
-                                <SettingsModal />
-                            </Modal>
-                        </>
+                        <IconButton
+                            label={`Open${NBSP}Settings`}
+                            colorType="outline"
+                            onClick={() => {
+                                if (settingsModalRef.current) {
+                                    settingsModalRef.current.open();
+                                    return true;
+                                }
+                                return false;
+                            }}
+                            tooltipClassName="z-6"
+                            tooltipPosition={TooltipPosition.BOTTOM}
+                        >
+                            <SettingsIcon />
+                        </IconButton>
+                        <Modal ref={settingsModalRef}>
+                            <SettingsModal />
+                        </Modal>
                         <IconButtonInternalLink
                             tooltipPosition={TooltipPosition.BOTTOM}
                             label={`Return${NBSP}to${NBSP}Bundle${NBSP}Selector`}

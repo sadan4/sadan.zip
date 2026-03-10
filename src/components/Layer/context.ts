@@ -1,4 +1,5 @@
-import { namedContext } from "@/utils/devtools";
+import { createContext } from "react";
+
 
 export type LayerElement = HTMLBodyElement | HTMLDivElement;
 export interface LayerContext {
@@ -13,7 +14,8 @@ export interface LayerContext {
 }
 
 
-export const LayerContext = namedContext<LayerContext>({
+export const LayerContext = createContext<LayerContext>({
     level: 0,
     root: null,
-}, "LayerContext");
+});
+LayerContext.displayName = "LayerContext";

@@ -1,14 +1,13 @@
 import { useControlledState } from "@/hooks/controlledState";
 import { useRect } from "@/hooks/rect";
 import cn from "@/utils/cn";
-import { namedContext } from "@/utils/devtools";
 import { error } from "@/utils/error";
 
 import { Position } from "./enums";
 import styles from "./styles.module.scss";
 import { Clickable } from "../Clickable";
 
-import { type PropsWithChildren, use, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, type PropsWithChildren, use, useEffect, useMemo, useRef, useState } from "react";
 
 export interface PopoutRootProps extends PropsWithChildren {
     open?: boolean;
@@ -33,7 +32,7 @@ declare module "react" {
     }
 }
 
-interface PopoutContextInternal {
+interface InternalPopoutContext {
     open(): void;
     close(): void;
     isOpen: boolean;
@@ -41,10 +40,12 @@ interface PopoutContextInternal {
     rect?: DOMRectReadOnly;
 }
 
-const PopoutContextInternal = namedContext<PopoutContextInternal | null>(null, "PopoutContextInternal");
+const InternalPopoutContext = createContext<InternalPopoutContext | null>(null);
 
-function usePopoutContextInternal(): PopoutContextInternal {
-    const ctx = use(PopoutContextInternal);
+InternalPopoutContext.displayName = "InternalPopoutContext";
+
+function usePopoutContextInternal(): InternalPopoutContext {
+    const ctx = use(InternalPopoutContext);
 
     if (ctx == null) {
         error("usePopoutContextInternal must be used within a Popout2.Root");
@@ -76,7 +77,7 @@ export function PopoutRoot({ children, open: _value, onClose, onOpen }: PopoutRo
 
     const [rect, setRect] = useState<DOMRectReadOnly>();
 
-    const api = useMemo<PopoutContextInternal>(() => ({
+    const api = useMemo<InternalPopoutContext>(() => ({
         open() {
             setIsOpen(true);
         },
@@ -89,9 +90,9 @@ export function PopoutRoot({ children, open: _value, onClose, onOpen }: PopoutRo
     }), [isOpen, rect, setIsOpen]);
 
     return (
-        <PopoutContextInternal value={api}>
+        <InternalPopoutContext value={api}>
             {children}
-        </PopoutContextInternal>
+        </InternalPopoutContext>
     );
 }
 
@@ -105,15 +106,13 @@ export function PopoutTrigger({ children }: PopoutTriggerProps) {
     }, [rect, ctx]);
 
     return (
-        <>
-            <Clickable
-                ref={setEl}
-                className="contents"
-                onClick={ctx.open}
-            >
-                {children}
-            </Clickable>
-        </>
+        <Clickable
+            ref={setEl}
+            className="contents"
+            onClick={ctx.open}
+        >
+            {children}
+        </Clickable>
     );
 }
 

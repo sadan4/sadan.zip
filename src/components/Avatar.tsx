@@ -30,7 +30,7 @@ const preloadFriends = once(function preloadFriends() {
 const defaultPositionProxy = makeLazy(() => proxyLazy(defaultPosition));
 
 export default function Avatar({ round = false, ...props }: AvatarProps) {
-    const modal = useRef<ModalContext>(null);
+    const modalRef = useRef<ModalContext>(null);
     const [img, setImg] = useState<HTMLDivElement | null>(null);
     // update the rect before we open the modal to ensure the correct position;
     const _rect = useRect(img);
@@ -53,7 +53,7 @@ export default function Avatar({ round = false, ...props }: AvatarProps) {
             >
                 <Shadow>
                     <BorderHoldRounded onHold={() => {
-                        modal.current?.open();
+                        modalRef.current?.open();
                     }}
                     >
                         <img
@@ -67,7 +67,7 @@ export default function Avatar({ round = false, ...props }: AvatarProps) {
                     </BorderHoldRounded>
                 </Shadow>
             </PerspectiveHover>
-            <Modal ref={modal}>
+            <Modal ref={modalRef}>
                 <FriendModalContext value={value}>
                     <FriendModal />
                 </FriendModalContext>

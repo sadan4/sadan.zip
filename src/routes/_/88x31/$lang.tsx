@@ -102,7 +102,7 @@ function ButtonPage() {
                         tabs={[
                             {
                                 id: "html",
-                                RenderTab() {
+                                renderTab() {
                                     return (
                                         <TextLink
                                             to="/88x31/$lang"
@@ -112,7 +112,7 @@ function ButtonPage() {
                                         </TextLink>
                                     );
                                 },
-                                Render() {
+                                render() {
                                     return (
                                         <Codeblock lang={Language.HTML}>
                                             {htmlExampleContent}
@@ -122,7 +122,7 @@ function ButtonPage() {
                             },
                             {
                                 id: "react",
-                                RenderTab() {
+                                renderTab() {
                                     return (
                                         <TextLink
                                             to="/88x31/$lang"
@@ -132,7 +132,7 @@ function ButtonPage() {
                                         </TextLink>
                                     );
                                 },
-                                Render() {
+                                render() {
                                     return (
                                         <Codeblock lang={Language.TYPESCRIPT_REACT}>
                                             {reactExampleContent}

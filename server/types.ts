@@ -107,10 +107,14 @@ export const KeyModules = z.object({
 
 export type KeyModules = z.infer<typeof KeyModules>;
 
-export const MainDeps = z.record(TModuleId, z.object({
+export const MainDepsEntryValue = z.object({
     syncUses: z.array(TModuleId),
     lazyUses: z.array(TModuleId),
-}));
+});
+
+export type MainDepsEntryValue = z.infer<typeof MainDepsEntryValue>;
+
+export const MainDeps = z.record(TModuleId, MainDepsEntryValue);
 
 export type MainDeps = z.infer<typeof MainDeps>;
 

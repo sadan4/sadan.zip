@@ -19,7 +19,7 @@ export interface UseBorderHoldAnimProps {
 }
 
 export function useBorderHoldAnim({ onHold, held }: UseBorderHoldAnimProps) {
-    const dispatched = useRef(false);
+    const dispatchedRef = useRef(false);
 
     const { progress, opacity } = useSpring({
         from: {
@@ -32,8 +32,11 @@ export function useBorderHoldAnim({ onHold, held }: UseBorderHoldAnimProps) {
                     progress: 100,
                     opacity: 1,
                     onChange(progress) {
-                        if (!progress.cancelled && !dispatched.current && (progress.value.progress as number) >= 98) {
-                            dispatched.current = true;
+                        // bug in react-spring types
+                        const value = progress.value.progress as number;
+
+                        if (!progress.cancelled && !dispatchedRef.current && value >= 98) {
+                            dispatchedRef.current = true;
                             onHold?.();
                         }
                     },
@@ -47,7 +50,7 @@ export function useBorderHoldAnim({ onHold, held }: UseBorderHoldAnimProps) {
                             next({
                                 opacity: 0,
                             }).catch(() => {});
-                            dispatched.current = false;
+                            dispatchedRef.current = false;
                         }
                     },
                 });

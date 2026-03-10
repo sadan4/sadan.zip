@@ -1,4 +1,3 @@
-import { Input } from "@/components/Input";
 import { useControlledState } from "@/hooks/controlledState";
 import { border } from "@/styles";
 import cn from "@/utils/cn";
@@ -13,7 +12,7 @@ import { ScrollAreaContext } from "../layout/ScrollArea/context";
 import { Text } from "../Text";
 
 import { CircleCheck } from "lucide-react";
-import { type Key, type PropsWithChildren, type ReactNode, useContext, useEffect, useRef, useState } from "react";
+import { type Key, type PropsWithChildren, type ReactNode, use, useEffect, useRef } from "react";
 import scrollIntoView from "scroll-into-view-if-needed";
 
 export interface SelectOption<T> {
@@ -36,7 +35,7 @@ interface SelectItemProps<T> {
 
 function SelectItem<T>({ item: { label, value, disabled }, isSelected, onChange }: SelectItemProps<T>) {
     const ref = useRef<HTMLDivElement>(null);
-    const ctx = useContext(ScrollAreaContext).ref;
+    const ctx = use(ScrollAreaContext).ref;
 
     useEffect(() => {
         if (isSelected && ref.current) {
@@ -109,7 +108,7 @@ export interface SelectProps<T extends PropertyKey> extends PropsWithChildren {
 export function Select<T extends PropertyKey>({
     items,
     customChildren = false,
-    defaultValue = getDefaultItemValue(items),
+    defaultValue: _defaultValue,
     onChange,
     selectedValue,
     children,
@@ -120,7 +119,7 @@ export function Select<T extends PropertyKey>({
     onOpenChange,
 }: SelectProps<T>) {
     const [selectedItem, setSelectedItem] = useControlledState({
-        initialValue: defaultValue,
+        initialValue: _defaultValue ?? getDefaultItemValue(items),
         debugName: "Select",
         managedValue: selectedValue,
         handleChange: onChange,
@@ -164,100 +163,98 @@ export function Select<T extends PropertyKey>({
     }
 
     return (
-        <>
-            <div
-                ref={ref}
-                className="relative"
-            >
-                <Clickable
-                    className={cn(
-                        styles.select,
-                        className,
-                        border.interactive,
-                        border.autofocus,
-                        border.animate,
-                        open && border.focused,
-                    )}
-                    onClick={(e) => {
-                        if (e.detail > 1) {
-                            e.preventDefault();
-                        }
-                        setOpen((o) => !o);
-                    }}
-                >
-                    { customChildren
-                        ? children
-                        : (
-                            <>
-                                <div className="flex-1/1">
-                                    {currentLabel}
-                                </div>
-                                <animated.svg
-                                    viewBox="-2.4 -2.4 28.8 28.8"
-                                    className="h-8 w-8 fill-none stroke-fg-500"
-                                    style={{
-                                        transform: rotation.to((r) => `rotate(${r}deg)`),
-                                    }}
-                                >
-                                    <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth="2"
-                                        d="m6 9 6 6 6-6"
-                                    />
-                                </animated.svg>
-                            </>
-                        )}
-                </Clickable>
-                {/* TODO: portal this */}
-                <div className={cn("absolute top-6/5 left-0 w-full")}>
-                    {open && (
-                        <div
-                            onBlur={({ relatedTarget }) => {
-                                assert(ref.current, "how are we running this without ref.current being set");
-                                if (ref.current.contains(relatedTarget)) {
-                                    return;
-                                }
-                                setOpen(false);
-                            }}
-                            ref={menuRef}
-                            tabIndex={-1}
-                        >
-                            <SelectMenu
-                                items={items}
-                                scrollAreaClassName={scrollAreaClassName}
-                                selectedItem={selectedItem}
-                                onChange={(label) => {
-                                    setSelectedItem(label);
-                                    if (closeOnSelect) {
-                                        setOpen(false);
-                                    }
-                                }}
-                            />
-                        </div>
-                    )}
-                </div>
-            </div>
-        </>
-    );
-}
-
-export function SearchableSelect<T extends PropertyKey>({ onChange, ...props }: SelectProps<T>) {
-    const [open, _setOpen] = useState(false);
-
-    return (
-        <Select
-            open={open}
-            {...props}
-            onChange={(value) => {
-                onChange?.(value);
-            }}
-            customChildren
-            className={cn(border.directDisable, "p-0")}
+        <div
+            ref={ref}
+            className="relative"
         >
-            <Input
-                onChange={() => { }}
-            />
-        </Select>
+            <Clickable
+                className={cn(
+                    styles.select,
+                    className,
+                    border.interactive,
+                    border.autofocus,
+                    border.animate,
+                    open && border.focused,
+                )}
+                onClick={(e) => {
+                    if (e.detail > 1) {
+                        e.preventDefault();
+                    }
+                    setOpen((o) => !o);
+                }}
+            >
+                { customChildren
+                    ? children
+                    : (
+                        <>
+                            <div className="flex-1/1">
+                                {currentLabel}
+                            </div>
+                            <animated.svg
+                                viewBox="-2.4 -2.4 28.8 28.8"
+                                className="h-8 w-8 fill-none stroke-fg-500"
+                                style={{
+                                    transform: rotation.to((r) => `rotate(${r}deg)`),
+                                }}
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth="2"
+                                    d="m6 9 6 6 6-6"
+                                />
+                            </animated.svg>
+                        </>
+                    )}
+            </Clickable>
+            {/* TODO: portal this */}
+            <div className={cn("absolute top-6/5 left-0 w-full")}>
+                {open && (
+                    <div
+                        onBlur={({ relatedTarget }) => {
+                            assert(ref.current, "how are we running this without ref.current being set");
+                            if (ref.current.contains(relatedTarget)) {
+                                return;
+                            }
+                            setOpen(false);
+                        }}
+                        ref={menuRef}
+                        tabIndex={-1}
+                    >
+                        <SelectMenu
+                            items={items}
+                            scrollAreaClassName={scrollAreaClassName}
+                            selectedItem={selectedItem}
+                            onChange={(label) => {
+                                setSelectedItem(label);
+                                if (closeOnSelect) {
+                                    setOpen(false);
+                                }
+                            }}
+                        />
+                    </div>
+                )}
+            </div>
+        </div>
     );
 }
+
+// export function SearchableSelect<T extends PropertyKey>({ onChange, ...props }: SelectProps<T>) {
+//     const [open, _setOpen] = useState(false);
+
+//     return (
+//         <Select
+//             open={open}
+//             {...props}
+//             onChange={(value) => {
+//                 onChange?.(value);
+//             }}
+//             customChildren
+//             className={cn(border.directDisable, "p-0")}
+//         >
+//             <Input
+//                 onChange={() => { }}
+//             />
+//         </Select>
+//     );
+// }

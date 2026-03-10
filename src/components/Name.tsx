@@ -97,19 +97,25 @@ const possibleNames = possibleNameStrings
 
 export default function Name() {
     const typewriterRef = useRef<TypewriterRef>(null);
-    const lastIndex = useRef(-1);
+    const lastIndexRef = useRef(-1);
     const [typing, setTyping] = useState(false);
 
+    // TODO: this is a bit cursed
     useEffect(() => {
-        const tryStart = () => {
+        let timeout: NodeJS.Timeout;
+
+        function tryStart() {
             if (typewriterRef.current) {
                 typewriterRef.current.sendWord(clickMe(), true);
             } else {
-                setTimeout(tryStart, 10);
+                timeout = setTimeout(tryStart, 10);
             }
-        };
+        }
 
-        return clearTimeout.bind(null, setTimeout(tryStart, 10));
+        tryStart();
+
+
+        return () => clearTimeout(timeout);
     }, []);
     return (
         <div
@@ -132,7 +138,7 @@ export default function Name() {
                     let idx: number;
 
                     // TODO: just a tad cursed
-                    while ((idx = randInt(0, possibleNames.length)) === lastIndex.current)
+                    while ((idx = randInt(0, possibleNames.length)) === lastIndexRef.current)
                         ;
 
                     typewriterRef.current?.sendWord(possibleNames[idx]);

@@ -1,9 +1,8 @@
-import { namedContext } from "@/utils/devtools";
-
-import { type RefObject } from "react";
+import { createContext, type RefObject } from "react";
 
 export interface ScrollAreaContext {
     ref: RefObject<HTMLDivElement | null>;
 }
 
-export const ScrollAreaContext = namedContext<ScrollAreaContext>({ ref: { current: null } }, "ScrollAreaContext");
+export const ScrollAreaContext = createContext<ScrollAreaContext>({ ref: { current: null } });
+ScrollAreaContext.displayName = "ScrollAreaContext";

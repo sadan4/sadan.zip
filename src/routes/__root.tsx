@@ -84,7 +84,7 @@ if (!import.meta.env.SSR) {
 }
 
 function RootComponent({ children }: { children: React.ReactNode; }) {
-    const [layerCtx, setCtx] = useState<LayerContext>({
+    const [layerCtx, setLayerCtx] = useState<LayerContext>({
         level: 0,
         root: null,
     });
@@ -96,7 +96,7 @@ function RootComponent({ children }: { children: React.ReactNode; }) {
 
         assert(root instanceof HTMLBodyElement, "Failed to find root element");
 
-        setCtx({
+        setLayerCtx({
             level: 0,
             root,
         });
