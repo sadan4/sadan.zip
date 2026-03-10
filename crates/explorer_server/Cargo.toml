@@ -9,7 +9,7 @@ crate-type = ["cdylib"]
 [dependencies]
 napi.workspace = true
 napi-derive.workspace = true
-explorer_types = { workspace = true, features = ["napi"] }
+explorer_types.workspace = true 
 tokio = { workspace = true, features = ["full"] }
 reqwest.workspace = true
 anyhow.workspace = true

@@ -1,9 +1,9 @@
-use napi::{Status, threadsafe_function::ThreadsafeFunction};
+use explorer_types::FullBundle;
+use napi::{Env, JsValue, Status, Unknown, bindgen_prelude::JsValuesTuple as _, threadsafe_function::ThreadsafeFunction};
 use napi_derive::napi;
+mod migrations;
 mod util;
 mod watcher;
-mod migrations;
-
 
 #[napi]
 #[allow(
@@ -23,6 +23,18 @@ pub async fn start(handle_build: ThreadsafeFunction<String, (), String, Status, 
         .await;
     });
 }
+
+#[napi]
+pub fn write_build<'env>(build_data: Unknown<'env>) -> napi::Result<()> {
+    let env = Env::from_raw(build_data.env());
+    let build_data: FullBundle = env.from_js_value(build_data)?;
+    Ok(())
+}
+
+async fn internal_write_build(build: FullBundle) -> anyhow::Result<()> {
+    Ok(())
+}
+
 
 #[napi_derive::module_init]
 fn init() {
