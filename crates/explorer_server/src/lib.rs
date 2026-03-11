@@ -1,9 +1,25 @@
-use explorer_types::FullBundle;
-use napi::{Env, JsValue, Status, Unknown, bindgen_prelude::JsValuesTuple as _, threadsafe_function::ThreadsafeFunction};
+use napi::{
+    Status,
+    threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode},
+};
 use napi_derive::napi;
+use tracing::{info, warn};
+
+use migrations::migrate_if_needed;
+
+use crate::watcher::Channel;
 mod migrations;
+mod server;
 mod util;
 mod watcher;
+pub mod wrapper_types;
+
+#[napi(object)]
+pub struct HandleBuildOpts {
+    pub build_hash: String,
+    pub html: String,
+    pub channel: Channel,
+}
 
 #[napi]
 #[allow(
@@ -11,30 +27,29 @@ mod watcher;
     clippy::unused_async,
     reason = "tokio::spawn tracks caller"
 )]
-pub async fn start(handle_build: ThreadsafeFunction<String, (), String, Status, false>) {
-    println!("Starting explorer server...");
+pub async fn start(
+    handle_build: ThreadsafeFunction<HandleBuildOpts, (), HandleBuildOpts, Status, false>,
+) {
+    info!("Starting explorer server...");
+    match migrate_if_needed() {
+        Ok(()) => info!("Migrations complete"),
+        Err(e) => {
+            panic!("Error during migration: {e:?}");
+        }
+    }
     tokio::spawn(async move {
-        watcher::start_watcher(move |build_hash| {
-            handle_build.call(
-                build_hash,
-                napi::threadsafe_function::ThreadsafeFunctionCallMode::NonBlocking,
-            );
+        watcher::start_watcher(move |opts| {
+            handle_build.call(opts, ThreadsafeFunctionCallMode::NonBlocking);
         })
         .await;
     });
+    tokio::spawn(async move {
+        if let Err(e) = server::serve().await {
+            panic!("Error in HTTP server: {e}");
+        }
+        warn!("HTTP server exited");
+    });
 }
-
-#[napi]
-pub fn write_build<'env>(build_data: Unknown<'env>) -> napi::Result<()> {
-    let env = Env::from_raw(build_data.env());
-    let build_data: FullBundle = env.from_js_value(build_data)?;
-    Ok(())
-}
-
-async fn internal_write_build(build: FullBundle) -> anyhow::Result<()> {
-    Ok(())
-}
-
 
 #[napi_derive::module_init]
 fn init() {

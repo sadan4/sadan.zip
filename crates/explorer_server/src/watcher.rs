@@ -2,13 +2,18 @@ use std::{fs, time::Duration};
 
 use anyhow::Result;
 use napi::bindgen_prelude::tracing::instrument;
+use napi_derive::napi;
 use reqwest::Response;
 use tracing::{error, info, trace};
 
-use crate::util::{get_build_path, is_build_downloaded};
+use crate::{
+    HandleBuildOpts,
+    util::{get_build_path, is_build_downloaded},
+};
 
+#[napi]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-enum Channel {
+pub enum Channel {
     Stable,
     Canary,
 }
@@ -53,16 +58,24 @@ async fn get_build(channel: Channel) -> Result<Option<Build>> {
     }))
 }
 
-pub async fn start_watcher(handle: impl Fn(String)) {
+async fn handle_build(c: Channel, js_handler: &impl Fn(HandleBuildOpts)) -> Result<()> {
+    if let Some(build) = get_build(c).await? {
+        info!("new {c:?} build: {}", build.build_id);
+        js_handler(HandleBuildOpts {
+            build_hash: build.build_id,
+            html: build.response.text().await?,
+            channel: c,
+        });
+    }
+    Ok(())
+}
+
+pub async fn start_watcher(handle: impl Fn(HandleBuildOpts)) {
     let mut interval = tokio::time::interval(Duration::from_secs(5));
     loop {
         interval.tick().await;
-        match get_build(Channel::Stable).await {
-            Ok(Some(build)) => {
-                info!("new stable build: {}", build.build_id);
-                handle(build.build_id);
-            }
-            Ok(None) => {}
+        match handle_build(Channel::Stable, &handle).await {
+            Ok(()) => {}
             Err(e) => {
                 error!("failed to get stable build: {e}");
             }

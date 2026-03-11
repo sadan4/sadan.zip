@@ -40,7 +40,7 @@ function copyNativeModules(): Plugin {
 }
 
 export default defineConfig({
-    input: "server/index-native.ts",
+    input: ["server/index.ts", "server/index-native.ts"],
     plugins: [
         nodeResolve({
             extensions: [".ts", ".js", ".node"],
@@ -55,7 +55,7 @@ export default defineConfig({
     external: [/@vencord-companion\//, "jsdom"],
     output: {
         format: "esm",
-        file: "dist.server/index.js",
+        dir: "dist.server",
         sourcemap: "inline",
     },
 });

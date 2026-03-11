@@ -14,6 +14,7 @@ console_error_panic_hook.workspace = true
 js-sys.workspace = true
 tar.workspace = true
 zstd.workspace = true
+explorer_types.workspace = true
 
 [dependencies.web-sys]
 workspace = true
