@@ -1,7 +1,8 @@
+import babel from "@rolldown/plugin-babel";
 import tailwindcss from "@tailwindcss/vite";
 import { devtools } from "@tanstack/devtools-vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
-import viteReact from "@vitejs/plugin-react";
+import viteReact, { reactCompilerPreset } from "@vitejs/plugin-react";
 
 import { monacoEditor } from "./scripts/vite-plugin-monaco-editor";
 
@@ -12,7 +13,6 @@ import { generate } from "rollup-plugin-generate";
 import { defineConfig, type UserConfig } from "vite";
 import devtoolsJSON from "vite-plugin-devtools-json";
 import inspect from "vite-plugin-inspect";
-import viteTsConfigPaths from "vite-tsconfig-paths";
 
 
 const config = defineConfig(async ({ command, isSsrBuild }) => {
@@ -23,14 +23,6 @@ const config = defineConfig(async ({ command, isSsrBuild }) => {
     const isCi = !!process.env.CI;
 
     return {
-        resolve: {
-            alias: {
-                "@": srcDir,
-            },
-        },
-        define: {
-            IS_CLOUDFLARE: JSON.stringify(!isWindowsOnArm),
-        },
         plugins: [
             devtoolsJSON(),
             monacoEditor({
@@ -42,10 +34,6 @@ const config = defineConfig(async ({ command, isSsrBuild }) => {
                     // don't pipe warn and error logs, piping hides stack traces and the source
                     levels: ["info", "log", "debug"],
                 },
-            }),
-            // this is the plugin that enables path aliases
-            viteTsConfigPaths({
-                projects: ["./tsconfig.json"],
             }),
             tailwindcss(),
             tanstackStart({
@@ -65,10 +53,9 @@ const config = defineConfig(async ({ command, isSsrBuild }) => {
                     watch: "filesystem",
                 },
             }),
-            viteReact({
-                babel: {
-                    plugins: ["babel-plugin-react-compiler"],
-                },
+            viteReact(),
+            babel({
+                presets: [reactCompilerPreset()],
             }),
             !isWindowsOnArm && (await import("@cloudflare/vite-plugin")).cloudflare({
                 viteEnvironment: {
@@ -99,6 +86,15 @@ const config = defineConfig(async ({ command, isSsrBuild }) => {
                 dev: false,
             }),
         ],
+        resolve: {
+            alias: {
+                "@": srcDir,
+            },
+            tsconfigPaths: true,
+        },
+        define: {
+            IS_CLOUDFLARE: JSON.stringify(!isWindowsOnArm),
+        },
         build: {
             manifest: !isCi,
             ssrManifest: !isCi,
@@ -132,6 +128,8 @@ const config = defineConfig(async ({ command, isSsrBuild }) => {
                 },
             },
             devSourcemap: true,
+        },
+        experimental: {
         },
     } satisfies UserConfig;
 });
