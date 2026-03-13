@@ -45,6 +45,6 @@ pub struct FullBundle {
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct BuildList {
-    /// array of zstd compressed msgpack serialized [BundleMetadata]
+    /// array of zstd compressed msgpack serialized [`BundleMetadata`]
     pub builds: Vec<Box<[u8]>>,
 }
