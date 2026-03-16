@@ -46,36 +46,3 @@ export type ProcessingExportName =
   | { type: 'Default' }
 
 export declare function start(handleBuild: ((arg: HandleBuildOpts) => void)): Promise<void>
-export interface BundleMetadata {
-  buildHash: string
-  buildNumber: number
-  /** this is an u64 timestamp, but napi-rs doesn't support u64, only i64 */
-  firstSeen: number
-  entryPoint?: TModuleId
-  envVarText: string
-}
-
-export type ExportName =
-  | { type: 'Named', field0: string }
-  | { type: 'Default' }
-
-export interface JsIterator {
-  next: () => JsIteratorValue
-}
-
-export interface JsIteratorValue {
-  value?: unknown
-  done: boolean
-}
-
-export interface KeyModules {
-  fluxDispatcherClass: Array<[TModuleId, ExportName]>
-}
-
-export interface ModuleDeps {
-  syncUses: Array<TModuleId>
-  lazyUses: Array<TModuleId>
-}
-
-export type TModuleId =
-  number

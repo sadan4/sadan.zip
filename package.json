@@ -15,7 +15,7 @@
     "build:vite": "vite build",
     "build:server": "napi build -p explorer_server -o server/native && rollup -c server/rollup.config.ts",
     "prestart:server": "pnpm build:server",
-    "start:server": "node --max-old-space-size=4096 dist.server/index.js",
+    "start:server": "node --max-old-space-size=4096 dist.server/index-native.js",
     "postbuild:vite": "node scripts/minifySsr.ts",
     "preview": "vite preview",
     "test": "vitest run",

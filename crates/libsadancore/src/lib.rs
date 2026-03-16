@@ -1,7 +1,9 @@
 use wasm_bindgen::prelude::wasm_bindgen;
 
-pub mod explorer;
+pub(crate) mod err;
 pub(crate) mod util;
+pub(crate) mod constants;
+pub mod explorer;
 
 #[wasm_bindgen(start)]
 fn _start() {

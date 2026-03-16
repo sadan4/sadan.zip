@@ -1,10 +1,11 @@
+pub mod fut;
+use crate::Result;
 use std::{cell::RefCell, rc::Rc};
-
 use wasm_bindgen::{
-    JsCast,
-    prelude::{Closure, wasm_bindgen},
+    JsCast, prelude::{Closure, wasm_bindgen},
 };
-use web_sys::{Window, window};
+use wasm_bindgen_futures::JsFuture;
+use web_sys::{Request, Response, Window, window};
 
 pub fn get_window() -> Window {
     window().unwrap()
@@ -43,3 +44,13 @@ macro_rules! console_log {
 }
 
 pub(crate) use console_log;
+
+pub async fn fetch(url: &str) -> Result<Response> {
+    let req = Request::new_with_str(url)?;
+    let w = get_window();
+    let maybe_rsp = JsFuture::from(w.fetch_with_str(url)).await?;
+
+    assert!(maybe_rsp.is_instance_of::<Response>());
+    let rsp = maybe_rsp.dyn_into::<Response>().unwrap();
+    Ok(rsp)
+}

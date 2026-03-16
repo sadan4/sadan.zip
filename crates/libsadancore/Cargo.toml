@@ -15,6 +15,10 @@ js-sys.workspace = true
 tar.workspace = true
 zstd.workspace = true
 explorer_types.workspace = true
+wasm-bindgen-futures.workspace = true
+thiserror.workspace = true
+const_format.workspace = true
+rmp-serde.workspace = true
 
 [dependencies.web-sys]
 workspace = true
@@ -25,6 +29,8 @@ features = [
     "Window",
     "Element",
     "CssStyleDeclaration",
+    "Request",
+    "Response",
 ]
 
 [lints]
