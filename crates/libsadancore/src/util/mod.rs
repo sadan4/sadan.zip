@@ -1,6 +1,6 @@
 pub mod fut;
 use crate::{
-    err::{BadCast, Result},
+    err::{BadCast, Error, Result},
     util::fut::JsPromiseExt,
 };
 use js_sys::{ArrayBuffer, Uint8Array};
@@ -30,7 +30,13 @@ pub async fn fetch(url: &str) -> Result<Response> {
     let maybe_rsp = JsFuture::from(w.fetch_with_str(url)).await?;
 
     assert!(maybe_rsp.is_instance_of::<Response>());
-    let rsp = maybe_rsp.dyn_into::<Response>().unwrap();
+    let rsp = maybe_rsp.dyn_into::<Response>().map_err(|_| BadCast::Response)?;
+    if !rsp.ok() {
+        return Err(Error::BadRequest {
+            status: rsp.status(),
+            url: url.to_string(),
+        })
+    }
     Ok(rsp)
 }
 
@@ -46,7 +52,7 @@ where
         .dyn_into::<ArrayBuffer>()
         .map_err(|_| BadCast::ArrayBuffer)?;
     let zstd_raw_data = Uint8Array::new(&arr_buf).to_vec();
-    let mpk_raw_data = zstd::decode_all(&*zstd_raw_data)?;
+    let mpk_raw_data = zstd::decode_all(&*zstd_raw_data).map_err(Error::Zstd)?;
     let data  = rmp_serde::from_slice(&mpk_raw_data)?;
     Ok(data)
 }

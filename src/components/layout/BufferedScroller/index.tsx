@@ -2,6 +2,7 @@ import { useComposedRefs } from "@/hooks/composedRefs";
 import { useControlledState } from "@/hooks/controlledState";
 import { getNewestEntry, useIntersection } from "@/hooks/intersection";
 import { useResizeObserverFromRef } from "@/hooks/resizeObserver";
+import { findIndex } from "@/utils/array";
 import cn from "@/utils/cn";
 import { assert, debug_assert } from "@/utils/error";
 import { clamp, inRange, inRangeExclusive } from "@/utils/math";
@@ -17,7 +18,6 @@ export namespace BufferedScroller {
     export interface RenderItemProps<T> {
         item: T;
         index: number;
-        array: readonly T[];
     }
 
     export interface ScrollOptions extends globalThis.ScrollOptions {
@@ -34,7 +34,7 @@ export namespace BufferedScroller {
 
     export interface Handle<T> {
         scrollItemIntoView(idx: number, options?: ScrollOptions): void;
-        scrollItemIntoView(predicate: Parameters<ReadonlyArray<T>["findIndex"]>[0], options?: ScrollOptions): void;
+        scrollItemIntoView(predicate: (item: T, idx: number) => unknown, options?: ScrollOptions): void;
     }
 }
 
@@ -43,7 +43,7 @@ export interface BufferedScrollProps<T> extends ScrollAreaProps {
     renderItem(props: BufferedScroller.RenderItemProps<NoInfer<T>>): ReactNode;
     renderFooter?(): ReactNode;
     alwaysRenderFooter?: boolean;
-    items: Readonly<T[]>;
+    items: Readonly<ArrayLike<T>>;
     /**
      * Number of items to render in each batch. Default is min(floor({@link items}.length / 20), {@link items}.length).
      */
@@ -135,20 +135,25 @@ interface Chunk {
     size: number;
 }
 
-function makeChunks(items: readonly unknown[], batchSize: number, maxChunks: number, firstChunkIdx: number): Chunk[] {
-    if (items.length === 0 || maxChunks === 0 || batchSize === 0) {
+function makeChunks(
+    itemsLength: number,
+    batchSize: number,
+    maxChunks: number,
+    firstChunkIdx: number,
+): Chunk[] {
+    if (itemsLength === 0 || maxChunks === 0 || batchSize === 0) {
         return [];
     }
 
     const chunks: Chunk[] = [];
-    const totalChunks = Math.ceil(items.length / batchSize);
+    const totalChunks = Math.ceil(itemsLength / batchSize);
     const lastChunkIdx = Math.min(totalChunks - 1, firstChunkIdx + maxChunks - 1);
 
     for (let i = firstChunkIdx; i <= lastChunkIdx; i++) {
         chunks.push({
             chunkIdx: i,
             startIdx: i * batchSize,
-            size: Math.min(batchSize, items.length - (i * batchSize)),
+            size: Math.min(batchSize, itemsLength - (i * batchSize)),
         });
     }
 
@@ -182,7 +187,6 @@ export function BufferedScroller<T>({
     });
 
     assert(batchSize === Math.floor(batchSize) && batchSize > 0, "batchSize must be a positive integer");
-    Object.freeze(items);
 
     const scrollAreaRef = useRef<HTMLDivElement>(null);
     const totalChunks = Math.ceil(items.length / batchSize);
@@ -192,8 +196,8 @@ export function BufferedScroller<T>({
     const [numChunks, setNumChunks] = useState(1);
 
     const chunks = useMemo(
-        () => makeChunks(items, batchSize, numChunks, firstChunk),
-        [items, batchSize, numChunks, firstChunk],
+        () => makeChunks(items.length, batchSize, numChunks, firstChunk),
+        [items.length, batchSize, numChunks, firstChunk],
     );
 
     const getNumItemsInChunk = useCallback((chunkIdx: number): number => {
@@ -374,7 +378,7 @@ export function BufferedScroller<T>({
                     return;
                 }
 
-                const idx = typeof arg === "number" ? arg : items.findIndex(arg);
+                const idx = typeof arg === "number" ? arg : findIndex(items, arg);
 
                 debug_assert(idx !== -1, "trying to scroll to item that does not exist");
 
@@ -492,6 +496,18 @@ export function BufferedScroller<T>({
             <>{renderHeader?.()}</>
             <ScrollerPadding height={paddingTop} />
             {chunks.map(({ chunkIdx, startIdx, size }) => {
+                let cur = startIdx;
+                const end = startIdx + size;
+                const renderedItems = [];
+
+                while (cur < end) {
+                    renderedItems.push(renderItem({
+                        item: items[cur],
+                        index: cur,
+                    }));
+                    cur++;
+                }
+
                 return (
                     <ScrollerChunk
                         key={`chunk-${startIdx}`}
@@ -512,17 +528,7 @@ export function BufferedScroller<T>({
                                 setChunkVisibility(chunkIdx, "top", false);
                             }}
                         />
-                        {
-                            items
-                                .slice(startIdx, startIdx + size)
-                                .map((item, i, array) => {
-                                    return renderItem({
-                                        item,
-                                        index: startIdx + i,
-                                        array,
-                                    });
-                                })
-                        }
+                        {renderedItems}
                         <Flag
                             key="chunk-end"
                             onEnter={() => {

@@ -19,7 +19,8 @@ interface ModuleViewerStore {
     readonly _bundle: Bundle | null;
     readonly _moduleModelMap: Map<TModuleId, Monaco.editor.ITextModel>;
     readonly _parserMap: Map<TModuleId, WebpackAstParser>;
-    readonly selectedModule: TModuleId | null;
+    readonly _idList: Uint32Array | null;
+    readonly selectedModule: number | null;
     readonly activePanel: ViewMode;
     readonly moduleSidebarOpen: boolean;
     init(newBuildHash: TBundleHash): Promise<void>;
@@ -29,6 +30,8 @@ interface ModuleViewerStore {
     getModuleModel(moduleId: TModuleId): Monaco.editor.ITextModel;
     getModuleParser(moduleId: TModuleId): WebpackAstParser;
     getDepsForModule(moduleId: TModuleId): ModuleDep;
+    getAllModuleIds(): Uint32Array;
+    hasId(moduleId: number): boolean;
 }
 
 export function getModuleURI(buildHash: TBundleHash, moduleId: TModuleId) {
@@ -46,6 +49,7 @@ const getValueDefaults = (): Fields<ModuleViewerStore> => ({
     _bundle: null,
     _moduleModelMap: new Map(),
     _parserMap: new Map(),
+    _idList: null,
     selectedModule: null,
     activePanel: ViewMode.CODE,
     moduleSidebarOpen: true,
@@ -70,7 +74,9 @@ export const useModuleViewerStore = create<ModuleViewerStore>((set, get) => ({
         }
     },
     reset() {
-        const { _moduleModelMap } = get();
+        const { _moduleModelMap, _bundle } = get();
+
+        _bundle?.free();
 
         for (const [, model] of _moduleModelMap) {
             model.dispose();
@@ -100,7 +106,7 @@ export const useModuleViewerStore = create<ModuleViewerStore>((set, get) => ({
         const { _parserMap, _bundle } = get();
 
         if (!_parserMap.has(moduleId)) {
-            const code = _bundle!.take_module_text(+moduleId);
+            const code = _bundle!.get_module_text(+moduleId);
 
             if (code == null) {
                 throw new Error(`module ${moduleId} not found in bundle`);
@@ -125,6 +131,25 @@ export const useModuleViewerStore = create<ModuleViewerStore>((set, get) => ({
             syncUses: guh.syncUses.map(String),
             lazyUses: guh.lazyUses.map(String),
         };
+    },
+    getAllModuleIds() {
+        const { _idList, _bundle } = get();
+
+        if (_idList == null) {
+            const idList = _bundle!.get_id_list();
+
+            set({
+                _idList: idList,
+            });
+            return idList;
+        }
+
+        return _idList;
+    },
+    hasId(moduleId) {
+        const { _bundle } = get();
+
+        return _bundle!.has_id(moduleId);
     },
 }));
 

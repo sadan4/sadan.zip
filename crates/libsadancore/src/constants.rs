@@ -14,5 +14,5 @@ pub const LIST_BUILDS_ENDPOINT: &str = formatc!("{SERVER_BASE_URL}/builds");
 
 #[expect(non_snake_case)]
 pub fn FULL_BUNDLE_ENDPOINT(build_hash: &str) -> String {
-    format!("{SERVER_BASE_URL}/bundle/{build_hash}/full")
+    format!("{SERVER_BASE_URL}/build/{build_hash}/full")
 }

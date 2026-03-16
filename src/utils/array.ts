@@ -139,3 +139,16 @@ export function chunk<T>(array: T[], size: number): T[][] {
 export function dedupe<T>(array: T[]): T[] {
     return Array.from(new Set(array));
 }
+
+export function findIndex<T, A extends Readonly<ArrayLike<T>>>(
+    array: A,
+    predicate: (item: T, index: number, array: A) => unknown,
+) {
+    for (let i = 0; i < array.length; ++i) {
+        if (predicate(array[i], i, array)) {
+            return i;
+        }
+    }
+
+    return -1;
+}

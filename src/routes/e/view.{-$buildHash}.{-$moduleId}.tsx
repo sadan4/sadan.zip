@@ -2,7 +2,7 @@ import { unavailableImport } from "@/utils/error";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 
-import { TBundleHash, TModuleId } from "../../../server/types";
+import { TBundleHash } from "../../../server/types";
 
 import z from "zod";
 
@@ -11,7 +11,7 @@ const ui = import.meta.env.SSR ? unavailableImport("./-ui") : await import("./-u
 
 const viewBundleParamsSchema = z.object({
     buildHash: TBundleHash.catch("" as TBundleHash),
-    moduleId: TModuleId
+    moduleId: z.coerce.number()
         .nullable()
         .catch(null),
 });
@@ -62,18 +62,14 @@ export const Route = createFileRoute("/e/view/{-$buildHash}/{-$moduleId}")({
             return result;
         },
     },
-    async loader({ params: { buildHash, moduleId } }) {
+    async loader({ params: { buildHash } }) {
         data ||= await import("./-data");
         if (!import.meta.env.SSR) {
             const lsp = await import("./-lsp");
 
-            await lsp.registerLSPHandlers();
+            lsp.registerLSPHandlers();
         }
-        data.ModuleViewerStore.getState().init(buildHash);
-        if (moduleId != null) {
-            // preload code
-            await data.ModuleViewerStore.getState().getModuleCode(moduleId);
-        }
+        await data.ModuleViewerStore.getState().init(buildHash);
     },
     validateSearch: zodValidator(searchParamsSchema),
     ssr: false,

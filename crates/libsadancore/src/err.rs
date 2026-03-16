@@ -8,17 +8,23 @@ pub enum Error {
     BadJsCast(#[from] BadCast),
     #[error("MPK deserialization: {0}")]
     MpkDecode(#[from] rmp_serde::decode::Error),
-    #[error(transparent)]
-    Io(#[from] io::Error),
+    #[error("ZSTD: {0}")]
+    Zstd(io::Error),
+    #[error("HTTP request to {url} failed with code {status}")]
+    BadRequest {
+        status: u16,
+        url: String,
+    },
     #[error("JS Error: {0:?}")]
     Js(JsValue),
-    #[error(transparent)]
+    #[error("WASM Error: {0}")]
     Other(#[from] anyhow::Error),
 }
 
 #[derive(Debug, thiserror::Error)]
 pub enum BadCast {
     ArrayBuffer,
+    Response,
 }
 
 impl Display for BadCast {
@@ -35,7 +41,7 @@ impl From<JsValue> for Error {
 
 impl From<Error> for JsValue {
     fn from(val: Error) -> Self {
-        Self::from_str(&val.to_string())
+        js_sys::Error::new(&val.to_string()).into()
     }
 }
 

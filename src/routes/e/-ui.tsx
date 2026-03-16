@@ -14,19 +14,15 @@ import { Text } from "@/components/Text";
 import { ToggleButtonGroup } from "@/components/ToggleButtonGroup";
 import { TooltipPosition } from "@/components/Tooltip/constants";
 import { type GeneratedGraph, useModuleGraph } from "@/hooks/moduleGraph";
-import { dedupe } from "@/utils/array";
 import cn from "@/utils/cn";
 import { GITHUB_REPO_URL, NBSP } from "@/utils/constants";
-import { sendMessage } from "@/utils/e/socket";
 import { debug_assert } from "@/utils/error";
 import { isNumber } from "@/utils/functional";
 import type { Monaco } from "@/utils/monaco";
 import { visibleIf } from "@/utils/react";
 import { Language } from "@/utils/textmate";
 import { TextmateTheme, themeDisplayNames } from "@/utils/textmate/theme";
-import { useQuery } from "@tanstack/react-query";
 import { createLink } from "@tanstack/react-router";
-import { TAssert } from "@vencord-companion/webpack-ast-parser/util";
 import type { WebpackAstParser } from "@vencord-companion/webpack-ast-parser/WebpackAstParser";
 import { Background, Controls, MiniMap, ReactFlow, ReactFlowProvider } from "@xyflow/react";
 
@@ -61,8 +57,8 @@ import { Activity, type PropsWithChildren, useCallback, useEffect, useMemo, useR
 
 
 interface ModuleListItemProps {
-    moduleId: string;
-    onSelectModule(moduleId: string): void;
+    moduleId: number;
+    onSelectModule(moduleId: number): void;
 }
 
 function ModuleListItem({ moduleId, onSelectModule }: ModuleListItemProps) {
@@ -84,13 +80,12 @@ function ModuleListItem({ moduleId, onSelectModule }: ModuleListItemProps) {
 }
 
 interface ModuleSelectorProps {
-    modules: TModuleId[];
-    onSelectModule: (module: TModuleId) => void;
+    modules: Uint32Array;
+    onSelectModule: (module: number) => void;
 }
 
-
 function ModuleSelector({ modules, onSelectModule }: ModuleSelectorProps) {
-    const scrollerRef = useRef<BufferedScroller.Handle<TModuleId>>(null);
+    const scrollerRef = useRef<BufferedScroller.Handle<number>>(null);
     const selectedModule = useModuleViewerStore(({ selectedModule }) => selectedModule);
 
     useEffect(() => {
@@ -128,44 +123,11 @@ function pendingUri(str: string) {
 
 function ModuleViewer() {
     const moduleId = useModuleViewerStore(({ selectedModule }) => selectedModule);
+    const uri = useModuleViewerStore(({ selectedModule, getModuleModel }) => (selectedModule == null ? pendingUri("// Select a Module") : getModuleModel(`${selectedModule}` as TModuleId).uri));
     const { sl, sc, el, ec } = Route.useSearch();
     const [codeEditor, setCodeEditor] = useState<MonacoCodeEditor.Handle | null>(null);
     const editorTheme = useModuleViewerSettingsStore(({ editorTheme }) => editorTheme);
 
-    const [uri, setUri] = useState(() => {
-        if (moduleId) {
-            return pendingUri("// Loading...");
-        }
-        return pendingUri("// Select a Module");
-    });
-
-    useEffect(() => {
-        if (!moduleId) {
-            setUri(pendingUri("// Select a Module"));
-
-            return;
-        }
-
-        // When a new module is selected, show a loading placeholder immediately.
-        setUri(pendingUri("// Loading..."));
-
-        let cancelled = false;
-
-        !async function () {
-            const { uri } = await ModuleViewerStore.getState().getModuleModel(moduleId);
-
-            // don't race if we are called while this is pending
-            if (cancelled) {
-                return;
-            }
-
-            setUri(uri);
-        }();
-
-        return () => {
-            cancelled = true;
-        };
-    }, [moduleId]);
 
     useEffect(() => {
         if (!codeEditor || !moduleId) {
@@ -237,14 +199,13 @@ function ModuleGraph({ parser }: ModuleGraphProps) {
                     </Text>
                 )}
                 {outgoingModules?.sync.map((moduleId) => {
-                    TAssert<TModuleId>(moduleId);
                     return (
                         <TextLink
                             key={moduleId}
                             to="/e/view/{-$buildHash}/{-$moduleId}"
                             params={{
                                 buildHash,
-                                moduleId,
+                                moduleId: +moduleId,
                             }}
                         >
                             {moduleId}
@@ -288,7 +249,7 @@ function ModuleGraph2({ graph: { nodes, edges } }: ModuleGraph2Props) {
                 nodesConnectable={false}
                 minZoom={0}
                 onNodeClick={(_e, node) => {
-                    const moduleId = node.id;
+                    const moduleId = +node.id;
                     const { selectedModule } = ModuleViewerStore.getState();
 
                     if (moduleId === selectedModule) {
@@ -298,7 +259,7 @@ function ModuleGraph2({ graph: { nodes, edges } }: ModuleGraph2Props) {
                     navigate({
                         to: "/e/view/{-$buildHash}/{-$moduleId}",
                         params: {
-                            moduleId: moduleId as TModuleId,
+                            moduleId,
                         },
                     });
                 }}
@@ -439,7 +400,7 @@ function SettingsModal() {
 export function Explorer() {
     const navigate = Route.useNavigate();
 
-    const setSelectedModule = useCallback((moduleId: TModuleId) => {
+    const setSelectedModule = useCallback((moduleId: number) => {
         navigate({
             to: "/e/view/{-$buildHash}/{-$moduleId}",
             params: {
@@ -452,35 +413,12 @@ export function Explorer() {
     const inputRef = useRef<HTMLInputElement>(null);
     const activePanel = useModuleViewerStore(({ activePanel }) => activePanel);
     const moduleSidebarOpen = useModuleViewerStore(({ moduleSidebarOpen }) => moduleSidebarOpen);
+    const moduleIds = useModuleViewerStore(({ getAllModuleIds }) => getAllModuleIds());
     const settingsModalRef = useRef<ModalContext>(null);
-
-    const { status, data } = useQuery({
-        queryKey: ["getBundleMetadata", { buildHash }],
-        async queryFn() {
-            try {
-                return await sendMessage<"getBundleMetadataResponse">({
-                    type: "getBundleMetadata",
-                    bundleHash: buildHash,
-                });
-            } catch (e) {
-                console.error(e);
-                throw e;
-            }
-        },
-    });
 
     useEffect(() => {
         ModuleViewerStore.setState({ selectedModule: moduleId });
     }, [moduleId]);
-
-    const origModules = status === "success" && data.moduleInfo;
-
-    const moduleIds = useMemo(() => (origModules
-        // webpack will duplicate the same module across multiple chunks, so we need to dedupe them
-        ? dedupe(Object.values(origModules)
-            .flat()
-            .toSorted((a, b) => +a - +b))
-        : []), [origModules]);
 
     return (
         <>
@@ -600,25 +538,26 @@ export function Explorer() {
                                 />
                                 <IconButton
                                     onClick={() => {
-                                        const el: HTMLInputElement | null = inputRef.current;
+                                        const v = inputRef.current?.value;
 
-                                        if (!el) {
+                                        if (!v) {
                                             return false;
                                         }
 
-                                        const { selectedModule } = ModuleViewerStore.getState();
-                                        const inputModuleId = el.value;
+                                        const { selectedModule, hasId } = ModuleViewerStore.getState();
+                                        const inputModuleId = +v;
 
                                         if (selectedModule === inputModuleId) {
                                             return null;
                                         }
-                                        if (!moduleIds.includes(inputModuleId as TModuleId)) {
-                                            return false;
+
+                                        if (hasId(inputModuleId)) {
+                                            setSelectedModule(inputModuleId);
+
+                                            return true;
                                         }
 
-                                        setSelectedModule(inputModuleId as TModuleId);
-
-                                        return true;
+                                        return false;
                                     }}
                                     className="mr-2 ml-4 size-10"
                                     label="Jump To Module"

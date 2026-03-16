@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::HashSet, sync::Arc};
 
 use crate::{
     constants::FULL_BUNDLE_ENDPOINT, err::Result, explorer::meta::Meta, util::fetch_struct,
@@ -25,9 +25,8 @@ struct ModuleDepsJs<'a> {
 
 #[wasm_bindgen]
 impl Bundle {
-    #[wasm_bindgen]
-    pub fn take_module_text(&mut self, module_id: TModuleId) -> Option<String> {
-        self.modules.remove(&module_id)
+    pub fn get_module_text(&self, module_id: TModuleId) -> Option<String> {
+        self.modules.get(&module_id).cloned()
     }
     #[wasm_bindgen(skip_typescript)]
     pub fn get_module_deps(&self, module_id: TModuleId) -> Option<JsValue> {
@@ -38,6 +37,14 @@ impl Bundle {
         };
         let ret = serde_wasm_bindgen::to_value(&tmp).unwrap();
         Some(ret)
+    }
+    pub fn get_id_list(&self) -> Box<[TModuleId]> {
+        let mut ret: Vec<_> = self.modules.keys().copied().collect();
+        ret.sort_unstable();
+        ret.into()
+    }
+    pub fn has_id(&self, module_id: TModuleId) -> bool {
+        self.modules.contains_key(&module_id)
     }
 }
 
