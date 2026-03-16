@@ -10,13 +10,14 @@ use http::{StatusCode, header};
 use tokio::{fs, net};
 use tokio_stream::{StreamExt, wrappers::ReadDirStream};
 use tokio_util::io::ReaderStream;
+use tower_http::cors;
 use tracing::{info, instrument};
 
 use crate::util::{DATA_FILE_NAME, METADATA_FILE_NAME, get_build_path, get_root_build_path};
 
 type Result<T = Response> = std::result::Result<T, AppError>;
 
-const SERVER_ADDR: &str = "0.0.0.0:8080";
+const SERVER_ADDR: &str = "0.0.0.0:8484";
 const ZSTD_MIME_TYPE: &str = "application/zstd";
 const ZSTD_HEADERS: [(header::HeaderName, &str); 1] = [(header::CONTENT_TYPE, ZSTD_MIME_TYPE)];
 const MSGPACK_MIME_TYPE: &str = "application/vnd.msgpack";
@@ -118,7 +119,8 @@ pub async fn serve() -> anyhow::Result<()> {
     let app = Router::new()
         .route("/build/{id}/metadata", get(get_build_metadata))
         .route("/build/{id}/full", get(get_build_full))
-        .route("/builds", get(get_all_builds));
+        .route("/builds", get(get_all_builds))
+        .layer(cors::CorsLayer::new().allow_origin(cors::Any));
     let listener = net::TcpListener::bind(SERVER_ADDR).await?;
     info!("Server listening on http://{}", SERVER_ADDR);
     axum::serve(listener, app).await?;

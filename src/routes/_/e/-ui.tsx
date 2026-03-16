@@ -5,16 +5,16 @@ import { TextLink } from "@/components/Links";
 import { Text } from "@/components/Text";
 import { Tooltip } from "@/components/Tooltip";
 import { EM_DASH } from "@/utils/constants";
-import { sendMessage } from "@/utils/e/socket";
+import { get_builds, Meta } from "@sadan4/libsadancore";
 import { useQuery } from "@tanstack/react-query";
 
-import type { BundleInfo } from "../../../../server/types";
+import type { TBundleHash } from "../../../../server/types";
 
 import { ExternalLinkIcon } from "lucide-react";
 import { useMemo } from "react";
 
 interface BundleItemProps {
-    bundle: BundleInfo;
+    bundleMeta: Meta;
 }
 
 const SEPARATOR = (
@@ -25,16 +25,16 @@ const SEPARATOR = (
     </Text>
 );
 
-function BundleItem({ bundle }: BundleItemProps) {
+function BundleItem({ bundleMeta }: BundleItemProps) {
     return (
         <li className="flex justify-between">
             <div>
                 <Text tag="span">
-                    Build Number {EM_DASH} {bundle.buildNumber}
+                    Build Number {EM_DASH} {bundleMeta.build_number}
                 </Text>
                 {SEPARATOR}
                 <Tooltip
-                    text={bundle.buildHash}
+                    text={bundleMeta.build_hash}
                 >
                     <Text
                         tag="span"
@@ -45,14 +45,14 @@ function BundleItem({ bundle }: BundleItemProps) {
                 </Tooltip>
                 {SEPARATOR}
                 <Text tag="span">
-                    First Seen {EM_DASH} {new Date(bundle.firstSeen).toLocaleString()}
+                    First Seen {EM_DASH} {new Date(Number(bundleMeta.first_seen)).toLocaleString()}
                 </Text>
             </div>
             <div>
                 <TextLink
                     to="/e/view/{-$buildHash}/{-$moduleId}"
                     params={{
-                        buildHash: bundle.buildHash,
+                        buildHash: bundleMeta.build_hash as TBundleHash,
                         moduleId: null,
                     }}
                     color="primary"
@@ -67,15 +67,12 @@ function BundleItem({ bundle }: BundleItemProps) {
 export function BundleSelector() {
     const { status, data } = useQuery({
         queryKey: ["getAvailableBundles"],
-        async queryFn() {
-            return await sendMessage<"queryBundlesResponse">({
-                type: "queryBundles",
-            });
+        queryFn() {
+            return get_builds();
         },
     });
 
-    const bundles = data?.bundles;
-    const sortedBundles = useMemo(() => bundles?.toSorted((a, b) => b.firstSeen - a.firstSeen), [bundles]);
+    const sortedBundles = useMemo(() => data?.toSorted(Meta.sort_newest_first), [data]);
 
     return (
         <>
@@ -122,11 +119,11 @@ export function BundleSelector() {
                                     This is an error. Please report this.
                                 </Text>
                             )}
-                            {sortedBundles!.map((bundle) => {
+                            {sortedBundles!.map((bundleMeta) => {
                                 return (
                                     <BundleItem
-                                        key={bundle.buildHash}
-                                        bundle={bundle}
+                                        key={bundleMeta.build_hash}
+                                        bundleMeta={bundleMeta}
                                     />
                                 );
                             })}

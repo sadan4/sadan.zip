@@ -35,6 +35,10 @@ pub struct DepInfo {
     pub module_deps: HashMap<TModuleId, ModuleDeps>,
 }
 
+pub type ModuleSources = HashMap<String, Vec<TModuleId>>;
+
+pub type Modules = HashMap<TModuleId, String>;
+
 #[derive(Serialize, Deserialize)]
 pub struct FullBundle {
     pub metadata: BundleMetadata,

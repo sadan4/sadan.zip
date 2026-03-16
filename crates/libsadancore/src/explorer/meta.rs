@@ -1,43 +1,51 @@
+use explorer_types::{BuildList, BundleMetadata, TModuleId};
+use js_sys::{ArrayBuffer, Uint8Array};
+use wasm_bindgen::{JsCast as _, prelude::wasm_bindgen};
+
 use crate::{
     constants::LIST_BUILDS_ENDPOINT,
-    err::Result,
-    util::{fetch, fut::JsPromiseExt},
+    err::{BadCast, Result},
+    util::{fetch, fut::JsPromiseExt as _},
 };
-use explorer_types::{BuildList, BundleMetadata, FullBundle, TModuleId};
-use js_sys::{ArrayBuffer, Uint8Array};
-use wasm_bindgen::{JsCast as _, JsValue, prelude::wasm_bindgen};
 
 #[wasm_bindgen]
-pub struct Bundle {
-    d: FullBundle,
+pub struct Meta (BundleMetadata);
+
+impl From<BundleMetadata> for Meta {
+    fn from(value: BundleMetadata) -> Self {
+        Self(value)
+    }
 }
 
 #[wasm_bindgen]
-pub struct Meta {
-    d: BundleMetadata,
-}
-
-#[wasm_bindgen]
+#[expect(
+    clippy::missing_const_for_fn,
+    reason = "wasm bindgen does not support const fn"
+)]
 impl Meta {
     #[wasm_bindgen(getter)]
     pub fn build_hash(&self) -> String {
-        self.d.build_hash.clone()
+        self.0.build_hash.clone()
     }
     #[wasm_bindgen(getter)]
     pub fn build_number(&self) -> u32 {
-        self.d.build_number
+        self.0.build_number
     }
     #[wasm_bindgen(getter)]
     pub fn first_seen(&self) -> u64 {
-        self.d.first_seen
+        self.0.first_seen
     }
     #[wasm_bindgen(getter)]
     pub fn entry_point(&self) -> Option<TModuleId> {
-        self.d.entry_point
+        self.0.entry_point
     }
     #[wasm_bindgen(getter)]
     pub fn env_var_text(&self) -> String {
-        self.d.env_var_text.clone()
+        self.0.env_var_text.clone()
+    }
+    #[wasm_bindgen]
+    pub fn sort_newest_first(a: &Self, b: &Self) -> i8 {
+        a.0.first_seen.cmp(&b.0.first_seen) as i8
     }
 }
 
@@ -50,8 +58,9 @@ pub async fn get_builds() -> Result<Box<[Meta]>> {
         .array_buffer()?
         .fut()
         .await?
-        .dyn_into::<ArrayBuffer>()?;
-    // this request is NOT zstd compressed as of now, it is just raw messagepack data
+        .dyn_into::<ArrayBuffer>()
+        .map_err(|_| BadCast::ArrayBuffer)?;
+    // this request is NOT zstd compressed as of now, it is just raw MessagePack data
     let mpk_data_buf = Uint8Array::new(&arr_buf).to_vec();
     let data: BuildList = rmp_serde::from_slice(&mpk_data_buf)?;
     data.builds
@@ -59,11 +68,7 @@ pub async fn get_builds() -> Result<Box<[Meta]>> {
         .map(|zstd_raw_meta| -> Result<_> {
             let mpk_raw_meta = zstd::decode_all(&*zstd_raw_meta)?;
             let d = rmp_serde::from_slice(&mpk_raw_meta)?;
-            Ok(Meta { d })
+            Ok(Meta(d))
         })
         .collect()
 }
-
-// zstd mpk data
-// impl TryFrom<Box<[u8]>> for Meta {
-// }

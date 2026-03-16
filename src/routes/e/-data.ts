@@ -1,14 +1,13 @@
-import { sendMessage } from "@/utils/e/socket";
-import { assert } from "@/utils/error";
+import { todo } from "@/utils/error";
 import { makeLazy } from "@/utils/lazy";
 import { type Monaco, monaco } from "@/utils/monaco";
-import { defer } from "@/utils/scope";
 import { TextmateTheme } from "@/utils/textmate/theme";
-import type { Fields, Thenable } from "@/utils/types";
-import { deserialize } from "@sadan4/libsadancore";
+import type { Fields } from "@/utils/types";
+import { type Bundle, get_bundle } from "@sadan4/libsadancore";
+import type { ModuleDep } from "@vencord-companion/webpack-ast-parser/types";
 import { WebpackAstParser } from "@vencord-companion/webpack-ast-parser/WebpackAstParser";
 
-import type { DepsJson, TBundleHash, TModuleId } from "../../../server/types";
+import type { TBundleHash, TModuleId } from "../../../server/types";
 
 import "core-js/proposals/array-buffer-base64";
 import z from "zod";
@@ -17,36 +16,19 @@ import { persist } from "zustand/middleware";
 
 interface ModuleViewerStore {
     readonly buildHash: TBundleHash;
-    /**
-     * moduleId -> code
-     * 
-     * the code is unformatted
-     */
-    readonly moduleCodeMap: Map<TModuleId, string>;
-    readonly moduleModelMap: Map<TModuleId, Monaco.editor.ITextModel>;
-    readonly _pendingModels: Map<TModuleId, Promise<Monaco.editor.ITextModel>>;
-    readonly parserMap: Map<TModuleId, WebpackAstParser>;
-    readonly _pendingParsers: Map<TModuleId, Promise<WebpackAstParser>>;
+    readonly _bundle: Bundle | null;
+    readonly _moduleModelMap: Map<TModuleId, Monaco.editor.ITextModel>;
+    readonly _parserMap: Map<TModuleId, WebpackAstParser>;
     readonly selectedModule: TModuleId | null;
-    readonly allModuleIds: TModuleId[];
     readonly activePanel: ViewMode;
     readonly moduleSidebarOpen: boolean;
-    readonly _abort: AbortController;
-    readonly _pendingDepsGraph: Promise<DepsJson> | null;
-    readonly _depsGraph: DepsJson | null;
-    init(newBuildHash: TBundleHash): void;
+    init(newBuildHash: TBundleHash): Promise<void>;
     reset(): void;
     updateActivePanel(panel: ViewMode): void;
     updateModuleSidebarOpen(open: boolean): void;
-    /**
-     * the code is unformatted
-     */
-    getModuleCode(moduleId: TModuleId): Promise<string>;
-    getModuleModelSync(moduleId: TModuleId): Monaco.editor.ITextModel;
-    getModuleModel(moduleId: TModuleId): Promise<Monaco.editor.ITextModel>;
-    getModuleParserSync(moduleId: TModuleId): WebpackAstParser;
-    getModuleParser(moduleId: TModuleId): Promise<WebpackAstParser>;
-    getDepsGraph(): Thenable<DepsJson>;
+    getModuleModel(moduleId: TModuleId): Monaco.editor.ITextModel;
+    getModuleParser(moduleId: TModuleId): WebpackAstParser;
+    getDepsForModule(moduleId: TModuleId): ModuleDep;
 }
 
 export function getModuleURI(buildHash: TBundleHash, moduleId: TModuleId) {
@@ -61,23 +43,17 @@ export const enum ViewMode {
 
 const getValueDefaults = (): Fields<ModuleViewerStore> => ({
     buildHash: "" as TBundleHash,
-    moduleCodeMap: new Map(),
-    moduleModelMap: new Map(),
-    _pendingModels: new Map(),
-    parserMap: new Map(),
-    _pendingParsers: new Map(),
+    _bundle: null,
+    _moduleModelMap: new Map(),
+    _parserMap: new Map(),
     selectedModule: null,
-    allModuleIds: [],
     activePanel: ViewMode.CODE,
     moduleSidebarOpen: true,
-    _abort: new AbortController(),
-    _pendingDepsGraph: null,
-    _depsGraph: null,
 });
 
 export const useModuleViewerStore = create<ModuleViewerStore>((set, get) => ({
     ...getValueDefaults(),
-    init(newBuildHash) {
+    async init(newBuildHash) {
         const { buildHash, reset } = get();
 
         if (newBuildHash !== buildHash) {
@@ -85,18 +61,20 @@ export const useModuleViewerStore = create<ModuleViewerStore>((set, get) => ({
             set({
                 buildHash: newBuildHash,
             });
+
+            const newBundle = await get_bundle(newBuildHash, true);
+
+            set({
+                _bundle: newBundle,
+            });
         }
     },
     reset() {
-        const { moduleModelMap, _abort } = get();
+        const { _moduleModelMap } = get();
 
-        _abort.signal.throwIfAborted();
-
-        for (const [, model] of moduleModelMap) {
+        for (const [, model] of _moduleModelMap) {
             model.dispose();
         }
-
-        _abort.abort();
 
         set(getValueDefaults());
     },
@@ -106,139 +84,47 @@ export const useModuleViewerStore = create<ModuleViewerStore>((set, get) => ({
     updateModuleSidebarOpen(moduleSidebarOpen: boolean) {
         set({ moduleSidebarOpen });
     },
-    async getModuleCode(moduleId) {
-        const { moduleCodeMap, buildHash } = get();
+    getModuleModel(moduleId) {
+        const { _moduleModelMap, getModuleParser, buildHash } = get();
 
-        if (moduleCodeMap.has(moduleId)) {
-            return moduleCodeMap.get(moduleId)!;
-        }
-
-        const { fileText } = await sendMessage<"getBundleFileResponse">({
-            type: "getBundleFile",
-            bundleHash: buildHash,
-            moduleNumber: moduleId,
-        });
-
-        moduleCodeMap.set(moduleId, fileText);
-
-        return fileText;
-    },
-    getModuleModelSync(moduleId) {
-        const { getModuleParserSync, moduleModelMap, buildHash } = get();
-
-        if (moduleModelMap.has(moduleId)) {
-            return moduleModelMap.get(moduleId)!;
-        }
-
-        const { text } = getModuleParserSync(moduleId);
-        const uri = getModuleURI(buildHash, moduleId);
-        const model = monaco.editor.createModel(text, "javascript", uri);
-
-        moduleModelMap.set(moduleId, model);
-
-        return model;
-    },
-    async getModuleModel(moduleId) {
-        const { getModuleParser, moduleModelMap, buildHash, _pendingModels, _abort } = get();
-
-        if (moduleModelMap.has(moduleId)) {
-            return moduleModelMap.get(moduleId)!;
-        }
-
-        if (_pendingModels.has(moduleId)) {
-            return _pendingModels.get(moduleId)!;
-        }
-
-        const promise = (async () => {
-            using _ = defer(() => {
-                _pendingModels.delete(moduleId);
-            });
-
-            const code = (await getModuleParser(moduleId)).text;
+        if (!_moduleModelMap.has(moduleId)) {
+            const { text } = getModuleParser(moduleId);
             const uri = getModuleURI(buildHash, moduleId);
+            const model = monaco.editor.createModel(text, "javascript", uri);
 
-            _abort.signal.throwIfAborted();
-
-            const model = monaco.editor.createModel(code, "javascript", uri);
-
-            moduleModelMap.set(moduleId, model);
-
-            return model;
-        })();
-
-        _pendingModels.set(moduleId, promise);
-
-        return promise;
+            _moduleModelMap.set(moduleId, model);
+        }
+        return _moduleModelMap.get(moduleId)!;
     },
-    getModuleParserSync(moduleId) {
-        const { parserMap, moduleCodeMap } = get();
+    getModuleParser(moduleId) {
+        const { _parserMap, _bundle } = get();
 
-        if (parserMap.has(moduleId)) {
-            return parserMap.get(moduleId)!;
-        }
+        if (!_parserMap.has(moduleId)) {
+            const code = _bundle!.take_module_text(+moduleId);
 
-        assert(moduleCodeMap.has(moduleId), "no code to make the parser from");
-
-        const code = moduleCodeMap.get(moduleId)!;
-        const parser = WebpackAstParser.withFormattedModule(code, moduleId);
-
-        parserMap.set(moduleId, parser);
-
-        return parser;
-    },
-    async getModuleParser(moduleId) {
-        const { parserMap, getModuleCode, _pendingParsers, _abort } = get();
-
-        if (parserMap.has(moduleId)) {
-            return parserMap.get(moduleId)!;
-        }
-
-        if (_pendingParsers.has(moduleId)) {
-            return _pendingParsers.get(moduleId)!;
-        }
-
-        const promise = (async () => {
-            using _ = defer(() => {
-                _pendingParsers.delete(moduleId);
-            });
-
-            const code = await getModuleCode(moduleId);
-
-            _abort.signal.throwIfAborted();
+            if (code == null) {
+                throw new Error(`module ${moduleId} not found in bundle`);
+            }
 
             const parser = WebpackAstParser.withFormattedModule(code, moduleId);
 
-            parserMap.set(moduleId, parser);
+            _parserMap.set(moduleId, parser);
+        }
 
-            return parser;
-        })();
-
-        _pendingParsers.set(moduleId, promise);
-
-        return promise;
+        return _parserMap.get(moduleId)!;
     },
-    getDepsGraph(): Thenable<DepsJson> {
-        const { _depsGraph, buildHash, _pendingDepsGraph } = get();
+    getDepsForModule(moduleId) {
+        const { _bundle } = get();
 
-        if (_depsGraph) {
-            return _depsGraph;
-        }
+        const guh = _bundle!.get_module_deps(+moduleId) ?? {
+            syncUses: [],
+            lazyUses: [],
+        };
 
-        if (_pendingDepsGraph) {
-            return _pendingDepsGraph;
-        }
-
-        const p = sendMessage<"getBundleDepGraphResponse">({
-            type: "getBundleDepGraph",
-            bundleHash: buildHash,
-        }).then(({ depGraph }) => {
-            set({ _depsGraph: depGraph });
-            return depGraph;
-        });
-
-        set({ _pendingDepsGraph: p });
-
-        return p;
+        return {
+            syncUses: guh.syncUses.map(String),
+            lazyUses: guh.lazyUses.map(String),
+        };
     },
 }));
 
@@ -312,15 +198,7 @@ export const useModuleViewerSettingsStore = create<IModuleViewerSettings>()(pers
 
 export async function downloadBundle(bundleHash: TBundleHash): Promise<boolean> {
     try {
-        const res = await sendMessage<"getBundleArchiveResponse">({
-            type: "getBundleArchive",
-            bundleHash,
-        });
-
-        // @ts-ignore we include it via core-js, typescript only added it in 6.0
-        const buf = Uint8Array.fromBase64(res.b64);
-
-        deserialize(buf);
+        todo();
     } catch (e) {
         // FIXME: better error handling
         console.error(`Failed to download bundle: ${e instanceof Error ? e.message : String(e)}`);

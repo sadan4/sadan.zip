@@ -5,6 +5,7 @@ resolver = "3"
 
 [workspace.dependencies]
 wasm-bindgen = "0.2.113"
+serde-wasm-bindgen = "0.6.5"
 anyhow = "1.0.102"
 serde = { version = "1.0.228", features = ["derive"] }
 console_error_panic_hook = "0.1.7"
@@ -37,6 +38,8 @@ http = "1.4.0"
 wasm-bindgen-futures = "0.4.64"
 thiserror = "2.0.18"
 const_format = { version = "0.2.35", features = ["fmt"] }
+tower-http = { version = "0.6.8", features = ["cors"] }
+tsify = { version = "0.5.6", features = ["js"] }
 
 
 [profile.release]

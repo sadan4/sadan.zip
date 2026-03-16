@@ -19,6 +19,8 @@ wasm-bindgen-futures.workspace = true
 thiserror.workspace = true
 const_format.workspace = true
 rmp-serde.workspace = true
+serde.workspace = true
+serde-wasm-bindgen.workspace = true
 
 [dependencies.web-sys]
 workspace = true

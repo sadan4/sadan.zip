@@ -1,5 +1,4 @@
 import { getRouter } from "@/router";
-import { unreachable } from "@/utils/error";
 import { once } from "@/utils/functional";
 import { type Monaco, monaco } from "@/utils/monaco";
 import { entries, mapValues } from "@/utils/obj";
@@ -9,36 +8,25 @@ import { WebpackExportHover } from "./ast/webpack/hover/ExportHover";
 import { WebpackI18nHover } from "./ast/webpack/hover/I18nHover";
 import { WebpackDefinitionProvider } from "./ast/webpack/lsp/DefinitionProvider";
 import { WebpackReferenceProvider } from "./ast/webpack/lsp/ReferenceProvider";
-import type { DepsJson, TModuleId } from "../../../../server/types";
+import type { TModuleId } from "../../../../server/types";
 import { getModuleURI, ModuleViewerSettingsStore, ModuleViewerStore, parseModuleURI } from "../-data";
 
-async function _register() {
-    let { buildHash, getDepsGraph } = ModuleViewerStore.getState();
-    let depGraph: DepsJson | null = buildHash ? await getDepsGraph() : null;
-
-    ModuleViewerStore.subscribe(async (state, _prevState) => {
-        if (state.buildHash !== buildHash) {
-            buildHash = state.buildHash;
-            depGraph = await ModuleViewerStore.getState().getDepsGraph();
-        }
-    });
+function _register() {
+    const { getDepsForModule } = ModuleViewerStore.getState();
 
     WebpackAstParser.setDefaultModuleDepManager({
         getModDeps(moduleId) {
-            if (!depGraph) {
-                unreachable();
-            }
-            return depGraph.deps[moduleId as TModuleId];
+            return getDepsForModule(moduleId as TModuleId);
         },
     });
 
     WebpackAstParser.setDefaultModuleCache({
         getModuleFilepath(id) {
             // FIXME: ensure this model is available when monaco loads it
-            return getModuleURI(buildHash, id as TModuleId).toString();
+            return getModuleURI(ModuleViewerStore.getState().buildHash, id as TModuleId).toString();
         },
         getModuleParser(_requestor, id, _latest) {
-            return ModuleViewerStore.getState().getModuleParser(id as TModuleId);
+            return Promise.resolve(ModuleViewerStore.getState().getModuleParser(id as TModuleId));
         },
     });
 

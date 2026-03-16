@@ -1,17 +1,30 @@
-use std::io;
+use std::{fmt::Display, io};
 
 use wasm_bindgen::JsValue;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
+    #[error("Failed to cast JsValue to {0}")]
+    BadJsCast(#[from] BadCast),
     #[error("MPK deserialization: {0}")]
-    MpkDecodeError(#[from] rmp_serde::decode::Error),
+    MpkDecode(#[from] rmp_serde::decode::Error),
     #[error(transparent)]
     Io(#[from] io::Error),
     #[error("JS Error: {0:?}")]
     Js(JsValue),
     #[error(transparent)]
     Other(#[from] anyhow::Error),
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum BadCast {
+    ArrayBuffer,
+}
+
+impl Display for BadCast {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{self:?}")
+    }
 }
 
 impl From<JsValue> for Error {

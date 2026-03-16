@@ -2,7 +2,7 @@ use js_sys::Promise;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::JsFuture;
 
-pub(crate) trait JsPromiseExt<T> {
+pub trait JsPromiseExt<T> {
     fn fut(self) -> JsFuture<T>;
 }
 
