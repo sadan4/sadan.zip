@@ -16,8 +16,9 @@ pub struct BundleMetadata {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub enum ExportName {
-    Named(String),
     Default,
+    #[serde(untagged)]
+    Named(String),
 }
 
 #[derive(Serialize, Deserialize, Debug)]

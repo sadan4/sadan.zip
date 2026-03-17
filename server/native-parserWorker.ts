@@ -248,6 +248,7 @@ async function processBuild(data: ParserWorkerData) {
         moduleMap.delete(id); // free as we go
     }
 
+    pBuild.depInfo = pDepInfo;
     pBuild.write();
 
     console.log(`Finished processing build ${data.buildHash}`);
