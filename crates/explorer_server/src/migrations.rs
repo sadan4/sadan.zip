@@ -5,7 +5,7 @@ use explorer_types::{BundleMetadata, DepInfo, ExportName, FullBundle, KeyModules
 use serde::Deserialize;
 use tracing::{Level, error, info, instrument, span};
 
-use crate::util::{
+use explorer_server_core::{
     DATA_FILE_NAME, build_has_data, get_root_build_path, get_version_file_path, write_full_bundle,
 };
 
@@ -248,6 +248,10 @@ impl Migration for V3Migration {
 }
 
 #[instrument]
+#[expect(
+    clippy::cognitive_complexity,
+    reason = "https://github.com/rust-lang/rust-clippy/issues/14417"
+)]
 pub fn migrate_if_needed() -> Result<()> {
     let mut cur = Versions::get_current()?;
     while let Some(next) = cur.next() {

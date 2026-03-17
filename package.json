@@ -13,7 +13,7 @@
     "build:storybook": "storybook build",
     "prebuild:vite": "pnpm build:wasm",
     "build:vite": "vite build",
-    "build:server": "napi build -p explorer_server -o server/native && rollup -c server/rollup.config.ts",
+    "build:server": "cargo build -p explorer_server",
     "prestart:server": "pnpm build:server",
     "start:server": "node --max-old-space-size=4096 dist.server/index-native.js",
     "postbuild:vite": "node scripts/minifySsr.ts",
@@ -27,8 +27,7 @@
     "lint": "conc pnpm:lint:types pnpm:lint:css pnpm:lint:js",
     "storybook": "storybook dev -p 6006",
     "deploy": "wrangler deploy",
-    "typegen": "wrangler types",
-    "postinstall": "pnpm build:wasm"
+    "typegen": "wrangler types && pnpm build:wasm"
   },
   "dependencies": {
     "@react-spring/shared": "^10.0.3",

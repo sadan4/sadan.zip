@@ -2,6 +2,7 @@
 package.edition = "2024"
 members = ["crates/*"]
 resolver = "3"
+default-members = ["crates/explorer_server"]
 
 [workspace.dependencies]
 wasm-bindgen = "0.2.113"
@@ -15,15 +16,13 @@ zstd = "0.13.3"
 tar = "0.4.44"
 napi = { version = "3.8.2", default-features = false, features = [
     "napi9",
-    "async",
-    "tokio_full",
     "anyhow",
     "tracing",
-    "serde-json",
 ] }
 napi-derive = "3.5.1"
 napi-build = "2.3.1"
 explorer_types = { path = "crates/explorer_types" }
+explorer_server_core = { path = "crates/explorer_server_core" }
 tokio = "1.49.0"
 reqwest = "0.13.2"
 tracing = "0.1.44"

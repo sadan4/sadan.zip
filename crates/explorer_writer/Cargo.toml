@@ -1,15 +1,16 @@
 [package]
-name = "explorer_server"
+name = "explorer_writer"
 version = "0.1.0"
 edition.workspace = true
 
+[lib]
+crate-type = ["cdylib"]
+
 [dependencies]
+napi.workspace = true
+napi-derive.workspace = true
 explorer_types.workspace = true 
 explorer_server_core.workspace = true
-tokio = { workspace = true, features = ["full"] }
-tokio-stream.workspace = true
-tokio-util.workspace = true
-reqwest.workspace = true
 anyhow.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
@@ -18,13 +19,9 @@ serde.workspace = true
 serde_json.workspace = true
 async-trait.workspace = true
 zstd.workspace = true
-axum.workspace = true
-http.workspace = true
-tower-http.workspace = true
-tar.workspace = true
 
 [build-dependencies]
-anyhow.workspace = true
+napi-build.workspace = true
 
 [lints]
 workspace = true

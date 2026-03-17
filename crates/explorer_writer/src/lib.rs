@@ -1,11 +1,14 @@
+#![allow(
+    clippy::missing_const_for_fn,
+    reason = "napi does not support const fns"
+)]
 use std::{collections::HashMap, mem};
 
+use explorer_server_core::write_full_bundle;
 use explorer_types::{
     BundleMetadata, DepInfo, ExportName, FullBundle, KeyModules, ModuleDeps, TModuleId,
 };
 use napi_derive::napi;
-
-use crate::util;
 
 #[napi]
 #[derive(Default, Debug, Clone)]
@@ -89,7 +92,7 @@ impl From<ProcessingExportName> for ExportName {
 
 #[derive(Default, Debug, Clone)]
 #[napi]
-struct ProcessingKeyModules {
+pub struct ProcessingKeyModules {
     flux_dispatcher_class: Vec<(TModuleId, ProcessingExportName)>,
 }
 
@@ -122,7 +125,7 @@ impl From<ProcessingKeyModules> for KeyModules {
 }
 #[napi]
 #[derive(Default, Debug, Clone)]
-struct ProcessingDepInfo {
+pub struct ProcessingDepInfo {
     key_modules: ProcessingKeyModules,
     module_deps: HashMap<TModuleId, ModuleDeps>,
 }
@@ -156,21 +159,22 @@ impl ProcessingDepInfo {
 }
 
 impl From<ProcessingDepInfo> for DepInfo {
-    fn from(value: ProcessingDepInfo) -> Self {
+    fn from(
+        ProcessingDepInfo {
+            key_modules,
+            module_deps,
+        }: ProcessingDepInfo,
+    ) -> Self {
         Self {
-            key_modules: value.key_modules.into(),
-            module_deps: value
-                .module_deps
-                .into_iter()
-                .map(|(id, deps)| (id, deps.into()))
-                .collect(),
+            key_modules: key_modules.into(),
+            module_deps,
         }
     }
 }
 
 #[derive(Debug, Default, Clone)]
 #[napi]
-struct ProcessingBuild {
+pub struct ProcessingBuild {
     metadata: ProcessingMetadata,
     dep_info: ProcessingDepInfo,
     module_sources: HashMap<String, Vec<TModuleId>>,
@@ -202,7 +206,7 @@ impl ProcessingBuild {
     #[napi]
     pub fn write(&mut self) -> napi::Result<()> {
         let bundle = mem::take(self).into();
-        util::write_full_bundle(&bundle).map_err(|e| napi::Error::from_reason(e.to_string()))?;
+        write_full_bundle(&bundle).map_err(|e| napi::Error::from_reason(e.to_string()))?;
         Ok(())
     }
 }
@@ -223,4 +227,9 @@ impl From<ProcessingBuild> for FullBundle {
             modules,
         }
     }
+}
+
+#[napi_derive::module_init]
+fn init() {
+    tracing_subscriber::fmt().init();
 }

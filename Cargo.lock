@@ -336,11 +336,9 @@ dependencies = [
  "anyhow",
  "async-trait",
  "axum",
+ "explorer_server_core",
  "explorer_types",
  "http",
- "napi",
- "napi-build",
- "napi-derive",
  "reqwest",
  "rmp-serde",
  "serde",
@@ -356,10 +354,39 @@ dependencies = [
 ]
 
 [[package]]
+name = "explorer_server_core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "explorer_types",
+ "rmp-serde",
+ "zstd",
+]
+
+[[package]]
 name = "explorer_types"
 version = "0.1.0"
 dependencies = [
  "serde",
+]
+
+[[package]]
+name = "explorer_writer"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "explorer_server_core",
+ "explorer_types",
+ "napi",
+ "napi-build",
+ "napi-derive",
+ "rmp-serde",
+ "serde",
+ "serde_json",
+ "tracing",
+ "tracing-subscriber",
+ "zstd",
 ]
 
 [[package]]
@@ -976,9 +1003,6 @@ dependencies = [
  "napi-sys",
  "nohash-hasher",
  "rustc-hash",
- "serde",
- "serde_json",
- "tokio",
  "tracing",
 ]
 
