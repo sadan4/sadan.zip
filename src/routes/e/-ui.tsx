@@ -13,9 +13,8 @@ import { LabeledSwitch } from "@/components/Switch/index";
 import { Text } from "@/components/Text";
 import { ToggleButtonGroup } from "@/components/ToggleButtonGroup";
 import { TooltipPosition } from "@/components/Tooltip/constants";
-import { type GeneratedGraph, useModuleGraph } from "@/hooks/moduleGraph";
 import cn from "@/utils/cn";
-import { GITHUB_REPO_URL, NBSP } from "@/utils/constants";
+import { EXPLORER_BUILD_DOWNLOAD_FILENAME, EXPLORER_BUILD_DOWNLOAD_URL, GITHUB_REPO_URL, NBSP } from "@/utils/constants";
 import { debug_assert } from "@/utils/error";
 import { isNumber } from "@/utils/functional";
 import type { Monaco } from "@/utils/monaco";
@@ -24,10 +23,9 @@ import { Language } from "@/utils/textmate";
 import { TextmateTheme, themeDisplayNames } from "@/utils/textmate/theme";
 import { createLink } from "@tanstack/react-router";
 import type { WebpackAstParser } from "@vencord-companion/webpack-ast-parser/WebpackAstParser";
-import { Background, Controls, MiniMap, ReactFlow, ReactFlowProvider } from "@xyflow/react";
+import { ReactFlow } from "@xyflow/react";
 
 import {
-    downloadBundle,
     ModuleViewerSettingsStore,
     ModuleViewerStore,
     placeholderModel,
@@ -52,8 +50,9 @@ import {
     SettingsIcon,
     TriangleAlertIcon,
     Undo2Icon,
+    XIcon,
 } from "lucide-react";
-import { Activity, type PropsWithChildren, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Activity, type PropsWithChildren, use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 
 interface ModuleListItemProps {
@@ -231,74 +230,94 @@ function ModuleGraph({ parser }: ModuleGraphProps) {
     );
 }
 
-interface ModuleGraph2Props {
-    graph: GeneratedGraph;
-}
+// interface ModuleGraph2Props {
+//     graph: GeneratedGraph;
+// }
+//
+// function ModuleGraph2({ graph: { nodes, edges } }: ModuleGraph2Props) {
+//     const navigate = Route.useNavigate();
 
-function ModuleGraph2({ graph: { nodes, edges } }: ModuleGraph2Props) {
-    const navigate = Route.useNavigate();
+//     return (
+//         <div className="size-full bg-black">
+//             <ReactFlow
+//                 nodes={nodes}
+//                 edges={edges}
+//                 colorMode="dark"
+//                 nodesDraggable
+//                 onlyRenderVisibleElements
+//                 nodesConnectable={false}
+//                 minZoom={0}
+//                 onNodeClick={(_e, node) => {
+//                     const moduleId = +node.id;
+//                     const { selectedModule } = ModuleViewerStore.getState();
 
+//                     if (moduleId === selectedModule) {
+//                         return;
+//                     }
+
+//                     navigate({
+//                         to: "/e/view/{-$buildHash}/{-$moduleId}",
+//                         params: {
+//                             moduleId,
+//                         },
+//                     });
+//                 }}
+//             >
+//                 <Controls />
+//                 <Background />
+//                 <MiniMap
+//                     pannable
+//                     zoomable
+//                 />
+//             </ReactFlow>
+//         </div>
+//     );
+// }
+
+function ModuleGraphTodo() {
     return (
-        <div className="size-full bg-black">
-            <ReactFlow
-                nodes={nodes}
-                edges={edges}
-                colorMode="dark"
-                nodesDraggable
-                onlyRenderVisibleElements
-                nodesConnectable={false}
-                minZoom={0}
-                onNodeClick={(_e, node) => {
-                    const moduleId = +node.id;
-                    const { selectedModule } = ModuleViewerStore.getState();
-
-                    if (moduleId === selectedModule) {
-                        return;
-                    }
-
-                    navigate({
-                        to: "/e/view/{-$buildHash}/{-$moduleId}",
-                        params: {
-                            moduleId,
-                        },
-                    });
-                }}
+        <div>
+            <Text
+                center
+                size="3xl"
+                color="primary"
             >
-                <Controls />
-                <Background />
-                <MiniMap
-                    pannable
-                    zoomable
-                />
-            </ReactFlow>
+                Module Graph
+            </Text>
+            <Text
+                center
+                size="2xl"
+            >
+                TODO
+            </Text>
         </div>
     );
 }
 
 const IconButtonInternalLink = createLink(IconButton);
 
-function ModuleGraphWrapper() {
-    const moduleId = useModuleViewerStore(({ selectedModule }) => selectedModule);
-    const graph = useModuleGraph();
+// function ModuleGraphWrapper() {
+//     const moduleId = useModuleViewerStore(({ selectedModule }) => selectedModule);
+//     const graph = useModuleGraph();
 
-    if (!moduleId || !graph) {
-        return (
-            <Text
-                size="3xl"
-                weight="bold"
-                center
-            >
-                {moduleId ? "Loading Module Graph..." : "Select a Module"}
-            </Text>
-        );
-    }
+//     if (!moduleId || !graph) {
+//         return (
+//             <Text
+//                 size="3xl"
+//                 weight="bold"
+//                 center
+//             >
+//                 {moduleId ? "Loading Module Graph..." : "Select a Module"}
+//             </Text>
+//         );
+//     }
 
-    return (
-        <ReactFlowProvider>
-            <ModuleGraph2 graph={graph} />
-        </ReactFlowProvider>
-    );
-}
+//     return (
+//         <ReactFlowProvider>
+//             <ModuleGraph2 graph={graph} />
+//         </ReactFlowProvider>
+//     );
+// }
 
 interface ExperimentalSettingProps extends PropsWithChildren {
 }
@@ -320,85 +339,217 @@ function ExperimentalSetting({ children }: ExperimentalSettingProps) {
 function SettingsModal() {
     const openModulesInNewTab = useModuleViewerSettingsStore(({ openModulesInNewTab }) => openModulesInNewTab);
     const selectedTheme = useModuleViewerSettingsStore(({ editorTheme }) => editorTheme);
+    const ctx = use(ModalContext)!;
 
     return (
-        <Box className="w-[95vw] sm:w-[75vw] md:w-[50vw] lg:w-[35vw]">
-            <Text
-                center
-                size="2xl"
-                color="primary"
-            >
-                Settings
-            </Text>
-            <HorizontalLine />
-            <div className="flex flex-col gap-6">
-
-                <ExperimentalSetting>
-                    <LabeledSwitch
-                        value={openModulesInNewTab}
-                        onChange={(value) => {
-                            useModuleViewerSettingsStore.setState({ openModulesInNewTab: value });
-                        }}
-                    >
-                        Open modules in new tab
-                    </LabeledSwitch>
+        <div className="inset-fill flex items-center justify-center">
+            <Box className="h-fit w-[95vw] sm:w-[75vw] md:w-[50vw] lg:w-[35vw]">
+                <div className="flex items-center justify-between">
+                    <div />
                     <Text
-                        size="sm"
-                        color="white-600"
+                        size="2xl"
+                        color="primary"
                     >
-                        When enabled, modules opened via jump to definition(ctrl-click)
-                        inside of the editor will be opened in a new tab instead of the current tab
+                        Settings
                     </Text>
-                </ExperimentalSetting>
-                <div className="flex flex-col gap-2">
-                    <div className="flex items-center justify-between">
-                        <Text size="md">
-                            Editor Theme
-                        </Text>
-                        <Select
-                            selectedValue={selectedTheme}
-                            onChange={(editorTheme) => {
-                                ModuleViewerSettingsStore.setState({ editorTheme });
+                    <div>
+                        <IconButton
+                            label="Close"
+                            colorType="text"
+                            color="error"
+                            onClick={() => {
+                                ctx.close();
+                                // TODO: Weird behavior with state not resetting when we return true;
+                                return null;
                             }}
-                            items={Object
-                                .values(TextmateTheme)
-                                .filter(isNumber)
-                                .map((theme: TextmateTheme) => {
-                                    const name = themeDisplayNames[theme];
-
-                                    return {
-                                        label: name,
-                                        typedValue: name,
-                                        value: theme,
-                                        key: theme,
-                                    } satisfies SelectOption<TextmateTheme>;
-                                })}
-                            className="w-48"
-                            scrollAreaClassName={cn("max-h-[25vh]")}
-                        />
+                        >
+                            <XIcon />
+                        </IconButton>
                     </div>
-                    <Text
-                        color="white-600"
-                        size="sm"
-                    >
-                        The color theme for the code editor.
-                        This does not change the theme of the rest of the app. Sorry :(
-                    </Text>
-                    <Text
-                        color="info"
-                        size="sm"
-                        // FIXME: don't require a reload, this is a bug
-                    >
-                        <BadgeInfoIcon className="mr-1 inline size-4" />You must reload the page for the theme to take effect.
-                    </Text>
                 </div>
-            </div>
-        </Box>
+                <HorizontalLine />
+                <div className="flex flex-col gap-6">
+                    <ExperimentalSetting>
+                        <LabeledSwitch
+                            value={openModulesInNewTab}
+                            onChange={(value) => {
+                                useModuleViewerSettingsStore.setState({ openModulesInNewTab: value });
+                            }}
+                        >
+                            Open modules in new tab
+                        </LabeledSwitch>
+                        <Text
+                            size="sm"
+                            color="white-600"
+                        >
+                            When enabled, modules opened via jump to definition(ctrl-click)
+                            inside of the editor will be opened in a new tab instead of the current tab
+                        </Text>
+                    </ExperimentalSetting>
+                    <div className="flex flex-col gap-2">
+                        <div className="flex items-center justify-between">
+                            <Text size="md">
+                                Editor Theme
+                            </Text>
+                            <Select
+                                selectedValue={selectedTheme}
+                                onChange={(editorTheme) => {
+                                    ModuleViewerSettingsStore.setState({ editorTheme });
+                                }}
+                                items={Object
+                                    .values(TextmateTheme)
+                                    .filter(isNumber)
+                                    .map((theme: TextmateTheme) => {
+                                        const name = themeDisplayNames[theme];
+
+                                        return {
+                                            label: name,
+                                            typedValue: name,
+                                            value: theme,
+                                            key: theme,
+                                        } satisfies SelectOption<TextmateTheme>;
+                                    })}
+                                className="w-48"
+                                scrollAreaClassName={cn("max-h-[25vh]")}
+                            />
+                        </div>
+                        <Text
+                            color="white-600"
+                            size="sm"
+                        >
+                            The color theme for the code editor.
+                            This does not change the theme of the rest of the app. Sorry :(
+                        </Text>
+                        <Text
+                            color="info"
+                            size="sm"
+                            // FIXME: don't require a reload, this is a bug
+                        >
+                            <BadgeInfoIcon className="mr-1 inline size-4" />You must reload the page for the theme to take effect.
+                        </Text>
+                    </div>
+                </div>
+            </Box>
+        </div>
     );
 }
 
-export function Explorer() {
+function ExplorerHeader() {
+    const buildHash = useModuleViewerStore(({ buildHash }) => buildHash);
+    const settingsModalRef = useRef<ModalContext>(null);
+    const moduleSidebarOpen = useModuleViewerStore(({ moduleSidebarOpen }) => moduleSidebarOpen);
+    const activePanel = useModuleViewerStore(({ activePanel }) => activePanel);
+
+    return (
+        <>
+            <div className="pl-2">
+                <IconButton
+                    label={`${moduleSidebarOpen ? "Hide" : "Show"} Module Sidebar`}
+                    colorType="outline"
+                    className="border-2 border-fg-700"
+                    tooltipPosition={TooltipPosition.RIGHT}
+                    color="neutral"
+                    onClick={() => {
+                        ModuleViewerStore.getState().updateModuleSidebarOpen(!moduleSidebarOpen);
+                        return null;
+                    }}
+                >
+                    {moduleSidebarOpen ? <ChevronFirstIcon /> : <ChevronLastIcon />}
+                </IconButton>
+            </div>
+            <div className="">
+                <ToggleButtonGroup
+                    tooltipPosition={TooltipPosition.BOTTOM}
+                    className="m-2 rounded-lg border-2 border-fg-700 p-2"
+                    selectedItem={activePanel}
+                    onSelectItem={(panel) => {
+                        ModuleViewerStore.getState().updateActivePanel(panel);
+                    }}
+                    items={[
+                        {
+                            id: ViewMode.CODE,
+                            label: "Module Code",
+                            renderIcon() {
+                                return <FileCodeIcon />;
+                            },
+                        },
+                        {
+                            id: ViewMode.MODULE_GRAPH,
+                            label: "Module Graph",
+                            renderIcon() {
+                                return <NetworkIcon />;
+                            },
+                        },
+                    ]}
+                />
+            </div>
+            <div className="flex gap-2">
+                <IconButton
+                    tag="a"
+                    label={`Download${NBSP}Bundle`}
+                    colorType="outline"
+                    tooltipClassName="z-6"
+                    tooltipPosition={TooltipPosition.BOTTOM}
+                    loadingAnimation
+                    onClick={undefined}
+                    href={EXPLORER_BUILD_DOWNLOAD_URL(buildHash)}
+                    download={EXPLORER_BUILD_DOWNLOAD_FILENAME(buildHash)}
+                >
+                    <DownloadIcon />
+                </IconButton>
+                <IconButton
+                    label={`Open${NBSP}Settings`}
+                    colorType="outline"
+                    onClick={() => {
+                        if (settingsModalRef.current) {
+                            settingsModalRef.current.open();
+                            return true;
+                        }
+                        return false;
+                    }}
+                    tooltipClassName="z-6"
+                    tooltipPosition={TooltipPosition.BOTTOM}
+                >
+                    <SettingsIcon />
+                </IconButton>
+                <Modal ref={settingsModalRef}>
+                    <SettingsModal />
+                </Modal>
+                <IconButtonInternalLink
+                    tooltipPosition={TooltipPosition.BOTTOM}
+                    label={`Return${NBSP}to${NBSP}Bundle${NBSP}Selector`}
+                    onClick={undefined}
+                    colorType="outline"
+                    // Monaco has a sidebar with z-5, which blocks our tooltip sometimes
+                    tooltipClassName="z-6"
+                    tag="a"
+                    to="/e"
+                >
+                    <Undo2Icon />
+                </IconButtonInternalLink>
+                <IconButton
+                    tooltipPosition={TooltipPosition.BOTTOM}
+                    label={`Source${NBSP}Code.${NBSP}Star${NBSP}Me!`}
+                    onClick={undefined}
+                    color="secondary"
+                    colorType="outline"
+                    href={GITHUB_REPO_URL}
+                    // Monaco has a sidebar with z-5, which blocks our tooltip sometimes
+                    tooltipClassName="z-6"
+                    target="_blank"
+                    tag="a"
+                >
+                    <GithubIcon />
+                </IconButton>
+            </div>
+        </>
+    );
+}
+
+function ExplorerSidebar() {
     const navigate = Route.useNavigate();
+    const inputRef = useRef<HTMLInputElement>(null);
+    const moduleIds = useModuleViewerStore(({ getAllModuleIds }) => getAllModuleIds());
 
     const setSelectedModule = useCallback((moduleId: number) => {
         navigate({
@@ -409,12 +560,59 @@ export function Explorer() {
         });
     }, [navigate]);
 
-    const { buildHash, moduleId } = Route.useParams();
-    const inputRef = useRef<HTMLInputElement>(null);
+    return (
+        <div className="flex shrink-0 flex-col">
+            <div className="flex items-center justify-between">
+                <Input
+                    ref={inputRef}
+                    placeholder="Enter a Module ID"
+                    className="m-2"
+                />
+                <IconButton
+                    onClick={() => {
+                        const v = inputRef.current?.value;
+
+                        if (!v) {
+                            return false;
+                        }
+
+                        const { selectedModule, hasId } = ModuleViewerStore.getState();
+                        const inputModuleId = +v;
+
+                        if (selectedModule === inputModuleId) {
+                            return null;
+                        }
+
+                        if (hasId(inputModuleId)) {
+                            setSelectedModule(inputModuleId);
+
+                            return true;
+                        }
+
+                        return false;
+                    }}
+                    className="mr-2 ml-4 size-10"
+                    label="Jump To Module"
+                    tooltipPosition={TooltipPosition.RIGHT}
+                    colorType="outline"
+                >
+                    <ArrowBigRight />
+                </IconButton>
+            </div>
+            <div className="min-h-0 grow">
+                <ModuleSelector
+                    modules={moduleIds}
+                    onSelectModule={setSelectedModule}
+                />
+            </div>
+        </div>
+    );
+}
+
+export function Explorer() {
+    const { moduleId } = Route.useParams();
     const activePanel = useModuleViewerStore(({ activePanel }) => activePanel);
     const moduleSidebarOpen = useModuleViewerStore(({ moduleSidebarOpen }) => moduleSidebarOpen);
-    const moduleIds = useModuleViewerStore(({ getAllModuleIds }) => getAllModuleIds());
-    const settingsModalRef = useRef<ModalContext>(null);
 
     useEffect(() => {
         ModuleViewerStore.setState({ selectedModule: moduleId });
@@ -425,155 +623,13 @@ export function Explorer() {
             <Boilerplate solidBg />
             <div className="flex h-full flex-col">
                 <div className="flex items-center justify-between">
-                    <div className="pl-2">
-                        <IconButton
-                            label={`${moduleSidebarOpen ? "Hide" : "Show"} Module Sidebar`}
-                            colorType="outline"
-                            className="border-2 border-fg-700"
-                            tooltipPosition={TooltipPosition.RIGHT}
-                            color="neutral"
-                            onClick={() => {
-                                ModuleViewerStore.getState().updateModuleSidebarOpen(!moduleSidebarOpen);
-                                return null;
-                            }}
-                        >
-                            {moduleSidebarOpen ? <ChevronFirstIcon /> : <ChevronLastIcon />}
-                        </IconButton>
-                    </div>
-                    <div className="">
-                        <ToggleButtonGroup
-                            tooltipPosition={TooltipPosition.BOTTOM}
-                            className="m-2 rounded-lg border-2 border-fg-700 p-2"
-                            selectedItem={activePanel}
-                            onSelectItem={(panel) => {
-                                ModuleViewerStore.getState().updateActivePanel(panel);
-                            }}
-                            items={[
-                                {
-                                    id: ViewMode.CODE,
-                                    label: "Module Code",
-                                    renderIcon() {
-                                        return <FileCodeIcon />;
-                                    },
-                                },
-                                {
-                                    id: ViewMode.MODULE_GRAPH,
-                                    label: "Module Graph",
-                                    renderIcon() {
-                                        return <NetworkIcon />;
-                                    },
-                                },
-                            ]}
-                        />
-                    </div>
-                    <div className="flex gap-2">
-                        <IconButton
-                            label={`Download${NBSP}Bundle`}
-                            colorType="outline"
-                            tooltipClassName="z-6"
-                            tooltipPosition={TooltipPosition.BOTTOM}
-                            loadingAnimation
-                            onClick={() => {
-                                return downloadBundle(buildHash);
-                            }}
-                        >
-                            <DownloadIcon />
-                        </IconButton>
-                        <IconButton
-                            label={`Open${NBSP}Settings`}
-                            colorType="outline"
-                            onClick={() => {
-                                if (settingsModalRef.current) {
-                                    settingsModalRef.current.open();
-                                    return true;
-                                }
-                                return false;
-                            }}
-                            tooltipClassName="z-6"
-                            tooltipPosition={TooltipPosition.BOTTOM}
-                        >
-                            <SettingsIcon />
-                        </IconButton>
-                        <Modal ref={settingsModalRef}>
-                            <SettingsModal />
-                        </Modal>
-                        <IconButtonInternalLink
-                            tooltipPosition={TooltipPosition.BOTTOM}
-                            label={`Return${NBSP}to${NBSP}Bundle${NBSP}Selector`}
-                            onClick={undefined}
-                            colorType="outline"
-                            // Monaco has a sidebar with z-5, which blocks our tooltip sometimes
-                            tooltipClassName="z-6"
-                            tag="a"
-                            to="/e"
-                        >
-                            <Undo2Icon />
-                        </IconButtonInternalLink>
-                        <IconButton
-                            tooltipPosition={TooltipPosition.BOTTOM}
-                            label={`Source${NBSP}Code.${NBSP}Star${NBSP}Me!`}
-                            onClick={undefined}
-                            color="secondary"
-                            colorType="outline"
-                            href={GITHUB_REPO_URL}
-                            // Monaco has a sidebar with z-5, which blocks our tooltip sometimes
-                            tooltipClassName="z-6"
-                            target="_blank"
-                            tag="a"
-                        >
-                            <GithubIcon />
-                        </IconButton>
-                    </div>
+                    <ExplorerHeader />
                 </div>
                 <div
                     className="relative flex min-h-0 grow"
                 >
                     <Activity mode={visibleIf(moduleSidebarOpen)}>
-                        <div className="flex shrink-0 flex-col">
-                            <div className="flex items-center justify-between">
-                                <Input
-                                    ref={inputRef}
-                                    placeholder="Enter a Module ID"
-                                    className="m-2"
-                                />
-                                <IconButton
-                                    onClick={() => {
-                                        const v = inputRef.current?.value;
-
-                                        if (!v) {
-                                            return false;
-                                        }
-
-                                        const { selectedModule, hasId } = ModuleViewerStore.getState();
-                                        const inputModuleId = +v;
-
-                                        if (selectedModule === inputModuleId) {
-                                            return null;
-                                        }
-
-                                        if (hasId(inputModuleId)) {
-                                            setSelectedModule(inputModuleId);
-
-                                            return true;
-                                        }
-
-                                        return false;
-                                    }}
-                                    className="mr-2 ml-4 size-10"
-                                    label="Jump To Module"
-                                    tooltipPosition={TooltipPosition.RIGHT}
-                                    colorType="outline"
-                                >
-                                    <ArrowBigRight />
-                                </IconButton>
-                            </div>
-                            <div className="min-h-0 grow">
-                                <ModuleSelector
-                                    modules={moduleIds}
-                                    onSelectModule={setSelectedModule}
-                                />
-                            </div>
-                        </div>
+                        <ExplorerSidebar />
                     </Activity>
                     <div className="shrink grow">
                         <Activity mode={visibleIf(activePanel === ViewMode.CODE)}>
@@ -582,7 +638,7 @@ export function Explorer() {
                             </div>
                         </Activity>
                         <Activity mode={visibleIf(activePanel === ViewMode.MODULE_GRAPH)}>
-                            <ModuleGraphWrapper />
+                            <ModuleGraphTodo />
                         </Activity>
                     </div>
                 </div>

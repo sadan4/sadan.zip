@@ -5,7 +5,7 @@ use axum::{
     response::{IntoResponse, Response},
     routing::get,
 };
-use explorer_types::BuildList;
+use explorer_types::{BuildList, FullBundle};
 use http::{StatusCode, header};
 use tokio::{fs, net};
 use tokio_stream::{StreamExt, wrappers::ReadDirStream};
@@ -13,7 +13,10 @@ use tokio_util::io::ReaderStream;
 use tower_http::cors;
 use tracing::{info, instrument};
 
-use crate::util::{DATA_FILE_NAME, METADATA_FILE_NAME, get_build_path, get_root_build_path};
+use crate::util::{
+    DATA_FILE_NAME, METADATA_FILE_NAME, compress_full_bundle_data, get_build_path,
+    get_root_build_path,
+};
 
 type Result<T = Response> = std::result::Result<T, AppError>;
 
@@ -92,6 +95,65 @@ async fn get_build_full(Path(build_hash): Path<String>) -> Result<Response> {
     Ok((ZSTD_HEADERS, data_body).into_response())
 }
 
+fn make_tarball(zstd_raw_data: &[u8]) -> Result<Vec<u8>> {
+    let mpk_raw_data = zstd::decode_all(zstd_raw_data)?;
+    let b: FullBundle = rmp_serde::from_slice(&mpk_raw_data)?;
+    let mut a_data = Vec::new();
+    let mut a = tar::Builder::new(&mut a_data);
+    let mut header = tar::Header::new_gnu();
+    header.set_mode(0o644);
+    // .modules folder
+
+    for (m_id, m_content) in b.modules {
+        let m_content_bytes = m_content.as_bytes();
+        header.set_size(m_content_bytes.len() as u64);
+        a.append_data(&mut header, format!(".modules/{m_id}.js"), m_content_bytes)?;
+    }
+
+    // top-level files
+    // deps.json
+    dbg!(&b.dep_info);
+    let deps_json_data = serde_json::to_vec(&b.dep_info)?;
+    header.set_size(deps_json_data.len() as u64);
+    a.append_data(&mut header, "deps.json", &*deps_json_data)?;
+    // info.json
+    let info_json_data = serde_json::to_vec(&b.metadata)?;
+    header.set_size(info_json_data.len() as u64);
+    a.append_data(&mut header, "info.json", &*info_json_data)?;
+    // modules.json
+    let modules_json_data = serde_json::to_vec(&b.module_sources)?;
+    header.set_size(modules_json_data.len() as u64);
+    a.append_data(&mut header, "modules.json", &*modules_json_data)?;
+
+    // we don't need the returned ref, we only want to check errors
+    _ = a.into_inner()?;
+
+    let zstd_a_data = compress_full_bundle_data(&a_data)?;
+
+    Ok(zstd_a_data)
+}
+
+async fn get_bundle_tarball(Path(build_hash): Path<String>) -> Result<Response> {
+    if !is_valid_build_hash(&build_hash) {
+        return Ok((StatusCode::BAD_REQUEST, "invalid build hash").into_response());
+    }
+    let data_path = get_build_path(&build_hash)?.join(DATA_FILE_NAME);
+    if !fs::try_exists(&data_path).await? {
+        return Ok((
+            StatusCode::NOT_FOUND,
+            format!("build {build_hash} not found"),
+        )
+            .into_response());
+    }
+    let data_file = fs::read(data_path).await?;
+
+    let zstd_tarball = make_tarball(&data_file)?;
+
+    let body = Body::from(zstd_tarball);
+
+    Ok((ZSTD_HEADERS, body).into_response())
+}
+
 async fn get_all_builds() -> Result<Response> {
     let dirs = fs::read_dir(get_root_build_path()?).await?;
     let mut st = ReadDirStream::new(dirs);
@@ -119,6 +181,7 @@ pub async fn serve() -> anyhow::Result<()> {
     let app = Router::new()
         .route("/build/{id}/metadata", get(get_build_metadata))
         .route("/build/{id}/full", get(get_build_full))
+        .route("/build/{id}/archive.tar.zst", get(get_bundle_tarball))
         .route("/builds", get(get_all_builds))
         .layer(cors::CorsLayer::new().allow_origin(cors::Any));
     let listener = net::TcpListener::bind(SERVER_ADDR).await?;

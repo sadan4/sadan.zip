@@ -84,7 +84,7 @@ function _register() {
                     to: "/e/view/{-$buildHash}/{-$moduleId}",
                     params: {
                         buildHash: parsed.buildHash,
-                        moduleId: parsed.moduleId,
+                        moduleId: +parsed.moduleId,
                     },
                     search,
                 });

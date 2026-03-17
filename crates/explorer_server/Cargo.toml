@@ -25,6 +25,7 @@ zstd.workspace = true
 axum.workspace = true
 http.workspace = true
 tower-http.workspace = true
+tar.workspace = true
 
 [build-dependencies]
 napi-build.workspace = true

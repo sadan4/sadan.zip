@@ -2,7 +2,7 @@
 	description = "A basic flake with a shell";
 	inputs = {
 		nixpkgs = {
-			url = "github:NixOS/nixpkgs/nixos-25.05";
+			url = "github:NixOS/nixpkgs/nixos-25.11";
 		};
 		systems = {
 			url = "github:nix-systems/default";
@@ -32,6 +32,7 @@
                             emscripten
                             wasm-bindgen-cli
                             clang
+                            msgpack-tools
 						];
                         hardeningDisable = ["all"];
 						shellHook = ''

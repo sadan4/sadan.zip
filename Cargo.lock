@@ -345,6 +345,7 @@ dependencies = [
  "rmp-serde",
  "serde",
  "serde_json",
+ "tar",
  "tokio",
  "tokio-stream",
  "tokio-util",

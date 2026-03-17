@@ -1,4 +1,3 @@
-import { todo } from "@/utils/error";
 import { makeLazy } from "@/utils/lazy";
 import { type Monaco, monaco } from "@/utils/monaco";
 import { TextmateTheme } from "@/utils/textmate/theme";
@@ -220,18 +219,6 @@ export const useModuleViewerSettingsStore = create<IModuleViewerSettings>()(pers
     },
     skipHydration: import.meta.env.SSR,
 }));
-
-export async function downloadBundle(bundleHash: TBundleHash): Promise<boolean> {
-    try {
-        todo();
-    } catch (e) {
-        // FIXME: better error handling
-        console.error(`Failed to download bundle: ${e instanceof Error ? e.message : String(e)}`);
-
-        return false;
-    }
-    return true;
-}
 
 // make react compiler happy
 export const ModuleViewerSettingsStore = useModuleViewerSettingsStore;
