@@ -1,219 +1,263 @@
-import { assert, error } from "@/utils/error";
+import { chunk } from "@/utils/array";
+import { assert, error, unreachable } from "@/utils/error";
+import { entries, keys } from "@/utils/obj";
+import { GlobalEnvParser } from "@vencord-companion/global-env-parser";
+import { TAssert, WebpackAstParser } from "@vencord-companion/webpack-ast-parser";
+import { WebpackLazyChunkParser, WebpackMainChunkParser } from "@vencord-companion/webpack-chunk-parser";
 
-import { BUILDS_PATH } from "./constants";
-import { migrateIfNeeded } from "./migration";
-import {
-    type AllBundleFilesResponseMessage,
-    type BaseMessageToClient,
-    BundleArchiveResponseMessage,
-    type BundleDepGraphResponseMessage,
-    type BundleFileResponseMessage,
-    BundleInfo,
-    type BundleMetadataResponseMessage,
-    type BundlesResponseMessage,
-    type DepsJson,
-    MessageToClient,
-    MessageToServer,
-    ModuleInfo,
-} from "./types";
+import { Channels } from "./constants";
+import native from "./native";
+import { MainDeps, TModuleId } from "./types";
+import { fetchAsset } from "./utils";
 
-import { exists, readdir } from "fs-extra";
-import { existsSync } from "node:fs";
-import { mkdir, readFile } from "node:fs/promises";
-import { join } from "node:path";
-import { Worker } from "node:worker_threads";
-import * as tar from "tar";
-import { WebSocket, WebSocketServer } from "ws";
-import z from "zod";
 
-class Server {
-    static #VERIFY_OUTGOING_MESSAGES = true;
-    static #BUNDLE_HASH_REGEX = /^[a-z0-9]+?$/i;
-    #ws: WebSocket;
+function fetchAssetNativeChannel(channel: native.Channel, assetPath: string, opts?: RequestInit): Promise<Response> {
+    let c: Channels | undefined;
 
-    constructor(ws: WebSocket) {
-        this.#ws = ws;
-        this.#ws.on("message", this.#onMessage.bind(this));
+    switch (channel) {
+        case native.Channel.Stable:
+            c = Channels.STABLE;
+            break;
+        case native.Channel.Canary:
+            c = Channels.CANARY;
+            break;
+        default:
+            unreachable();
     }
-
-    #sendMessage<T extends MessageToClient>(message: T): void {
-        if (Server.#VERIFY_OUTGOING_MESSAGES) {
-            MessageToClient.parse(message);
-        }
-        this.#ws.send(JSON.stringify(message));
-    }
-
-    async #onMessage(data: WebSocket.RawData, _isBinary: boolean) {
-        let _r: any;
-
-        try {
-            _r = JSON.parse(data.toString());
-
-            const r = _r = MessageToServer.parse(_r);
-
-            const reply = <T extends BaseMessageToClient>(message: Omit<T, "messageId">) => {
-                this.#sendMessage({
-                    messageId: r.messageId,
-                    ...message,
-                } as any as MessageToClient);
-            };
-
-            console.debug("got message", { r });
-
-            switch (r.type) {
-                case "queryBundles": {
-                    const p = (await readdir(BUILDS_PATH, { withFileTypes: true }))
-                        .filter((dir) => dir.isDirectory())
-                        .map(async (dir) => {
-                            const p = join(BUILDS_PATH, dir.name, "info.json");
-
-                            if (!await exists(p)) {
-                                return;
-                            }
-
-                            const text = await readFile(p, "utf8");
-
-                            return BundleInfo.parse(JSON.parse(text));
-                        });
-
-                    const bundles = (await Promise.all(p)).filter((x) => x != null);
-
-                    reply<BundlesResponseMessage>({
-                        type: "queryBundlesResponse",
-                        bundles,
-                    });
-                    break;
-                }
-                case "getAllBundleFiles": {
-                    // prevent path traversal
-                    assert(r.bundleHash.match(Server.#BUNDLE_HASH_REGEX), "invalid bundleHash");
-
-                    const bundlePath = join(BUILDS_PATH, r.bundleHash, ".modules");
-                    const moduleFiles = await Promise.all((await readdir(bundlePath)).map(async (fileName) => [fileName.substring(0, fileName.length - 3), await readFile(join(bundlePath, fileName), "utf8")] as const));
-
-                    reply<AllBundleFilesResponseMessage>({
-                        type: "getAllBundleFilesResponse",
-                        bundleHash: r.bundleHash,
-                        files: Object.fromEntries(moduleFiles),
-                    });
-                    break;
-                }
-                case "getBundleFile": {
-                    // prevent path traversal
-                    assert(r.bundleHash.match(Server.#BUNDLE_HASH_REGEX), "invalid bundleHash");
-                    assert(r.moduleNumber.match(/^[0-9]+?$/i), "invalid moduleNumber");
-
-                    const filePath = join(BUILDS_PATH, r.bundleHash, ".modules", `${r.moduleNumber}.js`);
-
-                    reply<BundleFileResponseMessage>({
-                        type: "getBundleFileResponse",
-                        bundleHash: r.bundleHash,
-                        moduleNumber: r.moduleNumber,
-                        fileText: await readFile(filePath, "utf8"),
-                    });
-
-                    break;
-                }
-                case "getBundleMetadata": {
-                    // prevent path traversal
-                    assert(r.bundleHash.match(Server.#BUNDLE_HASH_REGEX), "invalid bundleHash");
-
-                    const infoPath = join(BUILDS_PATH, r.bundleHash, "info.json");
-                    const moduleInfoPath = join(BUILDS_PATH, r.bundleHash, "modules.json");
-                    const metadata = BundleInfo.parse(JSON.parse(await readFile(infoPath, "utf8")));
-                    const moduleInfo = ModuleInfo.parse(JSON.parse(await readFile(moduleInfoPath, "utf8")));
-
-                    reply<BundleMetadataResponseMessage>({
-                        type: "getBundleMetadataResponse",
-                        bundleHash: r.bundleHash,
-                        metadata,
-                        moduleInfo,
-                    });
-
-                    break;
-                }
-                case "getBundleDepGraph": {
-                    // prevent path traversal
-                    assert(r.bundleHash.match(Server.#BUNDLE_HASH_REGEX), "invalid bundleHash");
-
-                    const p = join(BUILDS_PATH, r.bundleHash, "deps.json");
-
-                    reply<BundleDepGraphResponseMessage>({
-                        type: "getBundleDepGraphResponse",
-                        bundleHash: r.bundleHash,
-                        depGraph: JSON.parse(await readFile(p, "utf8")) as DepsJson,
-                    });
-                    break;
-                }
-                case "getBundleArchive": {
-                    // prevent path traversal
-                    assert(r.bundleHash.match(Server.#BUNDLE_HASH_REGEX), "invalid bundleHash");
-
-                    const bundlePath = join(BUILDS_PATH, r.bundleHash);
-
-                    const tarStream = tar.create({
-                        cwd: bundlePath,
-                        zstd: true,
-                    }, ["."]);
-
-                    const chunks = [];
-
-                    for await (const chunk of tarStream) {
-                        chunks.push(chunk);
-                    }
-
-                    const tarBuf = Buffer.concat(chunks);
-                    const b64 = tarBuf.toString("base64");
-
-                    reply<BundleArchiveResponseMessage>({
-                        type: "getBundleArchiveResponse",
-                        bundleHash: r.bundleHash,
-                        b64,
-                    });
-
-                    break;
-                }
-                default:
-                    // @ts-expect-error r.type should be `never` error because all cases are handled
-                    error(`unexpected message type: ${r.type}`);
-            }
-        } catch (e: any) {
-            let message: string;
-
-            if (e instanceof z.ZodError) {
-                message = z.prettifyError(e);
-            } else if (e?.message) {
-                message = String(e.message);
-            } else {
-                message = String(e);
-            }
-
-            this.#sendMessage({
-                type: "error",
-                messageId: _r?.messageId ?? -1,
-                message,
-            });
-        }
-    }
+    return fetchAsset(c, assetPath, opts);
 }
 
-(async function () {
-    if (!existsSync(BUILDS_PATH)) {
-        await mkdir(BUILDS_PATH);
+
+async function getChunkText(channel: native.Channel, hash: string) {
+    const res = await fetchAssetNativeChannel(channel, `${hash}.js`);
+
+    return await res.text();
+}
+
+// time markers
+const PARSING_MAIN_JS_TIME = "Parsing web.js";
+const PARSING_LAZY_CHUNKS_TIME = "Parsing lazy chunks";
+
+async function findBuildModules(
+    { buildHash, webJsUrl, globalEnvText, channel }: native.WatcherInfo,
+    moduleMap: Map<TModuleId, string>,
+    pBuild: native.ProcessingBuild,
+) {
+    const buildMetadata = new native.ProcessingMetadata();
+    const parser = new GlobalEnvParser(globalEnvText);
+
+    buildMetadata.setFirstSeen(Date.now());
+    buildMetadata.envVarText = parser.text;
+    buildMetadata.buildHash = buildHash;
+
+    // parse env vars to ensure they're valid
+    parser.getGlobalEnvObject() ?? error("Could not parse global env vars");
+
+    const webJsContent = await (await fetchAssetNativeChannel(channel, webJsUrl)).text();
+
+    console.time(PARSING_MAIN_JS_TIME);
+
+    const mainParser = new WebpackMainChunkParser(webJsContent);
+    const entryPoint = (mainParser.getEntrypointId() ?? error("Could not find entry point module id")) as TModuleId;
+    const buildNumber = mainParser.getBuildNumber() ?? error("Could not find build number");
+    const initialModules: Record<TModuleId, string> = mainParser.getDefinedModules() ?? error("could not parse main chunk");
+
+    buildMetadata.entryPoint = +entryPoint;
+    buildMetadata.buildNumber = +buildNumber;
+
+    console.timeEnd(PARSING_MAIN_JS_TIME);
+
+    pBuild.setModuleSources(webJsUrl, keys(initialModules).map((id) => +id));
+
+    for (const [moduleId, moduleSource] of entries(initialModules)) {
+        moduleMap.set(moduleId, moduleSource);
     }
 
-    await migrateIfNeeded();
+    const chunkHashes = mainParser.getJsChunkHashes();
 
-    // microsoft/typescript#58561 insane "bug"
-    // @ts-expect-error ^^
-    const _watcherWorker = new Worker(new URL("./watcher.ts", import.meta.url));
-    const wss = new WebSocketServer({ port: 8044 });
+    console.time(PARSING_LAZY_CHUNKS_TIME);
 
-    console.log("WebSocket server started on port 8044");
+    // chunk the array to not send 1500 requests at once
+    for (const batch of chunk(chunkHashes, 50)) {
+        await Promise.all(batch.map(async ([chunkId, hash]) => {
+            try {
+                const text = await getChunkText(channel, hash);
 
-    wss.on("connection", (ws: WebSocket) => {
-        console.log("got new connection");
-        new Server(ws);
+                if (text.includes(`.ruid="`)) {
+                    // worker chunk, not part of main bundle
+                    return;
+                }
+
+                const parser = new WebpackLazyChunkParser(text);
+                const selfModules: Record<TModuleId, string> | undefined = parser.getDefinedModules();
+
+                if (!selfModules) {
+                    error("could not parse lazy chunk");
+                }
+
+                pBuild.setModuleSources(`${hash}.js`, keys(selfModules).map((id) => +id));
+
+                for (const [moduleId, moduleSource] of entries(selfModules)) {
+                    moduleMap.set(moduleId, moduleSource);
+                }
+            } catch (e) {
+                console.error(`Error fetching/parsing chunk ${chunkId} with hash ${hash} on channel ${channel}`);
+                console.error(e);
+            }
+        }));
+    }
+
+    console.timeEnd(PARSING_LAZY_CHUNKS_TIME);
+
+    pBuild.metadata = buildMetadata;
+}
+
+const MAKE_DEP_GRAPH_TIME = "Making dependency graph";
+
+function makeDependencyGraph(
+    moduleMap: Map<TModuleId, string>,
+    parserCache: Map<TModuleId, WebpackAstParser>,
+    pDepInfo: native.ProcessingDepInfo,
+): [deps: MainDeps, parsers: WebpackAstParser[]] {
+    console.time(MAKE_DEP_GRAPH_TIME);
+
+    /**
+    * map of module id -> module source
+    */
+    const deps: MainDeps = {};
+    const parsers = [] as WebpackAstParser[];
+
+    for (const [moduleId, text] of moduleMap) {
+        try {
+            const parser = parserCache.get(moduleId) ?? WebpackAstParser.withModule(text, moduleId);
+
+            parserCache.set(moduleId, parser);
+            parsers.push(parser);
+
+            const { sync = [], lazy = [] } = parser.getModulesThatThisModuleRequires() ?? {};
+
+            for (const depModuleId of sync) {
+                pDepInfo.addSyncDep(+depModuleId, +moduleId);
+                (deps[depModuleId as TModuleId] ??= {
+                    lazyUses: [],
+                    syncUses: [],
+                }).syncUses.push(moduleId);
+            }
+            for (const depModuleId of lazy) {
+                pDepInfo.addLazyDep(+depModuleId, +moduleId);
+                (deps[depModuleId as TModuleId] ??= {
+                    lazyUses: [],
+                    syncUses: [],
+                }).lazyUses.push(moduleId);
+            }
+        } catch (e) {
+            console.error("Error parsing module for dependency graph:", moduleId);
+            throw e;
+        }
+    }
+
+    console.timeEnd(MAKE_DEP_GRAPH_TIME);
+    return [deps, parsers];
+}
+
+const KEY_MODULES_TIME = "Finding Key Modules";
+
+async function findKeyModules(parsers: WebpackAstParser[]): Promise<native.ProcessingKeyModules> {
+    const pKeyModules = new native.ProcessingKeyModules();
+
+    console.time(KEY_MODULES_TIME);
+
+    for (let i = 0; i < parsers.length; ++i) {
+        const parser = parsers[i];
+
+        try {
+            // Flux Dispatcher
+            {
+                const fluxDispatcherModuleExport = parser.isFluxDispatcherModule();
+
+                if (fluxDispatcherModuleExport != null) {
+                    if (parser.moduleId == null) {
+                        throw new Error("Module ID is not set for module");
+                    }
+                    pKeyModules.addFluxDispatcherClass(+parser.moduleId, {
+                        type: "Named",
+                        field0: fluxDispatcherModuleExport,
+                    });
+
+                    const arr = (await parser.getAllReExportsForExport(fluxDispatcherModuleExport))
+                        .filter(([, exportChain]) => exportChain.length === 1);
+
+                    for (const [moduleId, [exportName]] of arr) {
+                        if (typeof exportName === "symbol") {
+                            assert(exportName === WebpackAstParser.SYM_CJS_DEFAULT);
+                            pKeyModules.addFluxDispatcherClass(+moduleId, { type: "Default" });
+                        } else {
+                            pKeyModules.addFluxDispatcherClass(+moduleId, {
+                                type: "Named",
+                                field0: exportName,
+                            });
+                        }
+                    }
+                }
+            }
+        } catch (e) {
+            console.error("Error finding key modules:", parser.moduleId);
+            console.error(e);
+            throw e;
+        }
+        delete parsers[i]; // free memory as we go
+    }
+    console.timeEnd(KEY_MODULES_TIME);
+    return pKeyModules;
+}
+
+async function processBuild(data: native.WatcherInfo) {
+    const pBuild = new native.ProcessingBuild();
+    const moduleMap: Map<TModuleId, string> = new Map();
+
+    await findBuildModules(data, moduleMap, pBuild);
+
+    const parserCache = new Map<TModuleId, WebpackAstParser>();
+    const pDepInfo = new native.ProcessingDepInfo();
+    let [deps, parsers] = makeDependencyGraph(moduleMap, parserCache, pDepInfo);
+
+    WebpackAstParser.setDefaultModuleCache({
+        getModuleFilepath(_id) {
+            return undefined;
+        },
+        getModuleParser(_requestor, id, _latest) {
+            TAssert<TModuleId>(id);
+            if (!parserCache.has(id)) {
+                parserCache.set(id, WebpackAstParser.withFormattedModule(moduleMap.get(id) ?? error(`module not found: ${id}`), id));
+            }
+            return Promise.resolve(parserCache.get(id)!);
+        },
     });
-})();
+    WebpackAstParser.setDefaultModuleDepManager({
+        getModDeps(moduleId) {
+            return deps[moduleId as TModuleId] ?? error(`module not found: ${moduleId}`);
+        },
+    });
 
+
+    pDepInfo.keyModules = await findKeyModules(parsers);
+    parsers.length = 0;
+    deps = {};
+    for (const [id, source] of moduleMap) {
+        pBuild.setSource(+id, source);
+        moduleMap.delete(id); // free as we go
+    }
+
+    pBuild.depInfo = pDepInfo;
+    pBuild.write();
+
+    console.log(`Finished processing build ${data.buildHash}`);
+}
+
+processBuild(native.readStdinData()).catch((e) => {
+    console.error("Failed to process build in parser worker:");
+    console.error(e);
+    process.nextTick(() => {
+        throw e;
+    });
+});

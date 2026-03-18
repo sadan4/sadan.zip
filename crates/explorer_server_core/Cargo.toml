@@ -6,6 +6,7 @@ edition.workspace = true
 [dependencies]
 explorer_types.workspace = true 
 anyhow.workspace = true
+serde.workspace = true
 rmp-serde.workspace = true
 zstd.workspace = true
 

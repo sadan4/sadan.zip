@@ -2,7 +2,7 @@ import { unreachable } from "@/utils/error";
 
 import { Channels } from "./constants";
 import native from "./native";
-import type { ParserWorkerData } from "./native-parserWorker";
+import type { ParserWorkerData } from "./index-native";
 import type { TBundleHash } from "./types";
 
 import { Worker } from "node:worker_threads";

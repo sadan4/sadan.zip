@@ -2,13 +2,22 @@
     clippy::missing_const_for_fn,
     reason = "napi does not support const fns"
 )]
-use std::{collections::HashMap, mem};
+use std::{collections::HashMap, env, mem};
 
-use explorer_server_core::write_full_bundle;
+use anyhow::{Context};
+use explorer_server_core::{Channel as CoreChannel, EncodableBuild, write_full_bundle};
 use explorer_types::{
     BundleMetadata, DepInfo, ExportName, FullBundle, KeyModules, ModuleDeps, TModuleId,
 };
 use napi_derive::napi;
+
+#[napi]
+#[derive(Debug, Clone, Copy)]
+#[repr(u8)]
+pub enum Channel {
+    Stable,
+    Canary,
+}
 
 #[napi]
 #[derive(Default, Debug, Clone)]
@@ -90,8 +99,8 @@ impl From<ProcessingExportName> for ExportName {
     }
 }
 
-#[derive(Default, Debug, Clone)]
 #[napi]
+#[derive(Default, Debug, Clone)]
 pub struct ProcessingKeyModules {
     flux_dispatcher_class: Vec<(TModuleId, ProcessingExportName)>,
 }
@@ -227,6 +236,48 @@ impl From<ProcessingBuild> for FullBundle {
             modules,
         }
     }
+}
+
+#[napi(object)]
+pub struct WatcherInfo {
+    pub build_hash: String,
+    pub channel: Channel,
+    pub web_js_url: String,
+    pub global_env_text: String,
+}
+
+impl From<EncodableBuild> for WatcherInfo {
+    fn from(
+        EncodableBuild {
+            channel,
+            build_hash,
+            web_js_url,
+            global_env_text,
+        }: EncodableBuild,
+    ) -> Self {
+        Self {
+            build_hash,
+            channel: match channel {
+                CoreChannel::Canary => Channel::Canary,
+                CoreChannel::Stable => Channel::Stable,
+            },
+            web_js_url,
+            global_env_text,
+        }
+    }
+}
+
+#[napi]
+pub fn read_stdin_data() -> napi::Result<WatcherInfo> {
+    println!("args: {:?}", env::args().collect::<Vec<_>>());
+    let fd = env::args()
+        .nth(2)
+        .with_context(|| "Watcher data not passed")?;
+
+    serde_json::from_str::<EncodableBuild>(&fd)
+        .with_context(|| "Failed to parse watcher data as JSON")
+        .map(From::from)
+        .map_err(From::from)
 }
 
 #[napi_derive::module_init]

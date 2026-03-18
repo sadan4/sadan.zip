@@ -35,14 +35,15 @@ export declare const enum Channel {
   Canary = 1
 }
 
-export interface HandleBuildOpts {
-  buildHash: string
-  html: string
-  channel: Channel
-}
-
 export type ProcessingExportName =
   | { type: 'Named', field0: string }
   | { type: 'Default' }
 
-export declare function start(handleBuild: ((arg: HandleBuildOpts) => void)): Promise<void>
+export declare function readStdinData(): WatcherInfo
+
+export interface WatcherInfo {
+  buildHash: string
+  channel: Channel
+  webJsUrl: string
+  globalEnvText: string
+}
