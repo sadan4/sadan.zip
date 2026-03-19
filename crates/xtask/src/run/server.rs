@@ -5,7 +5,7 @@ use tracing::{info, instrument};
 
 #[derive(Args, Debug)]
 pub struct Command {
-    #[arg(long, default_value_t = false)]
+    #[arg(short, long, default_value_t = false)]
     debug: bool,
     #[arg(short, long, default_value_t = false)]
     clean_cache: bool,

@@ -2,7 +2,7 @@
     clippy::missing_const_for_fn,
     reason = "napi does not support const fns"
 )]
-use std::{collections::HashMap, env, mem};
+use std::{collections::HashMap, io, mem};
 
 use anyhow::{Context};
 use explorer_server_core::{Channel as CoreChannel, EncodableBuild, write_full_bundle};
@@ -269,13 +269,8 @@ impl From<EncodableBuild> for WatcherInfo {
 
 #[napi]
 pub fn read_stdin_data() -> napi::Result<WatcherInfo> {
-    println!("args: {:?}", env::args().collect::<Vec<_>>());
-    let fd = env::args()
-        .nth(2)
-        .with_context(|| "Watcher data not passed")?;
-
-    serde_json::from_str::<EncodableBuild>(&fd)
-        .with_context(|| "Failed to parse watcher data as JSON")
+    rmp_serde::from_read::<_, EncodableBuild>(io::stdin())
+        .context("Failed to parse watcher data as MPK")
         .map(From::from)
         .map_err(From::from)
 }

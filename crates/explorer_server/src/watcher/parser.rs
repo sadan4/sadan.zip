@@ -1,13 +1,13 @@
 use anyhow::{Context, Result, bail};
 use const_format::formatc;
 use html_parser::{Dom, Node};
-use tracing::info;
 
 pub struct ParsedHtml {
     pub global_env_text: String,
     pub web_js_url: String,
 }
 
+#[derive(Debug)]
 struct ScriptElement<'dom> {
     txt: Option<&'dom str>,
     src: Option<&'dom str>,
@@ -15,19 +15,15 @@ struct ScriptElement<'dom> {
 
 const GLOBAL_ENV_NEEDLE: &str = "window.GLOBAL_ENV =";
 const SRC_PREFIX: &str = "/assets/";
-const WEB_JS_PREFIX: &str = "web.js";
+const WEB_JS_PREFIX: &str = "web.";
 const WEB_JS_FULL_PREFIX: &str = formatc!("{SRC_PREFIX}{WEB_JS_PREFIX}");
 
 pub fn parse_html(html: &str) -> Result<ParsedHtml> {
-    info!("guh 1");
     let dom = Dom::parse(html)?;
-    info!("guh 2");
     if !dom.errors.is_empty() {
         bail!("failed to parse html: {:?}", dom.errors);
     }
-    info!("guh 3");
     let scripts = collect_script_elements(&dom);
-    info!("guh 4");
     let global_env_text = scripts
         .iter()
         .find_map(|s| {
@@ -35,8 +31,7 @@ pub fn parse_html(html: &str) -> Result<ParsedHtml> {
                 .and_then(|txt| txt.contains(GLOBAL_ENV_NEEDLE).then_some(txt))
         })
         .map(str::to_owned)
-        .with_context(|| "Could not find env script element")?;
-    info!("guh 5");
+        .context("Could not find env script element")?;
     let web_js_url = scripts
         .iter()
         .find_map(|s| {
@@ -46,8 +41,7 @@ pub fn parse_html(html: &str) -> Result<ParsedHtml> {
             })
         })
         .map(str::to_owned)
-        .with_context(|| "Could not find web.js entrypoint")?;
-    info!("guh 6");
+        .context("Could not find web.js entrypoint")?;
     Ok(ParsedHtml {
         global_env_text,
         web_js_url,

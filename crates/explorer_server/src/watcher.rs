@@ -1,7 +1,7 @@
 mod parser;
-use std::{fs, process::Stdio, time::Duration};
+use std::{fs, io, process::Stdio, time::Duration};
 
-use anyhow::{Result, bail};
+use anyhow::{Context as _, Result, bail};
 use reqwest::Response;
 use tokio::process::Command;
 use tracing::{error, info, instrument, trace};
@@ -50,32 +50,41 @@ async fn get_build(channel: Channel) -> Result<Option<Build>> {
 
 static JS_PATH: &str = "dist.server/index.js";
 
-#[instrument]
-async fn run_js_handler(build: Build, channel: Channel) -> Result<()> {
-    info!("here 1");
+async fn write_to_pipe(build: Build, channel: Channel, mut tx: io::PipeWriter) -> Result<()> {
     let build_hash = build.build_id;
-    info!("here 2");
+
     let ParsedHtml {
         global_env_text,
         web_js_url,
     } = parse_html(&build.response.text().await?)?;
-    info!("here 3");
+
     let eb = EncodableBuild {
         channel,
         build_hash,
         global_env_text,
         web_js_url,
     };
-    info!("here 4");
+    rmp_serde::encode::write(&mut tx, &eb)?;
+    Ok(())
+}
+
+async fn run_js_handler(build: Build, channel: Channel) -> Result<()> {
+    let (rx, tx) = io::pipe()?;
+    let writer_fut = tokio::spawn(write_to_pipe(build, channel, tx));
     let status = Command::new("node")
         .arg(JS_PATH)
-        .arg(serde_json::to_string(&eb)?)
-        .stdin(Stdio::null())
+        .stdin(rx)
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())
         .status()
         .await;
-    info!("here 5");
+
+    writer_fut
+        .await
+        .map_err(From::from)
+        .flatten()
+        .context("Failed to write build info to pipe")?;
+
     match status {
         Ok(s) if s.success() => {}
         Ok(s) => {
@@ -88,11 +97,19 @@ async fn run_js_handler(build: Build, channel: Channel) -> Result<()> {
     Ok(())
 }
 
+#[instrument]
 async fn handle_build(c: Channel) -> Result<()> {
     if let Some(build) = get_build(c).await? {
         info!("new {c:?} build: {}", build.build_id);
         // FIXME: handle run_js_handler errs
-        tokio::spawn(run_js_handler(build, c));
+        tokio::spawn(async move {
+            match run_js_handler(build, c).await {
+                Ok(()) => {}
+                Err(e) => {
+                    error!("Failed to spawn js handler: {e:?}");
+                }
+            }
+        });
     }
     Ok(())
 }

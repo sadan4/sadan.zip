@@ -24,20 +24,20 @@
 					import nixpkgs {
 						inherit system;
 					};
-                clang = pkgs.llvmPackages_21.clang-unwrapped;
+				clang = pkgs.llvmPackages_21.clang-unwrapped;
 			in {
 				devShells.default =
 					pkgs.mkShell {
 						packages = with pkgs; [
-                            emscripten
-                            wasm-bindgen-cli
-                            clang
-                            msgpack-tools
+							emscripten
+							wasm-bindgen-cli
+							clang
+							msgpack-tools
 						];
-                        hardeningDisable = ["all"];
+						hardeningDisable = ["all"];
 						shellHook = ''
-                            export CC_wasm32_unknown_unknown="clang";
-                            export CFLAGS_wasm32_unknown_unknown="-I ${clang.lib}/lib/clang/21/include";
+							export CC_wasm32_unknown_unknown="clang";
+							export CFLAGS_wasm32_unknown_unknown="-I ${clang.lib}/lib/clang/21/include";
 						'';
 					};
 			}
