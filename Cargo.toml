@@ -40,11 +40,15 @@ const_format = { version = "0.2.35", features = ["fmt"] }
 tower-http = { version = "0.6.8", features = ["cors"] }
 tsify = { version = "0.5.6", features = ["js"] }
 html_parser = "0.7.0"
+rand = "0.10.0"
+xxhash-rust = { version = "0.8.15", features = ["xxh3"] }
 
 [profile.release]
 incremental = true
 lto = true
 opt-level = 3
+debug = "line-tables-only"
+split-debuginfo = "packed"
 
 [profile.dev]
 opt-level = 0
@@ -112,7 +116,7 @@ use_self = "warn"
 useless_let_if_seq = "warn"
 while_float = "warn"
 #restriction
-allow_attributes = "warn"
+# allow_attributes = "warn"
 # love to set this up, but no auto-fixes
 # arbitrary_source_item_ordering = "warn"
 cognitive_complexity = "warn"

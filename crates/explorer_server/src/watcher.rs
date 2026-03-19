@@ -1,14 +1,17 @@
 mod parser;
-use std::{fs, io, process::Stdio, time::Duration};
+mod spawn;
+use std::{fs, io, time::Duration};
 
-use anyhow::{Context as _, Result, bail};
+use anyhow::{Context as _, Result};
 use reqwest::Response;
-use tokio::process::Command;
 use tracing::{error, info, instrument, trace};
 
 use explorer_server_core::{Channel, EncodableBuild, get_build_path, is_build_downloaded};
 
-use crate::watcher::parser::{ParsedHtml, parse_html};
+use crate::watcher::{
+    parser::{ParsedHtml, parse_html},
+    spawn::{BuildParserWorker as _, DefaultBuildParserWorker},
+};
 
 const fn get_app_url(c: Channel) -> &'static str {
     match c {
@@ -48,8 +51,6 @@ async fn get_build(channel: Channel) -> Result<Option<Build>> {
     }))
 }
 
-static JS_PATH: &str = "dist.server/index.js";
-
 async fn write_to_pipe(build: Build, channel: Channel, mut tx: io::PipeWriter) -> Result<()> {
     let build_hash = build.build_id;
 
@@ -71,13 +72,7 @@ async fn write_to_pipe(build: Build, channel: Channel, mut tx: io::PipeWriter) -
 async fn run_js_handler(build: Build, channel: Channel) -> Result<()> {
     let (rx, tx) = io::pipe()?;
     let writer_fut = tokio::spawn(write_to_pipe(build, channel, tx));
-    let status = Command::new("node")
-        .arg(JS_PATH)
-        .stdin(rx)
-        .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit())
-        .status()
-        .await;
+    spawn::DefaultBuildParserWorker::spawn(rx).await?;
 
     writer_fut
         .await
@@ -85,15 +80,6 @@ async fn run_js_handler(build: Build, channel: Channel) -> Result<()> {
         .flatten()
         .context("Failed to write build info to pipe")?;
 
-    match status {
-        Ok(s) if s.success() => {}
-        Ok(s) => {
-            bail!("js process failed with status {s}");
-        }
-        Err(e) => {
-            bail!("failed to run js handler: {e}");
-        }
-    }
     Ok(())
 }
 
@@ -115,6 +101,15 @@ async fn handle_build(c: Channel) -> Result<()> {
 }
 
 pub async fn start_watcher() {
+    info!("setting up parser worker");
+    if let Err(e) = DefaultBuildParserWorker::setup()
+        .await
+        .context("Failed to setup parser worker")
+    {
+        error!("{e:?}");
+        return;
+    }
+    info!("starting watcher loop");
     let mut interval = tokio::time::interval(Duration::from_secs(5));
     loop {
         interval.tick().await;

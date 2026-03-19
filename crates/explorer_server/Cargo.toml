@@ -27,6 +27,11 @@ const_format.workspace = true
 
 [build-dependencies]
 anyhow.workspace = true
+rand.workspace = true
+xxhash-rust.workspace = true
 
 [lints]
 workspace = true
+
+[features]
+js-bin = []

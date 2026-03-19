@@ -58,6 +58,7 @@ impl CommandExt for process::Command {
         npx_(program, &node_modules).with_context(|| format!("failed to resolve program {program}"))
     }
 
+    #[instrument]
     fn cargo(sub_cmd: &str) -> Result<Self>
     where
         Self: Sized,

@@ -1,4 +1,4 @@
-use crate::{Runnable, build, clean, util::server::ServerTarget};
+use crate::{Runnable, build::{self, server::ArgJsMode}, clean, util::server::ServerTarget};
 use anyhow::{Context, Result};
 use clap::Args;
 use tracing::{info, instrument};
@@ -7,6 +7,8 @@ use tracing::{info, instrument};
 pub struct Command {
     #[arg(short, long, default_value_t = false)]
     debug: bool,
+    #[command(flatten)]
+    js_mode: ArgJsMode,
     #[arg(short, long, default_value_t = false)]
     clean_cache: bool,
 }
@@ -25,6 +27,7 @@ impl Runnable for Command {
             release: !self.debug,
             no_deps: false,
             target: ServerTarget::Native,
+            js_mode: self.js_mode,
         }
         .build_server("run")?;
 

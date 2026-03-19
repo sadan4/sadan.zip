@@ -8,6 +8,15 @@ use tracing::{debug, error, info, warn};
 
 use migrations::migrate_if_needed;
 
+#[allow(dead_code)]
+const BUILD_SEED: &str = env!(
+    "EXPLORER_BUILD_SEED",
+    "expected build.rs to set EXPLORER_BUILD_SEED env var"
+);
+
+#[allow(dead_code)]
+const BIN_EXT: &str = if cfg!(windows) { ".exe" } else { "" };
+
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt::init();

@@ -5,18 +5,43 @@ use crate::{
     util::{cmd::CommandExt as _, fs, server::ServerTarget},
 };
 use anyhow::{Context, Result};
-use clap::Args;
+use clap::{Args, ValueEnum};
 use tracing::{info, instrument};
 
 #[derive(Args, Debug)]
 pub struct Command {
-    #[arg(long, default_value_t = false)]
-    pub(crate) release: bool,
+    #[arg(short, long, default_value_t = false)]
+    pub release: bool,
     #[arg(short = 'o', long, default_value_t = false)]
     /// Do not build any of the dependencies of [`Self::target`]
-    pub(crate) no_deps: bool,
+    pub no_deps: bool,
+    #[command(flatten)]
+    pub js_mode: ArgJsMode,
     #[arg(value_enum, default_value_t = ServerTarget::Native)]
-    pub(crate) target: ServerTarget,
+    pub target: ServerTarget,
+}
+
+#[derive(Args, Debug, Copy, Clone)]
+pub struct ArgJsMode {
+    #[arg(short, long, value_enum, default_value_t)]
+    pub js_mode: JsMode,
+}
+
+#[derive(Default, ValueEnum, Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum JsMode {
+    #[default]
+    Bundler,
+    Binary,
+}
+
+impl JsMode {
+    /// Returns `true` if the js mode is [`Binary`].
+    ///
+    /// [`Binary`]: JsMode::Binary
+    #[must_use]
+    pub const fn is_binary(&self) -> bool {
+        matches!(self, Self::Binary)
+    }
 }
 
 impl Command {
@@ -50,14 +75,20 @@ impl Command {
         .run()
         .with_context(|| "failed to clean js output")?;
         info!("Building server js code");
+        let is_exe = self.js_mode.js_mode.is_binary();
         process::Command::new("bun")
             .arg("build")
-            .arg("server/index.ts")
-            .arg("--outdir")
-            .arg("dist.server")
-            .arg("--target")
-            .arg("node")
+            .arg("server/parser-worker.ts")
+            .arg_if(!is_exe, "--outdir")
+            .arg_if(!is_exe, "dist.server")
+            .arg_if(is_exe, "--outfile")
+            .arg_if(is_exe, "dist.server/parser-worker")
+            .arg_if(!is_exe, "--target")
+            .arg_if(!is_exe, "node")
+            .arg_if(is_exe, "--compile")
+            .arg_if(is_exe && self.release, "--bytecode")
             .arg_if(self.release, "--minify")
+            .arg_if(!self.release, "--sourcemap")
             .run()
         // process::Command::npx("rollup")?
         //     .arg("-c")
@@ -70,18 +101,21 @@ impl Command {
             self.build_server_js()?;
         }
         info!("Building server native code");
+        let is_exe = self.js_mode.js_mode.is_binary();
         process::Command::cargo(cargo_subcmd)?
             .arg("-p")
             .arg("explorer_server")
+            .arg_if(is_exe, "--features")
+            .arg_if(is_exe, "js-bin")
             .arg_if(self.release, "--release")
             .run()
     }
 }
 
 impl Runnable for Command {
-    #[instrument]
+    #[instrument(skip(self))]
     fn run(&self) -> Result<()> {
-        info!("Building server");
+        info!(?self, "Building server");
         match self.target {
             ServerTarget::Napi => self.build_server_napi()?,
             ServerTarget::Js => self.build_server_js()?,
