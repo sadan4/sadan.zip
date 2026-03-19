@@ -2,7 +2,7 @@ use std::{path::Path, process};
 
 use crate::{
     Runnable, clean,
-    util::{cmd::CommandExt as _, server::ServerTarget},
+    util::{cmd::CommandExt as _, fs, server::ServerTarget},
 };
 use anyhow::{Context, Result};
 use clap::Args;
@@ -30,7 +30,12 @@ impl Command {
             .arg("explorer_writer")
             .arg("-o")
             .arg(Path::new("server").join("native"))
-            .run()
+            .run()?;
+        info!("Renaming napi d.ts file");
+        // move the d.ts file so that it ends with .node.d.ts
+        fs::rename("server/native/index.d.ts", "server/native/index.node.d.ts")
+            .context("Failed to rename napi d.ts")?;
+        Ok(())
     }
     #[instrument(skip(self))]
     fn build_server_js(&self) -> Result<()> {
@@ -45,10 +50,19 @@ impl Command {
         .run()
         .with_context(|| "failed to clean js output")?;
         info!("Building server js code");
-        process::Command::npx("rollup")?
-            .arg("-c")
-            .arg(Path::new("server").join("rollup.config.ts"))
+        process::Command::new("bun")
+            .arg("build")
+            .arg("server/index.ts")
+            .arg("--outdir")
+            .arg("dist.server")
+            .arg("--target")
+            .arg("node")
+            .arg_if(self.release, "--minify")
             .run()
+        // process::Command::npx("rollup")?
+        //     .arg("-c")
+        //     .arg(Path::new("server").join("rollup.config.ts"))
+        //     .run()
     }
     #[instrument(skip(self))]
     pub fn build_server(&self, cargo_subcmd: &str) -> Result<()> {

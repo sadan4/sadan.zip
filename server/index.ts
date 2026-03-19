@@ -5,8 +5,8 @@ import { GlobalEnvParser } from "@vencord-companion/global-env-parser";
 import { TAssert, WebpackAstParser } from "@vencord-companion/webpack-ast-parser";
 import { WebpackLazyChunkParser, WebpackMainChunkParser } from "@vencord-companion/webpack-chunk-parser";
 
+import native from "./native/index.node";
 import { Channels } from "./constants";
-import native from "./native";
 import { MainDeps, TModuleId } from "./types";
 import { fetchAsset } from "./utils";
 
