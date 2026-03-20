@@ -1,1 +1,2 @@
-index.node
+*
+!index.node.d.ts

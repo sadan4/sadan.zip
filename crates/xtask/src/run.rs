@@ -10,6 +10,7 @@ pub mod server;
 #[derive(Args)]
 pub struct Command {
     #[command(subcommand)]
+    /// The part of this project to run
     target: Target,
 }
 
@@ -24,6 +25,8 @@ impl Runnable for Command {
 
 #[derive(Subcommand)]
 enum Target {
+    /// Run the explorer server
     Server(server::Command),
+    /// Run the client site
     Client(client::Command),
 }

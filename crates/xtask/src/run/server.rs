@@ -6,10 +6,12 @@ use tracing::{info, instrument};
 #[derive(Args, Debug)]
 pub struct Command {
     #[arg(short, long, default_value_t = false)]
+    /// Run the server in debug mode.
     debug: bool,
     #[command(flatten)]
     js_mode: ArgJsMode,
     #[arg(short, long, default_value_t = false)]
+    /// Clean the build cache of the server that stores previous scraped builds
     clean_cache: bool,
 }
 

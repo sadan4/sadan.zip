@@ -11,6 +11,7 @@ use tracing::{info, instrument};
 #[derive(Args, Debug)]
 pub struct Command {
     #[arg(short, long, default_value_t = false)]
+    /// Build in release mode with optimizations.
     pub release: bool,
     #[arg(short = 'o', long, default_value_t = false)]
     /// Do not build any of the dependencies of [`Self::target`]
@@ -18,19 +19,25 @@ pub struct Command {
     #[command(flatten)]
     pub js_mode: ArgJsMode,
     #[arg(value_enum, default_value_t = ServerTarget::Native)]
+    /// The sub-section of the server to build
+    /// Unless [`Self::no_deps`] is set, this will also build any dependencies of the sub-section.
     pub target: ServerTarget,
 }
 
 #[derive(Args, Debug, Copy, Clone)]
 pub struct ArgJsMode {
     #[arg(short, long, value_enum, default_value_t)]
+    /// How to build the js code for the server.
     pub js_mode: JsMode,
 }
 
 #[derive(Default, ValueEnum, Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum JsMode {
     #[default]
+    /// Build the js code to a normal js file that can be ran by node
     Bundler,
+    /// Build the js code to a standalone executable with bun. 
+    /// The executable will then be embed in the final binary and written to disk at runtime.
     Binary,
 }
 

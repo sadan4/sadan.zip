@@ -1,14 +1,15 @@
-use std::{env, path::Path};
+use std::{env, io, path::Path};
 
 use anyhow::{Context, Result, bail};
-use clap::{Parser, Subcommand, ValueEnum};
+use clap::{CommandFactory, Parser, Subcommand, ValueEnum};
+use clap_complete::Shell;
 use tracing::level_filters::LevelFilter;
 
 mod build;
+mod clean;
+mod deps;
 mod run;
 mod util;
-mod deps;
-mod clean;
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
@@ -47,6 +48,10 @@ enum Command {
     Build(build::Command),
     Clean(clean::Command),
     Run(run::Command),
+    Completions {
+        #[arg(value_enum)]
+        shell: Shell,
+    },
 }
 
 impl Runnable for Command {
@@ -55,6 +60,11 @@ impl Runnable for Command {
             Self::Build(cmd) => cmd.run(),
             Self::Clean(cmd) => cmd.run(),
             Self::Run(cmd) => cmd.run(),
+            // this is handled in main and we exit early
+            Self::Completions { shell } => {
+                clap_complete::generate(*shell, &mut XTask::command(), "cargo-xtask", &mut io::stdout());
+                Ok(())
+            }
         }
     }
 }

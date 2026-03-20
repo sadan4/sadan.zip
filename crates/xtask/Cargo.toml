@@ -7,7 +7,8 @@ edition.workspace = true
 anyhow.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
-clap = { version = "4.6.0", features = ["derive"] }
+clap.workspace = true
+clap_complete.workspace = true
 
 [lints]
 workspace = true

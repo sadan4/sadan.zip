@@ -1,4 +1,4 @@
-use anyhow::{Context as _, Result};
+use anyhow::Result;
 use std::{io, process::Stdio};
 use tokio::process;
 
@@ -23,7 +23,7 @@ async fn do_spawn(data: io::PipeReader, cmd: &mut process::Command) -> Result<()
     {
         Ok(s) if s.success() => Ok(()),
         Ok(s) => Err(anyhow::anyhow!("js process failed with status {s}")),
-        Err(e) => Err(e).context("Failed to spawn js handler"),
+        Err(e) => Err(e.into()),
     }
 }
 
@@ -53,36 +53,45 @@ impl BuildParserWorker for NodeSpawner {
     }
 }
 
-// #[cfg(feature = "js-bin")]
+#[cfg(feature = "js-bin")]
 pub mod bin {
-    use std::{env, path::PathBuf, sync::LazyLock};
-
+    use super::{BuildParserWorker, do_spawn};
+    use crate::{BIN_EXT};
+    use anyhow::Result;
     use const_format::formatc;
+    use std::fs::Permissions;
+    #[cfg(not(windows))]
+    use std::os::unix::fs::PermissionsExt as _;
+    use std::{env, io, path::PathBuf, sync::LazyLock};
     use tokio::fs;
-
-    use crate::{BIN_EXT, BUILD_SEED};
-
-    use super::*;
+    use tokio::process;
+    use tracing::{info, warn};
 
     pub struct BinarySpawner;
 
     static BIN_PATH: LazyLock<PathBuf> = LazyLock::new(|| {
-        const BIN_NAME: &str = formatc!("parser-worker-{BUILD_SEED}{BIN_EXT}");
+        const BIN_NAME: &str = formatc!("parser-worker{BIN_EXT}");
         let mut path = env::temp_dir();
         path.push(BIN_NAME);
         path
     });
 
+    #[cfg(windows)]
+    const BIN_DATA: &[u8] = include_bytes!("../../../../dist.server/parser-worker.exe");
+    #[cfg(not(windows))]
+    const BIN_DATA: &[u8] = include_bytes!("../../../../dist.server/parser-worker");
+
     impl BuildParserWorker for BinarySpawner {
         async fn setup() -> Result<()> {
-            #[cfg(windows)]
-            const BIN_DATA: &[u8] = include_bytes!("../../../../dist.server/parser-worker.exe");
-            #[cfg(not(windows))]
-            const BIN_DATA: &[u8] = include_bytes!("../../../../dist.server/parser-worker");
-            if BIN_PATH.exists() {
-                return Ok(());
+            let bin_path = &*BIN_PATH;
+            info!("writing binary to {}", bin_path.display());
+            if bin_path.exists() {
+                warn!("binary already exists, overwriting");
+                fs::remove_file(bin_path).await?;
             }
-            fs::write(&*BIN_PATH, BIN_DATA).await?;
+            fs::write(&*bin_path, BIN_DATA).await?;
+            #[cfg(not(windows))]
+            fs::set_permissions(&*bin_path, Permissions::from_mode(0o700)).await?;
             Ok(())
         }
 

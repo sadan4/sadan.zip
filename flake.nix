@@ -2,7 +2,7 @@
 	description = "A basic flake with a shell";
 	inputs = {
 		nixpkgs = {
-			url = "github:NixOS/nixpkgs/nixos-25.11";
+			url = "github:NixOS/nixpkgs/nixos-unstable";
 		};
 		systems = {
 			url = "github:nix-systems/default";
@@ -24,20 +24,21 @@
 					import nixpkgs {
 						inherit system;
 					};
-				clang = pkgs.llvmPackages_21.clang-unwrapped;
+				clang-unwrapped = pkgs.llvmPackages_21.clang-unwrapped;
 			in {
 				devShells.default =
 					pkgs.mkShell {
 						packages = with pkgs; [
 							emscripten
 							wasm-bindgen-cli
-							clang
 							msgpack-tools
+                            mold
+                            clang_21
 						];
 						hardeningDisable = ["all"];
 						shellHook = ''
-							export CC_wasm32_unknown_unknown="clang";
-							export CFLAGS_wasm32_unknown_unknown="-I ${clang.lib}/lib/clang/21/include";
+							export CC_wasm32_unknown_unknown="${clang-unwrapped}/bin/clang";
+							export CFLAGS_wasm32_unknown_unknown="-I ${clang-unwrapped.lib}/lib/clang/21/include";
 						'';
 					};
 			}

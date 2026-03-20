@@ -4,6 +4,7 @@ use clap::{Args, Subcommand};
 #[derive(Args)]
 pub struct Command {
     #[command(subcommand)]
+    /// The part of this project to clean
     target: Target,
 }
 
@@ -18,7 +19,9 @@ impl Runnable for Command {
 
 #[derive(Subcommand)]
 pub enum Target {
+    /// Clean build artifacts of the explorer server
     Server(server::Command),
+    /// Clean the builds downloaded by the explorer server
     BuildCache(build_cache::Command),
 }
 
