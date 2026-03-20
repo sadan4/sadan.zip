@@ -4,12 +4,13 @@ use clap::Args;
 use oxc::allocator::Allocator;
 use std::{
     env,
-    fs::ReadDir,
+    fs::{self, ReadDir},
     path::{Path, PathBuf},
 };
-use tokio::fs;
 use tokio_stream::{StreamExt as _, wrappers::ReadDirStream};
-use tracing::{trace, warn};
+use tracing::{info, trace, warn};
+
+use crate::vc::parser::parse_patches;
 
 fn default_plugin_dirs() -> impl IntoIterator<Item = PathBuf> {
     ["src/plugins", "src/plugins/_api", "src/plugins/_core"]
@@ -32,14 +33,22 @@ pub struct VencordOpts {
 }
 
 pub async fn collect_patches(opts: VencordOpts) -> Result<Vec<StandalonePatch>> {
+    tokio::task::spawn_blocking(move || do_collect_patches(opts)).await?
+}
+
+fn do_collect_patches(opts: VencordOpts) -> Result<Vec<StandalonePatch>> {
     let mut plugins = Vec::new();
     for plugin_base_dir in ["src/plugins", "src/plugins/_api", "src/plugins/_core"]
         .into_iter()
         .map(|d| opts.vencord_dir.join(d))
     {
-        glob_plugins_for_dir(&plugin_base_dir, &mut plugins).await?;
+        glob_plugins_for_dir(&plugin_base_dir, &mut plugins)?;
     }
-    dbg!(&plugins);
+    info!("Found {} plugins, parsing...", plugins.len());
+    let allocator = Allocator::new();
+    for p in plugins {
+        parse_patches(&allocator, &p.entry_point)?;
+    }
     bail!("TODO");
 }
 
@@ -63,11 +72,9 @@ impl Plugin {
     }
 }
 
-async fn glob_plugins_for_dir(dir: &Path, plugins: &mut Vec<Plugin>) -> Result<()> {
-    let files = fs::read_dir(dir).await?;
-    let mut st = ReadDirStream::new(files);
-    while let Some(path) = st.next().await {
-        let path = path?;
+fn glob_plugins_for_dir(dir: &Path, plugins: &mut Vec<Plugin>) -> Result<()> {
+    for path in fs::read_dir(dir)? {
+        let path  = path?;
         let file_name = path.path();
 
         if let Some(stem) = file_name.file_stem() {
@@ -76,10 +83,11 @@ async fn glob_plugins_for_dir(dir: &Path, plugins: &mut Vec<Plugin>) -> Result<(
                 continue;
             }
             if stem.to_string_lossy().starts_with('_') {
-                trace!(?file_name, "ignoring path starting with `_`")
+                trace!(?file_name, "ignoring path starting with `_`");
+                continue;
             }
         }
-        let plugin = if path.file_type().await?.is_dir() {
+        let plugin = if path.file_type()?.is_dir() {
             let Some(entry_point) = resolve_plugin_entry_point(&file_name) else {
                 warn!(
                     plugin_dir = ?file_name,
@@ -94,7 +102,6 @@ async fn glob_plugins_for_dir(dir: &Path, plugins: &mut Vec<Plugin>) -> Result<(
 
         plugins.push(plugin);
     }
-
     Ok(())
 }
 
