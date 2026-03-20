@@ -1,6 +1,8 @@
+use anyhow::{Result, bail};
 use oxc::allocator::Box as OxcBox;
 use oxc::ast::ast::{
-    Expression, ImportDeclaration, ImportDeclarationSpecifier, ModuleDeclaration, ObjectExpression, ObjectProperty, PropertyKey, StringLiteral
+    Expression, ImportDeclaration, ImportDeclarationSpecifier, ModuleDeclaration, ObjectExpression,
+    ObjectProperty, PropertyKey, StringLiteral,
 };
 use oxc::semantic::SymbolId;
 
@@ -67,11 +69,23 @@ impl ImportDeclarationExt for ImportDeclaration<'_> {
 }
 
 pub trait ObjectExpressionExt {
-    fn get_property<'a>(&'a self, name: &str) -> Option<&ObjectProperty>;
+    fn get_property<'a>(&'a self, name: &str) -> Option<&'a ObjectProperty<'a>>;
+    /// try to get a boolean literal property from an object
+    /// returns Ok(false) if not present
+    /// returns Err(e) if present but not a bool
+    fn parse_bool_flag(&self, key: &str) -> Result<bool> {
+        match self.get_property(key) {
+            Some(prop) => match &prop.value {
+                Expression::BooleanLiteral(b) => Ok(b.value),
+                _ => bail!("not a boolean literal"),
+            },
+            None => Ok(false),
+        }
+    }
 }
 
 impl ObjectExpressionExt for ObjectExpression<'_> {
-    fn get_property<'a>(&'a self, name: &str) -> Option<&ObjectProperty> {
+    fn get_property<'a>(&'a self, name: &str) -> Option<&'a ObjectProperty<'a>> {
         for prop in &self.properties {
             let Some(prop) = prop.as_property() else {
                 continue;
@@ -95,6 +109,8 @@ impl ObjectExpressionExt for ObjectExpression<'_> {
 
 pub trait ExpressionExt {
     fn as_string_literal(&self) -> Option<&StringLiteral>;
+    fn as_object_expression(&self) -> Option<&ObjectExpression>;
+    fn dbg_name(&self) -> &'static str;
 }
 
 impl ExpressionExt for Expression<'_> {
@@ -102,6 +118,60 @@ impl ExpressionExt for Expression<'_> {
         match self {
             Expression::StringLiteral(s) => Some(s),
             _ => None,
+        }
+    }
+
+    fn as_object_expression(&self) -> Option<&ObjectExpression> {
+        match self {
+            Expression::ObjectExpression(o) => Some(o.as_ref()),
+            _ => None,
+        }
+    }
+    fn dbg_name(&self) -> &'static str {
+        match self {
+            Self::BooleanLiteral(_) => "BooleanLiteral",
+            Self::NullLiteral(_) => "NullLiteral",
+            Self::NumericLiteral(_) => "NumericLiteral",
+            Self::BigIntLiteral(_) => "BigIntLiteral",
+            Self::RegExpLiteral(_) => "RegExpLiteral",
+            Self::StringLiteral(_) => "StringLiteral",
+            Self::TemplateLiteral(_) => "TemplateLiteral",
+            Self::Identifier(_) => "Identifier",
+            Self::MetaProperty(_) => "MetaProperty",
+            Self::Super(_) => "Super",
+            Self::ArrayExpression(_) => "ArrayExpression",
+            Self::ArrowFunctionExpression(_) => "ArrowFunctionExpression",
+            Self::AssignmentExpression(_) => "AssignmentExpression",
+            Self::AwaitExpression(_) => "AwaitExpression",
+            Self::BinaryExpression(_) => "BinaryExpression",
+            Self::CallExpression(_) => "CallExpression",
+            Self::ChainExpression(_) => "ChainExpression",
+            Self::ClassExpression(_) => "ClassExpression",
+            Self::ConditionalExpression(_) => "ConditionalExpression",
+            Self::FunctionExpression(_) => "FunctionExpression",
+            Self::ImportExpression(_) => "ImportExpression",
+            Self::LogicalExpression(_) => "LogicalExpression",
+            Self::NewExpression(_) => "NewExpression",
+            Self::ObjectExpression(_) => "ObjectExpression",
+            Self::ParenthesizedExpression(_) => "ParenthesizedExpression",
+            Self::SequenceExpression(_) => "SequenceExpression",
+            Self::TaggedTemplateExpression(_) => "TaggedTemplateExpression",
+            Self::ThisExpression(_) => "ThisExpression",
+            Self::UnaryExpression(_) => "UnaryExpression",
+            Self::UpdateExpression(_) => "UpdateExpression",
+            Self::YieldExpression(_) => "YieldExpression",
+            Self::PrivateInExpression(_) => "PrivateInExpression",
+            Self::JSXElement(_) => "JSXElement",
+            Self::JSXFragment(_) => "JSXFragment",
+            Self::TSAsExpression(_) => "TSAsExpression",
+            Self::TSSatisfiesExpression(_) => "TSSatisfiesExpression",
+            Self::TSTypeAssertion(_) => "TSTypeAssertion",
+            Self::TSNonNullExpression(_) => "TSNonNullExpression",
+            Self::TSInstantiationExpression(_) => "TSInstantiationExpression",
+            Self::V8IntrinsicExpression(_) => "V8IntrinsicExpression",
+            Self::ComputedMemberExpression(_) => "ComputedMemberExpression",
+            Self::StaticMemberExpression(_) => "StaticMemberExpression",
+            Self::PrivateFieldExpression(_) => "PrivateFieldExpression",
         }
     }
 }

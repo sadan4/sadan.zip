@@ -25,6 +25,7 @@ itertools.workspace = true
 tokio-stream = { workspace = true, features = ["fs"] }
 tokio-util = { workspace = true }
 oxc = { version = "0.120.0", features = ["full"] }
+thiserror.workspace = true
 
 
 [lints]
