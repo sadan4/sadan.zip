@@ -1,0 +1,31 @@
+[package]
+name = "reporter"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+tokio = { workspace = true, features = [
+    "rt-multi-thread",
+    "macros",
+    "fs",
+    "process",
+] }
+explorer_types.workspace = true
+explorer_server_core.workspace = true
+reqwest.workspace = true
+anyhow.workspace = true
+clap.workspace = true
+clap_complete.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+zstd.workspace = true
+rmp-serde.workspace = true
+serde.workspace = true
+itertools.workspace = true
+tokio-stream = { workspace = true, features = ["fs"] }
+tokio-util = { workspace = true }
+oxc = { version = "0.120.0", features = ["full"] }
+
+
+[lints]
+workspace = true

@@ -13,9 +13,8 @@ pub struct Command {
     #[arg(short, long, default_value_t = false)]
     /// Build in release mode with optimizations.
     pub release: bool,
-    #[arg(short = 'o', long, default_value_t = false)]
-    /// Do not build any of the dependencies of [`Self::target`]
-    pub no_deps: bool,
+    #[command(flatten)]
+    pub deps_mode: DepsMode,
     #[command(flatten)]
     pub js_mode: ArgJsMode,
     #[arg(value_enum, default_value_t = ServerTarget::Native)]
@@ -29,6 +28,13 @@ pub struct ArgJsMode {
     #[arg(short, long, value_enum, default_value_t)]
     /// How to build the js code for the server.
     pub js_mode: JsMode,
+}
+
+#[derive(Args, Debug, Copy, Clone)]
+pub struct DepsMode {
+    #[arg(short = 'o', long, default_value_t = false)]
+    /// Do not build any of the dependencies of [`Self::target`]
+    pub no_deps: bool,
 }
 
 #[derive(Default, ValueEnum, Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -71,7 +77,7 @@ impl Command {
     }
     #[instrument(skip(self))]
     fn build_server_js(&self) -> Result<()> {
-        if !self.no_deps {
+        if !self.deps_mode.no_deps {
             self.build_server_napi()?;
         }
         info!("cleaning js output folder");
@@ -104,7 +110,7 @@ impl Command {
     }
     #[instrument(skip(self))]
     pub fn build_server(&self, cargo_subcmd: &str) -> Result<()> {
-        if !self.no_deps {
+        if !self.deps_mode.no_deps {
             self.build_server_js()?;
         }
         info!("Building server native code");

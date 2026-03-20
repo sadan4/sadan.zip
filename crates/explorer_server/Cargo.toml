@@ -8,6 +8,7 @@ explorer_types.workspace = true
 explorer_server_core.workspace = true
 tokio = { workspace = true, features = [
     "rt-multi-thread",
+    "macros",
     "fs",
     "time",
     "process",

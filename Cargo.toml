@@ -40,6 +40,7 @@ tower-http = { version = "0.6.8", features = ["cors"] }
 html_parser = "0.7.0"
 clap = { version = "4.6.0", features = ["derive"] }
 clap_complete = "4.6.0"
+itertools = "0.14.0"
 
 [profile.release]
 incremental = true

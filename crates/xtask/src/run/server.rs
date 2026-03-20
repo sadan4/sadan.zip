@@ -27,7 +27,9 @@ impl Runnable for Command {
         info!("Running Server");
         build::server::Command {
             release: !self.debug,
-            no_deps: false,
+            deps_mode: build::server::DepsMode {
+                no_deps: false,
+            },
             target: ServerTarget::Native,
             js_mode: self.js_mode,
         }
