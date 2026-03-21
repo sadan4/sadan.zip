@@ -37,17 +37,14 @@ struct Cli {
 }
 
 fn main() {
-    #[cfg(debug_assertions)]
-    unsafe {
-        env::set_var("RUST_BACKTRACE", "1");
-    };
     tracing_subscriber::fmt().init();
     async_main();
 }
 
 #[tokio::main]
 async fn async_main() {
-    let cli = Cli::parse();
+    let mut cli = Cli::parse();
+    cli.vc_opts.vencord_dir = PathBuf::from("/home/meyer/dev/ts/Vencord");
     if let Some(shell) = cli.completions {
         clap_complete::generate(shell, &mut Cli::command(), "reporter", &mut io::stdout());
         process::exit(0);

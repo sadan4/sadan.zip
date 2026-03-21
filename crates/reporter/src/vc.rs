@@ -22,7 +22,7 @@ fn default_vencord_dir() -> PathBuf {
     env::current_dir().expect("Failed to get current directory")
 }
 
-#[derive(Args)]
+#[derive(Args, Debug)]
 pub struct VencordOpts {
     /// Path to vencord source dir. Defaults to $PWD
     #[arg(short = 'C', long, default_value_os_t = default_vencord_dir())]
@@ -38,10 +38,14 @@ pub async fn collect_patches(opts: VencordOpts) -> Result<Vec<StandalonePatch>> 
 
 fn do_collect_patches(opts: VencordOpts) -> Result<Vec<StandalonePatch>> {
     let mut plugins = Vec::new();
-    for plugin_base_dir in ["src/plugins", "src/plugins/_api", "src/plugins/_core"]
+    for plugin_base_dir in opts
+        .plugin_dirs
         .into_iter()
         .map(|d| opts.vencord_dir.join(d))
     {
+        if !plugin_base_dir.exists() {
+            bail!("plugin base dir {} doesn't exist", plugin_base_dir.display());
+        }
         glob_plugins_for_dir(&plugin_base_dir, &mut plugins)?;
     }
     info!("Found {} plugins, parsing...", plugins.len());
@@ -74,7 +78,7 @@ impl Plugin {
 
 fn glob_plugins_for_dir(dir: &Path, plugins: &mut Vec<Plugin>) -> Result<()> {
     for path in fs::read_dir(dir)? {
-        let path  = path?;
+        let path = path?;
         let file_name = path.path();
 
         if let Some(stem) = file_name.file_stem() {

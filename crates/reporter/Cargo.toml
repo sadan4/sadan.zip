@@ -24,7 +24,8 @@ serde.workspace = true
 itertools.workspace = true
 tokio-stream = { workspace = true, features = ["fs"] }
 tokio-util = { workspace = true }
-oxc = { version = "0.120.0", features = ["full"] }
+oxc = { version = "0.121.0", features = ["full", "cfg"] }
+oxc_ecmascript = "0.121.0"
 thiserror.workspace = true
 
 

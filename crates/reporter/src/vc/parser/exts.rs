@@ -1,8 +1,13 @@
+use std::borrow::Cow;
+
 use anyhow::{Result, bail};
+use itertools::Itertools;
 use oxc::allocator::Box as OxcBox;
 use oxc::ast::ast::{
-    Expression, ImportDeclaration, ImportDeclarationSpecifier, ModuleDeclaration, ObjectExpression,
-    ObjectProperty, PropertyKey, StringLiteral,
+    ArrayExpression, ArrayExpressionElement, ArrowFunctionExpression, BindingIdentifier,
+    BindingPattern, CallExpression, Expression, IdentifierReference, ImportDeclaration,
+    ImportDeclarationSpecifier, ModuleDeclaration, ObjectExpression, ObjectProperty, PropertyKey,
+    SpreadElement, StringLiteral, TemplateLiteral,
 };
 use oxc::semantic::SymbolId;
 
@@ -108,12 +113,22 @@ impl ObjectExpressionExt for ObjectExpression<'_> {
 }
 
 pub trait ExpressionExt {
+    fn as_identifier(&self) -> Option<&IdentifierReference>;
     fn as_string_literal(&self) -> Option<&StringLiteral>;
     fn as_object_expression(&self) -> Option<&ObjectExpression>;
+    fn as_array_expression(&self) -> Option<&ArrayExpression>;
+    fn as_call_expression(&self) -> Option<&CallExpression>;
+    fn as_arrow_function_expression(&self) -> Option<&ArrowFunctionExpression>;
     fn dbg_name(&self) -> &'static str;
 }
 
 impl ExpressionExt for Expression<'_> {
+    fn as_arrow_function_expression(&self) -> Option<&ArrowFunctionExpression> {
+        match self {
+            Expression::ArrowFunctionExpression(f) => Some(f.as_ref()),
+            _ => None,
+        }
+    }
     fn as_string_literal(&self) -> Option<&StringLiteral> {
         match self {
             Expression::StringLiteral(s) => Some(s),
@@ -127,6 +142,7 @@ impl ExpressionExt for Expression<'_> {
             _ => None,
         }
     }
+
     fn dbg_name(&self) -> &'static str {
         match self {
             Self::BooleanLiteral(_) => "BooleanLiteral",
@@ -172,6 +188,82 @@ impl ExpressionExt for Expression<'_> {
             Self::ComputedMemberExpression(_) => "ComputedMemberExpression",
             Self::StaticMemberExpression(_) => "StaticMemberExpression",
             Self::PrivateFieldExpression(_) => "PrivateFieldExpression",
+        }
+    }
+
+    fn as_array_expression(&self) -> Option<&ArrayExpression> {
+        match self {
+            Expression::ArrayExpression(a) => Some(a.as_ref()),
+            _ => None,
+        }
+    }
+
+    fn as_call_expression(&self) -> Option<&CallExpression> {
+        match self {
+            Expression::CallExpression(e) => Some(e.as_ref()),
+            _ => None,
+        }
+    }
+    fn as_identifier(&self) -> Option<&IdentifierReference> {
+        match self {
+            Self::Identifier(i) => Some(i.as_ref()),
+            _ => None,
+        }
+    }
+}
+
+pub trait TemplateLiteralExt<'a> {
+    fn dbg_str(&self) -> Cow<'a, str>;
+}
+
+impl<'a> TemplateLiteralExt<'a> for TemplateLiteral<'a> {
+    fn dbg_str(&self) -> Cow<'a, str> {
+        debug_assert_eq!(self.quasis.len(), self.expressions.len() + 1);
+        if self.is_no_substitution_template() {
+            return Cow::Borrowed(self.quasis[0].value.raw.as_str());
+        }
+        self.quasis
+            .iter()
+            .map(|q| q.value.raw)
+            .join("${...}")
+            .into()
+    }
+}
+
+pub trait ArrayExpressionElementExt<'a> {
+    fn as_spread<'b: 'a>(&'b self) -> Option<&'a SpreadElement<'a>>;
+    fn dbg_name(&self) -> &'static str;
+}
+
+impl<'a> ArrayExpressionElementExt<'a> for ArrayExpressionElement<'a> {
+    fn as_spread<'b: 'a>(&'b self) -> Option<&'a SpreadElement<'a>> {
+        match self {
+            ArrayExpressionElement::SpreadElement(s) => Some(s.as_ref()),
+            _ => None,
+        }
+    }
+
+    fn dbg_name(&self) -> &'static str {
+        self.as_expression().map_or_else(
+            || match self {
+                Self::SpreadElement(_) => "SpreadElement",
+                Self::Elision(_) => "Elision",
+                _ => unreachable!(),
+            },
+            Expression::dbg_name,
+        )
+    }
+}
+
+pub trait BindingPatternExt {
+    fn as_binding_identifier(&self) -> Option<&BindingIdentifier>;
+}
+
+impl BindingPatternExt for BindingPattern<'_> {
+    fn as_binding_identifier(&self) -> Option<&BindingIdentifier> {
+        match self {
+            BindingPattern::BindingIdentifier(i) => Some(i.as_ref()),
+            _ => None,
         }
     }
 }
