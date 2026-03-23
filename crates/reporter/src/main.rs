@@ -44,7 +44,9 @@ fn main() {
 #[tokio::main]
 async fn async_main() {
     let mut cli = Cli::parse();
-    cli.vc_opts.vencord_dir = PathBuf::from("/home/meyer/dev/ts/Vencord");
+    if cli.vc_opts.vencord_dir == env::current_dir().unwrap() {
+        cli.vc_opts.vencord_dir = PathBuf::from("/home/meyer/dev/ts/Vencord");
+    }
     if let Some(shell) = cli.completions {
         clap_complete::generate(shell, &mut Cli::command(), "reporter", &mut io::stdout());
         process::exit(0);

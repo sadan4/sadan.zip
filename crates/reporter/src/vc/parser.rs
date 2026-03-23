@@ -262,6 +262,7 @@ impl<'ast> Parser<'ast> {
         // Imports can only be at the top level
         self.import_statements().find(pred)
     }
+
     pub fn define_plugin_<'a: 'ast>(&'a self) -> Option<&'ast ObjectExpression<'ast>> {
         let define_plugin = self
             .find_import_by_name(DEFINE_PLUGIN_IMPORT_SOURCE)?
@@ -507,7 +508,7 @@ impl<'ast> Parser<'ast> {
         func.get_expression()
     }
 
-    pub fn raw_patches<'a: 'ast>(&'a self) -> Result<OxcVec<'ast, RawPatch<'ast>>> {
+    fn raw_patches<'a: 'ast>(&'a self) -> Result<OxcVec<'ast, RawPatch<'ast>>> {
         let mut ret = OxcVec::new_in(self.alloc);
         let Some(patches) = self
             .define_plugin()
