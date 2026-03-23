@@ -1,28 +1,22 @@
 mod exts;
-use std::{
-    borrow::{Borrow as _, Cow},
-    cell::Cell,
-    fmt::Debug,
-    fs,
-    path::Path,
-};
-
 use crate::vc::{
-    Patch,
+    Match, MatchLike, Patch,
+    hash::hash_message_key,
     parser::exts::{
         ArrayExpressionElementExt as _, BindingPatternExt, ExpressionExt, ImportDeclarationExt,
         ModuleDeclarationExt, ObjectExpressionExt, TemplateLiteralExt,
     },
 };
 use anyhow::{Context, Result, bail};
+use itertools::Itertools;
 use oxc::{
     allocator::{Allocator, Box, Vec as OxcVec},
     ast::{
         AstBuilder, AstKind,
         ast::{
-            Argument, ArrayExpressionElement, ArrowFunctionExpression, BinaryExpression,
-            BinaryOperator, Expression, ImportDeclaration, ModuleDeclaration, ObjectExpression,
-            RegExpLiteral, SpreadElement, StringLiteral, TemplateLiteral,
+            Argument, ArrayExpressionElement, ArrowFunctionExpression, Expression,
+            ImportDeclaration, ModuleDeclaration, ObjectExpression, RegExpLiteral, SpreadElement,
+            StringLiteral, TemplateLiteral,
         },
     },
     cfg::{BlockNodeId, ControlFlowGraph},
@@ -32,14 +26,16 @@ use oxc::{
         AstNode, NodeId, Semantic, SemanticBuilder,
         dot::{DebugDot, DebugDotContext},
     },
-    span::{SourceType, Span},
+    span::{Atom, SourceType, Span},
 };
 use oxc_ecmascript::{
     GlobalContext,
     constant_evaluation::{ConstantEvaluation, ConstantEvaluationCtx},
     side_effects::MayHaveSideEffectsContext,
 };
-use tracing::{debug, info, warn};
+use regress::Regex;
+use std::{borrow::Cow, cell::Cell, fmt::Debug, fs, path::Path, sync::LazyLock};
+use tracing::{debug, warn};
 
 pub fn parse_patches(allocator: &Allocator, plugin_entry: &Path) -> Result<Vec<Patch>> {
     let content = fs::read_to_string(plugin_entry)?;
@@ -196,12 +192,12 @@ impl Debug for RawReplace<'_> {
     }
 }
 
-#[derive(Clone)]
+#[derive(Copy, Clone)]
 enum RawMatchLike<'ast> {
     String(&'ast StringLiteral<'ast>),
     Regex(&'ast RegExpLiteral<'ast>),
     Template(&'ast TemplateLiteral<'ast>),
-    ComputedString(&'ast str, Span),
+    ComputedString(Atom<'ast>, Span),
 }
 
 #[automatically_derived]
@@ -313,7 +309,7 @@ impl<'ast> Parser<'ast> {
             Expression::BinaryExpression(b) => {
                 if let Some(cow) = b.evaluate_value_to_string(self) {
                     Ok(RawMatchLike::ComputedString(
-                        self.ast_builder.atom_from_cow(&cow).as_str(),
+                        self.ast_builder.atom_from_cow(&cow),
                         b.span,
                     ))
                 } else {
@@ -555,4 +551,153 @@ impl<'ast> Parser<'ast> {
 
         Ok(ret)
     }
+
+    fn canonicalize_patch<'a: 'ast>(&'a self, raw: RawPatch<'ast>) -> Result<Patch> {
+        let all = raw.all;
+        let no_warn = raw.no_warn;
+        let canon_find = canonicalize_match_like(&raw.find)?;
+        let mut cannon_replacement = Vec::with_capacity(raw.replacement.len());
+
+        for r in raw.replacement {
+            let match_ = canonicalize_match_like(&r.match_);
+            let replace = match r.replace {
+                RawReplace::String(StringLiteral { value, span, .. })
+                | RawReplace::ComputedString(value, span) => {}
+                RawReplace::Func(arrow_function_expression) => todo!(),
+                RawReplace::Template(template_literal) => todo!(),
+            };
+        }
+
+        todo!()
+    }
+}
+
+static PATCH_INTL_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"#{intl::([\w$+/]*)(?:::(\w+))?}").unwrap());
+
+// FIXME: add tests
+fn canonicalize_intl(s: &str, needs_regex_escape: bool) -> Result<Cow<'_, str>> {
+    // TODO: should this be find iter ascii
+    let mut it = PATCH_INTL_REGEX.find_iter(s).peekable();
+    if it.peek().is_none() {
+        return Ok(Cow::Borrowed(s));
+    }
+    let mut ret = String::with_capacity(s.len());
+    let mut last_end = 0;
+    for m in it {
+        ret.push_str(&s[last_end..m.start()]);
+        last_end = m.end();
+        let g_key = m.group(1).unwrap();
+        let key = &s[g_key.start..g_key.end];
+        let is_raw = m.group(2).map_or(false, |g| &s[g.start..g.end] == "raw");
+        let key = if is_raw {
+            key.chars()
+                .collect_array()
+                .context("Raw intl key has invalid len")?
+        } else {
+            hash_message_key(key)
+        };
+        let has_special_chars = {
+            let mut it = key.iter();
+            let first_char = it.next().unwrap();
+            // instead of matching !is_ident_start start, we can match is_not_ident_start
+            // because we know the only invalid chars this will ever contain
+            // See: ./hash.rs
+            matches!(first_char, '0'..='9' | '+' | '/') || it.any(|&c| c == '+' || c == '/')
+        };
+
+        if needs_regex_escape {
+            ret.push_str("(?:");
+            ret.push('\\');
+        }
+        if has_special_chars {
+            ret.push('[');
+            ret.push('"');
+        } else {
+            ret.push('.');
+        }
+        for c in key {
+            if needs_regex_escape && c == '+' {
+                ret.push('\\');
+            }
+            ret.push(c);
+        }
+        if has_special_chars {
+            ret.push('"');
+            if needs_regex_escape {
+                ret.push('\\');
+            }
+            ret.push(']');
+            if needs_regex_escape {
+                ret.push(')');
+            }
+        }
+    }
+
+    ret.push_str(&s[last_end..]);
+
+    Ok(Cow::Owned(ret))
+}
+
+static PATCH_IDENT_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(\\*)\\i").unwrap());
+
+// FIXME: add tests
+fn canonicalize_regex_ident(s: &str) -> Cow<'_, str> {
+    let mut it = PATCH_IDENT_REGEX.find_iter(s).peekable();
+
+    if it.peek().is_none() {
+        return Cow::Borrowed(s);
+    }
+
+    let mut ret = String::with_capacity(s.len());
+    let mut last_end = 0;
+
+    for m in it {
+        ret.push_str(&s[last_end..m.start()]);
+        let g_esc = m.group(1).unwrap();
+        if g_esc.len() & 1 == 0 {
+            ret.push_str(&s[g_esc.start..g_esc.end]);
+            ret.push_str(r#"(?:[A-Za-z_$][\w]*)"#);
+            last_end = m.end();
+        } else {
+            last_end = m.start() + 1;
+        }
+    }
+
+    ret.push_str(&s[last_end..]);
+
+    Cow::Owned(ret)
+}
+
+fn canonicalize_replace_self(s: &str) -> String {
+    s.replace("$self", r#"Vencord.Plugins.plugins["PluginName"]"#)
+}
+
+fn canonicalize_match_like<'ast>(raw: &RawMatchLike<'ast>) -> Result<MatchLike> {
+    let ret = match raw {
+        RawMatchLike::String(StringLiteral { value, span, .. })
+        | RawMatchLike::ComputedString(value, span) => {
+            let value = canonicalize_intl(value, false)?;
+            MatchLike {
+                v: Match::Str(value.into_owned()),
+                s: *span,
+            }
+        }
+        RawMatchLike::Regex(pat) => {
+            let flags = pat.regex.flags;
+            let span = pat.span;
+            let pat = pat.regex.pattern.text.as_str();
+            let pat = canonicalize_intl(pat, true)?;
+            let pat = canonicalize_regex_ident(&pat);
+            MatchLike {
+                v: Match::Regex(pat.into_owned(), flags),
+                s: span,
+            }
+        }
+        RawMatchLike::Template(template_literal) => {
+            bail!("TODO: Support inlining template literals in match like")
+        }
+    };
+
+    Ok(ret)
 }

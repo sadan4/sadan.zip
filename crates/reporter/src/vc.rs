@@ -1,7 +1,8 @@
 mod parser;
+mod hash;
 use anyhow::{Result, bail};
 use clap::Args;
-use oxc::allocator::Allocator;
+use oxc::{allocator::Allocator, ast::ast::RegExpFlags, span::Span};
 use std::{
     env,
     fs::{self, ReadDir},
@@ -60,7 +61,37 @@ fn do_collect_patches(opts: VencordOpts) -> Result<Vec<StandalonePatch>> {
 pub struct StandalonePatch {}
 
 #[derive(Debug)]
-struct Patch {}
+struct Patch {
+    all: bool,
+    no_warn: bool,
+    find: MatchLike,
+    replacement: Vec<Replacement>,
+}
+
+#[derive(Debug)]
+struct Replacement {
+    match_: MatchLike,
+    replace: Replacer,
+    no_warn: bool,
+}
+
+#[derive(Debug)]
+enum Replacer {
+    Str(String),
+}
+
+#[derive(Debug)]
+struct MatchLike {
+    v: Match,
+    s: Span,
+}
+
+#[derive(Debug)]
+enum Match {
+    Str(String),
+    Regex(String, RegExpFlags),
+}
+
 #[derive(Debug)]
 struct Plugin {
     entry_point: PathBuf,

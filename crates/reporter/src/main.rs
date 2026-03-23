@@ -45,7 +45,7 @@ fn main() {
 async fn async_main() {
     let mut cli = Cli::parse();
     if cli.vc_opts.vencord_dir == env::current_dir().unwrap() {
-        cli.vc_opts.vencord_dir = PathBuf::from("/home/meyer/dev/ts/Vencord");
+        cli.vc_opts.vencord_dir = env::home_dir().unwrap().join("dev").join("Vencord");
     }
     if let Some(shell) = cli.completions {
         clap_complete::generate(shell, &mut Cli::command(), "reporter", &mut io::stdout());

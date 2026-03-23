@@ -27,6 +27,8 @@ tokio-util = { workspace = true }
 oxc = { version = "0.121.0", features = ["full", "cfg"] }
 oxc_ecmascript = "0.121.0"
 thiserror.workspace = true
+regress = "0.11.0"
+xxhash-rust.workspace = true
 
 
 [lints]

@@ -41,6 +41,8 @@ html_parser = "0.7.0"
 clap = { version = "4.6.0", features = ["derive"] }
 clap_complete = "4.6.0"
 itertools = "0.14.0"
+xxhash-rust = { version = "0.8.15", features = ["xxh64"] }
+
 
 [profile.release]
 incremental = true
