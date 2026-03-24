@@ -1,9 +1,11 @@
 mod exts;
 use crate::vc::{
-    Match, MatchLike, MatchRegex, Patch, ReplaceLike, Replacement, Replacer, hash::hash_message_key, parser::exts::{
+    Match, MatchLike, MatchRegex, Patch, Plugin, ReplaceLike, Replacement, Replacer,
+    hash::hash_message_key,
+    parser::exts::{
         ArrayExpressionElementExt as _, BindingPatternExt, ExpressionExt, ImportDeclarationExt,
         ModuleDeclarationExt, ObjectExpressionExt, TemplateLiteralExt,
-    }
+    },
 };
 use anyhow::{Context, Result, bail};
 use itertools::Itertools;
@@ -32,15 +34,19 @@ use oxc_ecmascript::{
     side_effects::MayHaveSideEffectsContext,
 };
 use regress::Regex;
-use std::{borrow::Cow, cell::{Cell, OnceCell}, fmt::Debug, fs, path::Path, sync::LazyLock};
+use std::{
+    borrow::Cow,
+    cell::{Cell, OnceCell},
+    fmt::Debug,
+    sync::LazyLock,
+};
 use tracing::{debug, warn};
 
-pub fn parse_patches(allocator: &Allocator, plugin_entry: &Path) -> Result<Vec<Patch>> {
-    let content = fs::read_to_string(plugin_entry)?;
-    let source_type = SourceType::from_path(plugin_entry)
+pub fn parse_patches(allocator: &Allocator, plugin: &Plugin) -> Result<Vec<Patch>> {
+    let source_type = SourceType::from_path(plugin.entry_point.as_path())
         .context("Failed to parse source type for plugin entry")?;
 
-    let ast = OxcParser::new(allocator, &content, source_type).parse();
+    let ast = OxcParser::new(allocator, &plugin.entry_source, source_type).parse();
     let sema = verify_and_make_sema(&ast)?;
 
     let parser = Parser {
@@ -661,9 +667,57 @@ fn canonicalize_regex_ident(s: &str) -> Cow<'_, str> {
     Cow::Owned(ret)
 }
 
-fn canonicalize_replace_self(s: &str) -> String {
-    s.replace("$self", r#"Vencord.Plugins.plugins["PluginName"]"#)
+fn canonicalize_replace_for_regress(s: &mut str) {
+    let bts = unsafe { s.as_bytes_mut() };
+    let mut it = (0..bts.len()).peekable();
+    while let Some(i) = it.next() {
+        if bts[i] == b'$' {
+            let Some(n) = it.peek().copied() else {
+                continue;
+            };
+            match bts[n] {
+                b'$' => {
+                    it.next();
+                }
+                // regress does not support $& in replacement strings
+                // String.prototype.replace does not support $0
+                // regex101 supports $&
+                b'&' => {
+                    bts[n] = b'0';
+                    it.next();
+                }
+                // regress uses ${name} for named capture groups
+                // String.prototype.replace uses $<name> for named capture groups
+                // regex101 uses $<name>
+                b'<' => {
+                    it.next();
+                    let mut found_closing = false;
+                    let mut end_idx= usize::MAX;
+                    while let Some(i) = it.next() {
+                        if bts[i] == b'>' {
+                            found_closing = true;
+                            end_idx = i;
+                            break;
+                        }
+                    }
+                    if found_closing {
+                        debug_assert_eq!(bts[n], b'<');
+                        debug_assert_eq!(bts[end_idx], b'>');
+                        bts[n] = b'{';
+                        bts[end_idx] = b'}';
+                    } else {
+                        // un-terminated, do nothing
+                        debug_assert!(it.peek().is_none());
+                        return;
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
 }
+
+// TODO: Helper for COW regex
 
 fn canonicalize_match_like(raw: &RawMatchLike<'_>) -> Result<MatchLike> {
     let ret = match raw {
@@ -685,7 +739,7 @@ fn canonicalize_match_like(raw: &RawMatchLike<'_>) -> Result<MatchLike> {
                 v: Match::Regex(MatchRegex {
                     pattern: pat.into_owned(),
                     flags,
-                    regex: OnceCell::new(),
+                    regex: None,
                 }),
                 s: span,
             }
@@ -710,8 +764,8 @@ fn canonicalize_patch(raw: RawPatch<'_>) -> Result<Patch> {
         let replace = match &r.replace {
             RawReplace::String(StringLiteral { value, span, .. })
             | RawReplace::ComputedString(value, span) => {
-                let value = value.as_str();
-                let value = canonicalize_replace_self(value);
+                let mut value = value.to_string();
+                canonicalize_replace_for_regress(&mut value);
                 ReplaceLike {
                     v: Replacer::Str(value),
                     s: *span,

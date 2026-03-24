@@ -1,42 +1,52 @@
 mod fetcher;
+mod reporter;
 mod util;
 mod vc;
-mod reporter;
-use anyhow::{Context as _, Result, bail};
-use clap::{CommandFactory as _, Parser, error};
+use anyhow::{Result, bail};
+use clap::{CommandFactory as _, Parser};
 use clap_complete::Shell;
+use derive_more::{Constructor, From, Into};
 use indicatif::ProgressBar;
-use std::{
-    env, io, path::{Path, PathBuf}, process, sync::Arc, time::Instant
-};
-use tokio::fs;
+use miette::{Diagnostic, MietteHandlerOpts, NamedSource, Report, SourceCode};
+use oxc::diagnostics::OxcDiagnostic;
+use std::{io, path::Path, process, sync::Arc, time::Instant};
+use std::env::args;
+use itertools::Itertools;
 use tracing::{error, info, warn};
 
 use crate::{
-    fetcher::{BuildFilter, fetch_build}, reporter::{Msg, report_broken_patches}, vc::{VencordOpts, collect_patches}
+    fetcher::{FetchOpts, fetch_build},
+    reporter::{Msg, ReporterError, report_broken_patches},
+    vc::{Plugin, VencordOpts, collect_patches},
 };
-
-// const DEFAULT_BACKEND_URL: &str = "https://s-d-br.sadan.zip";
-const DEFAULT_BACKEND_URL: &str = "http://localhost:8484";
 
 #[derive(Parser)]
 #[command(version, about)]
 struct Cli {
     #[command(flatten)]
     vc_opts: VencordOpts,
-    // /// Try to run reporter against the build with this number. Fails if the build can't be found.
-    // build_number: Option<u32>,
-    /// The backend URL to fetch builds from.
-    /// You should not need to pass this in most cases.
-    #[arg(long, default_value = DEFAULT_BACKEND_URL)]
-    backend_url: String,
+    #[command(flatten)]
+    fetch_opts: FetchOpts,
     /// Generate shell completions
     #[arg(long, value_enum)]
     completions: Option<Shell>,
 }
 
 fn main() {
+    dbg!(args().collect_vec());
     tracing_subscriber::fmt().init();
+    miette::set_hook(Box::new(|_| {
+        Box::new(
+            MietteHandlerOpts::new()
+                .terminal_links(true)
+                .unicode(true)
+                .context_lines(2)
+                .color(true)
+                .with_cause_chain()
+                .build(),
+        )
+    }))
+    .expect("Failed to set miette hook");
     async_main();
 }
 
@@ -58,24 +68,27 @@ async fn async_main() {
 
 async fn run(cli: Cli) -> Result<()> {
     if !is_likely_vencord_dir(&cli.vc_opts.vencord_dir) {
+        Cli::command()
+            .print_long_help()
+            .expect("Failed to print help");
         bail!(
             "The passed vencord root dir {} doesn't look like a valid vencord root directory.",
             cli.vc_opts.vencord_dir.display()
         );
     }
     let patches_fut = tokio::spawn(async move { collect_patches(cli.vc_opts).await });
-    let target_build_fut =
-        tokio::spawn(async move { fetch_build(&cli.backend_url, BuildFilter::Latest).await });
+    let target_build_fut = tokio::spawn(async move { fetch_build(cli.fetch_opts).await });
     let (plugins, target_build) = tokio::join!(patches_fut, target_build_fut);
-    let plugins = plugins??;
+    let plugins = Arc::new(plugins??);
     let target_build = Arc::new(target_build??);
     let num_modules = target_build.modules.len();
     let bar = ProgressBar::new(num_modules as u64);
     info!("Starting reporter");
     let start = Instant::now();
-    let mut rx = report_broken_patches(target_build.clone(), plugins);
+    let plugins2 = plugins.clone();
+    let mut rx = report_broken_patches(target_build.clone(), plugins2);
 
-    while let Some(msg) = rx.recv().await { 
+    while let Some(msg) = rx.recv().await {
         match msg {
             Msg::Progress => {
                 bar.inc(1);
@@ -90,8 +103,27 @@ async fn run(cli: Cli) -> Result<()> {
                 bar.finish();
                 break;
             }
-            msg => {
-                // dbg!(msg);
+            Msg::Error(e) => {
+                let id = e.plugin_id();
+                let path = &plugins[id as usize].entry_point;
+                let source = SourceWrapper(plugins.clone(), id);
+                let report = Report::new(e).with_source_code(
+                    NamedSource::new(path.to_string_lossy(), source).with_language("Typescript"),
+                );
+                bar.suspend(|| {
+                    eprintln!("{report:?}");
+                });
+                if let Some(cause) = report.diagnostic_source() {
+                    bar.suspend(|| {
+                        println!("Has Cause");
+                        eprintln!("The above error was caused by the following:");
+                        eprintln!("{cause:?}");
+                    });
+                } else {
+                    bar.suspend(|| {
+                        println!("No cause");
+                    });
+                }
             }
         }
     }
@@ -108,4 +140,26 @@ fn is_likely_vencord_dir(path: &Path) -> bool {
     ["src/plugins/_core", "src/Vencord.ts"]
         .iter()
         .all(|p| path.join(p).exists())
+}
+
+#[derive(From, Into)]
+struct SourceWrapper(Arc<Vec<Plugin>>, u16);
+
+impl SourceCode for SourceWrapper {
+    fn read_span<'a>(
+        &'a self,
+        span: &miette::SourceSpan,
+        context_lines_before: usize,
+        context_lines_after: usize,
+    ) -> std::result::Result<Box<dyn miette::SpanContents<'a> + 'a>, miette::MietteError> {
+        self.0[self.1 as usize].entry_source.read_span(
+            span,
+            context_lines_before,
+            context_lines_after,
+        )
+    }
+
+    fn name(&self) -> Option<&str> {
+        self.0[self.1 as usize].entry_point.to_str()
+    }
 }

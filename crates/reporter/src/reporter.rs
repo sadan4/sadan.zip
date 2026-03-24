@@ -1,55 +1,115 @@
-use std::{
-    collections::HashSet, sync::Arc,
-};
+use std::{collections::HashSet, sync::Arc};
 
 use crate::vc::{Match, Patch, Plugin};
 use anyhow::{Result, anyhow};
 use explorer_types::FullBundle;
+use miette::{Diagnostic, NamedSource, Report, SourceSpan};
 use oxc::{
     allocator::Allocator,
+    ast::ast::Program,
+    codegen::{Codegen, CodegenOptions, CommentOptions, IndentChar, LegalComment},
+    diagnostics::OxcDiagnostic,
     parser::Parser,
     semantic::{SemanticBuilder, Stats},
     span::{SourceType, Span},
 };
 use regress::{Regex, escape};
+use thiserror::Error;
 use tokio::{sync::mpsc, task};
 use tracing::{debug, warn};
 
 #[derive(Debug)]
 pub enum Msg {
     Progress,
+    Error(ReporterError),
+    Done(Result<()>),
+}
+
+impl From<ReporterError> for Msg {
+    fn from(v: ReporterError) -> Self {
+        Self::Error(v)
+    }
+}
+
+#[derive(Error, Debug, Diagnostic)]
+pub enum ReporterError {
+    #[error("Bad Regex Syntax")]
+    #[diagnostic[
+        code(reporter::bad_regex_syntax),
+    ]]
     BadRegexSyntax {
         plugin_id: u16,
-        error: anyhow::Error,
+        #[source]
+        source: anyhow::Error,
+        #[label("From this regex")]
+        regex_span: SourceSpan,
     },
+    #[error("Replace Match Not Found")]
+    #[diagnostic[
+        code(reporter::replace::match_not_found),
+        help("This error occurred in module {module_id}")
+    ]]
     ReplaceMatchNotFound {
+        #[label("Caused by this match")]
+        match_span: SourceSpan,
         module_id: u32,
         plugin_id: u16,
-        span: Span,
     },
+    #[error("Replace Match Ambiguous")]
+    #[diagnostic[
+        code(reporter::replace::match_ambiguous),
+        help("This error occurred in module {module_id}")        
+    ]]
     ReplaceMatchAmbiguous {
-        module_id: u32,
+        #[label("Caused by this match")]
+        match_span: SourceSpan,
         plugin_id: u16,
-        span: Span,
+        module_id: u32,
     },
+
+    #[error("Replace Syntax Error")]
+    #[diagnostic[
+        code(reporter::replace::syntax_error),
+        help("This error occurred in module {module_id}"),
+    ]]
     ReplaceSyntaxError {
+        #[label("Caused by this replacement")]
+        replace_span: SourceSpan,
+        #[source]
+        #[diagnostic_source]
+        cause: Box<dyn Diagnostic + Send + Sync>,
         module_id: u32,
         plugin_id: u16,
-        span: Span,
-        error: anyhow::Error,
     },
+    #[error("Find Ambiguous")]
+    #[diagnostic[
+        code(reporter::find_ambiguous),
+        help("This error occurred in module {module_id}"),
+    ]]
     FindAmbiguous {
-        module_id: u32,
+        #[label("Caused by this find")]
+        find_span: SourceSpan,
         plugin_id: u16,
-        span: Span,
+        module_id: u32,
     },
-    Done(Result<()>),
+}
+
+impl ReporterError {
+    pub const fn plugin_id(&self) -> u16 {
+        match self {
+            Self::BadRegexSyntax { plugin_id, .. }
+            | Self::ReplaceMatchNotFound { plugin_id, .. }
+            | Self::ReplaceMatchAmbiguous { plugin_id, .. }
+            | Self::ReplaceSyntaxError { plugin_id, .. }
+            | Self::FindAmbiguous { plugin_id, .. } => *plugin_id,
+        }
+    }
 }
 
 #[track_caller]
 pub fn report_broken_patches(
     target_build: Arc<FullBundle>,
-    plugins: Vec<Plugin>,
+    plugins: Arc<Vec<Plugin>>,
 ) -> mpsc::Receiver<Msg> {
     let (mut tx, rx) = mpsc::channel(1024);
     task::spawn_blocking(move || {
@@ -78,6 +138,7 @@ fn run_reporter(build: &FullBundle, plugins: &[Plugin], tx: &mut mpsc::Sender<Ms
         // stats about the ast for m_txt
         // used by oxc to optimize allocations on re-parse
         let mut stats = None;
+        let m_filename = format!("{m_id}.js");
         for &patch in &missing {
             let plugin_id = patch.plugin_id();
             if let Some(a) = matches_module(Some(tx), m_txt, patch, plugin_id) {
@@ -98,13 +159,17 @@ fn run_reporter(build: &FullBundle, plugins: &[Plugin], tx: &mut mpsc::Sender<Ms
                         // this should be impossible to fail
                         &Regex::new(&escape(s.as_str())).unwrap()
                     }
-                    Match::Regex(r) => match r.regex() {
+                    Match::Regex(v) => match v.regex() {
                         Ok(r) => r,
                         Err(e) => {
-                            tx.blocking_send(Msg::BadRegexSyntax {
-                                plugin_id,
-                                error: anyhow!("{e:?}"),
-                            })
+                            tx.blocking_send(
+                                ReporterError::BadRegexSyntax {
+                                    plugin_id,
+                                    source: anyhow!("{e:?}"),
+                                    regex_span: r.match_.s.into(),
+                                }
+                                .into(),
+                            )
                             .unwrap();
                             action = PendingAction::MissingToBad(patch);
                             continue;
@@ -114,22 +179,28 @@ fn run_reporter(build: &FullBundle, plugins: &[Plugin], tx: &mut mpsc::Sender<Ms
                 let mut it = pat.find_iter(&last_src);
                 // TODO: handle group patches
                 if it.next().is_none() {
-                    tx.blocking_send(Msg::ReplaceMatchNotFound {
-                        module_id: *m_id,
-                        plugin_id,
-                        span: r.match_.s,
-                    })
+                    tx.blocking_send(
+                        ReporterError::ReplaceMatchNotFound {
+                            module_id: *m_id,
+                            plugin_id,
+                            match_span: r.match_.s.into(),
+                        }
+                        .into(),
+                    )
                     .unwrap();
                     action = PendingAction::MissingToBad(patch);
                     continue;
                 }
 
                 if it.next().is_some() {
-                    tx.blocking_send(Msg::ReplaceMatchAmbiguous {
-                        module_id: *m_id,
-                        plugin_id,
-                        span: r.match_.s,
-                    })
+                    tx.blocking_send(
+                        ReporterError::ReplaceMatchAmbiguous {
+                            module_id: *m_id,
+                            plugin_id,
+                            match_span: r.match_.s.into(),
+                        }
+                        .into(),
+                    )
                     .unwrap();
                 }
 
@@ -138,19 +209,22 @@ fn run_reporter(build: &FullBundle, plugins: &[Plugin], tx: &mut mpsc::Sender<Ms
                 };
 
                 let chk = {
-                    let chk = check_syntax_errors(&alloc, &new_src, stats);
+                    let chk = check_syntax_errors(&alloc, &new_src, stats, Some(&m_filename));
                     alloc.reset();
                     chk
                 };
                 match chk {
                     Ok(s) => stats = Some(s),
                     Err(e) => {
-                        tx.blocking_send(Msg::ReplaceSyntaxError {
-                            module_id: *m_id,
-                            plugin_id,
-                            span: r.replace.s,
-                            error: e,
-                        })
+                        tx.blocking_send(
+                            ReporterError::ReplaceSyntaxError {
+                                module_id: *m_id,
+                                plugin_id,
+                                replace_span: r.replace.s.into(),
+                                cause: e,
+                            }
+                            .into(),
+                        )
                         .unwrap();
                         action = PendingAction::MissingToBad(patch);
                         continue;
@@ -167,11 +241,14 @@ fn run_reporter(build: &FullBundle, plugins: &[Plugin], tx: &mut mpsc::Sender<Ms
             // matches_module returns None if there was an error.
             // It would be a logic error for a bad regex to be in the good set
             if matches_module(None, m_txt, patch, patch.plugin_id()).unwrap() {
-                tx.blocking_send(Msg::FindAmbiguous {
-                    module_id: *m_id,
-                    plugin_id: patch.plugin_id(),
-                    span: patch.find.s,
-                })
+                tx.blocking_send(
+                    ReporterError::FindAmbiguous {
+                        module_id: *m_id,
+                        plugin_id: patch.plugin_id(),
+                        find_span: patch.find.s.into(),
+                    }
+                    .into(),
+                )
                 .unwrap();
                 pending.push(PendingAction::GoodToBad(patch));
             }
@@ -182,11 +259,14 @@ fn run_reporter(build: &FullBundle, plugins: &[Plugin], tx: &mut mpsc::Sender<Ms
             }
 
             if matches_module(None, m_txt, patch, patch.plugin_id()) == Some(true) {
-                tx.blocking_send(Msg::FindAmbiguous {
-                    module_id: *m_id,
-                    plugin_id: patch.plugin_id(),
-                    span: patch.find.s,
-                })
+                tx.blocking_send(
+                    ReporterError::FindAmbiguous {
+                        module_id: *m_id,
+                        plugin_id: patch.plugin_id(),
+                        find_span: patch.find.s.into(),
+                    }
+                    .into(),
+                )
                 .unwrap();
             }
         }
@@ -259,10 +339,14 @@ fn matches_module(
                 Ok(r) => r,
                 Err(e) => {
                     if let Some(tx) = tx {
-                        tx.blocking_send(Msg::BadRegexSyntax {
-                            error: anyhow!("{e:?}"),
-                            plugin_id,
-                        })
+                        tx.blocking_send(
+                            ReporterError::BadRegexSyntax {
+                                source: anyhow!("{e:?}"),
+                                plugin_id,
+                                regex_span: patch.find.s.into(),
+                            }
+                            .into(),
+                        )
                         .unwrap();
                     }
                     return None;
@@ -273,10 +357,16 @@ fn matches_module(
     })
 }
 
-fn check_syntax_errors(alloc: &Allocator, src: &str, stats: Option<Stats>) -> Result<Stats> {
+fn check_syntax_errors(
+    alloc: &Allocator,
+    src: &str,
+    stats: Option<Stats>,
+    filename: Option<&str>,
+) -> Result<Stats, Box<dyn Diagnostic + Send + Sync>> {
     let mut p_ret = Parser::new(alloc, src, SourceType::unambiguous()).parse();
     if !p_ret.errors.is_empty() {
-        return Err(p_ret.errors.swap_remove(0).into());
+        let ret = p_ret.errors.swap_remove(0);
+        return Err(ret.into());
     }
     let sema = SemanticBuilder::new()
         .with_check_syntax_error(true)
@@ -290,6 +380,27 @@ fn check_syntax_errors(alloc: &Allocator, src: &str, stats: Option<Stats>) -> Re
     if sema.errors.is_empty() {
         Ok(sema.semantic.stats())
     } else {
-        Err(sema.errors.swap_remove(0).into())
+        let ret = sema.errors.swap_remove(0);
+        Err(ret.into())
     }
+}
+
+fn pretty_print(program: &Program<'_>) -> String {
+    Codegen::new()
+        .with_options(CodegenOptions {
+            indent_char: IndentChar::Tab,
+            indent_width: 1,
+            initial_indent: 0,
+            minify: false,
+            single_quote: false,
+            source_map_path: None,
+            comments: CommentOptions {
+                annotation: true,
+                jsdoc: true,
+                legal: LegalComment::Inline,
+                normal: true,
+            },
+        })
+        .build(program)
+        .code
 }

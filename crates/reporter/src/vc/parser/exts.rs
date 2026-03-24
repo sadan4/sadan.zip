@@ -12,11 +12,11 @@ use oxc::ast::ast::{
 use oxc::semantic::SymbolId;
 
 pub trait ModuleDeclarationExt {
-    fn as_import_declaration(&self) -> Option<&OxcBox<ImportDeclaration>>;
+    fn as_import_declaration(&'_ self) -> Option<&'_ OxcBox<'_, ImportDeclaration<'_>>>;
 }
 
 impl ModuleDeclarationExt for ModuleDeclaration<'_> {
-    fn as_import_declaration(&self) -> Option<&OxcBox<ImportDeclaration>> {
+    fn as_import_declaration(&'_ self) -> Option<&'_ OxcBox<'_, ImportDeclaration<'_>>> {
         match self {
             ModuleDeclaration::ImportDeclaration(i) => Some(i),
             _ => None,
@@ -66,7 +66,7 @@ impl ImportDeclarationExt for ImportDeclaration<'_> {
                 | ImportDeclarationSpecifier::ImportNamespaceSpecifier(_) => {
                     return Some(spec.local().symbol_id());
                 }
-                _ => {}
+                ImportDeclarationSpecifier::ImportSpecifier(_) => {}
             }
         }
         None
@@ -113,30 +113,30 @@ impl ObjectExpressionExt for ObjectExpression<'_> {
 }
 
 pub trait ExpressionExt {
-    fn as_identifier(&self) -> Option<&IdentifierReference>;
-    fn as_string_literal(&self) -> Option<&StringLiteral>;
-    fn as_object_expression(&self) -> Option<&ObjectExpression>;
-    fn as_array_expression(&self) -> Option<&ArrayExpression>;
-    fn as_call_expression(&self) -> Option<&CallExpression>;
-    fn as_arrow_function_expression(&self) -> Option<&ArrowFunctionExpression>;
+    fn as_identifier(&'_ self) -> Option<&'_ IdentifierReference<'_>>;
+    fn as_string_literal(&'_ self) -> Option<&'_ StringLiteral<'_>>;
+    fn as_object_expression(&'_ self) -> Option<&'_ ObjectExpression<'_>>;
+    fn as_array_expression(&'_ self) -> Option<&'_ ArrayExpression<'_>>;
+    fn as_call_expression(&'_ self) -> Option<&'_ CallExpression<'_>>;
+    fn as_arrow_function_expression(&'_ self) -> Option<&'_ ArrowFunctionExpression<'_>>;
     fn dbg_name(&self) -> &'static str;
 }
 
 impl ExpressionExt for Expression<'_> {
-    fn as_arrow_function_expression(&self) -> Option<&ArrowFunctionExpression> {
+    fn as_arrow_function_expression(&'_ self) -> Option<&'_ ArrowFunctionExpression<'_>> {
         match self {
             Expression::ArrowFunctionExpression(f) => Some(f.as_ref()),
             _ => None,
         }
     }
-    fn as_string_literal(&self) -> Option<&StringLiteral> {
+    fn as_string_literal(&'_ self) -> Option<&'_ StringLiteral<'_>> {
         match self {
             Expression::StringLiteral(s) => Some(s),
             _ => None,
         }
     }
 
-    fn as_object_expression(&self) -> Option<&ObjectExpression> {
+    fn as_object_expression(&'_ self) -> Option<&'_ ObjectExpression<'_>> {
         match self {
             Expression::ObjectExpression(o) => Some(o.as_ref()),
             _ => None,
@@ -191,20 +191,20 @@ impl ExpressionExt for Expression<'_> {
         }
     }
 
-    fn as_array_expression(&self) -> Option<&ArrayExpression> {
+    fn as_array_expression(&'_ self) -> Option<&'_ ArrayExpression<'_>> {
         match self {
             Expression::ArrayExpression(a) => Some(a.as_ref()),
             _ => None,
         }
     }
 
-    fn as_call_expression(&self) -> Option<&CallExpression> {
+    fn as_call_expression(&'_ self) -> Option<&'_ CallExpression<'_>> {
         match self {
             Expression::CallExpression(e) => Some(e.as_ref()),
             _ => None,
         }
     }
-    fn as_identifier(&self) -> Option<&IdentifierReference> {
+    fn as_identifier(&'_ self) -> Option<&'_ IdentifierReference<'_>> {
         match self {
             Self::Identifier(i) => Some(i.as_ref()),
             _ => None,
@@ -256,11 +256,11 @@ impl<'a> ArrayExpressionElementExt<'a> for ArrayExpressionElement<'a> {
 }
 
 pub trait BindingPatternExt {
-    fn as_binding_identifier(&self) -> Option<&BindingIdentifier>;
+    fn as_binding_identifier(&'_ self) -> Option<&'_ BindingIdentifier<'_>>;
 }
 
 impl BindingPatternExt for BindingPattern<'_> {
-    fn as_binding_identifier(&self) -> Option<&BindingIdentifier> {
+    fn as_binding_identifier(&'_ self) -> Option<&'_ BindingIdentifier<'_>> {
         match self {
             BindingPattern::BindingIdentifier(i) => Some(i.as_ref()),
             _ => None,

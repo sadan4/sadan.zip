@@ -1,12 +1,10 @@
-use std::{collections::HashSet, sync::Arc};
 
 use crate::{
     constants::FULL_BUNDLE_ENDPOINT, err::Result, explorer::meta::Meta, util::fetch_struct,
 };
-use explorer_types::{DepInfo, FullBundle, ModuleDeps, ModuleSources, Modules, TModuleId};
-use js_sys::Object;
+use explorer_types::{DepInfo, FullBundle, ModuleSources, Modules, TModuleId};
 use serde::Serialize;
-use wasm_bindgen::{JsValue, module, prelude::wasm_bindgen};
+use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 
 #[wasm_bindgen]
 pub struct Bundle {

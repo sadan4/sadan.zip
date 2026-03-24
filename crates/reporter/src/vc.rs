@@ -3,10 +3,18 @@ mod parser;
 use anyhow::{Result, bail};
 use clap::Args;
 use derive_more::{Eq, PartialEq};
-use oxc::{allocator::Allocator, ast::ast::{RegExp, RegExpFlags}, span::Span};
+use oxc::{
+    allocator::Allocator,
+    ast::ast::RegExpFlags,
+    span::Span,
+};
 use regress::{Flags, Regex};
 use std::{
-    cell::OnceCell, env, fs::{self, ReadDir}, hash::{Hash, Hasher}, path::{Path, PathBuf}, time::Instant
+    env,
+    fs,
+    hash::{Hash, Hasher},
+    path::{Path, PathBuf},
+    time::Instant,
 };
 use tokio_stream::{StreamExt as _, wrappers::ReadDirStream};
 use tracing::{info, trace, warn};
@@ -62,11 +70,14 @@ fn do_collect_patches(opts: VencordOpts) -> Result<Vec<Plugin>> {
             p.patches.is_empty(),
             "Patches should be empty before parsing"
         );
-        p.patches = parse_patches(&allocator, &p.entry_point)?;
+        p.patches = parse_patches(&allocator, &p)?;
         allocator.reset();
     }
 
+    info!("Binding plugin IDs");
     bind_plugin_ids(&mut plugins);
+    info!("Compiling plugin regexes");
+    compile_plugin_regexes(&mut plugins);
 
     info!("Collecting patches took {:.2?}", start.elapsed());
 
@@ -77,6 +88,21 @@ fn bind_plugin_ids(plugins: &mut [Plugin]) {
     for (id, plugin) in plugins.iter_mut().enumerate() {
         for patch in &mut plugin.patches {
             patch.plugin_id = Some(id as u16);
+        }
+    }
+}
+
+fn compile_plugin_regexes(plugins: &mut [Plugin]) {
+    for plugin in plugins {
+        for patch in &mut plugin.patches {
+            if let Match::Regex(r) = &mut patch.find.v {
+                r.make_regex();
+            }
+            for replacement in &mut patch.replacement {
+                if let Match::Regex(r) = &mut replacement.match_.v {
+                    r.make_regex();
+                }
+            }
         }
     }
 }
@@ -133,7 +159,7 @@ pub struct MatchRegex {
     pub pattern: String,
     pub flags: RegExpFlags,
     #[eq(skip)]
-    pub regex: OnceCell<Result<Regex>>,
+    pub regex: Option<Result<Regex>>,
 }
 
 impl Hash for MatchRegex {
@@ -144,33 +170,45 @@ impl Hash for MatchRegex {
 }
 
 impl MatchRegex {
+    pub fn make_regex(&mut self) {
+        if self.regex.is_some() {
+            return;
+        }
+        let f = |f| self.flags.contains(f);
+        self.regex = Some(
+            Regex::with_flags(
+                &self.pattern,
+                Flags {
+                    icase: f(RegExpFlags::I),
+                    multiline: f(RegExpFlags::M),
+                    dot_all: f(RegExpFlags::S),
+                    unicode: f(RegExpFlags::U),
+                    unicode_sets: f(RegExpFlags::V),
+                    no_opt: false,
+                },
+            )
+            .map_err(Into::into),
+        );
+    }
     pub fn regex(&self) -> &Result<Regex> {
-        self.regex.get_or_init(|| {
-            let f = |f| self.flags.contains(f);
-            Ok(Regex::with_flags(&self.pattern, Flags {
-                icase: f(RegExpFlags::I),
-                multiline: f(RegExpFlags::M),
-                dot_all: f(RegExpFlags::S),
-                unicode: f(RegExpFlags::U),
-                unicode_sets: f(RegExpFlags::V),
-                no_opt: false,
-            })?)
-        })
+        self.regex.as_ref().expect("Regex not compiled")
     }
 }
 
 #[derive(Debug)]
 pub struct Plugin {
     pub entry_point: PathBuf,
+    pub entry_source: String,
     pub patches: Vec<Patch>,
 }
 
 impl Plugin {
-    const fn new(entry_point: PathBuf) -> Self {
-        Self {
+    fn try_new(entry_point: PathBuf) -> Result<Self> {
+        Ok(Self {
+            entry_source: fs::read_to_string(&entry_point)?,
             entry_point,
             patches: Vec::new(),
-        }
+        })
     }
 }
 
@@ -197,9 +235,9 @@ fn glob_plugins_for_dir(dir: &Path, plugins: &mut Vec<Plugin>) -> Result<()> {
                 );
                 continue;
             };
-            Plugin::new(entry_point)
+            Plugin::try_new(entry_point)?
         } else {
-            Plugin::new(file_name)
+            Plugin::try_new(file_name)?
         };
 
         plugins.push(plugin);
