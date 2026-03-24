@@ -1,12 +1,12 @@
-mod parser;
 mod hash;
+mod parser;
 use anyhow::{Result, bail};
 use clap::Args;
-use oxc::{allocator::Allocator, ast::ast::RegExpFlags, span::Span};
+use derive_more::{Eq, PartialEq};
+use oxc::{allocator::Allocator, ast::ast::{RegExp, RegExpFlags}, span::Span};
+use regress::{Flags, Regex};
 use std::{
-    env,
-    fs::{self, ReadDir},
-    path::{Path, PathBuf},
+    cell::OnceCell, env, fs::{self, ReadDir}, hash::{Hash, Hasher}, path::{Path, PathBuf}, time::Instant
 };
 use tokio_stream::{StreamExt as _, wrappers::ReadDirStream};
 use tracing::{info, trace, warn};
@@ -33,11 +33,11 @@ pub struct VencordOpts {
     pub plugin_dirs: Vec<PathBuf>,
 }
 
-pub async fn collect_patches(opts: VencordOpts) -> Result<Vec<StandalonePatch>> {
+pub async fn collect_patches(opts: VencordOpts) -> Result<Vec<Plugin>> {
     tokio::task::spawn_blocking(move || do_collect_patches(opts)).await?
 }
 
-fn do_collect_patches(opts: VencordOpts) -> Result<Vec<StandalonePatch>> {
+fn do_collect_patches(opts: VencordOpts) -> Result<Vec<Plugin>> {
     let mut plugins = Vec::new();
     for plugin_base_dir in opts
         .plugin_dirs
@@ -45,65 +45,132 @@ fn do_collect_patches(opts: VencordOpts) -> Result<Vec<StandalonePatch>> {
         .map(|d| opts.vencord_dir.join(d))
     {
         if !plugin_base_dir.exists() {
-            bail!("plugin base dir {} doesn't exist", plugin_base_dir.display());
+            bail!(
+                "plugin base dir {} doesn't exist",
+                plugin_base_dir.display()
+            );
         }
         glob_plugins_for_dir(&plugin_base_dir, &mut plugins)?;
     }
+
     info!("Found {} plugins, parsing...", plugins.len());
-    let allocator = Allocator::new();
-    for p in plugins {
-        parse_patches(&allocator, &p.entry_point)?;
+
+    let start = Instant::now();
+    let mut allocator = Allocator::new();
+    for p in &mut plugins {
+        debug_assert!(
+            p.patches.is_empty(),
+            "Patches should be empty before parsing"
+        );
+        p.patches = parse_patches(&allocator, &p.entry_point)?;
+        allocator.reset();
     }
-    bail!("TODO");
+
+    bind_plugin_ids(&mut plugins);
+
+    info!("Collecting patches took {:.2?}", start.elapsed());
+
+    Ok(plugins)
 }
 
-#[derive(Debug)]
-pub struct StandalonePatch {}
-
-#[derive(Debug)]
-struct Patch {
-    all: bool,
-    no_warn: bool,
-    find: MatchLike,
-    replacement: Vec<Replacement>,
+fn bind_plugin_ids(plugins: &mut [Plugin]) {
+    for (id, plugin) in plugins.iter_mut().enumerate() {
+        for patch in &mut plugin.patches {
+            patch.plugin_id = Some(id as u16);
+        }
+    }
 }
 
-#[derive(Debug)]
-struct Replacement {
-    match_: MatchLike,
-    replace: Replacer,
-    no_warn: bool,
+// TODO: pack all/no_warn into flags?
+
+#[derive(Debug, PartialEq, Eq, Hash)]
+pub struct Patch {
+    pub plugin_id: Option<u16>,
+    pub all: bool,
+    pub no_warn: bool,
+    pub find: MatchLike,
+    pub replacement: Vec<Replacement>,
 }
 
-#[derive(Debug)]
-enum Replacer {
+impl Patch {
+    pub fn plugin_id(&self) -> u16 {
+        self.plugin_id.expect("Plugin ID not set")
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Hash)]
+pub struct Replacement {
+    pub match_: MatchLike,
+    pub replace: ReplaceLike,
+    pub no_warn: bool,
+}
+
+#[derive(Debug, PartialEq, Eq, Hash)]
+pub struct ReplaceLike {
+    pub v: Replacer,
+    pub s: Span,
+}
+
+#[derive(Debug, PartialEq, Eq, Hash)]
+pub enum Replacer {
     Str(String),
 }
 
-#[derive(Debug)]
-struct MatchLike {
-    v: Match,
-    s: Span,
+#[derive(Debug, PartialEq, Eq, Hash)]
+pub struct MatchLike {
+    pub v: Match,
+    pub s: Span,
 }
 
-#[derive(Debug)]
-enum Match {
+#[derive(Debug, PartialEq, Eq, Hash)]
+pub enum Match {
     Str(String),
-    Regex(String, RegExpFlags),
+    Regex(MatchRegex),
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct MatchRegex {
+    pub pattern: String,
+    pub flags: RegExpFlags,
+    #[eq(skip)]
+    pub regex: OnceCell<Result<Regex>>,
+}
+
+impl Hash for MatchRegex {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.pattern.hash(state);
+        self.flags.hash(state);
+    }
+}
+
+impl MatchRegex {
+    pub fn regex(&self) -> &Result<Regex> {
+        self.regex.get_or_init(|| {
+            let f = |f| self.flags.contains(f);
+            Ok(Regex::with_flags(&self.pattern, Flags {
+                icase: f(RegExpFlags::I),
+                multiline: f(RegExpFlags::M),
+                dot_all: f(RegExpFlags::S),
+                unicode: f(RegExpFlags::U),
+                unicode_sets: f(RegExpFlags::V),
+                no_opt: false,
+            })?)
+        })
+    }
 }
 
 #[derive(Debug)]
-struct Plugin {
-    entry_point: PathBuf,
-    patches: Vec<Patch>,
+pub struct Plugin {
+    pub entry_point: PathBuf,
+    pub patches: Vec<Patch>,
 }
 
 impl Plugin {
-    fn try_new(entry_point: PathBuf) -> Result<Self> {
-        Ok(Self {
+    const fn new(entry_point: PathBuf) -> Self {
+        Self {
             entry_point,
             patches: Vec::new(),
-        })
+        }
     }
 }
 
@@ -130,9 +197,9 @@ fn glob_plugins_for_dir(dir: &Path, plugins: &mut Vec<Plugin>) -> Result<()> {
                 );
                 continue;
             };
-            Plugin::try_new(entry_point)?
+            Plugin::new(entry_point)
         } else {
-            Plugin::try_new(file_name)?
+            Plugin::new(file_name)
         };
 
         plugins.push(plugin);

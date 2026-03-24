@@ -1,20 +1,19 @@
 mod fetcher;
 mod util;
 mod vc;
+mod reporter;
 use anyhow::{Context as _, Result, bail};
 use clap::{CommandFactory as _, Parser, error};
 use clap_complete::Shell;
+use indicatif::ProgressBar;
 use std::{
-    env, io,
-    path::{Path, PathBuf},
-    process,
+    env, io, path::{Path, PathBuf}, process, sync::Arc, time::Instant
 };
 use tokio::fs;
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
 use crate::{
-    fetcher::{BuildFilter, fetch_build},
-    vc::{VencordOpts, collect_patches},
+    fetcher::{BuildFilter, fetch_build}, reporter::{Msg, report_broken_patches}, vc::{VencordOpts, collect_patches}
 };
 
 // const DEFAULT_BACKEND_URL: &str = "https://s-d-br.sadan.zip";
@@ -44,9 +43,9 @@ fn main() {
 #[tokio::main]
 async fn async_main() {
     let mut cli = Cli::parse();
-    if cli.vc_opts.vencord_dir == env::current_dir().unwrap() {
-        cli.vc_opts.vencord_dir = env::home_dir().unwrap().join("dev").join("Vencord");
-    }
+    // if cli.vc_opts.vencord_dir == env::current_dir().unwrap() {
+    //     cli.vc_opts.vencord_dir = env::home_dir().unwrap().join("dev").join("Vencord");
+    // }
     if let Some(shell) = cli.completions {
         clap_complete::generate(shell, &mut Cli::command(), "reporter", &mut io::stdout());
         process::exit(0);
@@ -67,13 +66,42 @@ async fn run(cli: Cli) -> Result<()> {
     let patches_fut = tokio::spawn(async move { collect_patches(cli.vc_opts).await });
     let target_build_fut =
         tokio::spawn(async move { fetch_build(&cli.backend_url, BuildFilter::Latest).await });
-    let (patches, target_build) = tokio::join!(patches_fut, target_build_fut);
-    let patches = patches??;
-    let target_build = target_build??;
-    dbg!(patches);
-    dbg!(target_build);
+    let (plugins, target_build) = tokio::join!(patches_fut, target_build_fut);
+    let plugins = plugins??;
+    let target_build = Arc::new(target_build??);
+    let num_modules = target_build.modules.len();
+    let bar = ProgressBar::new(num_modules as u64);
+    info!("Starting reporter");
+    let start = Instant::now();
+    let mut rx = report_broken_patches(target_build.clone(), plugins);
 
-    todo!()
+    while let Some(msg) = rx.recv().await { 
+        match msg {
+            Msg::Progress => {
+                bar.inc(1);
+            }
+            Msg::Done(res) => {
+                if let Err(e) = res {
+                    error!("Reporter failed with error: {e:?}");
+                }
+                bar.suspend(|| {
+                    info!("Reporter finished in {:.2?}", start.elapsed());
+                });
+                bar.finish();
+                break;
+            }
+            msg => {
+                // dbg!(msg);
+            }
+        }
+    }
+
+    if cfg!(debug_assertions) && !bar.is_finished() {
+        warn!("Progress bar not finished");
+        bar.finish();
+    }
+
+    Ok(())
 }
 
 fn is_likely_vencord_dir(path: &Path) -> bool {

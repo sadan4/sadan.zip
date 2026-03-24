@@ -29,7 +29,9 @@ oxc_ecmascript = "0.121.0"
 thiserror.workspace = true
 regress = "0.11.0"
 xxhash-rust.workspace = true
-
+derive_more = { version = "2.1.1", features = ["eq"] }
+oxc-miette = { version = "2.7.0", features = ["fancy"] }
+indicatif = "0.18.4"
 
 [lints]
 workspace = true

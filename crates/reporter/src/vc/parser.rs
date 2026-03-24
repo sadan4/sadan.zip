@@ -1,11 +1,9 @@
 mod exts;
 use crate::vc::{
-    Match, MatchLike, Patch,
-    hash::hash_message_key,
-    parser::exts::{
+    Match, MatchLike, MatchRegex, Patch, ReplaceLike, Replacement, Replacer, hash::hash_message_key, parser::exts::{
         ArrayExpressionElementExt as _, BindingPatternExt, ExpressionExt, ImportDeclarationExt,
         ModuleDeclarationExt, ObjectExpressionExt, TemplateLiteralExt,
-    },
+    }
 };
 use anyhow::{Context, Result, bail};
 use itertools::Itertools;
@@ -34,7 +32,7 @@ use oxc_ecmascript::{
     side_effects::MayHaveSideEffectsContext,
 };
 use regress::Regex;
-use std::{borrow::Cow, cell::Cell, fmt::Debug, fs, path::Path, sync::LazyLock};
+use std::{borrow::Cow, cell::{Cell, OnceCell}, fmt::Debug, fs, path::Path, sync::LazyLock};
 use tracing::{debug, warn};
 
 pub fn parse_patches(allocator: &Allocator, plugin_entry: &Path) -> Result<Vec<Patch>> {
@@ -59,11 +57,24 @@ pub fn parse_patches(allocator: &Allocator, plugin_entry: &Path) -> Result<Vec<P
 
     debug!("Parsing patches for {name}");
 
-    let _ = parser
+    let raw_patches = parser
         .raw_patches()
-        .with_context(|| format!("Failed to parse patches for plugin {name:?}"))?;
+        .with_context(|| format!("Failed to parse patches for plugin {name}"))?;
 
-    Ok(vec![])
+    let mut ret = Vec::with_capacity(raw_patches.len());
+
+    for raw in raw_patches {
+        let patch = match canonicalize_patch(raw) {
+            Ok(patch) => patch,
+            Err(e) => {
+                debug!("Failed to canonicalize patch for plugin {name}, skipping. Cause: {e}");
+                continue;
+            }
+        };
+        ret.push(patch);
+    }
+
+    Ok(ret)
 }
 
 fn verify_and_make_sema<'a>(ast: &'a ParserReturn<'a>) -> Result<Semantic<'a>> {
@@ -77,7 +88,7 @@ fn verify_and_make_sema<'a>(ast: &'a ParserReturn<'a>) -> Result<Semantic<'a>> {
     // run semantic analysis
     let mut sema_result = SemanticBuilder::new()
         .with_check_syntax_error(true)
-        .with_cfg(true)
+        .with_cfg(false)
         .build(&ast.program);
 
     if !sema_result.errors.is_empty() {
@@ -153,7 +164,7 @@ impl<'ast> From<Option<&'ast Expression<'ast>>> for PatchPredicate<'ast> {
     }
 }
 
-impl<'ast> Debug for PatchPredicate<'ast> {
+impl Debug for PatchPredicate<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_tuple("PatchPredicate")
             .field(&self.0.map(Expression::dbg_name))
@@ -177,7 +188,7 @@ enum RawReplace<'ast> {
     String(&'ast StringLiteral<'ast>),
     Func(&'ast ArrowFunctionExpression<'ast>),
     Template(&'ast TemplateLiteral<'ast>),
-    ComputedString(&'ast str, Span),
+    ComputedString(Atom<'ast>, Span),
 }
 
 #[automatically_derived]
@@ -355,7 +366,7 @@ impl<'ast> Parser<'ast> {
             Expression::BinaryExpression(s) => {
                 if let Some(cow) = s.evaluate_value_to_string(self) {
                     Ok(RawReplace::ComputedString(
-                        self.ast_builder.atom_from_cow(&cow).as_str(),
+                        self.ast_builder.atom_from_cow(&cow),
                         s.span,
                     ))
                 } else {
@@ -551,25 +562,6 @@ impl<'ast> Parser<'ast> {
 
         Ok(ret)
     }
-
-    fn canonicalize_patch<'a: 'ast>(&'a self, raw: RawPatch<'ast>) -> Result<Patch> {
-        let all = raw.all;
-        let no_warn = raw.no_warn;
-        let canon_find = canonicalize_match_like(&raw.find)?;
-        let mut cannon_replacement = Vec::with_capacity(raw.replacement.len());
-
-        for r in raw.replacement {
-            let match_ = canonicalize_match_like(&r.match_);
-            let replace = match r.replace {
-                RawReplace::String(StringLiteral { value, span, .. })
-                | RawReplace::ComputedString(value, span) => {}
-                RawReplace::Func(arrow_function_expression) => todo!(),
-                RawReplace::Template(template_literal) => todo!(),
-            };
-        }
-
-        todo!()
-    }
 }
 
 static PATCH_INTL_REGEX: LazyLock<Regex> =
@@ -588,8 +580,8 @@ fn canonicalize_intl(s: &str, needs_regex_escape: bool) -> Result<Cow<'_, str>> 
         ret.push_str(&s[last_end..m.start()]);
         last_end = m.end();
         let g_key = m.group(1).unwrap();
-        let key = &s[g_key.start..g_key.end];
-        let is_raw = m.group(2).map_or(false, |g| &s[g.start..g.end] == "raw");
+        let key = &s[g_key];
+        let is_raw = m.group(2).is_some_and(|g| &s[g] == "raw");
         let key = if is_raw {
             key.chars()
                 .collect_array()
@@ -656,8 +648,8 @@ fn canonicalize_regex_ident(s: &str) -> Cow<'_, str> {
         ret.push_str(&s[last_end..m.start()]);
         let g_esc = m.group(1).unwrap();
         if g_esc.len() & 1 == 0 {
-            ret.push_str(&s[g_esc.start..g_esc.end]);
-            ret.push_str(r#"(?:[A-Za-z_$][\w]*)"#);
+            ret.push_str(&s[g_esc]);
+            ret.push_str(r"(?:[A-Za-z_$][\w]*)");
             last_end = m.end();
         } else {
             last_end = m.start() + 1;
@@ -673,7 +665,7 @@ fn canonicalize_replace_self(s: &str) -> String {
     s.replace("$self", r#"Vencord.Plugins.plugins["PluginName"]"#)
 }
 
-fn canonicalize_match_like<'ast>(raw: &RawMatchLike<'ast>) -> Result<MatchLike> {
+fn canonicalize_match_like(raw: &RawMatchLike<'_>) -> Result<MatchLike> {
     let ret = match raw {
         RawMatchLike::String(StringLiteral { value, span, .. })
         | RawMatchLike::ComputedString(value, span) => {
@@ -690,14 +682,61 @@ fn canonicalize_match_like<'ast>(raw: &RawMatchLike<'ast>) -> Result<MatchLike> 
             let pat = canonicalize_intl(pat, true)?;
             let pat = canonicalize_regex_ident(&pat);
             MatchLike {
-                v: Match::Regex(pat.into_owned(), flags),
+                v: Match::Regex(MatchRegex {
+                    pattern: pat.into_owned(),
+                    flags,
+                    regex: OnceCell::new(),
+                }),
                 s: span,
             }
         }
-        RawMatchLike::Template(template_literal) => {
+        RawMatchLike::Template(_) => {
             bail!("TODO: Support inlining template literals in match like")
         }
     };
 
     Ok(ret)
+}
+
+fn canonicalize_patch(raw: RawPatch<'_>) -> Result<Patch> {
+    let all = raw.all;
+    let no_warn = raw.no_warn;
+    let find = canonicalize_match_like(&raw.find)?;
+    let mut replacement = Vec::with_capacity(raw.replacement.len());
+
+    for r in raw.replacement {
+        let match_ = canonicalize_match_like(&r.match_)?;
+        let no_warn = r.no_warn;
+        let replace = match &r.replace {
+            RawReplace::String(StringLiteral { value, span, .. })
+            | RawReplace::ComputedString(value, span) => {
+                let value = value.as_str();
+                let value = canonicalize_replace_self(value);
+                ReplaceLike {
+                    v: Replacer::Str(value),
+                    s: *span,
+                }
+            }
+            RawReplace::Func(_) => {
+                bail!("Function replacements are not supported yet")
+            }
+            RawReplace::Template(_) => {
+                bail!("Template literal replacements are not supported yet")
+            }
+        };
+
+        replacement.push(Replacement {
+            match_,
+            replace,
+            no_warn,
+        });
+    }
+
+    Ok(Patch {
+        all,
+        no_warn,
+        find,
+        replacement,
+        plugin_id: None,
+    })
 }
