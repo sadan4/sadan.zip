@@ -75,6 +75,8 @@ fn run_reporter(build: &FullBundle, plugins: &[Plugin], tx: &mut mpsc::Sender<Ms
     let mut alloc = Allocator::new();
     for (m_id, m_txt) in &build.modules {
         alloc.reset();
+        // stats about the ast for m_txt
+        // used by oxc to optimize allocations on re-parse
         let mut stats = None;
         for &patch in &missing {
             let plugin_id = patch.plugin_id();
