@@ -9,11 +9,22 @@ use tracing::{info, instrument};
 
 use crate::util::read_struct;
 
-#[derive(Default, Debug, Copy, Clone)]
+#[derive(Default, Debug, Clone)]
 pub enum BuildFilter {
     #[default]
     Latest,
     Number(u32),
+    Hash(String),
+}
+
+impl BuildFilter {
+    pub fn choose(&self, mut from: impl Iterator<Item = BundleMetadata>) -> Option<BundleMetadata> {
+        match self {
+            Self::Latest => from.max_by_key(|f| f.first_seen),
+            Self::Number(build_number) => from.find(|build| build.build_number == *build_number),
+            Self::Hash(build_hash) => from.find(|build| build.build_hash == *build_hash),
+        }
+    }
 }
 
 // const DEFAULT_BACKEND_URL: &str = "https://s-d-br.sadan.zip";
@@ -68,7 +79,7 @@ async fn fetch_build_from_server(opts: &FetchOpts) -> Result<FullBundle> {
         bail!("No builds found on the server");
     }
 
-    let build = find_filtered_build(list, filter)
+    let build = find_filtered_build(list, &filter)
         .context("Failed to filter builds")?
         .context("Failed to find a build matching the provided filter")?;
 
@@ -82,23 +93,11 @@ async fn fetch_build_from_server(opts: &FetchOpts) -> Result<FullBundle> {
     read_struct(&*data)
 }
 
-fn find_filtered_build(list: BuildList, filter: BuildFilter) -> Result<Option<BundleMetadata>> {
-    match filter {
-        BuildFilter::Latest => {
-            debug_assert!(!list.builds.is_empty());
-            Ok(Some(
-                list.builds
-                    .into_iter()
-                    .map(|build| read_struct::<BundleMetadata>(&*build))
-                    .process_results(|iter| iter.max_by_key(|f| f.first_seen))?
-                    // this unwrap is unreachable because we check if we contain nothing before we call this function
-                    .unwrap(),
-            ))
-        }
-        BuildFilter::Number(build_number) => list
-            .builds
-            .into_iter()
-            .map(|build| read_struct::<BundleMetadata>(&*build))
-            .process_results(|mut iter| iter.find(|build| build.build_number == build_number)),
-    }
+fn find_filtered_build(list: BuildList, filter: &BuildFilter) -> Result<Option<BundleMetadata>> {
+    debug_assert!(!list.builds.is_empty());
+    list
+        .builds
+        .into_iter()
+        .map(|build| read_struct(&*build))
+        .process_results(|iter| filter.choose(iter))
 }
