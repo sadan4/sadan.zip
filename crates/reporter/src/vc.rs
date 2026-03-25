@@ -15,7 +15,7 @@ use std::{
 use tokio_stream::{StreamExt as _, wrappers::ReadDirStream};
 use tracing::{info, trace, warn};
 
-use crate::vc::parser::parse_patches;
+use crate::{util::Stage, vc::parser::parse_patches};
 
 fn default_plugin_dirs() -> impl IntoIterator<Item = PathBuf> {
     ["src/plugins", "src/plugins/_api", "src/plugins/_core"]
@@ -37,11 +37,13 @@ pub struct VencordOpts {
     pub plugin_dirs: Vec<PathBuf>,
 }
 
-pub async fn collect_patches(opts: VencordOpts) -> Result<Vec<Plugin>> {
-    tokio::task::spawn_blocking(move || do_collect_patches(opts)).await?
+pub async fn collect_patches(opts: VencordOpts, bar: Stage) -> Result<Vec<Plugin>> {
+    tokio::task::spawn_blocking(move || do_collect_patches(opts, bar)).await?
 }
 
-fn do_collect_patches(opts: VencordOpts) -> Result<Vec<Plugin>> {
+#[expect(clippy::needless_pass_by_value, reason = "RAII")]
+fn do_collect_patches(opts: VencordOpts, bar: Stage) -> Result<Vec<Plugin>> {
+    bar.msg("Globbing plugins");
     let mut plugins = Vec::new();
     for plugin_base_dir in opts
         .plugin_dirs
@@ -57,9 +59,7 @@ fn do_collect_patches(opts: VencordOpts) -> Result<Vec<Plugin>> {
         glob_plugins_for_dir(&plugin_base_dir, &mut plugins)?;
     }
 
-    info!("Found {} plugins, parsing...", plugins.len());
-
-    let start = Instant::now();
+    bar.msg(format!("Parsing {} plugins", plugins.len()));
     let mut allocator = Allocator::new();
     for p in &mut plugins {
         debug_assert!(
@@ -70,12 +70,10 @@ fn do_collect_patches(opts: VencordOpts) -> Result<Vec<Plugin>> {
         allocator.reset();
     }
 
-    info!("Binding plugin IDs");
+    bar.msg("Binding plugin IDs");
     bind_plugin_ids(&mut plugins);
-    info!("Compiling plugin regexes");
+    bar.msg("Compiling plugin regexes");
     compile_plugin_regexes(&mut plugins);
-
-    info!("Collecting patches took {:.2?}", start.elapsed());
 
     Ok(plugins)
 }

@@ -7,7 +7,7 @@ use anyhow::{Result, bail};
 use clap::{CommandFactory as _, Parser};
 use clap_complete::Shell;
 use derive_more::{Constructor, From, Into};
-use indicatif::ProgressBar;
+use indicatif::{MultiProgress, ProgressBar};
 use itertools::Itertools;
 use miette::{Diagnostic, MietteHandlerOpts, NamedSource, Report, SourceCode};
 use oxc::diagnostics::OxcDiagnostic;
@@ -17,6 +17,7 @@ use terminal_size::terminal_size;
 use tracing::{error, info, warn};
 
 use crate::err::printer::GraphicalReportHandler;
+use crate::util::Stage;
 use crate::{
     fetcher::{FetchOpts, fetch_build},
     reporter::{Msg, ReporterError, report_broken_patches},
@@ -78,13 +79,20 @@ async fn run(cli: Cli) -> Result<()> {
             cli.vc_opts.vencord_dir.display()
         );
     }
-    let patches_fut = tokio::spawn(async move { collect_patches(cli.vc_opts).await });
-    let target_build_fut = tokio::spawn(async move { fetch_build(cli.fetch_opts).await });
+    let bars = MultiProgress::new();
+    let patches_bar = Stage::new("Collecting Patches: ", None).and_attach(&bars);
+    let fetch_bar = Stage::new("Resolving target build", None).and_attach(&bars);
+    // FIXME: don't wrap in spawn
+    let patches_fut = tokio::spawn(async move {
+        collect_patches(cli.vc_opts, patches_bar).await
+    });
+    let target_build_fut = tokio::spawn(async move {
+        _ = fetch_bar;
+        fetch_build(cli.fetch_opts).await
+    });
     let (plugins, target_build) = tokio::join!(patches_fut, target_build_fut);
     let plugins = Arc::new(plugins??);
     let target_build = Arc::new(target_build??);
-    let num_modules = target_build.modules.len();
-    let bar = ProgressBar::new(num_modules as u64);
     info!("Starting reporter");
     let start = Instant::now();
     let plugins2 = plugins.clone();
@@ -92,11 +100,11 @@ async fn run(cli: Cli) -> Result<()> {
 
     while let Some(msg) = rx.recv().await {
         match msg {
-            Msg::Progress => {
-                bar.inc(1);
+            Msg::ProgressBar(bar) => {
+                bars.add(bar);
             }
             Msg::Done(res) => {
-                bar.suspend(|| match res {
+                bars.suspend(|| match res {
                     Err(e) => {
                         error!("Reporter failed with error: {e:?}");
                     }
@@ -107,7 +115,6 @@ async fn run(cli: Cli) -> Result<()> {
                         );
                     }
                 });
-                bar.finish();
                 break;
             }
             Msg::Error(e) => {
@@ -122,7 +129,7 @@ async fn run(cli: Cli) -> Result<()> {
                             tokio::fs::write(path, module).await
                         });
                     } else {
-                        bar.suspend(|| {
+                        bars.suspend(|| {
                             warn!("expected target_build to have the contents of module {m_id}");
                         });
                     }
@@ -133,16 +140,11 @@ async fn run(cli: Cli) -> Result<()> {
                 let report = Report::new(e).with_source_code(
                     NamedSource::new(path.to_string_lossy(), source).with_language("JavaScript"),
                 );
-                bar.suspend(|| {
+                bars.suspend(|| {
                     eprintln!("{report:?}");
                 });
             }
         }
-    }
-
-    if cfg!(debug_assertions) && !bar.is_finished() {
-        warn!("Progress bar not finished");
-        bar.finish();
     }
 
     Ok(())
