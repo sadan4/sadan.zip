@@ -96,11 +96,16 @@ async fn run(cli: Cli) -> Result<()> {
                 bar.inc(1);
             }
             Msg::Done(res) => {
-                if let Err(e) = res {
-                    error!("Reporter failed with error: {e:?}");
-                }
-                bar.suspend(|| {
-                    info!("Reporter finished in {:.2?}", start.elapsed());
+                bar.suspend(|| match res {
+                    Err(e) => {
+                        error!("Reporter failed with error: {e:?}");
+                    }
+                    Ok(raw_time) => {
+                        info!(
+                            "Reporter finished in {:.2?}. (raw time: {raw_time:.2?})",
+                            start.elapsed()
+                        );
+                    }
                 });
                 bar.finish();
                 break;

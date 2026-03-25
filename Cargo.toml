@@ -57,7 +57,7 @@ lto = "thin"
 opt-level = 3
 debug = true
 split-debuginfo = "packed"
-strip = true
+strip = false
 panic = "abort"
 
 [profile.dev]
@@ -66,6 +66,9 @@ incremental = true
 debug = true
 
 [profile.dev.package.regress]
+opt-level = 3
+
+[profile.dev.package.memchr]
 opt-level = 3
 
 [workspace.lints.rust]

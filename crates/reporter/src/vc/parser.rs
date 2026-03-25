@@ -9,6 +9,7 @@ use crate::vc::{
 };
 use anyhow::{Context, Result, bail};
 use itertools::Itertools;
+use memchr::memmem::Finder;
 use oxc::{
     allocator::{Allocator, Box, Vec as OxcVec},
     ast::{
@@ -724,7 +725,7 @@ fn canonicalize_match_like(raw: &RawMatchLike<'_>) -> Result<MatchLike> {
         | RawMatchLike::ComputedString(value, span) => {
             let value = canonicalize_intl(value, false)?;
             MatchLike {
-                v: Match::Str(value.into_owned()),
+                v: Match::Str(Finder::new(value.as_bytes()).into_owned()),
                 s: *span,
             }
         }

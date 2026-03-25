@@ -1,9 +1,10 @@
-use std::{collections::HashSet, sync::Arc};
+use std::{collections::HashSet, sync::Arc, time::{Duration, Instant}};
 
 use crate::vc::{Match, Patch, Plugin, Replacer};
 use anyhow::{Result, anyhow};
 use derive_more::{IsVariant, TryUnwrap};
 use explorer_types::FullBundle;
+use memchr::memmem::find;
 use miette::{Diagnostic, NamedSource, Report, SourceSpan};
 use oxc::{
     allocator::Allocator,
@@ -23,7 +24,7 @@ use tracing::{debug, warn};
 pub enum Msg {
     Progress,
     Error(ReporterError),
-    Done(Result<()>),
+    Done(Result<Duration>),
 }
 
 impl From<ReporterError> for Msg {
@@ -145,10 +146,13 @@ pub fn report_broken_patches(
     target_build: Arc<FullBundle>,
     plugins: Arc<Vec<Plugin>>,
 ) -> mpsc::Receiver<Msg> {
-    let (mut tx, rx) = mpsc::channel(1024);
+    const BUFFER_SIZE: usize = 0x4000;
+    let (mut tx, rx) = mpsc::channel(BUFFER_SIZE);
     task::spawn_blocking(move || {
+        let start=  Instant::now();
         run_reporter(&target_build, &plugins, &mut tx);
-        tx.blocking_send(Msg::Done(Ok(()))).unwrap();
+        let duration = start.elapsed();
+        tx.blocking_send(Msg::Done(Ok(duration))).unwrap();
     });
 
     rx
@@ -223,9 +227,8 @@ impl<'patch, 'tx> ReporterState<'patch, 'tx> {
         stats: &mut Option<Stats>,
     ) -> Option<PendingAction<'patch>> {
         let plugin_id = patch.plugin_id();
-        let matches = match matches_module(Some(self.tx), m_txt, patch, plugin_id) {
-            Some(matches) => matches,
-            None => return Some(PendingAction::MissingToBad(patch)),
+        let Some(matches) = matches_module(Some(self.tx), m_txt, patch, plugin_id) else {
+            return Some(PendingAction::MissingToBad(patch));
         };
 
         if !matches {
@@ -250,14 +253,14 @@ impl<'patch, 'tx> ReporterState<'patch, 'tx> {
                     Err(e) => {
                         self.tx
                             .blocking_send(
-                            ReporterError::BadRegexSyntax {
-                                plugin_id,
-                                source: anyhow!("{e:?}"),
-                                regex_span: r.match_.s.into(),
-                                expanded: format!("/{}/{}", v.pattern, v.flags),
-                            }
-                            .into(),
-                        )
+                                ReporterError::BadRegexSyntax {
+                                    plugin_id,
+                                    source: anyhow!("{e:?}"),
+                                    regex_span: r.match_.s.into(),
+                                    expanded: format!("/{}/{}", v.pattern, v.flags),
+                                }
+                                .into(),
+                            )
                             .unwrap();
                         action = PendingAction::MissingToBad(patch);
                         continue;
@@ -285,13 +288,13 @@ impl<'patch, 'tx> ReporterState<'patch, 'tx> {
             if it.next().is_some() {
                 self.tx
                     .blocking_send(
-                    ReporterError::ReplaceMatchAmbiguous {
-                        module_id: m_id,
-                        plugin_id,
-                        match_span: r.match_.s.into(),
-                    }
-                    .into(),
-                )
+                        ReporterError::ReplaceMatchAmbiguous {
+                            module_id: m_id,
+                            plugin_id,
+                            match_span: r.match_.s.into(),
+                        }
+                        .into(),
+                    )
                     .unwrap();
             }
 
@@ -309,14 +312,14 @@ impl<'patch, 'tx> ReporterState<'patch, 'tx> {
                 Err(e) => {
                     self.tx
                         .blocking_send(
-                        ReporterError::ReplaceSyntaxError {
-                            module_id: m_id,
-                            plugin_id,
-                            replace_span: r.replace.s.into(),
-                            cause: e,
-                        }
-                        .into(),
-                    )
+                            ReporterError::ReplaceSyntaxError {
+                                module_id: m_id,
+                                plugin_id,
+                                replace_span: r.replace.s.into(),
+                                cause: e,
+                            }
+                            .into(),
+                        )
                         .unwrap();
                     action = PendingAction::MissingToBad(patch);
                     continue;
@@ -339,20 +342,20 @@ impl<'patch, 'tx> ReporterState<'patch, 'tx> {
             if matches_module(None, m_txt, patch, patch.plugin_id()).unwrap() {
                 self.tx
                     .blocking_send(
-                    ReporterError::FindAmbiguous {
-                        module_id: m_id,
-                        plugin_id: patch.plugin_id(),
-                        find_span: patch.find.s.into(),
-                    }
-                    .into(),
-                )
+                        ReporterError::FindAmbiguous {
+                            module_id: m_id,
+                            plugin_id: patch.plugin_id(),
+                            find_span: patch.find.s.into(),
+                        }
+                        .into(),
+                    )
                     .unwrap();
                 self.pending.push(PendingAction::GoodToBad(patch));
             }
         }
     }
 
-    fn process_bad_patches(&mut self, m_id: u32, m_txt: &str) {
+    fn process_bad_patches(&self, m_id: u32, m_txt: &str) {
         let patches: Vec<&Patch> = self.bad.iter().copied().collect();
         for patch in patches {
             if patch.all {
@@ -362,13 +365,13 @@ impl<'patch, 'tx> ReporterState<'patch, 'tx> {
             if matches_module(None, m_txt, patch, patch.plugin_id()) == Some(true) {
                 self.tx
                     .blocking_send(
-                    ReporterError::FindAmbiguous {
-                        module_id: m_id,
-                        plugin_id: patch.plugin_id(),
-                        find_span: patch.find.s.into(),
-                    }
-                    .into(),
-                )
+                        ReporterError::FindAmbiguous {
+                            module_id: m_id,
+                            plugin_id: patch.plugin_id(),
+                            find_span: patch.find.s.into(),
+                        }
+                        .into(),
+                    )
                     .unwrap();
             }
         }
@@ -448,8 +451,8 @@ fn matches_module(
     plugin_id: u16,
 ) -> Option<bool> {
     Some(match &patch.find.v {
-        crate::vc::Match::Str(s) => m_txt.contains(s),
-        crate::vc::Match::Regex(s) => {
+        Match::Str(s) => s.find(m_txt.as_bytes()).is_some(),
+        Match::Regex(s) => {
             let s = match s.regex() {
                 Ok(r) => r,
                 Err(e) => {
@@ -499,24 +502,4 @@ fn check_syntax_errors(
         let ret = sema.errors.swap_remove(0);
         Err(ret.into())
     }
-}
-
-fn pretty_print(program: &Program<'_>) -> String {
-    Codegen::new()
-        .with_options(CodegenOptions {
-            indent_char: IndentChar::Tab,
-            indent_width: 1,
-            initial_indent: 0,
-            minify: false,
-            single_quote: false,
-            source_map_path: None,
-            comments: CommentOptions {
-                annotation: true,
-                jsdoc: true,
-                legal: LegalComment::Inline,
-                normal: true,
-            },
-        })
-        .build(program)
-        .code
 }

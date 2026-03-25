@@ -2426,6 +2426,7 @@ dependencies = [
  "explorer_types",
  "indicatif",
  "itertools",
+ "memchr",
  "owo-colors",
  "oxc",
  "oxc-miette",

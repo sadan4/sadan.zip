@@ -3,15 +3,11 @@ mod parser;
 use anyhow::{Result, bail};
 use clap::Args;
 use derive_more::{Eq, PartialEq};
-use oxc::{
-    allocator::Allocator,
-    ast::ast::RegExpFlags,
-    span::Span,
-};
+use memchr::memmem::Finder;
+use oxc::{allocator::Allocator, ast::ast::RegExpFlags, span::Span};
 use regress::{Flags, Regex, escape};
 use std::{
-    env,
-    fs,
+    env, fs,
     hash::{Hash, Hasher},
     path::{Path, PathBuf},
     time::Instant,
@@ -102,7 +98,9 @@ fn compile_plugin_regexes(plugins: &mut [Plugin]) {
                 // transform it to a regex here so we can cache it easier.
                 if let Match::Str(s) = &replacement.match_.v {
                     let regex = MatchRegex {
-                        pattern: escape(s.as_str()),
+                        // we only ever create a finder with a utf8 string
+                        // so this should never error
+                        pattern: escape(str::from_utf8(s.needle()).unwrap()),
                         flags: RegExpFlags::empty(),
                         regex: None,
                     };
@@ -164,10 +162,34 @@ pub struct MatchLike {
     pub s: Span,
 }
 
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Debug)]
 pub enum Match {
+    Str(Finder<'static>),
     Regex(MatchRegex),
-    Str(String),
+}
+
+impl Hash for Match {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        core::mem::discriminant(self).hash(state);
+        match self {
+            Self::Str(s) => s.needle().hash(state),
+            Self::Regex(s) => s.hash(state),
+        }
+    }
+}
+
+impl PartialEq for Match {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Str(l0), Self::Str(r0)) => l0.needle() == r0.needle(),
+            (Self::Regex(l0), Self::Regex(r0)) => l0 == r0,
+            _ => false,
+        }
+    }
+}
+
+impl Eq for Match {
+
 }
 
 #[derive(Debug, PartialEq, Eq)]
