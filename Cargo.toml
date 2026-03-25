@@ -65,6 +65,9 @@ opt-level = 0
 incremental = true
 debug = true
 
+[profile.dev.package.regress]
+opt-level = 3
+
 [workspace.lints.rust]
 # too buggy and noisy when used in the editor, but can be uncommented to find unused deps
 # unused_crate_dependencies = "deny"
