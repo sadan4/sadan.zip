@@ -1,7 +1,8 @@
 use std::{collections::HashSet, sync::Arc};
 
-use crate::vc::{Match, Patch, Plugin};
+use crate::vc::{Match, Patch, Plugin, Replacer};
 use anyhow::{Result, anyhow};
+use derive_more::{IsVariant, TryUnwrap};
 use explorer_types::FullBundle;
 use miette::{Diagnostic, NamedSource, Report, SourceSpan};
 use oxc::{
@@ -31,11 +32,12 @@ impl From<ReporterError> for Msg {
     }
 }
 
-#[derive(Error, Debug, Diagnostic)]
+#[derive(Error, Debug, Diagnostic, IsVariant)]
 pub enum ReporterError {
     #[error("Bad Regex Syntax")]
     #[diagnostic[
         code(reporter::bad_regex_syntax),
+        help("The regex was expanded to {expanded}"),
     ]]
     BadRegexSyntax {
         plugin_id: u16,
@@ -43,6 +45,7 @@ pub enum ReporterError {
         source: anyhow::Error,
         #[label("From this regex")]
         regex_span: SourceSpan,
+        expanded: String,
     },
     #[error("Replace Match Not Found")]
     #[diagnostic[
@@ -58,6 +61,7 @@ pub enum ReporterError {
     #[error("Replace Match Ambiguous")]
     #[diagnostic[
         code(reporter::replace::match_ambiguous),
+        severity(Warning),
         help("This error occurred in module {module_id}")        
     ]]
     ReplaceMatchAmbiguous {
@@ -66,7 +70,6 @@ pub enum ReporterError {
         plugin_id: u16,
         module_id: u32,
     },
-
     #[error("Replace Syntax Error")]
     #[diagnostic[
         code(reporter::replace::syntax_error),
@@ -84,6 +87,7 @@ pub enum ReporterError {
     #[error("Find Ambiguous")]
     #[diagnostic[
         code(reporter::find_ambiguous),
+        severity(Warning),
         help("This error occurred in module {module_id}"),
     ]]
     FindAmbiguous {
@@ -92,6 +96,8 @@ pub enum ReporterError {
         plugin_id: u16,
         module_id: u32,
     },
+    #[error(transparent)]
+    NoWarn(Box<ReporterError>),
 }
 
 impl ReporterError {
@@ -102,6 +108,34 @@ impl ReporterError {
             | Self::ReplaceMatchAmbiguous { plugin_id, .. }
             | Self::ReplaceSyntaxError { plugin_id, .. }
             | Self::FindAmbiguous { plugin_id, .. } => *plugin_id,
+            Self::NoWarn(e) => e.plugin_id(),
+        }
+    }
+
+    pub const fn module_id(&self) -> Option<u32> {
+        match self {
+            Self::BadRegexSyntax { .. } => None,
+            Self::ReplaceSyntaxError { module_id, .. }
+            | Self::FindAmbiguous { module_id, .. }
+            | Self::ReplaceMatchAmbiguous { module_id, .. }
+            | Self::ReplaceMatchNotFound { module_id, .. } => Some(*module_id),
+            Self::NoWarn(e) => e.module_id(),
+        }
+    }
+
+    pub const fn as_no_warn(&self) -> Option<&Box<Self>> {
+        if let Self::NoWarn(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
+    pub fn try_into_no_warn(self) -> Result<Box<Self>, Self> {
+        if let Self::NoWarn(v) = self {
+            Ok(v)
+        } else {
+            Err(self)
         }
     }
 }
@@ -125,6 +159,7 @@ enum PendingAction<'a> {
     MissingToGood(&'a Patch),
     MissingToBad(&'a Patch),
     GoodToBad(&'a Patch),
+    KeepForAll,
 }
 
 fn run_reporter(build: &FullBundle, plugins: &[Plugin], tx: &mut mpsc::Sender<Msg>) -> () {
@@ -150,14 +185,18 @@ fn run_reporter(build: &FullBundle, plugins: &[Plugin], tx: &mut mpsc::Sender<Ms
                 continue;
             }
             let mut last_src = format!("0,{m_txt}");
-            let mut action = PendingAction::MissingToGood(patch);
+            let mut action = if patch.all {
+                PendingAction::MissingToGood(patch)
+            } else {
+                PendingAction::KeepForAll
+            };
             for r in &patch.replacement {
+                let no_warn = patch.no_warn || r.no_warn;
                 let pat = match &r.match_.v {
-                    Match::Str(s) => {
-                        debug!("Implicit converting string replacement match to regex");
-                        // we are creating a regex of an escaped string
-                        // this should be impossible to fail
-                        &Regex::new(&escape(s.as_str())).unwrap()
+                    Match::Str(_) => {
+                        // We should never get here
+                        // all replacements should have been converted to regexes in ./vc.rs
+                        unreachable!()
                     }
                     Match::Regex(v) => match v.regex() {
                         Ok(r) => r,
@@ -167,6 +206,7 @@ fn run_reporter(build: &FullBundle, plugins: &[Plugin], tx: &mut mpsc::Sender<Ms
                                     plugin_id,
                                     source: anyhow!("{e:?}"),
                                     regex_span: r.match_.s.into(),
+                                    expanded: format!("/{}/{}", v.pattern, v.flags),
                                 }
                                 .into(),
                             )
@@ -179,16 +219,18 @@ fn run_reporter(build: &FullBundle, plugins: &[Plugin], tx: &mut mpsc::Sender<Ms
                 let mut it = pat.find_iter(&last_src);
                 // TODO: handle group patches
                 if it.next().is_none() {
-                    tx.blocking_send(
-                        ReporterError::ReplaceMatchNotFound {
-                            module_id: *m_id,
-                            plugin_id,
-                            match_span: r.match_.s.into(),
-                        }
-                        .into(),
-                    )
-                    .unwrap();
-                    action = PendingAction::MissingToBad(patch);
+                    let mut err = ReporterError::ReplaceMatchNotFound {
+                        module_id: *m_id,
+                        plugin_id,
+                        match_span: r.match_.s.into(),
+                    };
+                    if no_warn {
+                        err = ReporterError::NoWarn(Box::new(err));
+                    }
+                    tx.blocking_send(err.into()).unwrap();
+                    if !no_warn {
+                        action = PendingAction::MissingToBad(patch);
+                    }
                     continue;
                 }
 
@@ -205,7 +247,7 @@ fn run_reporter(build: &FullBundle, plugins: &[Plugin], tx: &mut mpsc::Sender<Ms
                 }
 
                 let new_src = match &r.replace.v {
-                    crate::vc::Replacer::Str(s) => pat.replace(&last_src, s.as_str()),
+                    Replacer::Str(s) => pat.replace(&last_src, s.as_str()),
                 };
 
                 let chk = {
@@ -314,6 +356,7 @@ fn run_reporter(build: &FullBundle, plugins: &[Plugin], tx: &mut mpsc::Sender<Ms
                     }
                     bad.insert(p);
                 }
+                PendingAction::KeepForAll => {}
             }
         }
         pending.clear();
@@ -344,6 +387,7 @@ fn matches_module(
                                 source: anyhow!("{e:?}"),
                                 plugin_id,
                                 regex_span: patch.find.s.into(),
+                                expanded: format!("/{}/{}", s.pattern, s.flags),
                             }
                             .into(),
                         )

@@ -626,9 +626,9 @@ fn canonicalize_intl(s: &str, needs_regex_escape: bool) -> Result<Cow<'_, str>> 
                 ret.push('\\');
             }
             ret.push(']');
-            if needs_regex_escape {
-                ret.push(')');
-            }
+        }
+        if needs_regex_escape {
+            ret.push(')');
         }
     }
 
@@ -692,7 +692,7 @@ fn canonicalize_replace_for_regress(s: &mut str) {
                 b'<' => {
                     it.next();
                     let mut found_closing = false;
-                    let mut end_idx= usize::MAX;
+                    let mut end_idx = usize::MAX;
                     while let Some(i) = it.next() {
                         if bts[i] == b'>' {
                             found_closing = true;
@@ -707,7 +707,6 @@ fn canonicalize_replace_for_regress(s: &mut str) {
                         bts[end_idx] = b'}';
                     } else {
                         // un-terminated, do nothing
-                        debug_assert!(it.peek().is_none());
                         return;
                     }
                 }
@@ -793,4 +792,17 @@ fn canonicalize_patch(raw: RawPatch<'_>) -> Result<Patch> {
         replacement,
         plugin_id: None,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_canonicalize_intl() {
+        let regex_1 =
+            r"(?<=children:\[)(?=.{10,80}tooltip:.{0,100}#{intl::ATTACHMENT_UTILITIES_SPOILER})";
+        let canon_1 = r"(?<=children:\[)(?=.{10,80}tooltip:.{0,100}(?:\.cuurzA))";
+        assert_eq!(canonicalize_intl(regex_1, true).unwrap(), canon_1);
+    }
 }

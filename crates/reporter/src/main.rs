@@ -1,3 +1,4 @@
+mod err;
 mod fetcher;
 mod reporter;
 mod util;
@@ -7,13 +8,15 @@ use clap::{CommandFactory as _, Parser};
 use clap_complete::Shell;
 use derive_more::{Constructor, From, Into};
 use indicatif::ProgressBar;
+use itertools::Itertools;
 use miette::{Diagnostic, MietteHandlerOpts, NamedSource, Report, SourceCode};
 use oxc::diagnostics::OxcDiagnostic;
-use std::{io, path::Path, process, sync::Arc, time::Instant};
 use std::env::args;
-use itertools::Itertools;
+use std::{io, path::Path, process, sync::Arc, time::Instant};
+use terminal_size::terminal_size;
 use tracing::{error, info, warn};
 
+use crate::err::printer::GraphicalReportHandler;
 use crate::{
     fetcher::{FetchOpts, fetch_build},
     reporter::{Msg, ReporterError, report_broken_patches},
@@ -27,6 +30,9 @@ struct Cli {
     vc_opts: VencordOpts,
     #[command(flatten)]
     fetch_opts: FetchOpts,
+    /// If true, will dump the contents of the module, before any transformations, to `$PWD/{module_id}.js` whenever a module is involved in an error
+    #[arg(long, default_value_t = false)]
+    dump_on_error: bool,
     /// Generate shell completions
     #[arg(long, value_enum)]
     completions: Option<Shell>,
@@ -37,13 +43,9 @@ fn main() {
     tracing_subscriber::fmt().init();
     miette::set_hook(Box::new(|_| {
         Box::new(
-            MietteHandlerOpts::new()
-                .terminal_links(true)
-                .unicode(true)
-                .context_lines(2)
-                .color(true)
-                .with_cause_chain()
-                .build(),
+            GraphicalReportHandler::new()
+                .with_width(terminal_size().map_or(80, |s| s.0.0 as usize))
+                .with_cause_chain(),
         )
     }))
     .expect("Failed to set miette hook");
@@ -104,26 +106,31 @@ async fn run(cli: Cli) -> Result<()> {
                 break;
             }
             Msg::Error(e) => {
+                if cli.dump_on_error
+                    && let Some(m_id) = e.module_id()
+                {
+                    if target_build.modules.contains_key(&m_id) {
+                        let target_build = target_build.clone();
+                        tokio::spawn(async move {
+                            let path = format!("{m_id}.js");
+                            let module = target_build.modules.get(&m_id).unwrap();
+                            tokio::fs::write(path, module).await
+                        });
+                    } else {
+                        bar.suspend(|| {
+                            warn!("expected target_build to have the contents of module {m_id}");
+                        });
+                    }
+                }
                 let id = e.plugin_id();
                 let path = &plugins[id as usize].entry_point;
                 let source = SourceWrapper(plugins.clone(), id);
                 let report = Report::new(e).with_source_code(
-                    NamedSource::new(path.to_string_lossy(), source).with_language("Typescript"),
+                    NamedSource::new(path.to_string_lossy(), source).with_language("JavaScript"),
                 );
                 bar.suspend(|| {
                     eprintln!("{report:?}");
                 });
-                if let Some(cause) = report.diagnostic_source() {
-                    bar.suspend(|| {
-                        println!("Has Cause");
-                        eprintln!("The above error was caused by the following:");
-                        eprintln!("{cause:?}");
-                    });
-                } else {
-                    bar.suspend(|| {
-                        println!("No cause");
-                    });
-                }
             }
         }
     }

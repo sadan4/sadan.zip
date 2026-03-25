@@ -24,14 +24,20 @@ serde.workspace = true
 itertools.workspace = true
 tokio-stream = { workspace = true, features = ["fs"] }
 tokio-util = { workspace = true }
-oxc = { version = "0.121.0", features = ["full", "cfg"] }
-oxc_ecmascript = "0.121.0"
+oxc.workspace = true
+oxc_ecmascript.workspace = true
 thiserror.workspace = true
-regress = "0.11.0"
+regress.workspace = true
 xxhash-rust.workspace = true
-derive_more = { version = "2.1.1", features = ["full"] }
-oxc-miette = { version = "2.7.0", features = ["fancy"] }
-indicatif = "0.18.4"
+derive_more.workspace = true
+oxc-miette.workspace = true
+indicatif.workspace = true
+owo-colors = "4.3.0"
+unicode-width = "0.2.2"
+unicode-segmentation = "1.13.1"
+textwrap = "0.16.2"
+terminal_size = "0.4.4"
+syntect = "5.3.0"
 
 [lints]
 workspace = true

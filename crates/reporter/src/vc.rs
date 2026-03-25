@@ -8,7 +8,7 @@ use oxc::{
     ast::ast::RegExpFlags,
     span::Span,
 };
-use regress::{Flags, Regex};
+use regress::{Flags, Regex, escape};
 use std::{
     env,
     fs,
@@ -70,7 +70,7 @@ fn do_collect_patches(opts: VencordOpts) -> Result<Vec<Plugin>> {
             p.patches.is_empty(),
             "Patches should be empty before parsing"
         );
-        p.patches = parse_patches(&allocator, &p)?;
+        p.patches = parse_patches(&allocator, p)?;
         allocator.reset();
     }
 
@@ -99,8 +99,24 @@ fn compile_plugin_regexes(plugins: &mut [Plugin]) {
                 r.make_regex();
             }
             for replacement in &mut patch.replacement {
-                if let Match::Regex(r) = &mut replacement.match_.v {
-                    r.make_regex();
+                // transform it to a regex here so we can cache it easier.
+                if let Match::Str(s) = &replacement.match_.v {
+                    let regex = MatchRegex {
+                        pattern: escape(s.as_str()),
+                        flags: RegExpFlags::empty(),
+                        regex: None,
+                    };
+                    replacement.match_.v = Match::Regex(regex);
+                }
+                match &mut replacement.match_.v {
+                    Match::Regex(r) => {
+                        r.make_regex();
+                        // the match is a string, we need to compile it to a regex
+                    }
+                    Match::Str(_) => {
+                        // we just set any potential Match::Str to Match::Regex above
+                        unreachable!()
+                    }
                 }
             }
         }
@@ -150,8 +166,8 @@ pub struct MatchLike {
 
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub enum Match {
-    Str(String),
     Regex(MatchRegex),
+    Str(String),
 }
 
 #[derive(Debug, PartialEq, Eq)]
