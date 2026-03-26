@@ -12,6 +12,7 @@ use itertools::Itertools;
 use miette::{Diagnostic, MietteHandlerOpts, NamedSource, Report, SourceCode};
 use oxc::diagnostics::OxcDiagnostic;
 use std::env::args;
+use std::mem;
 use std::{io, path::Path, process, sync::Arc, time::Instant};
 use terminal_size::terminal_size;
 use tracing::{error, info, warn};
@@ -82,12 +83,11 @@ async fn run(cli: Cli) -> Result<()> {
     // we need to keep the progress bars alive so that .suspend works properly
     // SEE: https://github.com/console-rs/indicatif/issues/594
     #[allow(clippy::collection_is_never_read)]
-    let mut keep_bars_alive = Vec::new();
     let bars = MultiProgress::new();
     let patches_bar = Stage::new("Collecting Patches: ", None).and_attach(&bars);
     let fetch_bar = Stage::new("Resolving target build", None).and_attach(&bars);
-    keep_bars_alive.push(patches_bar.clone());
-    keep_bars_alive.push(fetch_bar.clone());
+    mem::forget(patches_bar.clone());
+    mem::forget(fetch_bar.clone());
     // FIXME: don't wrap in spawn
     let patches_fut = tokio::spawn(async move { collect_patches(cli.vc_opts, patches_bar).await });
     let target_build_fut = tokio::spawn(async move {
@@ -102,9 +102,8 @@ async fn run(cli: Cli) -> Result<()> {
 
     while let Some(msg) = rx.recv().await {
         match msg {
-            Msg::ProgressBar(bar) => {
-                bars.clear().unwrap();
-                keep_bars_alive.push(bars.add(bar));
+            Msg::RequestProgressBar(tx) => {
+                tx.send(bars.clone()).unwrap();
             }
             Msg::Done(res) => {
                 match res {

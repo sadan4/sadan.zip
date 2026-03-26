@@ -22,7 +22,7 @@ impl Drop for Stage {
 
 impl Stage {
     #[allow(clippy::literal_string_with_formatting_args)]
-    pub fn new(msg: &'static str, n: Option<u32>) -> Self {
+    pub fn new(msg: &'static str, n: Option<usize>) -> Self {
         let bar = n.map_or_else(
             || {
                 ProgressBar::with_draw_target(None, ProgressDrawTarget::hidden()).with_style(
@@ -31,7 +31,7 @@ impl Stage {
                 )
             },
             |n| {
-                ProgressBar::with_draw_target(Some(n.into()), ProgressDrawTarget::hidden())
+                ProgressBar::with_draw_target(Some(n as _), ProgressDrawTarget::hidden())
                     .with_style(
                         ProgressStyle::with_template(
                             "{spinner:.green} {prefix} {msg} {bar:40.cyan/red} ({pos:.green}/{len:.green}) [{elapsed:.yellow}]",

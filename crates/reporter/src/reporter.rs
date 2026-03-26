@@ -2,6 +2,7 @@ use std::{
     collections::{HashMap, HashSet},
     fmt::Display,
     sync::Arc,
+    thread::sleep,
     time::{Duration, Instant},
 };
 
@@ -12,7 +13,7 @@ use crate::{
 use anyhow::{Result, anyhow};
 use derive_more::{Deref, DerefMut, From, Into, IsVariant, TryUnwrap};
 use explorer_types::FullBundle;
-use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
+use indicatif::{MultiProgress, ProgressBar, ProgressDrawTarget, ProgressStyle};
 use memchr::memmem::find;
 use miette::{Diagnostic, NamedSource, Report, SourceSpan};
 use oxc::{
@@ -26,12 +27,15 @@ use oxc::{
 };
 use regress::{Regex, escape};
 use thiserror::Error;
-use tokio::{sync::mpsc, task};
+use tokio::{
+    sync::{mpsc, oneshot},
+    task,
+};
 use tracing::{debug, warn};
 
 #[derive(Debug)]
 pub enum Msg {
-    ProgressBar(ProgressBar),
+    RequestProgressBar(oneshot::Sender<MultiProgress>),
     Error(ReporterError),
     Done(Result<Duration>),
 }
@@ -96,7 +100,7 @@ pub enum ReporterError {
     },
     #[error("Find Ambiguous")]
     #[diagnostic[
-        code(reporter::find_ambiguous),
+        code(reporter::find::ambiguous),
         severity(Warning),
         help("This error occurred in module {module_id}"),
     ]]
@@ -105,6 +109,16 @@ pub enum ReporterError {
         find_span: SourceSpan,
         plugin_id: u16,
         module_id: u32,
+    },
+    #[error("No matches found")]
+    #[diagnostic[
+        code(reporter::find::not_found),
+        severity(Error),
+    ]]
+    FindNotFound {
+        #[label("This find failed to match anything")]
+        find_span: SourceSpan,
+        plugin_id: u16,
     },
     #[error(transparent)]
     NoWarn(Box<ReporterError>),
@@ -117,6 +131,7 @@ impl ReporterError {
             | Self::ReplaceMatchNotFound { plugin_id, .. }
             | Self::ReplaceMatchAmbiguous { plugin_id, .. }
             | Self::ReplaceSyntaxError { plugin_id, .. }
+            | Self::FindNotFound { plugin_id, .. }
             | Self::FindAmbiguous { plugin_id, .. } => *plugin_id,
             Self::NoWarn(e) => e.plugin_id(),
         }
@@ -124,7 +139,7 @@ impl ReporterError {
 
     pub const fn module_id(&self) -> Option<u32> {
         match self {
-            Self::BadRegexSyntax { .. } => None,
+            Self::FindNotFound { .. } | Self::BadRegexSyntax { .. } => None,
             Self::ReplaceSyntaxError { module_id, .. }
             | Self::FindAmbiguous { module_id, .. }
             | Self::ReplaceMatchAmbiguous { module_id, .. }
@@ -177,6 +192,7 @@ enum PendingAction<'a> {
 
 struct ReporterState<'a> {
     tx: &'a mut mpsc::Sender<Msg>,
+    m_bar: MultiProgress,
     patches: HashSet<&'a Patch>,
     find_map: HashMap<&'a Patch, Vec<u32>>,
     alloc: Allocator,
@@ -187,6 +203,8 @@ struct ReporterState<'a> {
 
 impl<'a> ReporterState<'a> {
     fn new(plugins: &'a [Plugin], build: &'a FullBundle, tx: &'a mut mpsc::Sender<Msg>) -> Self {
+        let (pb_tx, rx) = oneshot::channel();
+        tx.blocking_send(Msg::RequestProgressBar(pb_tx)).unwrap();
         let patches: HashSet<&Patch> = plugins.iter().flat_map(|p| p.patches.iter()).collect();
         let mut stats: HashMap<_, _> = build.modules.keys().map(|&m_id| (m_id, None)).collect();
         let mut file_names: HashMap<_, _> = build
@@ -198,8 +216,10 @@ impl<'a> ReporterState<'a> {
         stats.shrink_to_fit();
         file_names.shrink_to_fit();
         find_map.shrink_to_fit();
+        let m_bar = rx.blocking_recv().unwrap();
         Self {
             tx,
+            m_bar,
             build,
             patches,
             stats,
@@ -215,18 +235,16 @@ impl<'a> ReporterState<'a> {
     fn run(mut self) {
         self.prune_bad_finds();
         self.collect_finds();
+        self.report_empty_finds();
     }
     #[must_use = "RAII guard"]
-    fn stage(&mut self, msg: &'static str, n: Option<u32>) -> Stage {
-        let stage = Stage::new(msg, n);
-        self.tx
-            .blocking_send(Msg::ProgressBar(stage.0.clone()))
-            .unwrap();
-        stage
+    fn stage(&self, msg: &'static str, n: Option<usize>) -> Stage {
+        Stage::new(msg, n).and_attach(&self.m_bar)
     }
     fn prune_bad_finds(&mut self) {
-        let _ = self.stage("Pruning bad finds", None);
+        let bar = self.stage("Pruning bad finds", Some(self.patches.len()));
         self.patches.retain(|p| {
+            bar.step();
             if let Match::Regex(r) = &p.find.v
                 && let Err(e) = r.regex()
             {
@@ -248,10 +266,7 @@ impl<'a> ReporterState<'a> {
         });
     }
     fn collect_finds(&mut self) {
-        let progress = self.stage(
-            "Collecting find matches",
-            Some(self.build.modules.len() as _),
-        );
+        let progress = self.stage("Collecting find matches", Some(self.build.modules.len()));
         for (&m_id, m_txt) in &self.build.modules {
             for patch in &self.patches {
                 if matches_module(m_txt, patch) {
@@ -263,7 +278,94 @@ impl<'a> ReporterState<'a> {
         }
     }
     fn report_empty_finds(&mut self) {
-        let guh = self.find_map.extract_if(|_, patch| patch.is_empty());
+        _ = self.stage("Reporting empty finds", None);
+        for (patch, _) in self.find_map.extract_if(|_, patch| patch.is_empty()) {
+            let mut err = ReporterError::FindNotFound {
+                find_span: patch.find.s.into(),
+                plugin_id: patch.plugin_id(),
+            };
+            if patch.no_warn {
+                err = ReporterError::NoWarn(err.into());
+            }
+            self.tx.blocking_send(err.into()).unwrap();
+        }
+    }
+    fn resolve_ambiguous_finds(&mut self) {
+        let bar = self.stage("Resolving ambiguous finds", None);
+        let iter = self.find_map.extract_if(|p, m| !p.all && m.len() > 1);
+        for (patch, matches) in iter {
+            todo!()
+        }
+    }
+    fn test_patch_against_module(
+        &mut self,
+        patch: &'a Patch,
+        m_id: u32,
+        errs: &mut Vec<ReporterError>,
+    ) -> bool {
+        let mut has_errs = false;
+        let m_txt = self.build.modules.get(&m_id).expect("invalid module id");
+        let mut last_src = format!("0,{m_txt}");
+        let plugin_id = patch.plugin_id();
+        let mut report = |e: ReporterError| {
+            if !e.is_no_warn() {
+                has_errs = true;
+            }
+            errs.push(e);
+        };
+
+        for r in &patch.replacement {
+            let pat = match &r.match_.v {
+                Match::Str(_) => {
+                    unreachable!()
+                }
+                Match::Regex(v) => match v.regex() {
+                    Ok(r) => r,
+                    Err(e) => {
+                        report(ReporterError::BadRegexSyntax {
+                            plugin_id,
+                            source: anyhow!("{e:?}"),
+                            regex_span: r.match_.s.into(),
+                            expanded: format!("/{}/{}", v.pattern, v.flags),
+                        });
+                        continue;
+                    }
+                },
+            };
+
+            let mut it = pat.find_iter(m_txt);
+
+            if it.next().is_none() {
+                let mut err = ReporterError::ReplaceMatchNotFound {
+                    match_span: r.match_.s.into(),
+                    module_id: m_id,
+                    plugin_id,
+                };
+                if r.no_warn {
+                    err = ReporterError::NoWarn(Box::new(err));
+                }
+                report(err);
+                continue;
+            }
+            // FIXME: handle patches with g flag
+            if it.next().is_some() {
+                report(ReporterError::ReplaceMatchAmbiguous {
+                    match_span: r.match_.s.into(),
+                    plugin_id,
+                    module_id: m_id,
+                });
+            }
+
+            let new_src = match &r.replace.v {
+                Replacer::Str(s) => pat.replace(&last_src, s.as_str()),
+            };
+
+            let chk = {
+                // let chk = check_syntax_errors(&self.alloc, &new_src, )
+                todo!()
+            }
+        }
+        has_errs
     }
 }
 
