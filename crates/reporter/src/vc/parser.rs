@@ -1,10 +1,13 @@
 mod exts;
-use crate::vc::{
-    Match, MatchLike, MatchRegex, Patch, Plugin, ReplaceLike, Replacement, Replacer,
-    hash::hash_message_key,
-    parser::exts::{
-        ArrayExpressionElementExt as _, BindingPatternExt, ExpressionExt, ImportDeclarationExt,
-        ModuleDeclarationExt, ObjectExpressionExt, TemplateLiteralExt,
+use crate::{
+    util::Stage,
+    vc::{
+        Match, MatchLike, MatchRegex, Patch, Plugin, ReplaceLike, Replacement, Replacer,
+        hash::hash_message_key,
+        parser::exts::{
+            ArrayExpressionElementExt as _, BindingPatternExt, ExpressionExt, ImportDeclarationExt,
+            ModuleDeclarationExt, ObjectExpressionExt, TemplateLiteralExt,
+        },
     },
 };
 use anyhow::{Context, Result, bail};
@@ -43,7 +46,7 @@ use std::{
 };
 use tracing::{debug, warn};
 
-pub fn parse_patches(allocator: &Allocator, plugin: &Plugin) -> Result<Vec<Patch>> {
+pub fn parse_patches(allocator: &Allocator, plugin: &Plugin, bar: &Stage) -> Result<Vec<Patch>> {
     let source_type = SourceType::from_path(plugin.entry_point.as_path())
         .context("Failed to parse source type for plugin entry")?;
 
@@ -56,6 +59,7 @@ pub fn parse_patches(allocator: &Allocator, plugin: &Plugin) -> Result<Vec<Patch
         ast_builder: AstBuilder::new(allocator),
         sema,
         c: ParserCache::default(),
+        bar,
     };
 
     let name = parser
@@ -111,6 +115,7 @@ pub struct Parser<'ast> {
     ast: &'ast ParserReturn<'ast>,
     sema: Semantic<'ast>,
     c: ParserCache<'ast>,
+    bar: &'ast Stage,
 }
 
 impl GlobalContext<'_> for Parser<'_> {
@@ -541,10 +546,10 @@ impl<'ast> Parser<'ast> {
         for patch_obj in &patches.elements {
             if let Some(spread) = patch_obj.as_spread() {
                 if self.parse_spread_patch(spread, &mut ret).is_none() {
-                    warn!(
-                        "Failed to parse spread patch for plugin {:?}, skipping",
-                        self.plugin_name()
-                    );
+                    let plugin_name = self.plugin_name();
+                    self.bar.suspend(|| {
+                        warn!("Failed to parse spread patch for plugin {plugin_name:?}, skipping");
+                    });
                 }
             } else {
                 match self.parse_single_patch(patch_obj) {
@@ -552,10 +557,10 @@ impl<'ast> Parser<'ast> {
                         ret.push(patch);
                     }
                     Err(e) => {
-                        warn!(
-                            "Failed to parse patch for plugin {:?}, skipping. Error: {e:#?}",
-                            self.plugin_name(),
-                        );
+                        let plugin_name = self.plugin_name();
+                        self.bar.suspend(|| {
+                            warn!("Failed to parse patch for plugin {plugin_name:?}, skipping. Error: {e:#?}");
+                        });
                     }
                 }
             }

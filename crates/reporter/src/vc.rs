@@ -66,7 +66,7 @@ fn do_collect_patches(opts: VencordOpts, bar: Stage) -> Result<Vec<Plugin>> {
             p.patches.is_empty(),
             "Patches should be empty before parsing"
         );
-        p.patches = parse_patches(&allocator, p)?;
+        p.patches = parse_patches(&allocator, p, &bar)?;
         allocator.reset();
     }
 

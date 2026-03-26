@@ -5,9 +5,9 @@ use clap::Args;
 use explorer_types::{BuildList, BundleMetadata, FullBundle};
 use itertools::Itertools;
 use tokio::fs;
-use tracing::{info, instrument};
+use tracing::{debug, info, instrument};
 
-use crate::util::read_struct;
+use crate::util::{Stage, read_struct};
 
 #[derive(Default, Debug, Clone)]
 pub enum BuildFilter {
@@ -47,13 +47,13 @@ pub struct FetchOpts {
     bundle_file: Option<PathBuf>,
 }
 
-#[instrument]
-pub async fn fetch_build(opts: FetchOpts) -> Result<FullBundle> {
+#[instrument(skip(bar))]
+pub async fn fetch_build(opts: FetchOpts, bar: Stage) -> Result<FullBundle> {
     if let Some(bundle_file) = opts.bundle_file {
-        info!("Fetching build from disk at {}", bundle_file.display());
+        debug!("Fetching build from disk at {}", bundle_file.display());
         fetch_build_from_disk(&bundle_file).await
     } else {
-        fetch_build_from_server(&opts).await
+        fetch_build_from_server(&opts, &bar).await
     }
 }
 
@@ -62,14 +62,14 @@ async fn fetch_build_from_disk(path: &Path) -> Result<FullBundle> {
         .await
         .context("Failed to read bundle from disk")?;
     let ret = read_struct(&*data).context("Failed to parse bundle from disk.")?;
-    info!("Read bundle from disk");
+    debug!("Read bundle from disk");
     Ok(ret)
 }
 
-async fn fetch_build_from_server(opts: &FetchOpts) -> Result<FullBundle> {
+async fn fetch_build_from_server(opts: &FetchOpts, bar: &Stage) -> Result<FullBundle> {
     let backend_url = opts.backend_url.as_str();
     let filter = BuildFilter::Latest;
-    info!("Fetching available discord builds");
+    bar.msg("Fetching available discord builds");
 
     let raw_builds = reqwest::get(format!("{backend_url}/builds")).await?;
     let raw_builds = raw_builds.bytes().await?;
@@ -83,12 +83,12 @@ async fn fetch_build_from_server(opts: &FetchOpts) -> Result<FullBundle> {
         .context("Failed to filter builds")?
         .context("Failed to find a build matching the provided filter")?;
 
-    info!("Found target build with hash {}", build.build_hash);
+    bar.msg("Found target build, fetching full build data");
 
     let full_build = reqwest::get(format!("{backend_url}/build/{}/full", build.build_hash)).await?;
     let data = full_build.bytes().await?;
 
-    info!("Fetched full build data from server");
+    debug!("Fetched full build data from server");
 
     read_struct(&*data)
 }

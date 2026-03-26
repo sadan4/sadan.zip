@@ -2,7 +2,7 @@ use std::{borrow::Cow, io, time::Duration};
 
 use anyhow::{Context as _, Result};
 use derive_more::{Deref, DerefMut, From};
-use indicatif::{MultiProgress, ProgressBar, ProgressDrawTarget, ProgressStyle};
+use indicatif::{MultiProgress, ProgressBar, ProgressDrawTarget, ProgressFinish, ProgressStyle};
 use serde::de::DeserializeOwned;
 
 pub fn read_struct<T: DeserializeOwned>(from: impl io::Read) -> Result<T> {
@@ -21,27 +21,27 @@ impl Drop for Stage {
 }
 
 impl Stage {
-    #[expect(clippy::literal_string_with_formatting_args)]
+    #[allow(clippy::literal_string_with_formatting_args)]
     pub fn new(msg: &'static str, n: Option<u32>) -> Self {
         let bar = n.map_or_else(
             || {
-                let bar = ProgressBar::with_draw_target(None, ProgressDrawTarget::hidden())
-                    .with_prefix(msg)
-                    .with_style(ProgressStyle::with_template("{spinner} {prefix} {msg}").unwrap());
-                bar.enable_steady_tick(Duration::from_millis(1000 / 20));
-                bar
+                ProgressBar::with_draw_target(None, ProgressDrawTarget::hidden()).with_style(
+                    ProgressStyle::with_template("{spinner:.green} {prefix} {msg} [{elapsed:.yellow}]")
+                        .unwrap(),
+                )
             },
             |n| {
                 ProgressBar::with_draw_target(Some(n.into()), ProgressDrawTarget::hidden())
-                    .with_prefix(msg)
                     .with_style(
                         ProgressStyle::with_template(
-                            "{spinner} {prefix} {msg} {bar} ({pos}/{len})",
+                            "{spinner:.green} {prefix} {msg} {bar:40.cyan/red} ({pos:.green}/{len:.green}) [{elapsed:.yellow}]",
                         )
                         .unwrap(),
                     )
             },
         );
+        let bar = bar.with_prefix(msg).with_finish(ProgressFinish::AndLeave);
+        bar.enable_steady_tick(Duration::from_millis(1000 / 20));
         Self(bar)
     }
     pub fn and_attach(self, target: &MultiProgress) -> Self {

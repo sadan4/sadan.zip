@@ -40,7 +40,7 @@ struct Cli {
 }
 
 fn main() {
-    dbg!(args().collect_vec());
+    // dbg!(args().collect_vec());
     tracing_subscriber::fmt().init();
     miette::set_hook(Box::new(|_| {
         Box::new(
@@ -79,21 +79,23 @@ async fn run(cli: Cli) -> Result<()> {
             cli.vc_opts.vencord_dir.display()
         );
     }
+    // we need to keep the progress bars alive so that .suspend works properly
+    // SEE: https://github.com/console-rs/indicatif/issues/594
+    #[allow(clippy::collection_is_never_read)]
+    let mut keep_bars_alive = Vec::new();
     let bars = MultiProgress::new();
     let patches_bar = Stage::new("Collecting Patches: ", None).and_attach(&bars);
     let fetch_bar = Stage::new("Resolving target build", None).and_attach(&bars);
+    keep_bars_alive.push(patches_bar.clone());
+    keep_bars_alive.push(fetch_bar.clone());
     // FIXME: don't wrap in spawn
-    let patches_fut = tokio::spawn(async move {
-        collect_patches(cli.vc_opts, patches_bar).await
-    });
+    let patches_fut = tokio::spawn(async move { collect_patches(cli.vc_opts, patches_bar).await });
     let target_build_fut = tokio::spawn(async move {
-        _ = fetch_bar;
-        fetch_build(cli.fetch_opts).await
+        fetch_build(cli.fetch_opts, fetch_bar).await
     });
     let (plugins, target_build) = tokio::join!(patches_fut, target_build_fut);
     let plugins = Arc::new(plugins??);
     let target_build = Arc::new(target_build??);
-    info!("Starting reporter");
     let start = Instant::now();
     let plugins2 = plugins.clone();
     let mut rx = report_broken_patches(target_build.clone(), plugins2);
@@ -101,20 +103,23 @@ async fn run(cli: Cli) -> Result<()> {
     while let Some(msg) = rx.recv().await {
         match msg {
             Msg::ProgressBar(bar) => {
-                bars.add(bar);
+                bars.clear().unwrap();
+                keep_bars_alive.push(bars.add(bar));
             }
             Msg::Done(res) => {
-                bars.suspend(|| match res {
+                match res {
                     Err(e) => {
-                        error!("Reporter failed with error: {e:?}");
+                        bars.println(format!("Reporter failed with error: {e:?}"))
+                            .unwrap();
                     }
                     Ok(raw_time) => {
-                        info!(
+                        bars.println(format!(
                             "Reporter finished in {:.2?}. (raw time: {raw_time:.2?})",
                             start.elapsed()
-                        );
+                        ))
+                        .unwrap();
                     }
-                });
+                }
                 break;
             }
             Msg::Error(e) => {

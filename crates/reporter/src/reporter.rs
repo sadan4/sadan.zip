@@ -5,7 +5,10 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::{util::Stage, vc::{Match, Patch, Plugin, Replacer}};
+use crate::{
+    util::Stage,
+    vc::{Match, Patch, Plugin, Replacer},
+};
 use anyhow::{Result, anyhow};
 use derive_more::{Deref, DerefMut, From, Into, IsVariant, TryUnwrap};
 use explorer_types::FullBundle;
@@ -258,6 +261,9 @@ impl<'a> ReporterState<'a> {
             }
             progress.step();
         }
+    }
+    fn report_empty_finds(&mut self) {
+        let guh = self.find_map.extract_if(|_, patch| patch.is_empty());
     }
 }
 
