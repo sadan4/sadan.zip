@@ -2,7 +2,7 @@ mod hash;
 mod parser;
 use anyhow::{Result, bail};
 use clap::Args;
-use derive_more::{Eq, PartialEq};
+use derive_more::{Eq, IsVariant, PartialEq, TryInto, TryUnwrap, Unwrap};
 use memchr::memmem::Finder;
 use oxc::{allocator::Allocator, ast::ast::RegExpFlags, span::Span};
 use regress::{Flags, Regex, escape};
@@ -166,6 +166,17 @@ pub enum Match {
     Regex(MatchRegex),
 }
 
+impl Match {
+    #[must_use]
+    pub fn as_regex(&self) -> Option<&MatchRegex> {
+        if let Self::Regex(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+}
+
 impl Hash for Match {
     fn hash<H: Hasher>(&self, state: &mut H) {
         core::mem::discriminant(self).hash(state);
@@ -240,6 +251,7 @@ pub struct Plugin {
 
 impl Plugin {
     fn try_new(entry_point: PathBuf) -> Result<Self> {
+        let entry_point = entry_point.canonicalize()?;
         Ok(Self {
             entry_source: fs::read_to_string(&entry_point)?,
             entry_point,

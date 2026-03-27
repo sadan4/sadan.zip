@@ -1,6 +1,8 @@
 use std::{
+    borrow::Borrow as _,
     collections::{HashMap, HashSet},
     fmt::Display,
+    mem,
     sync::Arc,
     thread::sleep,
     time::{Duration, Instant},
@@ -19,7 +21,7 @@ use memchr::memmem::find;
 use miette::{Diagnostic, NamedSource, Report, Severity, SourceSpan};
 use oxc::{
     allocator::Allocator,
-    ast::ast::Program,
+    ast::ast::{Program, RegExpFlags},
     codegen::{Codegen, CodegenOptions, CommentOptions, IndentChar, LegalComment},
     diagnostics::OxcDiagnostic,
     parser::Parser,
@@ -105,14 +107,30 @@ pub enum ReporterError {
     #[error("Find Ambiguous")]
     #[diagnostic[
         code(reporter::find::ambiguous),
-        severity(Warning),
-        help("This error occurred in module {module_id}"),
+        severity(Error),
+        help("Modules {ok_ids:?} matched and applied without issue.\nModules {err_ids:?} matches, but errored while applying"),
     ]]
+    // TODO: Add related failures here something like Option<Vec<ReporterError>>
     FindAmbiguous {
-        #[label("Caused by this find")]
+        #[label("This find matches more than one module. Make it more specific!")]
         find_span: SourceSpan,
         plugin_id: u16,
-        module_id: u32,
+        ok_ids: Vec<u32>,
+        err_ids: Vec<u32>,
+    },
+    #[error("Find Too Broad")]
+    #[diagnostic[
+        code(reporter::find::broad),
+        severity(Warning),
+        help("This patch executed without issue on module {ok_id}; however, it matched and failed to execute on modules {err_ids:?}.{extra_help}"),
+    ]]
+    FindAmbiguousRecoverable {
+        #[label("This find matches more than one module. Make it more specific!")]
+        find_span: SourceSpan,
+        plugin_id: u16,
+        ok_id: u32,
+        err_ids: Vec<u32>,
+        extra_help: &'static str,
     },
     #[error("No matches found")]
     #[diagnostic[
@@ -136,17 +154,22 @@ impl ReporterError {
             | Self::ReplaceMatchAmbiguous { plugin_id, .. }
             | Self::ReplaceSyntaxError { plugin_id, .. }
             | Self::FindNotFound { plugin_id, .. }
-            | Self::FindAmbiguous { plugin_id, .. } => *plugin_id,
+            | Self::FindAmbiguous { plugin_id, .. }
+            | Self::FindAmbiguousRecoverable { plugin_id, .. } => *plugin_id,
             Self::NoWarn(e) => e.plugin_id(),
         }
     }
 
     pub const fn module_id(&self) -> Option<u32> {
         match self {
-            Self::FindNotFound { .. } | Self::BadRegexSyntax { .. } => None,
+            Self::FindNotFound { .. }
+            | Self::BadRegexSyntax { .. }
+            | Self::FindAmbiguous { .. } => None,
             Self::ReplaceSyntaxError { module_id, .. }
-            | Self::FindAmbiguous { module_id, .. }
             | Self::ReplaceMatchAmbiguous { module_id, .. }
+            | Self::FindAmbiguousRecoverable {
+                ok_id: module_id, ..
+            }
             | Self::ReplaceMatchNotFound { module_id, .. } => Some(*module_id),
             Self::NoWarn(e) => e.module_id(),
         }
@@ -245,6 +268,8 @@ impl<'a> ReporterState<'a> {
         self.prune_bad_finds();
         self.collect_finds();
         self.report_empty_finds();
+        self.resolve_ambiguous_finds();
+        self.test_patches();
     }
     #[must_use = "RAII guard"]
     fn stage(&self, msg: &'static str, n: Option<usize>) -> Stage {
@@ -300,9 +325,12 @@ impl<'a> ReporterState<'a> {
         }
     }
     fn resolve_ambiguous_finds(&mut self) {
-        let bar = self.stage("Resolving ambiguous finds", None);
-        let iter = self.find_map.extract_if(|p, m| !p.all && m.len() > 1).collect_vec();
-        for (patch, matches) in iter {
+        let it = self
+            .find_map
+            .extract_if(|p, m| !p.all && m.len() > 1)
+            .collect_vec();
+        let bar = self.stage("Resolving ambiguous finds", Some(it.len()));
+        for (patch, matches) in it {
             let mut failed = Vec::new();
             let mut good = Vec::new();
             for m_id in matches.iter().copied() {
@@ -311,18 +339,46 @@ impl<'a> ReporterState<'a> {
                     PatchStatus::Error => failed.push(m_id),
                 }
             }
-            match good.len() {
-                0 => {
-
-                },
-                1 => {
-
+            // TODO: suppress if patch is no_warn??
+            let err = if good.len() == 1 {
+                ReporterError::FindAmbiguousRecoverable {
+                    find_span: patch.find.s.into(),
+                    plugin_id: patch.plugin_id(),
+                    ok_id: good[0],
+                    extra_help: if failed.is_empty() {
+                        "\nIf you intended for this patch to apply to all of the above modules, add the `all` property to the patch."
+                    } else {
+                        Default::default()
+                    },
+                    err_ids: failed,
                 }
-                _ => {
-
+            } else {
+                ReporterError::FindAmbiguous {
+                    find_span: patch.find.s.into(),
+                    plugin_id: patch.plugin_id(),
+                    ok_ids: good,
+                    err_ids: failed,
                 }
-            }
+            };
+            self.tx.blocking_send(err.into()).unwrap();
+            bar.step();
         }
+    }
+    fn test_patches(&mut self) {
+        // temporarily take the find_map so we don't have to deal with 2x &mut self
+        let found_patches = mem::take(&mut self.find_map);
+        let bar = self.stage("Testing patches", Some(found_patches.len()));
+        let mut errs = Vec::new();
+        for (patch, ids) in &found_patches {
+            for &m_id in ids {
+                self.test_patch_against_module(patch, m_id, Some(&mut errs));
+            }
+            for err in errs.drain(..) {
+                self.tx.blocking_send(err.into()).unwrap();
+            }
+            bar.step();
+        }
+        self.find_map = found_patches;
     }
     fn test_patch_against_module(
         &mut self,
@@ -345,6 +401,11 @@ impl<'a> ReporterState<'a> {
         };
 
         for r in &patch.replacement {
+            let is_global = r
+                .match_
+                .v
+                .as_regex()
+                .is_some_and(|r| r.flags.contains(RegExpFlags::G));
             let pat = match &r.match_.v {
                 Match::Str(_) => {
                     unreachable!()
@@ -377,8 +438,7 @@ impl<'a> ReporterState<'a> {
                 report(err);
                 continue;
             }
-            // FIXME: handle patches with g flag
-            if it.next().is_some() {
+            if !is_global && it.next().is_some() {
                 report(ReporterError::ReplaceMatchAmbiguous {
                     match_span: r.match_.s.into(),
                     plugin_id,
@@ -387,7 +447,13 @@ impl<'a> ReporterState<'a> {
             }
 
             let new_src = match &r.replace.v {
-                Replacer::Str(s) => pat.replace(&last_src, s.as_str()),
+                Replacer::Str(s) => {
+                    if is_global {
+                        pat.replace_all(&last_src, s.as_str())
+                    } else {
+                        pat.replace(&last_src, s.as_str())
+                    }
+                }
             };
 
             let chk = {
