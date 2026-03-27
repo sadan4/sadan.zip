@@ -14,8 +14,9 @@ use anyhow::{Result, anyhow};
 use derive_more::{Deref, DerefMut, From, Into, IsVariant, TryUnwrap};
 use explorer_types::FullBundle;
 use indicatif::{MultiProgress, ProgressBar, ProgressDrawTarget, ProgressStyle};
+use itertools::Itertools as _;
 use memchr::memmem::find;
-use miette::{Diagnostic, NamedSource, Report, SourceSpan};
+use miette::{Diagnostic, NamedSource, Report, Severity, SourceSpan};
 use oxc::{
     allocator::Allocator,
     ast::ast::Program,
@@ -51,6 +52,7 @@ pub enum ReporterError {
     #[error("Bad Regex Syntax")]
     #[diagnostic[
         code(reporter::bad_regex_syntax),
+        severity(Error),
         help("The regex was expanded to {expanded}"),
     ]]
     BadRegexSyntax {
@@ -64,6 +66,7 @@ pub enum ReporterError {
     #[error("Replace Match Not Found")]
     #[diagnostic[
         code(reporter::replace::match_not_found),
+        severity(Error),
         help("This error occurred in module {module_id}")
     ]]
     ReplaceMatchNotFound {
@@ -87,6 +90,7 @@ pub enum ReporterError {
     #[error("Replace Syntax Error")]
     #[diagnostic[
         code(reporter::replace::syntax_error),
+        severity(Error),
         help("This error occurred in module {module_id}"),
     ]]
     ReplaceSyntaxError {
@@ -121,7 +125,7 @@ pub enum ReporterError {
         plugin_id: u16,
     },
     #[error(transparent)]
-    NoWarn(Box<ReporterError>),
+    NoWarn(Box<Self>),
 }
 
 impl ReporterError {
@@ -197,7 +201,7 @@ struct ReporterState<'a> {
     find_map: HashMap<&'a Patch, Vec<u32>>,
     alloc: Allocator,
     build: &'a FullBundle,
-    stats: HashMap<u32, Option<Stats>>,
+    stats: HashMap<u32, Stats>,
     file_names: HashMap<u32, String>,
 }
 
@@ -206,14 +210,13 @@ impl<'a> ReporterState<'a> {
         let (pb_tx, rx) = oneshot::channel();
         tx.blocking_send(Msg::RequestProgressBar(pb_tx)).unwrap();
         let patches: HashSet<&Patch> = plugins.iter().flat_map(|p| p.patches.iter()).collect();
-        let mut stats: HashMap<_, _> = build.modules.keys().map(|&m_id| (m_id, None)).collect();
+        let stats = HashMap::with_capacity(build.modules.len());
         let mut file_names: HashMap<_, _> = build
             .modules
             .keys()
             .map(|&m_id| (m_id, format!("{m_id}.js")))
             .collect();
         let mut find_map: HashMap<_, _> = patches.iter().map(|&p| (p, Vec::new())).collect();
-        stats.shrink_to_fit();
         file_names.shrink_to_fit();
         find_map.shrink_to_fit();
         let m_bar = rx.blocking_recv().unwrap();
@@ -228,6 +231,12 @@ impl<'a> ReporterState<'a> {
             alloc: Allocator::new(),
         }
     }
+}
+
+#[derive(Copy, Clone, IsVariant)]
+enum PatchStatus {
+    Ok,
+    Error,
 }
 
 #[allow(clippy::multiple_inherent_impl)]
@@ -292,26 +301,47 @@ impl<'a> ReporterState<'a> {
     }
     fn resolve_ambiguous_finds(&mut self) {
         let bar = self.stage("Resolving ambiguous finds", None);
-        let iter = self.find_map.extract_if(|p, m| !p.all && m.len() > 1);
+        let iter = self.find_map.extract_if(|p, m| !p.all && m.len() > 1).collect_vec();
         for (patch, matches) in iter {
-            todo!()
+            let mut failed = Vec::new();
+            let mut good = Vec::new();
+            for m_id in matches.iter().copied() {
+                match self.test_patch_against_module(patch, m_id, None) {
+                    PatchStatus::Ok => good.push(m_id),
+                    PatchStatus::Error => failed.push(m_id),
+                }
+            }
+            match good.len() {
+                0 => {
+
+                },
+                1 => {
+
+                }
+                _ => {
+
+                }
+            }
         }
     }
     fn test_patch_against_module(
         &mut self,
         patch: &'a Patch,
         m_id: u32,
-        errs: &mut Vec<ReporterError>,
-    ) -> bool {
-        let mut has_errs = false;
+        mut errs: Option<&mut Vec<ReporterError>>,
+    ) -> PatchStatus {
+        let mut status = PatchStatus::Ok;
         let m_txt = self.build.modules.get(&m_id).expect("invalid module id");
+        let m_filename = self.file_names.get(&m_id).expect("invalid module id 2");
         let mut last_src = format!("0,{m_txt}");
         let plugin_id = patch.plugin_id();
         let mut report = |e: ReporterError| {
-            if !e.is_no_warn() {
-                has_errs = true;
+            if !e.is_no_warn() && e.severity().is_none_or(|s| s == Severity::Error) {
+                status = PatchStatus::Error;
             }
-            errs.push(e);
+            if let Some(errs) = &mut errs {
+                errs.push(e);
+            }
         };
 
         for r in &patch.replacement {
@@ -361,11 +391,28 @@ impl<'a> ReporterState<'a> {
             };
 
             let chk = {
-                // let chk = check_syntax_errors(&self.alloc, &new_src, )
-                todo!()
+                let stats = self.stats.get(&m_id).copied();
+                let chk =
+                    check_syntax_errors(&self.alloc, &new_src, stats, Some(m_filename.as_str()));
+                self.alloc.reset();
+                chk
+            };
+
+            match chk {
+                Ok(s) => {
+                    self.stats.entry(m_id).or_insert(s);
+                }
+                Err(e) => report(ReporterError::ReplaceSyntaxError {
+                    replace_span: r.replace.s.into(),
+                    cause: e,
+                    module_id: m_id,
+                    plugin_id,
+                }),
             }
+
+            last_src = new_src;
         }
-        has_errs
+        status
     }
 }
 
