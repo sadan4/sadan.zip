@@ -225,7 +225,6 @@ struct ReporterState<'a> {
     alloc: Allocator,
     build: &'a FullBundle,
     stats: HashMap<u32, Stats>,
-    file_names: HashMap<u32, String>,
 }
 
 impl<'a> ReporterState<'a> {
@@ -234,13 +233,7 @@ impl<'a> ReporterState<'a> {
         tx.blocking_send(Msg::RequestProgressBar(pb_tx)).unwrap();
         let patches: HashSet<&Patch> = plugins.iter().flat_map(|p| p.patches.iter()).collect();
         let stats = HashMap::with_capacity(build.modules.len());
-        let mut file_names: HashMap<_, _> = build
-            .modules
-            .keys()
-            .map(|&m_id| (m_id, format!("{m_id}.js")))
-            .collect();
         let mut find_map: HashMap<_, _> = patches.iter().map(|&p| (p, Vec::new())).collect();
-        file_names.shrink_to_fit();
         find_map.shrink_to_fit();
         let m_bar = rx.blocking_recv().unwrap();
         Self {
@@ -249,7 +242,6 @@ impl<'a> ReporterState<'a> {
             build,
             patches,
             stats,
-            file_names,
             find_map,
             alloc: Allocator::new(),
         }
@@ -388,7 +380,6 @@ impl<'a> ReporterState<'a> {
     ) -> PatchStatus {
         let mut status = PatchStatus::Ok;
         let m_txt = self.build.modules.get(&m_id).expect("invalid module id");
-        let m_filename = self.file_names.get(&m_id).expect("invalid module id 2");
         let mut last_src = format!("0,{m_txt}");
         let plugin_id = patch.plugin_id();
         let mut report = |e: ReporterError| {
@@ -401,6 +392,7 @@ impl<'a> ReporterState<'a> {
         };
 
         for r in &patch.replacement {
+            let no_warn = patch.no_warn || r.no_warn;
             let is_global = r
                 .match_
                 .v
@@ -424,7 +416,7 @@ impl<'a> ReporterState<'a> {
                 },
             };
 
-            let mut it = pat.find_iter(m_txt);
+            let mut it = pat.find_iter(last_src.as_str());
 
             if it.next().is_none() {
                 let mut err = ReporterError::ReplaceMatchNotFound {
@@ -432,7 +424,7 @@ impl<'a> ReporterState<'a> {
                     module_id: m_id,
                     plugin_id,
                 };
-                if r.no_warn {
+                if no_warn {
                     err = ReporterError::NoWarn(Box::new(err));
                 }
                 report(err);
@@ -457,9 +449,11 @@ impl<'a> ReporterState<'a> {
             };
 
             let chk = {
-                let stats = self.stats.get(&m_id).copied();
-                let chk =
-                    check_syntax_errors(&self.alloc, &new_src, stats, Some(m_filename.as_str()));
+                let chk = check_syntax_errors(
+                    &self.alloc,
+                    &new_src,
+                    self.stats.get(&m_id).copied(),
+                );
                 self.alloc.reset();
                 chk
             };
@@ -482,256 +476,6 @@ impl<'a> ReporterState<'a> {
     }
 }
 
-// impl <'a> ReporterState<'a> {
-//     fn process_module(&mut self, m_id: u32, m_txt: &str) {
-//         self.alloc.reset();
-//         let mut stats = None;
-//         let m_filename = format!("{m_id}.js");
-
-//         self.process_missing_patches(m_id, m_txt, &m_filename, &mut stats);
-//         self.process_good_patches(m_id, m_txt);
-//         self.process_bad_patches(m_id, m_txt);
-
-//         self.apply_pending_actions();
-//         self.pending.clear();
-//         self.send_progress();
-//     }
-
-//     fn process_missing_patches(
-//         &mut self,
-//         m_id: u32,
-//         m_txt: &str,
-//         m_filename: &str,
-//         stats: &mut Option<Stats>,
-//     ) {
-//         let patches: Vec<&Patch> = self.missing.iter().copied().collect();
-//         for patch in patches {
-//             if let Some(action) = self.evaluate_missing_patch(m_id, m_txt, m_filename, patch, stats)
-//             {
-//                 self.pending.push(action);
-//             }
-//         }
-//     }
-
-//     fn evaluate_missing_patch(
-//         &mut self,
-//         m_id: u32,
-//         m_txt: &str,
-//         m_filename: &str,
-//         patch: &'a Patch,
-//         stats: &mut Option<Stats>,
-//     ) -> Option<PendingAction<'a>> {
-//         let plugin_id = patch.plugin_id();
-//         let Some(matches) = matches_module(Some(self.tx), m_txt, patch, plugin_id) else {
-//             return Some(PendingAction::MissingToBad(patch));
-//         };
-
-//         if !matches {
-//             return None;
-//         }
-
-//         let mut last_src = format!("0,{m_txt}");
-//         let mut action = if patch.all {
-//             PendingAction::MissingToGood(patch)
-//         } else {
-//             PendingAction::KeepForAll
-//         };
-
-//         for r in &patch.replacement {
-//             let no_warn = patch.no_warn || r.no_warn;
-//             let pat = match &r.match_.v {
-//                 Match::Str(_) => {
-//                     unreachable!()
-//                 }
-//                 Match::Regex(v) => match v.regex() {
-//                     Ok(r) => r,
-//                     Err(e) => {
-//                         self.tx
-//                             .blocking_send(
-//                                 ReporterError::BadRegexSyntax {
-//                                     plugin_id,
-//                                     source: anyhow!("{e:?}"),
-//                                     regex_span: r.match_.s.into(),
-//                                     expanded: format!("/{}/{}", v.pattern, v.flags),
-//                                 }
-//                                 .into(),
-//                             )
-//                             .unwrap();
-//                         action = PendingAction::MissingToBad(patch);
-//                         continue;
-//                     }
-//                 },
-//             };
-
-//             let mut it = pat.find_iter(&last_src);
-//             if it.next().is_none() {
-//                 let mut err = ReporterError::ReplaceMatchNotFound {
-//                     module_id: m_id,
-//                     plugin_id,
-//                     match_span: r.match_.s.into(),
-//                 };
-//                 if no_warn {
-//                     err = ReporterError::NoWarn(Box::new(err));
-//                 }
-//                 self.tx.blocking_send(err.into()).unwrap();
-//                 if !no_warn {
-//                     action = PendingAction::MissingToBad(patch);
-//                 }
-//                 continue;
-//             }
-
-//             if it.next().is_some() {
-//                 self.tx
-//                     .blocking_send(
-//                         ReporterError::ReplaceMatchAmbiguous {
-//                             module_id: m_id,
-//                             plugin_id,
-//                             match_span: r.match_.s.into(),
-//                         }
-//                         .into(),
-//                     )
-//                     .unwrap();
-//             }
-
-//             let new_src = match &r.replace.v {
-//                 Replacer::Str(s) => pat.replace(&last_src, s.as_str()),
-//             };
-
-//             let chk = {
-//                 let chk = check_syntax_errors(&self.alloc, &new_src, *stats, Some(m_filename));
-//                 self.alloc.reset();
-//                 chk
-//             };
-//             match chk {
-//                 Ok(s) => *stats = Some(s),
-//                 Err(e) => {
-//                     self.tx
-//                         .blocking_send(
-//                             ReporterError::ReplaceSyntaxError {
-//                                 module_id: m_id,
-//                                 plugin_id,
-//                                 replace_span: r.replace.s.into(),
-//                                 cause: e,
-//                             }
-//                             .into(),
-//                         )
-//                         .unwrap();
-//                     action = PendingAction::MissingToBad(patch);
-//                     continue;
-//                 }
-//             }
-
-//             last_src = new_src;
-//         }
-
-//         Some(action)
-//     }
-
-//     fn process_good_patches(&mut self, m_id: u32, m_txt: &str) {
-//         let patches: Vec<&Patch> = self.good.iter().copied().collect();
-//         for patch in patches {
-//             if patch.all {
-//                 continue;
-//             }
-
-//             if matches_module(None, m_txt, patch, patch.plugin_id()).unwrap() {
-//                 self.tx
-//                     .blocking_send(
-//                         ReporterError::FindAmbiguous {
-//                             module_id: m_id,
-//                             plugin_id: patch.plugin_id(),
-//                             find_span: patch.find.s.into(),
-//                         }
-//                         .into(),
-//                     )
-//                     .unwrap();
-//                 self.pending.push(PendingAction::GoodToBad(patch));
-//             }
-//         }
-//     }
-
-//     fn process_bad_patches(&self, m_id: u32, m_txt: &str) {
-//         let patches: Vec<&Patch> = self.bad.iter().copied().collect();
-//         for patch in patches {
-//             if patch.all {
-//                 continue;
-//             }
-
-//             if matches_module(None, m_txt, patch, patch.plugin_id()) == Some(true) {
-//                 self.tx
-//                     .blocking_send(
-//                         ReporterError::FindAmbiguous {
-//                             module_id: m_id,
-//                             plugin_id: patch.plugin_id(),
-//                             find_span: patch.find.s.into(),
-//                         }
-//                         .into(),
-//                     )
-//                     .unwrap();
-//             }
-//         }
-//     }
-
-//     fn apply_pending_actions(&mut self) {
-//         for action in &self.pending {
-//             match action {
-//                 PendingAction::GoodToBad(p) => {
-//                     if !p.all {
-//                         debug_assert!(
-//                             self.good.contains(p),
-//                             "GoodToBad action on patch that is not in good set"
-//                         );
-//                         debug_assert!(
-//                             !self.bad.contains(p),
-//                             "GoodToBad action on patch that is already in bad set"
-//                         );
-//                     }
-//                     self.good.remove(p);
-//                     self.bad.insert(p);
-//                 }
-//                 PendingAction::MissingToGood(p) => {
-//                     if !p.all {
-//                         debug_assert!(
-//                             self.missing.contains(p),
-//                             "MissingToGood action on patch that is not in missing set"
-//                         );
-//                         debug_assert!(
-//                             !self.good.contains(p),
-//                             "MissingToGood action on patch that is already in good set"
-//                         );
-//                         self.missing.remove(p);
-//                     }
-//                     self.good.insert(p);
-//                 }
-//                 PendingAction::MissingToBad(p) => {
-//                     if !p.all {
-//                         debug_assert!(
-//                             self.missing.contains(p),
-//                             "MissingToBad action on patch that is not in missing set"
-//                         );
-//                         debug_assert!(
-//                             !self.bad.contains(p),
-//                             "MissingToBad action on patch that is already in bad set"
-//                         );
-//                         self.missing.remove(p);
-//                     }
-//                     self.bad.insert(p);
-//                 }
-//                 PendingAction::KeepForAll => {}
-//             }
-//         }
-//     }
-
-//     fn send_progress(&self) {
-//         match self.tx.try_send(Msg::Progress) {
-//             Ok(()) => {}
-//             Err(e) => {
-//                 warn!("Failed to send progress update: {e}");
-//             }
-//         }
-//     }
-// }
-
 fn run_reporter(build: &FullBundle, plugins: &[Plugin], tx: &mut mpsc::Sender<Msg>) {
     ReporterState::new(plugins, build, tx).run();
 }
@@ -751,7 +495,6 @@ fn check_syntax_errors(
     alloc: &Allocator,
     src: &str,
     stats: Option<Stats>,
-    filename: Option<&str>,
 ) -> Result<Stats, Box<dyn Diagnostic + Send + Sync>> {
     let mut p_ret = Parser::new(alloc, src, SourceType::unambiguous()).parse();
     if !p_ret.errors.is_empty() {

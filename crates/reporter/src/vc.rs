@@ -237,7 +237,7 @@ impl MatchRegex {
             .map_err(Into::into),
         );
     }
-    pub fn regex(&self) -> &Result<Regex> {
+    pub const fn regex(&self) -> &Result<Regex> {
         self.regex.as_ref().expect("Regex not compiled")
     }
 }
@@ -250,7 +250,7 @@ pub struct Plugin {
 }
 
 impl Plugin {
-    fn try_new(entry_point: PathBuf) -> Result<Self> {
+    fn try_new(entry_point: &Path) -> Result<Self> {
         let entry_point = entry_point.canonicalize()?;
         Ok(Self {
             entry_source: fs::read_to_string(&entry_point)?,
@@ -283,9 +283,9 @@ fn glob_plugins_for_dir(dir: &Path, plugins: &mut Vec<Plugin>) -> Result<()> {
                 );
                 continue;
             };
-            Plugin::try_new(entry_point)?
+            Plugin::try_new(&entry_point)?
         } else {
-            Plugin::try_new(file_name)?
+            Plugin::try_new(&file_name)?
         };
 
         plugins.push(plugin);

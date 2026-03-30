@@ -559,7 +559,7 @@ impl<'ast> Parser<'ast> {
                     Err(e) => {
                         let plugin_name = self.plugin_name();
                         self.bar.suspend(|| {
-                            warn!("Failed to parse patch for plugin {plugin_name:?}, skipping. Error: {e:#?}");
+                            debug!("Failed to parse patch for plugin {plugin_name:?}, skipping. Error: {e:#?}");
                         });
                     }
                 }

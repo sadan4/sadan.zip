@@ -9,6 +9,7 @@ use clap_complete::Shell;
 use derive_more::{Constructor, From, Into};
 use indicatif::{MultiProgress, ProgressBar};
 use itertools::Itertools;
+use miette::Severity::Warning;
 use miette::{Diagnostic, MietteHandlerOpts, NamedSource, Report, SourceCode};
 use oxc::diagnostics::OxcDiagnostic;
 use std::env::args;
@@ -35,6 +36,11 @@ struct Cli {
     /// If true, will dump the contents of the module, before any transformations, to `$PWD/{module_id}.js` whenever a module is involved in an error
     #[arg(long, default_value_t = false)]
     dump_on_error: bool,
+    /// If true, will not print reporter warnings.
+    ///
+    /// This is not the same thing as a patch being noWarn
+    #[arg(long, default_value_t = false)]
+    no_warnings: bool,
     /// Generate shell completions
     #[arg(long, value_enum)]
     completions: Option<Shell>,
@@ -80,19 +86,17 @@ async fn run(cli: Cli) -> Result<()> {
             cli.vc_opts.vencord_dir.display()
         );
     }
-    // we need to keep the progress bars alive so that .suspend works properly
-    // SEE: https://github.com/console-rs/indicatif/issues/594
-    #[allow(clippy::collection_is_never_read)]
     let bars = MultiProgress::new();
     let patches_bar = Stage::new("Collecting Patches: ", None).and_attach(&bars);
     let fetch_bar = Stage::new("Resolving target build", None).and_attach(&bars);
+    // we need to keep the progress bars alive so that .suspend works properly
+    // SEE: https://github.com/console-rs/indicatif/issues/594
     mem::forget(patches_bar.clone());
     mem::forget(fetch_bar.clone());
     // FIXME: don't wrap in spawn
     let patches_fut = tokio::spawn(async move { collect_patches(cli.vc_opts, patches_bar).await });
-    let target_build_fut = tokio::spawn(async move {
-        fetch_build(cli.fetch_opts, fetch_bar).await
-    });
+    let target_build_fut =
+        tokio::spawn(async move { fetch_build(cli.fetch_opts, fetch_bar).await });
     let (plugins, target_build) = tokio::join!(patches_fut, target_build_fut);
     let plugins = Arc::new(plugins??);
     let target_build = Arc::new(target_build??);
@@ -121,7 +125,12 @@ async fn run(cli: Cli) -> Result<()> {
                 }
                 break;
             }
-            Msg::Error(e) => {
+            Msg::Error(e) => 'm: {
+                let e = if (e.severity() == Some(Warning) && cli.no_warnings) || e.is_no_warn() {
+                    break 'm;
+                } else {
+                    e
+                };
                 if cli.dump_on_error
                     && let Some(m_id) = e.module_id()
                 {
