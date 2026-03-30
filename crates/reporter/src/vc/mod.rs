@@ -2,7 +2,7 @@ mod hash;
 mod parser;
 use anyhow::{Result, bail};
 use clap::Args;
-use derive_more::{Eq, IsVariant, PartialEq, TryInto, TryUnwrap, Unwrap};
+use derive_more::{Eq, PartialEq};
 use memchr::memmem::Finder;
 use oxc::{allocator::Allocator, ast::ast::RegExpFlags, span::Span};
 use regress::{Flags, Regex, escape};
@@ -10,12 +10,10 @@ use std::{
     env, fs,
     hash::{Hash, Hasher},
     path::{Path, PathBuf},
-    time::Instant,
 };
-use tokio_stream::{StreamExt as _, wrappers::ReadDirStream};
-use tracing::{info, trace, warn};
+use tracing::{trace, warn};
 
-use crate::{util::Stage, vc::parser::parse_patches};
+use crate::{util::Stage, vc::parser::vencord_ast_parser::VencordAstParser};
 
 fn default_plugin_dirs() -> impl IntoIterator<Item = PathBuf> {
     ["src/plugins", "src/plugins/_api", "src/plugins/_core"]
@@ -66,7 +64,8 @@ fn do_collect_patches(opts: VencordOpts, bar: Stage) -> Result<Vec<Plugin>> {
             p.patches.is_empty(),
             "Patches should be empty before parsing"
         );
-        p.patches = parse_patches(&allocator, p, &bar)?;
+        let parser = VencordAstParser::try_new(&allocator, &p.entry_source)?;
+        p.patches = parser.patches()?;
         allocator.reset();
     }
 
@@ -131,7 +130,7 @@ pub struct Patch {
 }
 
 impl Patch {
-    pub fn plugin_id(&self) -> u16 {
+    pub const fn plugin_id(&self) -> u16 {
         self.plugin_id.expect("Plugin ID not set")
     }
 }
@@ -168,7 +167,7 @@ pub enum Match {
 
 impl Match {
     #[must_use]
-    pub fn as_regex(&self) -> Option<&MatchRegex> {
+    pub const fn as_regex(&self) -> Option<&MatchRegex> {
         if let Self::Regex(v) = self {
             Some(v)
         } else {
@@ -197,9 +196,7 @@ impl PartialEq for Match {
     }
 }
 
-impl Eq for Match {
-
-}
+impl Eq for Match {}
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct MatchRegex {

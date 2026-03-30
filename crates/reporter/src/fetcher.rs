@@ -5,10 +5,12 @@ use clap::Args;
 use explorer_types::{BuildList, BundleMetadata, FullBundle};
 use itertools::Itertools;
 use tokio::fs;
-use tracing::{debug, info, instrument};
+use tracing::{debug, instrument};
 
 use crate::util::{Stage, read_struct};
 
+// TODO: add filter CLI option
+#[expect(dead_code)]
 #[derive(Default, Debug, Clone)]
 pub enum BuildFilter {
     #[default]

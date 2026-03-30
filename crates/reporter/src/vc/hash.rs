@@ -1,4 +1,4 @@
-//! taken from https://github.com/discord/discord-intl/blob/f417360bb7a0295f02895af8faf1dd663a72c003/crates/intl_message_utils/src/lib.rs#L8-L41
+//! taken from <https://github.com/discord/discord-intl/blob/f417360bb7a0295f02895af8faf1dd663a72c003/crates/intl_message_utils/src/lib.rs#L8-L41>
 //!
 //! MIT License
 //!

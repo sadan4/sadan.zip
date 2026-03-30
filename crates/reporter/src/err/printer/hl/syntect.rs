@@ -1,5 +1,4 @@
 use std::path::Path;
-use itertools::Itertools;
 
 // all syntect imports are explicitly qualified, but their paths are shortened for convenience
 #[allow(clippy::module_inception)]

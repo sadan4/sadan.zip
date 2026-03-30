@@ -1,3 +1,4 @@
+mod diag;
 mod err;
 mod fetcher;
 mod reporter;
@@ -6,23 +7,20 @@ mod vc;
 use anyhow::{Result, bail};
 use clap::{CommandFactory as _, Parser};
 use clap_complete::Shell;
-use derive_more::{Constructor, From, Into};
-use indicatif::{MultiProgress, ProgressBar};
-use itertools::Itertools;
+use derive_more::{From, Into};
+use indicatif::MultiProgress;
 use miette::Severity::Warning;
-use miette::{Diagnostic, MietteHandlerOpts, NamedSource, Report, SourceCode};
-use oxc::diagnostics::OxcDiagnostic;
-use std::env::args;
+use miette::{Diagnostic, NamedSource, Report, SourceCode};
 use std::mem;
 use std::{io, path::Path, process, sync::Arc, time::Instant};
 use terminal_size::terminal_size;
-use tracing::{error, info, warn};
+use tracing::{error, warn};
 
 use crate::err::printer::GraphicalReportHandler;
 use crate::util::Stage;
 use crate::{
     fetcher::{FetchOpts, fetch_build},
-    reporter::{Msg, ReporterError, report_broken_patches},
+    reporter::{Msg, report_broken_patches},
     vc::{Plugin, VencordOpts, collect_patches},
 };
 
@@ -62,7 +60,7 @@ fn main() {
 
 #[tokio::main]
 async fn async_main() {
-    let mut cli = Cli::parse();
+    let cli = Cli::parse();
     // if cli.vc_opts.vencord_dir == env::current_dir().unwrap() {
     //     cli.vc_opts.vencord_dir = env::home_dir().unwrap().join("dev").join("Vencord");
     // }

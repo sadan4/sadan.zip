@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use anyhow::{Result, bail};
-use itertools::Itertools;
+use itertools::Itertools as _;
 use oxc::allocator::Box as OxcBox;
 use oxc::ast::ast::{
     ArrayExpression, ArrayExpressionElement, ArrowFunctionExpression, BindingIdentifier,
@@ -25,24 +25,24 @@ impl ModuleDeclarationExt for ModuleDeclaration<'_> {
 }
 
 pub trait ImportDeclarationExt {
-    fn default_or_namespace_var(&self) -> Option<SymbolId>;
-    fn namespace_var(&self) -> Option<SymbolId>;
+    // fn default_or_namespace_var(&self) -> Option<SymbolId>;
+    // fn namespace_var(&self) -> Option<SymbolId>;
     fn default_var(&self) -> Option<SymbolId>;
-    fn get_imported_var<'a>(&'a self, name: &str) -> Option<SymbolId>;
+    // fn get_imported_var(&self, name: &str) -> Option<SymbolId>;
 }
 
 impl ImportDeclarationExt for ImportDeclaration<'_> {
-    fn get_imported_var<'a>(&'a self, name: &str) -> Option<SymbolId> {
-        let specifiers = self.specifiers.as_ref()?;
-        for spec in specifiers {
-            if let ImportDeclarationSpecifier::ImportSpecifier(i) = spec
-                && i.imported.name() == name
-            {
-                return Some(i.local.symbol_id());
-            }
-        }
-        None
-    }
+    // fn get_imported_var(&self, name: &str) -> Option<SymbolId> {
+    //     let specifiers = self.specifiers.as_ref()?;
+    //     for spec in specifiers {
+    //         if let ImportDeclarationSpecifier::ImportSpecifier(i) = spec
+    //             && i.imported.name() == name
+    //         {
+    //             return Some(i.local.symbol_id());
+    //         }
+    //     }
+    //     None
+    // }
     fn default_var(&self) -> Option<SymbolId> {
         for spec in self.specifiers.as_ref()? {
             if let ImportDeclarationSpecifier::ImportDefaultSpecifier(i) = spec {
@@ -51,26 +51,26 @@ impl ImportDeclarationExt for ImportDeclaration<'_> {
         }
         None
     }
-    fn namespace_var(&self) -> Option<SymbolId> {
-        for spec in self.specifiers.as_ref()? {
-            if let ImportDeclarationSpecifier::ImportNamespaceSpecifier(i) = spec {
-                return Some(i.local.symbol_id());
-            }
-        }
-        None
-    }
-    fn default_or_namespace_var(&self) -> Option<SymbolId> {
-        for spec in self.specifiers.as_ref()? {
-            match spec {
-                ImportDeclarationSpecifier::ImportDefaultSpecifier(_)
-                | ImportDeclarationSpecifier::ImportNamespaceSpecifier(_) => {
-                    return Some(spec.local().symbol_id());
-                }
-                ImportDeclarationSpecifier::ImportSpecifier(_) => {}
-            }
-        }
-        None
-    }
+    // fn namespace_var(&self) -> Option<SymbolId> {
+    //     for spec in self.specifiers.as_ref()? {
+    //         if let ImportDeclarationSpecifier::ImportNamespaceSpecifier(i) = spec {
+    //             return Some(i.local.symbol_id());
+    //         }
+    //     }
+    //     None
+    // }
+    // fn default_or_namespace_var(&self) -> Option<SymbolId> {
+    //     for spec in self.specifiers.as_ref()? {
+    //         match spec {
+    //             ImportDeclarationSpecifier::ImportDefaultSpecifier(_)
+    //             | ImportDeclarationSpecifier::ImportNamespaceSpecifier(_) => {
+    //                 return Some(spec.local().symbol_id());
+    //             }
+    //             ImportDeclarationSpecifier::ImportSpecifier(_) => {}
+    //         }
+    //     }
+    //     None
+    // }
 }
 
 pub trait ObjectExpressionExt {
@@ -113,102 +113,101 @@ impl ObjectExpressionExt for ObjectExpression<'_> {
 }
 
 pub trait ExpressionExt {
-    fn as_identifier(&'_ self) -> Option<&'_ IdentifierReference<'_>>;
-    fn as_string_literal(&'_ self) -> Option<&'_ StringLiteral<'_>>;
-    fn as_object_expression(&'_ self) -> Option<&'_ ObjectExpression<'_>>;
-    fn as_array_expression(&'_ self) -> Option<&'_ ArrayExpression<'_>>;
-    fn as_call_expression(&'_ self) -> Option<&'_ CallExpression<'_>>;
-    fn as_arrow_function_expression(&'_ self) -> Option<&'_ ArrowFunctionExpression<'_>>;
-    fn dbg_name(&self) -> &'static str;
-}
+    fn as_expr_(&'_ self) -> Option<&'_ Expression<'_>>;
 
-impl ExpressionExt for Expression<'_> {
     fn as_arrow_function_expression(&'_ self) -> Option<&'_ ArrowFunctionExpression<'_>> {
-        match self {
+        match self.as_expr_()? {
             Expression::ArrowFunctionExpression(f) => Some(f.as_ref()),
             _ => None,
         }
     }
+
     fn as_string_literal(&'_ self) -> Option<&'_ StringLiteral<'_>> {
-        match self {
+        match self.as_expr_()? {
             Expression::StringLiteral(s) => Some(s),
             _ => None,
         }
     }
 
     fn as_object_expression(&'_ self) -> Option<&'_ ObjectExpression<'_>> {
-        match self {
+        match self.as_expr_()? {
             Expression::ObjectExpression(o) => Some(o.as_ref()),
             _ => None,
         }
     }
 
     fn dbg_name(&self) -> &'static str {
-        match self {
-            Self::BooleanLiteral(_) => "BooleanLiteral",
-            Self::NullLiteral(_) => "NullLiteral",
-            Self::NumericLiteral(_) => "NumericLiteral",
-            Self::BigIntLiteral(_) => "BigIntLiteral",
-            Self::RegExpLiteral(_) => "RegExpLiteral",
-            Self::StringLiteral(_) => "StringLiteral",
-            Self::TemplateLiteral(_) => "TemplateLiteral",
-            Self::Identifier(_) => "Identifier",
-            Self::MetaProperty(_) => "MetaProperty",
-            Self::Super(_) => "Super",
-            Self::ArrayExpression(_) => "ArrayExpression",
-            Self::ArrowFunctionExpression(_) => "ArrowFunctionExpression",
-            Self::AssignmentExpression(_) => "AssignmentExpression",
-            Self::AwaitExpression(_) => "AwaitExpression",
-            Self::BinaryExpression(_) => "BinaryExpression",
-            Self::CallExpression(_) => "CallExpression",
-            Self::ChainExpression(_) => "ChainExpression",
-            Self::ClassExpression(_) => "ClassExpression",
-            Self::ConditionalExpression(_) => "ConditionalExpression",
-            Self::FunctionExpression(_) => "FunctionExpression",
-            Self::ImportExpression(_) => "ImportExpression",
-            Self::LogicalExpression(_) => "LogicalExpression",
-            Self::NewExpression(_) => "NewExpression",
-            Self::ObjectExpression(_) => "ObjectExpression",
-            Self::ParenthesizedExpression(_) => "ParenthesizedExpression",
-            Self::SequenceExpression(_) => "SequenceExpression",
-            Self::TaggedTemplateExpression(_) => "TaggedTemplateExpression",
-            Self::ThisExpression(_) => "ThisExpression",
-            Self::UnaryExpression(_) => "UnaryExpression",
-            Self::UpdateExpression(_) => "UpdateExpression",
-            Self::YieldExpression(_) => "YieldExpression",
-            Self::PrivateInExpression(_) => "PrivateInExpression",
-            Self::JSXElement(_) => "JSXElement",
-            Self::JSXFragment(_) => "JSXFragment",
-            Self::TSAsExpression(_) => "TSAsExpression",
-            Self::TSSatisfiesExpression(_) => "TSSatisfiesExpression",
-            Self::TSTypeAssertion(_) => "TSTypeAssertion",
-            Self::TSNonNullExpression(_) => "TSNonNullExpression",
-            Self::TSInstantiationExpression(_) => "TSInstantiationExpression",
-            Self::V8IntrinsicExpression(_) => "V8IntrinsicExpression",
-            Self::ComputedMemberExpression(_) => "ComputedMemberExpression",
-            Self::StaticMemberExpression(_) => "StaticMemberExpression",
-            Self::PrivateFieldExpression(_) => "PrivateFieldExpression",
+        match self.as_expr_().expect("unreachable") {
+            Expression::BooleanLiteral(_) => "BooleanLiteral",
+            Expression::NullLiteral(_) => "NullLiteral",
+            Expression::NumericLiteral(_) => "NumericLiteral",
+            Expression::BigIntLiteral(_) => "BigIntLiteral",
+            Expression::RegExpLiteral(_) => "RegExpLiteral",
+            Expression::StringLiteral(_) => "StringLiteral",
+            Expression::TemplateLiteral(_) => "TemplateLiteral",
+            Expression::Identifier(_) => "Identifier",
+            Expression::MetaProperty(_) => "MetaProperty",
+            Expression::Super(_) => "Super",
+            Expression::ArrayExpression(_) => "ArrayExpression",
+            Expression::ArrowFunctionExpression(_) => "ArrowFunctionExpression",
+            Expression::AssignmentExpression(_) => "AssignmentExpression",
+            Expression::AwaitExpression(_) => "AwaitExpression",
+            Expression::BinaryExpression(_) => "BinaryExpression",
+            Expression::CallExpression(_) => "CallExpression",
+            Expression::ChainExpression(_) => "ChainExpression",
+            Expression::ClassExpression(_) => "ClassExpression",
+            Expression::ConditionalExpression(_) => "ConditionalExpression",
+            Expression::FunctionExpression(_) => "FunctionExpression",
+            Expression::ImportExpression(_) => "ImportExpression",
+            Expression::LogicalExpression(_) => "LogicalExpression",
+            Expression::NewExpression(_) => "NewExpression",
+            Expression::ObjectExpression(_) => "ObjectExpression",
+            Expression::ParenthesizedExpression(_) => "ParenthesizedExpression",
+            Expression::SequenceExpression(_) => "SequenceExpression",
+            Expression::TaggedTemplateExpression(_) => "TaggedTemplateExpression",
+            Expression::ThisExpression(_) => "ThisExpression",
+            Expression::UnaryExpression(_) => "UnaryExpression",
+            Expression::UpdateExpression(_) => "UpdateExpression",
+            Expression::YieldExpression(_) => "YieldExpression",
+            Expression::PrivateInExpression(_) => "PrivateInExpression",
+            Expression::JSXElement(_) => "JSXElement",
+            Expression::JSXFragment(_) => "JSXFragment",
+            Expression::TSAsExpression(_) => "TSAsExpression",
+            Expression::TSSatisfiesExpression(_) => "TSSatisfiesExpression",
+            Expression::TSTypeAssertion(_) => "TSTypeAssertion",
+            Expression::TSNonNullExpression(_) => "TSNonNullExpression",
+            Expression::TSInstantiationExpression(_) => "TSInstantiationExpression",
+            Expression::V8IntrinsicExpression(_) => "V8IntrinsicExpression",
+            Expression::ComputedMemberExpression(_) => "ComputedMemberExpression",
+            Expression::StaticMemberExpression(_) => "StaticMemberExpression",
+            Expression::PrivateFieldExpression(_) => "PrivateFieldExpression",
         }
     }
 
     fn as_array_expression(&'_ self) -> Option<&'_ ArrayExpression<'_>> {
-        match self {
+        match self.as_expr_()? {
             Expression::ArrayExpression(a) => Some(a.as_ref()),
             _ => None,
         }
     }
 
     fn as_call_expression(&'_ self) -> Option<&'_ CallExpression<'_>> {
-        match self {
+        match self.as_expr_()? {
             Expression::CallExpression(e) => Some(e.as_ref()),
             _ => None,
         }
     }
     fn as_identifier(&'_ self) -> Option<&'_ IdentifierReference<'_>> {
-        match self {
-            Self::Identifier(i) => Some(i.as_ref()),
+        match self.as_expr_()? {
+            Expression::Identifier(i) => Some(i.as_ref()),
             _ => None,
         }
+    }
+}
+
+impl ExpressionExt for Expression<'_> {
+    fn as_expr_(&'_ self) -> Option<&'_ Expression<'_>> {
+        Some(self)
     }
 }
 
