@@ -12,11 +12,13 @@ use crate::vc::parser::{exts::ExpressionExt, vencord_ast_parser::pass::util::Ctx
 
 pub struct FoldBinaryExpressionsPass;
 
+// TODO: refactor
+#[expect(clippy::too_many_lines)]
 fn fold_template_literals<'ast, State>(
     left: &mut Expression<'ast>,
     right: &mut Expression<'ast>,
     span: Span,
-    ctx: &mut Ctx<'_, 'ast, State>,
+    ctx: &Ctx<'_, 'ast, State>,
 ) -> Option<Expression<'ast>> {
     if let Some(left) = left.as_string_literal() {
         // prepare `left`
@@ -81,12 +83,39 @@ fn fold_template_literals<'ast, State>(
         let ret = ctx.alloc(ret);
         let ret = Expression::TemplateLiteral(ret);
         Some(ret)
-    } else if let Some(left) = left.as_identifier() {
+    } else if let Some(left) = left.as_identifier_mut() {
         let right = right.as_template_literal_mut().unwrap();
-        todo!();
-    } else if let Some(right) = right.as_identifier() {
+        let mut right = ctx.take(right);
+        let left = ctx.take(left);
+        let new_q = ctx.ast.template_element(
+            Span::new(right.span.start, right.span.start),
+            ctx.empty_template_element_value(),
+            false,
+            false, // we are inserting an empty element, no need to escape
+        );
+        right.expressions.insert(0, Expression::Identifier(ctx.alloc(left)));
+        right.quasis.insert(0, new_q);
+        right.span = span;
+        let ret = ctx.alloc(right);
+        let ret = Expression::TemplateLiteral(ret);
+        Some(ret)
+    } else if let Some(right) = right.as_identifier_mut() {
         let left = left.as_template_literal_mut().unwrap();
-        todo!();
+        let mut left = ctx.take(left);
+        let right = ctx.take(right);
+        left.quasis.last_mut().unwrap().tail = false;
+        let new_q = ctx.ast.template_element(
+            Span::new(left.span.end, left.span.end),
+            ctx.empty_template_element_value(),
+            true,
+            false, // we are inserting an empty element, no need to escape
+        );
+        left.expressions.push(Expression::Identifier(ctx.alloc(right)));
+        left.quasis.push(new_q);
+        left.span = span;
+        let ret = ctx.alloc(left);
+        let ret = Expression::TemplateLiteral(ret);
+        Some(ret)
     } else if let Some(right) = right.as_template_literal_mut()
         && let Some(left) = left.as_template_literal_mut()
     {
@@ -137,7 +166,7 @@ impl<'ast, State> Traverse<'ast, State> for FoldBinaryExpressionsPass {
         let Some(node) = expr_node.as_binary_expression_mut() else {
             return;
         };
-        let mut ctx = Ctx(ctx);
+        let ctx = Ctx(ctx);
         let left = &mut node.left;
         let right = &mut node.right;
         let op = node.operator;
@@ -149,9 +178,120 @@ impl<'ast, State> Traverse<'ast, State> for FoldBinaryExpressionsPass {
             return;
         }
         if (left.is_template_literal() || right.is_template_literal())
-            && let Some(new_expr) = fold_template_literals(left, right, node.span, &mut ctx)
+            && let Some(new_expr) = fold_template_literals(left, right, node.span, &ctx)
         {
             *expr_node = new_expr;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::needless_raw_string_hashes)]
+
+    use super::*;
+    use crate::test_pass;
+    use insta::assert_snapshot;
+
+    #[test]
+    fn folds_constant_binary_expression() {
+        let code = /* language=TypeScript */ r#"
+            const value = 1 + 2;
+            console.log(value);
+        "#;
+        let out = test_pass!(code, FoldBinaryExpressionsPass);
+        assert_snapshot!(out, /* language=TypeScript */ @"
+            const value = 3;
+            console.log(value);
+        ");
+    }
+
+    #[test]
+    fn folds_string_plus_template_literal() {
+        let code = /* language=TypeScript */ r#"
+            const left = "x";
+            const mid = 1;
+            const out = left + `${mid}y`;
+        "#;
+        let out = test_pass!(code, FoldBinaryExpressionsPass);
+        assert_snapshot!(out, /* language=TypeScript */ @"
+            const left = 'x';
+            const mid = 1;
+            const out = `${left}${mid}y`;
+        ");
+    }
+
+    #[test]
+    fn folds_template_literal_plus_string() {
+        let code = /* language=TypeScript */ r#"
+            const mid = 1;
+            const out = `x${mid}` + "y";
+        "#;
+        let out = test_pass!(code, FoldBinaryExpressionsPass);
+        assert_snapshot!(out, /* language=TypeScript */ @"
+            const mid = 1;
+            const out = `x${mid}y`;
+        ");
+    }
+
+    #[test]
+    fn folds_identifier_plus_template_literal() {
+        let code = /* language=TypeScript */ r#"
+            const head = "x";
+            const mid = 1;
+            const out = head + `${mid}y`;
+        "#;
+        let out = test_pass!(code, FoldBinaryExpressionsPass);
+        assert_snapshot!(out, /* language=TypeScript */ @"
+            const head = 'x';
+            const mid = 1;
+            const out = `${head}${mid}y`;
+        ");
+    }
+
+    #[test]
+    fn folds_template_literal_plus_identifier() {
+        let code = /* language=TypeScript */ r#"
+            const mid = 1;
+            const tail = "y";
+            const out = `x${mid}` + tail;
+        "#;
+        let out = test_pass!(code, FoldBinaryExpressionsPass);
+        assert_snapshot!(out, /* language=TypeScript */ @"
+            const mid = 1;
+            const tail = 'y';
+            const out = `x${mid}${tail}`;
+        ");
+    }
+
+    #[test]
+    fn folds_template_literal_plus_template_literal() {
+        let code = /* language=TypeScript */ r#"
+            const left = 1;
+            const right = 2;
+            const out = `x${left}` + `${right}y`;
+        "#;
+        let out = test_pass!(code, FoldBinaryExpressionsPass);
+        assert_snapshot!(out, /* language=TypeScript */ @"
+            const left = 1;
+            const right = 2;
+            const out = `x${left}${right}y`;
+        ");
+    }
+    #[test]
+    fn folds_template_literals_with_many_vars() {
+        let code = r#"
+            const a = 1;
+            const b = 2;
+            let c = 3;
+            const out = `#${a}#` + b + c + `#${a}#`;
+        "#;
+        let out = test_pass!(code, FoldBinaryExpressionsPass);
+        assert_snapshot!(out, /* language=TypeScript */ @"
+            const a = 1;
+            const b = 2;
+            let c = 3;
+            const out = `#${a}#${b}${c}#${a}#`;
+        ");
     }
 }

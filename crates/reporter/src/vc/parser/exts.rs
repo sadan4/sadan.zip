@@ -206,6 +206,12 @@ pub trait ExpressionExt<'ast> {
             _ => None,
         }
     }
+    fn as_identifier_mut(&mut self) -> Option<&mut IdentifierReference<'ast>> {
+        match self.as_expr_mut_()? {
+            Expression::Identifier(i) => Some(i.as_mut()),
+            _ => None,
+        }
+    }
     fn is_template_literal(&self) -> bool {
         matches!(self.as_expr_(), Some(Expression::TemplateLiteral(_)))
     }
@@ -221,12 +227,12 @@ pub trait ExpressionExt<'ast> {
             _ => None,
         }
     }
-    fn as_binary_expression(&self) -> Option<&BinaryExpression<'ast>> {
-        match self.as_expr_()? {
-            Expression::BinaryExpression(e) => Some(e.as_ref()),
-            _ => None,
-        }
-    }
+    // fn as_binary_expression(&self) -> Option<&BinaryExpression<'ast>> {
+    //     match self.as_expr_()? {
+    //         Expression::BinaryExpression(e) => Some(e.as_ref()),
+    //         _ => None,
+    //     }
+    // }
     fn as_binary_expression_mut(&mut self) -> Option<&mut BinaryExpression<'ast>> {
         match self.as_expr_mut_()? {
             Expression::BinaryExpression(e) => Some(e.as_mut()),
@@ -240,7 +246,7 @@ impl<'ast> ExpressionExt<'ast> for Expression<'ast> {
         Some(self)
     }
 
-    fn as_expr_mut_(&mut self) -> Option<&mut Expression<'ast>> {
+    fn as_expr_mut_(&mut self) -> Option<&mut Self> {
         Some(self)
     }
 }

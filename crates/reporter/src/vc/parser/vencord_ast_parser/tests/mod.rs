@@ -1,86 +1,53 @@
 use crate::vc::parser::vencord_ast_parser::VencordAstParser;
-use insta::{assert_ron_snapshot, assert_snapshot};
+use insta::assert_ron_snapshot;
 use oxc::allocator::Allocator;
-use oxc::codegen::{Codegen, CodegenOptions, CommentOptions, IndentChar, LegalComment};
+use crate::vc::parser::vencord_ast_parser::pass::dump_ast;
 
-fn dump_ast(parser: &VencordAstParser<'_>) -> String {
-    Codegen::new()
-        .with_options(CodegenOptions {
-            single_quote: true,
-            minify: false,
-            comments: CommentOptions {
-                annotation: true,
-                jsdoc: true,
-                legal: LegalComment::Inline,
-                normal: true,
-            },
-            indent_char: IndentChar::Tab,
-            indent_width: 1,
-            initial_indent: 0,
-            source_map_path: None,
-        })
-        .build(parser.prog)
-        .code
+macro_rules! dump_patches {
+    ($path:literal, $dump_code:literal) => {{
+        let a = Allocator::new();
+        let code = include_str!($path);
+        let parser = VencordAstParser::try_new(&a, code).unwrap();
+        if $dump_code {
+            let code = dump_ast(&parser.prog);
+            eprintln!("{code}");
+        }
+        parser.patches().unwrap()
+    }};
+    ($path:literal) => {
+        dump_patches!($path, false)
+    };
+    ($path:literal, dbg_code) => {
+        dump_patches!($path, true)
+    };
 }
 
 #[test]
 fn test_template_literal_replace() {
-    let a = Allocator::new();
-    let code = include_str!("data/imageZoom.tsx");
-    let parser = VencordAstParser::try_new(&a, code).unwrap();
-    let name = parser.plugin_name();
-    assert_ron_snapshot!(name, @r#"Some("ImageZoom")"#);
-    let patches = parser.patches().unwrap();
+    let patches = dump_patches!("data/plugin3.tsx");
     assert_ron_snapshot!(patches);
 }
 
 #[test]
 fn test_replace_simple_arrow_func() {
-    let a = Allocator::new();
-    let code = include_str!("data/commands.tsx");
-    let parser = VencordAstParser::try_new(&a, code).unwrap();
-    assert_ron_snapshot!(parser.plugin_name(), @r#"Some("CommandsAPI")"#);
-    let patches = parser.patches().unwrap();
+    let patches = dump_patches!("data/plugin4.tsx");
     assert_ron_snapshot!(patches);
 }
 
 #[test]
 fn test_replace_concat_template() {
-    let a = Allocator::new();
-    let code = include_str!("data/plugin.tsx");
-    let parser = VencordAstParser::try_new(&a, code).unwrap();
-    let patches = parser.patches().unwrap();
+    let patches = dump_patches!("data/plugin1.tsx");
     assert_ron_snapshot!(patches);
 }
 
 #[test]
-fn test_ignores_typeof() {
-    let a = Allocator::new();
-    let code = r#"
-        const foo = {bar: "baz"};
-        type TEST = typeof foo;
-        console.log(foo);
-    "#;
-    let parser = VencordAstParser::try_new(&a, code).unwrap();
-    assert_snapshot!(dump_ast(&parser), @"
-        const foo = { bar: 'baz' };
-        type TEST = typeof foo;
-        console.log({ bar: 'baz' });
-    ");
+fn test_replace_concat_template_with_ident() {
+    let patches = dump_patches!("data/plugin2.tsx");
+    assert_ron_snapshot!(patches);
 }
 
 #[test]
-fn test_inline_constants() {
-    let a = Allocator::new();
-    let code = r"
-        const foo = 2;
-        let bar = foo + 1;
-        console.log(bar);
-    ";
-    let parser = VencordAstParser::try_new(&a, code).unwrap();
-    assert_snapshot!(dump_ast(&parser), @"
-        const foo = 2;
-        let bar = 2 + 1;
-        console.log(2 + 1);
-    ");
+fn test_inline_big_int_literal_expr() {
+    let patches = dump_patches!("data/plugin5.tsx", dbg_code);
+    assert_ron_snapshot!(patches);
 }

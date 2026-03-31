@@ -1,7 +1,6 @@
-use std::sync::Arc;
-use itertools::Itertools;
 use crate::vc::parser::exts::ModuleDeclarationExt;
 use anyhow::{Result, bail};
+use itertools::Itertools;
 use oxc::{
     allocator::{Allocator, Box as OxcBox},
     ast::ast::{ImportDeclaration, ModuleDeclaration, Program},
@@ -9,18 +8,30 @@ use oxc::{
     semantic::{AstNode, NodeId, Scoping, Semantic, SemanticBuilder},
     span::SourceType,
 };
+use std::sync::Arc;
 
 macro_rules! impl_parse {
     ($alloc:expr, $source:expr, $source_type:expr, $ast:ident, $sema:ident) => {
         let parsed = OxcParser::new($alloc, $source, $source_type).parse();
         if parsed.panicked {
             let dbg_src = Arc::new($source.to_string());
-            let errs_with_src = parsed.errors.into_iter().map(move |err| err.with_source_code(dbg_src.clone())).collect_vec();
-            bail!("OxcParser panicked while parsing source. errors: \n{:?}\n", errs_with_src);
+            let errs_with_src = parsed
+                .errors
+                .into_iter()
+                .map(move |err| err.with_source_code(dbg_src.clone()))
+                .collect_vec();
+            bail!(
+                "OxcParser panicked while parsing source. errors: \n{:?}\n",
+                errs_with_src
+            );
         }
         if !parsed.errors.is_empty() {
             let dbg_src = Arc::new($source.to_string());
-            let errs_with_src = parsed.errors.into_iter().map(move |err| err.with_source_code(dbg_src.clone())).collect_vec();
+            let errs_with_src = parsed
+                .errors
+                .into_iter()
+                .map(move |err| err.with_source_code(dbg_src.clone()))
+                .collect_vec();
             bail!("Failed to parse source: \n{:#?}\n", errs_with_src);
         }
         let $ast: &'ast mut Program<'ast> = $alloc.alloc(parsed.program);
@@ -30,7 +41,11 @@ macro_rules! impl_parse {
             .build($ast);
         if !$sema.errors.is_empty() {
             let dbg_src = Arc::new($source.to_string());
-            let errs_with_src = $sema.errors.into_iter().map(move |err| err.with_source_code(dbg_src.clone())).collect_vec();
+            let errs_with_src = $sema
+                .errors
+                .into_iter()
+                .map(move |err| err.with_source_code(dbg_src.clone()))
+                .collect_vec();
             bail!(
                 "Failed to perform semantic analysis on source: \n{:#?}\n",
                 errs_with_src
@@ -38,25 +53,26 @@ macro_rules! impl_parse {
         }
     };
 }
-pub trait AstParser<'ast> {
-    // fn parse(
-    //     alloc: &'ast Allocator,
-    //     source: &'ast str,
-    //     source_type: SourceType,
-    // ) -> Result<(&'ast Program<'ast>, Semantic<'ast>)> {
-    //     impl_parse!(alloc, source, source_type, ast, sema);
-    //     Ok((ast, sema.semantic))
-    // }
 
-    fn parse_for_traverse(
-        alloc: &'ast Allocator,
-        source: &'ast str,
-        source_type: SourceType,
-    ) -> Result<(&'ast mut Program<'ast>, Scoping)> {
-        impl_parse!(alloc, source, source_type, ast, sema);
-        let scoping = sema.semantic.into_scoping();
-        Ok((ast, scoping))
-    }
+pub fn parse<'ast>(
+    alloc: &'ast Allocator,
+    source: &'ast str,
+    source_type: SourceType,
+) -> Result<(&'ast Program<'ast>, Semantic<'ast>)> {
+    impl_parse!(alloc, source, source_type, ast, sema);
+    Ok((ast, sema.semantic))
+}
+
+pub fn parse_for_traverse<'ast>(
+    alloc: &'ast Allocator,
+    source: &'ast str,
+    source_type: SourceType,
+) -> Result<(&'ast mut Program<'ast>, Scoping)> {
+    impl_parse!(alloc, source, source_type, ast, sema);
+    let scoping = sema.semantic.into_scoping();
+    Ok((ast, scoping))
+}
+pub trait AstParser<'ast> {
     fn prog(&self) -> &'ast Program<'ast>;
     fn sema(&self) -> &Semantic<'ast>;
     // /// node from id

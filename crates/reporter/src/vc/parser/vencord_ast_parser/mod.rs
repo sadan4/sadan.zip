@@ -1,6 +1,7 @@
 mod pass;
 use std::path::Path;
 
+use crate::vc::parser::ast_parser::parse_for_traverse;
 use crate::vc::parser::patches::{canonicalize_match_like, canonicalize_replace_for_regress};
 use crate::vc::parser::vencord_ast_parser::pass::FoldBinaryExpressionsPass;
 use crate::vc::{
@@ -52,7 +53,7 @@ impl<'ast> VencordAstParser<'ast> {
         alloc: &'ast Allocator,
         source: &'ast str,
     ) -> Result<Self> {
-        let pass_data = Self::parse_for_traverse(alloc, source, SourceType::tsx())?;
+        let pass_data = parse_for_traverse(alloc, source, SourceType::tsx())?;
 
         let (prog, sema) = PassManager::new(alloc, pass_data)
             .run_pass(FoldBinaryExpressionsPass)
@@ -303,7 +304,8 @@ impl<'ast> VencordAstParser<'ast> {
         // TODO: use CFG to get return value of arrow function that might have a body
         func.get_expression()
     }
-
+    // TODO: skip all && noWarn patches?
+    // maybe noop the replace and just test that the find matches at least once
     fn raw_patches<'a: 'ast>(&'a self) -> Result<OxcVec<'ast, RawPatch<'ast>>> {
         let mut ret = OxcVec::new_in(self.alloc);
         let Some(patches) = self

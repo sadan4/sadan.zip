@@ -1,7 +1,7 @@
-mod inline_str;
-mod util;
 mod flatten_template;
 mod fold_bin_exp;
+mod inline_str;
+mod util;
 
 use oxc::{
     allocator::Allocator,
@@ -10,9 +10,9 @@ use oxc::{
 };
 use oxc_traverse::{Traverse, traverse_mut};
 
-pub use inline_str::InlineConstantLiteralsPass;
 pub use flatten_template::FlattenTemplatePass;
 pub use fold_bin_exp::FoldBinaryExpressionsPass;
+pub use inline_str::InlineConstantLiteralsPass;
 
 pub struct PassManager<'ast> {
     program: &'ast mut Program<'ast>,
@@ -42,7 +42,55 @@ impl<'ast> PassManager<'ast> {
             .with_cfg(true)
             .with_check_syntax_error(true)
             .build(prog);
-        assert!(sema.errors.is_empty(), "Passes created invalid AST: {:#?}", sema.errors);
+        assert!(
+            sema.errors.is_empty(),
+            "Passes created invalid AST: {:#?}",
+            sema.errors
+        );
         (prog, sema.semantic)
     }
 }
+
+#[cfg(test)]
+#[expect(clippy::items_after_test_module, reason = "export testing util macro")]
+mod test_util {
+    use super::*;
+    pub fn dump_ast(parser: &Program<'_>) -> String {
+        Codegen::new()
+            .with_options(CodegenOptions {
+                single_quote: true,
+                minify: false,
+                comments: CommentOptions {
+                    annotation: true,
+                    jsdoc: true,
+                    legal: LegalComment::Inline,
+                    normal: true,
+                },
+                indent_char: IndentChar::Tab,
+                indent_width: 1,
+                initial_indent: 0,
+                source_map_path: None,
+            })
+            .build(parser)
+            .code
+    }
+    #[macro_export]
+    macro_rules! test_pass {
+        ($code:expr, $pass:expr) => {{
+            let alloc = oxc::allocator::Allocator::new();
+            let pass_data = $crate::vc::parser::ast_parser::parse_for_traverse(
+                &alloc,
+                $code,
+                ::oxc::span::SourceType::tsx(),
+            );
+            let (prog, _) = $crate::vc::parser::vencord_ast_parser::pass::PassManager::new(&alloc, pass_data.unwrap())
+                .run_pass($pass)
+                .finish();
+            $crate::vc::parser::vencord_ast_parser::pass::dump_ast(prog)
+        }};
+    }
+    use oxc::codegen::{Codegen, CodegenOptions, CommentOptions, IndentChar, LegalComment};
+}
+
+#[cfg(test)]
+pub use test_util::dump_ast;
