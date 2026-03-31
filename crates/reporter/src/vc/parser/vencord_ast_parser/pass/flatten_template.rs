@@ -2,6 +2,7 @@ use crate::vc::parser::exts::{ExpressionExt, TemplateLiteralExt};
 use crate::vc::parser::vencord_ast_parser::pass::util::Ctx;
 use oxc::ast::ast::Expression;
 use oxc::ast::ast::TemplateElementValue;
+use oxc::span::GetSpan as _;
 use oxc_ecmascript::constant_evaluation::ConstantEvaluation;
 use oxc_traverse::{Traverse, TraverseCtx};
 
@@ -38,6 +39,42 @@ impl<'ast, State> Traverse<'ast, State> for FlattenTemplatePass {
                 .ast
                 .expression_string_literal(template_node.span, str_atom, None);
             return;
+        }
+        // try to inline as many literal expressions as we can
+        debug_assert_eq!(
+            template_node.quasis.len(),
+            template_node.expressions.len() + 1
+        );
+        for i in (1..template_node.expressions.len()).rev() {
+            let expr = &template_node.expressions[i - 1];
+            if let Some(str_val) = expr.evaluate_value_to_string(&ctx) {
+                let right = template_node.quasis.remove(i);
+                let left = &mut template_node.quasis[i - 1];
+                let expr_span = template_node.expressions.remove(i - 1).span();
+                let new_raw = ctx
+                    .a()
+                    .alloc_concat_strs_array([
+                        left.value.raw.as_str(),
+                        &str_val,
+                        right.value.raw.as_str(),
+                    ])
+                    .into();
+                let new_cooked = ctx
+                    .a()
+                    .alloc_concat_strs_array([
+                        left.value.cooked.unwrap().as_str(),
+                        &str_val,
+                        right.value.cooked.unwrap().as_str(),
+                    ])
+                    .into();
+                left.lone_surrogates |= right.lone_surrogates;
+                left.tail = right.tail;
+                left.span = left.span.merge(right.span).merge(expr_span);
+                left.value = TemplateElementValue {
+                    raw: new_raw,
+                    cooked: Some(new_cooked),
+                };
+            }
         }
     }
 }
@@ -95,6 +132,77 @@ mod tests {
         let out = test_pass!(code, FlattenTemplatePass);
         assert_snapshot!(out, /* language=TypeScript */ @"
             const msg = 'x3ytrue';
+            console.log(msg);
+        ");
+    }
+
+    #[test]
+    fn partially_flattens_template_with_some_literal_expressions() {
+        let code = /* language=TypeScript */ r#"
+            const x = "dynamic";
+            const msg = `start${123}middle${x}end`;
+            console.log(msg);
+        "#;
+        let out = test_pass!(code, FlattenTemplatePass);
+        assert_snapshot!(out, /* language=TypeScript */ @"
+            const x = 'dynamic';
+            const msg = `start123middle${x}end`;
+            console.log(msg);
+        ");
+    }
+
+    #[test]
+    fn partially_flattens_template_with_multiple_literal_expressions() {
+        let code = /* language=TypeScript */ r#"
+            const x = "dynamic";
+            const msg = `a${1}b${2}c${x}d${3}e`;
+            console.log(msg);
+        "#;
+        let out = test_pass!(code, FlattenTemplatePass);
+        assert_snapshot!(out, /* language=TypeScript */ @"
+            const x = 'dynamic';
+            const msg = `a1b2c${x}d3e`;
+            console.log(msg);
+        ");
+    }
+
+    #[test]
+    fn partially_flattens_template_with_boolean_and_number_literals() {
+        let code = /* language=TypeScript */ r#"
+            const msg = `prefix${false}${name}${42}suffix`;
+            console.log(msg);
+        "#;
+        let out = test_pass!(code, FlattenTemplatePass);
+        assert_snapshot!(out, /* language=TypeScript */ @"
+            const msg = `prefixfalse${name}42suffix`;
+            console.log(msg);
+        ");
+    }
+
+    #[test]
+    fn partially_flattens_with_consecutive_literals() {
+        let code = /* language=TypeScript */ r#"
+            const x = "var";
+            const msg = `${1}${2}${3}${x}${4}${5}`;
+        "#;
+        let out = test_pass!(code, FlattenTemplatePass);
+        // Processes right to left: merges ${4}${5}, then stops at ${x}
+        // Note: 'var' literal stays because it goes through plain template flatten first
+        assert_snapshot!(out, /* language=TypeScript */ @"
+            const x = 'var';
+            const msg = `123${x}45`;
+        ");
+    }
+
+    #[test]
+    fn handles_template_with_only_non_literal_expressions() {
+        let code = /* language=TypeScript */ r#"
+            const msg = `${foo}${bar}${baz}`;
+            console.log(msg);
+        "#;
+        let out = test_pass!(code, FlattenTemplatePass);
+        assert_snapshot!(out, /* language=TypeScript */ @"
+            const msg = `${foo}${bar}${baz}`;
             console.log(msg);
         ");
     }
