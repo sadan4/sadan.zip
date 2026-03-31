@@ -1,54 +1,41 @@
-use crate::{
-    util::Stage,
-    vc::{
-        Match, MatchLike, MatchRegex, Patch, Plugin, ReplaceLike, Replacement, Replacer,
-        hash::hash_message_key,
-        parser::{
-            ast_parser::{AstParser, ESModuleParser, ParsedAst},
-            exts::{
-                ArrayExpressionElementExt as _, BindingPatternExt, ExpressionExt,
-                ImportDeclarationExt, ModuleDeclarationExt, ObjectExpressionExt,
-               
-            },
-            patches::{RawMatchLike, RawPatch, RawReplace, RawReplacement, canonicalize_patch},
+mod pass;
+use crate::vc::{
+    Patch,
+    parser::{
+        ast_parser::{AstParser, ESModuleParser},
+        exts::{
+            ArrayExpressionElementExt as _, BindingPatternExt, ExpressionExt, ImportDeclarationExt,
+            ObjectExpressionExt,
         },
+        patches::{RawMatchLike, RawPatch, RawReplace, RawReplacement, canonicalize_patch},
+        vencord_ast_parser::pass::{FlattenTemplatePass, InlineConstantLiteralsPass, PassManager},
     },
 };
 use anyhow::{Context, Result, bail};
-use itertools::Itertools;
-use memchr::memmem::Finder;
 use oxc::{
-    allocator::{Allocator, Box, Vec as OxcVec},
+    allocator::{Allocator, Vec as OxcVec},
     ast::{
         AstBuilder, AstKind,
         ast::{
             Argument, ArrayExpressionElement, ArrowFunctionExpression, Expression,
-            ImportDeclaration, ModuleDeclaration, ObjectExpression, RegExpLiteral, SpreadElement,
-            StringLiteral, TemplateLiteral,
+            ObjectExpression, Program, SpreadElement,
         },
     },
-    cfg::{BlockNodeId, ControlFlowGraph},
     minifier::PropertyReadSideEffects,
-    parser::{Parser as OxcParser, ParserReturn},
-    semantic::{
-        AstNode, NodeId, Semantic, SemanticBuilder,
-        dot::{DebugDot, DebugDotContext},
-    },
-    span::{Atom, SourceType, Span},
+    semantic::Semantic,
+    span::SourceType,
 };
 use oxc_ecmascript::{
     GlobalContext,
     constant_evaluation::{ConstantEvaluation, ConstantEvaluationCtx},
     side_effects::MayHaveSideEffectsContext,
 };
-use regress::Regex;
-use std::{borrow::Cow, cell::Cell, fmt::Debug, sync::LazyLock};
-use tracing::{debug, warn};
+use tracing::{debug, trace, warn};
 
 pub struct VencordAstParser<'ast> {
     alloc: &'ast Allocator,
     ast_builder: AstBuilder<'ast>,
-    ast: &'ast ParsedAst<'ast>,
+    prog: &'ast Program<'ast>,
     sema: Semantic<'ast>,
 }
 
@@ -56,11 +43,17 @@ const DEFINE_PLUGIN_IMPORT_SOURCE: &str = "@utils/types";
 
 impl<'ast> VencordAstParser<'ast> {
     pub fn try_new(alloc: &'ast Allocator, source: &'ast str) -> Result<Self> {
-        let (ast, sema) = Self::parse(alloc, source, SourceType::tsx())?;
+        let pass_data = Self::parse_for_traverse(alloc, source, SourceType::tsx())?;
+
+        let (prog, sema) = PassManager::new(alloc, pass_data)
+            .run_pass(InlineConstantLiteralsPass::default())
+            .run_pass(FlattenTemplatePass)
+            .finish();
+
         Ok(Self {
             alloc,
             ast_builder: AstBuilder::new(alloc),
-            ast,
+            prog,
             sema,
         })
     }
@@ -137,7 +130,7 @@ impl<'ast> VencordAstParser<'ast> {
             match_,
             replace,
             no_warn,
-            predicate,
+            _predicate: predicate,
         })
     }
 
@@ -196,7 +189,7 @@ impl<'ast> VencordAstParser<'ast> {
         let ret = RawPatch {
             all,
             no_warn,
-            predicate,
+            _predicate: predicate,
             find,
             replacement,
         };
@@ -283,7 +276,7 @@ impl<'ast> VencordAstParser<'ast> {
             ret.push(RawPatch {
                 all,
                 no_warn,
-                predicate,
+                _predicate: predicate,
                 find,
                 replacement: OxcVec::from_iter_in(replacement.iter().cloned(), self.alloc),
             });
@@ -338,7 +331,7 @@ impl<'ast> VencordAstParser<'ast> {
             }
         }
 
-        debug!(
+        trace!(
             "Parsed {} patches for plugin {:?}",
             ret.len(),
             self.plugin_name()
@@ -397,8 +390,8 @@ impl<'ast> ConstantEvaluationCtx<'ast> for VencordAstParser<'ast> {
 }
 
 impl<'ast> AstParser<'ast> for VencordAstParser<'ast> {
-    fn ast(&self) -> &'ast ParsedAst<'ast> {
-        self.ast
+    fn prog(&self) -> &'ast Program<'ast> {
+        self.prog
     }
 
     fn sema(&self) -> &Semantic<'ast> {
@@ -407,3 +400,6 @@ impl<'ast> AstParser<'ast> for VencordAstParser<'ast> {
 }
 
 impl<'ast> ESModuleParser<'ast> for VencordAstParser<'ast> {}
+
+#[cfg(test)]
+mod tests;

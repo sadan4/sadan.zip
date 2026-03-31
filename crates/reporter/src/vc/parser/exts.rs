@@ -10,6 +10,8 @@ use oxc::ast::ast::{
     SpreadElement, StringLiteral, TemplateLiteral,
 };
 use oxc::semantic::SymbolId;
+use oxc_ecmascript::GlobalContext;
+use oxc_ecmascript::constant_evaluation::IsLiteralValue;
 
 pub trait ModuleDeclarationExt {
     fn as_import_declaration(&'_ self) -> Option<&'_ OxcBox<'_, ImportDeclaration<'_>>>;
@@ -112,24 +114,24 @@ impl ObjectExpressionExt for ObjectExpression<'_> {
     }
 }
 
-pub trait ExpressionExt {
-    fn as_expr_(&'_ self) -> Option<&'_ Expression<'_>>;
+pub trait ExpressionExt<'ast> {
+    fn as_expr_(&self) -> Option<&Expression<'ast>>;
 
-    fn as_arrow_function_expression(&'_ self) -> Option<&'_ ArrowFunctionExpression<'_>> {
+    fn as_arrow_function_expression(&self) -> Option<&ArrowFunctionExpression<'ast>> {
         match self.as_expr_()? {
             Expression::ArrowFunctionExpression(f) => Some(f.as_ref()),
             _ => None,
         }
     }
 
-    fn as_string_literal(&'_ self) -> Option<&'_ StringLiteral<'_>> {
+    fn as_string_literal(&self) -> Option<&StringLiteral<'ast>> {
         match self.as_expr_()? {
             Expression::StringLiteral(s) => Some(s),
             _ => None,
         }
     }
 
-    fn as_object_expression(&'_ self) -> Option<&'_ ObjectExpression<'_>> {
+    fn as_object_expression(&self) -> Option<&ObjectExpression<'ast>> {
         match self.as_expr_()? {
             Expression::ObjectExpression(o) => Some(o.as_ref()),
             _ => None,
@@ -184,35 +186,42 @@ pub trait ExpressionExt {
         }
     }
 
-    fn as_array_expression(&'_ self) -> Option<&'_ ArrayExpression<'_>> {
+    fn as_array_expression(&self) -> Option<&ArrayExpression<'ast>> {
         match self.as_expr_()? {
             Expression::ArrayExpression(a) => Some(a.as_ref()),
             _ => None,
         }
     }
 
-    fn as_call_expression(&'_ self) -> Option<&'_ CallExpression<'_>> {
+    fn as_call_expression(&self) -> Option<&CallExpression<'ast>> {
         match self.as_expr_()? {
             Expression::CallExpression(e) => Some(e.as_ref()),
             _ => None,
         }
     }
-    fn as_identifier(&'_ self) -> Option<&'_ IdentifierReference<'_>> {
+    fn as_identifier(&self) -> Option<&IdentifierReference<'ast>> {
         match self.as_expr_()? {
             Expression::Identifier(i) => Some(i.as_ref()),
             _ => None,
         }
     }
+    fn as_template_literal(&self) -> Option<&TemplateLiteral<'ast>> {
+        match self.as_expr_()? {
+            Expression::TemplateLiteral(i) => Some(i.as_ref()),
+            _ => None,
+        }
+    }
 }
 
-impl ExpressionExt for Expression<'_> {
-    fn as_expr_(&'_ self) -> Option<&'_ Expression<'_>> {
+impl<'ast> ExpressionExt<'ast> for Expression<'ast> {
+    fn as_expr_(&self) -> Option<&Self> {
         Some(self)
     }
 }
 
 pub trait TemplateLiteralExt<'a> {
     fn dbg_str(&self) -> Cow<'a, str>;
+    fn is_literal(&self, ctx: &impl GlobalContext<'a>) -> bool;
 }
 
 impl<'a> TemplateLiteralExt<'a> for TemplateLiteral<'a> {
@@ -226,6 +235,18 @@ impl<'a> TemplateLiteralExt<'a> for TemplateLiteral<'a> {
             .map(|q| q.value.raw)
             .join("${...}")
             .into()
+    }
+
+    fn is_literal(&self, ctx: &impl GlobalContext<'a>) -> bool {
+        if self.is_no_substitution_template() {
+            return true;
+        }
+        for expr in &self.expressions {
+            if !expr.is_literal_value(false, ctx) {
+                return false;
+            }
+        }
+        true
     }
 }
 

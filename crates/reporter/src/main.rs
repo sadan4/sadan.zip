@@ -12,9 +12,11 @@ use indicatif::MultiProgress;
 use miette::Severity::Warning;
 use miette::{Diagnostic, NamedSource, Report, SourceCode};
 use std::mem;
+use std::sync::LazyLock;
 use std::{io, path::Path, process, sync::Arc, time::Instant};
 use terminal_size::terminal_size;
-use tracing::{error, warn};
+use tracing::{Level, error, warn};
+use tracing_subscriber::util::SubscriberInitExt;
 
 use crate::err::printer::GraphicalReportHandler;
 use crate::util::Stage;
@@ -44,9 +46,38 @@ struct Cli {
     completions: Option<Shell>,
 }
 
-fn main() {
+#[derive(From)]
+struct MultiProgressWrapper(MultiProgress);
+
+impl io::Write for MultiProgressWrapper {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.0.suspend(|| io::stderr().lock().write(buf))
+    }
+
+    // no need to flush stderr, rust doesn't either
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+static GLOBAL_BAR: LazyLock<MultiProgress> = LazyLock::new(MultiProgress::new);
+
+fn install_tracing() {
+    use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt as _, registry};
     // dbg!(args().collect_vec());
-    tracing_subscriber::fmt().init();
+    let filter_layer = EnvFilter::try_from_default_env()
+        .or_else(|_| {
+            EnvFilter::builder()
+                .with_default_directive(Level::INFO.into())
+                .parse("")
+        })
+        .unwrap();
+    let fmt_layer = fmt::layer().with_writer(|| MultiProgressWrapper::from(GLOBAL_BAR.clone()));
+    registry().with(filter_layer).with(fmt_layer).init();
+}
+
+fn main() {
+    install_tracing();
     miette::set_hook(Box::new(|_| {
         Box::new(
             GraphicalReportHandler::new()
@@ -84,7 +115,7 @@ async fn run(cli: Cli) -> Result<()> {
             cli.vc_opts.vencord_dir.display()
         );
     }
-    let bars = MultiProgress::new();
+    let bars = GLOBAL_BAR.clone();
     let patches_bar = Stage::new("Collecting Patches: ", None).and_attach(&bars);
     let fetch_bar = Stage::new("Resolving target build", None).and_attach(&bars);
     // we need to keep the progress bars alive so that .suspend works properly
@@ -140,9 +171,7 @@ async fn run(cli: Cli) -> Result<()> {
                             tokio::fs::write(path, module).await
                         });
                     } else {
-                        bars.suspend(|| {
-                            warn!("expected target_build to have the contents of module {m_id}");
-                        });
+                        warn!("expected target_build to have the contents of module {m_id}");
                     }
                 }
                 let id = e.plugin_id();

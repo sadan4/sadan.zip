@@ -1,55 +1,33 @@
-use crate::{
-    util::Stage,
-    vc::{
-        Match, MatchLike, MatchRegex, Patch, Plugin, ReplaceLike, Replacement, Replacer,
+use crate::vc::{
+        Match, MatchLike, MatchRegex, Patch, ReplaceLike, Replacement, Replacer,
         hash::hash_message_key,
         parser::exts::{
-            ArrayExpressionElementExt as _, BindingPatternExt, ExpressionExt, ImportDeclarationExt,
-            ModuleDeclarationExt, ObjectExpressionExt, TemplateLiteralExt as _,
+            ExpressionExt, TemplateLiteralExt as _,
         },
-    },
-};
+    };
 use anyhow::{Context, Result, bail};
 use itertools::Itertools;
 use memchr::memmem::Finder;
 use oxc::{
-    allocator::{Allocator, Box, Vec as OxcVec},
-    ast::{
-        AstBuilder, AstKind,
-        ast::{
-            Argument, ArrayExpressionElement, ArrowFunctionExpression, Expression,
-            ImportDeclaration, ModuleDeclaration, ObjectExpression, RegExpLiteral, SpreadElement,
+    allocator::Vec as OxcVec,
+    ast::ast::{
+            ArrowFunctionExpression, Expression, RegExpLiteral,
             StringLiteral, TemplateLiteral,
         },
-    },
-    cfg::{BlockNodeId, ControlFlowGraph},
-    minifier::PropertyReadSideEffects,
-    parser::{Parser as OxcParser, ParserReturn},
-    semantic::{
-        AstNode, NodeId, Semantic, SemanticBuilder,
-        dot::{DebugDot, DebugDotContext},
-    },
-    span::{Atom, SourceType, Span},
-};
-use oxc_ecmascript::{
-    GlobalContext,
-    constant_evaluation::{ConstantEvaluation, ConstantEvaluationCtx},
-    side_effects::MayHaveSideEffectsContext,
+    span::{Atom, Span},
 };
 use regress::Regex;
 use std::{
     borrow::Cow,
-    cell::Cell,
     fmt::Debug,
     sync::LazyLock,
 };
-use tracing::{debug, warn};
 
 #[derive(Debug)]
 pub struct RawPatch<'ast> {
     pub all: bool,
     pub no_warn: bool,
-    pub predicate: PatchPredicate<'ast>,
+    pub _predicate: PatchPredicate<'ast>,
     pub find: RawMatchLike<'ast>,
     pub replacement: OxcVec<'ast, RawReplacement<'ast>>,
     // i don't think vencord uses these at all
@@ -66,7 +44,7 @@ pub struct RawReplacement<'ast> {
     pub match_: RawMatchLike<'ast>,
     pub replace: RawReplace<'ast>,
     pub no_warn: bool,
-    pub predicate: PatchPredicate<'ast>,
+    pub _predicate: PatchPredicate<'ast>,
     // i don't think vencord uses these at all
     // from_build: Option<u32>,
     // to_build: Option<u32>,
@@ -75,6 +53,8 @@ pub struct RawReplacement<'ast> {
 #[derive(Copy, Clone)]
 pub enum RawReplace<'ast> {
     String(&'ast StringLiteral<'ast>),
+    // TODO: use or delete this
+    #[allow(dead_code)]
     Func(&'ast ArrowFunctionExpression<'ast>),
     Template(&'ast TemplateLiteral<'ast>),
     ComputedString(Atom<'ast>, Span),
