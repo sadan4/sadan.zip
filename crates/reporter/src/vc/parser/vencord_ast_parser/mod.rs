@@ -1,19 +1,22 @@
 mod pass;
+use crate::vc::parser::patches::{canonicalize_match_like, canonicalize_replace_for_regress};
 use crate::vc::{
-    Patch,
+    Patch, ReplaceLike, Replacement, Replacer, TemplateEvaluator,
     parser::{
         ast_parser::{AstParser, ESModuleParser},
         exts::{
             ArrayExpressionElementExt as _, BindingPatternExt, ExpressionExt, ImportDeclarationExt,
             ObjectExpressionExt,
         },
-        patches::{RawMatchLike, RawPatch, RawReplace, RawReplacement, canonicalize_patch},
+        patches::{RawMatchLike, RawPatch, RawReplace, RawReplacement},
         vencord_ast_parser::pass::{FlattenTemplatePass, InlineConstantLiteralsPass, PassManager},
     },
 };
 use anyhow::{Context, Result, bail};
+use oxc::ast::ast::StringLiteral;
+use oxc::semantic::SymbolId;
 use oxc::{
-    allocator::{Allocator, Vec as OxcVec},
+    allocator::{Allocator, HashMap as OxcHashMap, Vec as OxcVec},
     ast::{
         AstBuilder, AstKind,
         ast::{
@@ -340,12 +343,135 @@ impl<'ast> VencordAstParser<'ast> {
         Ok(ret)
     }
 
+    pub fn canonicalize_replace_func<'a: 'ast>(
+        &self,
+        f: &'ast ArrowFunctionExpression<'ast>,
+    ) -> Result<ReplaceLike> {
+        let template_val = self
+            .get_arrow_single_return_value(f)
+            .context("replace function does not have a single return value")?
+            .as_template_literal()
+            .context("replace functions only support a template literal return as of now")?;
+        let mut parameter_map: OxcHashMap<SymbolId, u8> =
+            OxcHashMap::with_capacity_in(f.params.items.len(), self.alloc);
+        if f.params.rest.is_some() {
+            bail!("replace function has a rest param")
+        }
+        for (i, param) in f.params.items.iter().enumerate() {
+            if param.initializer.is_some() {
+                bail!("replace function has a default param")
+            }
+            let Some(ident) = param.pattern.get_binding_identifier() else {
+                bail!("replace function has parameter that is not a plain identifier");
+            };
+            // should be true, but for sanity
+            debug_assert!(param.pattern.is_binding_identifier());
+            debug_assert!(i <= u8::MAX as usize, "capture group overflow");
+            let insert_result = parameter_map.insert(ident.symbol_id(), i as u8);
+            debug_assert_eq!(
+                insert_result, None,
+                "should never have duplicate symbol ids"
+            );
+        }
+
+        let mut ret = TemplateEvaluator {
+            lits: Vec::with_capacity(template_val.quasis.len()),
+            captures: Vec::with_capacity(template_val.expressions.len()),
+        };
+
+        let mut it = template_val.quasis.iter().map(|e| {
+            e.value
+                .cooked
+                // unwrap() here is safe because this is not a tagged template
+                // literal; therefore, there will always be a cooked value
+                .unwrap()
+                .to_string()
+        });
+        // handle the first one because it has nothing before it
+        {
+            // next().unwrap() here is safe because even an empty template literal has at least one quasi
+            let e = it.next().unwrap();
+            ret.lits.push(e)
+        }
+
+        for (lit, expr) in it.zip(template_val.expressions.iter()) {
+            let ref_id = expr
+                .as_identifier()
+                .context("Template expr is not an identifier")?
+                .reference_id();
+            let sym_id = self
+                .sema
+                .scoping()
+                .get_reference(ref_id)
+                .symbol_id()
+                .context("template expr has unbound ident")?;
+            let capture_idx = *parameter_map
+                .get(&sym_id)
+                .context("template expr uses ident that is not a parameter")?;
+            ret.captures.push(capture_idx);
+            ret.lits.push(lit);
+        }
+        assert_eq!(
+            ret.lits.len(),
+            ret.captures.len() + 1,
+            "there should always be one more literal than captures"
+        );
+        let ret = ReplaceLike {
+            v: Replacer::Template(ret),
+            s: f.span,
+        };
+
+        Ok(ret)
+    }
+
+    pub fn canonicalize_patch(&self, raw: RawPatch<'_>) -> Result<Patch> {
+        let all = raw.all;
+        let no_warn = raw.no_warn;
+        let find = canonicalize_match_like(&raw.find)?;
+        let mut replacement = Vec::with_capacity(raw.replacement.len());
+
+        for r in raw.replacement {
+            let match_ = canonicalize_match_like(&r.match_)?;
+            let no_warn = r.no_warn;
+            let replace = match &r.replace {
+                RawReplace::String(StringLiteral { value, span, .. })
+                | RawReplace::ComputedString(value, span) => {
+                    let mut value = value.to_string();
+                    canonicalize_replace_for_regress(&mut value);
+                    ReplaceLike {
+                        v: Replacer::Str(value),
+                        s: *span,
+                    }
+                }
+                RawReplace::Func(f) => {
+                    bail!("Function replacements are not supported yet")
+                }
+                RawReplace::Template(_) => {
+                    bail!("Template literal replacements are not supported yet")
+                }
+            };
+
+            replacement.push(Replacement {
+                match_,
+                replace,
+                no_warn,
+            });
+        }
+
+        Ok(Patch {
+            all,
+            no_warn,
+            find,
+            replacement,
+            plugin_id: None,
+        })
+    }
     pub fn patches(&self) -> Result<Vec<Patch>> {
         let name = self.plugin_name().unwrap_or("<unknown plugin>");
         let ret = self
             .raw_patches()?
             .into_iter()
-            .filter_map(|raw| match canonicalize_patch(raw) {
+            .filter_map(|raw| match self.canonicalize_patch(raw) {
                 Ok(patch) => Some(patch),
                 Err(e) => {
                     debug!(

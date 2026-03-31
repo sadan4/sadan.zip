@@ -1,19 +1,19 @@
 use crate::vc::{
-        Match, MatchLike, MatchRegex, Patch, ReplaceLike, Replacement, Replacer,
-        hash::hash_message_key,
-        parser::exts::{
-            ExpressionExt, TemplateLiteralExt as _,
-        },
-    };
-use anyhow::{Context, Result, bail};
+    hash::hash_message_key, parser::exts::{
+        ExpressionExt, TemplateLiteralExt as _,
+    }, Match,
+    MatchLike,
+    MatchRegex,
+};
+use anyhow::{bail, Context, Result};
 use itertools::Itertools;
 use memchr::memmem::Finder;
 use oxc::{
     allocator::Vec as OxcVec,
     ast::ast::{
-            ArrowFunctionExpression, Expression, RegExpLiteral,
-            StringLiteral, TemplateLiteral,
-        },
+        ArrowFunctionExpression, Expression, RegExpLiteral,
+        StringLiteral, TemplateLiteral,
+    },
     span::{Atom, Span},
 };
 use regress::Regex;
@@ -30,7 +30,7 @@ pub struct RawPatch<'ast> {
     pub _predicate: PatchPredicate<'ast>,
     pub find: RawMatchLike<'ast>,
     pub replacement: OxcVec<'ast, RawReplacement<'ast>>,
-    // i don't think vencord uses these at all
+    // I don't think Vencord uses these at all
     // from_build: Option<u32>,
     // to_build: Option<u32>,
 }
@@ -249,49 +249,6 @@ pub fn canonicalize_match_like(raw: &RawMatchLike<'_>) -> Result<MatchLike> {
     };
 
     Ok(ret)
-}
-
-pub fn canonicalize_patch(raw: RawPatch<'_>) -> Result<Patch> {
-    let all = raw.all;
-    let no_warn = raw.no_warn;
-    let find = canonicalize_match_like(&raw.find)?;
-    let mut replacement = Vec::with_capacity(raw.replacement.len());
-
-    for r in raw.replacement {
-        let match_ = canonicalize_match_like(&r.match_)?;
-        let no_warn = r.no_warn;
-        let replace = match &r.replace {
-            RawReplace::String(StringLiteral { value, span, .. })
-            | RawReplace::ComputedString(value, span) => {
-                let mut value = value.to_string();
-                canonicalize_replace_for_regress(&mut value);
-                ReplaceLike {
-                    v: Replacer::Str(value),
-                    s: *span,
-                }
-            }
-            RawReplace::Func(_) => {
-                bail!("Function replacements are not supported yet")
-            }
-            RawReplace::Template(_) => {
-                bail!("Template literal replacements are not supported yet")
-            }
-        };
-
-        replacement.push(Replacement {
-            match_,
-            replace,
-            no_warn,
-        });
-    }
-
-    Ok(Patch {
-        all,
-        no_warn,
-        find,
-        replacement,
-        plugin_id: None,
-    })
 }
 
 impl<'ast> From<Option<&'ast Expression<'ast>>> for PatchPredicate<'ast> {

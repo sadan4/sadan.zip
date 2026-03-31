@@ -34,15 +34,6 @@ impl<'ast> PassManager<'ast> {
         self.scoping = new_scoping;
         self
     }
-    pub fn run_pass_with_state<State>(
-        mut self,
-        mut pass: impl Traverse<'ast, State>,
-        state: State,
-    ) -> Self {
-        let new_scoping = traverse_mut(&mut pass, self.alloc, self.program, self.scoping, state);
-        self.scoping = new_scoping;
-        self
-    }
     pub fn finish(self) -> (&'ast Program<'ast>, Semantic<'ast>) {
         let prog = self.program;
         let sema = SemanticBuilder::new()

@@ -3,6 +3,7 @@ mod parser;
 use anyhow::{Result, bail};
 use clap::Args;
 use derive_more::{Eq, PartialEq};
+use itertools::Itertools;
 use memchr::memmem::Finder;
 use oxc::{allocator::Allocator, ast::ast::RegExpFlags, span::Span};
 use regress::{Flags, Regex, escape};
@@ -58,6 +59,13 @@ pub struct ReplaceLike {
 #[derive(Debug, PartialEq, Eq, Hash, Serialize)]
 pub enum Replacer {
     Str(String),
+    Template(TemplateEvaluator),
+}
+
+#[derive(Debug, PartialEq, Eq, Hash, Serialize)]
+pub struct TemplateEvaluator {
+    lits: Vec<String>,
+    captures: Vec<u8>,
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Serialize)]
@@ -95,6 +103,26 @@ struct RegExpFlagsDef {
 struct FinderDef {
     #[serde(getter = "finder_get_needle")]
     needle: Box<str>,
+}
+
+impl TemplateEvaluator {
+    pub fn make_replacer<'a: 'b, 'b: 'a>(
+        &'a self,
+        src: &'b str,
+    ) -> impl 'a + 'b + Fn(&regress::Match) -> String {
+        |m| {
+            let lits = self.lits.iter().map(String::as_str);
+            let caps = self.captures.iter().map(|&i| {
+                // FIXME: catch this with a lint while parsing the patch in the first place
+                let range = m.group(i as _).expect("capture group out of range");
+                let ret = &src[range];
+                ret
+            });
+            // we always assert when we construct Self, this is for sanity
+            debug_assert_eq!(self.lits.len(), self.captures.len() + 1);
+            lits.interleave(caps).collect()
+        }
+    }
 }
 
 impl Patch {

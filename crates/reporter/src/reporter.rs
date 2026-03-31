@@ -285,6 +285,13 @@ impl<'a> ReporterState<'a> {
                         pat.replace(&last_src, s.as_str())
                     }
                 }
+                Replacer::Template(e) => {
+                    if is_global {
+                        pat.replace_all_with(&last_src, e.make_replacer(&last_src))
+                    } else {
+                        pat.replace_with(&last_src, e.make_replacer(&last_src))
+                    }
+                }
             };
 
             let chk = {

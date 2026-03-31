@@ -47,6 +47,7 @@ pub trait AstParser<'ast> {
     //     impl_parse!(alloc, source, source_type, ast, sema);
     //     Ok((ast, sema.semantic))
     // }
+
     fn parse_for_traverse(
         alloc: &'ast Allocator,
         source: &'ast str,

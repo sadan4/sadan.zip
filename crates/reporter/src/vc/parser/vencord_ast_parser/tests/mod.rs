@@ -36,6 +36,16 @@ fn test_template_literal_replace() {
 }
 
 #[test]
+fn test_replace_simple_arrow_func() {
+    let a = Allocator::new();
+    let code = include_str!("data/commands.tsx");
+    let parser = VencordAstParser::try_new(&a, code).unwrap();
+    assert_ron_snapshot!(parser.plugin_name(), @r#"Some("CommandsAPI")"#);
+    let patches = parser.patches().unwrap();
+    assert_ron_snapshot!(patches);
+}
+
+#[test]
 fn test_ignores_typeof() {
     let a = Allocator::new();
     let code = r#"
@@ -54,11 +64,11 @@ fn test_ignores_typeof() {
 #[test]
 fn test_inline_constants() {
     let a = Allocator::new();
-    let code = r#"
+    let code = r"
         const foo = 2;
         let bar = foo + 1;
         console.log(bar);
-    "#;
+    ";
     let parser = VencordAstParser::try_new(&a, code).unwrap();
     assert_snapshot!(dump_ast(&parser), @"
         const foo = 2;

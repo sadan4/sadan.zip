@@ -1,0 +1,82 @@
+---
+source: crates/reporter/src/vc/parser/vencord_ast_parser/tests/mod.rs
+expression: patches
+---
+[
+  Patch(
+    plugin_id: None,
+    all: false,
+    no_warn: false,
+    find: MatchLike(
+      v: Str(FinderDef(
+        needle: ",\"tenor\"",
+      )),
+      s: {
+        "start": 1077,
+        "end": 1087,
+      },
+    ),
+    replacement: [
+      Replacement(
+        match_: MatchLike(
+          v: Regex(MatchRegex(
+            pattern: "(?<=\\w=)(\\w)(\\.filter\\(.{0,60}tenor)",
+            flags: RegExpFlagsDef(
+              bits: 0,
+            ),
+          )),
+          s: {
+            "start": 1433,
+            "end": 1471,
+          },
+        ),
+        replace: ReplaceLike(
+          v: Str("Vencord.Api.Commands._init($1)$2"),
+          s: {
+            "start": 1502,
+            "end": 1536,
+          },
+        ),
+        no_warn: false,
+      ),
+    ],
+  ),
+  Patch(
+    plugin_id: None,
+    all: false,
+    no_warn: false,
+    find: MatchLike(
+      v: Str(FinderDef(
+        needle: "[\"0mI72g\"]",
+      )),
+      s: {
+        "start": 2025,
+        "end": 2059,
+      },
+    ),
+    replacement: [
+      Replacement(
+        match_: MatchLike(
+          v: Regex(MatchRegex(
+            pattern: "children:(?=(?:[A-Za-z_$][\\w]*)\\?\\?(?:[A-Za-z_$][\\w]*)\\?\\.name)(?<=command:((?:[A-Za-z_$][\\w]*)),.+?)",
+            flags: RegExpFlagsDef(
+              bits: 0,
+            ),
+          )),
+          s: {
+            "start": 2133,
+            "end": 2185,
+          },
+        ),
+        replace: ReplaceLike(
+          v: Str("children:$1.plugin??"),
+          s: {
+            "start": 2216,
+            "end": 2238,
+          },
+        ),
+        no_warn: false,
+      ),
+    ],
+  ),
+]
