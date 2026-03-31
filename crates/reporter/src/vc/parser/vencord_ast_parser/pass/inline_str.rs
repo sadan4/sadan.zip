@@ -1,15 +1,14 @@
 use std::collections::HashMap;
 
-use derive_more::{Deref, DerefMut};
 use oxc::{
-    allocator::{Box as OxcBox, CloneIn},
+    allocator::CloneIn,
     ast::ast::{
-        BindingIdentifier, Expression, IdentifierReference, Program, VariableDeclaration,
+        Expression, IdentifierReference, Program, VariableDeclaration,
         VariableDeclarator,
     },
-    semantic::{IsGlobalReference, ReferenceId, SymbolId},
+    semantic::{ReferenceId, SymbolId},
 };
-use oxc_ecmascript::{GlobalContext, constant_evaluation::IsLiteralValue};
+use oxc_ecmascript::constant_evaluation::IsLiteralValue;
 use oxc_traverse::{Traverse, TraverseCtx};
 
 use crate::vc::parser::exts::{BindingPatternExt, ExpressionExt};
@@ -44,10 +43,6 @@ impl<'ast, State> Traverse<'ast, State> for InlineConstantLiteralsPass<'ast> {
         ctx: &mut TraverseCtx<'ast, State>,
     ) {
         for i in (0..node.declarations.len()).rev() {
-            let guh = &node.declarations[i]
-                .id
-                .as_binding_identifier()
-                .map(|i| i.name.as_str());
             if let Some(sym_id) = should_inline(&node.declarations[i], ctx) {
                 // should never be None because we check it in should_inline
                 let decl = ctx.ast.allocator.alloc(

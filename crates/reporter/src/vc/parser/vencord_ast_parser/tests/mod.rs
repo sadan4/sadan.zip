@@ -1,5 +1,4 @@
 use crate::vc::parser::vencord_ast_parser::VencordAstParser;
-use insta::_macro_support::assert_snapshot;
 use insta::{assert_ron_snapshot, assert_snapshot};
 use oxc::allocator::Allocator;
 use oxc::codegen::{Codegen, CodegenOptions, CommentOptions, IndentChar, LegalComment};
@@ -20,7 +19,7 @@ fn dump_ast(parser: &VencordAstParser<'_>) -> String {
             initial_indent: 0,
             source_map_path: None,
         })
-        .build(&parser.prog)
+        .build(parser.prog)
         .code
 }
 
@@ -41,6 +40,15 @@ fn test_replace_simple_arrow_func() {
     let code = include_str!("data/commands.tsx");
     let parser = VencordAstParser::try_new(&a, code).unwrap();
     assert_ron_snapshot!(parser.plugin_name(), @r#"Some("CommandsAPI")"#);
+    let patches = parser.patches().unwrap();
+    assert_ron_snapshot!(patches);
+}
+
+#[test]
+fn test_replace_concat_template() {
+    let a = Allocator::new();
+    let code = include_str!("data/plugin.tsx");
+    let parser = VencordAstParser::try_new(&a, code).unwrap();
     let patches = parser.patches().unwrap();
     assert_ron_snapshot!(patches);
 }

@@ -4,10 +4,10 @@ use anyhow::{Result, bail};
 use itertools::Itertools as _;
 use oxc::allocator::Box as OxcBox;
 use oxc::ast::ast::{
-    ArrayExpression, ArrayExpressionElement, ArrowFunctionExpression, BindingIdentifier,
-    BindingPattern, CallExpression, Expression, IdentifierReference, ImportDeclaration,
-    ImportDeclarationSpecifier, ModuleDeclaration, ObjectExpression, ObjectProperty, PropertyKey,
-    SpreadElement, StringLiteral, TemplateLiteral,
+    ArrayExpression, ArrayExpressionElement, ArrowFunctionExpression, BinaryExpression,
+    BindingIdentifier, BindingPattern, CallExpression, Expression, IdentifierReference,
+    ImportDeclaration, ImportDeclarationSpecifier, ModuleDeclaration, ObjectExpression,
+    ObjectProperty, PropertyKey, SpreadElement, StringLiteral, TemplateLiteral,
 };
 use oxc::semantic::SymbolId;
 use oxc_ecmascript::GlobalContext;
@@ -116,6 +116,7 @@ impl ObjectExpressionExt for ObjectExpression<'_> {
 
 pub trait ExpressionExt<'ast> {
     fn as_expr_(&self) -> Option<&Expression<'ast>>;
+    fn as_expr_mut_(&mut self) -> Option<&mut Expression<'ast>>;
 
     fn as_arrow_function_expression(&self) -> Option<&ArrowFunctionExpression<'ast>> {
         match self.as_expr_()? {
@@ -205,9 +206,30 @@ pub trait ExpressionExt<'ast> {
             _ => None,
         }
     }
+    fn is_template_literal(&self) -> bool {
+        matches!(self.as_expr_(), Some(Expression::TemplateLiteral(_)))
+    }
     fn as_template_literal(&self) -> Option<&TemplateLiteral<'ast>> {
         match self.as_expr_()? {
             Expression::TemplateLiteral(i) => Some(i.as_ref()),
+            _ => None,
+        }
+    }
+    fn as_template_literal_mut(&mut self) -> Option<&mut TemplateLiteral<'ast>> {
+        match self.as_expr_mut_()? {
+            Expression::TemplateLiteral(i) => Some(i.as_mut()),
+            _ => None,
+        }
+    }
+    fn as_binary_expression(&self) -> Option<&BinaryExpression<'ast>> {
+        match self.as_expr_()? {
+            Expression::BinaryExpression(e) => Some(e.as_ref()),
+            _ => None,
+        }
+    }
+    fn as_binary_expression_mut(&mut self) -> Option<&mut BinaryExpression<'ast>> {
+        match self.as_expr_mut_()? {
+            Expression::BinaryExpression(e) => Some(e.as_mut()),
             _ => None,
         }
     }
@@ -215,6 +237,10 @@ pub trait ExpressionExt<'ast> {
 
 impl<'ast> ExpressionExt<'ast> for Expression<'ast> {
     fn as_expr_(&self) -> Option<&Self> {
+        Some(self)
+    }
+
+    fn as_expr_mut_(&mut self) -> Option<&mut Expression<'ast>> {
         Some(self)
     }
 }

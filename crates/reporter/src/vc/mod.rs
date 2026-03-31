@@ -13,7 +13,7 @@ use std::{
     hash::{Hash, Hasher},
     path::{Path, PathBuf},
 };
-use tracing::{trace, warn};
+use tracing::{info_span, instrument, span, trace, trace_span, warn};
 
 use crate::{util::Stage, vc::parser::vencord_ast_parser::VencordAstParser};
 
@@ -115,12 +115,11 @@ impl TemplateEvaluator {
             let caps = self.captures.iter().map(|&i| {
                 // FIXME: catch this with a lint while parsing the patch in the first place
                 let range = m.group(i as _).expect("capture group out of range");
-                let ret = &src[range];
-                ret
+                &src[range]
             });
             // we always assert when we construct Self, this is for sanity
             debug_assert_eq!(self.lits.len(), self.captures.len() + 1);
-            lits.interleave(caps).collect()
+            lits.interleave_shortest(caps).collect()
         }
     }
 }
@@ -261,6 +260,11 @@ fn do_collect_patches(opts: VencordOpts, bar: Stage) -> Result<Vec<Plugin>> {
     compile_plugin_regexes(&mut plugins);
 
     Ok(plugins)
+}
+
+#[instrument]
+fn foo(bar: i32) {
+
 }
 
 fn bind_plugin_ids(plugins: &mut [Plugin]) {

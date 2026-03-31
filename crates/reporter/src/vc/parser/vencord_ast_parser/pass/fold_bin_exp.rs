@@ -1,0 +1,157 @@
+use std::mem;
+
+use oxc::{
+    ast::ast::{BinaryOperator, Expression, TemplateElementValue},
+    span::{Atom, Span},
+};
+use oxc_ecmascript::constant_evaluation::binary_operation_evaluate_value;
+use oxc_traverse::Traverse;
+use tracing::warn;
+
+use crate::vc::parser::{exts::ExpressionExt, vencord_ast_parser::pass::util::Ctx};
+
+pub struct FoldBinaryExpressionsPass;
+
+fn fold_template_literals<'ast, State>(
+    left: &mut Expression<'ast>,
+    right: &mut Expression<'ast>,
+    span: Span,
+    ctx: &mut Ctx<'_, 'ast, State>,
+) -> Option<Expression<'ast>> {
+    if let Some(left) = left.as_string_literal() {
+        // prepare `left`
+        let left_val = left.value.as_str();
+        // we should only ever be here if left or right is a template literal
+        // and left is a string, so right must be a template literal
+        let right = right.as_template_literal_mut().unwrap();
+        let q1 = &mut right.quasis[0];
+        let new_q1_raw = ctx
+            .ast
+            .allocator
+            .alloc_concat_strs_array([left_val, q1.value.raw.as_str()]);
+        let new_q1_val = ctx
+            .ast
+            .allocator
+            .alloc_concat_strs_array([left_val, q1.value.cooked.unwrap().as_str()]);
+        let new_q1 = ctx.ast.template_element(
+            q1.span,
+            TemplateElementValue {
+                raw: Atom::from(new_q1_raw),
+                cooked: Some(Atom::from(new_q1_val)),
+            },
+            q1.tail,
+            false,
+        );
+        right.quasis[0] = new_q1;
+        right.span = span;
+        let ret = mem::replace(right, ctx.dummy());
+        let ret = ctx.alloc(ret);
+        let ret = Expression::TemplateLiteral(ret);
+        Some(ret)
+    } else if let Some(right) = right.as_string_literal() {
+        // prepare `right`
+        let right_val = right.value.as_str();
+        let left = left.as_template_literal_mut().unwrap();
+        let last_idx = left.quasis.len() - 1;
+        let q = &mut left.quasis[last_idx];
+        let new_q_raw = ctx
+            .ast
+            .allocator
+            .alloc_concat_strs_array([q.value.raw.as_str(), right_val]);
+        let new_q_val = ctx
+            .ast
+            .allocator
+            .alloc_concat_strs_array([q.value.cooked.unwrap().as_str(), right_val]);
+        debug_assert!(
+            q.tail,
+            "last element of template literal should have tail=true"
+        );
+        let new_q = ctx.ast.template_element(
+            q.span,
+            TemplateElementValue {
+                raw: Atom::from(new_q_raw),
+                cooked: Some(Atom::from(new_q_val)),
+            },
+            q.tail,
+            false,
+        );
+        left.quasis[last_idx] = new_q;
+        left.span = span;
+        let ret = mem::replace(left, ctx.dummy());
+        let ret = ctx.alloc(ret);
+        let ret = Expression::TemplateLiteral(ret);
+        Some(ret)
+    } else if let Some(left) = left.as_identifier() {
+        let right = right.as_template_literal_mut().unwrap();
+        todo!();
+    } else if let Some(right) = right.as_identifier() {
+        let left = left.as_template_literal_mut().unwrap();
+        todo!();
+    } else if let Some(right) = right.as_template_literal_mut()
+        && let Some(left) = left.as_template_literal_mut()
+    {
+        let left_last_idx = left.quasis.len() - 1;
+        let left_joiner = &mut left.quasis[left_last_idx];
+        let right_joiner = &mut right.quasis[0];
+        let joiner_raw = ctx.ast.allocator.alloc_concat_strs_array([
+            left_joiner.value.raw.as_str(),
+            right_joiner.value.raw.as_str(),
+        ]);
+        let joiner_cooked = ctx.ast.allocator.alloc_concat_strs_array([
+            left_joiner.value.cooked.unwrap().as_str(),
+            right_joiner.value.cooked.unwrap().as_str(),
+        ]);
+        let joiner = ctx.ast.template_element(
+            left_joiner.span,
+            TemplateElementValue {
+                raw: Atom::from(joiner_raw),
+                cooked: Some(Atom::from(joiner_cooked)),
+            },
+            right_joiner.tail,
+            false,
+        );
+        *left_joiner = joiner;
+        left.quasis.extend(right.quasis.drain(..).skip(1));
+        left.expressions.extend(right.expressions.drain(..));
+        left.span = span;
+        let ret = mem::replace(left, ctx.dummy());
+        let ret = ctx.alloc(ret);
+        let ret = Expression::TemplateLiteral(ret);
+        Some(ret)
+    } else {
+        warn!(
+            "unhandled bin exp fold case: left:{}, right:{}",
+            left.dbg_name(),
+            right.dbg_name(),
+        );
+        None
+    }
+}
+
+impl<'ast, State> Traverse<'ast, State> for FoldBinaryExpressionsPass {
+    fn exit_expression(
+        &mut self,
+        expr_node: &mut Expression<'ast>,
+        ctx: &mut oxc_traverse::TraverseCtx<'ast, State>,
+    ) {
+        let Some(node) = expr_node.as_binary_expression_mut() else {
+            return;
+        };
+        let mut ctx = Ctx(ctx);
+        let left = &mut node.left;
+        let right = &mut node.right;
+        let op = node.operator;
+        if let Some(val) = binary_operation_evaluate_value(op, left, right, &ctx) {
+            *expr_node = ctx.node_from_constant_value(val, node.span);
+            return;
+        }
+        if op != BinaryOperator::Addition {
+            return;
+        }
+        if (left.is_template_literal() || right.is_template_literal())
+            && let Some(new_expr) = fold_template_literals(left, right, node.span, &mut ctx)
+        {
+            *expr_node = new_expr;
+        }
+    }
+}

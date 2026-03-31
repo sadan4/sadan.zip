@@ -1,5 +1,8 @@
 mod pass;
+use std::path::Path;
+
 use crate::vc::parser::patches::{canonicalize_match_like, canonicalize_replace_for_regress};
+use crate::vc::parser::vencord_ast_parser::pass::FoldBinaryExpressionsPass;
 use crate::vc::{
     Patch, ReplaceLike, Replacement, Replacer, TemplateEvaluator,
     parser::{
@@ -33,7 +36,7 @@ use oxc_ecmascript::{
     constant_evaluation::{ConstantEvaluation, ConstantEvaluationCtx},
     side_effects::MayHaveSideEffectsContext,
 };
-use tracing::{debug, trace, warn};
+use tracing::{debug, instrument, trace, warn};
 
 pub struct VencordAstParser<'ast> {
     alloc: &'ast Allocator,
@@ -45,10 +48,14 @@ pub struct VencordAstParser<'ast> {
 const DEFINE_PLUGIN_IMPORT_SOURCE: &str = "@utils/types";
 
 impl<'ast> VencordAstParser<'ast> {
-    pub fn try_new(alloc: &'ast Allocator, source: &'ast str) -> Result<Self> {
+    pub fn try_new(
+        alloc: &'ast Allocator,
+        source: &'ast str,
+    ) -> Result<Self> {
         let pass_data = Self::parse_for_traverse(alloc, source, SourceType::tsx())?;
 
         let (prog, sema) = PassManager::new(alloc, pass_data)
+            .run_pass(FoldBinaryExpressionsPass)
             .run_pass(InlineConstantLiteralsPass::default())
             .run_pass(FlattenTemplatePass)
             .finish();
@@ -303,7 +310,7 @@ impl<'ast> VencordAstParser<'ast> {
             .define_plugin()
             .and_then(|o| Some(&o.get_property("patches")?.value))
         else {
-            debug!("No patches found for plugin");
+            trace!("No patches found for plugin");
             return Ok(ret);
         };
 
@@ -366,7 +373,7 @@ impl<'ast> VencordAstParser<'ast> {
             };
             // should be true, but for sanity
             debug_assert!(param.pattern.is_binding_identifier());
-            debug_assert!(i <= u8::MAX as usize, "capture group overflow");
+            debug_assert!(u8::try_from(i).is_ok(), "capture group overflow");
             let insert_result = parameter_map.insert(ident.symbol_id(), i as u8);
             debug_assert_eq!(
                 insert_result, None,
@@ -388,11 +395,7 @@ impl<'ast> VencordAstParser<'ast> {
                 .to_string()
         });
         // handle the first one because it has nothing before it
-        {
-            // next().unwrap() here is safe because even an empty template literal has at least one quasi
-            let e = it.next().unwrap();
-            ret.lits.push(e)
-        }
+        ret.lits.push(it.next().unwrap());
 
         for (lit, expr) in it.zip(template_val.expressions.iter()) {
             let ref_id = expr
@@ -443,9 +446,7 @@ impl<'ast> VencordAstParser<'ast> {
                         s: *span,
                     }
                 }
-                RawReplace::Func(f) => {
-                    bail!("Function replacements are not supported yet")
-                }
+                RawReplace::Func(f) => self.canonicalize_replace_func(f)?,
                 RawReplace::Template(_) => {
                     bail!("Template literal replacements are not supported yet")
                 }

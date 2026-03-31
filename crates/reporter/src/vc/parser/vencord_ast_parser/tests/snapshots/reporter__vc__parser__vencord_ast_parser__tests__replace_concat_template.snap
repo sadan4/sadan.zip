@@ -1,0 +1,94 @@
+---
+source: crates/reporter/src/vc/parser/vencord_ast_parser/tests/mod.rs
+expression: patches
+---
+[
+  Patch(
+    plugin_id: None,
+    all: false,
+    no_warn: false,
+    find: MatchLike(
+      v: Str(FinderDef(
+        needle: ".toggleGuildFolderExpand(",
+      )),
+      s: {
+        "start": 197,
+        "end": 224,
+      },
+    ),
+    replacement: [
+      Replacement(
+        match_: MatchLike(
+          v: Regex(MatchRegex(
+            pattern: "(\\],\\(\\)=>)((?:[A-Za-z_$][\\w]*)\\.(?:[A-Za-z_$][\\w]*))\\.isFolderExpanded\\((?:[A-Za-z_$][\\w]*)\\)\\)",
+            flags: RegExpFlagsDef(
+              bits: 0,
+            ),
+          )),
+          s: {
+            "start": 398,
+            "end": 445,
+          },
+        ),
+        replace: ReplaceLike(
+          v: Template(TemplateEvaluator(
+            lits: [
+              "",
+              "",
+              ".getExpandedFolders())",
+            ],
+            captures: [
+              1,
+              2,
+            ],
+          )),
+          s: {
+            "start": 477,
+            "end": 574,
+          },
+        ),
+        no_warn: false,
+      ),
+      Replacement(
+        match_: MatchLike(
+          v: Regex(MatchRegex(
+            pattern: "(?<=folderNode:((?:[A-Za-z_$][\\w]*)),expanded:)(?:[A-Za-z_$][\\w]*)(?=,)",
+            flags: RegExpFlagsDef(
+              bits: 0,
+            ),
+          )),
+          s: {
+            "start": 947,
+            "end": 986,
+          },
+        ),
+        replace: ReplaceLike(
+          v: Template(TemplateEvaluator(
+            lits: [
+              "typeof ",
+              "===\"boolean\"?",
+              ":",
+              ".has(",
+              ".id),betterFoldersExpandedIds:",
+              " instanceof Set?",
+              ":void 0",
+            ],
+            captures: [
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+            ],
+          )),
+          s: {
+            "start": 1018,
+            "end": 1343,
+          },
+        ),
+        no_warn: false,
+      ),
+    ],
+  ),
+]

@@ -47,6 +47,56 @@ expression: patches
     no_warn: false,
     find: MatchLike(
       v: Str(FinderDef(
+        needle: "Unexpected value for option",
+      )),
+      s: {
+        "start": 1644,
+        "end": 1673,
+      },
+    ),
+    replacement: [
+      Replacement(
+        match_: MatchLike(
+          v: Regex(MatchRegex(
+            pattern: ",((?:[A-Za-z_$][\\w]*))\\.execute\\(((?:[A-Za-z_$][\\w]*)),((?:[A-Za-z_$][\\w]*))\\)",
+            flags: RegExpFlagsDef(
+              bits: 0,
+            ),
+          )),
+          s: {
+            "start": 1779,
+            "end": 1808,
+          },
+        ),
+        replace: ReplaceLike(
+          v: Template(TemplateEvaluator(
+            lits: [
+              ",Vencord.Api.Commands._handleCommand(",
+              ", ",
+              ", ",
+              ")",
+            ],
+            captures: [
+              1,
+              2,
+              3,
+            ],
+          )),
+          s: {
+            "start": 1835,
+            "end": 1921,
+          },
+        ),
+        no_warn: false,
+      ),
+    ],
+  ),
+  Patch(
+    plugin_id: None,
+    all: false,
+    no_warn: false,
+    find: MatchLike(
+      v: Str(FinderDef(
         needle: "[\"0mI72g\"]",
       )),
       s: {
