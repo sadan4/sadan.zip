@@ -2,6 +2,7 @@ mod flatten_template;
 mod fold_bin_exp;
 mod inline_str;
 mod util;
+mod string_raw;
 
 use oxc::{
     allocator::Allocator,
@@ -13,6 +14,7 @@ use oxc_traverse::{Traverse, traverse_mut};
 pub use flatten_template::FlattenTemplatePass;
 pub use fold_bin_exp::FoldBinaryExpressionsPass;
 pub use inline_str::InlineConstantLiteralsPass;
+pub use string_raw::EvalStringRawPass;
 
 pub struct PassManager<'ast> {
     program: &'ast mut Program<'ast>,

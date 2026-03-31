@@ -4,10 +4,7 @@ use anyhow::{Result, bail};
 use itertools::Itertools as _;
 use oxc::allocator::Box as OxcBox;
 use oxc::ast::ast::{
-    ArrayExpression, ArrayExpressionElement, ArrowFunctionExpression, BinaryExpression,
-    BindingIdentifier, BindingPattern, CallExpression, Expression, IdentifierReference,
-    ImportDeclaration, ImportDeclarationSpecifier, ModuleDeclaration, ObjectExpression,
-    ObjectProperty, PropertyKey, SpreadElement, StringLiteral, TemplateLiteral,
+    ArrayExpression, ArrayExpressionElement, ArrowFunctionExpression, BinaryExpression, BindingIdentifier, BindingPattern, CallExpression, Expression, IdentifierReference, ImportDeclaration, ImportDeclarationSpecifier, ModuleDeclaration, ObjectExpression, ObjectProperty, PropertyKey, SpreadElement, StringLiteral, TaggedTemplateExpression, TemplateLiteral
 };
 use oxc::semantic::SymbolId;
 use oxc_ecmascript::GlobalContext;
@@ -224,6 +221,18 @@ pub trait ExpressionExt<'ast> {
     fn as_template_literal_mut(&mut self) -> Option<&mut TemplateLiteral<'ast>> {
         match self.as_expr_mut_()? {
             Expression::TemplateLiteral(i) => Some(i.as_mut()),
+            _ => None,
+        }
+    }
+    fn as_tagged_template(&self) -> Option<&TaggedTemplateExpression<'ast>> {
+        match self.as_expr_()? {
+            Expression::TaggedTemplateExpression(e) => Some(e.as_ref()),
+            _ => None,
+        }
+    }
+    fn as_tagged_template_mut(&mut self) -> Option<&mut TaggedTemplateExpression<'ast>> {
+        match self.as_expr_mut_()? {
+            Expression::TaggedTemplateExpression(e) => Some(e.as_mut()),
             _ => None,
         }
     }

@@ -162,8 +162,8 @@ mod tests {
         "#;
         let out = test_pass!(code, InlineConstantLiteralsPass::default());
         assert_snapshot!(out, @"
-            const foo = 1, bar = 'x';
-            console.log(1, 'x');
+        const foo = 1, bar = 'x';
+        console.log(1, 'x');
         ");
     }
 
@@ -175,8 +175,8 @@ mod tests {
         "#;
         let out = test_pass!(code, InlineConstantLiteralsPass::default());
         assert_snapshot!(out, @"
-            export const foo = 1;
-            console.log(1);
+        export const foo = 1;
+        console.log(1);
         ");
     }
 
@@ -188,8 +188,8 @@ mod tests {
         "#;
         let out = test_pass!(code, InlineConstantLiteralsPass::default());
         assert_snapshot!(out, @"
-            export let foo = 1;
-            console.log(foo);
+        export let foo = 1;
+        console.log(foo);
         ");
     }
 }

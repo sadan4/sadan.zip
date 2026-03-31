@@ -12,8 +12,8 @@ expression: patches
         needle: ".handleSendMessage,onResize:",
       )),
       s: {
-        "start": 142,
-        "end": 172,
+        "start": 136,
+        "end": 166,
       },
     ),
     replacement: [
@@ -26,8 +26,8 @@ expression: patches
             ),
           )),
           s: {
-            "start": 278,
-            "end": 394,
+            "start": 269,
+            "end": 385,
           },
         ),
         replace: ReplaceLike(
@@ -49,8 +49,8 @@ expression: patches
             ],
           )),
           s: {
-            "start": 422,
-            "end": 679,
+            "start": 412,
+            "end": 667,
           },
         ),
         no_warn: false,

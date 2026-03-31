@@ -3,7 +3,7 @@ use std::path::Path;
 
 use crate::vc::parser::ast_parser::parse_for_traverse;
 use crate::vc::parser::patches::{canonicalize_match_like, canonicalize_replace_for_regress};
-use crate::vc::parser::vencord_ast_parser::pass::FoldBinaryExpressionsPass;
+use crate::vc::parser::vencord_ast_parser::pass::{EvalStringRawPass, FoldBinaryExpressionsPass};
 use crate::vc::{
     Patch, ReplaceLike, Replacement, Replacer, TemplateEvaluator,
     parser::{
@@ -49,13 +49,11 @@ pub struct VencordAstParser<'ast> {
 const DEFINE_PLUGIN_IMPORT_SOURCE: &str = "@utils/types";
 
 impl<'ast> VencordAstParser<'ast> {
-    pub fn try_new(
-        alloc: &'ast Allocator,
-        source: &'ast str,
-    ) -> Result<Self> {
+    pub fn try_new(alloc: &'ast Allocator, source: &'ast str) -> Result<Self> {
         let pass_data = parse_for_traverse(alloc, source, SourceType::tsx())?;
 
         let (prog, sema) = PassManager::new(alloc, pass_data)
+            .run_pass(EvalStringRawPass)
             .run_pass(FoldBinaryExpressionsPass)
             .run_pass(InlineConstantLiteralsPass::default())
             .run_pass(FlattenTemplatePass)

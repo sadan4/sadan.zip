@@ -2,4 +2,55 @@
 source: crates/reporter/src/vc/parser/vencord_ast_parser/tests/mod.rs
 expression: patches
 ---
-[]
+[
+  Patch(
+    plugin_id: None,
+    all: false,
+    no_warn: false,
+    find: MatchLike(
+      v: Str(FinderDef(
+        needle: ".rt0ERW",
+      )),
+      s: {
+        "start": 164,
+        "end": 208,
+      },
+    ),
+    replacement: [
+      Replacement(
+        match_: MatchLike(
+          v: Regex(MatchRegex(
+            pattern: "permissionOverwrites\\[.+?(?:[A-Za-z_$][\\w]*)=(?<=context:((?:[A-Za-z_$][\\w]*))}.+?)(?=(.+?)VIEW_CHANNEL)",
+            flags: RegExpFlagsDef(
+              bits: 0,
+            ),
+          )),
+          s: {
+            "start": 378,
+            "end": 450,
+          },
+        ),
+        replace: ReplaceLike(
+          v: Template(TemplateEvaluator(
+            lits: [
+              "",
+              "!Vencord.Webpack.Common.PermissionStore.can(1048576n,",
+              ")?",
+              "CONNECT):",
+            ],
+            captures: [
+              0,
+              1,
+              2,
+            ],
+          )),
+          s: {
+            "start": 481,
+            "end": 603,
+          },
+        ),
+        no_warn: false,
+      ),
+    ],
+  ),
+]

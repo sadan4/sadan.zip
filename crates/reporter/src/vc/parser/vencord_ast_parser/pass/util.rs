@@ -1,7 +1,7 @@
 use crate::vc::parser::exts::TemplateLiteralExt;
 use derive_more::{Deref, DerefMut};
 use itertools::Itertools;
-use oxc::allocator::{Allocator, Dummy, StringBuilder};
+use oxc::allocator::{Allocator, AllocatorAccessor, Dummy, StringBuilder};
 use oxc::ast::ast::{
     BigintBase, Expression, IdentifierReference, NumberBase, TemplateElementValue, TemplateLiteral,
 };
@@ -128,6 +128,12 @@ impl<'a, 'ast: 'a, State> MayHaveSideEffectsContext<'ast> for Ctx<'a, 'ast, Stat
 
     fn unknown_global_side_effects(&self) -> bool {
         false
+    }
+}
+
+impl<'a, 'ast: 'a, State> AllocatorAccessor<'ast> for &Ctx<'a, 'ast, State> {
+    fn allocator(self) -> &'ast Allocator {
+        self.ast.allocator
     }
 }
 

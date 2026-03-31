@@ -12,8 +12,8 @@ expression: patches
         needle: ".toggleGuildFolderExpand(",
       )),
       s: {
-        "start": 194,
-        "end": 221,
+        "start": 187,
+        "end": 214,
       },
     ),
     replacement: [
@@ -26,8 +26,8 @@ expression: patches
             ),
           )),
           s: {
-            "start": 602,
-            "end": 641,
+            "start": 590,
+            "end": 629,
           },
         ),
         replace: ReplaceLike(
@@ -51,8 +51,8 @@ expression: patches
             ],
           )),
           s: {
-            "start": 673,
-            "end": 998,
+            "start": 660,
+            "end": 983,
           },
         ),
         no_warn: false,

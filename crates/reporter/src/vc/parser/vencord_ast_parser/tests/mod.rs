@@ -48,6 +48,26 @@ fn test_replace_concat_template_with_ident() {
 
 #[test]
 fn test_inline_big_int_literal_expr() {
-    let patches = dump_patches!("data/plugin5.tsx", dbg_code);
+    let patches = dump_patches!("data/plugin5.tsx");
+    assert_ron_snapshot!(patches);
+}
+
+#[test]
+#[ignore = "todo"]
+fn test_array_map_in_replace() {
+    let patches = dump_patches!("data/plugin6.tsx");
+    assert_ron_snapshot!(patches);
+}
+
+#[test]
+fn test_inline_string_raw() {
+    let patches = dump_patches!("data/plugin7.tsx");
+    assert_ron_snapshot!(patches);
+}
+
+#[test]
+#[ignore = "todo"]
+fn test_inline_typescript_enums() {
+    let patches = dump_patches!("data/plugin8.tsx");
     assert_ron_snapshot!(patches);
 }
