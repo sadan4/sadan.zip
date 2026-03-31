@@ -6,7 +6,7 @@ use oxc::{
     semantic::{ReferenceId, SymbolId},
 };
 use oxc_ecmascript::constant_evaluation::IsLiteralValue;
-use oxc_traverse::{Ancestor, Traverse, TraverseCtx};
+use oxc_traverse::{Traverse, TraverseCtx};
 
 use crate::vc::parser::exts::{BindingPatternExt, ExpressionExt};
 use crate::vc::parser::vencord_ast_parser::pass::util::Ctx;

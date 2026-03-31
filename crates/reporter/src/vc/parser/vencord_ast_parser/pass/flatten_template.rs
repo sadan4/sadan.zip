@@ -45,12 +45,12 @@ impl<'ast, State> Traverse<'ast, State> for FlattenTemplatePass {
             template_node.quasis.len(),
             template_node.expressions.len() + 1
         );
-        for i in (1..template_node.expressions.len()).rev() {
-            let expr = &template_node.expressions[i - 1];
+        for i in (0..template_node.expressions.len()).rev() {
+            let expr = &template_node.expressions[i];
             if let Some(str_val) = expr.evaluate_value_to_string(&ctx) {
-                let right = template_node.quasis.remove(i);
-                let left = &mut template_node.quasis[i - 1];
-                let expr_span = template_node.expressions.remove(i - 1).span();
+                let right = template_node.quasis.remove(i + 1);
+                let left = &mut template_node.quasis[i];
+                let expr_span = template_node.expressions.remove(i).span();
                 let new_raw = ctx
                     .a()
                     .alloc_concat_strs_array([
@@ -203,6 +203,32 @@ mod tests {
         let out = test_pass!(code, FlattenTemplatePass);
         assert_snapshot!(out, /* language=TypeScript */ @"
             const msg = `${foo}${bar}${baz}`;
+            console.log(msg);
+        ");
+    }
+
+    #[test]
+    fn handles_bigints_less_than_2_32() {
+        let code = /* language=TypeScript */ r#"
+            const msg = `value: ${123n}`;
+            console.log(msg);
+        "#;
+        let out = test_pass!(code, FlattenTemplatePass);
+        assert_snapshot!(out, /* language=TypeScript */ @"
+            const msg = 'value: 123';
+            console.log(msg);
+        ");
+    }
+
+    #[test]
+    fn handles_bigints_greater_than_2_32() {
+        let code = /* language=TypeScript */ r#"
+            const msg = `large: ${9007199254740991n}`;
+            console.log(msg);
+        "#;
+        let out = test_pass!(code, FlattenTemplatePass);
+        assert_snapshot!(out, /* language=TypeScript */ @"
+            const msg = 'large: 9007199254740991';
             console.log(msg);
         ");
     }

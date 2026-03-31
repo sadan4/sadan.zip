@@ -2486,6 +2486,7 @@ dependencies = [
  "insta",
  "itertools",
  "memchr",
+ "num-bigint",
  "owo-colors",
  "oxc",
  "oxc-miette",

@@ -4,13 +4,55 @@ use oxc::{
     ast::ast::{BinaryOperator, Expression, TemplateElementValue},
     span::{Atom, Span},
 };
-use oxc_ecmascript::constant_evaluation::binary_operation_evaluate_value;
+use oxc_ecmascript::constant_evaluation::{binary_operation_evaluate_value, ConstantValue};
 use oxc_traverse::Traverse;
 use tracing::warn;
 
 use crate::vc::parser::{exts::ExpressionExt, vencord_ast_parser::pass::util::Ctx};
 
 pub struct FoldBinaryExpressionsPass;
+
+/// Fold BigInt left shift operations (e.g., 1n << 20n)
+fn try_fold_bigint_shift<'ast>(
+    left: &Expression<'ast>,
+    right: &Expression<'ast>,
+) -> Option<ConstantValue<'ast>> {
+    // Extract BigInt literals from both sides
+    let left_lit = match left {
+        Expression::BigIntLiteral(lit) => lit,
+        _ => return None,
+    };
+    
+    let right_lit = match right {
+        Expression::BigIntLiteral(lit) => lit,
+        _ => return None,
+    };
+    
+    // Parse the raw string representation to get the BigInt value
+    // The raw value includes the 'n' suffix (e.g., "123n"), so we need to strip it
+    let left_str = left_lit.raw.as_ref()?.as_str();
+    let right_str = right_lit.raw.as_ref()?.as_str();
+    
+    let left_value = left_str.strip_suffix('n').unwrap_or(left_str);
+    let right_value = right_str.strip_suffix('n').unwrap_or(right_str);
+    
+    let left_bigint: num_bigint::BigInt = left_value.parse().ok()?;
+    let right_bigint: num_bigint::BigInt = right_value.parse().ok()?;
+    
+    // Convert right operand to u64 for shift amount
+    // BigInt shift operations require the shift amount to fit in u64
+    let shift = right_bigint.to_u64_digits();
+    if shift.1.len() != 1 {
+        // Shift amount is too large or negative
+        return None;
+    }
+    let shift_bits = shift.1[0];
+    
+    // Perform the left shift
+    let result = left_bigint << shift_bits;
+    
+    Some(ConstantValue::BigInt(result))
+}
 
 // TODO: refactor
 #[expect(clippy::too_many_lines)]
@@ -170,6 +212,15 @@ impl<'ast, State> Traverse<'ast, State> for FoldBinaryExpressionsPass {
         let left = &mut node.left;
         let right = &mut node.right;
         let op = node.operator;
+        
+        // Try custom BigInt shift folding first
+        if op == BinaryOperator::ShiftLeft {
+            if let Some(val) = try_fold_bigint_shift(left, right) {
+                *expr_node = ctx.node_from_constant_value(val, node.span);
+                return;
+            }
+        }
+        
         if let Some(val) = binary_operation_evaluate_value(op, left, right, &ctx) {
             *expr_node = ctx.node_from_constant_value(val, node.span);
             return;
@@ -292,6 +343,99 @@ mod tests {
             const b = 2;
             let c = 3;
             const out = `#${a}#${b}${c}#${a}#`;
+        ");
+    }
+
+    #[test]
+    fn folds_bigint_left_shift() {
+        let code = /* language=TypeScript */ r#"
+            const value = 1n << 20n;
+            console.log(value);
+        "#;
+        let out = test_pass!(code, FoldBinaryExpressionsPass);
+        assert_snapshot!(out, /* language=TypeScript */ @"
+            const value = 1048576n;
+            console.log(value);
+        ");
+    }
+
+    #[test]
+    fn folds_bigint_addition() {
+        let code = /* language=TypeScript */ r#"
+            const value = 123n + 456n;
+            console.log(value);
+        "#;
+        let out = test_pass!(code, FoldBinaryExpressionsPass);
+        assert_snapshot!(out, /* language=TypeScript */ @"
+            const value = 579n;
+            console.log(value);
+        ");
+    }
+
+    #[test]
+    fn folds_bigint_multiplication() {
+        let code = /* language=TypeScript */ r#"
+            const value = 100n * 200n;
+            console.log(value);
+        "#;
+        let out = test_pass!(code, FoldBinaryExpressionsPass);
+        // Currently not supported - multiplication operations on BigInts are not folded
+        assert_snapshot!(out, /* language=TypeScript */ @"
+            const value = 100n * 200n;
+            console.log(value);
+        ");
+    }
+
+    #[test]
+    fn folds_bigint_subtraction() {
+        let code = /* language=TypeScript */ r#"
+            const value = 1000n - 42n;
+            console.log(value);
+        "#;
+        let out = test_pass!(code, FoldBinaryExpressionsPass);
+        // Currently not supported - subtraction operations on BigInts are not folded
+        assert_snapshot!(out, /* language=TypeScript */ @"
+            const value = 1000n - 42n;
+            console.log(value);
+        ");
+    }
+
+    #[test]
+    fn folds_bigint_bitwise_or() {
+        let code = /* language=TypeScript */ r#"
+            const value = 5n | 3n;
+            console.log(value);
+        "#;
+        let out = test_pass!(code, FoldBinaryExpressionsPass);
+        assert_snapshot!(out, /* language=TypeScript */ @"
+            const value = 7n;
+            console.log(value);
+        ");
+    }
+
+    #[test]
+    fn folds_bigint_bitwise_and() {
+        let code = /* language=TypeScript */ r#"
+            const value = 5n & 3n;
+            console.log(value);
+        "#;
+        let out = test_pass!(code, FoldBinaryExpressionsPass);
+        assert_snapshot!(out, /* language=TypeScript */ @"
+            const value = 1n;
+            console.log(value);
+        ");
+    }
+
+    #[test]
+    fn folds_large_bigint_operations() {
+        let code = /* language=TypeScript */ r#"
+            const value = 9007199254740991n + 1n;
+            console.log(value);
+        "#;
+        let out = test_pass!(code, FoldBinaryExpressionsPass);
+        assert_snapshot!(out, /* language=TypeScript */ @"
+            const value = 9007199254740992n;
+            console.log(value);
         ");
     }
 }

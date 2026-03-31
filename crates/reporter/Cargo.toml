@@ -41,6 +41,7 @@ terminal_size = "0.4.4"
 syntect = "5.3.0"
 memchr = "2.8.0"
 bitflags.workspace = true
+num-bigint = "0.4"
 
 [dev-dependencies]
 insta.workspace = true
