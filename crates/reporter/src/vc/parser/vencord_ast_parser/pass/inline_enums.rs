@@ -1,230 +1,263 @@
 use derive_more::{Deref, DerefMut};
 use oxc::{
-    allocator::{Allocator, CloneIn},
-    ast::ast::{Expression, IdentifierReference, NumberBase, TSEnumMemberName},
-    minifier::PropertyReadSideEffects,
-    semantic::{ReferenceId, SymbolId},
-    span::{Atom, GetSpan, Span},
+	allocator::{Allocator, CloneIn},
+	ast::ast::{Expression, IdentifierReference, NumberBase, TSEnumMemberName},
+	minifier::PropertyReadSideEffects,
+	semantic::{ReferenceId, SymbolId},
+	span::{Atom, GetSpan, Span},
 };
 use oxc_ecmascript::{
-    GlobalContext,
-    constant_evaluation::{ConstantEvaluation, ConstantEvaluationCtx, ConstantValue},
-    side_effects::MayHaveSideEffectsContext,
+	GlobalContext,
+	constant_evaluation::{
+		ConstantEvaluation,
+		ConstantEvaluationCtx,
+		ConstantValue,
+	},
+	side_effects::MayHaveSideEffectsContext,
 };
 use oxc_traverse::Traverse;
 use std::collections::HashMap;
 
-use crate::vc::parser::{exts::ExpressionExt, vencord_ast_parser::pass::util::Ctx};
+use crate::vc::parser::{
+	exts::ExpressionExt,
+	vencord_ast_parser::pass::util::Ctx,
+};
 
 #[derive(Default, Debug)]
 pub struct InlineEnumsPass<'ast> {
-    value_map: HashMap<SymbolId, HashMap<Atom<'ast>, (Span, EnumValue<'ast>)>>,
+	value_map: HashMap<SymbolId, HashMap<Atom<'ast>, (Span, EnumValue<'ast>)>>,
 }
 
 #[derive(Debug)]
 enum EnumValue<'ast> {
-    Number(f64),
-    String(Atom<'ast>),
-    Computed(Expression<'ast>),
+	Number(f64),
+	String(Atom<'ast>),
+	Computed(Expression<'ast>),
 }
 
 impl<'new> CloneIn<'new> for EnumValue<'_> {
-    type Cloned = EnumValue<'new>;
+	type Cloned = EnumValue<'new>;
 
-    fn clone_in(&self, alloc: &'new Allocator) -> Self::Cloned {
-        match self {
-            EnumValue::Number(n) => EnumValue::Number(*n),
-            EnumValue::String(s) => EnumValue::String(s.clone_in(alloc)),
-            EnumValue::Computed(e) => EnumValue::Computed(e.clone_in(alloc)),
-        }
-    }
+	fn clone_in(&self, alloc: &'new Allocator) -> Self::Cloned {
+		match self {
+			EnumValue::Number(n) => EnumValue::Number(*n),
+			EnumValue::String(s) => EnumValue::String(s.clone_in(alloc)),
+			EnumValue::Computed(e) => EnumValue::Computed(e.clone_in(alloc)),
+		}
+	}
 
-    fn clone_in_with_semantic_ids(&self, allocator: &'new Allocator) -> Self::Cloned {
-        match self {
-            EnumValue::Number(n) => EnumValue::Number(*n),
-            EnumValue::String(s) => EnumValue::String(s.clone_in_with_semantic_ids(allocator)),
-            EnumValue::Computed(e) => EnumValue::Computed(e.clone_in_with_semantic_ids(allocator)),
-        }
-    }
+	fn clone_in_with_semantic_ids(
+		&self,
+		allocator: &'new Allocator,
+	) -> Self::Cloned {
+		match self {
+			EnumValue::Number(n) => EnumValue::Number(*n),
+			EnumValue::String(s) => {
+				EnumValue::String(s.clone_in_with_semantic_ids(allocator))
+			}
+			EnumValue::Computed(e) => {
+				EnumValue::Computed(e.clone_in_with_semantic_ids(allocator))
+			}
+		}
+	}
 }
 
 #[derive(Deref, DerefMut)]
 struct EnumValueTracker<'a, 'ast>(
-    #[deref]
-    #[deref_mut]
-    // TODO: make this a HashMap<SymbolId, EnumValue<'ast>> for less memory usage
-    HashMap<ReferenceId, EnumValue<'ast>>,
-    &'a Ctx<'a, 'ast, ()>,
+	#[deref]
+	#[deref_mut]
+	// TODO: make this a HashMap<SymbolId, EnumValue<'ast>> for less memory usage
+	HashMap<ReferenceId, EnumValue<'ast>>,
+	&'a Ctx<'a, 'ast, ()>,
 );
 
 impl<'ast> Traverse<'ast, ()> for InlineEnumsPass<'ast> {
-    /// resolve each enum value to an in-linable expression
-    fn exit_ts_enum_declaration(
-        &mut self,
-        node: &mut oxc::ast::ast::TSEnumDeclaration<'ast>,
-        ctx: &mut oxc_traverse::TraverseCtx<'ast, ()>,
-    ) {
-        if node.declare {
-            return;
-        }
-        let ctx = Ctx(ctx);
-        // TypeScript enums start at 0, so there is an implicit last value of -1
-        let mut last_value = Some(-1);
-        let mut tracker = EnumValueTracker::new(&ctx);
-        let mut value_map = HashMap::new();
-        let enum_scope_id = node.body.scope_id();
-        for v in &node.body.members {
-            let (span, value) = match (&mut last_value, &v.initializer) {
-                // something like
-                // ```ts
-                // const NUM = 50;
-                // enum Foo {
-                //     A = NUM,
-                //     B,
-                // }
-                // ```
-                (None, None) => return,
-                (_, Some(expr)) => (
-                    expr.span(),
-                    match expr.evaluate_value(&tracker) {
-                        Some(ConstantValue::String(s)) => {
-                            let atom = Atom::from_cow_in(&s, ctx.a());
-                            EnumValue::String(atom)
-                        }
-                        Some(ConstantValue::Number(n)) => {
-                            debug_assert!(n.is_finite() && n.fract() == 0.);
-                            last_value = Some(n as i32);
-                            EnumValue::Number(n)
-                        }
-                        None => {
-                            last_value = None;
-                            EnumValue::Computed(expr.clone_in(ctx.a()))
-                        }
-                        Some(_) => panic!(
-                            "Invalid Enum. Constant enum member initializers must evaluate to a string or a numeric literal."
-                        ),
-                    },
-                ),
-                (Some(prev), None) => {
-                    *prev += 1;
-                    (v.id.span(), EnumValue::Number(f64::from(*prev)))
-                }
-            };
-            // the other types of member names don't matter because they can't be referenced
-            if let TSEnumMemberName::Identifier(id) = &v.id {
-                // oxc does not bind enum member identifiers to symbol ids, so we have to find them
-                let sym_id = ctx
-                    .scoping()
-                    .get_binding(enum_scope_id, id.name)
-                    .expect("Failed to lookup enum name sym_id");
-                for ref_id in ctx.scoping().get_resolved_reference_ids(sym_id) {
-                    tracker.insert(*ref_id, value.clone_in(ctx.a()));
-                }
-            }
-            value_map.insert(v.id.static_name(), (span, value));
-        }
-        self.value_map.insert(node.id.symbol_id(), value_map);
-    }
-    fn enter_expression(
-        &mut self,
-        node: &mut Expression<'ast>,
-        ctx: &mut oxc_traverse::TraverseCtx<'ast, ()>,
-    ) {
-        let ctx = Ctx(ctx);
-        let Expression::StaticMemberExpression(expr) = node else {
-            return;
-        };
-        let Some(enum_obj) = expr.object.as_identifier_mut() else {
-            return;
-        };
-        let Some(enum_sym_id) = ctx
-            .scoping()
-            .get_reference(enum_obj.reference_id())
-            .symbol_id()
-        else {
-            return;
-        };
-        let Some(enum_value_map) = self.value_map.get(&enum_sym_id) else {
-            return;
-        };
-        let Some((span, constant_value)) = enum_value_map.get(&expr.property.name.as_atom()) else {
-            return;
-        };
-        match constant_value {
-            EnumValue::Number(n) => {
-                *node = ctx
-                    .ast
-                    .expression_numeric_literal(*span, *n, None, NumberBase::Decimal);
-            }
-            EnumValue::String(atom) => {
-                *node = ctx.ast.expression_string_literal(*span, *atom, None);
-            }
-            EnumValue::Computed(expr) => {
-                *node = expr.clone_in(ctx.a());
-            }
-        }
-    }
+	/// resolve each enum value to an in-linable expression
+	fn exit_ts_enum_declaration(
+		&mut self,
+		node: &mut oxc::ast::ast::TSEnumDeclaration<'ast>,
+		ctx: &mut oxc_traverse::TraverseCtx<'ast, ()>,
+	) {
+		if node.declare {
+			return;
+		}
+		let ctx = Ctx(ctx);
+		// TypeScript enums start at 0, so there is an implicit last value of -1
+		let mut last_value = Some(-1);
+		let mut tracker = EnumValueTracker::new(&ctx);
+		let mut value_map = HashMap::new();
+		let enum_scope_id = node.body.scope_id();
+		for v in &node.body.members {
+			let (span, value) = match (&mut last_value, &v.initializer) {
+				// something like
+				// ```ts
+				// const NUM = 50;
+				// enum Foo {
+				//     A = NUM,
+				//     B,
+				// }
+				// ```
+				(None, None) => return,
+				(_, Some(expr)) => (
+					expr.span(),
+					match expr.evaluate_value(&tracker) {
+						Some(ConstantValue::String(s)) => {
+							let atom = Atom::from_cow_in(&s, ctx.a());
+							EnumValue::String(atom)
+						}
+						Some(ConstantValue::Number(n)) => {
+							debug_assert!(n.is_finite() && n.fract() == 0.);
+							last_value = Some(n as i32);
+							EnumValue::Number(n)
+						}
+						None => {
+							last_value = None;
+							EnumValue::Computed(expr.clone_in(ctx.a()))
+						}
+						Some(_) => panic!(
+							"Invalid Enum. Constant enum member initializers must evaluate to a string or a numeric literal."
+						),
+					},
+				),
+				(Some(prev), None) => {
+					*prev += 1;
+					(v.id.span(), EnumValue::Number(f64::from(*prev)))
+				}
+			};
+			// the other types of member names don't matter because they can't be referenced
+			if let TSEnumMemberName::Identifier(id) = &v.id {
+				// oxc does not bind enum member identifiers to symbol ids, so we have to find them
+				let sym_id = ctx
+					.scoping()
+					.get_binding(enum_scope_id, id.name)
+					.expect("Failed to lookup enum name sym_id");
+				for ref_id in ctx
+					.scoping()
+					.get_resolved_reference_ids(sym_id)
+				{
+					tracker.insert(*ref_id, value.clone_in(ctx.a()));
+				}
+			}
+			value_map.insert(v.id.static_name(), (span, value));
+		}
+		self.value_map
+			.insert(node.id.symbol_id(), value_map);
+	}
+	fn enter_expression(
+		&mut self,
+		node: &mut Expression<'ast>,
+		ctx: &mut oxc_traverse::TraverseCtx<'ast, ()>,
+	) {
+		let ctx = Ctx(ctx);
+		let Expression::StaticMemberExpression(expr) = node else {
+			return;
+		};
+		let Some(enum_obj) = expr.object.as_identifier_mut() else {
+			return;
+		};
+		let Some(enum_sym_id) = ctx
+			.scoping()
+			.get_reference(enum_obj.reference_id())
+			.symbol_id()
+		else {
+			return;
+		};
+		let Some(enum_value_map) = self.value_map.get(&enum_sym_id) else {
+			return;
+		};
+		let Some((span, constant_value)) =
+			enum_value_map.get(&expr.property.name.as_atom())
+		else {
+			return;
+		};
+		match constant_value {
+			EnumValue::Number(n) => {
+				*node = ctx.ast.expression_numeric_literal(
+					*span,
+					*n,
+					None,
+					NumberBase::Decimal,
+				);
+			}
+			EnumValue::String(atom) => {
+				*node = ctx
+					.ast
+					.expression_string_literal(*span, *atom, None);
+			}
+			EnumValue::Computed(expr) => {
+				*node = expr.clone_in(ctx.a());
+			}
+		}
+	}
 }
 
 impl<'a, 'ast> EnumValueTracker<'a, 'ast> {
-    fn new(ctx: &'a Ctx<'a, 'ast, ()>) -> Self {
-        Self(HashMap::new(), ctx)
-    }
+	fn new(ctx: &'a Ctx<'a, 'ast, ()>) -> Self {
+		Self(HashMap::new(), ctx)
+	}
 }
 
 impl<'ast> GlobalContext<'ast> for EnumValueTracker<'_, 'ast> {
-    fn is_global_reference(&self, reference: &IdentifierReference<'ast>) -> bool {
-        self.contains_key(&reference.reference_id()) || self.1.is_global_reference(reference)
-    }
-    fn get_constant_value_for_reference_id(
-        &self,
-        ref_id: ReferenceId,
-    ) -> Option<ConstantValue<'ast>> {
-        match self.0.get(&ref_id) {
-            Some(EnumValue::Number(e)) => Some(ConstantValue::Number(*e)),
-            Some(EnumValue::String(s)) => Some(ConstantValue::String((*s).into())),
-            Some(EnumValue::Computed(_)) => None,
-            None => self.1.get_constant_value_for_reference_id(ref_id),
-        }
-    }
+	fn is_global_reference(
+		&self,
+		reference: &IdentifierReference<'ast>,
+	) -> bool {
+		self.contains_key(&reference.reference_id())
+			|| self.1.is_global_reference(reference)
+	}
+	fn get_constant_value_for_reference_id(
+		&self,
+		ref_id: ReferenceId,
+	) -> Option<ConstantValue<'ast>> {
+		match self.0.get(&ref_id) {
+			Some(EnumValue::Number(e)) => Some(ConstantValue::Number(*e)),
+			Some(EnumValue::String(s)) => {
+				Some(ConstantValue::String((*s).into()))
+			}
+			Some(EnumValue::Computed(_)) => None,
+			None => self
+				.1
+				.get_constant_value_for_reference_id(ref_id),
+		}
+	}
 }
 
 impl<'ast> MayHaveSideEffectsContext<'ast> for EnumValueTracker<'_, 'ast> {
-    fn annotations(&self) -> bool {
-        self.1.annotations()
-    }
+	fn annotations(&self) -> bool {
+		self.1.annotations()
+	}
 
-    fn manual_pure_functions(&self, callee: &Expression) -> bool {
-        self.1.manual_pure_functions(callee)
-    }
+	fn manual_pure_functions(&self, callee: &Expression) -> bool {
+		self.1.manual_pure_functions(callee)
+	}
 
-    fn property_read_side_effects(&self) -> PropertyReadSideEffects {
-        self.1.property_read_side_effects()
-    }
+	fn property_read_side_effects(&self) -> PropertyReadSideEffects {
+		self.1.property_read_side_effects()
+	}
 
-    fn unknown_global_side_effects(&self) -> bool {
-        self.1.unknown_global_side_effects()
-    }
+	fn unknown_global_side_effects(&self) -> bool {
+		self.1.unknown_global_side_effects()
+	}
 }
 
 impl<'ast> ConstantEvaluationCtx<'ast> for EnumValueTracker<'_, 'ast> {
-    fn ast(&self) -> oxc::ast::AstBuilder<'ast> {
-        self.1.ast()
-    }
+	fn ast(&self) -> oxc::ast::AstBuilder<'ast> {
+		self.1.ast()
+	}
 }
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::needless_raw_string_hashes)]
-    use insta::assert_snapshot;
+	#![allow(clippy::needless_raw_string_hashes)]
+	use insta::assert_snapshot;
 
-    use crate::test_pass;
+	use crate::test_pass;
 
-    use super::*;
+	use super::*;
 
-    #[test]
-    fn test_basic_numeric_enum() {
-        let code = /* language=Typescript */ r#"
+	#[test]
+	fn test_basic_numeric_enum() {
+		let code = /* language=Typescript */ r#"
             enum Direction {
                 Up,
                 Down,
@@ -235,8 +268,8 @@ mod tests {
             const y = Direction.Down;
             const z = Direction.Right;
         "#;
-        let out = test_pass!(code, InlineEnumsPass::default());
-        assert_snapshot!(out, @r"
+		let out = test_pass!(code, InlineEnumsPass::default());
+		assert_snapshot!(out, @r"
 		enum Direction {
 			Up,
 			Down,
@@ -247,11 +280,11 @@ mod tests {
 		const y = 1;
 		const z = 3;
 		");
-    }
+	}
 
-    #[test]
-    fn test_numeric_enum_with_initializers() {
-        let code = /* language=Typescript */ r#"
+	#[test]
+	fn test_numeric_enum_with_initializers() {
+		let code = /* language=Typescript */ r#"
             enum Status {
                 Ready = 10,
                 Waiting,
@@ -263,8 +296,8 @@ mod tests {
             const c = Status.Done;
             const d = Status.Error;
         "#;
-        let out = test_pass!(code, InlineEnumsPass::default());
-        assert_snapshot!(out, @r"
+		let out = test_pass!(code, InlineEnumsPass::default());
+		assert_snapshot!(out, @r"
 		enum Status {
 			Ready = 10,
 			Waiting,
@@ -276,11 +309,11 @@ mod tests {
 		const c = 100;
 		const d = 101;
 		");
-    }
+	}
 
-    #[test]
-    fn test_string_enum() {
-        let code = /* language=Typescript */ r#"
+	#[test]
+	fn test_string_enum() {
+		let code = /* language=Typescript */ r#"
             enum LogLevel {
                 ERROR = "error",
                 WARN = "warn",
@@ -290,8 +323,8 @@ mod tests {
             const level = LogLevel.ERROR;
             const info = LogLevel.INFO;
         "#;
-        let out = test_pass!(code, InlineEnumsPass::default());
-        assert_snapshot!(out, @"
+		let out = test_pass!(code, InlineEnumsPass::default());
+		assert_snapshot!(out, @"
         enum LogLevel {
         	ERROR = 'error',
         	WARN = 'warn',
@@ -301,11 +334,11 @@ mod tests {
         const level = 'error';
         const info = 'info';
         ");
-    }
+	}
 
-    #[test]
-    fn test_mixed_enum() {
-        let code = /* language=Typescript */ r#"
+	#[test]
+	fn test_mixed_enum() {
+		let code = /* language=Typescript */ r#"
             enum Mixed {
                 A,
                 B = "string",
@@ -317,8 +350,8 @@ mod tests {
             const c = Mixed.C;
             const d = Mixed.D;
         "#;
-        let out = test_pass!(code, InlineEnumsPass::default());
-        assert_snapshot!(out, @"
+		let out = test_pass!(code, InlineEnumsPass::default());
+		assert_snapshot!(out, @"
         enum Mixed {
         	A,
         	B = 'string',
@@ -330,11 +363,11 @@ mod tests {
         const c = 10;
         const d = 11;
         ");
-    }
+	}
 
-    #[test]
-    fn test_computed_enum() {
-        let code = /* language=Typescript */ r#"
+	#[test]
+	fn test_computed_enum() {
+		let code = /* language=Typescript */ r#"
             const BASE = 100;
             enum Computed {
                 A = BASE,
@@ -343,8 +376,8 @@ mod tests {
             const x = Computed.A;
             const y = Computed.B;
         "#;
-        let out = test_pass!(code, InlineEnumsPass::default());
-        assert_snapshot!(out, @r"
+		let out = test_pass!(code, InlineEnumsPass::default());
+		assert_snapshot!(out, @r"
 		const BASE = 100;
 		enum Computed {
 			A = BASE,
@@ -353,11 +386,11 @@ mod tests {
 		const x = BASE;
 		const y = BASE + 1;
 		");
-    }
+	}
 
-    #[test]
-    fn test_enum_with_expression_initializer() {
-        let code = /* language=Typescript */ r#"
+	#[test]
+	fn test_enum_with_expression_initializer() {
+		let code = /* language=Typescript */ r#"
             enum Flags {
                 None = 0,
                 Read = 1 << 0,
@@ -367,8 +400,8 @@ mod tests {
             const perms = Flags.Read;
             const write = Flags.Write;
         "#;
-        let out = test_pass!(code, InlineEnumsPass::default());
-        assert_snapshot!(out, @r"
+		let out = test_pass!(code, InlineEnumsPass::default());
+		assert_snapshot!(out, @r"
 		enum Flags {
 			None = 0,
 			Read = 1 << 0,
@@ -378,12 +411,12 @@ mod tests {
 		const perms = 1;
 		const write = 2;
 		");
-    }
+	}
 
-    #[test]
-    #[ignore = "TODO"]
-    fn test_enum_member_references_within_enum() {
-        let code = /* language=Typescript */ r#"
+	#[test]
+	#[ignore = "TODO"]
+	fn test_enum_member_references_within_enum() {
+		let code = /* language=Typescript */ r#"
             enum Colors {
                 Red = 0,
                 Green = 1,
@@ -392,8 +425,8 @@ mod tests {
             }
             const color = Colors.Purple;
         "#;
-        let out = test_pass!(code, InlineEnumsPass::default());
-        assert_snapshot!(out, @r"
+		let out = test_pass!(code, InlineEnumsPass::default());
+		assert_snapshot!(out, @r"
 		enum Colors {
 			Red = 0,
 			Green = 1,
@@ -402,11 +435,11 @@ mod tests {
 		}
 		const color = 0 + 2;
 		");
-    }
+	}
 
-    #[test]
-    fn test_negative_enum_values() {
-        let code = /* language=Typescript */ r#"
+	#[test]
+	fn test_negative_enum_values() {
+		let code = /* language=Typescript */ r#"
             enum Temperature {
                 Freezing = -32,
                 Cold,
@@ -418,8 +451,8 @@ mod tests {
             const temp2 = Temperature.Cold;
             const temp3 = Temperature.Warm;
         "#;
-        let out = test_pass!(code, InlineEnumsPass::default());
-        assert_snapshot!(out, @r"
+		let out = test_pass!(code, InlineEnumsPass::default());
+		assert_snapshot!(out, @r"
 		enum Temperature {
 			Freezing = -32,
 			Cold,
@@ -431,11 +464,11 @@ mod tests {
 		const temp2 = -31;
 		const temp3 = 1;
 		");
-    }
+	}
 
-    #[test]
-    fn test_multiple_enum_references() {
-        let code = /* language=Typescript */ r#"
+	#[test]
+	fn test_multiple_enum_references() {
+		let code = /* language=Typescript */ r#"
             enum Status {
                 Idle,
                 Active,
@@ -447,8 +480,8 @@ mod tests {
             const d = Status.Done;
             const e = Status.Idle;
         "#;
-        let out = test_pass!(code, InlineEnumsPass::default());
-        assert_snapshot!(out, @r"
+		let out = test_pass!(code, InlineEnumsPass::default());
+		assert_snapshot!(out, @r"
 		enum Status {
 			Idle,
 			Active,
@@ -460,30 +493,30 @@ mod tests {
 		const d = 2;
 		const e = 0;
 		");
-    }
+	}
 
-    #[test]
-    fn test_enum_does_not_inline_non_static_member() {
-        let code = /* language=Typescript */ r#"
+	#[test]
+	fn test_enum_does_not_inline_non_static_member() {
+		let code = /* language=Typescript */ r#"
             enum Test {
                 A,
                 B
             }
             const x = Test['A'];
         "#;
-        let out = test_pass!(code, InlineEnumsPass::default());
-        assert_snapshot!(out, @r"
+		let out = test_pass!(code, InlineEnumsPass::default());
+		assert_snapshot!(out, @r"
 		enum Test {
 			A,
 			B
 		}
 		const x = Test['A'];
 		");
-    }
+	}
 
-    #[test]
-    fn test_enum_in_expression() {
-        let code = /* language=Typescript */ r#"
+	#[test]
+	fn test_enum_in_expression() {
+		let code = /* language=Typescript */ r#"
             enum Numbers {
                 One = 1,
                 Two = 2,
@@ -492,8 +525,8 @@ mod tests {
             const sum = Numbers.One + Numbers.Two + Numbers.Three;
             const product = Numbers.Two * Numbers.Three;
         "#;
-        let out = test_pass!(code, InlineEnumsPass::default());
-        assert_snapshot!(out, @r"
+		let out = test_pass!(code, InlineEnumsPass::default());
+		assert_snapshot!(out, @r"
 		enum Numbers {
 			One = 1,
 			Two = 2,
@@ -502,11 +535,11 @@ mod tests {
 		const sum = 1 + 2 + 3;
 		const product = 2 * 3;
 		");
-    }
+	}
 
-    #[test]
-    fn test_enum_with_template_literal_initializer() {
-        let code = /* language=Typescript */ r#"
+	#[test]
+	fn test_enum_with_template_literal_initializer() {
+		let code = /* language=Typescript */ r#"
             const prefix = "value_";
             enum Keys {
                 A = `${prefix}a`,
@@ -514,8 +547,8 @@ mod tests {
             }
             const key = Keys.A;
         "#;
-        let out = test_pass!(code, InlineEnumsPass::default());
-        assert_snapshot!(out, @r"
+		let out = test_pass!(code, InlineEnumsPass::default());
+		assert_snapshot!(out, @r"
 		const prefix = 'value_';
 		enum Keys {
 			A = `${prefix}a`,
@@ -523,30 +556,30 @@ mod tests {
 		}
 		const key = `${prefix}a`;
 		");
-    }
+	}
 
-    #[test]
-    fn test_declare_enum_is_not_inlined() {
-        let code = /* language=Typescript */ r#"
+	#[test]
+	fn test_declare_enum_is_not_inlined() {
+		let code = /* language=Typescript */ r#"
             declare enum External {
                 A,
                 B
             }
             const x = External.A;
         "#;
-        let out = test_pass!(code, InlineEnumsPass::default());
-        assert_snapshot!(out, @r"
+		let out = test_pass!(code, InlineEnumsPass::default());
+		assert_snapshot!(out, @r"
 		declare enum External {
 			A,
 			B
 		}
 		const x = External.A;
 		");
-    }
+	}
 
-    #[test]
-    fn test_multiple_enums() {
-        let code = /* language=Typescript */ r#"
+	#[test]
+	fn test_multiple_enums() {
+		let code = /* language=Typescript */ r#"
             enum First {
                 A = 1,
                 B = 2
@@ -559,8 +592,8 @@ mod tests {
             const x = Second.X;
             const b = First.B;
         "#;
-        let out = test_pass!(code, InlineEnumsPass::default());
-        assert_snapshot!(out, @"
+		let out = test_pass!(code, InlineEnumsPass::default());
+		assert_snapshot!(out, @"
         enum First {
         	A = 1,
         	B = 2
@@ -573,11 +606,11 @@ mod tests {
         const x = 'x';
         const b = 2;
         ");
-    }
+	}
 
-    #[test]
-    fn test_enum_in_function_call() {
-        let code = /* language=Typescript */ r#"
+	#[test]
+	fn test_enum_in_function_call() {
+		let code = /* language=Typescript */ r#"
             enum Priority {
                 Low = 0,
                 Medium = 1,
@@ -586,8 +619,8 @@ mod tests {
             function setPriority(p: number) {}
             setPriority(Priority.High);
         "#;
-        let out = test_pass!(code, InlineEnumsPass::default());
-        assert_snapshot!(out, @r"
+		let out = test_pass!(code, InlineEnumsPass::default());
+		assert_snapshot!(out, @r"
 		enum Priority {
 			Low = 0,
 			Medium = 1,
@@ -596,11 +629,11 @@ mod tests {
 		function setPriority(p: number) {}
 		setPriority(2);
 		");
-    }
+	}
 
-    #[test]
-    fn test_enum_in_array() {
-        let code = /* language=Typescript */ r#"
+	#[test]
+	fn test_enum_in_array() {
+		let code = /* language=Typescript */ r#"
             enum Color {
                 Red,
                 Green,
@@ -608,8 +641,8 @@ mod tests {
             }
             const colors = [Color.Red, Color.Green, Color.Blue];
         "#;
-        let out = test_pass!(code, InlineEnumsPass::default());
-        assert_snapshot!(out, @"
+		let out = test_pass!(code, InlineEnumsPass::default());
+		assert_snapshot!(out, @"
         enum Color {
         	Red,
         	Green,
@@ -621,11 +654,11 @@ mod tests {
         	2
         ];
         ");
-    }
+	}
 
-    #[test]
-    fn test_enum_in_object() {
-        let code = /* language=Typescript */ r#"
+	#[test]
+	fn test_enum_in_object() {
+		let code = /* language=Typescript */ r#"
             enum Status {
                 Pending = "pending",
                 Complete = "complete"
@@ -635,8 +668,8 @@ mod tests {
                 final: Status.Complete
             };
         "#;
-        let out = test_pass!(code, InlineEnumsPass::default());
-        assert_snapshot!(out, @"
+		let out = test_pass!(code, InlineEnumsPass::default());
+		assert_snapshot!(out, @"
         enum Status {
         	Pending = 'pending',
         	Complete = 'complete'
@@ -646,11 +679,11 @@ mod tests {
         	final: 'complete'
         };
         ");
-    }
+	}
 
-    #[test]
-    fn test_scoped_enums() {
-        let code = /* language=Typescript */ r#"
+	#[test]
+	fn test_scoped_enums() {
+		let code = /* language=Typescript */ r#"
             {
                 enum Inner {
                     A = 1
@@ -664,8 +697,8 @@ mod tests {
                 const y = Inner.A;
             }
         "#;
-        let out = test_pass!(code, InlineEnumsPass::default());
-        assert_snapshot!(out, @r"
+		let out = test_pass!(code, InlineEnumsPass::default());
+		assert_snapshot!(out, @r"
 		{
 			enum Inner {
 				A = 1
@@ -679,5 +712,5 @@ mod tests {
 			const y = 2;
 		}
 		");
-    }
+	}
 }

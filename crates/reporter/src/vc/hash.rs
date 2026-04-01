@@ -31,7 +31,8 @@ static KEY_HASH_SEED: u64 = 0;
 
 /// Lookup table used for quickly creating a base64 representation of a hashed key.
 static BASE64_TABLE: &[u8] =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/".as_bytes();
+	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+		.as_bytes();
 
 /// Returns a consistent, short hash of the given key by first processing it
 /// through a sha256 digest, then encoding the first few bytes to base64.
@@ -40,19 +41,19 @@ static BASE64_TABLE: &[u8] =
 /// hashing a key, there is a mirrored, client-side hash for use at runtime
 /// that _must_ match this identically: `packages/intl/hash.ts`.
 pub fn hash_message_key(content: &str) -> [char; 6] {
-    let hash = xxhash_rust::xxh64::xxh64(content.as_bytes(), KEY_HASH_SEED);
-    let input: [u8; 8] = hash.to_ne_bytes();
-    // Since we know that we only want 6 characters out of the hash, we can
-    // shortcut the base64 encoding to just directly read the bits out into an
-    // encoded byte array and directly create a str from that.
-    let output: [char; 6] = [
-        BASE64_TABLE[(input[0] >> 2) as usize] as char,
-        BASE64_TABLE[((input[0] & 0x03) << 4 | input[1] >> 4) as usize] as char,
-        BASE64_TABLE[((input[1] & 0x0f) << 2 | input[2] >> 6) as usize] as char,
-        BASE64_TABLE[(input[2] & 0x3f) as usize] as char,
-        BASE64_TABLE[(input[3] >> 2) as usize] as char,
-        BASE64_TABLE[((input[3] & 0x03) << 4 | input[4] >> 4) as usize] as char,
-    ];
+	let hash = xxhash_rust::xxh64::xxh64(content.as_bytes(), KEY_HASH_SEED);
+	let input: [u8; 8] = hash.to_ne_bytes();
+	// Since we know that we only want 6 characters out of the hash, we can
+	// shortcut the base64 encoding to just directly read the bits out into an
+	// encoded byte array and directly create a str from that.
+	let output: [char; 6] = [
+		BASE64_TABLE[(input[0] >> 2) as usize] as char,
+		BASE64_TABLE[((input[0] & 0x03) << 4 | input[1] >> 4) as usize] as char,
+		BASE64_TABLE[((input[1] & 0x0f) << 2 | input[2] >> 6) as usize] as char,
+		BASE64_TABLE[(input[2] & 0x3f) as usize] as char,
+		BASE64_TABLE[(input[3] >> 2) as usize] as char,
+		BASE64_TABLE[((input[3] & 0x03) << 4 | input[4] >> 4) as usize] as char,
+	];
 
-    output
+	output
 }
