@@ -1,27 +1,52 @@
 use crate::{
-	Patch, ReplaceLike, Replacement, Replacer, TemplateEvaluator,
+	Patch,
+	ReplaceLike,
+	Replacement,
+	Replacer,
+	TemplateEvaluator,
 	pass::{
-		EvalStringRawPass, FlattenTemplatePass, FoldBinaryExpressionsPass,
-		InlineConstantsPass, InlineEnumsPass, PassManager,
+		EvalStringRawPass,
+		FlattenTemplatePass,
+		FoldBinaryExpressionsPass,
+		InlineConstantsPass,
+		InlineEnumsPass,
+		PassManager,
 	},
 	patches::{
-		RawMatchLike, RawPatch, RawReplace, RawReplacement,
-		canonicalize_match_like, canonicalize_replace_for_regress,
+		RawMatchLike,
+		RawPatch,
+		RawReplace,
+		RawReplacement,
+		canonicalize_match_like,
+		canonicalize_replace_for_regress,
 	},
 };
 use anyhow::{Context, Result, bail};
 use ast_parser::{
-	ArrayExpressionElementExt as _, AstParser, BindingPatternExt,
-	ESModuleParser, ExpressionExt, ImportDeclarationExt, ObjectExpressionExt,
+	AstParser,
+	ESModuleParser,
+	exts::{
+		ArrayExpressionElementExt as _,
+		BindingPatternExt as _,
+		ExpressionExt as _,
+		ImportDeclarationExt as _,
+		ObjectExpressionExt as _,
+	},
 	parse_for_traverse,
 };
 use oxc::{
 	allocator::{Allocator, HashMap as OxcHashMap, Vec as OxcVec},
 	ast::{
-		AstBuilder, AstKind,
+		AstBuilder,
+		AstKind,
 		ast::{
-			Argument, ArrayExpressionElement, ArrowFunctionExpression,
-			Expression, ObjectExpression, Program, SpreadElement,
+			Argument,
+			ArrayExpressionElement,
+			ArrowFunctionExpression,
+			Expression,
+			ObjectExpression,
+			Program,
+			SpreadElement,
 			StringLiteral,
 		},
 	},

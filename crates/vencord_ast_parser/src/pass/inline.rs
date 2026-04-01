@@ -1,9 +1,12 @@
 use super::util::Ctx;
-use ast_parser::{BindingPatternExt, ExpressionExt};
+use ast_parser::exts::{BindingPatternExt as _, ExpressionExt as _};
 use oxc::{
 	allocator::CloneIn,
 	ast::ast::{
-		Expression, IdentifierReference, Program, VariableDeclaration,
+		Expression,
+		IdentifierReference,
+		Program,
+		VariableDeclaration,
 		VariableDeclarator,
 	},
 	semantic::{ReferenceId, SymbolId},

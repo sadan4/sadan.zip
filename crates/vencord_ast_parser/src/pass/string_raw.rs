@@ -1,5 +1,5 @@
 use super::util::Ctx;
-use ast_parser::ExpressionExt;
+use ast_parser::exts::ExpressionExt as _;
 use oxc::{
 	allocator::TakeIn,
 	ast::ast::{Expression, TemplateElementValue},

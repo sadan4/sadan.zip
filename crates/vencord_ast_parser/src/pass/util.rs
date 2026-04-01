@@ -1,4 +1,4 @@
-use ast_parser::TemplateLiteralExt;
+use ast_parser::exts::TemplateLiteralExt as _;
 use derive_more::{Deref, DerefMut};
 use itertools::Itertools;
 use oxc::{

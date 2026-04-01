@@ -1,11 +1,12 @@
 use crate::pass::util::{Ctx, empty_template_element_value};
-use ast_parser::ExpressionExt;
+use ast_parser::exts::ExpressionExt as _;
 use oxc::{
 	ast::ast::{BinaryOperator, Expression, TemplateElementValue},
 	span::{Atom, Span},
 };
 use oxc_ecmascript::constant_evaluation::{
-	ConstantValue, binary_operation_evaluate_value,
+	ConstantValue,
+	binary_operation_evaluate_value,
 };
 use oxc_traverse::Traverse;
 use std::mem;

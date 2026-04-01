@@ -1,5 +1,5 @@
 use crate::pass::util::Ctx;
-use ast_parser::{ExpressionExt, TemplateLiteralExt};
+use ast_parser::exts::{ExpressionExt as _, TemplateLiteralExt as _};
 use oxc::{
 	ast::ast::{Expression, TemplateElementValue},
 	span::GetSpan as _,

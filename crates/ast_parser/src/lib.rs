@@ -1,9 +1,4 @@
 mod ast_parser;
-mod exts;
+pub mod exts;
 
-pub use ast_parser::{AstParser, ESModuleParser, parse_for_traverse};
-pub use exts::{
-	ArrayExpressionElementExt, BindingPatternExt, ExpressionExt,
-	ImportDeclarationExt, ModuleDeclarationExt, ObjectExpressionExt,
-	TemplateLiteralExt,
-};
+pub use ast_parser::{AstParser, ESModuleParser, parse, parse_no_sema, parse_for_traverse};

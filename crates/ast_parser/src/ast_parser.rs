@@ -54,6 +54,44 @@ macro_rules! impl_parse {
 	};
 }
 
+pub fn parse<'ast>(
+	alloc: &'ast Allocator,
+	source: &'ast str,
+	source_type: SourceType,
+) -> Result<(&'ast Program<'ast>, Semantic<'ast>)> {
+	impl_parse!(alloc, source, source_type, ast, sema);
+	Ok((ast, sema.semantic))
+}
+
+pub fn parse_no_sema<'ast>(
+	alloc: &'ast Allocator,
+	source: &'ast str,
+	source_type: SourceType,
+) -> Result<Program<'ast>> {
+	let parsed = OxcParser::new(alloc, source, source_type).parse();
+	if parsed.panicked {
+		let dbg_src = Arc::new(source.to_string());
+		let errs_with_src = parsed
+			.errors
+			.into_iter()
+			.map(move |err| err.with_source_code(dbg_src.clone()))
+			.collect_vec();
+		bail!(
+			"OxcParser panicked while parsing source. errors: \n{errs_with_src:?}\n"
+		);
+	}
+	if !parsed.errors.is_empty() {
+		let dbg_src = Arc::new(source.to_string());
+		let errs_with_src = parsed
+			.errors
+			.into_iter()
+			.map(move |err| err.with_source_code(dbg_src.clone()))
+			.collect_vec();
+		bail!("Failed to parse source: \n{errs_with_src:#?}\n");
+	}
+	Ok(parsed.program)
+}
+
 pub fn parse_for_traverse<'ast>(
 	alloc: &'ast Allocator,
 	source: &'ast str,

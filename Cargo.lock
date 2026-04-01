@@ -3662,7 +3662,12 @@ dependencies = [
 name = "webpack_chunk_parser"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "ast_parser",
+ "derive_more",
+ "insta",
  "oxc",
+ "serde",
 ]
 
 [[package]]
