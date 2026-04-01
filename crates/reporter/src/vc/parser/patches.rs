@@ -1,27 +1,20 @@
 use crate::vc::{
-    hash::hash_message_key, parser::exts::{
-        ExpressionExt, TemplateLiteralExt as _,
-    }, Match,
-    MatchLike,
-    MatchRegex,
+    Match, MatchLike, MatchRegex,
+    hash::hash_message_key,
+    parser::exts::{ExpressionExt, TemplateLiteralExt as _},
 };
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use itertools::Itertools;
 use memchr::memmem::Finder;
 use oxc::{
     allocator::Vec as OxcVec,
     ast::ast::{
-        ArrowFunctionExpression, Expression, RegExpLiteral,
-        StringLiteral, TemplateLiteral,
+        ArrowFunctionExpression, Expression, RegExpLiteral, StringLiteral, TemplateLiteral,
     },
     span::{Atom, Span},
 };
 use regress::Regex;
-use std::{
-    borrow::Cow,
-    fmt::Debug,
-    sync::LazyLock,
-};
+use std::{borrow::Cow, fmt::Debug, sync::LazyLock};
 
 #[derive(Debug)]
 pub struct RawPatch<'ast> {
@@ -68,8 +61,6 @@ pub enum RawMatchLike<'ast> {
     ComputedString(Atom<'ast>, Span),
 }
 
-
-
 static PATCH_INTL_REGEX: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"#{intl::([\w$+/]*)(?:::(\w+))?}").unwrap());
 
@@ -104,15 +95,21 @@ pub fn canonicalize_intl(s: &str, needs_regex_escape: bool) -> Result<Cow<'_, st
             matches!(first_char, '0'..='9' | '+' | '/') || it.any(|&c| c == '+' || c == '/')
         };
 
+        let is_hash_type = m.group(2).is_some_and(|g| &s[g] == "hash");
+
         if needs_regex_escape {
             ret.push_str("(?:");
-            ret.push('\\');
+            if !is_hash_type {
+                ret.push('\\');
+            }
         }
-        if has_special_chars {
-            ret.push('[');
-            ret.push('"');
-        } else {
-            ret.push('.');
+        if !is_hash_type {
+            if has_special_chars {
+                ret.push('[');
+                ret.push('"');
+            } else {
+                ret.push('.');
+            }
         }
         for c in key {
             if needs_regex_escape && c == '+' {
@@ -120,13 +117,15 @@ pub fn canonicalize_intl(s: &str, needs_regex_escape: bool) -> Result<Cow<'_, st
             }
             ret.push(c);
         }
-        if has_special_chars {
+
+        if !is_hash_type && has_special_chars {
             ret.push('"');
             if needs_regex_escape {
                 ret.push('\\');
             }
             ret.push(']');
         }
+
         if needs_regex_escape {
             ret.push(')');
         }
@@ -289,6 +288,8 @@ impl Debug for RawMatchLike<'_> {
 
 #[cfg(test)]
 mod tests {
+    use insta::{assert_snapshot};
+
     use super::*;
 
     #[test]
@@ -297,5 +298,12 @@ mod tests {
             r"(?<=children:\[)(?=.{10,80}tooltip:.{0,100}#{intl::ATTACHMENT_UTILITIES_SPOILER})";
         let canon_1 = r"(?<=children:\[)(?=.{10,80}tooltip:.{0,100}(?:\.cuurzA))";
         assert_eq!(canonicalize_intl(regex_1, true).unwrap(), canon_1);
+    }
+
+    #[test]
+    fn test_canonicalize_intl_with_hash() {
+        let src = r##""#{intl::APP_TAG::hash}":"##;
+        assert_snapshot!(canonicalize_intl(src, false).unwrap(), @r#""9RNkeF":"#);
+        assert_snapshot!(canonicalize_intl(src, true).unwrap(), @r#""(?:9RNkeF)":"#);
     }
 }

@@ -1,0 +1,3 @@
+{"run_id":"1775011065-40148654","line":305,"new":{"module_name":"reporter__vc__parser__patches__tests","snapshot_name":"canonicalize_intl_with_hash-2","metadata":{"source":"crates/reporter/src/vc/parser/patches.rs","assertion_line":305,"expression":"canonicalize_intl(src, true).unwrap()"},"snapshot":"\"(?:\\9RNkeF)\":"},"old":{"module_name":"reporter__vc__parser__patches__tests","metadata":{},"snapshot":"\"(?:9RNkeF)\":"}}
+{"run_id":"1775011102-786374695","line":306,"new":null,"old":null}
+{"run_id":"1775011102-786374695","line":307,"new":null,"old":null}

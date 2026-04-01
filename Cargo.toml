@@ -57,7 +57,7 @@ lto = "thin"
 opt-level = 3
 debug = true
 split-debuginfo = "packed"
-strip = false
+strip = true
 panic = "abort"
 
 [profile.dev]

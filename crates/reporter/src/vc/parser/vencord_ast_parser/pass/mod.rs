@@ -1,8 +1,9 @@
 mod flatten_template;
 mod fold_bin_exp;
-mod inline_str;
+mod inline;
 mod util;
 mod string_raw;
+mod inline_enums;
 
 use oxc::{
     allocator::Allocator,
@@ -13,8 +14,9 @@ use oxc_traverse::{Traverse, traverse_mut};
 
 pub use flatten_template::FlattenTemplatePass;
 pub use fold_bin_exp::FoldBinaryExpressionsPass;
-pub use inline_str::InlineConstantLiteralsPass;
+pub use inline::InlineConstantsPass;
 pub use string_raw::EvalStringRawPass;
+pub use inline_enums::InlineEnumsPass;
 
 pub struct PassManager<'ast> {
     program: &'ast mut Program<'ast>,
@@ -57,6 +59,8 @@ impl<'ast> PassManager<'ast> {
 #[expect(clippy::items_after_test_module, reason = "export testing util macro")]
 mod test_util {
     use super::*;
+    pub struct NoopPass;
+    impl Traverse<'_, ()> for NoopPass {}
     pub fn dump_ast(parser: &Program<'_>) -> String {
         Codegen::new()
             .with_options(CodegenOptions {
