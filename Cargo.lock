@@ -3659,6 +3659,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "webpack_chunk_parser"
+version = "0.1.0"
+dependencies = [
+ "oxc",
+]
+
+[[package]]
 name = "webpki-root-certs"
 version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
