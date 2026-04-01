@@ -328,6 +328,7 @@ fn default_vencord_dir() -> PathBuf {
 	env::current_dir().expect("Failed to get current directory")
 }
 
+#[allow(clippy::cognitive_complexity)]
 fn glob_plugins_for_dir(dir: &Path, plugins: &mut Vec<Plugin>) -> Result<()> {
 	for path in fs::read_dir(dir)? {
 		let path = path?;

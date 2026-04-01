@@ -52,7 +52,7 @@ impl JsMode {
     ///
     /// [`Binary`]: JsMode::Binary
     #[must_use]
-    pub const fn is_binary(&self) -> bool {
+    pub const fn is_binary(self) -> bool {
         matches!(self, Self::Binary)
     }
 }

@@ -8,8 +8,10 @@ use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 
 #[wasm_bindgen]
 pub struct Bundle {
+    #[expect(dead_code)]
     metadata: Meta,
     dep_info: DepInfo,
+    #[expect(dead_code)]
     module_sources: ModuleSources,
     modules: Modules,
 }

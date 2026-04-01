@@ -374,6 +374,7 @@ impl<'ast> VencordAstParser<'ast> {
 	}
 	// TODO: skip all && noWarn patches?
 	// maybe noop the replace and just test that the find matches at least once
+	#[allow(clippy::cognitive_complexity)]
 	fn raw_patches<'a: 'ast>(&'a self) -> Result<OxcVec<'ast, RawPatch<'ast>>> {
 		let mut ret = OxcVec::new_in(self.alloc);
 		let Some(patches) = self

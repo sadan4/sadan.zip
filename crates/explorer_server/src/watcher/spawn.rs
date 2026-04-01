@@ -59,9 +59,6 @@ pub mod bin {
     use crate::{BIN_EXT};
     use anyhow::Result;
     use const_format::formatc;
-    use std::fs::Permissions;
-    #[cfg(not(windows))]
-    use std::os::unix::fs::PermissionsExt as _;
     use std::{env, io, path::PathBuf, sync::LazyLock};
     use tokio::fs;
     use tokio::process;
@@ -91,7 +88,11 @@ pub mod bin {
             }
             fs::write(&*bin_path, BIN_DATA).await?;
             #[cfg(not(windows))]
-            fs::set_permissions(&*bin_path, Permissions::from_mode(0o700)).await?;
+            {
+                use std::fs::Permissions;
+                use std::os::unix::fs::PermissionsExt as _;
+                fs::set_permissions(&*bin_path, Permissions::from_mode(0o700)).await?;
+            }
             Ok(())
         }
 

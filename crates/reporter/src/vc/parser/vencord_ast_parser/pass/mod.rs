@@ -60,6 +60,7 @@ impl<'ast> PassManager<'ast> {
 #[expect(clippy::items_after_test_module, reason = "export testing util macro")]
 mod test_util {
 	use super::*;
+	#[expect(dead_code)]
 	pub struct NoopPass;
 	impl Traverse<'_, ()> for NoopPass {}
 	pub fn dump_ast(parser: &Program<'_>) -> String {

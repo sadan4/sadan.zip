@@ -271,91 +271,154 @@ impl<'a> ReporterState<'a> {
 				.v
 				.as_regex()
 				.is_some_and(|r| r.flags.contains(RegExpFlags::G));
-			let pat = match &r.match_.v {
-				Match::Str(_) => {
-					unreachable!()
-				}
-				Match::Regex(v) => match v.regex() {
-					Ok(r) => r,
-					Err(e) => {
-						report(ReporterError::BadRegexSyntax {
-							plugin_id,
-							source: anyhow!("{e:?}"),
-							regex_span: r.match_.s.into(),
-							expanded: format!("/{}/{}", v.pattern, v.flags),
-						});
-						continue;
-					}
-				},
+
+			let Some(pat) =
+				Self::compile_replacement_pattern(r, plugin_id, &mut report)
+			else {
+				continue;
 			};
 
-			let mut it = pat.find_iter(last_src.as_str());
-
-			if it.next().is_none() {
-				let mut err = ReporterError::ReplaceMatchNotFound {
-					match_span: r.match_.s.into(),
-					module_id: m_id,
-					plugin_id,
-				};
-				if no_warn {
-					err = ReporterError::NoWarn(Box::new(err));
-				}
-				report(err);
+			if !Self::validate_match_occurrence(
+				pat,
+				&last_src,
+				is_global,
+				no_warn,
+				r,
+				m_id,
+				plugin_id,
+				&mut report,
+			) {
 				continue;
 			}
-			if !is_global && it.next().is_some() {
-				report(ReporterError::ReplaceMatchAmbiguous {
-					match_span: r.match_.s.into(),
-					plugin_id,
-					module_id: m_id,
-				});
-			}
 
-			let new_src = match &r.replace.v {
-				Replacer::Str(s) => {
-					if is_global {
-						pat.replace_all(&last_src, s.as_str())
-					} else {
-						pat.replace(&last_src, s.as_str())
-					}
-				}
-				Replacer::Template(e) => {
-					if is_global {
-						pat.replace_all_with(
-							&last_src,
-							e.make_replacer(&last_src),
-						)
-					} else {
-						pat.replace_with(&last_src, e.make_replacer(&last_src))
-					}
-				}
-			};
+			let new_src = Self::apply_replacement(
+				pat,
+				&last_src,
+				&r.replace.v,
+				is_global,
+			);
 
-			let chk = {
-				let chk = check_syntax_errors(
-					&self.alloc,
-					&new_src,
-					self.stats.get(&m_id).copied(),
-				);
-				self.alloc.reset();
-				chk
-			};
-
-			match chk {
-				Ok(s) => {
-					self.stats.entry(m_id).or_insert(s);
-				}
-				Err(e) => report(ReporterError::ReplaceSyntaxError {
+			if let Err(e) = self.check_and_update_syntax(&new_src, m_id) {
+				report(ReporterError::ReplaceSyntaxError {
 					replace_span: r.replace.s.into(),
 					cause: e,
 					module_id: m_id,
 					plugin_id,
-				}),
+				});
 			}
 
 			last_src = new_src;
 		}
 		status
+	}
+
+	fn compile_replacement_pattern<'r>(
+		replacement: &'r crate::vc::Replacement,
+		plugin_id: u16,
+		report: &mut impl FnMut(ReporterError),
+	) -> Option<&'r regress::Regex> {
+		match &replacement.match_.v {
+			Match::Str(_) => {
+				unreachable!()
+			}
+			Match::Regex(v) => match v.regex() {
+				Ok(r) => Some(r),
+				Err(e) => {
+					report(ReporterError::BadRegexSyntax {
+						plugin_id,
+						source: anyhow!("{e:?}"),
+						regex_span: replacement.match_.s.into(),
+						expanded: format!("/{}/{}", v.pattern, v.flags),
+					});
+					None
+				}
+			},
+		}
+	}
+
+	#[allow(clippy::too_many_arguments)]
+	fn validate_match_occurrence(
+		pat: &regress::Regex,
+		src: &str,
+		is_global: bool,
+		no_warn: bool,
+		replacement: &crate::vc::Replacement,
+		m_id: u32,
+		plugin_id: u16,
+		report: &mut impl FnMut(ReporterError),
+	) -> bool {
+		let mut it = pat.find_iter(src);
+
+		if it.next().is_none() {
+			let mut err = ReporterError::ReplaceMatchNotFound {
+				match_span: replacement.match_.s.into(),
+				module_id: m_id,
+				plugin_id,
+			};
+			if no_warn {
+				err = ReporterError::NoWarn(Box::new(err));
+			}
+			report(err);
+			return false;
+		}
+
+		if !is_global && it.next().is_some() {
+			report(ReporterError::ReplaceMatchAmbiguous {
+				match_span: replacement.match_.s.into(),
+				plugin_id,
+				module_id: m_id,
+			});
+		}
+
+		true
+	}
+
+	fn apply_replacement(
+		pat: &regress::Regex,
+		src: &str,
+		replacer: &Replacer,
+		is_global: bool,
+	) -> String {
+		match replacer {
+			Replacer::Str(s) => {
+				if is_global {
+					pat.replace_all(src, s.as_str())
+				} else {
+					pat.replace(src, s.as_str())
+				}
+			}
+			Replacer::Template(e) => {
+				if is_global {
+					pat.replace_all_with(src, e.make_replacer(src))
+				} else {
+					pat.replace_with(src, e.make_replacer(src))
+				}
+			}
+		}
+	}
+
+	fn check_and_update_syntax(
+		&mut self,
+		new_src: &str,
+		m_id: u32,
+	) -> Result<(), Box<dyn Diagnostic + Send + Sync>> {
+		let result = {
+			let chk = check_syntax_errors(
+				&self.alloc,
+				new_src,
+				self.stats.get(&m_id).copied(),
+			);
+			self.alloc.reset();
+			chk
+		};
+
+		match result {
+			Ok(stats) => {
+				self.stats.entry(m_id).or_insert(stats);
+				Ok(())
+			}
+			Err(e) => Err(e),
+		}
 	}
 }
 

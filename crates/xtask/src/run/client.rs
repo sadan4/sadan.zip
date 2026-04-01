@@ -23,6 +23,7 @@ enum Target {
 }
 
 impl Command {
+    #[expect(dead_code)]
     fn run_client(&self) -> Result<()> {
         todo!()
     }

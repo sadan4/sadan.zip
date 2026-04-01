@@ -9,9 +9,7 @@ use oxc::{
 use oxc_ecmascript::{
 	GlobalContext,
 	constant_evaluation::{
-		ConstantEvaluation,
-		ConstantEvaluationCtx,
-		ConstantValue,
+		ConstantEvaluation, ConstantEvaluationCtx, ConstantValue,
 	},
 	side_effects::MayHaveSideEffectsContext,
 };
@@ -19,13 +17,101 @@ use oxc_traverse::Traverse;
 use std::collections::HashMap;
 
 use crate::vc::parser::{
-	exts::ExpressionExt,
-	vencord_ast_parser::pass::util::Ctx,
+	exts::ExpressionExt, vencord_ast_parser::pass::util::Ctx,
 };
 
 #[derive(Default, Debug)]
 pub struct InlineEnumsPass<'ast> {
 	value_map: HashMap<SymbolId, HashMap<Atom<'ast>, (Span, EnumValue<'ast>)>>,
+}
+
+/// Recursively inline enum member references within an expression
+/// This is used when processing enum initializers that reference other enum members
+fn inline_enum_references_in_expr<'ast>(
+	expr: &Expression<'ast>,
+	tracker: &EnumValueTracker<'_, 'ast>,
+	enum_symbol_id: SymbolId,
+	value_map: &HashMap<Atom<'ast>, (Span, EnumValue<'ast>)>,
+	ctx: &Ctx<'_, 'ast, ()>,
+) -> Expression<'ast> {
+	match expr {
+		// Handle static member access like `Colors.Blue`
+		Expression::StaticMemberExpression(member_expr) => {
+			// Check if this is a reference to the current enum
+			if let Some(enum_obj) = member_expr.object.as_identifier()
+				&& let Some(ref_sym_id) = ctx
+					.scoping()
+					.get_reference(enum_obj.reference_id())
+					.symbol_id()
+				&& ref_sym_id == enum_symbol_id
+			{
+				// This is a reference to our enum, try to inline it
+				if let Some((span, enum_value)) =
+					value_map.get(&member_expr.property.name.as_atom())
+				{
+					return enum_value_to_expression(enum_value, *span, ctx);
+				}
+			}
+			// If we can't inline it, clone it as-is
+			expr.clone_in(ctx.a())
+		}
+		// Handle identifier references like `Red`
+		Expression::Identifier(ident) => {
+			// Check if this identifier is in the tracker (i.e., it's a reference to an enum member)
+			let ref_id = ident.reference_id();
+			if let Some(enum_value) = tracker.0.get(&ref_id) {
+				return enum_value_to_expression(enum_value, ident.span(), ctx);
+			}
+			// If not in tracker, clone as-is
+			expr.clone_in(ctx.a())
+		}
+		// For binary expressions, recursively process both sides
+		Expression::BinaryExpression(bin_expr) => {
+			let left = inline_enum_references_in_expr(
+				&bin_expr.left,
+				tracker,
+				enum_symbol_id,
+				value_map,
+				ctx,
+			);
+			let right = inline_enum_references_in_expr(
+				&bin_expr.right,
+				tracker,
+				enum_symbol_id,
+				value_map,
+				ctx,
+			);
+			ctx.ast.expression_binary(
+				bin_expr.span,
+				left,
+				bin_expr.operator,
+				right,
+			)
+		}
+		// For other expression types, clone as-is
+		// TODO: Add more expression types if needed (unary, parenthesized, etc.)
+		_ => expr.clone_in(ctx.a()),
+	}
+}
+
+/// Convert an [`EnumValue`] to an Expression
+fn enum_value_to_expression<'ast>(
+	value: &EnumValue<'ast>,
+	span: Span,
+	ctx: &Ctx<'_, 'ast, ()>,
+) -> Expression<'ast> {
+	match value {
+		EnumValue::Number(n) => ctx.ast.expression_numeric_literal(
+			span,
+			*n,
+			None,
+			NumberBase::Decimal,
+		),
+		EnumValue::String(atom) => ctx
+			.ast
+			.expression_string_literal(span, *atom, None),
+		EnumValue::Computed(expr) => expr.clone_in(ctx.a()),
+	}
 }
 
 #[derive(Debug)]
@@ -87,6 +173,8 @@ impl<'ast> Traverse<'ast, ()> for InlineEnumsPass<'ast> {
 		let mut tracker = EnumValueTracker::new(&ctx);
 		let mut value_map = HashMap::new();
 		let enum_scope_id = node.body.scope_id();
+		let enum_symbol_id = node.id.symbol_id();
+
 		for v in &node.body.members {
 			let (span, value) = match (&mut last_value, &v.initializer) {
 				// something like
@@ -98,9 +186,11 @@ impl<'ast> Traverse<'ast, ()> for InlineEnumsPass<'ast> {
 				// }
 				// ```
 				(None, None) => return,
-				(_, Some(expr)) => (
-					expr.span(),
-					match expr.evaluate_value(&tracker) {
+				(_, Some(expr)) => {
+					// First evaluate the expression to see if we can get a constant value
+					let evaluated = expr.evaluate_value(&tracker);
+
+					let value = match evaluated {
 						Some(ConstantValue::String(s)) => {
 							let atom = Atom::from_cow_in(&s, ctx.a());
 							EnumValue::String(atom)
@@ -111,19 +201,30 @@ impl<'ast> Traverse<'ast, ()> for InlineEnumsPass<'ast> {
 							EnumValue::Number(n)
 						}
 						None => {
+							// If we can't evaluate it to a constant, we need to inline any enum references
+							let inlined_expr = inline_enum_references_in_expr(
+								expr,
+								&tracker,
+								enum_symbol_id,
+								&value_map,
+								&ctx,
+							);
 							last_value = None;
-							EnumValue::Computed(expr.clone_in(ctx.a()))
+							EnumValue::Computed(inlined_expr)
 						}
 						Some(_) => panic!(
 							"Invalid Enum. Constant enum member initializers must evaluate to a string or a numeric literal."
 						),
-					},
-				),
+					};
+
+					(expr.span(), value)
+				}
 				(Some(prev), None) => {
 					*prev += 1;
 					(v.id.span(), EnumValue::Number(f64::from(*prev)))
 				}
 			};
+
 			// the other types of member names don't matter because they can't be referenced
 			if let TSEnumMemberName::Identifier(id) = &v.id {
 				// oxc does not bind enum member identifiers to symbol ids, so we have to find them
@@ -414,14 +515,13 @@ mod tests {
 	}
 
 	#[test]
-	#[ignore = "TODO"]
 	fn test_enum_member_references_within_enum() {
 		let code = /* language=Typescript */ r#"
             enum Colors {
                 Red = 0,
                 Green = 1,
                 Blue = 2,
-                Purple = Red + Blue
+                Purple = Red + Colors.Blue
             }
             const color = Colors.Purple;
         "#;
@@ -431,7 +531,7 @@ mod tests {
 			Red = 0,
 			Green = 1,
 			Blue = 2,
-			Purple = Red + Blue
+			Purple = Red + Colors.Blue
 		}
 		const color = 0 + 2;
 		");
