@@ -1,5 +1,5 @@
 ---
-source: crates/reporter/src/vc/parser/vencord_ast_parser/tests/mod.rs
+source: crates/vencord_ast_parser/src/tests/mod.rs
 expression: patches
 ---
 [

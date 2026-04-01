@@ -8,7 +8,7 @@ use std::{
 use crate::{
 	diag::ReporterError,
 	util::Stage,
-	vc::{Match, Patch, Plugin, Replacer},
+	vc::Plugin,
 };
 use anyhow::{Result, anyhow};
 use derive_more::IsVariant;
@@ -27,6 +27,7 @@ use tokio::{
 	sync::{mpsc, oneshot},
 	task,
 };
+use vencord_ast_parser::{Match, Patch, Replacement, Replacer};
 
 #[derive(Debug)]
 pub enum Msg {
@@ -313,7 +314,7 @@ impl<'a> ReporterState<'a> {
 	}
 
 	fn compile_replacement_pattern<'r>(
-		replacement: &'r crate::vc::Replacement,
+		replacement: &'r Replacement,
 		plugin_id: u16,
 		report: &mut impl FnMut(ReporterError),
 	) -> Option<&'r regress::Regex> {
@@ -342,7 +343,7 @@ impl<'a> ReporterState<'a> {
 		src: &str,
 		is_global: bool,
 		no_warn: bool,
-		replacement: &crate::vc::Replacement,
+		replacement: &Replacement,
 		m_id: u32,
 		plugin_id: u16,
 		report: &mut impl FnMut(ReporterError),

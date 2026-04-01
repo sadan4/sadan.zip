@@ -1,5 +1,6 @@
 ---
-source: crates/reporter/src/vc/parser/vencord_ast_parser/tests/mod.rs
+source: crates/vencord_ast_parser/src/vencord_ast_parser/tests/mod.rs
+assertion_line: 51
 expression: patches
 ---
 [
@@ -9,44 +10,44 @@ expression: patches
     no_warn: false,
     find: MatchLike(
       v: Str(FinderDef(
-        needle: "Unexpected value for option",
+        needle: ".rt0ERW",
       )),
       s: {
-        "start": 136,
-        "end": 165,
+        "start": 164,
+        "end": 208,
       },
     ),
     replacement: [
       Replacement(
         match_: MatchLike(
           v: Regex(MatchRegex(
-            pattern: ",((?:[A-Za-z_$][\\w]*))\\.execute\\(((?:[A-Za-z_$][\\w]*)),((?:[A-Za-z_$][\\w]*))\\)",
+            pattern: "permissionOverwrites\\[.+?(?:[A-Za-z_$][\\w]*)=(?<=context:((?:[A-Za-z_$][\\w]*))}.+?)(?=(.+?)VIEW_CHANNEL)",
             flags: RegExpFlagsDef(
               bits: 0,
             ),
           )),
           s: {
-            "start": 217,
-            "end": 246,
+            "start": 378,
+            "end": 450,
           },
         ),
         replace: ReplaceLike(
           v: Template(TemplateEvaluator(
             lits: [
-              ",Vencord.Api.Commands._handleCommand(",
-              ", ",
-              ", ",
-              ")",
+              "",
+              "!Vencord.Webpack.Common.PermissionStore.can(1048576n,",
+              ")?",
+              "CONNECT):",
             ],
             captures: [
+              0,
               1,
               2,
-              3,
             ],
           )),
           s: {
-            "start": 273,
-            "end": 359,
+            "start": 481,
+            "end": 603,
           },
         ),
         no_warn: false,

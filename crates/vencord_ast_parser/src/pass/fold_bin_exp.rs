@@ -1,20 +1,15 @@
-use std::mem;
-
+use crate::pass::util::{Ctx, empty_template_element_value};
+use ast_parser::ExpressionExt;
 use oxc::{
 	ast::ast::{BinaryOperator, Expression, TemplateElementValue},
 	span::{Atom, Span},
 };
 use oxc_ecmascript::constant_evaluation::{
-	ConstantValue,
-	binary_operation_evaluate_value,
+	ConstantValue, binary_operation_evaluate_value,
 };
 use oxc_traverse::Traverse;
+use std::mem;
 use tracing::warn;
-
-use crate::vc::parser::{
-	exts::ExpressionExt,
-	vencord_ast_parser::pass::util::{Ctx, empty_template_element_value},
-};
 
 pub struct FoldBinaryExpressionsPass;
 

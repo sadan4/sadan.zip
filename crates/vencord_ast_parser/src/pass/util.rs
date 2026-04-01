@@ -1,15 +1,11 @@
-use crate::vc::parser::exts::TemplateLiteralExt;
+use ast_parser::TemplateLiteralExt;
 use derive_more::{Deref, DerefMut};
 use itertools::Itertools;
 use oxc::{
 	allocator::{Allocator, AllocatorAccessor, Dummy, StringBuilder},
 	ast::ast::{
-		BigintBase,
-		Expression,
-		IdentifierReference,
-		NumberBase,
-		TemplateElementValue,
-		TemplateLiteral,
+		BigintBase, Expression, IdentifierReference, NumberBase,
+		TemplateElementValue, TemplateLiteral,
 	},
 	minifier::PropertyReadSideEffects,
 	semantic::IsGlobalReference,
@@ -18,9 +14,7 @@ use oxc::{
 use oxc_ecmascript::{
 	GlobalContext,
 	constant_evaluation::{
-		ConstantEvaluation,
-		ConstantEvaluationCtx,
-		ConstantValue,
+		ConstantEvaluation, ConstantEvaluationCtx, ConstantValue,
 	},
 	side_effects::MayHaveSideEffectsContext,
 };
@@ -105,7 +99,7 @@ impl<'a, 'ast: 'a, State> Ctx<'a, 'ast, State> {
 		ret.into()
 	}
 	/// used with [`std::mem::replace`]
-	/// ```
+	/// ```ignore
 	/// fn do_something<'ast>(
 	///     node: &'ast mut Expression<'ast>,
 	///     ctx: Ctx<'_, 'ast, ()>,

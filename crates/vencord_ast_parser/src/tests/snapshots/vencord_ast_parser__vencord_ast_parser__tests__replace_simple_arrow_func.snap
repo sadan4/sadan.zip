@@ -1,5 +1,6 @@
 ---
-source: crates/reporter/src/vc/parser/vencord_ast_parser/tests/mod.rs
+source: crates/vencord_ast_parser/src/vencord_ast_parser/tests/mod.rs
+assertion_line: 33
 expression: patches
 ---
 [
@@ -9,50 +10,44 @@ expression: patches
     no_warn: false,
     find: MatchLike(
       v: Str(FinderDef(
-        needle: ".toggleGuildFolderExpand(",
+        needle: "Unexpected value for option",
       )),
       s: {
-        "start": 187,
-        "end": 214,
+        "start": 136,
+        "end": 165,
       },
     ),
     replacement: [
       Replacement(
         match_: MatchLike(
           v: Regex(MatchRegex(
-            pattern: "(?<=folderNode:((?:[A-Za-z_$][\\w]*)),expanded:)(?:[A-Za-z_$][\\w]*)(?=,)",
+            pattern: ",((?:[A-Za-z_$][\\w]*))\\.execute\\(((?:[A-Za-z_$][\\w]*)),((?:[A-Za-z_$][\\w]*))\\)",
             flags: RegExpFlagsDef(
               bits: 0,
             ),
           )),
           s: {
-            "start": 590,
-            "end": 629,
+            "start": 217,
+            "end": 246,
           },
         ),
         replace: ReplaceLike(
           v: Template(TemplateEvaluator(
             lits: [
-              "typeof ",
-              "===\"boolean\"?",
-              ":",
-              ".has(",
-              ".id),betterFoldersExpandedIds:",
-              " instanceof Set?",
-              ":void 0",
+              ",Vencord.Api.Commands._handleCommand(",
+              ", ",
+              ", ",
+              ")",
             ],
             captures: [
-              0,
-              0,
-              0,
               1,
-              0,
-              0,
+              2,
+              3,
             ],
           )),
           s: {
-            "start": 660,
-            "end": 983,
+            "start": 273,
+            "end": 359,
           },
         ),
         no_warn: false,

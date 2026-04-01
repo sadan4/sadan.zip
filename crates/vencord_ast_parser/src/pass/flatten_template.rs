@@ -1,7 +1,5 @@
-use crate::vc::parser::{
-	exts::{ExpressionExt, TemplateLiteralExt},
-	vencord_ast_parser::pass::util::Ctx,
-};
+use crate::pass::util::Ctx;
+use ast_parser::{ExpressionExt, TemplateLiteralExt};
 use oxc::{
 	ast::ast::{Expression, TemplateElementValue},
 	span::GetSpan as _,

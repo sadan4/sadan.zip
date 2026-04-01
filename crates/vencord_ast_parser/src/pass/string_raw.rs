@@ -1,13 +1,10 @@
+use super::util::Ctx;
+use ast_parser::ExpressionExt;
 use oxc::{
 	allocator::TakeIn,
 	ast::ast::{Expression, TemplateElementValue},
 };
 use oxc_traverse::Traverse;
-
-use crate::vc::parser::{
-	exts::ExpressionExt,
-	vencord_ast_parser::pass::util::Ctx,
-};
 
 pub struct EvalStringRawPass;
 

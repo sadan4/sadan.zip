@@ -12,6 +12,7 @@ tokio = { workspace = true, features = [
 ] }
 explorer_types.workspace = true
 explorer_server_core.workspace = true
+vencord_ast_parser.workspace = true
 reqwest.workspace = true
 anyhow.workspace = true
 clap.workspace = true

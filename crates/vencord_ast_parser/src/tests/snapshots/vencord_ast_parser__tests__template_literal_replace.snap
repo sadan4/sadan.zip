@@ -1,0 +1,44 @@
+---
+source: crates/vencord_ast_parser/src/tests/mod.rs
+expression: patches
+---
+[
+  Patch(
+    plugin_id: None,
+    all: false,
+    no_warn: false,
+    find: MatchLike(
+      v: Str(FinderDef(
+        needle: "disableArrowKeySeek:!0",
+      )),
+      s: {
+        "start": 410,
+        "end": 434,
+      },
+    ),
+    replacement: [
+      Replacement(
+        match_: MatchLike(
+          v: Regex(MatchRegex(
+            pattern: "useFullWidth:!0,shouldLink:",
+            flags: RegExpFlagsDef(
+              bits: 0,
+            ),
+          )),
+          s: {
+            "start": 508,
+            "end": 537,
+          },
+        ),
+        replace: ReplaceLike(
+          v: Str("id:\"vc-imgzoom-magnify-modal\",$0"),
+          s: {
+            "start": 568,
+            "end": 591,
+          },
+        ),
+        no_warn: false,
+      ),
+    ],
+  ),
+]

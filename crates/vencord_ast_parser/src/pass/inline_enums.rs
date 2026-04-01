@@ -1,3 +1,5 @@
+use super::util::Ctx;
+use ast_parser::ExpressionExt;
 use derive_more::{Deref, DerefMut};
 use oxc::{
 	allocator::{Allocator, CloneIn},
@@ -15,10 +17,6 @@ use oxc_ecmascript::{
 };
 use oxc_traverse::Traverse;
 use std::collections::HashMap;
-
-use crate::vc::parser::{
-	exts::ExpressionExt, vencord_ast_parser::pass::util::Ctx,
-};
 
 #[derive(Default, Debug)]
 pub struct InlineEnumsPass<'ast> {

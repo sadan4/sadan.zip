@@ -1,10 +1,5 @@
-use crate::vc::{
-	Match,
-	MatchLike,
-	MatchRegex,
-	hash::hash_message_key,
-	parser::exts::{ExpressionExt, TemplateLiteralExt as _},
-};
+use crate::{Match, MatchLike, MatchRegex, hash::hash_message_key};
+use ast_parser::{ExpressionExt, TemplateLiteralExt as _};
 use anyhow::{Context, Result, bail};
 use itertools::Itertools;
 use memchr::memmem::Finder;

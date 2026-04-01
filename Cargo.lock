@@ -89,6 +89,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f202df86484c868dbad7eaa557ef785d5c66295e41b460ef922eca0723b842c"
 
 [[package]]
+name = "ast_parser"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "itertools",
+ "oxc",
+ "oxc_ecmascript",
+]
+
+[[package]]
 name = "atomic-waker"
 version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2507,6 +2517,7 @@ dependencies = [
  "tracing-subscriber",
  "unicode-segmentation",
  "unicode-width",
+ "vencord_ast_parser",
  "xxhash-rust",
  "zstd",
 ]
@@ -3500,6 +3511,27 @@ name = "valuable"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ba73ea9cf16a25df0c8caa16c51acb937d5712a8429db78a3ee29d5dcacd3a65"
+
+[[package]]
+name = "vencord_ast_parser"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "ast_parser",
+ "bitflags",
+ "derive_more",
+ "insta",
+ "itertools",
+ "memchr",
+ "num-bigint",
+ "oxc",
+ "oxc_ecmascript",
+ "oxc_traverse",
+ "regress",
+ "serde",
+ "tracing",
+ "xxhash-rust",
+]
 
 [[package]]
 name = "version_check"

@@ -1,4 +1,4 @@
-use crate::vc::parser::vencord_ast_parser::{VencordAstParser, pass::dump_ast};
+use crate::{VencordAstParser, pass::dump_ast};
 use insta::assert_ron_snapshot;
 use oxc::allocator::Allocator;
 

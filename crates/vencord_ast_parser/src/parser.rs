@@ -1,52 +1,27 @@
-mod pass;
-
-use crate::vc::{
-	Patch,
-	ReplaceLike,
-	Replacement,
-	Replacer,
-	TemplateEvaluator,
-	parser::{
-		ast_parser::{AstParser, ESModuleParser, parse_for_traverse},
-		exts::{
-			ArrayExpressionElementExt as _,
-			BindingPatternExt,
-			ExpressionExt,
-			ImportDeclarationExt,
-			ObjectExpressionExt,
-		},
-		patches::{
-			RawMatchLike,
-			RawPatch,
-			RawReplace,
-			RawReplacement,
-			canonicalize_match_like,
-			canonicalize_replace_for_regress,
-		},
-		vencord_ast_parser::pass::{
-			EvalStringRawPass,
-			FlattenTemplatePass,
-			FoldBinaryExpressionsPass,
-			InlineConstantsPass,
-			InlineEnumsPass,
-			PassManager,
-		},
+use crate::{
+	Patch, ReplaceLike, Replacement, Replacer, TemplateEvaluator,
+	pass::{
+		EvalStringRawPass, FlattenTemplatePass, FoldBinaryExpressionsPass,
+		InlineConstantsPass, InlineEnumsPass, PassManager,
+	},
+	patches::{
+		RawMatchLike, RawPatch, RawReplace, RawReplacement,
+		canonicalize_match_like, canonicalize_replace_for_regress,
 	},
 };
 use anyhow::{Context, Result, bail};
+use ast_parser::{
+	ArrayExpressionElementExt as _, AstParser, BindingPatternExt,
+	ESModuleParser, ExpressionExt, ImportDeclarationExt, ObjectExpressionExt,
+	parse_for_traverse,
+};
 use oxc::{
 	allocator::{Allocator, HashMap as OxcHashMap, Vec as OxcVec},
 	ast::{
-		AstBuilder,
-		AstKind,
+		AstBuilder, AstKind,
 		ast::{
-			Argument,
-			ArrayExpressionElement,
-			ArrowFunctionExpression,
-			Expression,
-			ObjectExpression,
-			Program,
-			SpreadElement,
+			Argument, ArrayExpressionElement, ArrowFunctionExpression,
+			Expression, ObjectExpression, Program, SpreadElement,
 			StringLiteral,
 		},
 	},
@@ -62,14 +37,15 @@ use oxc_ecmascript::{
 use tracing::{debug, trace, warn};
 
 pub struct VencordAstParser<'ast> {
-	alloc: &'ast Allocator,
-	ast_builder: AstBuilder<'ast>,
-	prog: &'ast Program<'ast>,
-	sema: Semantic<'ast>,
+	pub(crate) alloc: &'ast Allocator,
+	pub(crate) ast_builder: AstBuilder<'ast>,
+	pub(crate) prog: &'ast Program<'ast>,
+	pub(crate) sema: Semantic<'ast>,
 }
 
 const DEFINE_PLUGIN_IMPORT_SOURCE: &str = "@utils/types";
 
+// TODO: get webpack finds
 impl<'ast> VencordAstParser<'ast> {
 	pub fn try_new(alloc: &'ast Allocator, source: &'ast str) -> Result<Self> {
 		let pass_data = parse_for_traverse(alloc, source, SourceType::tsx())?;
@@ -613,6 +589,3 @@ impl<'ast> AstParser<'ast> for VencordAstParser<'ast> {
 }
 
 impl<'ast> ESModuleParser<'ast> for VencordAstParser<'ast> {}
-
-#[cfg(test)]
-mod tests;

@@ -1,23 +1,16 @@
-use std::collections::HashMap;
-
+use super::util::Ctx;
+use ast_parser::{BindingPatternExt, ExpressionExt};
 use oxc::{
 	allocator::CloneIn,
 	ast::ast::{
-		Expression,
-		IdentifierReference,
-		Program,
-		VariableDeclaration,
+		Expression, IdentifierReference, Program, VariableDeclaration,
 		VariableDeclarator,
 	},
 	semantic::{ReferenceId, SymbolId},
 };
 use oxc_ecmascript::constant_evaluation::IsLiteralValue;
 use oxc_traverse::{Traverse, TraverseCtx};
-
-use crate::vc::parser::{
-	exts::{BindingPatternExt, ExpressionExt},
-	vencord_ast_parser::pass::util::Ctx,
-};
+use std::collections::HashMap;
 
 #[derive(Default, Debug)]
 pub struct InlineConstantsPass<'ast> {

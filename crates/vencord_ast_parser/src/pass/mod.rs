@@ -5,17 +5,16 @@ mod inline_enums;
 mod string_raw;
 mod util;
 
+pub use flatten_template::FlattenTemplatePass;
+pub use fold_bin_exp::FoldBinaryExpressionsPass;
+pub use inline::InlineConstantsPass;
+pub use inline_enums::InlineEnumsPass;
 use oxc::{
 	allocator::Allocator,
 	ast::ast::Program,
 	semantic::{Scoping, Semantic, SemanticBuilder},
 };
 use oxc_traverse::{Traverse, traverse_mut};
-
-pub use flatten_template::FlattenTemplatePass;
-pub use fold_bin_exp::FoldBinaryExpressionsPass;
-pub use inline::InlineConstantsPass;
-pub use inline_enums::InlineEnumsPass;
 pub use string_raw::EvalStringRawPass;
 
 pub struct PassManager<'ast> {
@@ -86,27 +85,20 @@ mod test_util {
 	macro_rules! test_pass {
 		($code:expr, $pass:expr) => {{
 			let alloc = oxc::allocator::Allocator::new();
-			let pass_data = $crate::vc::parser::ast_parser::parse_for_traverse(
+			let pass_data = ::ast_parser::parse_for_traverse(
 				&alloc,
 				$code,
 				::oxc::span::SourceType::tsx(),
 			);
 			let (prog, _) =
-				$crate::vc::parser::vencord_ast_parser::pass::PassManager::new(
-					&alloc,
-					pass_data.unwrap(),
-				)
-				.run_pass($pass)
-				.finish();
-			$crate::vc::parser::vencord_ast_parser::pass::dump_ast(prog)
+				$crate::pass::PassManager::new(&alloc, pass_data.unwrap())
+					.run_pass($pass)
+					.finish();
+			$crate::pass::dump_ast(prog)
 		}};
 	}
 	use oxc::codegen::{
-		Codegen,
-		CodegenOptions,
-		CommentOptions,
-		IndentChar,
-		LegalComment,
+		Codegen, CodegenOptions, CommentOptions, IndentChar, LegalComment,
 	};
 }
 

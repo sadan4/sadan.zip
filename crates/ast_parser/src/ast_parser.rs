@@ -1,4 +1,4 @@
-use crate::vc::parser::exts::ModuleDeclarationExt;
+use crate::exts::ModuleDeclarationExt;
 use anyhow::{Result, bail};
 use itertools::Itertools;
 use oxc::{

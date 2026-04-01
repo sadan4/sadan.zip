@@ -1,33 +1,19 @@
-use std::borrow::Cow;
-
 use anyhow::{Result, bail};
 use itertools::Itertools as _;
 use oxc::{
 	allocator::Box as OxcBox,
 	ast::ast::{
-		ArrayExpression,
-		ArrayExpressionElement,
-		ArrowFunctionExpression,
-		BinaryExpression,
-		BindingIdentifier,
-		BindingPattern,
-		CallExpression,
-		Expression,
-		IdentifierReference,
-		ImportDeclaration,
-		ImportDeclarationSpecifier,
-		ModuleDeclaration,
-		ObjectExpression,
-		ObjectProperty,
-		PropertyKey,
-		SpreadElement,
-		StringLiteral,
-		TaggedTemplateExpression,
-		TemplateLiteral,
+		ArrayExpression, ArrayExpressionElement, ArrowFunctionExpression,
+		BinaryExpression, BindingIdentifier, BindingPattern, CallExpression,
+		Expression, IdentifierReference, ImportDeclaration,
+		ImportDeclarationSpecifier, ModuleDeclaration, ObjectExpression,
+		ObjectProperty, PropertyKey, SpreadElement, StringLiteral,
+		TaggedTemplateExpression, TemplateLiteral,
 	},
 	semantic::SymbolId,
 };
 use oxc_ecmascript::{GlobalContext, constant_evaluation::IsLiteralValue};
+use std::borrow::Cow;
 
 pub trait ModuleDeclarationExt {
 	fn as_import_declaration(
