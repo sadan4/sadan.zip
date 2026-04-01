@@ -224,12 +224,6 @@ pub trait ExpressionExt<'ast> {
             _ => None,
         }
     }
-    fn as_tagged_template(&self) -> Option<&TaggedTemplateExpression<'ast>> {
-        match self.as_expr_()? {
-            Expression::TaggedTemplateExpression(e) => Some(e.as_ref()),
-            _ => None,
-        }
-    }
     fn as_tagged_template_mut(&mut self) -> Option<&mut TaggedTemplateExpression<'ast>> {
         match self.as_expr_mut_()? {
             Expression::TaggedTemplateExpression(e) => Some(e.as_mut()),

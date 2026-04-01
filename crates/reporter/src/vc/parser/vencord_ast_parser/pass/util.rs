@@ -78,7 +78,7 @@ impl<'a, 'ast: 'a, State> Ctx<'a, 'ast, State> {
         let strs = q_strs.interleave(expr_strs);
         let mut ret = StringBuilder::new_in(self.a());
         for s in strs {
-            ret.push_str(&s)
+            ret.push_str(&s);
         }
         ret.into()
     }
@@ -99,11 +99,12 @@ impl<'a, 'ast: 'a, State> Ctx<'a, 'ast, State> {
     pub fn take<T: Dummy<'ast>>(&self, node: &mut T) -> T {
         mem::replace(node, self.dummy())
     }
-    pub fn empty_template_element_value(&self) -> TemplateElementValue<'static> {
-        TemplateElementValue {
-            raw: Atom::from(""),
-            cooked: Some(Atom::from("")),
-        }
+}
+
+pub fn empty_template_element_value() -> TemplateElementValue<'static> {
+    TemplateElementValue {
+        raw: Atom::from(""),
+        cooked: Some(Atom::from("")),
     }
 }
 

@@ -13,7 +13,7 @@ use std::{
     hash::{Hash, Hasher},
     path::{Path, PathBuf},
 };
-use tracing::{info_span, instrument, span, trace, trace_span, warn};
+use tracing::{trace, warn};
 
 use crate::{util::Stage, vc::parser::vencord_ast_parser::VencordAstParser};
 
@@ -260,11 +260,6 @@ fn do_collect_patches(opts: VencordOpts, bar: Stage) -> Result<Vec<Plugin>> {
     compile_plugin_regexes(&mut plugins);
 
     Ok(plugins)
-}
-
-#[instrument]
-fn foo(bar: i32) {
-
 }
 
 fn bind_plugin_ids(plugins: &mut [Plugin]) {

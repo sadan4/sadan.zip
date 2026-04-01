@@ -54,15 +54,6 @@ macro_rules! impl_parse {
     };
 }
 
-pub fn parse<'ast>(
-    alloc: &'ast Allocator,
-    source: &'ast str,
-    source_type: SourceType,
-) -> Result<(&'ast Program<'ast>, Semantic<'ast>)> {
-    impl_parse!(alloc, source, source_type, ast, sema);
-    Ok((ast, sema.semantic))
-}
-
 pub fn parse_for_traverse<'ast>(
     alloc: &'ast Allocator,
     source: &'ast str,

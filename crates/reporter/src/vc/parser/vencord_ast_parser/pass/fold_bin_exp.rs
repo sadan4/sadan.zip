@@ -8,25 +8,18 @@ use oxc_ecmascript::constant_evaluation::{binary_operation_evaluate_value, Const
 use oxc_traverse::Traverse;
 use tracing::warn;
 
-use crate::vc::parser::{exts::ExpressionExt, vencord_ast_parser::pass::util::Ctx};
+use crate::vc::parser::{exts::ExpressionExt, vencord_ast_parser::pass::util::{Ctx, empty_template_element_value}};
 
 pub struct FoldBinaryExpressionsPass;
 
-/// Fold BigInt left shift operations (e.g., 1n << 20n)
+/// Fold `BigInt` left shift operations (e.g., 1n << 20n)
 fn try_fold_bigint_shift<'ast>(
     left: &Expression<'ast>,
     right: &Expression<'ast>,
 ) -> Option<ConstantValue<'ast>> {
     // Extract BigInt literals from both sides
-    let left_lit = match left {
-        Expression::BigIntLiteral(lit) => lit,
-        _ => return None,
-    };
-    
-    let right_lit = match right {
-        Expression::BigIntLiteral(lit) => lit,
-        _ => return None,
-    };
+    let Expression::BigIntLiteral(left_lit) = left else { return None };
+    let Expression::BigIntLiteral(right_lit) = right else { return None };
     
     // Parse the raw string representation to get the BigInt value
     // The raw value includes the 'n' suffix (e.g., "123n"), so we need to strip it
@@ -130,7 +123,7 @@ fn fold_template_literals<'ast, State>(
         let left = ctx.take(left);
         let new_q = ctx.ast.template_element(
             Span::new(right.span.start, right.span.start),
-            ctx.empty_template_element_value(),
+            empty_template_element_value(),
             false,
             false, // we are inserting an empty element, no need to escape
         );
@@ -147,7 +140,7 @@ fn fold_template_literals<'ast, State>(
         left.quasis.last_mut().unwrap().tail = false;
         let new_q = ctx.ast.template_element(
             Span::new(left.span.end, left.span.end),
-            ctx.empty_template_element_value(),
+            empty_template_element_value(),
             true,
             false, // we are inserting an empty element, no need to escape
         );
@@ -213,11 +206,11 @@ impl<'ast, State> Traverse<'ast, State> for FoldBinaryExpressionsPass {
         let op = node.operator;
         
         // Try custom BigInt shift folding first
-        if op == BinaryOperator::ShiftLeft {
-            if let Some(val) = try_fold_bigint_shift(left, right) {
-                *expr_node = ctx.node_from_constant_value(val, node.span);
-                return;
-            }
+        if op == BinaryOperator::ShiftLeft
+            && let Some(val) = try_fold_bigint_shift(left, right)
+        {
+            *expr_node = ctx.node_from_constant_value(val, node.span);
+            return;
         }
         
         if let Some(val) = binary_operation_evaluate_value(op, left, right, &ctx) {

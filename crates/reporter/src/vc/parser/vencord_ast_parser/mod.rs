@@ -1,5 +1,4 @@
 mod pass;
-use std::path::Path;
 
 use crate::vc::parser::ast_parser::parse_for_traverse;
 use crate::vc::parser::patches::{canonicalize_match_like, canonicalize_replace_for_regress};
@@ -37,7 +36,7 @@ use oxc_ecmascript::{
     constant_evaluation::{ConstantEvaluation, ConstantEvaluationCtx},
     side_effects::MayHaveSideEffectsContext,
 };
-use tracing::{debug, instrument, trace, warn};
+use tracing::{debug, trace, warn};
 
 pub struct VencordAstParser<'ast> {
     alloc: &'ast Allocator,
