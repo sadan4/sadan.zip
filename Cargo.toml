@@ -60,6 +60,8 @@ terminal_size = "0.4.4"
 syntect = "5.3.0"
 memchr = "2.8.0"
 num-bigint = "0.4"
+regex = "1.12.3"
+smol_str = { version = "0.3.6", features = ["std", "serde"] }
 
 [profile.release]
 incremental = true
@@ -75,6 +77,9 @@ opt-level = 0
 incremental = true
 debug = true
 
+[profile.dev.package.regex]
+opt-level = 3
+
 [profile.dev.package.regress]
 opt-level = 3
 
@@ -86,6 +91,21 @@ opt-level = 3
 opt-level = 3
 
 [profile.dev.package.similar]
+opt-level = 3
+
+# During testing, we parse large javascript files, up to 20mb!
+# Compile oxc with -O3 so the tests run 2-4x faster
+[profile.test.package.oxc_allocator]
+opt-level = 3
+[profile.test.package.oxc_ast]
+opt-level = 3
+[profile.test.package.oxc_parser]
+opt-level = 3
+[profile.test.package.oxc_semantic]
+opt-level = 3
+[profile.test.package.oxc_span]
+opt-level = 3
+[profile.test.package.oxc_syntax]
 opt-level = 3
 
 [workspace.lints.rust]

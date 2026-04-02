@@ -106,6 +106,7 @@ mod tests {
 	use super::*;
 	use crate::base::WebpackChunkParser;
 	use insta::assert_ron_snapshot;
+	use itertools::Itertools;
 	macro_rules! parse {
 		($alloc:expr, $source:literal) => {{
 			let source = include_str!($source);
@@ -119,14 +120,27 @@ mod tests {
 		fn gets_modules_from_a_lazy_chunk() {
 			let alloc = Allocator::new();
 			let parser = parse!(alloc, "test_data/lazyChunk.js");
-			let modules = parser.get_defined_modules();
+			// there is some form of random state that makes this non-deterministic, collect into a sorted vec
+			let modules = parser
+				.get_defined_modules()
+				.unwrap()
+				.into_iter()
+				.sorted_by_key(|item| item.0)
+				.collect_vec();
 			assert_ron_snapshot!(modules);
 		}
 		#[test]
 		fn gets_modules_from_an_i18n_chunk() {
 			let alloc = Allocator::new();
 			let parser = parse!(alloc, "test_data/lazyChunk-i18n.js");
-			let modules = parser.get_defined_modules();
+			// there is some form of random state that makes this non-deterministic, collect into a sorted vec
+			let modules = parser
+				.get_defined_modules()
+				.unwrap()
+				.into_iter()
+				.sorted_by_key(|item| item.0)
+				.collect_vec();
+
 			assert_ron_snapshot!(modules);
 		}
 		#[test]
@@ -134,7 +148,7 @@ mod tests {
 			let alloc = Allocator::new();
 			let parser = parse!(alloc, "test_data/lazyChunk.js");
 			let chunk_id = &parser.chunk_id().unwrap();
-			assert_eq!(chunk_id, r#""24314""#);
+			assert_eq!(chunk_id, r"24314");
 		}
 	}
 	mod new_format {
@@ -144,14 +158,26 @@ mod tests {
 		fn gets_modules_from_a_lazy_chunk() {
 			let alloc = Allocator::new();
 			let parser = parse!(alloc, "test_data/lazyChunk2.js");
-			let modules = parser.get_defined_modules();
+			// there is some form of random state that makes this non-deterministic, collect into a sorted vec
+			let modules = parser
+				.get_defined_modules()
+				.unwrap()
+				.into_iter()
+				.sorted_by_key(|item| item.0)
+				.collect_vec();
 			assert_ron_snapshot!(modules);
 		}
 		#[test]
 		fn gets_modules_from_an_i18n_chunk() {
 			let alloc = Allocator::new();
 			let parser = parse!(alloc, "test_data/lazyChunk2-i18n.js");
-			let modules = parser.get_defined_modules();
+			// there is some form of random state that makes this non-deterministic, collect into a sorted vec
+			let modules = parser
+				.get_defined_modules()
+				.unwrap()
+				.into_iter()
+				.sorted_by_key(|item| item.0)
+				.collect_vec();
 			assert_ron_snapshot!(modules);
 		}
 		#[test]
@@ -159,7 +185,7 @@ mod tests {
 			let alloc = Allocator::new();
 			let parser = parse!(alloc, "test_data/lazyChunk2.js");
 			let chunk_id = &parser.chunk_id().unwrap();
-			assert_eq!(chunk_id, r#""52694""#);
+			assert_eq!(chunk_id, r"52694");
 		}
 	}
 }

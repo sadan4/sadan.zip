@@ -15,6 +15,7 @@ use oxc::{
 		Expression,
 		ExpressionStatement,
 		Function,
+		FunctionBody,
 		IdentifierName,
 		IdentifierReference,
 		ImportDeclaration,
@@ -34,8 +35,8 @@ use oxc::{
 		TaggedTemplateExpression,
 		TemplateLiteral,
 	},
-	semantic::SymbolId,
-	span::Atom,
+	semantic::{NodeId, ScopeId, SymbolId},
+	span::{Atom, GetSpan, Ident, Span},
 };
 use oxc_ecmascript::{GlobalContext, constant_evaluation::IsLiteralValue};
 use std::borrow::Cow;
@@ -376,9 +377,140 @@ impl<'ast, T: ExpressionExt<'ast>> MemberExpressionExt<'ast> for T {
 	}
 }
 
+#[derive(Debug, Copy, Clone)]
+pub enum Functionish<'a, 'ast> {
+	Named(&'a Function<'ast>),
+	Arrow(&'a ArrowFunctionExpression<'ast>),
+}
+
+impl<'a, 'ast> Functionish<'a, 'ast> {
+	pub fn name(&self) -> Option<Ident<'ast>> {
+		self.as_named().and_then(Function::name)
+	}
+
+	pub const fn pife(&self) -> bool {
+		match self {
+			Self::Arrow(ArrowFunctionExpression { pife, .. })
+			| Self::Named(Function { pife, .. }) => *pife,
+		}
+	}
+	pub const fn pure(&self) -> bool {
+		match self {
+			Self::Arrow(ArrowFunctionExpression { pure, .. })
+			| Self::Named(Function { pure, .. }) => *pure,
+		}
+	}
+	pub const fn r#async(&self) -> bool {
+		match self {
+			Self::Arrow(ArrowFunctionExpression { r#async, .. })
+			| Self::Named(Function { r#async, .. }) => *r#async,
+		}
+	}
+	pub const fn scope_id(&self) -> ScopeId {
+		match self {
+			Self::Arrow(ArrowFunctionExpression { scope_id, .. })
+			| Self::Named(Function { scope_id, .. }) => scope_id.get().unwrap(),
+		}
+	}
+	pub const fn node_id(&self) -> NodeId {
+		match self {
+			Self::Arrow(ArrowFunctionExpression { node_id, .. })
+			| Self::Named(Function { node_id, .. }) => node_id.get(),
+		}
+	}
+	/// Panics if this is called on a function with no body (typescript declaration)
+	pub fn body(&self) -> &FunctionBody<'ast> {
+		match self {
+			Self::Arrow(ArrowFunctionExpression { body, .. }) => body.as_ref(),
+			Self::Named(Function { body, .. }) => body.as_ref().unwrap(),
+		}
+	}
+
+	/// Returns `true` if the functionish is [`Named`].
+	///
+	/// [`Named`]: Functionish::Named
+	#[must_use]
+	pub const fn is_named(&self) -> bool {
+		matches!(self, Self::Named(..))
+	}
+
+	pub const fn as_named(&self) -> Option<&'a Function<'ast>> {
+		if let Self::Named(v) = self {
+			Some(v)
+		} else {
+			None
+		}
+	}
+
+	pub const fn try_into_named(self) -> Result<&'a Function<'ast>, Self> {
+		if let Self::Named(v) = self {
+			Ok(v)
+		} else {
+			Err(self)
+		}
+	}
+
+	/// Returns `true` if the functionish is [`Arrow`].
+	///
+	/// [`Arrow`]: Functionish::Arrow
+	#[must_use]
+	pub const fn is_arrow(&self) -> bool {
+		matches!(self, Self::Arrow(..))
+	}
+
+	pub const fn as_arrow(&self) -> Option<&'a ArrowFunctionExpression<'ast>> {
+		if let Self::Arrow(v) = self {
+			Some(v)
+		} else {
+			None
+		}
+	}
+
+	pub const fn try_into_arrow(
+		self,
+	) -> Result<&'a ArrowFunctionExpression<'ast>, Self> {
+		if let Self::Arrow(v) = self {
+			Ok(v)
+		} else {
+			Err(self)
+		}
+	}
+}
+
+impl GetSpan for Functionish<'_, '_> {
+	fn span(&self) -> Span {
+		match self {
+			Functionish::Named(f) => f.span(),
+			Functionish::Arrow(a) => a.span(),
+		}
+	}
+}
+
 pub trait ExpressionExt<'ast> {
 	fn as_expr_(&self) -> Option<&Expression<'ast>>;
 	fn as_expr_mut_(&mut self) -> Option<&mut Expression<'ast>>;
+
+	fn is_functionish(&self) -> bool {
+		matches!(
+			self.as_expr_(),
+			Some(
+				Expression::FunctionExpression(_)
+					| Expression::ArrowFunctionExpression(_)
+			)
+		)
+	}
+
+	fn as_functionish(&self) -> Option<Functionish<'_, 'ast>> {
+		match self.as_expr_()? {
+			Expression::FunctionExpression(f) => {
+				Some(Functionish::Named(f.as_ref()))
+			}
+			Expression::ArrowFunctionExpression(a) => {
+				Some(Functionish::Arrow(a.as_ref()))
+			}
+			_ => None,
+		}
+	}
 
 	fn as_numeric_literal(&self) -> Option<&NumericLiteral<'ast>> {
 		match self.as_expr_()? {
@@ -516,7 +648,7 @@ pub trait ExpressionExt<'ast> {
 
 	fn as_string_literal_like(&self) -> Option<Atom<'ast>> {
 		match self.as_expr_()? {
-			Expression::StringLiteral(s) => s.raw,
+			Expression::StringLiteral(s) => Some(s.value),
 			Expression::TemplateLiteral(t)
 				if t.is_no_substitution_template() =>
 			{
@@ -637,7 +769,9 @@ impl<'a> TemplateLiteralExt<'a> for TemplateLiteral<'a> {
 
 pub trait ArrayExpressionElementExt<'a>: ExpressionExt<'a> {
 	fn as_array_expr_el_(&self) -> Option<&ArrayExpressionElement<'a>>;
-	fn as_array_expr_el_mut_(&mut self) -> Option<&mut ArrayExpressionElement<'a>>;
+	fn as_array_expr_el_mut_(
+		&mut self,
+	) -> Option<&mut ArrayExpressionElement<'a>>;
 	fn as_spread(&self) -> Option<&SpreadElement<'a>> {
 		match self.as_array_expr_el_()? {
 			ArrayExpressionElement::SpreadElement(s) => Some(s.as_ref()),
@@ -648,11 +782,13 @@ pub trait ArrayExpressionElementExt<'a>: ExpressionExt<'a> {
 
 impl<'ast, T: ArrayExpressionElementExt<'ast>> ExpressionExt<'ast> for T {
 	fn as_expr_(&self) -> Option<&Expression<'ast>> {
-		self.as_array_expr_el_()?.as_expression()
+		self.as_array_expr_el_()?
+			.as_expression()
 	}
 
 	fn as_expr_mut_(&mut self) -> Option<&mut Expression<'ast>> {
-		self.as_array_expr_el_mut_()?.as_expression_mut()
+		self.as_array_expr_el_mut_()?
+			.as_expression_mut()
 	}
 }
 

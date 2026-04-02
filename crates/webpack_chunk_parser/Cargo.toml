@@ -9,9 +9,13 @@ ast_parser.workspace = true
 derive_more.workspace = true
 anyhow.workspace = true
 serde.workspace = true
+smol_str.workspace = true
+memchr.workspace = true
+regex.workspace = true
 
 [dev-dependencies]
 insta.workspace = true
+itertools.workspace = true
 
 [lints]
 workspace = true
