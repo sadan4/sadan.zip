@@ -1,17 +1,13 @@
 #![allow(clippy::unreadable_literal, reason = "we want verbatim module ids")]
 use crate::{
-	JsHashEntry,
-	ModuleId,
-	Sealed,
+	JsHashEntry, ModuleId, Sealed,
 	base::{WebpackChunkParser, WebpackChunkParserImpl},
 };
 use anyhow::Result;
 use ast_parser::{
 	AstParser,
 	exts::{
-		BindingPatternExt,
-		ExpressionExt,
-		MemberExpressionExt,
+		BindingPatternExt, ExpressionExt, MemberExpressionExt,
 		NumericLiteralExt,
 	},
 	parse,
@@ -20,11 +16,7 @@ use memchr::memmem::Finder;
 use oxc::{
 	allocator::Allocator,
 	ast::ast::{
-		BinaryOperator,
-		Expression,
-		ObjectExpression,
-		ObjectProperty,
-		Program,
+		BinaryOperator, Expression, ObjectExpression, ObjectProperty, Program,
 		PropertyKind,
 	},
 	semantic::{Semantic, SymbolId},
@@ -34,6 +26,7 @@ use regex::Regex;
 use smol_str::SmolStr;
 use std::sync::LazyLock;
 
+// FIXME: add basic caching with OnceCell
 pub struct WebpackMainChunkParser<'ast> {
 	source_text: &'ast str,
 	prog: &'ast Program<'ast>,
@@ -184,6 +177,7 @@ impl<'ast> WebpackMainChunkParser<'ast> {
 		}
 		Some(ret)
 	}
+
 	pub fn get_entrypoint_id(&self) -> Option<ModuleId> {
 		let wreq_sym_id = self.get_webpack_require()?;
 		let uses = self
@@ -198,9 +192,11 @@ impl<'ast> WebpackMainChunkParser<'ast> {
 			else {
 				continue;
 			};
+
 			if call.arguments.len() != 1 {
 				continue;
 			}
+
 			let Some(maybe_id) = call.arguments[0]
 				.as_expression()
 				.and_then(as_valid_module_id)
@@ -215,6 +211,7 @@ impl<'ast> WebpackMainChunkParser<'ast> {
 			else {
 				continue;
 			};
+
 			if decl
 				.id
 				.as_binding_identifier()
@@ -222,10 +219,12 @@ impl<'ast> WebpackMainChunkParser<'ast> {
 			{
 				continue;
 			}
+
 			return Some(maybe_id);
 		}
 		None
 	}
+
 	pub fn get_build_number(&self) -> Option<SmolStr> {
 		let modules = self.get_defined_modules()?;
 		// use known build modules to save time
@@ -281,6 +280,7 @@ impl<'ast> WebpackChunkParserImpl<'ast> for WebpackMainChunkParser<'ast> {
 mod tests {
 	use super::*;
 	use insta::assert_ron_snapshot;
+	use itertools::Itertools;
 	use oxc::allocator::Allocator;
 
 	macro_rules! parse {
@@ -293,33 +293,57 @@ mod tests {
 	// old format
 	#[test]
 	fn format_1() {
-		fn parses_js_chunk_hashes(parser: &WebpackMainChunkParser) {
-			let mut hashes = parser.get_js_chunk_hashes().unwrap();
-			hashes.sort_by(|a, b| a.chunk_id.cmp(&b.chunk_id));
-			assert_ron_snapshot!(hashes);
-		}
 		let alloc = Allocator::new();
 		let parser = parse!(alloc, "test_data/fullWeb.js");
 		{
-			let entrypoint = parser.get_entrypoint_id().unwrap();
-			assert_eq!(entrypoint, ModuleId(650204));
+			let entrypoint = parser.get_entrypoint_id();
+			assert_eq!(entrypoint, Some(ModuleId(650204)));
 		};
-		parses_js_chunk_hashes(&parser);
+		{
+			let build_number = parser.get_build_number();
+			assert_eq!(build_number.as_deref(), Some("440786"));
+		};
+		{
+			let mut hashes = parser.get_js_chunk_hashes().unwrap();
+			hashes.sort_by(|a, b| a.chunk_id.cmp(&b.chunk_id));
+			assert_ron_snapshot!(hashes);
+		};
+		{
+			let modules = parser
+				.get_defined_modules()
+				.unwrap()
+				.into_keys()
+				.sorted()
+				.collect_vec();
+			assert_ron_snapshot!(modules);
+		};
 	}
 	// new format
 	#[test]
 	fn format_2() {
-		fn parses_js_chunk_hashes(parser: &WebpackMainChunkParser) {
-			let mut hashes = parser.get_js_chunk_hashes().unwrap();
-			hashes.sort_by(|a, b| a.chunk_id.cmp(&b.chunk_id));
-			assert_ron_snapshot!(hashes);
-		}
 		let alloc = Allocator::new();
 		let parser = parse!(alloc, "test_data/fullWeb2.js");
 		{
-			let entrypoint = parser.get_entrypoint_id().unwrap();
-			assert_eq!(entrypoint, ModuleId(329563));
+			let entrypoint = parser.get_entrypoint_id();
+			assert_eq!(entrypoint, Some(ModuleId(329563)));
 		};
-		parses_js_chunk_hashes(&parser);
+		{
+			let build_number = parser.get_build_number();
+			assert_eq!(build_number.as_deref(), Some("492031"));
+		};
+		{
+			let mut hashes = parser.get_js_chunk_hashes().unwrap();
+			hashes.sort_by(|a, b| a.chunk_id.cmp(&b.chunk_id));
+			assert_ron_snapshot!(hashes);
+		};
+		{
+			let modules = parser
+				.get_defined_modules()
+				.unwrap()
+				.into_keys()
+				.sorted()
+				.collect_vec();
+			assert_ron_snapshot!(modules);
+		};
 	}
 }
