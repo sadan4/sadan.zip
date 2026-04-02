@@ -3691,6 +3691,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "webpack_ast_parser"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "ast_parser",
+ "derive_more",
+ "insta",
+ "itertools",
+ "oxc",
+ "serde",
+ "smol_str",
+]
+
+[[package]]
 name = "webpack_chunk_parser"
 version = "0.1.0"
 dependencies = [

@@ -3,9 +3,12 @@ use anyhow::{Result, bail};
 use itertools::Itertools;
 use oxc::{
 	allocator::{Allocator, Box as OxcBox},
-	ast::ast::{ImportDeclaration, ModuleDeclaration, Program},
+	ast::{AstKind, ast::{ImportDeclaration, ModuleDeclaration, Program}},
 	parser::Parser as OxcParser,
-	semantic::{AstNode, NodeId, Scoping, Semantic, SemanticBuilder},
+	semantic::{
+		AstNode, NodeId, Reference, Scoping, Semantic, SemanticBuilder,
+		SymbolId,
+	},
 	span::SourceType,
 };
 use std::sync::Arc;
@@ -109,7 +112,10 @@ pub trait AstParser<'ast> {
 	//     self.sema().nodes().get_node(node_id)
 	// }
 	/// Parent of node
-	fn p<'a: 'ast>(&'a self, node_id: NodeId) -> &'ast AstNode<'ast> {
+	fn p<'a>(&'a self, node_id: NodeId) -> &'a AstNode<'ast>
+	where
+		'ast: 'a,
+	{
 		self.sema().nodes().parent_node(node_id)
 	}
 	// fn cfg_id(&self, node_id: NodeId) -> BlockNodeId {
@@ -126,6 +132,42 @@ pub trait AstParser<'ast> {
 	//     let ctx = DebugDotContext::new(self.sema().nodes(), true);
 	//     block.debug_dot(ctx)
 	// }
+	fn refs<'a>(
+		&'a self,
+		sym_id: SymbolId,
+	) -> Box<dyn Iterator<Item = NodeId> + 'a>
+	where
+		'ast: 'a,
+	{
+		Box::new(
+			self.sema()
+				.scoping()
+				.get_resolved_references(sym_id)
+				.map(Reference::node_id),
+		)
+	}
+	fn find_parent<'a, T>(
+		&'a self,
+		mut node_id: NodeId,
+		pred: impl Fn(AstKind<'ast>) -> Option<T>,
+	) -> Option<T>
+	where
+		'ast: 'a,
+	{
+		loop {
+			let parent = self.p(node_id);
+			if let Some(found) = pred(parent.kind()) {
+				return Some(found);
+			}
+
+			let parent_id = parent.id();
+			if parent_id == node_id {
+				return None;
+			}
+
+			node_id = parent_id;
+		}
+	}
 }
 
 pub trait ESModuleParser<'ast>: AstParser<'ast> {

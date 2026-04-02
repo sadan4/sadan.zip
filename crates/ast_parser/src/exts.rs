@@ -262,6 +262,10 @@ pub trait StatementExt<'ast> {
 	fn as_stmt_(&self) -> Option<&Statement<'ast>>;
 	fn as_stmt_mut_(&mut self) -> Option<&mut Statement<'ast>>;
 
+	fn is_expression_statement(&self) -> bool {
+		matches!(self.as_stmt_(), Some(Statement::ExpressionStatement(_)))
+	}
+
 	fn as_expression_statement(&self) -> Option<&ExpressionStatement<'ast>> {
 		match self.as_stmt_()? {
 			Statement::ExpressionStatement(s) => Some(s.as_ref()),
