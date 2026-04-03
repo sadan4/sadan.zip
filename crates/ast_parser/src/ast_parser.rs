@@ -3,7 +3,10 @@ use anyhow::{Result, bail};
 use itertools::Itertools;
 use oxc::{
 	allocator::{Allocator, Box as OxcBox},
-	ast::{AstKind, ast::{ImportDeclaration, ModuleDeclaration, Program}},
+	ast::{
+		AstKind,
+		ast::{ImportDeclaration, ModuleDeclaration, Program},
+	},
 	parser::Parser as OxcParser,
 	semantic::{
 		AstNode, NodeId, Reference, Scoping, Semantic, SemanticBuilder,
@@ -112,14 +115,18 @@ pub trait AstParser<'ast> {
 	where
 		'ast: 'a,
 	{
-	    self.sema().nodes().get_node(node_id)
+		self.sema().nodes().get_node(node_id)
 	}
 	/// Parent of node
-	fn p<'a>(&'a self, node_id: NodeId) -> &'a AstNode<'ast>
-	where
-		'ast: 'a,
+	fn p(&self, node_id: NodeId) -> AstKind<'ast>
 	{
-		self.sema().nodes().parent_node(node_id)
+		self.sema().nodes().parent_node(node_id).kind()
+	}
+
+	/// Parent of node, if it matches the predicate
+	/// TODO: add example
+	fn p_if<T, F: FnOnce(AstKind<'ast>) -> Option<T>>(&self, node_id: NodeId, pred: F) -> Option<T> {
+		pred(self.p(node_id))
 	}
 	// fn cfg_id(&self, node_id: NodeId) -> BlockNodeId {
 	//     self.sema().nodes().cfg_id(node_id)
@@ -135,19 +142,24 @@ pub trait AstParser<'ast> {
 	//     let ctx = DebugDotContext::new(self.sema().nodes(), true);
 	//     block.debug_dot(ctx)
 	// }
-	fn refs<'a>(
-		&'a self,
-		sym_id: SymbolId,
-	) -> Box<dyn Iterator<Item = NodeId> + 'a>
+	fn refs<'a>(&'a self, sym_id: SymbolId) -> impl Iterator<Item = NodeId> + 'a
 	where
 		'ast: 'a,
 	{
-		Box::new(
-			self.sema()
-				.scoping()
-				.get_resolved_references(sym_id)
-				.map(Reference::node_id),
-		)
+		self.sema()
+			.scoping()
+			.get_resolved_references(sym_id)
+			.map(Reference::node_id)
+	}
+	fn ref_nodes<'a>(
+		&'a self,
+		sym_id: SymbolId,
+	) -> impl Iterator<Item = AstKind<'ast>> + 'a
+	where
+		'ast: 'a,
+	{
+		self.refs(sym_id)
+			.map(|node_id| self.n(node_id).kind())
 	}
 	fn find_parent<'a, T>(
 		&'a self,
@@ -159,11 +171,12 @@ pub trait AstParser<'ast> {
 	{
 		loop {
 			let parent = self.p(node_id);
-			if let Some(found) = pred(parent.kind()) {
+			if let Some(found) = pred(parent) {
 				return Some(found);
 			}
 
-			let parent_id = parent.id();
+			let parent_id = parent.node_id();
+
 			if parent_id == node_id {
 				return None;
 			}

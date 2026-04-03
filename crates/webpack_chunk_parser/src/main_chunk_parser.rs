@@ -129,7 +129,6 @@ impl<'ast> WebpackMainChunkParser<'ast> {
 			for u in uses {
 				let Some(parent) = self
 					.p(u.node_id())
-					.kind()
 					.as_static_member_expression()
 				else {
 					continue;
@@ -139,7 +138,6 @@ impl<'ast> WebpackMainChunkParser<'ast> {
 				}
 				let Some(assign) = self
 					.p(parent.node_id())
-					.kind()
 					.as_assignment_expression()
 				else {
 					continue;
@@ -187,7 +185,6 @@ impl<'ast> WebpackMainChunkParser<'ast> {
 		for u in uses {
 			let Some(call) = self
 				.p(u.node_id())
-				.kind()
 				.as_call_expression()
 			else {
 				continue;
@@ -206,7 +203,6 @@ impl<'ast> WebpackMainChunkParser<'ast> {
 
 			let Some(decl) = self
 				.p(call.node_id())
-				.kind()
 				.as_variable_declarator()
 			else {
 				continue;

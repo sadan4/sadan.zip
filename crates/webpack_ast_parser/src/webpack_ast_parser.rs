@@ -1,3 +1,7 @@
+mod arg_finder;
+mod export_map;
+mod types;
+
 use anyhow::Result;
 use ast_parser::{
 	AstParser,
@@ -10,15 +14,18 @@ use oxc::{
 		AstKind,
 		ast::{NumericLiteral, Program},
 	},
-	semantic::{AstNode, Semantic, SymbolId},
+	semantic::{NodeId, Semantic, SymbolId},
 	span::SourceType,
 };
 
 use crate::{
 	bundle::{DefaultModuleCache, IModuleCache},
-	cache::CacheValue,
+	cache::{CacheRef, CacheValue},
 	types::ModuleId,
+	webpack_ast_parser::types::WreqD,
 };
+
+use export_map::RawExportMap;
 
 pub struct WebpackAstParser<'ast> {
 	prog: &'ast Program<'ast>,
@@ -26,12 +33,14 @@ pub struct WebpackAstParser<'ast> {
 	source: &'ast str,
 	module_cache: &'ast dyn IModuleCache<'ast>,
 	/// Internal cache
-	c: Cache,
+	c: Cache<'ast>,
 }
 
 #[derive(Default)]
-struct Cache {
+struct Cache<'ast> {
 	wreq: CacheValue<Option<SymbolId>>,
+	t: CacheValue<Option<SymbolId>>,
+	raw_export_map: CacheRef<RawExportMap<'ast>>,
 }
 
 impl<'ast> AstParser<'ast> for WebpackAstParser<'ast> {
@@ -55,6 +64,8 @@ impl<'ast> WebpackAstParser<'ast> {
 			c: Cache::default(),
 		})
 	}
+
+	#[must_use]
 	pub fn with_module_cache(
 		mut self,
 		module_cache: &'ast dyn IModuleCache<'ast>,
@@ -62,6 +73,7 @@ impl<'ast> WebpackAstParser<'ast> {
 		self.module_cache = module_cache;
 		self
 	}
+
 	pub fn get_module_id(&self) -> Option<ModuleId> {
 		const WEBPACK_MODULE_HEADER: &str = "// Webpack Module ";
 		if self
@@ -87,9 +99,11 @@ impl<'ast> WebpackAstParser<'ast> {
 				return None;
 			}
 
-			debug_assert!(self.source[start..end]
-				.chars()
-				.all(|c| c.is_ascii_digit()));
+			debug_assert!(
+				self.source[start..end]
+					.chars()
+					.all(|c| c.is_ascii_digit())
+			);
 			let id = self.source[start..end].parse().ok()?;
 
 			return Some(ModuleId(id));
@@ -101,10 +115,23 @@ impl<'ast> WebpackAstParser<'ast> {
 // Private API
 #[allow(clippy::multiple_inherent_impl)]
 impl<'ast> WebpackAstParser<'ast> {
+	/// `exports` in `function(module, exports, wreq) {...}`
+	/// also commonly `t` in `function(e, t, n) {...}`
+	fn webpack_exports(&self) -> Option<SymbolId> {
+		self.c
+			.t
+			.get(|| self.find_webpack_arg(1))
+	}
+	/// `__webpack_require__` in `function(module, exports, __webpack_require__) {...}`
+	/// also commonly `t` in `function(e, t, n) {...}`
 	fn wreq(&self) -> Option<SymbolId> {
 		self.c
 			.wreq
 			.get(|| self.find_webpack_arg(2))
+	}
+	// TODO: would it be better to cache these in a vec or smth
+	fn wreq_uses(&self) -> Option<impl Iterator<Item = AstKind<'ast>> + '_> {
+		Some(self.ref_nodes(self.wreq()?))
 	}
 	/// [`arg_index`]: the index of the param (0, 1, 2, ...)
 	///
@@ -116,6 +143,7 @@ impl<'ast> WebpackAstParser<'ast> {
 		use arg_finder::find;
 		find(self, arg_index)
 	}
+
 	// TODO: Add tests
 	fn get_imported_var(&self, module_id: ModuleId) -> Option<SymbolId> {
 		let usage = self.refs(self.wreq()?).find(|u| {
@@ -137,9 +165,59 @@ impl<'ast> WebpackAstParser<'ast> {
 
 		Some(ret)
 	}
-}
+	fn get_export_map_raw_wreq_d(&self) -> Option<RawExportMap<'ast>> {
+		todo!()
+	}
+	fn find_wreq_d(&self) -> Option<WreqD<'ast>> {
+		// `t` in function(e, t, n) {...} where `n` is `__webpack_require__`
+		let exports = self.webpack_exports()?;
+		for use_ in self.wreq_uses()? {
+			// `wreq.d` in `wreq.d(...)`
+			let Some(wreq_d_expr) = self
+				.p(use_.node_id())
+				.as_static_member_expression()
+			else {
+				continue;
+			};
+			// `d` in `wreq.d(...)`
+			if wreq_d_expr.property.name != "d" {
+				continue;
+			}
+			// `wreq.d(...)`
+			let Some(call) = self
+				.p(wreq_d_expr.node_id())
+				.as_call_expression()
+			else {
+				continue;
+			};
+			// we should only ever have two arguments
+			let args = &call.arguments;
+			if args.len() != 2 {
+				continue;
+			}
 
-mod arg_finder;
+			let Some(t) = args[0].as_identifier() else {
+				continue;
+			};
+			// ensure it's the exports
+			// FIXME: don't think this could ever be `module.exports` instead of just `exports`
+			// because wreq.d is only used on es modules
+			if self.sema.scoping().get_reference(t.reference_id()).symbol_id() != Some(exports) {
+				continue;
+			}
+
+		}
+		None
+	}
+	fn impl_get_export_map_raw(&self) -> Option<RawExportMap<'ast>> {
+		todo!()
+	}
+	fn get_export_map_raw(&self) -> &RawExportMap<'ast> {
+		self.c
+			.raw_export_map
+			.get_or_default(|| self.impl_get_export_map_raw())
+	}
+}
 
 #[cfg(test)]
 #[allow(clippy::unreadable_literal)]
@@ -266,30 +344,37 @@ mod tests {
 		mod wreq_d {
 			use super::*;
 			#[test]
+			#[ignore = "todo"]
 			fn simple_modules() {
-				todo!()
+				let alloc = Allocator::new();
+				let p = parse!(alloc, "test_data/wp/module.js");
 			}
 			#[test]
+			#[ignore = "todo"]
 			fn string_literal_export() {
 				todo!()
 			}
 
 			#[test]
+			#[ignore = "todo"]
 			fn object_literal_export() {
 				todo!()
 			}
 
 			#[test]
+			#[ignore = "todo"]
 			fn object_with_computed_prop() {
 				todo!()
 			}
 
 			#[test]
+			#[ignore = "todo"]
 			fn class_export() {
 				todo!()
 			}
 
 			#[test]
+			#[ignore = "todo"]
 			fn enum_export() {
 				todo!()
 			}
