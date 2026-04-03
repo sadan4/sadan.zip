@@ -108,9 +108,12 @@ pub trait AstParser<'ast> {
 	fn prog(&self) -> &'ast Program<'ast>;
 	fn sema(&self) -> &Semantic<'ast>;
 	// /// node from id
-	// fn n<'a: 'ast>(&'a self, node_id: NodeId) -> &'ast AstNode<'ast> {
-	//     self.sema().nodes().get_node(node_id)
-	// }
+	fn n<'a>(&'a self, node_id: NodeId) -> &'a AstNode<'ast>
+	where
+		'ast: 'a,
+	{
+	    self.sema().nodes().get_node(node_id)
+	}
 	/// Parent of node
 	fn p<'a>(&'a self, node_id: NodeId) -> &'a AstNode<'ast>
 	where

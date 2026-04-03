@@ -23,6 +23,7 @@ use crate::{
 pub struct WebpackAstParser<'ast> {
 	prog: &'ast Program<'ast>,
 	sema: Semantic<'ast>,
+	source: &'ast str,
 	module_cache: &'ast dyn IModuleCache<'ast>,
 	/// Internal cache
 	c: Cache,
@@ -49,6 +50,7 @@ impl<'ast> WebpackAstParser<'ast> {
 		Ok(Self {
 			prog,
 			sema,
+			source,
 			module_cache: &DefaultModuleCache,
 			c: Cache::default(),
 		})
@@ -59,6 +61,40 @@ impl<'ast> WebpackAstParser<'ast> {
 	) -> Self {
 		self.module_cache = module_cache;
 		self
+	}
+	pub fn get_module_id(&self) -> Option<ModuleId> {
+		const WEBPACK_MODULE_HEADER: &str = "// Webpack Module ";
+		if self
+			.source
+			.starts_with(WEBPACK_MODULE_HEADER)
+		{
+			// `// Webpack Module 123456` -> parse the 123456
+			let start = WEBPACK_MODULE_HEADER.len();
+			let mut end = start;
+
+			while end < self.source.len()
+				&& self
+					.source
+					.chars()
+					.nth(end)
+					.unwrap()
+					.is_ascii_digit()
+			{
+				end += 1;
+			}
+
+			if start == end {
+				return None;
+			}
+
+			debug_assert!(self.source[start..end]
+				.chars()
+				.all(|c| c.is_ascii_digit()));
+			let id = self.source[start..end].parse().ok()?;
+
+			return Some(ModuleId(id));
+		}
+		None
 	}
 }
 
@@ -103,73 +139,15 @@ impl<'ast> WebpackAstParser<'ast> {
 	}
 }
 
-mod arg_finder {
-	use super::WebpackAstParser;
-	use ast_parser::exts::{BindingPatternExt, StatementExt};
-	use oxc::{
-		ast::ast::{Expression, Function, Statement},
-		ast_visit::Visit,
-		semantic::{ScopeFlags, SymbolId},
-	};
-
-	pub fn find(p: &WebpackAstParser<'_>, arg_index: u8) -> Option<SymbolId> {
-		let prog = p.prog;
-		let mut finder = ArgFinder {
-			param_index: arg_index,
-			r: None,
-		};
-		finder.visit_program(prog);
-		finder.r
-	}
-
-	struct ArgFinder {
-		param_index: u8,
-		r: Option<SymbolId>,
-	}
-
-	impl Visit<'_> for ArgFinder {
-		fn visit_statement(&mut self, it: &Statement) {
-			if let Some(expr_stmt) = it.as_expression_statement() {
-				self.visit_expression_statement(expr_stmt);
-			}
-		}
-		fn visit_expression(&mut self, it: &Expression) {
-			match it {
-				Expression::BinaryExpression(e) => {
-					self.visit_binary_expression(e);
-				}
-				Expression::FunctionExpression(e) => {
-					self.visit_function(e, ScopeFlags::Function);
-				}
-				_ => {}
-			}
-		}
-		fn visit_function(&mut self, it: &Function, _: ScopeFlags) {
-			let params = &it.params.items;
-			let num_params = params.len();
-			if it.params.rest.is_some()
-				|| num_params > 3
-				|| num_params <= self.param_index as usize + 1
-			{
-				return;
-			}
-			let Some(ident) = params[self.param_index as usize]
-				.pattern
-				.as_binding_identifier()
-			else {
-				return;
-			};
-			debug_assert!(self.r.is_none(), "multiple functions found");
-			self.r = Some(ident.symbol_id());
-		}
-	}
-}
+mod arg_finder;
 
 #[cfg(test)]
+#[allow(clippy::unreadable_literal)]
 mod tests {
 	use super::*;
-	use insta::assert_ron_snapshot;
+	use insta::{assert_debug_snapshot, assert_ron_snapshot};
 	use itertools::Itertools;
+	use oxc::span::{Atom, GetSpan as _, Span};
 
 	macro_rules! parse {
 		($alloc:expr, $source:literal) => {{
@@ -178,10 +156,152 @@ mod tests {
 		}};
 	}
 
+	impl<'ast> WebpackAstParser<'ast> {
+		fn t_sym_info<'a>(&'a self, sym_id: SymbolId) -> (Atom<'a>, Span)
+		where
+			'ast: 'a,
+		{
+			let name = self
+				.sema
+				.scoping()
+				.symbol_ident(sym_id)
+				.as_atom();
+			let span = self
+				.sema
+				.scoping()
+				.symbol_declaration(sym_id);
+			let node = self.n(span);
+			(name, node.span())
+		}
+	}
+
 	#[test]
 	fn constructs() {
 		let alloc = Allocator::new();
 		let source = include_str!("test_data/wp/module.js");
 		_ = WebpackAstParser::try_new(&alloc, source).unwrap();
+	}
+
+	#[test]
+	fn finds_wreq() {
+		let alloc = Allocator::new();
+		let p = parse!(alloc, "test_data/wp/module.js");
+		let wreq = p.wreq().unwrap();
+		let info = p.t_sym_info(wreq);
+		assert_debug_snapshot!(info, @r#"
+		(
+		    "n",
+		    Span {
+		        start: 56,
+		        end: 57,
+		    },
+		)
+		"#);
+	}
+
+	#[test]
+	fn doesnt_find_wreq_in_module_that_doesnt_use_it() {
+		let alloc = Allocator::new();
+		let p = parse!(alloc, "test_data/wp/bad/noWreq.js");
+		assert_eq!(p.wreq(), None);
+	}
+
+	#[test]
+	fn finds_imported_var() {
+		let alloc = Allocator::new();
+		let p = parse!(alloc, "test_data/wp/module.js");
+		let info = p
+			.get_imported_var(200651.into())
+			.unwrap();
+		let info = p.t_sym_info(info);
+		assert_debug_snapshot!(info, @r#"
+		(
+		    "r",
+		    Span {
+		        start: 181,
+		        end: 194,
+		    },
+		)
+		"#);
+	}
+
+	#[test]
+	fn doesnt_find_side_effect_import() {
+		let alloc = Allocator::new();
+		let p = parse!(alloc, "test_data/wp/module.js");
+		let info = p.get_imported_var(411104.into());
+		assert_eq!(info, None);
+	}
+
+	mod module_id {
+		use super::*;
+
+		#[test]
+		fn parses_module_id() {
+			let alloc = Allocator::new();
+			let p = parse!(alloc, "test_data/wp/module.js");
+			let id = p.get_module_id();
+
+			assert_eq!(id, Some(ModuleId(317269)));
+		}
+
+		#[test]
+		fn fails_to_parse_malformed_module_id() {
+			let alloc = Allocator::new();
+			let p = parse!(alloc, "test_data/wp/bad/badModule1.js");
+			let id = p.get_module_id();
+			assert_eq!(id, None);
+		}
+
+		#[test]
+		fn fails_to_parse_missing_module_id() {
+			let alloc = Allocator::new();
+			let p = parse!(alloc, "test_data/wp/bad/badModule2.js");
+			let id = p.get_module_id();
+			assert_eq!(id, None);
+		}
+	}
+	mod export_parsing {
+		use super::*;
+		mod wreq_d {
+			use super::*;
+			#[test]
+			fn simple_modules() {
+				todo!()
+			}
+			#[test]
+			fn string_literal_export() {
+				todo!()
+			}
+
+			#[test]
+			fn object_literal_export() {
+				todo!()
+			}
+
+			#[test]
+			fn object_with_computed_prop() {
+				todo!()
+			}
+
+			#[test]
+			fn class_export() {
+				todo!()
+			}
+
+			#[test]
+			fn enum_export() {
+				todo!()
+			}
+		}
+		mod e_exports {
+			use super::*;
+		}
+		mod exports {
+			use super::*;
+		}
+		mod stores {
+			use super::*;
+		}
 	}
 }
