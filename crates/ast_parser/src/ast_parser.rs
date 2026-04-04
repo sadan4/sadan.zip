@@ -1,4 +1,7 @@
-use crate::{exts::ModuleDeclarationExt, sym_id::GetSymId};
+use crate::{
+	exts::{ExpressionExt, ModuleDeclarationExt},
+	sym_id::GetSymId,
+};
 use anyhow::{Result, bail};
 use itertools::Itertools;
 use oxc::{
@@ -7,6 +10,7 @@ use oxc::{
 		AstKind,
 		ast::{
 			BindingIdentifier,
+			Expression,
 			IdentifierReference,
 			ImportDeclaration,
 			ModuleDeclaration,
@@ -205,7 +209,52 @@ pub trait AstParser<'ast> {
 	/// Returns true if they refer to the same variable
 	/// Does not consider redeclarations / aliases
 	fn cmp_sym(&self, a: &impl GetSymId, b: &impl GetSymId) -> bool {
-		a.get_sym_id(self.sema()) == b.get_sym_id(self.sema())
+		self.sym_id_of(a)
+			.is_some_and(|a| Some(a) == self.sym_id_of(b))
+	}
+
+	/// Get the symbol id of anything implementing [`GetSymId`]
+	fn sym_id_of(&self, of: &impl GetSymId) -> Option<SymbolId> {
+		of.get_sym_id(self.sema())
+	}
+	// TODO: probably be better to use a small vec here since we symbolid is small and we rarely have one let alone more
+	/// Given some code like
+	/// ```js
+	/// const bar = "foo";
+	/// const baz = bar;
+	/// const qux = baz;
+	/// ```
+	/// if given the symbol id for `qux`, this will return the symbol ids `[baz, bar]`
+	fn unwrap_variable_declarator(&self, symbol_id: SymbolId) -> Vec<SymbolId> {
+		let mut ret = Vec::new();
+		let mut last = symbol_id;
+		loop {
+			let decl_id = self
+				.sema()
+				.scoping()
+				.symbol_declaration(last);
+			let Some(decl) = self
+				.n(decl_id)
+				.kind()
+				.as_variable_declarator()
+			else {
+				break;
+			};
+			let Some(init) = &decl
+				.init
+				.as_ref()
+				.and_then(Expression::as_identifier)
+			else {
+				break;
+			};
+			// init is a double ref, but i can't deref in the some binding. Weird.
+			let Some(init_sym_id) = self.sym_id_of(*init) else {
+				break;
+			};
+			last = init_sym_id;
+			ret.push(last);
+		}
+		ret
 	}
 }
 

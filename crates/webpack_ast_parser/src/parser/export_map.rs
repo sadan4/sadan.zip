@@ -7,6 +7,7 @@ use derive_more::{
 	Into,
 	IsVariant,
 	TryUnwrap,
+	Unwrap,
 };
 use oxc::{ast::AstKind, span::Span};
 use serde::Serialize;
@@ -27,6 +28,18 @@ pub struct ExportMap<T> {
 impl<T> ExportMap<T> {
 	pub fn is_empty(&self) -> bool {
 		self.exports.is_empty() && self.cjs_default.is_none()
+	}
+	/// Shallow merge of two export maps.
+	/// [`self`] takes precedence over [`other`]
+	pub fn merge_with(&mut self, other: Self) {
+		debug_assert!(
+			!(self.cjs_default.is_some() && other.cjs_default.is_some()),
+			"cannot merge two export maps that both have a default export"
+		);
+		self.exports.extend(other.exports);
+		if self.cjs_default.is_none() {
+			self.cjs_default = other.cjs_default;
+		}
 	}
 }
 
@@ -88,7 +101,7 @@ pub struct ExportRange<T>(
 	#[deref]
 	#[deref_mut]
 	pub Vec<T>,
-	Option<SmolStr>,
+	pub Option<SmolStr>,
 );
 
 impl<T> From<T> for ExportRange<T> {
@@ -122,7 +135,7 @@ impl<T> FromIterator<T> for ExportRange<T> {
 	}
 }
 
-#[derive(Debug, Clone, Serialize, From, TryUnwrap, IsVariant)]
+#[derive(Debug, Clone, Serialize, From, Unwrap, TryUnwrap, IsVariant)]
 #[serde(untagged)]
 pub enum ExportValue<T> {
 	Range(ExportRange<T>),
@@ -157,7 +170,10 @@ pub type RawExportMapEntry<'ast> = ExportMapEntry<AstKind<'ast>>;
 pub type RawExportRange<'ast> = ExportRange<AstKind<'ast>>;
 pub type RawExportMap<'ast> = ExportMap<AstKind<'ast>>;
 
-pub type RangeExportMap<'ast> = ExportMap<Span>;
+pub type RangeExportMapValue = ExportValue<Span>;
+pub type RangeExportMapEntry = ExportMapEntry<Span>;
+pub type RangeExportRange = ExportRange<Span>;
+pub type RangeExportMap = ExportMap<Span>;
 
 impl<'ast> RawExportRange<'ast> {
 	pub fn from_node(node: impl IntoAstKind<'ast>) -> Self {

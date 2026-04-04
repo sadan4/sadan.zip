@@ -1,4 +1,5 @@
 mod arg_finder;
+mod enum_iife;
 mod export_map;
 mod types;
 mod util;
@@ -14,6 +15,7 @@ use ast_parser::{
 		ExpressionExt,
 		Functionish,
 		NumericLiteralExt as _,
+		StatementExt,
 	},
 	parse,
 	sym_id::GetSymId,
@@ -24,14 +26,19 @@ use oxc::{
 		AstKind,
 		ast::{
 			ArrowFunctionExpression,
+			AssignmentExpression,
 			BindingIdentifier,
 			CallExpression,
+			ComputedMemberExpression,
+			Expression,
 			IdentifierReference,
+			MemberExpression,
 			NumericLiteral,
 			ObjectExpression,
 			ObjectProperty,
 			ObjectPropertyKind,
 			Program,
+			StaticMemberExpression,
 		},
 	},
 	semantic::{NodeId, Semantic, SymbolId},
@@ -45,8 +52,14 @@ use crate::{
 	cache::{CacheRef, CacheValue},
 	parser::{
 		self,
+		enum_iife::EnumIIFEState1_2,
 		export_map::{
+			ExportMap,
+			ExportRange,
 			ExportValue,
+			RangeExportMap,
+			RangeExportMapValue,
+			RangeExportRange,
 			RawExportMapEntry,
 			RawExportMapValue,
 			RawExportRange,
@@ -73,6 +86,7 @@ struct Cache<'ast> {
 	wreq: CacheValue<Option<SymbolId>>,
 	t: CacheValue<Option<SymbolId>>,
 	raw_export_map: CacheRef<RawExportMap<'ast>>,
+	range_export_map: CacheRef<RangeExportMap>,
 	wreq_d: CacheValue<Option<WreqD<'ast>>>,
 }
 
@@ -201,52 +215,62 @@ impl<'ast> WebpackAstParser<'ast> {
 
 		Some(ret)
 	}
+	// FIXME: implement
+	fn get_export_map_raw_wreq_e(&self) -> Option<RawExportMap<'ast>> {
+		None
+	}
+	// FIXME: implement
+	fn get_export_map_raw_wreq_t(&self) -> Option<RawExportMap<'ast>> {
+		None
+	}
 	fn get_export_map_raw_wreq_d(&self) -> Option<RawExportMap<'ast>> {
 		let exports_obj = self.find_wreq_d()?.obj;
-		_ = exports_obj
-			.properties
-			.iter()
-			.filter_map(|prop| -> Option<RawExportMapEntry<'ast>> {
-				let prop = prop.as_property()?;
-				let val = prop.value.as_functionish()?;
-				let trailing_ident: WreqDExportType<'ast> =
-					find_return_identifier(val)
-						.map(Into::into)
-						.or_else(|| {
-							find_return_member_expression(val).map(Into::into)
-						})?;
-				// TODO: Support parsing stores here
-				let ret: Option<RawExportMapValue<'ast>> = None;
-				// if ret.is_none()
-				// 	&& let Some(ident_sym_id) = trailing_ident
-				// 		.as_ident()
-				// 		.and_then(|i| i.get_sym_id(&self.sema))
-				// {
-				// 	ret = self
-				// 		.try_parse_class_decl(
-				// 			ident_sym_id,
-				// 			[prop.key.into_ast_kind()],
-				// 		)
-				// 		.map(Into::into);
-				// }
-				let ret = ret.unwrap_or_else(|| {
-					self.raw_make_export_map_recursive(trailing_ident)
-				});
-				let key_txt = SmolStr::new(&self.source[prop.key.span()]);
-				let entry = RawExportMapEntry::new(key_txt.into(), ret);
-
-				Some(entry)
-			});
-		todo!()
+		Some(self.raw_make_export_map_object_expression(exports_obj))
+		// let ret = exports_obj
+		// 	.properties
+		// 	.iter()
+		// 	.filter_map(|prop| -> Option<(SmolStr, RawExportMapValue<'ast>)> {
+		// 		let prop = prop.as_property()?;
+		// 		let val = prop.value.as_functionish()?;
+		// 		let trailing_ident: WreqDExportType<'ast> =
+		// 			find_return_identifier(val)
+		// 				.map(Into::into)
+		// 				.or_else(|| {
+		// 					find_return_member_expression(val).map(Into::into)
+		// 				})?;
+		// 		// TODO: Support parsing stores here
+		// 		// let ret: Option<RawExportMapValue<'ast>> = None;
+		// 		// if ret.is_none()
+		// 		// 	&& let Some(ident_sym_id) = trailing_ident
+		// 		// 		.as_ident()
+		// 		// 		.and_then(|i| i.get_sym_id(&self.sema))
+		// 		// {
+		// 		// 	ret = self
+		// 		// 		.try_parse_class_decl(
+		// 		// 			ident_sym_id,
+		// 		// 			[prop.key.into_ast_kind()],
+		// 		// 		)
+		// 		// 		.map(Into::into);
+		// 		// }
+		// 		// let ret = ret.unwrap_or_else(|| {
+		// 		// 	self.raw_make_export_map_recursive(trailing_ident)
+		// 		// });
+		// 		let ret = self.raw_make_export_map_recursive(trailing_ident);
+		// 		let key_txt = SmolStr::new(&self.source[prop.key.span()]);
+		//
+		// 		Some((key_txt, ret))
+		// 	})
+		// 	.collect();
+		// Some(ret)
 	}
 
-	fn try_parse_class_decl<const N: usize>(
-		&self,
-		sym_id: SymbolId,
-		prefix: [AstKind<'ast>; N],
-	) -> Option<RawExportMap<'ast>> {
-		todo!()
-	}
+	// fn try_parse_class_decl<const N: usize>(
+	// 	&self,
+	// 	sym_id: SymbolId,
+	// 	prefix: [AstKind<'ast>; N],
+	// ) -> Option<RawExportMap<'ast>> {
+	// 	todo!()
+	// }
 
 	fn impl_find_wreq_d(&self) -> Option<WreqD<'ast>> {
 		// `t` in function(e, t, n) {...} where `n` is `__webpack_require__`
@@ -300,23 +324,179 @@ impl<'ast> WebpackAstParser<'ast> {
 			.get(|| self.impl_find_wreq_d())
 	}
 	fn impl_get_export_map_raw(&self) -> Option<RawExportMap<'ast>> {
-		todo!()
+		let mut ret: Option<RawExportMap<'ast>> = None;
+		let mut merge = |new: Option<RawExportMap<'ast>>| match (&mut ret, new)
+		{
+			(None, new) => ret = new,
+			(Some(ret), Some(new)) => ret.merge_with(new),
+			_ => {}
+		};
+		merge(self.get_export_map_raw_wreq_d());
+		merge(self.get_export_map_raw_wreq_t());
+		merge(self.get_export_map_raw_wreq_e());
+		ret
 	}
 	fn get_export_map_raw(&self) -> &RawExportMap<'ast> {
 		self.c
 			.raw_export_map
 			.get_or_default(|| self.impl_get_export_map_raw())
 	}
+	fn get_export_map(&self) -> &RangeExportMap {
+		self.c.range_export_map.get(|| {
+			let raw = self.get_export_map_raw();
+			Self::raw_export_map_to_range_export_map(raw)
+		})
+	}
 }
 
 // functions to make the raw export map
 #[allow(clippy::multiple_inherent_impl)]
 impl<'ast> WebpackAstParser<'ast> {
+	fn raw_export_range_to_range_export_range(
+		ExportRange(nodes, annotation): &RawExportRange<'ast>,
+	) -> RangeExportRange {
+		let mut ret = nodes
+			.iter()
+			.map(GetSpan::span)
+			.collect::<RangeExportRange>();
+		// smol_str is O(1) clone
+		ret.1.clone_from(annotation);
+		ret.into()
+	}
+	fn raw_export_map_to_range_export_map(
+		ExportMap {
+			exports,
+			cjs_default,
+			hover,
+		}: &RawExportMap<'ast>,
+	) -> RangeExportMap {
+		RangeExportMap {
+			exports: exports
+				.iter()
+				.map(|(k, v)| {
+					(k.clone(), Self::raw_export_value_to_range_export_value(v))
+				})
+				.collect(),
+			cjs_default: cjs_default.as_ref().map(|e| {
+				Box::new(Self::raw_export_value_to_range_export_value(e))
+			}),
+			hover: hover.clone(),
+		}
+	}
+	fn raw_export_value_to_range_export_value(
+		v: &RawExportMapValue<'ast>,
+	) -> RangeExportMapValue {
+		match v {
+			ExportValue::Range(r) => ExportValue::Range(
+				Self::raw_export_range_to_range_export_range(r),
+			),
+			ExportValue::Map(m) => {
+				ExportValue::Map(Self::raw_export_map_to_range_export_map(m))
+			}
+		}
+	}
+	/// ### Style 1:
+	/// ```js
+	/// function (e) {
+	///     return e.foo = "foo",
+	///     e.bar = "bar",
+	///     e
+	/// }({})
+	/// ```
+	/// ### Style 2:
+	/// ```js
+	/// function (e) {
+	///     return e[e.foo = 1] = "foo",
+	///     e[e.bar = 2] = "bar",
+	///     e
+	/// }({})
+	/// ```
+	fn try_raw_make_export_map_for_enum_iife_style_1_and_2(
+		&self,
+		node: &'ast CallExpression<'ast>,
+	) -> Option<RawExportMap<'ast>> {
+		// `({})` in `function(e) {...}({})`
+		let args = &node.arguments;
+		// we are only ever called with one argument
+		if args.len() != 1 {
+			return None;
+		}
+		// `{}` in `function(e) {...}({})`
+		if !args[0]
+			.as_object_expression()?
+			.properties
+			.is_empty()
+		{
+			return None;
+		}
+		// check body
+		let func = node.callee.as_function_expression()?;
+		let func_body = &func.body.as_ref()?.statements;
+		if func_body.len() != 1 {
+			return None;
+		}
+		let stmt = func_body[0]
+			.as_return_statement()?
+			.argument
+			.as_ref()?
+			.as_sequence_expression()?;
+		// check parameters and get a handle to the final enum object parameter
+		if func.params.items.len() != 1 || func.params.rest.is_some() {
+			return None;
+		}
+		// FIXME: assert no random things on enum_param, (private, decorators, etc...)
+		let enum_param = func.params.items[0]
+			.pattern
+			.as_binding_identifier()?;
+		// the last `,e` in the return statement
+		// TODO: Refactor this state/logic into a separate struct?
+		let enum_exprs = &stmt.expressions[..stmt.expressions.len() - 1];
+		// a sequence expression should never be empty; therefore, this unwrap is safe
+		let last_expr = stmt
+			.expressions
+			.last()
+			.unwrap()
+			.as_identifier()?;
+		if !self.cmp_sym(last_expr, enum_param) {
+			return None;
+		}
+
+		let mut state = EnumIIFEState1_2 {
+			p: self,
+			enum_param,
+			ret: RawExportMap::default(),
+		};
+
+		for expr in enum_exprs {
+			let expr = expr.as_assignment_expression()?;
+			state.process(expr)?;
+		}
+
+		let mut ret = state.ret;
+
+		if let Some(decl) = self
+			.p(node.node_id())
+			.as_variable_declarator()
+			&& let Some(name) = decl.id.as_binding_identifier()
+		{
+			// sanity, should be impossible to hit
+			debug_assert!(ret.cjs_default.is_none());
+			ret.cjs_default =
+				Some(Box::new(RawExportRange::from_node(name).into()));
+		} else {
+			debug_assert!(
+				false,
+				"Enum IIFEs should always be a variable initializer"
+			);
+		}
+
+		Some(ret)
+	}
 	fn try_raw_make_export_map_for_enum_iife(
 		&self,
 		node: &'ast CallExpression<'ast>,
 	) -> Option<RawExportMap<'ast>> {
-		todo!()
+		self.try_raw_make_export_map_for_enum_iife_style_1_and_2(node)
 	}
 	fn raw_make_export_map_object_expression(
 		&self,
@@ -431,7 +611,7 @@ impl<'ast> WebpackAstParser<'ast> {
 		node: &'ast CallExpression<'ast>,
 	) -> RawExportMapValue<'ast> {
 		if let Some(enum_export) =
-			self.try_raw_make_export_map_for_enum_iife(node)
+			self.try_raw_make_export_map_for_enum_iife_style_1_and_2(node)
 		{
 			return enum_export.into();
 		}
@@ -441,7 +621,20 @@ impl<'ast> WebpackAstParser<'ast> {
 		&self,
 		node: &'ast IdentifierReference<'ast>,
 	) -> RawExportMapValue<'ast> {
-		todo!()
+		'a: {
+			let Some(sym_id) = self.sym_id_of(node) else {
+				break 'a;
+			};
+			let trail = self.unwrap_variable_declarator(sym_id);
+			let last_sym_id = *trail.last().unwrap_or(&sym_id);
+			let last_node_id = self
+				.sema
+				.scoping()
+				.symbol_declaration(last_sym_id);
+			let last_node = *self.n(last_node_id);
+			return self.raw_make_export_map_recursive(last_node);
+		};
+		RawExportRange::from_node(node).into()
 	}
 
 	fn raw_make_export_map_recursive(
@@ -488,7 +681,11 @@ impl<'ast> WebpackAstParser<'ast> {
 #[cfg(test)]
 #[allow(clippy::unreadable_literal)]
 mod tests {
+	use std::fmt::{self, Debug};
+
 	use super::*;
+	use ast_parser::span_line_and_column;
+	use derive_more::Deref;
 	use insta::{assert_debug_snapshot, assert_ron_snapshot};
 	use itertools::Itertools;
 	use oxc::span::{Atom, GetSpan as _, Span};
@@ -498,6 +695,52 @@ mod tests {
 			let source = include_str!($source);
 			WebpackAstParser::try_new(&$alloc, source).unwrap()
 		}};
+	}
+
+	struct ExportMapDumper<'a>(pub &'a RangeExportMap, pub &'a str);
+
+	impl ExportMapDumper<'_> {
+		fn handle_value(
+			&self,
+			f: &mut fmt::Formatter<'_>,
+			v: &RangeExportMapValue,
+		) -> Result<(), fmt::Error> {
+			match v {
+				ExportValue::Range(range) => {
+					let mut dbg_list = f.debug_list();
+					for &span in range.iter() {
+						let ((l1, c1), (l2, c2)) =
+							span_line_and_column(self.1, span);
+						dbg_list.entry(&format!("[{l1}:{c1}->{l2}:{c2})"));
+					}
+					dbg_list.finish()
+				}
+				ExportValue::Map(m) => {
+					let dumper = ExportMapDumper(m, self.1);
+					f.debug_tuple("ExportMap")
+						.field(&dumper)
+						.finish()
+				}
+			}
+		}
+	}
+
+	impl Debug for ExportMapDumper<'_> {
+		fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+			let mut dbg_map = f.debug_map();
+			for (k, v) in &self.0.exports {
+				dbg_map.entry(&k, &fmt::from_fn(|f| self.handle_value(f, v)));
+			}
+			if let Some(v) = &self.0.cjs_default {
+				let v = v.as_ref();
+				dbg_map.entry(
+					&"SYM_CJS_DEFAULT",
+					&fmt::from_fn(|f| self.handle_value(f, v)),
+				);
+			}
+
+			dbg_map.finish()
+		}
 	}
 
 	impl<'ast> WebpackAstParser<'ast> {
@@ -516,6 +759,9 @@ mod tests {
 				.symbol_declaration(sym_id);
 			let node = self.n(span);
 			(name, node.span())
+		}
+		fn dbg_export_map(&self) -> ExportMapDumper<'_> {
+			ExportMapDumper(self.get_export_map(), self.source)
 		}
 	}
 
@@ -610,10 +856,26 @@ mod tests {
 		mod wreq_d {
 			use super::*;
 			#[test]
-			#[ignore = "todo"]
 			fn simple_modules() {
 				let alloc = Allocator::new();
 				let p = parse!(alloc, "test_data/wp/module.js");
+				let export_map = p.dbg_export_map();
+				assert_debug_snapshot!(export_map, @r#"
+				{
+				    "TB": [
+				        "[4:8->4:10)",
+				        "[162:13->162:14)",
+				    ],
+				    "VY": [
+				        "[5:8->5:10)",
+				        "[183:13->183:14)",
+				    ],
+				    "ZP": [
+				        "[6:8->6:10)",
+				        "[87:13->87:14)",
+				    ],
+				}
+				"#);
 			}
 			#[test]
 			#[ignore = "todo"]

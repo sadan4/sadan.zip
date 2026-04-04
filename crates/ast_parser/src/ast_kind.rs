@@ -1,4 +1,5 @@
 use oxc::ast::{AstKind, ast::{Expression, MemberExpression, PropertyKey}};
+use oxc::semantic::AstNode;
 
 /// Generic trait for anything that be represented as an [`AstKind`].
 pub trait IntoAstKind<'ast> {
@@ -9,6 +10,12 @@ pub trait IntoAstKind<'ast> {
 impl<'a> IntoAstKind<'a> for AstKind<'a> {
 	fn into_ast_kind(self) -> Self {
 		self
+	}
+}
+
+impl<'a> IntoAstKind<'a> for AstNode<'a> {
+	fn into_ast_kind(self) -> AstKind<'a> {
+		self.kind()
 	}
 }
 

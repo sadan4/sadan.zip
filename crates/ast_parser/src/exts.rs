@@ -5,38 +5,7 @@ use oxc::{
 	ast::{
 		AstKind,
 		ast::{
-			Argument,
-			ArrayExpression,
-			ArrayExpressionElement,
-			ArrowFunctionExpression,
-			BinaryExpression,
-			BindingIdentifier,
-			BindingPattern,
-			CallExpression,
-			ComputedMemberExpression,
-			Expression,
-			ExpressionStatement,
-			Function,
-			FunctionBody,
-			IdentifierName,
-			IdentifierReference,
-			ImportDeclaration,
-			ImportDeclarationSpecifier,
-			MemberExpression,
-			ModuleDeclaration,
-			NumericLiteral,
-			ObjectExpression,
-			ObjectProperty,
-			PrivateFieldExpression,
-			PrivateIdentifier,
-			PropertyKey,
-			ReturnStatement,
-			SpreadElement,
-			Statement,
-			StaticMemberExpression,
-			StringLiteral,
-			TaggedTemplateExpression,
-			TemplateLiteral,
+			Argument, ArrayExpression, ArrayExpressionElement, ArrowFunctionExpression, AssignmentExpression, BinaryExpression, BindingIdentifier, BindingPattern, CallExpression, ComputedMemberExpression, Expression, ExpressionStatement, Function, FunctionBody, IdentifierName, IdentifierReference, ImportDeclaration, ImportDeclarationSpecifier, MemberExpression, ModuleDeclaration, NumericLiteral, ObjectExpression, ObjectProperty, PrivateFieldExpression, PrivateIdentifier, PropertyKey, ReturnStatement, SequenceExpression, SpreadElement, Statement, StaticMemberExpression, StringLiteral, TaggedTemplateExpression, TemplateLiteral
 		},
 	},
 	semantic::{NodeId, ScopeId, SymbolId},
@@ -427,7 +396,8 @@ impl<'a, 'ast> Functionish<'a, 'ast> {
 	/// Gets the identifier of this function, if it has one
 	/// See: [`Function::id`]
 	pub fn id(&self) -> Option<&'a BindingIdentifier<'ast>> {
-		self.as_named().and_then(|f| f.id.as_ref())
+		self.as_named()
+			.and_then(|f| f.id.as_ref())
 	}
 	/// See [`Function::pife`]
 	/// See [`ArrowFunctionExpression::pife`]
@@ -708,6 +678,42 @@ pub trait ExpressionExt<'ast> {
 	) -> Option<&mut BinaryExpression<'ast>> {
 		match self.as_expr_mut_()? {
 			Expression::BinaryExpression(e) => Some(e.as_mut()),
+			_ => None,
+		}
+	}
+
+	fn is_sequence_expression(&self) -> bool {
+		matches!(self.as_expr_(), Some(Expression::SequenceExpression(_)))
+	}
+	fn as_sequence_expression(&self) -> Option<&SequenceExpression<'ast>> {
+		match self.as_expr_()? {
+			Expression::SequenceExpression(e) => Some(e.as_ref()),
+			_ => None,
+		}
+	}
+	fn as_sequence_expression_mut(
+		&mut self,
+	) -> Option<&mut SequenceExpression<'ast>> {
+		match self.as_expr_mut_()? {
+			Expression::SequenceExpression(e) => Some(e.as_mut()),
+			_ => None,
+		}
+	}
+
+	fn is_assignment_expression(&self) -> bool {
+		matches!(self.as_expr_(), Some(Expression::AssignmentExpression(_)))
+	}
+	fn as_assignment_expression(&self) -> Option<&AssignmentExpression<'ast>> {
+		match self.as_expr_()? {
+			Expression::AssignmentExpression(e) => Some(e.as_ref()),
+			_ => None,
+		}
+	}
+	fn as_assignment_expression_mut(
+		&mut self,
+	) -> Option<&mut AssignmentExpression<'ast>> {
+		match self.as_expr_mut_()? {
+			Expression::AssignmentExpression(e) => Some(e.as_mut()),
 			_ => None,
 		}
 	}
