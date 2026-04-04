@@ -1041,7 +1041,6 @@ mod tests {
 				// only pick the keys we have tests for in js
 				// TODO: Broaden tests in this module
 				let mut map2 = map.clone();
-				map2.cjs_default = None;
 				map2.exports.retain(|k, _| {
 					matches!(k.as_str(), "$7" | "$X" | "$n" | "C" | "Cj" | "Si")
 				});
