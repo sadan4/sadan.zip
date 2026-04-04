@@ -716,7 +716,7 @@ impl<'ast> WebpackAstParser<'ast> {
 }
 
 #[cfg(test)]
-#[allow(clippy::unreadable_literal)]
+#[allow(clippy::unreadable_literal, clippy::too_many_lines)]
 mod tests {
 	use std::fmt::{self, Debug};
 
@@ -1003,7 +1003,8 @@ mod tests {
 			#[test]
 			fn object_with_computed_prop() {
 				let alloc = Allocator::new();
-				let p = parse!(alloc, "test_data/wp/wreq.d/computedPropInObj.js");
+				let p =
+					parse!(alloc, "test_data/wp/wreq.d/computedPropInObj.js");
 				let map = p.dbg_export_map();
 				assert_debug_snapshot!(map, @r#"
 				{
@@ -1026,13 +1027,188 @@ mod tests {
 			#[test]
 			#[ignore = "todo"]
 			fn class_export() {
-				todo!()
+				let alloc = Allocator::new();
+				let p = parse!(alloc, "test_data/wp/wreq.d/classExport.js");
+				let map = p.dbg_export_map();
+				assert_debug_snapshot!(map, @r#""#);
 			}
 
 			#[test]
-			#[ignore = "todo"]
 			fn enum_export() {
-				todo!()
+				let alloc = Allocator::new();
+				let p = parse!(alloc, "test_data/wp/wreq.d/enums.js");
+				let map = p.get_export_map();
+				// only pick the keys we have tests for in js
+				// TODO: Broaden tests in this module
+				let mut map2 = map.clone();
+				map2.cjs_default = None;
+				map2.exports.retain(|k, _| {
+					matches!(k.as_str(), "$7" | "$X" | "$n" | "C" | "Cj" | "Si")
+				});
+				let map2_dumper = ExportMapDumper(&map2, p.source);
+				assert_debug_snapshot!(map2_dumper, @r#"
+				{
+				    "$7": 28(
+				        [
+				            "[5:8->5:10)",
+				            "[385:12->385:14)",
+				        ],
+				    ),
+				    "$X": "1397626558063050855"(
+				        [
+				            "[7:8->7:10)",
+				            "[421:13->421:34)",
+				        ],
+				    ),
+				    "$n": 190(
+				        [
+				            "[9:8->9:10)",
+				            "[739:13->739:16)",
+				        ],
+				    ),
+				    "C": ExportMap(
+				        {
+				            "PREMIUM_DISCOUNT": 1(
+				                [
+				                    "[118:12->118:28)",
+				                    "[118:31->118:32)",
+				                ],
+				            ),
+				            "PREMIUM_TRIAL": 0(
+				                [
+				                    "[117:19->117:32)",
+				                    "[117:35->117:36)",
+				                ],
+				            ),
+				            "SYM_CJS_DEFAULT": [
+				                "[116:8->116:9)",
+				            ],
+				        },
+				    ),
+				    "Cj": ExportMap(
+				        {
+				            "BOX": 2(
+				                [
+				                    "[701:12->701:15)",
+				                    "[701:18->701:19)",
+				                ],
+				            ),
+				            "CAKE": 5(
+				                [
+				                    "[704:12->704:16)",
+				                    "[704:19->704:20)",
+				                ],
+				            ),
+				            "CHEST": 6(
+				                [
+				                    "[705:12->705:17)",
+				                    "[705:20->705:21)",
+				                ],
+				            ),
+				            "COFFEE": 7(
+				                [
+				                    "[706:12->706:18)",
+				                    "[706:21->706:22)",
+				                ],
+				            ),
+				            "CUP": 3(
+				                [
+				                    "[702:12->702:15)",
+				                    "[702:18->702:19)",
+				                ],
+				            ),
+				            "NITROWEEN_STANDARD": 12(
+				                [
+				                    "[711:12->711:30)",
+				                    "[711:33->711:35)",
+				                ],
+				            ),
+				            "SEASONAL_CAKE": 9(
+				                [
+				                    "[708:12->708:25)",
+				                    "[708:28->708:29)",
+				                ],
+				            ),
+				            "SEASONAL_CHEST": 10(
+				                [
+				                    "[709:12->709:26)",
+				                    "[709:29->709:31)",
+				                ],
+				            ),
+				            "SEASONAL_COFFEE": 11(
+				                [
+				                    "[710:12->710:27)",
+				                    "[710:30->710:32)",
+				                ],
+				            ),
+				            "SEASONAL_STANDARD_BOX": 8(
+				                [
+				                    "[707:12->707:33)",
+				                    "[707:36->707:37)",
+				                ],
+				            ),
+				            "SNOWGLOBE": 1(
+				                [
+				                    "[700:19->700:28)",
+				                    "[700:31->700:32)",
+				                ],
+				            ),
+				            "STANDARD_BOX": 4(
+				                [
+				                    "[703:12->703:24)",
+				                    "[703:27->703:28)",
+				                ],
+				            ),
+				            "SYM_CJS_DEFAULT": [
+				                "[699:8->699:10)",
+				            ],
+				        },
+				    ),
+				    "Si": ExportMap(
+				        {
+				            "GUILD": "590663762298667008"(
+				                [
+				                    "[153:10->153:15)",
+				                    "[153:18->153:38)",
+				                ],
+				            ),
+				            "LEGACY": "521842865731534868"(
+				                [
+				                    "[154:10->154:16)",
+				                    "[154:19->154:39)",
+				                ],
+				            ),
+				            "NONE": "628379670982688768"(
+				                [
+				                    "[149:17->149:21)",
+				                    "[149:24->149:44)",
+				                ],
+				            ),
+				            "TIER_0": "978380684370378762"(
+				                [
+				                    "[150:10->150:16)",
+				                    "[150:19->150:39)",
+				                ],
+				            ),
+				            "TIER_1": "521846918637420545"(
+				                [
+				                    "[151:10->151:16)",
+				                    "[151:19->151:39)",
+				                ],
+				            ),
+				            "TIER_2": "521847234246082599"(
+				                [
+				                    "[152:10->152:16)",
+				                    "[152:19->152:39)",
+				                ],
+				            ),
+				            "SYM_CJS_DEFAULT": [
+				                "[148:8->148:9)",
+				            ],
+				        },
+				    ),
+				}
+				"#);
 			}
 		}
 		mod e_exports {
