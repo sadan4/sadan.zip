@@ -1,28 +1,60 @@
 mod arg_finder;
 mod export_map;
 mod types;
+mod util;
+
+use std::{iter, ops::Not};
 
 use anyhow::Result;
 use ast_parser::{
 	AstParser,
-	exts::{BindingPatternExt, ExpressionExt, NumericLiteralExt as _},
+	ast_kind::IntoAstKind,
+	exts::{
+		BindingPatternExt,
+		ExpressionExt,
+		Functionish,
+		NumericLiteralExt as _,
+	},
 	parse,
+	sym_id::GetSymId,
 };
 use oxc::{
 	allocator::Allocator,
 	ast::{
 		AstKind,
-		ast::{NumericLiteral, Program},
+		ast::{
+			ArrowFunctionExpression,
+			BindingIdentifier,
+			CallExpression,
+			IdentifierReference,
+			NumericLiteral,
+			ObjectExpression,
+			ObjectProperty,
+			ObjectPropertyKind,
+			Program,
+		},
 	},
 	semantic::{NodeId, Semantic, SymbolId},
-	span::SourceType,
+	span::{GetSpan, SourceType},
 };
+use smol_str::SmolStr;
+use tracing::{debug, trace};
 
 use crate::{
 	bundle::{DefaultModuleCache, IModuleCache},
 	cache::{CacheRef, CacheValue},
+	parser::{
+		self,
+		export_map::{
+			ExportValue,
+			RawExportMapEntry,
+			RawExportMapValue,
+			RawExportRange,
+		},
+		types::{WreqD, WreqDExportType},
+		util::{find_return_identifier, find_return_member_expression},
+	},
 	types::ModuleId,
-	webpack_ast_parser::types::WreqD,
 };
 
 use export_map::RawExportMap;
@@ -41,6 +73,7 @@ struct Cache<'ast> {
 	wreq: CacheValue<Option<SymbolId>>,
 	t: CacheValue<Option<SymbolId>>,
 	raw_export_map: CacheRef<RawExportMap<'ast>>,
+	wreq_d: CacheValue<Option<WreqD<'ast>>>,
 }
 
 impl<'ast> AstParser<'ast> for WebpackAstParser<'ast> {
@@ -133,6 +166,9 @@ impl<'ast> WebpackAstParser<'ast> {
 	fn wreq_uses(&self) -> Option<impl Iterator<Item = AstKind<'ast>> + '_> {
 		Some(self.ref_nodes(self.wreq()?))
 	}
+	fn text(&self, span: &impl GetSpan) -> &'ast str {
+		&self.source[span.span()]
+	}
 	/// [`arg_index`]: the index of the param (0, 1, 2, ...)
 	///
 	/// Returns Some(SymbolId) of the param if found, or None if not found.
@@ -166,11 +202,55 @@ impl<'ast> WebpackAstParser<'ast> {
 		Some(ret)
 	}
 	fn get_export_map_raw_wreq_d(&self) -> Option<RawExportMap<'ast>> {
+		let exports_obj = self.find_wreq_d()?.obj;
+		_ = exports_obj
+			.properties
+			.iter()
+			.filter_map(|prop| -> Option<RawExportMapEntry<'ast>> {
+				let prop = prop.as_property()?;
+				let val = prop.value.as_functionish()?;
+				let trailing_ident: WreqDExportType<'ast> =
+					find_return_identifier(val)
+						.map(Into::into)
+						.or_else(|| {
+							find_return_member_expression(val).map(Into::into)
+						})?;
+				// TODO: Support parsing stores here
+				let ret: Option<RawExportMapValue<'ast>> = None;
+				// if ret.is_none()
+				// 	&& let Some(ident_sym_id) = trailing_ident
+				// 		.as_ident()
+				// 		.and_then(|i| i.get_sym_id(&self.sema))
+				// {
+				// 	ret = self
+				// 		.try_parse_class_decl(
+				// 			ident_sym_id,
+				// 			[prop.key.into_ast_kind()],
+				// 		)
+				// 		.map(Into::into);
+				// }
+				let ret = ret.unwrap_or_else(|| {
+					self.raw_make_export_map_recursive(trailing_ident)
+				});
+				let key_txt = SmolStr::new(&self.source[prop.key.span()]);
+				let entry = RawExportMapEntry::new(key_txt.into(), ret);
+
+				Some(entry)
+			});
 		todo!()
 	}
-	fn find_wreq_d(&self) -> Option<WreqD<'ast>> {
+
+	fn try_parse_class_decl<const N: usize>(
+		&self,
+		sym_id: SymbolId,
+		prefix: [AstKind<'ast>; N],
+	) -> Option<RawExportMap<'ast>> {
+		todo!()
+	}
+
+	fn impl_find_wreq_d(&self) -> Option<WreqD<'ast>> {
 		// `t` in function(e, t, n) {...} where `n` is `__webpack_require__`
-		let exports = self.webpack_exports()?;
+		let exports_decl = self.webpack_exports()?;
 		for use_ in self.wreq_uses()? {
 			// `wreq.d` in `wreq.d(...)`
 			let Some(wreq_d_expr) = self
@@ -196,18 +276,28 @@ impl<'ast> WebpackAstParser<'ast> {
 				continue;
 			}
 
-			let Some(t) = args[0].as_identifier() else {
+			// `t` in `wreq.d(t, {...})`
+			let Some(exports) = args[0].as_identifier() else {
 				continue;
 			};
 			// ensure it's the exports
 			// FIXME: don't think this could ever be `module.exports` instead of just `exports`
 			// because wreq.d is only used on es modules
-			if self.sema.scoping().get_reference(t.reference_id()).symbol_id() != Some(exports) {
+			if !self.cmp_sym(exports, &exports_decl) {
 				continue;
 			}
-
+			// `{...}` in `wreq.d(t, {...})`
+			let Some(obj) = args[1].as_object_expression() else {
+				continue;
+			};
+			return Some(WreqD { call, exports, obj });
 		}
 		None
+	}
+	fn find_wreq_d(&self) -> Option<WreqD<'ast>> {
+		self.c
+			.wreq_d
+			.get(|| self.impl_find_wreq_d())
 	}
 	fn impl_get_export_map_raw(&self) -> Option<RawExportMap<'ast>> {
 		todo!()
@@ -216,6 +306,182 @@ impl<'ast> WebpackAstParser<'ast> {
 		self.c
 			.raw_export_map
 			.get_or_default(|| self.impl_get_export_map_raw())
+	}
+}
+
+// functions to make the raw export map
+#[allow(clippy::multiple_inherent_impl)]
+impl<'ast> WebpackAstParser<'ast> {
+	fn try_raw_make_export_map_for_enum_iife(
+		&self,
+		node: &'ast CallExpression<'ast>,
+	) -> Option<RawExportMap<'ast>> {
+		todo!()
+	}
+	fn raw_make_export_map_object_expression(
+		&self,
+		node: &'ast ObjectExpression<'ast>,
+	) -> RawExportMap<'ast> {
+		node.properties
+			.iter()
+			.filter_map(
+				|prop| -> Option<
+					Box<
+						dyn Iterator<Item = (SmolStr, RawExportMapValue<'ast>)>,
+					>,
+				> {
+					match prop {
+						ObjectPropertyKind::ObjectProperty(prop) => {
+							let key_txt =
+								SmolStr::new(&self.source[prop.key.span()]);
+							let val = self
+								.raw_make_export_map_property_assignment(prop);
+							Some(Box::new(iter::once((key_txt, val))))
+						}
+						ObjectPropertyKind::SpreadProperty(spread_val) => {
+							let spread_val = spread_val
+								.argument
+								.get_inner_expression();
+							if !spread_val.is_identifier_reference() {
+								debug!(
+									"Spread assignment is not an identifier, this should be handled"
+								);
+							}
+							let spread =
+								self.raw_make_export_map_recursive(spread_val);
+							let Ok(spread) = spread.try_unwrap_map() else {
+								debug!(
+									"Identifier in object spread is not an object, this should be handled"
+								);
+								return None;
+							};
+							// discard annotation and default
+							Some(Box::new(spread.exports.into_iter()))
+						}
+					}
+				},
+			)
+			.flatten()
+			.collect()
+	}
+	fn raw_make_export_map_literalish(
+		&self,
+		node: AstKind<'ast>,
+	) -> RawExportRange<'ast> {
+		let annotation = SmolStr::new(self.text(&node));
+		RawExportRange::annotated(iter::once(node), annotation)
+	}
+	fn raw_make_export_map_property_assignment(
+		&self,
+		node: &'ast ObjectProperty<'ast>,
+	) -> RawExportMapValue<'ast> {
+		let obj_range = self.raw_make_export_map_recursive(&node.value);
+		match obj_range {
+			ExportValue::Range(mut export_range) => {
+				// FIXME: this seems... wrong
+				export_range.insert(0, node.key.into_ast_kind());
+				export_range.into()
+			}
+			export_map @ ExportValue::Map(_) => {
+				// FIXME: this also seems wrong, why isn't this handled in the object literal case?
+				let key_txt = SmolStr::new(self.text(&node.key));
+				iter::once((key_txt, export_map))
+					.collect::<RawExportMap>()
+					.into()
+			}
+		}
+	}
+	fn raw_make_export_map_functionish(
+		&self,
+		node: Functionish<'ast, 'ast>,
+	) -> RawExportMapValue<'ast> {
+		// handle if this is just a wrapper function (eg: `() => local_foo`)
+		'wrapper_func_check: {
+			// arrow_expr is a identifier or member expression
+			if let Some(arrow_expr) = node
+				.as_arrow()
+				.and_then(ArrowFunctionExpression::get_expression)
+				.map(WreqDExportType::try_from)
+				.transpose()
+				.ok()
+				.flatten()
+			{
+				let ret = self.raw_make_export_map_recursive(arrow_expr);
+				if !ret.is_empty() {
+					return ret;
+				}
+			}
+			if node.body().statements.len() == 1 {
+				let Some(ident) = find_return_identifier(node) else {
+					break 'wrapper_func_check;
+				};
+				let ret = self.raw_make_export_map_recursive(ident);
+				if !ret.is_empty() {
+					return ret;
+				}
+			}
+		};
+		let node = node
+			.id()
+			.map_or_else(|| node.into_ast_kind(), IntoAstKind::into_ast_kind);
+		RawExportRange::from(node).into()
+	}
+	fn raw_make_export_map_call_expression(
+		&self,
+		node: &'ast CallExpression<'ast>,
+	) -> RawExportMapValue<'ast> {
+		if let Some(enum_export) =
+			self.try_raw_make_export_map_for_enum_iife(node)
+		{
+			return enum_export.into();
+		}
+		return RawExportRange::from_node(node).into();
+	}
+	fn raw_make_export_map_ident_ref(
+		&self,
+		node: &'ast IdentifierReference<'ast>,
+	) -> RawExportMapValue<'ast> {
+		todo!()
+	}
+
+	fn raw_make_export_map_recursive(
+		&self,
+		node: impl IntoAstKind<'ast>,
+	) -> RawExportMapValue<'ast> {
+		let node = node.into_ast_kind();
+		match node {
+			AstKind::ObjectExpression(node) => self
+				.raw_make_export_map_object_expression(node)
+				.into(),
+			AstKind::TemplateLiteral(t) if t.is_no_substitution_template() => {
+				self.raw_make_export_map_literalish(node)
+					.into()
+			}
+			AstKind::BooleanLiteral(_)
+			| AstKind::NullLiteral(_)
+			| AstKind::NumericLiteral(_)
+			| AstKind::StringLiteral(_)
+			| AstKind::BigIntLiteral(_)
+			| AstKind::RegExpLiteral(_) => self
+				.raw_make_export_map_literalish(node)
+				.into(),
+			AstKind::ObjectProperty(node) => {
+				self.raw_make_export_map_property_assignment(node)
+			}
+			AstKind::ArrowFunctionExpression(node) => {
+				self.raw_make_export_map_functionish(Functionish::from(node))
+			}
+			AstKind::Function(node) => {
+				self.raw_make_export_map_functionish(Functionish::from(node))
+			}
+			AstKind::CallExpression(node) => {
+				self.raw_make_export_map_call_expression(node)
+			}
+			AstKind::IdentifierReference(node) => {
+				self.raw_make_export_map_ident_ref(node)
+			}
+			_ => RawExportRange::from(node).into(),
+		}
 	}
 }
 

@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 use anyhow::{Result, bail};
-use crate::{types::ModuleId, webpack_ast_parser::WebpackAstParser};
+use crate::{types::ModuleId, parser::WebpackAstParser};
 
 pub trait IModuleCache<'ast> {
 	fn get_module_filepath(&self, id: ModuleId) -> Option<PathBuf>;

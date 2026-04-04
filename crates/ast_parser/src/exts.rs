@@ -2,44 +2,50 @@ use anyhow::{Result, bail};
 use itertools::Itertools as _;
 use oxc::{
 	allocator::Box as OxcBox,
-	ast::ast::{
-		Argument,
-		ArrayExpression,
-		ArrayExpressionElement,
-		ArrowFunctionExpression,
-		BinaryExpression,
-		BindingIdentifier,
-		BindingPattern,
-		CallExpression,
-		ComputedMemberExpression,
-		Expression,
-		ExpressionStatement,
-		Function,
-		FunctionBody,
-		IdentifierName,
-		IdentifierReference,
-		ImportDeclaration,
-		ImportDeclarationSpecifier,
-		MemberExpression,
-		ModuleDeclaration,
-		NumericLiteral,
-		ObjectExpression,
-		ObjectProperty,
-		PrivateFieldExpression,
-		PrivateIdentifier,
-		PropertyKey,
-		SpreadElement,
-		Statement,
-		StaticMemberExpression,
-		StringLiteral,
-		TaggedTemplateExpression,
-		TemplateLiteral,
+	ast::{
+		AstKind,
+		ast::{
+			Argument,
+			ArrayExpression,
+			ArrayExpressionElement,
+			ArrowFunctionExpression,
+			BinaryExpression,
+			BindingIdentifier,
+			BindingPattern,
+			CallExpression,
+			ComputedMemberExpression,
+			Expression,
+			ExpressionStatement,
+			Function,
+			FunctionBody,
+			IdentifierName,
+			IdentifierReference,
+			ImportDeclaration,
+			ImportDeclarationSpecifier,
+			MemberExpression,
+			ModuleDeclaration,
+			NumericLiteral,
+			ObjectExpression,
+			ObjectProperty,
+			PrivateFieldExpression,
+			PrivateIdentifier,
+			PropertyKey,
+			ReturnStatement,
+			SpreadElement,
+			Statement,
+			StaticMemberExpression,
+			StringLiteral,
+			TaggedTemplateExpression,
+			TemplateLiteral,
+		},
 	},
 	semantic::{NodeId, ScopeId, SymbolId},
 	span::{Atom, GetSpan, Ident, Span},
 };
 use oxc_ecmascript::{GlobalContext, constant_evaluation::IsLiteralValue};
 use std::borrow::Cow;
+
+use crate::ast_kind::IntoAstKind;
 
 pub trait ModuleDeclarationExt {
 	fn as_import_declaration(
@@ -265,19 +271,35 @@ pub trait StatementExt<'ast> {
 	fn is_expression_statement(&self) -> bool {
 		matches!(self.as_stmt_(), Some(Statement::ExpressionStatement(_)))
 	}
-
 	fn as_expression_statement(&self) -> Option<&ExpressionStatement<'ast>> {
 		match self.as_stmt_()? {
 			Statement::ExpressionStatement(s) => Some(s.as_ref()),
 			_ => None,
 		}
 	}
-
 	fn as_expression_statement_mut(
 		&mut self,
 	) -> Option<&mut ExpressionStatement<'ast>> {
 		match self.as_stmt_mut_()? {
 			Statement::ExpressionStatement(s) => Some(s.as_mut()),
+			_ => None,
+		}
+	}
+
+	fn is_return_statement(&self) -> bool {
+		matches!(self.as_stmt_(), Some(Statement::ReturnStatement(_)))
+	}
+	fn as_return_statement(&self) -> Option<&ReturnStatement<'ast>> {
+		match self.as_stmt_()? {
+			Statement::ReturnStatement(s) => Some(s.as_ref()),
+			_ => None,
+		}
+	}
+	fn as_return_statement_mut(
+		&mut self,
+	) -> Option<&mut ReturnStatement<'ast>> {
+		match self.as_stmt_mut_()? {
+			Statement::ReturnStatement(s) => Some(s.as_mut()),
 			_ => None,
 		}
 	}
@@ -387,35 +409,60 @@ pub enum Functionish<'a, 'ast> {
 	Arrow(&'a ArrowFunctionExpression<'ast>),
 }
 
-impl<'a, 'ast> Functionish<'a, 'ast> {
-	pub fn name(&self) -> Option<Ident<'ast>> {
-		self.as_named().and_then(Function::name)
+impl<'a, 'ast> From<&'a ArrowFunctionExpression<'ast>>
+	for Functionish<'a, 'ast>
+{
+	fn from(v: &'a ArrowFunctionExpression<'ast>) -> Self {
+		Self::Arrow(v)
 	}
+}
 
+impl<'a, 'ast> From<&'a Function<'ast>> for Functionish<'a, 'ast> {
+	fn from(v: &'a Function<'ast>) -> Self {
+		Self::Named(v)
+	}
+}
+
+impl<'a, 'ast> Functionish<'a, 'ast> {
+	/// Gets the identifier of this function, if it has one
+	/// See: [`Function::id`]
+	pub fn id(&self) -> Option<&'a BindingIdentifier<'ast>> {
+		self.as_named().and_then(|f| f.id.as_ref())
+	}
+	/// See [`Function::pife`]
+	/// See [`ArrowFunctionExpression::pife`]
 	pub const fn pife(&self) -> bool {
 		match self {
 			Self::Arrow(ArrowFunctionExpression { pife, .. })
 			| Self::Named(Function { pife, .. }) => *pife,
 		}
 	}
+	/// See [`Function::pure`]
+	/// See [`ArrowFunctionExpression::pure`]
 	pub const fn pure(&self) -> bool {
 		match self {
 			Self::Arrow(ArrowFunctionExpression { pure, .. })
 			| Self::Named(Function { pure, .. }) => *pure,
 		}
 	}
+	/// See [`Function::async`]
+	/// See [`ArrowFunctionExpression::async`]
 	pub const fn r#async(&self) -> bool {
 		match self {
 			Self::Arrow(ArrowFunctionExpression { r#async, .. })
 			| Self::Named(Function { r#async, .. }) => *r#async,
 		}
 	}
+	/// See [`Function::scope_id`]
+	/// See [`ArrowFunctionExpression::scope_id`]
 	pub const fn scope_id(&self) -> ScopeId {
 		match self {
 			Self::Arrow(ArrowFunctionExpression { scope_id, .. })
 			| Self::Named(Function { scope_id, .. }) => scope_id.get().unwrap(),
 		}
 	}
+	/// See [`Function::node_id`]
+	/// See [`ArrowFunctionExpression::node_id`]
 	pub const fn node_id(&self) -> NodeId {
 		match self {
 			Self::Arrow(ArrowFunctionExpression { node_id, .. })
@@ -423,7 +470,7 @@ impl<'a, 'ast> Functionish<'a, 'ast> {
 		}
 	}
 	/// Panics if this is called on a function with no body (typescript declaration)
-	pub fn body(&self) -> &FunctionBody<'ast> {
+	pub fn body(&self) -> &'a FunctionBody<'ast> {
 		match self {
 			Self::Arrow(ArrowFunctionExpression { body, .. }) => body.as_ref(),
 			Self::Named(Function { body, .. }) => body.as_ref().unwrap(),
@@ -487,6 +534,21 @@ impl GetSpan for Functionish<'_, '_> {
 			Functionish::Named(f) => f.span(),
 			Functionish::Arrow(a) => a.span(),
 		}
+	}
+}
+
+impl<'a> IntoAstKind<'a> for Functionish<'a, 'a> {
+	fn into_ast_kind(self) -> AstKind<'a> {
+		match self {
+			Functionish::Named(f) => f.into_ast_kind(),
+			Functionish::Arrow(a) => a.into_ast_kind(),
+		}
+	}
+}
+
+impl<'a> IntoAstKind<'a> for &Functionish<'a, 'a> {
+	fn into_ast_kind(self) -> AstKind<'a> {
+		(*self).into_ast_kind()
 	}
 }
 

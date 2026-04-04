@@ -1,20 +1,31 @@
-use crate::exts::ModuleDeclarationExt;
+use crate::{exts::ModuleDeclarationExt, sym_id::GetSymId};
 use anyhow::{Result, bail};
 use itertools::Itertools;
 use oxc::{
 	allocator::{Allocator, Box as OxcBox},
 	ast::{
 		AstKind,
-		ast::{ImportDeclaration, ModuleDeclaration, Program},
+		ast::{
+			BindingIdentifier,
+			IdentifierReference,
+			ImportDeclaration,
+			ModuleDeclaration,
+			Program,
+		},
 	},
 	parser::Parser as OxcParser,
 	semantic::{
-		AstNode, NodeId, Reference, Scoping, Semantic, SemanticBuilder,
+		AstNode,
+		NodeId,
+		Reference,
+		Scoping,
+		Semantic,
+		SemanticBuilder,
 		SymbolId,
 	},
 	span::SourceType,
 };
-use std::sync::Arc;
+use std::{convert::Infallible, sync::Arc};
 
 macro_rules! impl_parse {
 	($alloc:expr, $source:expr, $source_type:expr, $ast:ident, $sema:ident) => {
@@ -118,14 +129,20 @@ pub trait AstParser<'ast> {
 		self.sema().nodes().get_node(node_id)
 	}
 	/// Parent of node
-	fn p(&self, node_id: NodeId) -> AstKind<'ast>
-	{
-		self.sema().nodes().parent_node(node_id).kind()
+	fn p(&self, node_id: NodeId) -> AstKind<'ast> {
+		self.sema()
+			.nodes()
+			.parent_node(node_id)
+			.kind()
 	}
 
 	/// Parent of node, if it matches the predicate
 	/// TODO: add example
-	fn p_if<T, F: FnOnce(AstKind<'ast>) -> Option<T>>(&self, node_id: NodeId, pred: F) -> Option<T> {
+	fn p_if<T, F: FnOnce(AstKind<'ast>) -> Option<T>>(
+		&self,
+		node_id: NodeId,
+		pred: F,
+	) -> Option<T> {
 		pred(self.p(node_id))
 	}
 	// fn cfg_id(&self, node_id: NodeId) -> BlockNodeId {
@@ -183,6 +200,12 @@ pub trait AstParser<'ast> {
 
 			node_id = parent_id;
 		}
+	}
+	/// Compare two references to variables
+	/// Returns true if they refer to the same variable
+	/// Does not consider redeclarations / aliases
+	fn cmp_sym(&self, a: &impl GetSymId, b: &impl GetSymId) -> bool {
+		a.get_sym_id(self.sema()) == b.get_sym_id(self.sema())
 	}
 }
 
