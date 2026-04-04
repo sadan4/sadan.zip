@@ -20,6 +20,7 @@ use ast_parser::{
 	parse,
 	sym_id::GetSymId,
 };
+use itertools::Itertools;
 use oxc::{
 	allocator::Allocator,
 	ast::{
@@ -43,7 +44,7 @@ use oxc::{
 		},
 	},
 	semantic::{NodeId, Semantic, SymbolId},
-	span::{GetSpan, SourceType},
+	span::{GetSpan, SourceType, Span},
 };
 use smol_str::SmolStr;
 use tracing::{debug, trace};
@@ -353,12 +354,37 @@ impl<'ast> WebpackAstParser<'ast> {
 // functions to make the raw export map
 #[allow(clippy::multiple_inherent_impl)]
 impl<'ast> WebpackAstParser<'ast> {
+	fn get_ast_kind_span_for_export_map(node: AstKind<'ast>) -> Span {
+		match node {
+			AstKind::Function(func) => {
+				// this will only be called on javascript code; therefore, all functions have bodies
+				let body_span = func.body.as_ref().unwrap().span();
+				let full_span = func.span();
+				debug_assert!(
+					full_span.start <= body_span.start
+						&& full_span.end >= body_span.end
+				);
+				Span::new(full_span.start, body_span.start)
+			}
+			AstKind::ArrowFunctionExpression(func) => {
+				let body_span = func.body.as_ref().span();
+				let full_span = func.span();
+				debug_assert!(
+					full_span.start <= body_span.start
+						&& full_span.end >= body_span.end
+				);
+				Span::new(full_span.start, body_span.start)
+			}
+			other => other.span(),
+		}
+	}
 	fn raw_export_range_to_range_export_range(
 		ExportRange(nodes, annotation): &RawExportRange<'ast>,
 	) -> RangeExportRange {
 		let mut ret = nodes
 			.iter()
-			.map(GetSpan::span)
+			.copied()
+			.map(Self::get_ast_kind_span_for_export_map)
 			.collect::<RangeExportRange>();
 		// smol_str is O(1) clone
 		ret.1.clone_from(annotation);
@@ -563,13 +589,7 @@ impl<'ast> WebpackAstParser<'ast> {
 				export_range.insert(0, node.key.into_ast_kind());
 				export_range.into()
 			}
-			export_map @ ExportValue::Map(_) => {
-				// FIXME: this also seems wrong, why isn't this handled in the object literal case?
-				let key_txt = SmolStr::new(self.text(&node.key));
-				iter::once((key_txt, export_map))
-					.collect::<RawExportMap>()
-					.into()
-			}
+			map @ ExportValue::Map(_) => map,
 		}
 	}
 	fn raw_make_export_map_functionish(
@@ -926,9 +946,58 @@ mod tests {
 			}
 
 			#[test]
-			#[ignore = "todo"]
 			fn object_literal_export() {
-				todo!()
+				let alloc = Allocator::new();
+				let p = parse!(alloc, "test_data/wp/wreq.d/objectExport.js");
+				let map = p.dbg_export_map();
+				assert_debug_snapshot!(map, @r#"
+				{
+				    "EO": [
+				        "[5:8->5:10)",
+				        "[124:13->124:14)",
+				    ],
+				    "ZP": ExportMap(
+				        {
+				            "getFormattedName": [
+				                "[164:8->164:24)",
+				                "[81:13->81:14)",
+				            ],
+				            "getGlobalName": [
+				                "[165:8->165:21)",
+				                "[72:13->72:14)",
+				            ],
+				            "getName": [
+				                "[156:8->156:15)",
+				                "[53:13->53:14)",
+				            ],
+				            "getUserTag": [
+				                "[159:8->159:18)",
+				                "[142:13->142:14)",
+				            ],
+				            "humanizeStatus": [
+				                "[166:8->166:22)",
+				                "[90:13->90:14)",
+				            ],
+				            "isNameConcealed": [
+				                "[158:8->158:23)",
+				                "[158:25->158:30)",
+				            ],
+				            "useDirectMessageRecipient": [
+				                "[167:8->167:33)",
+				                "[147:13->147:14)",
+				            ],
+				            "useName": [
+				                "[157:8->157:15)",
+				                "[62:13->62:14)",
+				            ],
+				            "useUserTag": [
+				                "[160:8->160:18)",
+				                "[160:20->160:35)",
+				            ],
+				        },
+				    ),
+				}
+				"#);
 			}
 
 			#[test]

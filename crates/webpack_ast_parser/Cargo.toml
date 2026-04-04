@@ -11,10 +11,10 @@ anyhow.workspace = true
 serde.workspace = true
 smol_str.workspace = true
 tracing.workspace = true
+itertools.workspace = true
 
 [dev-dependencies]
 insta.workspace = true
-itertools.workspace = true
 
 [lints]
 workspace = true
