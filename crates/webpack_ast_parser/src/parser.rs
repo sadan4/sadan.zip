@@ -39,6 +39,7 @@ use oxc::{
 			ObjectPropertyKind,
 			Program,
 			StaticMemberExpression,
+			VariableDeclarator,
 		},
 	},
 	semantic::{NodeId, Semantic, SymbolId},
@@ -637,6 +638,18 @@ impl<'ast> WebpackAstParser<'ast> {
 		RawExportRange::from_node(node).into()
 	}
 
+	fn raw_make_export_map_variable_declarator(
+		&self,
+		node: &'ast VariableDeclarator<'ast>,
+	) -> RawExportMapValue<'ast> {
+		if let Some(init) = &node.init {
+			self.raw_make_export_map_recursive(init)
+		} else {
+			// uninit variable
+			RawExportRange::from_node(&node.id).into()
+		}
+	}
+
 	fn raw_make_export_map_recursive(
 		&self,
 		node: impl IntoAstKind<'ast>,
@@ -673,6 +686,10 @@ impl<'ast> WebpackAstParser<'ast> {
 			AstKind::IdentifierReference(node) => {
 				self.raw_make_export_map_ident_ref(node)
 			}
+			// TODO: Not sure if this is correct or if this should be handled as a special case in raw_make_export_map_ident_ref
+			AstKind::VariableDeclarator(node) => {
+				self.raw_make_export_map_variable_declarator(node)
+			}
 			_ => RawExportRange::from(node).into(),
 		}
 	}
@@ -707,13 +724,22 @@ mod tests {
 		) -> Result<(), fmt::Error> {
 			match v {
 				ExportValue::Range(range) => {
-					let mut dbg_list = f.debug_list();
-					for &span in range.iter() {
-						let ((l1, c1), (l2, c2)) =
-							span_line_and_column(self.1, span);
-						dbg_list.entry(&format!("[{l1}:{c1}->{l2}:{c2})"));
+					let do_dbg_list = fmt::from_fn(|f| {
+						let mut dbg_list = f.debug_list();
+						for &span in range.iter() {
+							let ((l1, c1), (l2, c2)) =
+								span_line_and_column(self.1, span);
+							dbg_list.entry(&format!("[{l1}:{c1}->{l2}:{c2})"));
+						}
+						dbg_list.finish()
+					});
+					if let Some(hover) = &range.1 {
+						f.debug_tuple(hover.as_str())
+							.field(&do_dbg_list)
+							.finish()
+					} else {
+						do_dbg_list.fmt(f)
 					}
-					dbg_list.finish()
 				}
 				ExportValue::Map(m) => {
 					let dumper = ExportMapDumper(m, self.1);
@@ -883,9 +909,20 @@ mod tests {
 				"#);
 			}
 			#[test]
-			#[ignore = "todo"]
 			fn string_literal_export() {
-				todo!()
+				let alloc = Allocator::new();
+				let p = parse!(alloc, "test_data/wp/wreq.d/simpleString.js");
+				let export_map = p.dbg_export_map();
+				assert_debug_snapshot!(export_map, @r#"
+				{
+				    "STRING_EXPORT": "47835198259242069"(
+				        [
+				            "[5:8->5:21)",
+				            "[7:12->7:31)",
+				        ],
+				    ),
+				}
+				"#);
 			}
 
 			#[test]

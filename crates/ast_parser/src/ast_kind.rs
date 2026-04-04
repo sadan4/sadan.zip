@@ -1,4 +1,4 @@
-use oxc::ast::{AstKind, ast::{Expression, MemberExpression, PropertyKey}};
+use oxc::ast::{AstKind, ast::{BindingPattern, Expression, MemberExpression, PropertyKey}};
 use oxc::semantic::AstNode;
 
 /// Generic trait for anything that be represented as an [`AstKind`].
@@ -336,6 +336,17 @@ impl<'ast> IntoAstKind<'ast> for &'ast PropertyKey<'ast> {
 			PropertyKey::ComputedMemberExpression(e) => e.into_ast_kind(),
 			PropertyKey::StaticMemberExpression(e) => e.into_ast_kind(),
 			PropertyKey::PrivateFieldExpression(e) => e.into_ast_kind(),
+		}
+	}
+}
+
+impl<'ast> IntoAstKind<'ast> for &'ast BindingPattern<'ast> {
+	fn into_ast_kind(self) -> AstKind<'ast> {
+		match self {
+			BindingPattern::BindingIdentifier(e) => e.into_ast_kind(),
+			BindingPattern::ObjectPattern(e) => e.into_ast_kind(),
+			BindingPattern::ArrayPattern(e) => e.into_ast_kind(),
+			BindingPattern::AssignmentPattern(e) => e.into_ast_kind(),
 		}
 	}
 }
