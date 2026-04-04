@@ -728,7 +728,12 @@ mod tests {
 	impl Debug for ExportMapDumper<'_> {
 		fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 			let mut dbg_map = f.debug_map();
-			for (k, v) in &self.0.exports {
+			for (k, v) in self
+				.0
+				.exports
+				.iter()
+				.sorted_by(|a, b| a.0.cmp(b.0))
+			{
 				dbg_map.entry(&k, &fmt::from_fn(|f| self.handle_value(f, v)));
 			}
 			if let Some(v) = &self.0.cjs_default {
