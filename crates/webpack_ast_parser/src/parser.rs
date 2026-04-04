@@ -1001,9 +1001,26 @@ mod tests {
 			}
 
 			#[test]
-			#[ignore = "todo"]
 			fn object_with_computed_prop() {
-				todo!()
+				let alloc = Allocator::new();
+				let p = parse!(alloc, "test_data/wp/wreq.d/computedPropInObj.js");
+				let map = p.dbg_export_map();
+				assert_debug_snapshot!(map, @r#"
+				{
+				    "Z": ExportMap(
+				        {
+				            "n(231338).Et.GET_PLATFORM_BEHAVIORS": ExportMap(
+				                {
+				                    "handler": [
+				                        "[8:12->8:19)",
+				                        "[8:21->8:27)",
+				                    ],
+				                },
+				            ),
+				        },
+				    ),
+				}
+				"#);
 			}
 
 			#[test]
