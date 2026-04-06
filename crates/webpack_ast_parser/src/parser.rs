@@ -11,10 +11,7 @@ use ast_parser::{
 	AstParser,
 	ast_kind::IntoAstKind,
 	exts::{
-		BindingPatternExt,
-		ExpressionExt,
-		Functionish,
-		NumericLiteralExt as _,
+		BindingPatternExt, ExpressionExt, Functionish, NumericLiteralExt as _,
 		StatementExt,
 	},
 	parse,
@@ -26,24 +23,12 @@ use oxc::{
 	ast::{
 		AstKind,
 		ast::{
-			ArrowFunctionExpression,
-			AssignmentExpression,
-			BindingIdentifier,
-			CallExpression,
-			Class,
-			ClassElement,
-			ComputedMemberExpression,
-			Expression,
-			IdentifierReference,
-			MemberExpression,
-			MethodDefinitionKind,
-			NumericLiteral,
-			ObjectExpression,
-			ObjectProperty,
-			ObjectPropertyKind,
-			Program,
-			StaticMemberExpression,
-			VariableDeclarator,
+			ArrowFunctionExpression, AssignmentExpression, BindingIdentifier,
+			CallExpression, Class, ClassElement, ComputedMemberExpression,
+			Expression, IdentifierReference, MemberExpression,
+			MethodDefinition, MethodDefinitionKind, NumericLiteral,
+			ObjectExpression, ObjectProperty, ObjectPropertyKind, Program,
+			StaticMemberExpression, VariableDeclarator,
 		},
 	},
 	semantic::{NodeId, Semantic, SymbolId},
@@ -59,15 +44,9 @@ use crate::{
 		self,
 		enum_iife::EnumIIFEState1_2,
 		export_map::{
-			ExportMap,
-			ExportRange,
-			ExportValue,
-			RangeExportMap,
-			RangeExportMapValue,
-			RangeExportRange,
-			RawExportMapEntry,
-			RawExportMapValue,
-			RawExportRange,
+			ExportMap, ExportRange, ExportValue, RangeExportMap,
+			RangeExportMapValue, RangeExportRange, RawExportMapEntry,
+			RawExportMapValue, RawExportRange,
 		},
 		types::{WreqD, WreqDExportType},
 		util::{find_return_identifier, find_return_member_expression},
@@ -692,13 +671,28 @@ impl<'ast> WebpackAstParser<'ast> {
 						let ctor = node.key.into_ast_kind();
 						ret.cjs_default
 							.as_mut()
-							.unwrap()
+							.unwrap() // asd
 							.unwrap_range_mut()
 							.push(ctor);
-						continue;
+					} else {
+						let key = node.key.span();
+						let key_txt = SmolStr::new(&self.source[key]);
+
+						let val = node.as_ref();
+						let val = self.raw_make_export_map_recursive(val);
+
+						ret.exports.insert(key_txt, val);
 					}
 				}
-				ClassElement::PropertyDefinition(_node) => todo!("handle"),
+				ClassElement::PropertyDefinition(node) => {
+					let key_txt = SmolStr::new(&self.source[node.key.span()]);
+					let val = node.value.as_ref().map_or_else(
+						|| node.key.into_ast_kind(),
+						IntoAstKind::into_ast_kind,
+					);
+					let val = self.raw_make_export_map_recursive(val);
+					ret.exports.insert(key_txt, val);
+				}
 				ClassElement::AccessorProperty(_) => {
 					unimplemented!("handle accessor")
 				}
@@ -708,7 +702,31 @@ impl<'ast> WebpackAstParser<'ast> {
 				ClassElement::StaticBlock(_) => {}
 			}
 		}
-		todo!()
+
+		ret
+	}
+
+	/// this is pretty much a copy of [`Self::raw_make_export_map_functionish`]
+	fn raw_make_export_map_method_definition(
+		&self,
+		node: &'ast MethodDefinition<'ast>,
+	) -> RawExportMapValue<'ast> {
+		let func = node.value.as_ref();
+		if func
+			.body
+			.as_ref()
+			.unwrap()
+			.statements
+			.len() == 1
+			&& let Some(ident) =
+				find_return_identifier(Functionish::Named(func))
+		{
+			let ret = self.raw_make_export_map_recursive(ident);
+			if !ret.is_empty() {
+				return ret;
+			}
+		}
+		RawExportRange::from_node(&node.key).into()
 	}
 
 	fn raw_make_export_map_recursive(
@@ -751,7 +769,12 @@ impl<'ast> WebpackAstParser<'ast> {
 			AstKind::VariableDeclarator(node) => {
 				self.raw_make_export_map_variable_declarator(node)
 			}
-			AstKind::Class(node) => self.raw_make_export_map_class(node),
+			AstKind::Class(node) => self
+				.raw_make_export_map_class(node)
+				.into(),
+			AstKind::MethodDefinition(node) => {
+				self.raw_make_export_map_method_definition(node)
+			}
 			_ => RawExportRange::from(node).into(),
 		}
 	}
