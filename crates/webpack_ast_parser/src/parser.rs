@@ -30,10 +30,13 @@ use oxc::{
 			AssignmentExpression,
 			BindingIdentifier,
 			CallExpression,
+			Class,
+			ClassElement,
 			ComputedMemberExpression,
 			Expression,
 			IdentifierReference,
 			MemberExpression,
+			MethodDefinitionKind,
 			NumericLiteral,
 			ObjectExpression,
 			ObjectProperty,
@@ -670,6 +673,44 @@ impl<'ast> WebpackAstParser<'ast> {
 		}
 	}
 
+	fn raw_make_export_map_class(
+		&self,
+		node: &'ast Class<'ast>,
+	) -> RawExportMap<'ast> {
+		let mut ret = RawExportMap::default();
+		if let Some(name) = &node.id {
+			ret.cjs_default =
+				Some(Box::new(RawExportRange::from_node(name).into()));
+		} else {
+			ret.cjs_default =
+				Some(Box::new(RawExportRange::from_node(node).into()));
+		};
+		for member in &node.body.body {
+			match member {
+				ClassElement::MethodDefinition(node) => {
+					if node.kind == MethodDefinitionKind::Constructor {
+						let ctor = node.key.into_ast_kind();
+						ret.cjs_default
+							.as_mut()
+							.unwrap()
+							.unwrap_range_mut()
+							.push(ctor);
+						continue;
+					}
+				}
+				ClassElement::PropertyDefinition(_node) => todo!("handle"),
+				ClassElement::AccessorProperty(_) => {
+					unimplemented!("handle accessor")
+				}
+				ClassElement::TSIndexSignature(_) => unreachable!(
+					"TSIndexSignature should not be present in JS code"
+				),
+				ClassElement::StaticBlock(_) => {}
+			}
+		}
+		todo!()
+	}
+
 	fn raw_make_export_map_recursive(
 		&self,
 		node: impl IntoAstKind<'ast>,
@@ -710,6 +751,7 @@ impl<'ast> WebpackAstParser<'ast> {
 			AstKind::VariableDeclarator(node) => {
 				self.raw_make_export_map_variable_declarator(node)
 			}
+			AstKind::Class(node) => self.raw_make_export_map_class(node),
 			_ => RawExportRange::from(node).into(),
 		}
 	}
@@ -1025,7 +1067,6 @@ mod tests {
 			}
 
 			#[test]
-			#[ignore = "todo"]
 			fn class_export() {
 				let alloc = Allocator::new();
 				let p = parse!(alloc, "test_data/wp/wreq.d/classExport.js");

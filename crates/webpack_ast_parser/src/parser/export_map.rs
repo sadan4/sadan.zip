@@ -137,8 +137,8 @@ impl<T> FromIterator<T> for ExportRange<T> {
 
 #[derive(Debug, Clone, Serialize, From, Unwrap, TryUnwrap, IsVariant)]
 #[serde(untagged)]
-#[unwrap(ref)]
-#[try_unwrap(ref)]
+#[unwrap(ref, ref_mut)]
+#[try_unwrap(ref, ref_mut)]
 pub enum ExportValue<T> {
 	Range(ExportRange<T>),
 	Map(ExportMap<T>),
