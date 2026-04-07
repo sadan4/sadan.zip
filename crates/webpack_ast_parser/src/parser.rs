@@ -4,7 +4,7 @@ mod export_map;
 mod types;
 mod util;
 
-use std::{iter, ops::Not};
+use std::iter;
 
 use anyhow::Result;
 use ast_parser::{
@@ -18,24 +18,17 @@ use ast_parser::{
 		StatementExt,
 	},
 	parse,
-	sym_id::GetSymId,
 };
-use itertools::Itertools;
 use oxc::{
 	allocator::Allocator,
 	ast::{
 		AstKind,
 		ast::{
 			ArrowFunctionExpression,
-			AssignmentExpression,
-			BindingIdentifier,
 			CallExpression,
 			Class,
 			ClassElement,
-			ComputedMemberExpression,
-			Expression,
 			IdentifierReference,
-			MemberExpression,
 			MethodDefinition,
 			MethodDefinitionKind,
 			NumericLiteral,
@@ -43,21 +36,19 @@ use oxc::{
 			ObjectProperty,
 			ObjectPropertyKind,
 			Program,
-			StaticMemberExpression,
 			VariableDeclarator,
 		},
 	},
-	semantic::{NodeId, Semantic, SymbolId},
+	semantic::{Semantic, SymbolId},
 	span::{GetSpan, SourceType, Span},
 };
 use smol_str::SmolStr;
-use tracing::{debug, trace};
+use tracing::debug;
 
 use crate::{
 	bundle::{DefaultModuleCache, IModuleCache},
 	cache::{CacheRef, CacheValue},
 	parser::{
-		self,
 		enum_iife::EnumIIFEState1_2,
 		export_map::{
 			ExportMap,
@@ -66,12 +57,11 @@ use crate::{
 			RangeExportMap,
 			RangeExportMapValue,
 			RangeExportRange,
-			RawExportMapEntry,
 			RawExportMapValue,
 			RawExportRange,
 		},
 		types::{WreqD, WreqDExportType},
-		util::{find_return_identifier, find_return_member_expression},
+		util::find_return_identifier,
 	},
 	types::ModuleId,
 };
@@ -94,6 +84,7 @@ struct Cache<'ast> {
 	raw_export_map: CacheRef<RawExportMap<'ast>>,
 	range_export_map: CacheRef<RangeExportMap>,
 	wreq_d: CacheValue<Option<WreqD<'ast>>>,
+	mod_arg: CacheValue<Option<SymbolId>>,
 }
 
 impl<'ast> AstParser<'ast> for WebpackAstParser<'ast> {
@@ -163,6 +154,12 @@ impl<'ast> WebpackAstParser<'ast> {
 		}
 		None
 	}
+	pub fn get_export_map(&self) -> &RangeExportMap {
+		self.c.range_export_map.get(|| {
+			let raw = self.get_export_map_raw();
+			Self::raw_export_map_to_range_export_map(raw)
+		})
+	}
 }
 
 // Private API
@@ -221,9 +218,16 @@ impl<'ast> WebpackAstParser<'ast> {
 
 		Some(ret)
 	}
+	fn mod_arg_impl(&self) -> Option<SymbolId> {
+		None
+	}
+	fn mod_arg(&self) -> Option<SymbolId> {
+		self.c.mod_arg.get(|| self.mod_arg_impl())
+	}
 	// FIXME: implement
 	fn get_export_map_raw_wreq_e(&self) -> Option<RawExportMap<'ast>> {
-		None
+		let mod_arg = self.mod_arg()?;
+		todo!()
 	}
 	// FIXME: implement
 	fn get_export_map_raw_wreq_t(&self) -> Option<RawExportMap<'ast>> {
@@ -346,12 +350,6 @@ impl<'ast> WebpackAstParser<'ast> {
 		self.c
 			.raw_export_map
 			.get_or_default(|| self.impl_get_export_map_raw())
-	}
-	fn get_export_map(&self) -> &RangeExportMap {
-		self.c.range_export_map.get(|| {
-			let raw = self.get_export_map_raw();
-			Self::raw_export_map_to_range_export_map(raw)
-		})
 	}
 }
 
@@ -646,7 +644,7 @@ impl<'ast> WebpackAstParser<'ast> {
 		{
 			return enum_export.into();
 		}
-		return RawExportRange::from_node(node).into();
+		RawExportRange::from_node(node).into()
 	}
 	fn raw_make_export_map_ident_ref(
 		&self,
@@ -672,12 +670,10 @@ impl<'ast> WebpackAstParser<'ast> {
 		&self,
 		node: &'ast VariableDeclarator<'ast>,
 	) -> RawExportMapValue<'ast> {
-		if let Some(init) = &node.init {
-			self.raw_make_export_map_recursive(init)
-		} else {
-			// uninit variable
-			RawExportRange::from_node(&node.id).into()
-		}
+		node.init.as_ref().map_or_else(
+			|| RawExportRange::from_node(&node.id).into(),
+			|init| self.raw_make_export_map_recursive(init),
+		)
 	}
 
 	fn raw_make_export_map_class(
@@ -815,10 +811,9 @@ mod tests {
 
 	use super::*;
 	use ast_parser::span_line_and_column;
-	use derive_more::Deref;
-	use insta::{assert_debug_snapshot, assert_ron_snapshot};
+	use insta::assert_debug_snapshot;
 	use itertools::Itertools;
-	use oxc::span::{Atom, GetSpan as _, Span};
+	use oxc::span::{Atom, Span};
 
 	macro_rules! parse {
 		($alloc:expr, $source:literal) => {{
@@ -1361,6 +1356,46 @@ mod tests {
 		}
 		mod e_exports {
 			use super::*;
+			#[test]
+			#[ignore = "todo"]
+			/// class names
+			fn object_literal_exports() {
+				let alloc = Allocator::new();
+				let p = parse!(alloc, "test_data/wp/e.exports/objLiteral.js");
+				let map = p.dbg_export_map();
+				assert_debug_snapshot!(map, @r#""#);
+			}
+			#[test]
+			#[ignore = "todo"]
+			fn single_string_export() {
+				todo!();
+			}
+			#[test]
+			#[ignore = "todo"]
+			fn re_export() {
+				todo!();
+			}
+			#[test]
+			#[ignore = "todo"]
+			fn exports_with_an_intermediate_var() {
+				todo!();
+			}
+			#[test]
+			#[ignore = "todo"]
+			fn function_expression() {
+				todo!();
+			}
+			#[test]
+			#[ignore = "todo"]
+			fn class_default_export() {
+				todo!();
+			}
+			#[test]
+			#[ignore = "todo"]
+			/// `parses_everything_else` from js
+			fn random() {
+				todo!();
+			}
 		}
 		mod exports {
 			use super::*;
