@@ -959,11 +959,32 @@ mod export_parsing {
 		}
 
 		#[test]
-		#[ignore = "TODO"]
+		// TODO: libdiscore stores use `define(this, key, prop)` in the constructor a lot
+		// which we don't parse
 		fn using_libdiscore() {
 			let alloc = Allocator::new();
-			let _p = parse!(alloc, "test_data/wp/stores/store-libdiscore-1.js");
-			todo!();
+			let p = parse!(alloc, "test_data/wp/stores/store-libdiscore-1.js");
+			let map = p.dbg_export_map();
+			assert_debug_snapshot!(map, @r#"
+			{
+			    "A": GuildStore(
+			        {
+			            "getGuildCount": [
+			                "[71:8->71:21)",
+			            ],
+			            "stateWrapper": [
+			                "[68:8->68:20)",
+			            ],
+			            "SYM_CJS_DEFAULT": [
+			                "[4:8->4:9)",
+			                "[88:16->88:17)",
+			                "[67:10->67:11)",
+			                "[74:8->74:19)",
+			            ],
+			        },
+			    ),
+			}
+			"#);
 		}
 
 		#[test]

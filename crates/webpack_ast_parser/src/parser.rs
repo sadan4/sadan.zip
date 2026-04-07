@@ -946,7 +946,11 @@ impl<'ast> WebpackAstParser<'ast> {
 			..Default::default()
 		};
 		if init.arguments.len() == 2 {
-			let events_obj = init.arguments[1].as_object_expression()?;
+			// (flux, {/*events obj */}) for Flux Stores
+			// ({/*events obj */}, mode) for libdiscore stores
+			let events_obj = init.arguments[1]
+				.as_object_expression()
+				.or_else(|| init.arguments[0].as_object_expression())?;
 			self.parse_store_flux_events(
 				ret.extra_data.unwrap_store_mut(),
 				events_obj,
