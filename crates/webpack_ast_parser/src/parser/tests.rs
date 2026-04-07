@@ -933,11 +933,29 @@ mod export_parsing {
 		}
 
 		#[test]
-		#[ignore = "TODO"]
 		fn with_getters() {
 			let alloc = Allocator::new();
-			let _p = parse!(alloc, "test_data/wp/stores/getter.js");
-			todo!();
+			let p = parse!(alloc, "test_data/wp/stores/getter.js");
+			let map = p.dbg_export_map();
+			assert_debug_snapshot!(map, @r#"
+			{
+			    "Z": SoundboardOverlayStore(
+			        {
+			            "enabled": [
+			                "[7:12->7:14)",
+			            ],
+			            "keepOpen": [
+			                "[8:12->8:14)",
+			            ],
+			            "SYM_CJS_DEFAULT": [
+			                "[4:8->4:9)",
+			                "[24:16->24:17)",
+			                "[9:10->9:11)",
+			            ],
+			        },
+			    ),
+			}
+			"#);
 		}
 
 		#[test]
