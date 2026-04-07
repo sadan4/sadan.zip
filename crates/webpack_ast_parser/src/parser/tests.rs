@@ -824,11 +824,66 @@ mod export_parsing {
 			"#);
 		}
 		#[test]
-		#[ignore = "TODO"]
 		fn ctor_with_no_args() {
 			let alloc = Allocator::new();
-			let _p = parse!(alloc, "test_data/wp/stores/store2.js");
-			todo!();
+			let p = parse!(alloc, "test_data/wp/stores/store2.js");
+			let map = p.dbg_export_map();
+			assert_debug_snapshot!(map, @r#"
+			{
+			    "ASSISTANT_WUMPUS_VOICE_USER": "47835198259242069"(
+			        [
+			            "[6:8->6:35)",
+			            "[39:12->39:31)",
+			        ],
+			    ),
+			    "default": UserStore(
+			        {
+			            "filter": [
+			                "[260:8->260:14)",
+			            ],
+			            "findByTag": [
+			                "[253:8->253:17)",
+			            ],
+			            "forEach": [
+			                "[248:8->248:15)",
+			            ],
+			            "getCurrentUser": [
+			                "[270:8->270:22)",
+			            ],
+			            "getUser": [
+			                "[241:8->241:15)",
+			            ],
+			            "getUserStoreVersion": 0(
+			                [
+			                    "[38:12->38:13)",
+			                ],
+			            ),
+			            "getUsers": [
+			                "[245:8->245:16)",
+			            ],
+			            "handleLoadCache": [
+			                "[224:8->224:23)",
+			            ],
+			            "initialize": [
+			                "[212:8->212:18)",
+			            ],
+			            "takeSnapshot": [
+			                "[215:8->215:20)",
+			            ],
+			            "SYM_CJS_DEFAULT": [
+			                "[7:8->7:15)",
+			                "[286:17->286:19)",
+			                "[211:10->211:12)",
+			                "[273:8->273:19)",
+			            ],
+			        },
+			    ),
+			    "mergeUser": [
+			        "[8:8->8:17)",
+			        "[118:13->118:14)",
+			    ],
+			}
+			"#);
 		}
 		#[test]
 		#[ignore = "TODO"]
