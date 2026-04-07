@@ -10,12 +10,25 @@ use crate::{
 	parser::{
 		enum_iife::EnumIIFEState1_2,
 		export_map::{
-			ExportMap, ExportRange, ExportValue, ExtraData, RangeExportMap,
-			RangeExportMapValue, RangeExportRange, RawExportMapValue,
-			RawExportRange, RawStoreData, StoreData,
+			ExportMap,
+			ExportMapKey,
+			ExportRange,
+			ExportValue,
+			ExtraData,
+			RangeExportMap,
+			RangeExportMapValue,
+			RangeExportRange,
+			RawExportMapValue,
+			RawExportRange,
+			RawStoreData,
+			StoreData,
 		},
 		types::{WreqD, WreqDExportType},
-		util::find_return_identifier,
+		util::{
+			find_return_identifier,
+			flatten_property_access_expression,
+			match_export_chain,
+		},
 	},
 	types::ModuleId,
 };
@@ -24,25 +37,41 @@ use ast_parser::{
 	AstParser,
 	ast_kind::IntoAstKind,
 	exts::{
-		BindingPatternExt, ExpressionExt, Functionish, NumericLiteralExt as _,
-		ObjectExpressionExt, PropertyKeyExt, StatementExt,
+		BindingPatternExt,
+		ExpressionExt,
+		Functionish,
+		MemberExpressionExt,
+		NumericLiteralExt as _,
+		ObjectExpressionExt,
+		PropertyKeyExt,
+		StatementExt,
 	},
 	parse,
 };
 use export_map::RawExportMap;
 use oxc::{
-	allocator::Allocator,
+	allocator::{Allocator, GetAddress, IntoIn, UnstableAddress},
 	ast::{
 		AstKind,
 		ast::{
-			ArrowFunctionExpression, CallExpression, Class, ClassElement,
-			Expression, IdentifierReference, MethodDefinition,
-			MethodDefinitionKind, NewExpression, NumericLiteral,
-			ObjectExpression, ObjectProperty, ObjectPropertyKind, Program,
+			ArrowFunctionExpression,
+			CallExpression,
+			Class,
+			ClassElement,
+			Expression,
+			IdentifierReference,
+			MethodDefinition,
+			MethodDefinitionKind,
+			NewExpression,
+			NumericLiteral,
+			ObjectExpression,
+			ObjectProperty,
+			ObjectPropertyKind,
+			Program,
 			VariableDeclarator,
 		},
 	},
-	semantic::{Semantic, SymbolId},
+	semantic::{Reference, Semantic, SymbolId},
 	span::{Atom, GetSpan, SourceType, Span},
 };
 use smol_str::SmolStr;
@@ -142,6 +171,204 @@ impl<'ast> WebpackAstParser<'ast> {
 			let raw = self.get_export_map_raw();
 			Self::raw_export_map_to_range_export_map(raw)
 		})
+	}
+	// FIXME: this is just a direct port from js
+	// It should probably be rewritten
+	pub fn get_uses_of_import(
+		&self,
+		m_id: ModuleId,
+		export_names: &[ExportMapKey],
+	) -> Vec<Span> {
+		let Some(wreq) = self.wreq() else {
+			return Vec::new();
+		};
+
+		let mut uses = Vec::new();
+
+		let iter = self
+			.sema
+			.symbol_references(wreq)
+			.map(Reference::node_id);
+
+		for use_id in iter {
+			let Some(p_call) = self.p(use_id).as_call_expression() else {
+				continue;
+			};
+			let p_call_args = &p_call.arguments;
+			if p_call_args.len() != 1 {
+				continue;
+			}
+			// continue if the module id does not match
+			if p_call_args[0]
+				.as_numeric_literal()
+				.and_then(NumericLiteral::as_u32)
+				.map(ModuleId::from)
+				.is_none_or(|id| id != m_id)
+			{
+				continue;
+			}
+
+			match self.p(p_call.node_id()) {
+				AstKind::VariableDeclarator(p_call_p_decl) => {
+					let Some(name) = p_call_p_decl.id.as_binding_identifier()
+					else {
+						continue;
+					};
+					let name_sym_id = name.symbol_id();
+					let refs = self
+						.sema
+						.scoping()
+						.get_resolved_reference_ids(name_sym_id);
+					// handle things like `var foo = wreq(1), bar = wreq.n(foo);`
+					'nmd: {
+						if refs.len() == 1 {
+							// loc is always a identifier reference because it's a reference to an identifier
+							let loc = self
+								.n(self
+									.sema
+									.scoping()
+									.get_reference(refs[0])
+									.node_id())
+								.kind()
+								.as_identifier_reference()
+								.unwrap();
+							let Some(call) = self
+								.p(loc.node_id())
+								.as_call_expression()
+							else {
+								break 'nmd;
+							};
+							if call.arguments.len() != 1 {
+								break 'nmd;
+							}
+							debug_assert!(
+								call.arguments[0].address()
+									== loc.unstable_address(),
+								"how"
+							);
+							// ensure that the call is `wreq.n(...)`
+							let func_expr = &call.callee;
+							let Some(func_expr) =
+								func_expr.as_static_member_expression()
+							else {
+								break 'nmd;
+							};
+							if func_expr.property.name != "n"
+								|| func_expr
+									.object
+									.as_identifier()
+									.is_none_or(|wreq_use| {
+										!self.cmp_sym(wreq_use, &wreq)
+									}) {
+								break 'nmd;
+							}
+							let Some(decl) = self
+								.find_parent(
+									func_expr.node_id(),
+									AstKind::as_variable_declarator,
+								)
+								.unwrap()
+								.id
+								.as_binding_identifier()
+							else {
+								break 'nmd;
+							};
+							for usage2 in self.refs(decl.symbol_id()) {
+								let Some(called_use) =
+									self.p(usage2).as_call_expression()
+								else {
+									continue;
+								};
+								if export_names.first()
+									== Some(&ExportMapKey::Default)
+								{
+									// a()()
+									if self
+										.p(called_use.node_id())
+										.as_call_expression()
+										.is_none()
+									{
+										continue;
+									}
+									uses.push(called_use.span());
+								} else {
+									let Some(called_use_p_access) = self
+										.p(called_use.node_id())
+										.as_static_member_expression()
+									else {
+										continue;
+									};
+									let outer_prop_expr = self.last_parent(
+										called_use_p_access.node_id(),
+										AstKind::as_static_member_expression,
+									).unwrap();
+									let full_usage_chain =
+										flatten_property_access_expression(
+											outer_prop_expr,
+										);
+									let Some(last_match) = match_export_chain(
+										&full_usage_chain,
+										export_names,
+									) else {
+										continue;
+									};
+									uses.push(last_match.span());
+								}
+							}
+						}
+					};
+					let refs = refs.iter().copied().map(|ref_id| {
+						self.sema
+							.scoping()
+							.get_reference(ref_id)
+							.node_id()
+					});
+					for loc in refs {
+						let Some(loc_p_access) = self
+							.p(loc)
+							.as_static_member_expression()
+						else {
+							continue;
+						};
+						let outer_prop_expr = self
+							.last_parent(
+								loc_p_access.node_id(),
+								AstKind::as_static_member_expression,
+							)
+							.unwrap();
+						let full_usage_chain =
+							flatten_property_access_expression(outer_prop_expr);
+						let Some(last_match) =
+							match_export_chain(&full_usage_chain, export_names)
+						else {
+							continue;
+						};
+
+						uses.push(last_match.span());
+					}
+				}
+				AstKind::StaticMemberExpression(p_call_p_access) => {
+					// TODO: fix signature of last_parent so that this .unwrap is not needed
+					let outer_prop_expr = self
+						.last_parent(
+							p_call_p_access.node_id(),
+							AstKind::as_static_member_expression,
+						)
+						.unwrap();
+					let full_usage_chain =
+						flatten_property_access_expression(outer_prop_expr);
+					let Some(last_match) =
+						match_export_chain(&full_usage_chain, export_names)
+					else {
+						continue;
+					};
+					uses.push(last_match.span());
+				}
+				_ => {}
+			}
+		}
+
+		uses
 	}
 }
 

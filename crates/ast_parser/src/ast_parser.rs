@@ -9,13 +9,22 @@ use oxc::{
 	ast::{
 		AstKind,
 		ast::{
-			BindingIdentifier, Expression, IdentifierReference,
-			ImportDeclaration, ModuleDeclaration, Program,
+			BindingIdentifier,
+			Expression,
+			IdentifierReference,
+			ImportDeclaration,
+			ModuleDeclaration,
+			Program,
 		},
 	},
 	parser::Parser as OxcParser,
 	semantic::{
-		AstNode, NodeId, Reference, Scoping, Semantic, SemanticBuilder,
+		AstNode,
+		NodeId,
+		Reference,
+		Scoping,
+		Semantic,
+		SemanticBuilder,
 		SymbolId,
 	},
 	span::SourceType,
@@ -224,6 +233,25 @@ pub trait AstParser<'ast> {
 			node_id = parent_id;
 			limit -= 1;
 		}
+	}
+	// TODO: Test this method, it's a bit cursed
+	fn last_parent<T>(
+		&self,
+		node_id: NodeId,
+		pred: impl Fn(AstKind<'ast>) -> Option<T>,
+	) -> Option<T> {
+		let mut node = self.n(node_id).kind();
+		loop {
+			let parent = self.p(node.node_id());
+			if parent.node_id() == node.node_id() {
+				break;
+			}
+			if pred(parent).is_none() {
+				break;
+			}
+			node = parent;
+		}
+		pred(node)
 	}
 	/// Compare two references to variables
 	/// Returns true if they refer to the same variable

@@ -14,6 +14,16 @@ macro_rules! parse {
 	}};
 }
 
+#[derive(Copy, Clone)]
+struct SpanDumper<'a>(pub Span, pub &'a str);
+
+impl Debug for SpanDumper<'_> {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		let ((l1, c1), (l2, c2)) = span_line_and_column(self.1, self.0);
+		write!(f, r#""[{l1}:{c1}->{l2}:{c2})""#)
+	}
+}
+
 struct ExportMapDumper<'a>(pub &'a RangeExportMap, pub &'a str);
 
 impl ExportMapDumper<'_> {
@@ -97,6 +107,16 @@ impl<'ast> WebpackAstParser<'ast> {
 	}
 	fn dbg_export_map(&self) -> ExportMapDumper<'_> {
 		ExportMapDumper(self.get_export_map(), self.source)
+	}
+	fn dbg_uses_of_import<'a>(
+		&'a self,
+		module_id: ModuleId,
+		export_names: &[ExportMapKey],
+	) -> Vec<SpanDumper<'a>> {
+		self.get_uses_of_import(module_id, export_names)
+			.into_iter()
+			.map(|span| SpanDumper(span, self.source))
+			.collect()
 	}
 }
 
@@ -1088,37 +1108,118 @@ mod export_parsing {
 mod import_parsing {
 	use super::*;
 	use macros::test;
-	#[test]
-	#[ignore = "TODO"]
-	fn only_reexported_export() {
-		todo!();
-	}
-	#[test]
-	#[ignore = "TODO"]
-	fn reexport_with_other_uses() {
-		todo!();
-	}
-	#[test]
-	#[ignore = "TODO"]
-	fn empty_when_no_uses() {
-		todo!();
-	}
-	#[test]
-	#[ignore = "TODO"]
-	fn empty_when_not_imported() {
-		todo!();
+
+	fn k(s: &'static str) -> ExportMapKey {
+		SmolStr::new_static(s).into()
 	}
 
 	#[test]
-	#[ignore = "TODO"]
-	fn empty_when_no_uses_2() {
-		todo!();
+	fn only_reexported_export() {
+		let alloc = Allocator::new();
+		let p = parse!(alloc, "test_data/wp/imports/reExport.js");
+		let uses = p.dbg_uses_of_import(ModuleId(999001), &[k("foo")]);
+		assert_debug_snapshot!(uses, @r#"
+		[
+		    "[5:21->5:24)",
+		]
+		"#);
 	}
 	#[test]
-	#[ignore = "TODO"]
+	fn reexport_with_other_uses() {
+		let alloc = Allocator::new();
+		let p = parse!(alloc, "test_data/wp/imports/reExport.js");
+		let uses = p.dbg_uses_of_import(ModuleId(999001), &[k("bar")]);
+		assert_debug_snapshot!(uses, @r#"
+		[
+		    "[6:22->6:25)",
+		    "[10:18->10:21)",
+		]
+		"#);
+	}
+	#[test]
+	fn empty_when_no_uses() {
+		let alloc = Allocator::new();
+		let p = parse!(alloc, "test_data/wp/imports/reExport.js");
+		let uses = p.dbg_uses_of_import(ModuleId(999001), &[k("baz")]);
+		assert_debug_snapshot!(uses, @"[]");
+	}
+	#[test]
+	fn empty_when_not_imported() {
+		let alloc = Allocator::new();
+		let p = parse!(alloc, "test_data/wp/imports/reExport.js");
+		let uses = p.dbg_uses_of_import(ModuleId(999003), &[k("foo")]);
+		assert_debug_snapshot!(uses, @"[]");
+	}
+
+	#[test]
+	fn empty_when_no_uses_2() {
+		let alloc = Allocator::new();
+		let p = parse!(alloc, "test_data/wp/imports/indirectCall.js");
+		let uses = p.dbg_uses_of_import(ModuleId(999002), &[k("bar")]);
+		assert_debug_snapshot!(uses, @"[]");
+	}
+	#[test]
 	fn empty_when_not_imported_2() {
-		todo!();
+		let alloc = Allocator::new();
+		let p = parse!(alloc, "test_data/wp/imports/indirectCall.js");
+		let uses = p.dbg_uses_of_import(ModuleId(999004), &[k("foo")]);
+		assert_debug_snapshot!(uses, @"[]");
+	}
+	#[test]
+	fn indirect_call() {
+		let alloc = Allocator::new();
+		let p = parse!(alloc, "test_data/wp/imports/indirectCall.js");
+		let uses = p.dbg_uses_of_import(ModuleId(999002), &[k("foo")]);
+		assert_debug_snapshot!(uses, @r#"
+		[
+		    "[9:22->9:25)",
+		]
+		"#);
+	}
+	#[test]
+	fn direct_call() {
+		let alloc = Allocator::new();
+		let p = parse!(alloc, "test_data/wp/imports/directCall.js");
+		let uses = p.dbg_uses_of_import(ModuleId(999003), &[k("foo3")]);
+		assert_debug_snapshot!(uses, @r#"
+		[
+		    "[8:29->8:33)",
+		]
+		"#);
+	}
+
+	#[test]
+	fn none_when_wreq_unused() {
+		let alloc = Allocator::new();
+		let p = parse!(alloc, "test_data/wp/imports/directCall.js");
+		let uses = p.get_uses_of_import(ModuleId(0), &[]);
+		assert_eq!(uses, vec![]);
+	}
+
+	#[test]
+	fn node_default_exports() {
+		let alloc = Allocator::new();
+		let p = parse!(alloc, "test_data/wp/imports/nodeModule.js");
+		let uses =
+			p.dbg_uses_of_import(ModuleId(999005), &[ExportMapKey::Default]);
+		assert_debug_snapshot!(uses, @r#"
+		[
+		    "[15:8->15:12)",
+		    "[20:15->20:19)",
+		]
+		"#);
+	}
+
+	#[test]
+	fn node_named_exports() {
+		let alloc = Allocator::new();
+		let p = parse!(alloc, "test_data/wp/imports/nodeModule.js");
+		let uses = p.dbg_uses_of_import(ModuleId(999005), &[k("qux")]);
+		assert_debug_snapshot!(uses, @r#"
+		[
+		    "[16:20->16:23)",
+		    "[19:13->19:16)",
+		]
+		"#);
 	}
 }
-
-

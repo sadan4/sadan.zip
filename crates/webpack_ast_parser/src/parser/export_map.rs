@@ -1,6 +1,13 @@
 use ast_parser::ast_kind::IntoAstKind;
 use derive_more::{
-	Constructor, Deref, DerefMut, From, FromStr, Into, IsVariant, TryUnwrap,
+	Constructor,
+	Deref,
+	DerefMut,
+	From,
+	FromStr,
+	Into,
+	IsVariant,
+	TryUnwrap,
 	Unwrap,
 };
 use oxc::{ast::AstKind, span::Span};
@@ -80,15 +87,10 @@ impl<T> ExportMap<T> {
 			ExportValue::Map(export_map) => export_map.get_default_arr_mut(),
 		}
 	}
-}
-
-impl<T> Index<ExportMapKey> for ExportMap<T> {
-	type Output = Option<ExportValue<T>>;
-
-	fn index(&self, index: ExportMapKey) -> &Self::Output {
-		match index {
-			ExportMapKey::Named(smol_str) => todo!(),
-			ExportMapKey::Default => self.cjs_default.as_ref(),
+	pub fn get(&self, key: &ExportMapKey) -> Option<&ExportValue<T>> {
+		match key {
+			ExportMapKey::Named(smol_str) => self.exports.get(smol_str),
+			ExportMapKey::Default => self.cjs_default.as_deref(),
 		}
 	}
 }
@@ -158,7 +160,7 @@ impl<T> FromIterator<(ExportMapKey, ExportValue<T>)> for ExportMap<T> {
 	}
 }
 
-#[derive(Debug, Clone, Serialize, From)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, From)]
 /// Clone is `O(1)`
 pub enum ExportMapKey {
 	Named(SmolStr),
