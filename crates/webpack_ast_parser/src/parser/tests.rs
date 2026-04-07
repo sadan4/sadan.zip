@@ -675,9 +675,17 @@ mod export_parsing {
 			"#);
 		}
 		#[test]
-		#[ignore = "todo"]
 		fn function_expression() {
-			todo!();
+			let alloc = Allocator::new();
+			let p = parse!(alloc, "test_data/wp/e.exports/function.js");
+			let map = p.dbg_export_map();
+			assert_debug_snapshot!(map, @r#"
+			{
+			    "SYM_CJS_DEFAULT": [
+			        "[9:16->9:28)",
+			    ],
+			}
+			"#);
 		}
 		#[test]
 		#[ignore = "todo"]
