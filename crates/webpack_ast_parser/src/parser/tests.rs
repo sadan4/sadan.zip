@@ -115,6 +115,7 @@ impl<'ast> WebpackAstParser<'ast> {
 	) -> Vec<SpanDumper<'a>> {
 		self.get_uses_of_import(module_id, export_names)
 			.into_iter()
+			.sorted()
 			.map(|span| SpanDumper(span, self.source))
 			.collect()
 	}
@@ -1221,5 +1222,26 @@ mod import_parsing {
 		    "[19:13->19:16)",
 		]
 		"#);
+	}
+}
+
+mod cache_parsing {
+	use super::*;
+	use macros::test;
+
+	mod re_exports {
+		use super::*;
+		use macros::test;
+		#[test]
+		#[ignore = "TODO"]
+		fn with_wreq_d() {
+			todo!();
+		}
+	}
+
+	#[test]
+	#[ignore = "TODO"]
+	fn simple_use_in_single_file() {
+		todo!();
 	}
 }
