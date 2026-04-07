@@ -11,7 +11,10 @@ use ast_parser::{
 	AstParser,
 	ast_kind::IntoAstKind,
 	exts::{
-		BindingPatternExt, ExpressionExt, Functionish, NumericLiteralExt as _,
+		BindingPatternExt,
+		ExpressionExt,
+		Functionish,
+		NumericLiteralExt as _,
 		StatementExt,
 	},
 	parse,
@@ -23,12 +26,25 @@ use oxc::{
 	ast::{
 		AstKind,
 		ast::{
-			ArrowFunctionExpression, AssignmentExpression, BindingIdentifier,
-			CallExpression, Class, ClassElement, ComputedMemberExpression,
-			Expression, IdentifierReference, MemberExpression,
-			MethodDefinition, MethodDefinitionKind, NumericLiteral,
-			ObjectExpression, ObjectProperty, ObjectPropertyKind, Program,
-			StaticMemberExpression, VariableDeclarator,
+			ArrowFunctionExpression,
+			AssignmentExpression,
+			BindingIdentifier,
+			CallExpression,
+			Class,
+			ClassElement,
+			ComputedMemberExpression,
+			Expression,
+			IdentifierReference,
+			MemberExpression,
+			MethodDefinition,
+			MethodDefinitionKind,
+			NumericLiteral,
+			ObjectExpression,
+			ObjectProperty,
+			ObjectPropertyKind,
+			Program,
+			StaticMemberExpression,
+			VariableDeclarator,
 		},
 	},
 	semantic::{NodeId, Semantic, SymbolId},
@@ -44,9 +60,15 @@ use crate::{
 		self,
 		enum_iife::EnumIIFEState1_2,
 		export_map::{
-			ExportMap, ExportRange, ExportValue, RangeExportMap,
-			RangeExportMapValue, RangeExportRange, RawExportMapEntry,
-			RawExportMapValue, RawExportRange,
+			ExportMap,
+			ExportRange,
+			ExportValue,
+			RangeExportMap,
+			RangeExportMapValue,
+			RangeExportRange,
+			RawExportMapEntry,
+			RawExportMapValue,
+			RawExportRange,
 		},
 		types::{WreqD, WreqDExportType},
 		util::{find_return_identifier, find_return_member_expression},
@@ -523,8 +545,14 @@ impl<'ast> WebpackAstParser<'ast> {
 						ObjectPropertyKind::ObjectProperty(prop) => {
 							let key_txt =
 								SmolStr::new(&self.source[prop.key.span()]);
-							let val = self
+							let mut val = self
 								.raw_make_export_map_property_assignment(prop);
+							if let Some(def_arr) =
+								val.try_unwrap_map_mut().ok().and_then(
+									ExportMap::get_default_arr_mut_if_exists,
+								) {
+								def_arr.insert(0, prop.key.into_ast_kind());
+							}
 							Some(Box::new(iter::once((key_txt, val))))
 						}
 						ObjectPropertyKind::SpreadProperty(spread_val) => {
@@ -663,7 +691,7 @@ impl<'ast> WebpackAstParser<'ast> {
 		} else {
 			ret.cjs_default =
 				Some(Box::new(RawExportRange::from_node(node).into()));
-		};
+		}
 		for member in &node.body.body {
 			match member {
 				ClassElement::MethodDefinition(node) => {
@@ -1094,7 +1122,61 @@ mod tests {
 				let alloc = Allocator::new();
 				let p = parse!(alloc, "test_data/wp/wreq.d/classExport.js");
 				let map = p.dbg_export_map();
-				assert_debug_snapshot!(map, @r#""#);
+				assert_debug_snapshot!(map, @r#"
+				{
+				    "U": ExportMap(
+				        {
+				            "_dispatch": [
+				                "[112:8->112:17)",
+				            ],
+				            "_dispatchWithDevtools": [
+				                "[88:8->88:29)",
+				            ],
+				            "_dispatchWithLogging": [
+				                "[91:8->91:28)",
+				            ],
+				            "addDependencies": [
+				                "[150:8->150:23)",
+				            ],
+				            "addInterceptor": [
+				                "[127:8->127:22)",
+				            ],
+				            "createToken": [
+				                "[147:8->147:19)",
+				            ],
+				            "dispatch": [
+				                "[38:8->38:16)",
+				            ],
+				            "dispatchForStoreTest": [
+				                "[55:8->55:28)",
+				            ],
+				            "flushWaitQueue": [
+				                "[60:8->60:22)",
+				            ],
+				            "isDispatching": [
+				                "[35:8->35:21)",
+				            ],
+				            "register": [
+				                "[144:8->144:16)",
+				            ],
+				            "subscribe": [
+				                "[134:8->134:17)",
+				            ],
+				            "unsubscribe": [
+				                "[139:8->139:19)",
+				            ],
+				            "wait": [
+				                "[130:8->130:12)",
+				            ],
+				            "SYM_CJS_DEFAULT": [
+				                "[5:8->5:9)",
+				                "[34:10->34:11)",
+				                "[153:8->153:19)",
+				            ],
+				        },
+				    ),
+				}
+				"#);
 			}
 
 			#[test]
@@ -1144,6 +1226,7 @@ mod tests {
 				                ],
 				            ),
 				            "SYM_CJS_DEFAULT": [
+				                "[13:8->13:9)",
 				                "[116:8->116:9)",
 				            ],
 				        },
@@ -1223,6 +1306,7 @@ mod tests {
 				                ],
 				            ),
 				            "SYM_CJS_DEFAULT": [
+				                "[17:8->17:10)",
 				                "[699:8->699:10)",
 				            ],
 				        },
@@ -1266,6 +1350,7 @@ mod tests {
 				                ],
 				            ),
 				            "SYM_CJS_DEFAULT": [
+				                "[44:8->44:10)",
 				                "[148:8->148:9)",
 				            ],
 				        },

@@ -41,6 +41,33 @@ impl<T> ExportMap<T> {
 			self.cjs_default = other.cjs_default;
 		}
 	}
+
+	pub(crate) fn get_default_arr_mut_if_exists(
+		&mut self,
+	) -> Option<&mut ExportRange<T>> {
+		match self
+			.cjs_default
+			.as_mut()
+			.map(|v| v.as_mut())
+		{
+			Some(ExportValue::Map(map)) => map.get_default_arr_mut_if_exists(),
+			Some(ExportValue::Range(range)) => Some(range),
+			None => None,
+		}
+	}
+
+	pub(crate) fn get_default_arr_mut(&mut self) -> &mut ExportRange<T> {
+		match self
+			.cjs_default
+			.get_or_insert_with(|| {
+				Box::new(ExportValue::Range(ExportRange::default()))
+			})
+			.as_mut()
+		{
+			ExportValue::Range(export_range) => export_range,
+			ExportValue::Map(export_map) => export_map.get_default_arr_mut(),
+		}
+	}
 }
 
 impl<T> FromIterator<(SmolStr, ExportValue<T>)> for ExportMap<T> {
@@ -103,6 +130,12 @@ pub struct ExportRange<T>(
 	pub Vec<T>,
 	pub Option<SmolStr>,
 );
+
+impl<T> Default for ExportRange<T> {
+	fn default() -> Self {
+		Self(Vec::new(), None)
+	}
+}
 
 impl<T> From<T> for ExportRange<T> {
 	fn from(value: T) -> Self {
