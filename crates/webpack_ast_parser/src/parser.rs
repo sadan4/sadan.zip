@@ -65,6 +65,7 @@ struct Cache<'ast> {
 	range_export_map: CacheRef<RangeExportMap>,
 	wreq_d: CacheValue<Option<WreqD<'ast>>>,
 	mod_arg: CacheValue<Option<SymbolId>>,
+	exports_arg: CacheValue<Option<SymbolId>>,
 }
 
 impl<'ast> AstParser<'ast> for WebpackAstParser<'ast> {
@@ -204,7 +205,12 @@ impl<'ast> WebpackAstParser<'ast> {
 			.mod_arg
 			.get(|| self.find_webpack_arg(0))
 	}
-	// FIXME: implement
+	/// TODO: document
+	fn exports_arg(&self) -> Option<SymbolId> {
+		self.c
+			.exports_arg
+			.get(|| self.find_webpack_arg(1))
+	}
 	/// TODO: document
 	fn get_export_map_raw_module_exports(&self) -> Option<RawExportMap<'ast>> {
 		let mod_arg = self.mod_arg()?;
@@ -254,9 +260,27 @@ impl<'ast> WebpackAstParser<'ast> {
 		}
 		Some(ret)
 	}
-	// FIXME: implement
 	fn get_export_map_raw_wreq_t(&self) -> Option<RawExportMap<'ast>> {
-		None
+		let mut ret = RawExportMap::default();
+		for usage in self.ref_nodes(self.exports_arg()?) {
+			let usage = usage.as_identifier_reference().unwrap();
+			let Some(export_access) = self.p(usage.node_id()).as_static_member_expression() else {
+				continue;
+			};
+			let Some(export_assignment) = self
+				.p(export_access.node_id())
+				.as_assignment_expression()
+			else {
+				continue;
+			};
+			let key = &export_access.property;
+			let key_txt = SmolStr::new(&self.source[key.span()]);
+			let export_val = &export_assignment.right;
+			let mut val = self.raw_make_export_map_recursive(export_val);
+			val.prepend_with(key.into_ast_kind());
+			ret.exports.insert(key_txt, val);
+		}
+		Some(ret)
 	}
 	fn get_export_map_raw_wreq_d(&self) -> Option<RawExportMap<'ast>> {
 		let exports_obj = self.find_wreq_d()?.obj;

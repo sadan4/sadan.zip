@@ -1,13 +1,6 @@
 use ast_parser::ast_kind::IntoAstKind;
 use derive_more::{
-	Constructor,
-	Deref,
-	DerefMut,
-	From,
-	Into,
-	IsVariant,
-	TryUnwrap,
-	Unwrap,
+	Constructor, Deref, DerefMut, From, Into, IsVariant, TryUnwrap, Unwrap,
 };
 use oxc::{ast::AstKind, span::Span};
 use serde::Serialize;
@@ -184,6 +177,12 @@ impl<T> ExportValue<T> {
 		match self {
 			Self::Range(r) => r.is_empty(),
 			Self::Map(m) => m.is_empty(),
+		}
+	}
+	pub fn prepend_with(&mut self, val: T) {
+		match self {
+			Self::Range(rng) => rng.insert(0, val),
+			Self::Map(map) => map.get_default_arr_mut().insert(0, val),
 		}
 	}
 }

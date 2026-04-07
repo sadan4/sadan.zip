@@ -1,11 +1,10 @@
 #![allow(clippy::unreadable_literal, clippy::too_many_lines)]
-use std::fmt::{self, Debug};
-
 use super::*;
 use ast_parser::span_line_and_column;
 use insta::assert_debug_snapshot;
 use itertools::Itertools;
 use oxc::span::{Atom, Span};
+use std::fmt::{self, Debug};
 
 macro_rules! parse {
 	($alloc:expr, $source:literal) => {{
@@ -760,6 +759,32 @@ mod export_parsing {
 	}
 	mod exports {
 		use super::*;
+		#[test]
+		fn pre_es6_class() {
+			let alloc = Allocator::new();
+			let p = parse!(alloc, "test_data/wp/exports/module.js");
+			let map = p.dbg_export_map();
+			assert_debug_snapshot!(map, @r#"
+			{
+			    "Deflate": [
+			        "[101:6->101:13)",
+			        "[18:13->18:14)",
+			    ],
+			    "deflate": [
+			        "[102:6->102:13)",
+			        "[49:13->49:14)",
+			    ],
+			    "deflateRaw": [
+			        "[103:6->103:16)",
+			        "[56:13->56:14)",
+			    ],
+			    "gzip": [
+			        "[104:6->104:10)",
+			        "[60:13->60:14)",
+			    ],
+			}
+			"#);
+		}
 	}
 	mod stores {
 		use super::*;
