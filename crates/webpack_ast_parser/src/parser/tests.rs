@@ -1084,3 +1084,41 @@ mod export_parsing {
 		}
 	}
 }
+
+mod import_parsing {
+	use super::*;
+	use macros::test;
+	#[test]
+	#[ignore = "TODO"]
+	fn only_reexported_export() {
+		todo!();
+	}
+	#[test]
+	#[ignore = "TODO"]
+	fn reexport_with_other_uses() {
+		todo!();
+	}
+	#[test]
+	#[ignore = "TODO"]
+	fn empty_when_no_uses() {
+		todo!();
+	}
+	#[test]
+	#[ignore = "TODO"]
+	fn empty_when_not_imported() {
+		todo!();
+	}
+
+	#[test]
+	#[ignore = "TODO"]
+	fn empty_when_no_uses_2() {
+		todo!();
+	}
+	#[test]
+	#[ignore = "TODO"]
+	fn empty_when_not_imported_2() {
+		todo!();
+	}
+}
+
+

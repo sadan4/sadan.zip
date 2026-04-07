@@ -1,11 +1,17 @@
 use ast_parser::ast_kind::IntoAstKind;
 use derive_more::{
-	Constructor, Deref, DerefMut, From, Into, IsVariant, TryUnwrap, Unwrap,
+	Constructor, Deref, DerefMut, From, FromStr, Into, IsVariant, TryUnwrap,
+	Unwrap,
 };
 use oxc::{ast::AstKind, span::Span};
 use serde::{Deserialize, Serialize};
 use smol_str::SmolStr;
-use std::{collections::HashMap, convert::AsMut, fmt::Debug, ops::BitOr};
+use std::{
+	collections::HashMap,
+	convert::AsMut,
+	fmt::Debug,
+	ops::{BitOr, Index},
+};
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -76,6 +82,17 @@ impl<T> ExportMap<T> {
 	}
 }
 
+impl<T> Index<ExportMapKey> for ExportMap<T> {
+	type Output = Option<ExportValue<T>>;
+
+	fn index(&self, index: ExportMapKey) -> &Self::Output {
+		match index {
+			ExportMapKey::Named(smol_str) => todo!(),
+			ExportMapKey::Default => self.cjs_default.as_ref(),
+		}
+	}
+}
+
 #[derive(Debug, Default, Clone, Serialize, Unwrap, IsVariant)]
 #[unwrap(ref, ref_mut)]
 pub enum ExtraData<T> {
@@ -142,6 +159,7 @@ impl<T> FromIterator<(ExportMapKey, ExportValue<T>)> for ExportMap<T> {
 }
 
 #[derive(Debug, Clone, Serialize, From)]
+/// Clone is `O(1)`
 pub enum ExportMapKey {
 	Named(SmolStr),
 	Default,
