@@ -285,51 +285,7 @@ impl<'ast> WebpackAstParser<'ast> {
 	fn get_export_map_raw_wreq_d(&self) -> Option<RawExportMap<'ast>> {
 		let exports_obj = self.find_wreq_d()?.obj;
 		Some(self.raw_make_export_map_object_expression(exports_obj))
-		// let ret = exports_obj
-		// 	.properties
-		// 	.iter()
-		// 	.filter_map(|prop| -> Option<(SmolStr, RawExportMapValue<'ast>)> {
-		// 		let prop = prop.as_property()?;
-		// 		let val = prop.value.as_functionish()?;
-		// 		let trailing_ident: WreqDExportType<'ast> =
-		// 			find_return_identifier(val)
-		// 				.map(Into::into)
-		// 				.or_else(|| {
-		// 					find_return_member_expression(val).map(Into::into)
-		// 				})?;
-		// 		// TODO: Support parsing stores here
-		// 		// let ret: Option<RawExportMapValue<'ast>> = None;
-		// 		// if ret.is_none()
-		// 		// 	&& let Some(ident_sym_id) = trailing_ident
-		// 		// 		.as_ident()
-		// 		// 		.and_then(|i| i.get_sym_id(&self.sema))
-		// 		// {
-		// 		// 	ret = self
-		// 		// 		.try_parse_class_decl(
-		// 		// 			ident_sym_id,
-		// 		// 			[prop.key.into_ast_kind()],
-		// 		// 		)
-		// 		// 		.map(Into::into);
-		// 		// }
-		// 		// let ret = ret.unwrap_or_else(|| {
-		// 		// 	self.raw_make_export_map_recursive(trailing_ident)
-		// 		// });
-		// 		let ret = self.raw_make_export_map_recursive(trailing_ident);
-		// 		let key_txt = SmolStr::new(&self.source[prop.key.span()]);
-		//
-		// 		Some((key_txt, ret))
-		// 	})
-		// 	.collect();
-		// Some(ret)
 	}
-
-	// fn try_parse_class_decl<const N: usize>(
-	// 	&self,
-	// 	sym_id: SymbolId,
-	// 	prefix: [AstKind<'ast>; N],
-	// ) -> Option<RawExportMap<'ast>> {
-	// 	todo!()
-	// }
 
 	fn impl_find_wreq_d(&self) -> Option<WreqD<'ast>> {
 		// `t` in function(e, t, n) {...} where `n` is `__webpack_require__`
