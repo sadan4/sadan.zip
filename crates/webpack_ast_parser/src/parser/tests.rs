@@ -548,13 +548,39 @@ mod export_parsing {
 	mod e_exports {
 		use super::*;
 		#[test]
-		#[ignore = "todo"]
 		/// class names
 		fn object_literal_exports() {
 			let alloc = Allocator::new();
 			let p = parse!(alloc, "test_data/wp/e.exports/objLiteral.js");
 			let map = p.dbg_export_map();
-			assert_debug_snapshot!(map, @r#""#);
+			assert_debug_snapshot!(map, @r#"
+			{
+			    "addButton": "addButton_f5cb44"(
+			        [
+			            "[7:8->7:17)",
+			            "[7:19->7:37)",
+			        ],
+			    ),
+			    "addButtonInner": "addButtonInner_f5cb44"(
+			        [
+			            "[8:8->8:22)",
+			            "[8:24->8:47)",
+			        ],
+			    ),
+			    "productListings": "productListings_f5cb44"(
+			        [
+			            "[6:8->6:23)",
+			            "[6:25->6:49)",
+			        ],
+			    ),
+			    "productListingsHeader": "productListingsHeader_f5cb44"(
+			        [
+			            "[5:8->5:29)",
+			            "[5:31->5:61)",
+			        ],
+			    ),
+			}
+			"#);
 		}
 		#[test]
 		#[ignore = "todo"]

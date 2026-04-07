@@ -199,18 +199,57 @@ impl<'ast> WebpackAstParser<'ast> {
 
 		Some(ret)
 	}
-	fn mod_arg_impl(&self) -> Option<SymbolId> {
-		None
-	}
 	fn mod_arg(&self) -> Option<SymbolId> {
 		self.c
 			.mod_arg
-			.get(|| self.mod_arg_impl())
+			.get(|| self.find_webpack_arg(0))
 	}
 	// FIXME: implement
-	fn get_export_map_raw_wreq_e(&self) -> Option<RawExportMap<'ast>> {
+	/// TODO: document
+	fn get_export_map_raw_module_exports(&self) -> Option<RawExportMap<'ast>> {
 		let mod_arg = self.mod_arg()?;
-		todo!()
+		let mut ret = RawExportMap::default();
+		for usage in self.ref_nodes(mod_arg) {
+			let usage = usage.as_identifier_reference().unwrap();
+			let Some(module_exports_access) = self
+				.p(usage.node_id())
+				.as_static_member_expression()
+			else {
+				continue;
+			};
+			if module_exports_access.property.name != "exports" {
+				continue;
+			}
+			match self.p(module_exports_access.node_id()) {
+				AstKind::AssignmentExpression(assign) => {
+					let val = &assign.right;
+					let new_ret = self.raw_make_export_map_recursive(val);
+					match new_ret {
+						ExportValue::Map(map) => ret.merge_with(map),
+						ExportValue::Range(_) => unimplemented!(),
+					}
+				}
+				AstKind::StaticMemberExpression(module_exports_name_access) => {
+					let Some(export_assignment) = self
+						.p(module_exports_name_access.node_id())
+						.as_assignment_expression()
+					else {
+						continue;
+					};
+					let export_val = &export_assignment.right;
+					let key = &module_exports_name_access.property;
+					let key_txt = SmolStr::new(&self.source[key.span()]);
+					let val = self.raw_make_export_map_recursive(export_val);
+					debug_assert!(
+						!ret.exports.contains_key(&key_txt),
+						"Duplicate export for key {key_txt}"
+					);
+					ret.exports.insert(key_txt, val);
+				}
+				_ => {}
+			}
+		}
+		Some(ret)
 	}
 	// FIXME: implement
 	fn get_export_map_raw_wreq_t(&self) -> Option<RawExportMap<'ast>> {
@@ -326,7 +365,7 @@ impl<'ast> WebpackAstParser<'ast> {
 		};
 		merge(self.get_export_map_raw_wreq_d());
 		merge(self.get_export_map_raw_wreq_t());
-		merge(self.get_export_map_raw_wreq_e());
+		merge(self.get_export_map_raw_module_exports());
 		ret
 	}
 	fn get_export_map_raw(&self) -> &RawExportMap<'ast> {
