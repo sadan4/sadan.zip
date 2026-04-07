@@ -791,34 +791,47 @@ mod export_parsing {
 		#[test]
 		#[ignore = "TODO"]
 		fn normal_store() {
-			todo!();
+			let alloc = Allocator::new();
+			let p = parse!(alloc, "test_data/wp/stores/store1.js");
+			let map = p.dbg_export_map();
+			assert_debug_snapshot!(map, @r#""#);
 		}
 		#[test]
 		#[ignore = "TODO"]
 		fn ctor_with_no_args() {
+			let alloc = Allocator::new();
+			let _p = parse!(alloc, "test_data/wp/stores/store2.js");
 			todo!();
 		}
 		#[test]
 		#[ignore = "TODO"]
 		fn no_initialize_method() {
+			let alloc = Allocator::new();
+			let _p = parse!(alloc, "test_data/wp/stores/store3.js");
 			todo!();
 		}
 
 		#[test]
 		#[ignore = "TODO"]
 		fn with_getters() {
+			let alloc = Allocator::new();
+			let _p = parse!(alloc, "test_data/wp/stores/getter.js");
 			todo!();
 		}
 
 		#[test]
 		#[ignore = "TODO"]
 		fn using_libdiscore() {
+			let alloc = Allocator::new();
+			let _p = parse!(alloc, "test_data/wp/stores/store-libdiscore-1.js");
 			todo!();
 		}
 
 		#[test]
 		#[ignore = "TODO"]
 		fn with_static_properties() {
+			let alloc = Allocator::new();
+			let _p = parse!(alloc, "test_data/wp/stores/store-static-displayName.js");
 			todo!();
 		}
 
