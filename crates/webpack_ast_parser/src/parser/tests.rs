@@ -688,15 +688,74 @@ mod export_parsing {
 			"#);
 		}
 		#[test]
-		#[ignore = "todo"]
 		fn class_default_export() {
-			todo!();
+			let alloc = Allocator::new();
+			let p = parse!(alloc, "test_data/wp/e.exports/classExport.js");
+			let map = p.dbg_export_map();
+			assert_debug_snapshot!(map, @r#"
+			{
+			    "_dispatch": [
+			        "[112:8->112:17)",
+			    ],
+			    "_dispatchWithDevtools": [
+			        "[88:8->88:29)",
+			    ],
+			    "_dispatchWithLogging": [
+			        "[91:8->91:28)",
+			    ],
+			    "addDependencies": [
+			        "[150:8->150:23)",
+			    ],
+			    "addInterceptor": [
+			        "[127:8->127:22)",
+			    ],
+			    "createToken": [
+			        "[147:8->147:19)",
+			    ],
+			    "dispatch": [
+			        "[38:8->38:16)",
+			    ],
+			    "dispatchForStoreTest": [
+			        "[55:8->55:28)",
+			    ],
+			    "flushWaitQueue": [
+			        "[60:8->60:22)",
+			    ],
+			    "isDispatching": [
+			        "[35:8->35:21)",
+			    ],
+			    "register": [
+			        "[144:8->144:16)",
+			    ],
+			    "subscribe": [
+			        "[134:8->134:17)",
+			    ],
+			    "unsubscribe": [
+			        "[139:8->139:19)",
+			    ],
+			    "wait": [
+			        "[130:8->130:12)",
+			    ],
+			    "SYM_CJS_DEFAULT": [
+			        "[34:10->34:11)",
+			        "[153:8->153:19)",
+			    ],
+			}
+			"#);
 		}
 		#[test]
-		#[ignore = "todo"]
 		/// `parses_everything_else` from js
-		fn random() {
-			todo!();
+		fn ponyfill() {
+			let alloc = Allocator::new();
+			let p = parse!(alloc, "test_data/wp/e.exports/everythingElse.js");
+			let map = p.dbg_export_map();
+			assert_debug_snapshot!(map, @r#"
+			{
+			    "SYM_CJS_DEFAULT": [
+			        "[5:16->5:44)",
+			    ],
+			}
+			"#);
 		}
 	}
 	mod exports {
