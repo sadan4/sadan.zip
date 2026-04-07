@@ -598,9 +598,17 @@ mod export_parsing {
 			"#);
 		}
 		#[test]
-		#[ignore = "todo"]
 		fn re_export() {
-			todo!();
+			let alloc = Allocator::new();
+			let p = parse!(alloc, "test_data/wp/e.exports/identReExport.js");
+			let map = p.dbg_export_map();
+			assert_debug_snapshot!(map, @r#"
+			{
+			    "SYM_CJS_DEFAULT": [
+			        "[4:12->4:21)",
+			    ],
+			}
+			"#);
 		}
 		#[test]
 		#[ignore = "todo"]
