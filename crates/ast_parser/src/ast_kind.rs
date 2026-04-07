@@ -1,5 +1,10 @@
-use oxc::ast::{AstKind, ast::{BindingPattern, Expression, MemberExpression, PropertyKey}};
-use oxc::semantic::AstNode;
+use oxc::{
+	ast::{
+		AstKind,
+		ast::{BindingPattern, Expression, MemberExpression, PropertyKey},
+	},
+	semantic::AstNode,
+};
 
 /// Generic trait for anything that be represented as an [`AstKind`].
 pub trait IntoAstKind<'ast> {

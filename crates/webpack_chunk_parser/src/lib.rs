@@ -1,7 +1,7 @@
 pub mod base;
-mod types;
 mod lazy_chunk_parser;
 mod main_chunk_parser;
+mod types;
 
 pub(crate) trait Sealed {}
 

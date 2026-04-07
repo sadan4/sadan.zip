@@ -99,7 +99,8 @@ impl TemplateEvaluator {
 
 impl Patch {
 	pub const fn plugin_id(&self) -> u16 {
-		self.plugin_id.expect("Plugin ID not set")
+		self.plugin_id
+			.expect("Plugin ID not set")
 	}
 }
 
@@ -146,7 +147,9 @@ impl MatchRegex {
 	}
 
 	pub const fn regex(&self) -> &Result<Regex> {
-		self.regex.as_ref().expect("Regex not compiled")
+		self.regex
+			.as_ref()
+			.expect("Regex not compiled")
 	}
 }
 

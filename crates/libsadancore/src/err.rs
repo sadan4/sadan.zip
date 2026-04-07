@@ -4,45 +4,42 @@ use wasm_bindgen::JsValue;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
-    #[error("Failed to cast JsValue to {0}")]
-    BadJsCast(#[from] BadCast),
-    #[error("MPK deserialization: {0}")]
-    MpkDecode(#[from] rmp_serde::decode::Error),
-    #[error("ZSTD: {0}")]
-    Zstd(io::Error),
-    #[error("HTTP request to {url} failed with code {status}")]
-    BadRequest {
-        status: u16,
-        url: String,
-    },
-    #[error("JS Error: {0:?}")]
-    Js(JsValue),
-    #[error("WASM Error: {0}")]
-    Other(#[from] anyhow::Error),
+	#[error("Failed to cast JsValue to {0}")]
+	BadJsCast(#[from] BadCast),
+	#[error("MPK deserialization: {0}")]
+	MpkDecode(#[from] rmp_serde::decode::Error),
+	#[error("ZSTD: {0}")]
+	Zstd(io::Error),
+	#[error("HTTP request to {url} failed with code {status}")]
+	BadRequest { status: u16, url: String },
+	#[error("JS Error: {0:?}")]
+	Js(JsValue),
+	#[error("WASM Error: {0}")]
+	Other(#[from] anyhow::Error),
 }
 
 #[derive(Debug, thiserror::Error)]
 pub enum BadCast {
-    ArrayBuffer,
-    Response,
+	ArrayBuffer,
+	Response,
 }
 
 impl Display for BadCast {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{self:?}")
-    }
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		write!(f, "{self:?}")
+	}
 }
 
 impl From<JsValue> for Error {
-    fn from(value: JsValue) -> Self {
-        Self::Js(value)
-    }
+	fn from(value: JsValue) -> Self {
+		Self::Js(value)
+	}
 }
 
 impl From<Error> for JsValue {
-    fn from(val: Error) -> Self {
-        js_sys::Error::new(&val.to_string()).into()
-    }
+	fn from(val: Error) -> Self {
+		js_sys::Error::new(&val.to_string()).into()
+	}
 }
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;

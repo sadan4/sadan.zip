@@ -41,7 +41,10 @@ pub fn get_line_and_column(source: &str, offset: u32) -> (u32, u32) {
 	(line, column)
 }
 
-pub fn span_line_and_column(source: &str, span: Span) -> ((u32, u32), (u32, u32)) {
+pub fn span_line_and_column(
+	source: &str,
+	span: Span,
+) -> ((u32, u32), (u32, u32)) {
 	let start = get_line_and_column(source, span.start);
 	let end = get_line_and_column(source, span.end);
 	(start, end)

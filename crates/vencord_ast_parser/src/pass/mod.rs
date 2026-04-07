@@ -98,7 +98,11 @@ mod test_util {
 		}};
 	}
 	use oxc::codegen::{
-		Codegen, CodegenOptions, CommentOptions, IndentChar, LegalComment,
+		Codegen,
+		CodegenOptions,
+		CommentOptions,
+		IndentChar,
+		LegalComment,
 	};
 }
 

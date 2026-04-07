@@ -1,13 +1,17 @@
 #![allow(clippy::unreadable_literal, reason = "we want verbatim module ids")]
 use crate::{
-	JsHashEntry, ModuleId, Sealed,
+	JsHashEntry,
+	ModuleId,
+	Sealed,
 	base::{WebpackChunkParser, WebpackChunkParserImpl},
 };
 use anyhow::Result;
 use ast_parser::{
 	AstParser,
 	exts::{
-		BindingPatternExt, ExpressionExt, MemberExpressionExt,
+		BindingPatternExt,
+		ExpressionExt,
+		MemberExpressionExt,
 		NumericLiteralExt,
 	},
 	parse,
@@ -16,7 +20,11 @@ use memchr::memmem::Finder;
 use oxc::{
 	allocator::Allocator,
 	ast::ast::{
-		BinaryOperator, Expression, ObjectExpression, ObjectProperty, Program,
+		BinaryOperator,
+		Expression,
+		ObjectExpression,
+		ObjectProperty,
+		Program,
 		PropertyKind,
 	},
 	semantic::{Semantic, SymbolId},
@@ -183,10 +191,7 @@ impl<'ast> WebpackMainChunkParser<'ast> {
 			.scoping()
 			.get_resolved_references(wreq_sym_id);
 		for u in uses {
-			let Some(call) = self
-				.p(u.node_id())
-				.as_call_expression()
-			else {
+			let Some(call) = self.p(u.node_id()).as_call_expression() else {
 				continue;
 			};
 

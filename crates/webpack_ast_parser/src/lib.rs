@@ -1,6 +1,6 @@
-mod parser;
 mod bundle;
-mod types;
 mod cache;
+mod parser;
+mod types;
 
 pub use parser::WebpackAstParser;

@@ -1,6 +1,6 @@
 use crate::{Match, MatchLike, MatchRegex, hash::hash_message_key};
-use ast_parser::exts::{ExpressionExt as _, TemplateLiteralExt as _};
 use anyhow::{Context, Result, bail};
+use ast_parser::exts::{ExpressionExt as _, TemplateLiteralExt as _};
 use itertools::Itertools;
 use memchr::memmem::Finder;
 use oxc::{

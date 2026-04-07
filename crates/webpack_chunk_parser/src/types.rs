@@ -3,7 +3,19 @@ use derive_more::{From, Into};
 use serde::Serialize;
 use smol_str::SmolStr;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, From, Into, PartialOrd, Ord, Serialize)]
+#[derive(
+	Debug,
+	Clone,
+	Copy,
+	PartialEq,
+	Eq,
+	Hash,
+	From,
+	Into,
+	PartialOrd,
+	Ord,
+	Serialize,
+)]
 pub struct ModuleId(pub u32);
 
 #[derive(Debug, Clone, Into)]

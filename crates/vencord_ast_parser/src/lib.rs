@@ -1,9 +1,10 @@
 mod hash;
+pub mod parser;
+mod pass;
 mod patches;
 mod types;
-mod pass;
-pub mod parser;
 
+pub use parser::VencordAstParser;
 pub use types::{
 	Match,
 	MatchLike,
@@ -14,8 +15,6 @@ pub use types::{
 	Replacer,
 	TemplateEvaluator,
 };
-pub use parser::VencordAstParser;
-
 
 #[cfg(test)]
 mod tests;

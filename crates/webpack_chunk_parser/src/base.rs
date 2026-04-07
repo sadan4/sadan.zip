@@ -3,7 +3,10 @@ use std::collections::HashMap;
 use ast_parser::exts::{ExpressionExt, NumericLiteralExt as _};
 use oxc::ast::ast::{ObjectExpression, ObjectPropertyKind};
 
-use crate::{Sealed, types::{ModuleEntry, ModuleId}};
+use crate::{
+	Sealed,
+	types::{ModuleEntry, ModuleId},
+};
 
 pub(crate) trait WebpackChunkParserImpl<'ast>: Sealed {
 	/// the object with each module defined, should conform to `Record<PropertyKey, (e, t, n) => void)>`

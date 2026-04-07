@@ -103,8 +103,7 @@ impl<'ast> VencordAstParser<'ast> {
 			.sema
 			.symbol_references(define_plugin)
 		{
-			let AstKind::CallExpression(call) =
-				self.p(var_use.node_id())
+			let AstKind::CallExpression(call) = self.p(var_use.node_id())
 			else {
 				continue;
 			};

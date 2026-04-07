@@ -4,8 +4,12 @@ use itertools::Itertools;
 use oxc::{
 	allocator::{Allocator, AllocatorAccessor, Dummy, StringBuilder},
 	ast::ast::{
-		BigintBase, Expression, IdentifierReference, NumberBase,
-		TemplateElementValue, TemplateLiteral,
+		BigintBase,
+		Expression,
+		IdentifierReference,
+		NumberBase,
+		TemplateElementValue,
+		TemplateLiteral,
 	},
 	minifier::PropertyReadSideEffects,
 	semantic::IsGlobalReference,
@@ -14,7 +18,9 @@ use oxc::{
 use oxc_ecmascript::{
 	GlobalContext,
 	constant_evaluation::{
-		ConstantEvaluation, ConstantEvaluationCtx, ConstantValue,
+		ConstantEvaluation,
+		ConstantEvaluationCtx,
+		ConstantValue,
 	},
 	side_effects::MayHaveSideEffectsContext,
 };

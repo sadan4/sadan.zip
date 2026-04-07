@@ -8,24 +8,24 @@ pub mod server;
 
 #[derive(Args)]
 pub struct Command {
-    #[command(subcommand)]
-    /// The part of this project to build
-    target: Target,
+	#[command(subcommand)]
+	/// The part of this project to build
+	target: Target,
 }
 
 impl Runnable for Command {
-    fn run(&self) -> Result<()> {
-        match &self.target {
-            Target::Server(c) => c.run(),
-            Target::Client(c) => c.run(),
-        }
-    }
+	fn run(&self) -> Result<()> {
+		match &self.target {
+			Target::Server(c) => c.run(),
+			Target::Client(c) => c.run(),
+		}
+	}
 }
 
 #[derive(Subcommand)]
 enum Target {
-    /// Build the explorer server
-    Server(server::Command),
-    /// Build the client site
-    Client(client::Command),
+	/// Build the explorer server
+	Server(server::Command),
+	/// Build the client site
+	Client(client::Command),
 }

@@ -11,7 +11,9 @@ use oxc::{
 use oxc_ecmascript::{
 	GlobalContext,
 	constant_evaluation::{
-		ConstantEvaluation, ConstantEvaluationCtx, ConstantValue,
+		ConstantEvaluation,
+		ConstantEvaluationCtx,
+		ConstantValue,
 	},
 	side_effects::MayHaveSideEffectsContext,
 };

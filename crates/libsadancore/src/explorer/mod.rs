@@ -1,2 +1,2 @@
-pub mod meta;
 pub mod bundle;
+pub mod meta;

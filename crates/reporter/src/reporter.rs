@@ -5,11 +5,7 @@ use std::{
 	time::{Duration, Instant},
 };
 
-use crate::{
-	diag::ReporterError,
-	util::Stage,
-	vc::Plugin,
-};
+use crate::{diag::ReporterError, util::Stage, vc::Plugin};
 use anyhow::{Result, anyhow};
 use derive_more::IsVariant;
 use explorer_types::FullBundle;
