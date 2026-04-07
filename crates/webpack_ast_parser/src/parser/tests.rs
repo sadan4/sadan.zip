@@ -988,14 +988,87 @@ mod export_parsing {
 		}
 
 		#[test]
-		#[ignore = "TODO"]
 		fn with_static_properties() {
 			let alloc = Allocator::new();
-			let _p = parse!(
+			let p = parse!(
 				alloc,
 				"test_data/wp/stores/store-static-displayName.js"
 			);
-			todo!();
+			let map = p.dbg_export_map();
+			assert_debug_snapshot!(map, @r#"
+			{
+			    "ASSISTANT_WUMPUS_VOICE_USER": "47835198259242069"(
+			        [
+			            "[6:8->6:35)",
+			            "[35:12->35:31)",
+			        ],
+			    ),
+			    "default": "UserStore"(
+			        {
+			            "LATEST_SNAPSHOT_VERSION": 1(
+			                [
+			                    "[594:41->594:42)",
+			                ],
+			            ),
+			            "displayName": "UserStore"(
+			                [
+			                    "[593:29->593:40)",
+			                ],
+			            ),
+			            "filter": [
+			                "[710:8->710:14)",
+			            ],
+			            "findByTag": [
+			                "[703:8->703:17)",
+			            ],
+			            "forEach": [
+			                "[698:8->698:15)",
+			            ],
+			            "getCurrentUser": [
+			                "[720:8->720:22)",
+			            ],
+			            "getUser": [
+			                "[691:8->691:15)",
+			            ],
+			            "getUserStoreVersion": 0(
+			                [
+			                    "[34:12->34:13)",
+			                ],
+			            ),
+			            "getUsers": [
+			                "[695:8->695:16)",
+			            ],
+			            "handleLoadCache": [
+			                "[676:8->676:23)",
+			            ],
+			            "initialize": [
+			                "[664:8->664:18)",
+			            ],
+			            "takeSnapshot": [
+			                "[667:8->667:20)",
+			            ],
+			            "SYM_CJS_DEFAULT": [
+			                "[7:8->7:15)",
+			                "[724:17->724:19)",
+			                "[592:10->592:12)",
+			                "[595:8->595:19)",
+			            ],
+			        },
+			    ),
+			    "mergeUser": [
+			        "[8:8->8:17)",
+			        "[128:13->128:14)",
+			    ],
+			    "transformUser": [
+			        "[9:8->9:21)",
+			        "[71:13->71:14)",
+			    ],
+			    "users": [
+			        "[10:8->10:13)",
+			        "[10:15->10:21)",
+			    ],
+			}
+			"#);
 		}
 
 		#[test]
