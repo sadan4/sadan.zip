@@ -886,11 +886,50 @@ mod export_parsing {
 			"#);
 		}
 		#[test]
-		#[ignore = "TODO"]
 		fn no_initialize_method() {
 			let alloc = Allocator::new();
-			let _p = parse!(alloc, "test_data/wp/stores/store3.js");
-			todo!();
+			let p = parse!(alloc, "test_data/wp/stores/store3.js");
+			let map = p.dbg_export_map();
+			assert_debug_snapshot!(map, @r#"
+			{
+			    "Z": GuildStore(
+			        {
+			            "getAllGuildsRoles": [
+			                "[218:8->218:25)",
+			            ],
+			            "getGeoRestrictedGuilds": [
+			                "[53:12->53:14)",
+			            ],
+			            "getGuild": [
+			                "[199:8->199:16)",
+			            ],
+			            "getGuildCount": [
+			                "[4:8->4:9)",
+			            ],
+			            "getGuildIds": [
+			                "[206:8->206:19)",
+			            ],
+			            "getGuilds": [
+			                "[203:8->203:17)",
+			            ],
+			            "getRole": [
+			                "[225:8->225:15)",
+			            ],
+			            "getRoles": [
+			                "[221:8->221:16)",
+			            ],
+			            "isLoaded": [
+			                "[52:12->52:14)",
+			            ],
+			            "SYM_CJS_DEFAULT": [
+			                "[6:8->6:9)",
+			                "[231:16->231:17)",
+			                "[198:10->198:11)",
+			            ],
+			        },
+			    ),
+			}
+			"#);
 		}
 
 		#[test]
