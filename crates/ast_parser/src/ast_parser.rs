@@ -9,22 +9,13 @@ use oxc::{
 	ast::{
 		AstKind,
 		ast::{
-			BindingIdentifier,
-			Expression,
-			IdentifierReference,
-			ImportDeclaration,
-			ModuleDeclaration,
-			Program,
+			BindingIdentifier, Expression, IdentifierReference,
+			ImportDeclaration, ModuleDeclaration, Program,
 		},
 	},
 	parser::Parser as OxcParser,
 	semantic::{
-		AstNode,
-		NodeId,
-		Reference,
-		Scoping,
-		Semantic,
-		SemanticBuilder,
+		AstNode, NodeId, Reference, Scoping, Semantic, SemanticBuilder,
 		SymbolId,
 	},
 	span::SourceType,
@@ -203,6 +194,35 @@ pub trait AstParser<'ast> {
 			}
 
 			node_id = parent_id;
+		}
+	}
+	fn find_parent_limited<'a, T>(
+		&'a self,
+		mut node_id: NodeId,
+		pred: impl Fn(AstKind<'ast>) -> Option<T>,
+		mut limit: usize,
+	) -> Option<T>
+	where
+		'ast: 'a,
+	{
+		debug_assert!(limit > 0, "Limit must be greater than 0");
+		loop {
+			if limit == 0 {
+				return None;
+			}
+			let parent = self.p(node_id);
+			if let Some(found) = pred(parent) {
+				return Some(found);
+			}
+
+			let parent_id = parent.node_id();
+
+			if parent_id == node_id {
+				return None;
+			}
+
+			node_id = parent_id;
+			limit -= 1;
 		}
 	}
 	/// Compare two references to variables

@@ -10,9 +10,9 @@ use crate::{
 	parser::{
 		enum_iife::EnumIIFEState1_2,
 		export_map::{
-			ExportMap, ExportRange, ExportValue, RangeExportMap,
+			ExportMap, ExportRange, ExportValue, ExtraData, RangeExportMap,
 			RangeExportMapValue, RangeExportRange, RawExportMapValue,
-			RawExportRange,
+			RawExportRange, RawStoreData, StoreData,
 		},
 		types::{WreqD, WreqDExportType},
 		util::find_return_identifier,
@@ -25,7 +25,7 @@ use ast_parser::{
 	ast_kind::IntoAstKind,
 	exts::{
 		BindingPatternExt, ExpressionExt, Functionish, NumericLiteralExt as _,
-		StatementExt,
+		ObjectExpressionExt, PropertyKeyExt, StatementExt,
 	},
 	parse,
 };
@@ -36,17 +36,18 @@ use oxc::{
 		AstKind,
 		ast::{
 			ArrowFunctionExpression, CallExpression, Class, ClassElement,
-			IdentifierReference, MethodDefinition, MethodDefinitionKind,
-			NumericLiteral, ObjectExpression, ObjectProperty,
-			ObjectPropertyKind, Program, VariableDeclarator,
+			Expression, IdentifierReference, MethodDefinition,
+			MethodDefinitionKind, NewExpression, NumericLiteral,
+			ObjectExpression, ObjectProperty, ObjectPropertyKind, Program,
+			VariableDeclarator,
 		},
 	},
 	semantic::{Semantic, SymbolId},
-	span::{GetSpan, SourceType, Span},
+	span::{Atom, GetSpan, SourceType, Span},
 };
 use smol_str::SmolStr;
-use std::iter;
-use tracing::debug;
+use std::{collections::HashMap, iter};
+use tracing::{debug, trace, warn};
 
 pub struct WebpackAstParser<'ast> {
 	prog: &'ast Program<'ast>,
@@ -264,7 +265,10 @@ impl<'ast> WebpackAstParser<'ast> {
 		let mut ret = RawExportMap::default();
 		for usage in self.ref_nodes(self.exports_arg()?) {
 			let usage = usage.as_identifier_reference().unwrap();
-			let Some(export_access) = self.p(usage.node_id()).as_static_member_expression() else {
+			let Some(export_access) = self
+				.p(usage.node_id())
+				.as_static_member_expression()
+			else {
 				continue;
 			};
 			let Some(export_assignment) = self
@@ -356,6 +360,169 @@ impl<'ast> WebpackAstParser<'ast> {
 			.raw_export_map
 			.get_or_default(|| self.impl_get_export_map_raw())
 	}
+	fn parse_store_flux_events(
+		&self,
+		store: &mut RawStoreData<'ast>,
+		obj: &'ast ObjectExpression<'ast>,
+	) {
+		for prop in &obj.properties {
+			let Some(prop) = prop.as_property() else {
+				warn!(
+					"Store flux events has a spread property. This should be handled."
+				);
+				continue;
+			};
+			let Some(event_key) = prop.key.as_static_identifier() else {
+				warn!(
+					"Store flux event key is not a static identifier. This should be handled."
+				);
+				continue;
+			};
+			let event_key_txt = SmolStr::new(&self.source[event_key.span()]);
+			let event_handler = match &prop.value {
+				Expression::Identifier(node) => node.into_ast_kind(),
+				Expression::FunctionExpression(func) => {
+					func.id.as_ref().map_or_else(
+						|| func.into_ast_kind(),
+						IntoAstKind::into_ast_kind,
+					)
+				}
+				Expression::ArrowFunctionExpression(func) => {
+					func.into_ast_kind()
+				}
+				_ => {
+					warn!(
+						"Store flux event handler is not an identifier or functionish. This should be handled."
+					);
+					continue;
+				}
+			};
+			store
+				.flux_events
+				.insert(event_key_txt, event_handler);
+		}
+	}
+	/// Try to find the display name of the given store
+	/// ## Impl
+	/// Display names can be set in three ways
+	/// 1. define function
+	/// ```js
+	/// define(store, "displayName", "MyStore")
+	/// ```
+	/// 2. Sometimes the bundler will inline the define function
+	/// ```js
+	/// (i = "displayName")in m ? Object.defineProperty(store, i, {
+	///     value: myStoreNameVar,
+	///     enumerable: !0,
+	///     configurable: !0,
+	///     writable: !0
+	/// }) : store[i] = myStoreNameVar;
+	/// ```
+	/// 3. static property
+	/// ```js
+	/// class minified_store_var extends null /* some store */ {
+	///     static displayName = "MyStore";
+	/// }
+	/// ```
+	/// Case 3 is handled in [`Self::raw_make_export_map_store`]
+	// TODO: cursed; refactor
+	fn try_find_store_name(&self, store_sym_id: SymbolId) -> Option<SmolStr> {
+		let iter = self
+			.ref_nodes(store_sym_id)
+			.filter_map(|node| {
+				self.find_parent_limited(
+					node.node_id(),
+					AstKind::as_call_expression,
+					3,
+				)
+			});
+		for usage in iter {
+			let args = &usage.arguments;
+			if args.len() != 3 {
+				continue;
+			}
+			// TODO: check that args[1] is store_sym_id
+			if let Some(define_prop_arg) = args[1].as_string_literal()
+				&& define_prop_arg.value == "displayName"
+				&& let Some(define_value_arg) = args[2].as_string_literal()
+			{
+				return Some(SmolStr::new(define_value_arg.value));
+			}
+			// Object.defineProperty(store)
+			// store must be an identifier
+			let Some(define_obj_arg) = args[0].as_identifier() else {
+				continue;
+			};
+			// second argument must be an identifier
+			let Some(define_prop_arg) = args[1].as_identifier() else {
+				continue;
+			};
+			let Some(define_prop_arg_sym_id) = self.sym_id_of(define_prop_arg)
+			else {
+				continue;
+			};
+			// the second arg must be "displayName"
+			if !self.is_display_name_prop_key(define_prop_arg_sym_id) {
+				continue;
+			}
+			if !self.cmp_sym(define_obj_arg, &store_sym_id) {
+				continue;
+			}
+			// third arg must be an object literal
+			let Some(define_prop_val) = args[2].as_object_expression() else {
+				continue;
+			};
+			let Some(value_prop) = define_prop_val.get_property("value") else {
+				continue;
+			};
+			let Some(value_prop_val) = value_prop
+				.value
+				.as_identifier()
+				.and_then(|ident| self.sym_id_of(ident))
+				.and_then(|sym_id| self.is_constant_string(sym_id))
+			else {
+				continue;
+			};
+			return Some(SmolStr::new(value_prop_val));
+		}
+		None
+	}
+	/// TODO: document
+	fn is_constant_string(&self, sym_id: SymbolId) -> Option<Atom<'ast>> {
+		let Some(decl) = self
+			.sema
+			.symbol_declaration(sym_id)
+			.kind()
+			.as_variable_declarator()
+		else {
+			return None;
+		};
+		if let Some(init) = decl.init.as_ref() {
+			return init
+				.as_string_literal()
+				.map(|l| l.value);
+		}
+		let mut ret = None;
+		for reference in self.sema.symbol_references(sym_id) {
+			if !reference.is_write() {
+				continue;
+			}
+			// if we're written to more than once, we are not constant
+			if ret.is_some() {
+				return None;
+			}
+			ret = self
+				.p(reference.node_id())
+				.as_assignment_expression()
+				.and_then(|assign| assign.right.as_string_literal())
+				.map(|s| s.value);
+		}
+		ret
+	}
+	fn is_display_name_prop_key(&self, sym_id: SymbolId) -> bool {
+		self.is_constant_string(sym_id)
+			.is_some_and(|s| s == "displayName")
+	}
 }
 
 /// functions to make the raw export map
@@ -397,11 +564,13 @@ impl<'ast> WebpackAstParser<'ast> {
 		ret.1.clone_from(annotation);
 		ret.into()
 	}
+	// TODO: transform extra data?
 	fn raw_export_map_to_range_export_map(
 		ExportMap {
 			exports,
 			cjs_default,
 			hover,
+			extra_data: _,
 		}: &RawExportMap<'ast>,
 	) -> RangeExportMap {
 		RangeExportMap {
@@ -415,6 +584,7 @@ impl<'ast> WebpackAstParser<'ast> {
 				Box::new(Self::raw_export_value_to_range_export_value(e))
 			}),
 			hover: hover.clone(),
+			extra_data: ExtraData::None,
 		}
 	}
 	fn raw_export_value_to_range_export_value(
@@ -536,6 +706,7 @@ impl<'ast> WebpackAstParser<'ast> {
 		&self,
 		node: &'ast ObjectExpression<'ast>,
 	) -> RawExportMap<'ast> {
+		// TODO: we can probably remove this box dyn iter if we use a manual for loop
 		node.properties
 			.iter()
 			.filter_map(
@@ -756,6 +927,84 @@ impl<'ast> WebpackAstParser<'ast> {
 		RawExportRange::from_node(&node.key).into()
 	}
 
+	/// Try to make a raw export map for a discord store
+	fn raw_make_export_map_store(
+		&self,
+		init: &'ast NewExpression<'ast>,
+	) -> Option<RawExportMap<'ast>> {
+		let init_expr = init.callee.as_identifier()?;
+		let store_sym_id = self.sym_id_of(init_expr)?;
+		if !matches!(init.arguments.len(), 0 | 2) {
+			debug!("Maybe store does not have 0 or 2 ctor args");
+			return None;
+		}
+		let mut ret = RawExportMap {
+			extra_data: ExtraData::Store(RawStoreData {
+				store: init_expr.into_ast_kind(),
+				flux_events: HashMap::new(),
+			}),
+			..Default::default()
+		};
+		if init.arguments.len() == 2 {
+			let events_obj = init.arguments[1].as_object_expression()?;
+			self.parse_store_flux_events(
+				ret.extra_data.unwrap_store_mut(),
+				events_obj,
+			);
+		}
+		// TODO: unwrap variable declarator?
+		let store_decl_id = self
+			.sema
+			.scoping()
+			.symbol_declaration(store_sym_id);
+		let store_decl = self
+			.n(store_decl_id)
+			.kind()
+			.as_class()?;
+		let does_extend = store_decl.super_class.is_some();
+		if !does_extend {
+			debug!("Maybe store does not extend any class.");
+			return None;
+		}
+		ret.merge_with(self.raw_make_export_map_class(store_decl));
+		if let Some(store_name) = ret.exports.get("displayName") {
+			if let ExportValue::Range(ExportRange(_, name)) = store_name {
+				debug_assert!(
+					ret.hover.is_none(),
+					"Store hover should not be set"
+				);
+				if name.is_none() {
+					warn!(
+						"Store has displayName prop but could not resolve display name. This should not happen"
+					);
+				}
+				ret.hover = name.clone();
+			} else {
+				warn!(
+					"Store displayName prop is not a range. This should not happen."
+				);
+			}
+		} else if let Some(store_name) = self.try_find_store_name(store_sym_id)
+		{
+			debug_assert!(ret.hover.is_none(), "Store hover should not be set");
+			ret.hover = Some(store_name);
+		}
+		// add the new expr to the cjs default chain
+		ret.get_default_arr_mut()
+			.insert(0, init_expr.into_ast_kind());
+		Some(ret)
+	}
+
+	fn raw_make_export_map_new_expression(
+		&self,
+		node: &'ast NewExpression<'ast>,
+	) -> RawExportMapValue<'ast> {
+		if let Some(store) = self.raw_make_export_map_store(node) {
+			return store.into();
+		}
+		RawExportRange::from_node(node).into()
+	}
+
 	fn raw_make_export_map_recursive(
 		&self,
 		node: impl IntoAstKind<'ast>,
@@ -802,7 +1051,18 @@ impl<'ast> WebpackAstParser<'ast> {
 			AstKind::MethodDefinition(node) => {
 				self.raw_make_export_map_method_definition(node)
 			}
-			_ => RawExportRange::from(node).into(),
+			AstKind::NewExpression(node) => {
+				self.raw_make_export_map_new_expression(node)
+			}
+			_ => {
+				if cfg!(debug_assertions) && cfg!(test) {
+					debug!(
+						"Unhandled export map node kind: {}",
+						node.debug_name()
+					);
+				}
+				RawExportRange::from(node).into()
+			}
 		}
 	}
 }

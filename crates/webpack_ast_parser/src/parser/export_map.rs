@@ -3,9 +3,9 @@ use derive_more::{
 	Constructor, Deref, DerefMut, From, Into, IsVariant, TryUnwrap, Unwrap,
 };
 use oxc::{ast::AstKind, span::Span};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use smol_str::SmolStr;
-use std::{collections::HashMap, convert::AsMut};
+use std::{collections::HashMap, convert::AsMut, fmt::Debug, ops::BitOr};
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -16,6 +16,7 @@ pub struct ExportMap<T> {
 	pub cjs_default: Option<Box<ExportValue<T>>>,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub hover: Option<SmolStr>,
+	pub extra_data: ExtraData<T>,
 }
 
 impl<T> ExportMap<T> {
@@ -29,6 +30,18 @@ impl<T> ExportMap<T> {
 			!(self.cjs_default.is_some() && other.cjs_default.is_some()),
 			"cannot merge two export maps that both have a default export"
 		);
+		match (&mut self.extra_data, other.extra_data) {
+			(_, ExtraData::None) => {}
+			(this @ ExtraData::None, other @ ExtraData::Store(_)) => {
+				*this = other;
+			}
+			(ExtraData::Store(_), ExtraData::Store(_)) => {
+				debug_assert!(
+					false,
+					"merging two export maps that both have store data is not supported"
+				);
+			}
+		}
 		self.exports.extend(other.exports);
 		if self.cjs_default.is_none() {
 			self.cjs_default = other.cjs_default;
@@ -63,6 +76,33 @@ impl<T> ExportMap<T> {
 	}
 }
 
+#[derive(Debug, Default, Clone, Serialize, Unwrap, IsVariant)]
+#[unwrap(ref, ref_mut)]
+pub enum ExtraData<T> {
+	#[default]
+	None,
+	Store(StoreData<T>),
+}
+
+/// Methods and props can be found in the attached [`ExportMap`]
+/// the store name will be in [`ExportMap::hover`] if it can be found
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StoreData<T> {
+	/// will always be a reference to the store identifier. an [`AstKind::BindingIdentifier`]
+	pub store: T,
+	/// map of flux events to their handlers
+	pub flux_events: HashMap<SmolStr, T>,
+}
+
+impl<T> From<Option<StoreData<T>>> for ExtraData<T> {
+	fn from(value: Option<StoreData<T>>) -> Self {
+		match value {
+			Some(store_data) => Self::Store(store_data),
+			None => Self::None,
+		}
+	}
+}
+
 impl<T> FromIterator<(SmolStr, ExportValue<T>)> for ExportMap<T> {
 	fn from_iter<I: IntoIterator<Item = (SmolStr, ExportValue<T>)>>(
 		iter: I,
@@ -71,6 +111,7 @@ impl<T> FromIterator<(SmolStr, ExportValue<T>)> for ExportMap<T> {
 			exports: iter.into_iter().collect(),
 			cjs_default: None,
 			hover: None,
+			extra_data: ExtraData::default(),
 		}
 	}
 }
@@ -112,6 +153,7 @@ impl<T> Default for ExportMap<T> {
 			exports: HashMap::default(),
 			cjs_default: None,
 			hover: None,
+			extra_data: ExtraData::default(),
 		}
 	}
 }
@@ -203,6 +245,7 @@ pub type RawExportMapValue<'ast> = ExportValue<AstKind<'ast>>;
 pub type RawExportMapEntry<'ast> = ExportMapEntry<AstKind<'ast>>;
 pub type RawExportRange<'ast> = ExportRange<AstKind<'ast>>;
 pub type RawExportMap<'ast> = ExportMap<AstKind<'ast>>;
+pub type RawStoreData<'ast> = StoreData<AstKind<'ast>>;
 
 pub type RangeExportMapValue = ExportValue<Span>;
 pub type RangeExportMapEntry = ExportMapEntry<Span>;

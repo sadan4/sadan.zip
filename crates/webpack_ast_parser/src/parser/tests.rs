@@ -3,6 +3,7 @@ use super::*;
 use ast_parser::span_line_and_column;
 use insta::assert_debug_snapshot;
 use itertools::Itertools;
+use macros::test;
 use oxc::span::{Atom, Span};
 use std::fmt::{self, Debug};
 
@@ -42,9 +43,13 @@ impl ExportMapDumper<'_> {
 			}
 			ExportValue::Map(m) => {
 				let dumper = ExportMapDumper(m, self.1);
-				f.debug_tuple("ExportMap")
-					.field(&dumper)
-					.finish()
+				f.debug_tuple(
+					m.hover
+						.as_ref()
+						.map_or("ExportMap", SmolStr::as_str),
+				)
+				.field(&dumper)
+				.finish()
 			}
 		}
 	}
@@ -155,6 +160,7 @@ fn doesnt_find_side_effect_import() {
 
 mod module_id {
 	use super::*;
+	use macros::test;
 
 	#[test]
 	fn parses_module_id() {
@@ -185,6 +191,7 @@ mod export_parsing {
 	use super::*;
 	mod wreq_d {
 		use super::*;
+		use macros::test;
 		#[test]
 		fn simple_modules() {
 			let alloc = Allocator::new();
@@ -546,6 +553,7 @@ mod export_parsing {
 	}
 	mod e_exports {
 		use super::*;
+		use macros::test;
 		#[test]
 		/// class names
 		fn object_literal_exports() {
@@ -759,6 +767,7 @@ mod export_parsing {
 	}
 	mod exports {
 		use super::*;
+		use macros::test;
 		#[test]
 		fn pre_es6_class() {
 			let alloc = Allocator::new();
@@ -788,13 +797,31 @@ mod export_parsing {
 	}
 	mod stores {
 		use super::*;
+		use macros::test;
 		#[test]
-		#[ignore = "TODO"]
 		fn normal_store() {
 			let alloc = Allocator::new();
 			let p = parse!(alloc, "test_data/wp/stores/store1.js");
 			let map = p.dbg_export_map();
-			assert_debug_snapshot!(map, @r#""#);
+			assert_debug_snapshot!(map, @r#"
+			{
+			    "Z": EnablePublicGuildUpsellNoticeStore(
+			        {
+			            "initialize": [
+			                "[11:8->11:18)",
+			            ],
+			            "isVisible": [
+			                "[18:8->18:17)",
+			            ],
+			            "SYM_CJS_DEFAULT": [
+			                "[4:8->4:9)",
+			                "[32:16->32:17)",
+			                "[10:10->10:11)",
+			            ],
+			        },
+			    ),
+			}
+			"#);
 		}
 		#[test]
 		#[ignore = "TODO"]
@@ -831,7 +858,10 @@ mod export_parsing {
 		#[ignore = "TODO"]
 		fn with_static_properties() {
 			let alloc = Allocator::new();
-			let _p = parse!(alloc, "test_data/wp/stores/store-static-displayName.js");
+			let _p = parse!(
+				alloc,
+				"test_data/wp/stores/store-static-displayName.js"
+			);
 			todo!();
 		}
 
