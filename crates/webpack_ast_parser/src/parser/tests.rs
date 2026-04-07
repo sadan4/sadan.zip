@@ -788,5 +788,50 @@ mod export_parsing {
 	}
 	mod stores {
 		use super::*;
+		#[test]
+		#[ignore = "TODO"]
+		fn normal_store() {
+			todo!();
+		}
+		#[test]
+		#[ignore = "TODO"]
+		fn ctor_with_no_args() {
+			todo!();
+		}
+		#[test]
+		#[ignore = "TODO"]
+		fn no_initialize_method() {
+			todo!();
+		}
+
+		#[test]
+		#[ignore = "TODO"]
+		fn with_getters() {
+			todo!();
+		}
+
+		#[test]
+		#[ignore = "TODO"]
+		fn using_libdiscore() {
+			todo!();
+		}
+
+		#[test]
+		#[ignore = "TODO"]
+		fn with_static_properties() {
+			todo!();
+		}
+
+		#[test]
+		#[ignore = "never seen example of this"]
+		fn exported_via_module_exports() {
+			unimplemented!();
+		}
+
+		#[test]
+		#[ignore = "never seen example of this"]
+		fn exported_via_exports() {
+			unimplemented!();
+		}
 	}
 }

@@ -5,7 +5,7 @@ use derive_more::{
 use oxc::{ast::AstKind, span::Span};
 use serde::Serialize;
 use smol_str::SmolStr;
-use std::{collections::HashMap, iter};
+use std::{collections::HashMap, convert::AsMut};
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -41,7 +41,7 @@ impl<T> ExportMap<T> {
 		match self
 			.cjs_default
 			.as_mut()
-			.map(|v| v.as_mut())
+			.map(AsMut::as_mut)
 		{
 			Some(ExportValue::Map(map)) => map.get_default_arr_mut_if_exists(),
 			Some(ExportValue::Range(range)) => Some(range),
@@ -109,9 +109,9 @@ pub enum ExportMapKey {
 impl<T> Default for ExportMap<T> {
 	fn default() -> Self {
 		Self {
-			exports: Default::default(),
-			cjs_default: Default::default(),
-			hover: Default::default(),
+			exports: HashMap::default(),
+			cjs_default: None,
+			hover: None,
 		}
 	}
 }
