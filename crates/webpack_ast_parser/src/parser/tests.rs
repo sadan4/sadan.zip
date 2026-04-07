@@ -611,9 +611,68 @@ mod export_parsing {
 			"#);
 		}
 		#[test]
-		#[ignore = "todo"]
 		fn exports_with_an_intermediate_var() {
-			todo!();
+			let alloc = Allocator::new();
+			let p = parse!(alloc, "test_data/wp/e.exports/ident.js");
+			let map = p.dbg_export_map();
+			assert_debug_snapshot!(map, @r#"
+			{
+			    "closeContainer": "closeContainer__2dea3"(
+			        [
+			            "[6:8->6:22)",
+			            "[6:24->6:47)",
+			        ],
+			    ),
+			    "closeIcon": "closeIcon__2dea3"(
+			        [
+			            "[7:8->7:17)",
+			            "[7:19->7:37)",
+			        ],
+			    ),
+			    "confirmationContainer": "confirmationContainer__2dea3"(
+			        [
+			            "[10:8->10:29)",
+			            "[10:31->10:61)",
+			        ],
+			    ),
+			    "confirmationSubtitle": "confirmationSubtitle__2dea3"(
+			        [
+			            "[13:8->13:28)",
+			            "[13:30->13:59)",
+			        ],
+			    ),
+			    "confirmationTitle": "confirmationTitle__2dea3"(
+			        [
+			            "[12:8->12:25)",
+			            "[12:27->12:53)",
+			        ],
+			    ),
+			    "headerContainer": "headerContainer__2dea3"(
+			        [
+			            "[5:8->5:23)",
+			            "[5:25->5:49)",
+			        ],
+			    ),
+			    "headerImage": "headerImage__2dea3"(
+			        [
+			            "[8:8->8:19)",
+			            "[8:21->8:41)",
+			        ],
+			    ),
+			    "headerImageContainer": "headerImageContainer__2dea3"(
+			        [
+			            "[9:8->9:28)",
+			            "[9:30->9:59)",
+			        ],
+			    ),
+			    "purchaseConfirmation": "purchaseConfirmation__2dea3 confirmationContainer__2dea3"(
+			        [
+			            "[11:8->11:28)",
+			            "[11:30->11:88)",
+			        ],
+			    ),
+			}
+			"#);
 		}
 		#[test]
 		#[ignore = "todo"]
