@@ -226,7 +226,10 @@ impl<'ast> WebpackAstParser<'ast> {
 					let new_ret = self.raw_make_export_map_recursive(val);
 					match new_ret {
 						ExportValue::Map(map) => ret.merge_with(map),
-						ExportValue::Range(_) => unimplemented!(),
+						rng @ ExportValue::Range(_) => {
+							assert!(ret.exports.is_empty(), "how???");
+							ret.cjs_default = Some(Box::new(rng));
+						}
 					}
 				}
 				AstKind::StaticMemberExpression(module_exports_name_access) => {

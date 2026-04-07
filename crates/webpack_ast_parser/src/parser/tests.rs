@@ -583,9 +583,19 @@ mod export_parsing {
 			"#);
 		}
 		#[test]
-		#[ignore = "todo"]
 		fn single_string_export() {
-			todo!();
+			let alloc = Allocator::new();
+			let p = parse!(alloc, "test_data/wp/e.exports/string.js");
+			let map = p.dbg_export_map();
+			assert_debug_snapshot!(map, @r#"
+			{
+			    "SYM_CJS_DEFAULT": "/assets/b8deed70d3e4a9bd.svg"(
+			        [
+			            "[4:16->4:46)",
+			        ],
+			    ),
+			}
+			"#);
 		}
 		#[test]
 		#[ignore = "todo"]
