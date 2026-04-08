@@ -12,11 +12,14 @@ use oxc::ast::ast::{
 	StaticMemberExpression,
 };
 
-use crate::parser::export_map::{
-	ExportMapKey,
-	RangeExportMap,
-	RangeExportMapValue,
-	RangeExportRange,
+use crate::{
+	export_map::{ExportMap, ExportRange},
+	parser::export_map::{
+		ExportMapKey,
+		RangeExportMap,
+		RangeExportMapValue,
+		RangeExportRange,
+	},
 };
 
 use super::export_map::{ExportMapEntry, ExportValue};
@@ -206,7 +209,10 @@ fn filter_export_range(
 	mut export_range: RangeExportRange,
 	pos: u32,
 ) -> RangeExportRange {
-	if export_range.iter().any(|rng| pos >= rng.start && pos < rng.end) {
+	if export_range
+		.iter()
+		.any(|rng| pos >= rng.start && pos < rng.end)
+	{
 		export_range
 	} else {
 		RangeExportRange::default()
@@ -226,4 +232,34 @@ fn filter_export_value(
 			filter_export_map(export_map, pos).into()
 		}
 	}
+}
+
+/// Resolve a nested export path inside an [`ExportMap`].
+///
+/// `keys` is iterated, and the looked up in `map`
+///
+/// If a key points to a map and [`ExportMap::cjs_default`] is
+/// [`Some`](Option::Some)[`(ExportValue::Range)`](ExportValue::Range),
+///  that range is returned immediately.
+pub fn get_nested_export_from_map<'m, T>(
+	keys: &[ExportMapKey],
+	map: &'m ExportMap<T>,
+) -> Option<&'m ExportRange<T>> {
+	let mut cur = map;
+	for key in keys {
+		match cur.get(key)? {
+			ExportValue::Range(rng) => return Some(rng),
+			ExportValue::Map(export_map) => {
+				if let Some(rng) = export_map
+					.cjs_default
+					.as_deref()
+					.and_then(|a| a.try_unwrap_range_ref().ok())
+				{
+					return Some(rng);
+				}
+				cur = export_map;
+			}
+		}
+	}
+	None
 }

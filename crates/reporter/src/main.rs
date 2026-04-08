@@ -78,7 +78,11 @@ fn install_tracing() {
 	let filter_layer = EnvFilter::try_from_default_env()
 		.or_else(|_| {
 			EnvFilter::builder()
-				.with_default_directive(Level::DEBUG.into())
+				.with_default_directive(if cfg!(debug_assertions) {
+					Level::DEBUG.into()
+				} else {
+					Level::INFO.into()
+				})
 				.parse("")
 		})
 		.unwrap();

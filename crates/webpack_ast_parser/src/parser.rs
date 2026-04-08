@@ -19,8 +19,7 @@ use crate::{
 		},
 		types::{ReExport, SearchElement, WreqD, WreqDExportType},
 		util::{
-			filter_export_map, find_return_identifier, flatten_export_map,
-			flatten_property_access_expression, match_export_chain,
+			filter_export_map, find_return_identifier, flatten_export_map, flatten_property_access_expression, get_nested_export_from_map, match_export_chain
 		},
 	},
 	types::ModuleId,
@@ -643,7 +642,7 @@ impl<'ast> WebpackAstParser<'ast> {
 		export_name: &[ExportMapKey],
 	) -> Option<ReExport> {
 		let map = self.get_export_map_raw();
-		let exp = self.get_nested_export_from_map(export_name, map)?;
+		let exp = get_nested_export_from_map(export_name, map)?;
 		let last = exp.last()?;
 		let last = last.as_static_member_expression()?;
 		let (imported, chain) = flatten_property_access_expression(last);
@@ -663,29 +662,6 @@ impl<'ast> WebpackAstParser<'ast> {
 				.collect(),
 		};
 		Some(ret)
-	}
-	fn get_nested_export_from_map<'m, T>(
-		&self,
-		keys: &[ExportMapKey],
-		map: &'m ExportMap<T>,
-	) -> Option<&'m ExportRange<T>> {
-		let mut cur = map;
-		for key in keys {
-			match cur.get(key)? {
-				ExportValue::Range(rng) => return Some(rng),
-				ExportValue::Map(export_map) => {
-					if let Some(rng) = export_map
-						.cjs_default
-						.as_deref()
-						.and_then(|a| a.try_unwrap_range_ref().ok())
-					{
-						return Some(rng);
-					}
-					cur = export_map;
-				}
-			}
-		}
-		None
 	}
 	fn find_export_location(&self, export_names: &[ExportMapKey]) -> Span {
 		let mut map = self.get_export_map();

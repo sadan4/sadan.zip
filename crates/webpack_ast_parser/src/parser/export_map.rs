@@ -31,7 +31,7 @@ impl<T> ExportMap<T> {
 		self.exports.is_empty() && self.cjs_default.is_none()
 	}
 	/// Shallow merge of two export maps.
-	/// [`self`] takes precedence over [`other`]
+	/// [`self`] takes precedence over `other`
 	pub fn merge_with(&mut self, other: Self) {
 		debug_assert!(
 			!(self.cjs_default.is_some() && other.cjs_default.is_some()),
@@ -177,6 +177,7 @@ impl IntoIterator for RangeExportMap {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, From, IsVariant)]
+#[doc(alias("AnyExportKey"))]
 /// Clone is `O(1)`
 pub enum ExportMapKey {
 	Named(SmolStr),
