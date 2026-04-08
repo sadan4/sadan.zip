@@ -23,7 +23,7 @@ use webpack_ast_parser::{
 
 struct Bundle<'a> {
 	dir: PathBuf,
-	alloc: &'a Allocator,
+	_alloc: &'a Allocator,
 	parsers: OnceCell<HashMap<ModuleId, Rc<WebpackAstParser<'a>>>>,
 	deps: HashMap<ModuleId, Rc<IncomingModuleDeps>>,
 }
@@ -88,7 +88,7 @@ impl<'a> Bundle<'a> {
 
 		let ret = Self {
 			dir: bundle_dir,
-			alloc,
+			_alloc: alloc,
 			parsers: OnceCell::new(),
 			deps: deps
 				.into_iter()
@@ -146,6 +146,7 @@ impl<'a> Bundle<'a> {
 						),
 					}
 				})
+				.sorted()
 				.collect()
 		})
 	}
@@ -185,7 +186,7 @@ impl IModuleDepProvider for Bundle<'_> {
 	}
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, PartialEq, Eq, PartialOrd, Ord, Clone)]
 struct SpanDumper<'a>(pub Span, pub &'a str);
 
 impl Debug for SpanDumper<'_> {
@@ -195,7 +196,7 @@ impl Debug for SpanDumper<'_> {
 	}
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 struct ReferenceDumper<'a> {
 	id: ModuleId,
 	range: SpanDumper<'a>,
@@ -204,12 +205,13 @@ struct ReferenceDumper<'a> {
 #[test]
 fn test_cache() {
 	let alloc = Allocator::new();
-	let (bundle, parsers) = Bundle::try_new(&alloc).unwrap();
-	bundle.bind_plugins(parsers);
-	simple_use_in_single_file(&bundle);
+	let (b, parsers) = Bundle::try_new(&alloc).unwrap();
+	b.bind_plugins(parsers);
+	simple_export_in_single_file(&b);
+	simple_export_in_many_files(&b);
 }
 
-fn simple_use_in_single_file(b: &Bundle) {
+fn simple_export_in_single_file(b: &Bundle) {
 	let parser = b.parse(222222);
 	let locs = b.dbg_gen_refs(&parser, 6, 8).unwrap();
 	assert_debug_snapshot!(locs, @r#"
@@ -221,5 +223,34 @@ fn simple_use_in_single_file(b: &Bundle) {
 	        range: "[16:26->16:27)",
 	    },
 	]
+	"#);
+}
+
+fn simple_export_in_many_files(b: &Bundle) {
+	let parser = b.parse(222222);
+	let locs = b.dbg_gen_refs(&parser, 5, 8);
+	assert_debug_snapshot!(locs, @r#"
+	Ok(
+	    [
+	        ReferenceDumper {
+	            id: ModuleId(
+	                111111,
+	            ),
+	            range: "[16:18->16:19)",
+	        },
+	        ReferenceDumper {
+	            id: ModuleId(
+	                111111,
+	            ),
+	            range: "[16:40->16:41)",
+	        },
+	        ReferenceDumper {
+	            id: ModuleId(
+	                999999,
+	            ),
+	            range: "[13:41->13:42)",
+	        },
+	    ],
+	)
 	"#);
 }
