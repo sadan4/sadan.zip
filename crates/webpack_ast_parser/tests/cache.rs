@@ -10,7 +10,7 @@ use std::{
 
 use anyhow::{Context, Result, anyhow};
 use ast_parser::{get_offset_from_line_and_column, span_line_and_column};
-use insta::{assert_snapshot, assert_debug_snapshot};
+use insta::{assert_debug_snapshot, assert_snapshot};
 use itertools::Itertools;
 use macros::test;
 use oxc::{allocator::Allocator, span::Span};
@@ -153,6 +153,32 @@ impl<'a> Bundle<'a> {
 					.collect()
 			})
 	}
+	fn dbg_defs(
+		&self,
+		parser: &WebpackAstParser,
+		line: u32,
+		col: u32,
+	) -> Result<Vec<DefinitionDumper<'a>>> {
+		let pos =
+			get_offset_from_line_and_column(parser.get_source(), line, col);
+		parser
+			.generate_definitions(pos)
+			.map(|refs| {
+				refs.into_iter()
+					.map(|ref_| {
+						let other_parser = self.parse(*ref_.module_id);
+						DefinitionDumper {
+							id: ref_.module_id,
+							range: SpanDumper(
+								ref_.range,
+								other_parser.get_source(),
+							),
+						}
+					})
+					.sorted()
+					.collect()
+			})
+	}
 }
 
 impl<'a> IModuleCache<'a> for Bundle<'a> {
@@ -273,6 +299,12 @@ struct ReferenceDumper<'a> {
 	range: SpanDumper<'a>,
 }
 
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+struct DefinitionDumper<'a> {
+	id: ModuleId,
+	range: SpanDumper<'a>,
+}
+
 #[test]
 fn test() {
 	let alloc = Allocator::new();
@@ -284,10 +316,8 @@ fn test() {
 	e_exports_default::test2(&b);
 	e_exports_default::test3(&b);
 	react_class_component(&b);
-	enum_uses::style_1::uses_of_member(&b);
-	enum_uses::style_1::uses_of_object(&b);
-	enum_uses::style_2::uses_of_member(&b);
-	enum_uses::style_2::uses_of_object(&b);
+	enum_uses::run(&b);
+	definitions::run(&b);
 }
 
 fn simple_export_in_single_file(b: &Bundle) {
@@ -343,7 +373,9 @@ mod e_exports_default {
 	#[instrument(skip_all)]
 	pub fn test1(b: &Bundle) {
 		let parser = b.parse(111113);
-		let deps = parser.get_modules_that_require_this_module().unwrap();
+		let deps = parser
+			.get_modules_that_require_this_module()
+			.unwrap();
 		assert_debug_snapshot!(deps, @"
 		IncomingModuleDeps {
 		    sync: [
@@ -434,9 +466,16 @@ fn react_class_component(b: &Bundle) {
 
 mod enum_uses {
 	use super::*;
-	pub mod style_1 {
+	pub fn run(b: &Bundle) {
+		style_1::run(b);
+	}
+	mod style_1 {
 		use super::*;
-		pub fn uses_of_member(b: &Bundle) {
+		pub fn run(b: &Bundle) {
+			uses_of_member(b);
+			uses_of_object(b);
+		}
+		fn uses_of_member(b: &Bundle) {
 			let parser = b.parse(333333);
 			let locs = b.dbg_gen_refs(&parser, 22, 27).unwrap();
 			assert_debug_snapshot!(locs, @r#"
@@ -456,7 +495,7 @@ mod enum_uses {
 			]
 			"#);
 		}
-		pub fn uses_of_object(b: &Bundle) {
+		fn uses_of_object(b: &Bundle) {
 			let parser = b.parse(333333);
 			let locs = b.dbg_gen_refs(&parser, 21, 12).unwrap();
 			assert_debug_snapshot!(locs, @r#"
@@ -495,9 +534,13 @@ mod enum_uses {
 			"#);
 		}
 	}
-	pub mod style_2 {
+	mod style_2 {
 		use super::*;
-		pub fn uses_of_member(b: &Bundle) {
+		pub fn run(b: &Bundle) {
+			uses_of_member(b);
+			uses_of_object(b);
+		}
+		fn uses_of_member(b: &Bundle) {
 			let parser = b.parse(333333);
 			let locs = b.dbg_gen_refs(&parser, 28, 14).unwrap();
 			assert_debug_snapshot!(locs, @r#"
@@ -517,7 +560,7 @@ mod enum_uses {
 			]
 			"#);
 		}
-		pub fn uses_of_object(b: &Bundle) {
+		fn uses_of_object(b: &Bundle) {
 			let parser = b.parse(333333);
 			let locs = b.dbg_gen_refs(&parser, 26, 14).unwrap();
 			assert_debug_snapshot!(locs, @r#"
@@ -551,6 +594,33 @@ mod enum_uses {
 			            222222,
 			        ),
 			        range: "[20:32->20:33)",
+			    },
+			]
+			"#);
+		}
+	}
+}
+
+mod definitions {
+	use super::*;
+	pub fn run(b: &Bundle) {
+		wreq_d::run(b);
+	}
+	mod wreq_d {
+		use super::*;
+		pub fn run(b: &Bundle) {
+			simple_import(b);
+		}
+		fn simple_import(b: &Bundle) {
+			let parser = b.parse(111111);
+			let defs = b.dbg_defs(&parser, 22, 29).unwrap();
+			assert_debug_snapshot!(defs, @r#"
+			[
+			    DefinitionDumper {
+			        id: ModuleId(
+			            222222,
+			        ),
+			        range: "[17:13->17:15)",
 			    },
 			]
 			"#);

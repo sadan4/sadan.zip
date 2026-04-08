@@ -16,6 +16,7 @@ use serde::Serialize;
 	Serialize,
 	Display,
 )]
+// TODO: should this be a non-zero u32
 pub struct ModuleId(pub u32);
 
 impl TryFrom<f64> for ModuleId {

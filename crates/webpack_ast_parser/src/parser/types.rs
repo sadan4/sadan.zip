@@ -78,3 +78,11 @@ pub struct SearchElement {
 	/// The exported name to search
 	pub export_name: Vec<ExportMapKey>,
 }
+
+/// Helper type for [`super::WebpackAstParser::does_re_export_from_export`]
+pub struct ReExport {
+	/// TODO: doc
+	pub import_source_id: ModuleId,
+	/// TODO: doc
+	pub export_names: Vec<ExportMapKey>,
+}

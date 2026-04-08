@@ -6,37 +6,21 @@ mod util;
 
 use crate::{
 	bundle::{
-		self,
-		DefaultModuleCache,
-		DefaultModuleDepProvider,
-		IModuleCache,
-		IModuleDepProvider,
-		IncomingModuleDeps,
-		OutgoingModuleDeps,
+		self, DefaultModuleCache, DefaultModuleDepProvider, IModuleCache,
+		IModuleDepProvider, IncomingModuleDeps, OutgoingModuleDeps,
 	},
 	cache::{CacheRef, CacheValue},
 	parser::{
 		enum_iife::EnumIIFEState1_2,
 		export_map::{
-			ExportMap,
-			ExportMapKey,
-			ExportRange,
-			ExportValue,
-			ExtraData,
-			RangeExportMap,
-			RangeExportMapValue,
-			RangeExportRange,
-			RawExportMapValue,
-			RawExportRange,
-			RawStoreData,
+			ExportMap, ExportMapKey, ExportRange, ExportValue, ExtraData,
+			RangeExportMap, RangeExportMapValue, RangeExportRange,
+			RawExportMapValue, RawExportRange, RawStoreData,
 		},
-		types::{SearchElement, WreqD, WreqDExportType},
+		types::{ReExport, SearchElement, WreqD, WreqDExportType},
 		util::{
-			filter_export_map,
-			find_return_identifier,
-			flatten_export_map,
-			flatten_property_access_expression,
-			match_export_chain,
+			filter_export_map, find_return_identifier, flatten_export_map,
+			flatten_property_access_expression, match_export_chain,
 		},
 	},
 	types::ModuleId,
@@ -46,13 +30,8 @@ use ast_parser::{
 	AstParser,
 	ast_kind::IntoAstKind,
 	exts::{
-		BindingPatternExt,
-		ExpressionExt,
-		Functionish,
-		MemberExpressionExt,
-		NumericLiteralExt as _,
-		ObjectExpressionExt,
-		PropertyKeyExt,
+		BindingPatternExt, ExpressionExt, Functionish, MemberExpressionExt,
+		NumericLiteralExt as _, ObjectExpressionExt, PropertyKeyExt,
 		StatementExt,
 	},
 	parse,
@@ -64,20 +43,10 @@ use oxc::{
 	ast::{
 		AstKind,
 		ast::{
-			ArrowFunctionExpression,
-			CallExpression,
-			Class,
-			ClassElement,
-			Expression,
-			IdentifierReference,
-			MethodDefinition,
-			MethodDefinitionKind,
-			NewExpression,
-			NumericLiteral,
-			ObjectExpression,
-			ObjectProperty,
-			ObjectPropertyKind,
-			Program,
+			ArrowFunctionExpression, CallExpression, Class, ClassElement,
+			Expression, IdentifierReference, MethodDefinition,
+			MethodDefinitionKind, NewExpression, NumericLiteral,
+			ObjectExpression, ObjectProperty, ObjectPropertyKind, Program,
 			VariableDeclarator,
 		},
 	},
@@ -440,7 +409,7 @@ impl<'ast> WebpackAstParser<'ast> {
 					export_name[0].clone(),
 				);
 
-				if let Some(exported_as) = dbg!(exported_as)
+				if let Some(exported_as) = exported_as
 					&& let Ok(where_) =
 						parser.get_modules_that_require_this_module()
 				{
@@ -588,14 +557,204 @@ impl<'ast> WebpackAstParser<'ast> {
 				AstKind::as_static_member_expression,
 			)
 			.context("Could not find access chain")?;
-		let (required_module, names) = flatten_property_access_expression(access_chain);
-		todo!()
+		let (required_module, names) =
+			flatten_property_access_expression(access_chain);
+		// TODO: should this check if requiredModule.expression is wreq
+		// i think probably not, no real need
+		let module_id = if let Some(call) = required_module.as_call_expression()
+			&& call.arguments.len() == 1
+		{
+			call.arguments[0]
+				.as_numeric_literal()
+				.and_then(NumericLiteral::as_u32)
+				.map(ModuleId::from)
+		} else if let Some(ident) = required_module.as_identifier() {
+			self.sym_id_of(ident)
+				.and_then(|sym_id| self.get_module_id_for_import(sym_id))
+		} else {
+			None
+		};
+		let module_id =
+			module_id.context("Failed to get module id from access chain")?;
+
+		let mut cur = self.try_get_module_parser(module_id)?;
+		if cfg!(debug_assertions) && cur.get_module_id() != Some(module_id) {
+			warn!(ast=?module_id, parser=?cur.get_module_id(),"Parser did not return the same module id as the AST.");
+		}
+		debug_assert!(!names.is_empty(), "document how");
+		if names.is_empty() {
+			return Ok(vec![bundle::Definition {
+				location: bundle::Location::Inline(cur.source),
+				module_id,
+				range: Span::default(),
+			}]);
+		}
+		let mut mapped_names = names
+			.iter()
+			.map(|ident| &ident.name)
+			.map(ExportMapKey::from_str)
+			.collect_vec();
+		loop {
+			// check for an explicit re-export before falling back to checking for a whole module re-export
+			let ret = cur.does_re_export_from_export(&mapped_names);
+			let Some(ReExport {
+				import_source_id,
+				export_names,
+			}) = ret
+			else {
+				let whole_module_export_id = cur.does_re_export_whole_module();
+				if let Some(whole_module_export_id) = whole_module_export_id {
+					let maybe_module =
+						self.try_get_module_parser(whole_module_export_id);
+					match maybe_module {
+						Ok(module) => {
+							cur = module;
+							continue;
+						}
+						Err(e) => {
+							warn!("BUG: {e:?}");
+						}
+					}
+				}
+				break;
+			};
+			mapped_names = export_names;
+			cur = self
+				.try_get_module_parser(import_source_id)
+				.context("Failed to get module parser")?;
+		}
+		let range = cur.find_export_location(&mapped_names);
+		let module_id = cur
+			.get_module_id()
+			.context("Failed to get module id from parser of export")?;
+		Ok(vec![bundle::Definition {
+			location: bundle::Location::Inline(cur.source),
+			module_id,
+			range,
+		}])
 	}
 }
 
 /// Private API
 #[allow(clippy::multiple_inherent_impl)]
 impl<'ast> WebpackAstParser<'ast> {
+	fn does_re_export_from_export(
+		&self,
+		export_name: &[ExportMapKey],
+	) -> Option<ReExport> {
+		let map = self.get_export_map_raw();
+		let exp = self.get_nested_export_from_map(export_name, map)?;
+		let last = exp.last()?;
+		let last = last.as_static_member_expression()?;
+		let (imported, chain) = flatten_property_access_expression(last);
+		let imported = imported.as_identifier()?;
+		let imported_sym_id = self.sym_id_of(imported)?;
+		if chain.is_empty() {
+			debug_assert!(false, "how??");
+			return None;
+		}
+		let imported_id = self.get_module_id_for_import(imported_sym_id)?;
+		let ret = ReExport {
+			import_source_id: imported_id,
+			export_names: chain
+				.into_iter()
+				.map(|ident| &ident.name)
+				.map(ExportMapKey::from_str)
+				.collect(),
+		};
+		Some(ret)
+	}
+	fn get_nested_export_from_map<'m, T>(
+		&self,
+		keys: &[ExportMapKey],
+		map: &'m ExportMap<T>,
+	) -> Option<&'m ExportRange<T>> {
+		let mut cur = map;
+		for key in keys {
+			match cur.get(key)? {
+				ExportValue::Range(rng) => return Some(rng),
+				ExportValue::Map(export_map) => {
+					if let Some(rng) = export_map
+						.cjs_default
+						.as_deref()
+						.and_then(|a| a.try_unwrap_range_ref().ok())
+					{
+						return Some(rng);
+					}
+					cur = export_map;
+				}
+			}
+		}
+		None
+	}
+	fn find_export_location(&self, export_names: &[ExportMapKey]) -> Span {
+		let mut map = self.get_export_map();
+		let mut range = Span::default();
+		for key in export_names {
+			let Some(val) = map.get(key) else {
+				break;
+			};
+			match val {
+				ExportValue::Range(rng) => {
+					match rng.last() {
+						Some(r) => range = *r,
+						None => error!("Empty export range"),
+					}
+					break;
+				}
+				ExportValue::Map(new_map) => {
+					if let Some(rng) = new_map
+						.cjs_default
+						.as_deref()
+						.and_then(|a| a.try_unwrap_range_ref().ok())
+					{
+						match rng.last() {
+							Some(r) => range = *r,
+							None => error!("Empty export range"),
+						}
+						break;
+					}
+					map = new_map;
+				}
+			}
+		}
+		range
+	}
+	fn try_get_module_parser(
+		&self,
+		module_id: ModuleId,
+	) -> Result<Rc<WebpackAstParser<'ast>>> {
+		self.module_cache
+			.get_latest_module_parser(self, module_id)
+	}
+	/// Gets the [`ModuleId`] from a require by the returned symbol id
+	/// ```js
+	/// var mod = wreq(123);
+	/// ```
+	/// given the symbol id of `mod`, this function would return `Some(ModuleId(123))`
+	fn get_module_id_for_import(&self, sym_id: SymbolId) -> Option<ModuleId> {
+		let decl = self
+			.sema
+			.symbol_declaration(sym_id)
+			.kind()
+			.as_variable_declarator()?;
+		let init = decl
+			.init
+			.as_ref()?
+			.as_call_expression()?;
+		// make sure init is a call to wreq
+		if !self.cmp_sym(init.callee.as_identifier()?, &self.wreq()?) {
+			return None;
+		}
+		let args = &init.arguments;
+		if args.len() != 1 {
+			return None;
+		}
+		args[0]
+			.as_numeric_literal()
+			.and_then(NumericLiteral::as_u32)
+			.map(ModuleId::from)
+	}
 	fn generate_direct_module_definition(
 		&self,
 		node: &'ast NumericLiteral<'ast>,

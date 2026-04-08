@@ -12,7 +12,7 @@ use derive_more::{
 use oxc::{ast::AstKind, span::Span};
 use serde::{Deserialize, Serialize};
 use smol_str::SmolStr;
-use std::{collections::HashMap, convert::AsMut, fmt::Debug, iter};
+use std::{borrow::Borrow, collections::HashMap, convert::AsMut, fmt::Debug, iter};
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -181,6 +181,12 @@ impl IntoIterator for RangeExportMap {
 pub enum ExportMapKey {
 	Named(SmolStr),
 	Default,
+}
+
+impl ExportMapKey {
+	pub fn from_str(s: &impl AsRef<str>) -> Self {
+		Self::Named(s.as_ref().into())
+	}
 }
 
 impl<T> Default for ExportMap<T> {
