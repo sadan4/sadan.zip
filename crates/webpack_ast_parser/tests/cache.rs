@@ -274,7 +274,7 @@ struct ReferenceDumper<'a> {
 }
 
 #[test]
-fn test_cache() {
+fn test() {
 	let alloc = Allocator::new();
 	let (b, parsers) = Bundle::try_new(&alloc).unwrap();
 	b.bind_plugins(parsers);
