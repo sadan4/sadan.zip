@@ -5,8 +5,7 @@ use crate::{
 use anyhow::{Result, bail};
 use itertools::Itertools;
 use oxc::{
-	allocator::{Allocator, Box as OxcBox},
-	ast::{
+	allocator::{Allocator, Box as OxcBox}, ast::{
 		AstKind,
 		ast::{
 			BindingIdentifier,
@@ -16,9 +15,7 @@ use oxc::{
 			ModuleDeclaration,
 			Program,
 		},
-	},
-	parser::Parser as OxcParser,
-	semantic::{
+	}, ast_visit::Visit, parser::Parser as OxcParser, semantic::{
 		AstNode,
 		NodeId,
 		Reference,
@@ -26,8 +23,7 @@ use oxc::{
 		Semantic,
 		SemanticBuilder,
 		SymbolId,
-	},
-	span::SourceType,
+	}, span::SourceType
 };
 use std::{convert::Infallible, sync::Arc};
 
@@ -333,4 +329,16 @@ pub trait ESModuleParser<'ast>: AstParser<'ast> {
 		// Imports can only be at the top level
 		self.import_statements().find(pred)
 	}
+}
+
+fn get_node_at<'ast>(prog: &'ast Program<'ast>, pos: u32) -> AstKind<'ast> {
+	todo!()
+}
+
+struct LocationFinder {
+	pos: u32,
+}
+
+impl<'ast> Visit<'ast> for LocationFinder {
+
 }

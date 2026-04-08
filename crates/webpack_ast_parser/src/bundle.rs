@@ -28,9 +28,17 @@ pub enum Location<'a> {
 	Inline(&'a str),
 }
 
-#[derive(Debug, Clone)]
 /// O(1) clone
+#[derive(Debug, Clone)]
 pub struct Reference<'a> {
+	pub location: Location<'a>,
+	pub module_id: ModuleId,
+	pub range: Span,
+}
+
+/// O(1) clone
+#[derive(Debug, Clone)]
+pub struct Definition<'a> {
 	pub location: Location<'a>,
 	pub module_id: ModuleId,
 	pub range: Span,

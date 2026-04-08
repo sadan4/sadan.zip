@@ -579,6 +579,9 @@ impl<'ast> WebpackAstParser<'ast> {
 				.into(),
 		)
 	}
+	pub fn generate_definitions(&self, pos: u32)  -> Result<Vec<bundle::Definition<'ast>>> {
+		todo!()
+	}
 }
 
 /// Private API
