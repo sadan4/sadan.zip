@@ -206,8 +206,11 @@ fn filter_export_range(
 	mut export_range: RangeExportRange,
 	pos: u32,
 ) -> RangeExportRange {
-	export_range.retain(|rng| pos >= rng.start && pos < rng.end);
-	export_range
+	if export_range.iter().any(|rng| pos >= rng.start && pos < rng.end) {
+		export_range
+	} else {
+		RangeExportRange::default()
+	}
 }
 
 /// Filter a given [`RangeExportMapValue`] to only include exports that include the range `pos`

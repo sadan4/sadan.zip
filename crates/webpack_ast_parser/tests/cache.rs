@@ -2,7 +2,7 @@
 use std::{
 	cell::OnceCell,
 	collections::HashMap,
-	fmt::Debug,
+	fmt::{self, Debug},
 	fs,
 	path::{Path, PathBuf},
 	rc::Rc,
@@ -10,7 +10,7 @@ use std::{
 
 use anyhow::{Context, Result, anyhow};
 use ast_parser::{get_offset_from_line_and_column, span_line_and_column};
-use insta::assert_debug_snapshot;
+use insta::{assert_snapshot, assert_debug_snapshot};
 use itertools::Itertools;
 use macros::test;
 use oxc::{allocator::Allocator, span::Span};
@@ -18,6 +18,7 @@ use smol_str::SmolStr;
 use webpack_ast_parser::{
 	WebpackAstParser,
 	bundle::{IModuleCache, IModuleDepProvider, IncomingModuleDeps},
+	export_map::{ExportValue, RangeExportMap, RangeExportMapValue},
 	types::ModuleId,
 };
 
@@ -134,21 +135,23 @@ impl<'a> Bundle<'a> {
 	) -> Result<Vec<ReferenceDumper<'a>>> {
 		let pos =
 			get_offset_from_line_and_column(parser.get_source(), line, col);
-		dbg!(parser.generate_references(pos)).map(|refs| {
-			refs.into_iter()
-				.map(|ref_| {
-					let other_parser = self.parse(*ref_.module_id);
-					ReferenceDumper {
-						id: ref_.module_id,
-						range: SpanDumper(
-							ref_.range,
-							other_parser.get_source(),
-						),
-					}
-				})
-				.sorted()
-				.collect()
-		})
+		parser
+			.generate_references(pos)
+			.map(|refs| {
+				refs.into_iter()
+					.map(|ref_| {
+						let other_parser = self.parse(*ref_.module_id);
+						ReferenceDumper {
+							id: ref_.module_id,
+							range: SpanDumper(
+								ref_.range,
+								other_parser.get_source(),
+							),
+						}
+					})
+					.sorted()
+					.collect()
+			})
 	}
 }
 
@@ -196,6 +199,74 @@ impl Debug for SpanDumper<'_> {
 	}
 }
 
+struct ExportMapDumper<'a>(pub &'a RangeExportMap, pub &'a str);
+
+impl ExportMapDumper<'_> {
+	fn handle_value(
+		&self,
+		f: &mut fmt::Formatter<'_>,
+		v: &RangeExportMapValue,
+	) -> Result<(), fmt::Error> {
+		match v {
+			ExportValue::Range(range) => {
+				let do_dbg_list = fmt::from_fn(|f| {
+					let mut dbg_list = f.debug_list();
+					for &span in range.iter() {
+						let ((l1, c1), (l2, c2)) =
+							span_line_and_column(self.1, span);
+						dbg_list.entry(&format!("[{l1}:{c1}->{l2}:{c2})"));
+					}
+					dbg_list.finish()
+				});
+				if let Some(hover) = &range.1 {
+					f.debug_tuple(hover.as_str())
+						.field(&do_dbg_list)
+						.finish()
+				} else {
+					do_dbg_list.fmt(f)
+				}
+			}
+			ExportValue::Map(m) => {
+				let dumper = ExportMapDumper(m, self.1);
+				f.debug_tuple(
+					m.hover
+						.as_ref()
+						.map_or("ExportMap", SmolStr::as_str),
+				)
+				.field(&dumper)
+				.finish()
+			}
+		}
+	}
+}
+
+impl Debug for ExportMapDumper<'_> {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		let mut dbg_map = f.debug_map();
+		for (k, v) in self
+			.0
+			.exports
+			.iter()
+			.sorted_by(|a, b| a.0.cmp(b.0))
+		{
+			dbg_map.entry(&k, &fmt::from_fn(|f| self.handle_value(f, v)));
+		}
+		if let Some(v) = &self.0.cjs_default {
+			let v = v.as_ref();
+			dbg_map.entry(
+				&"SYM_CJS_DEFAULT",
+				&fmt::from_fn(|f| self.handle_value(f, v)),
+			);
+		}
+
+		dbg_map.finish()
+	}
+}
+
+fn dbg_export_map(p: &WebpackAstParser) -> String {
+	format!("{:#?}", ExportMapDumper(p.get_export_map(), p.get_source()))
+}
+
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 struct ReferenceDumper<'a> {
 	id: ModuleId,
@@ -209,6 +280,7 @@ fn test_cache() {
 	b.bind_plugins(parsers);
 	simple_export_in_single_file(&b);
 	simple_export_in_many_files(&b);
+	e_exports_default::test1(&b);
 }
 
 fn simple_export_in_single_file(b: &Bundle) {
@@ -253,4 +325,57 @@ fn simple_export_in_many_files(b: &Bundle) {
 	    ],
 	)
 	"#);
+}
+
+/// finds all uses of a default e.exports where the exports
+/// are assigned to the default export first
+mod e_exports_default {
+	use tracing::instrument;
+
+	use super::*;
+	#[instrument(skip_all)]
+	pub fn test1(b: &Bundle) {
+		let parser = b.parse(111113);
+		let deps = parser.get_modules_that_require_this_module().unwrap();
+		assert_debug_snapshot!(deps, @"
+		IncomingModuleDeps {
+		    sync: [
+		        ModuleId(
+		            111112,
+		        ),
+		    ],
+		    lazy: [],
+		}
+		");
+		let map = dbg_export_map(&parser);
+		assert_snapshot!(map, @r#"
+		{
+		    "bar": [
+		        "[8:8->8:11)",
+		        "[8:11->8:14)",
+		    ],
+		    "baz": 2(
+		        [
+		            "[11:8->11:11)",
+		            "[11:13->11:14)",
+		        ],
+		    ),
+		    "foo": [
+		        "[5:8->5:11)",
+		        "[5:13->5:24)",
+		    ],
+		}
+		"#);
+		let locs = b.dbg_gen_refs(&parser, 5, 8).unwrap();
+		assert_debug_snapshot!(locs, @r#"
+		[
+		    ReferenceDumper {
+		        id: ModuleId(
+		            111111,
+		        ),
+		        range: "[32:28->32:31)",
+		    },
+		]
+		"#);
+	}
 }

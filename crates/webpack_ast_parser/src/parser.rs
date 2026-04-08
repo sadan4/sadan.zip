@@ -1,6 +1,6 @@
 mod arg_finder;
 mod enum_iife;
-mod export_map;
+pub mod export_map;
 mod types;
 mod util;
 
@@ -29,7 +29,6 @@ use crate::{
 			RawExportMapValue,
 			RawExportRange,
 			RawStoreData,
-			StoreData,
 		},
 		types::{SearchElement, WreqD, WreqDExportType},
 		util::{
@@ -386,17 +385,17 @@ impl<'ast> WebpackAstParser<'ast> {
 			filter_export_map(module_exports.clone(), pos);
 		let exported_names = flatten_export_map(filtered_export_map, None);
 
-		for mut exported_name in exported_names {
+		for mut export_name in exported_names {
 			let mut seen: HashMap<ModuleId, HashSet<ModuleId>> = HashMap::new();
 			// below fixme is copied verbatim from js. it might not be valid
 			// FIXME: this is a workaround for a bug in getUsesOfImport where it doesn't properly hand SYM_CJS_DEFAULT
-			if exported_name.len() > 1
-				&& exported_name
+			if export_name.len() > 1
+				&& export_name
 					.last()
 					.unwrap()
 					.is_default()
 			{
-				exported_name.pop();
+				export_name.pop();
 			}
 
 			let mut left = where_
@@ -407,7 +406,7 @@ impl<'ast> WebpackAstParser<'ast> {
 						module_id: *x,
 						imported_id: self_module_id,
 						// TODO: make this cow?
-						export_name: exported_name.clone(),
+						export_name: export_name.clone(),
 					}
 				})
 				.collect_vec();
@@ -439,14 +438,14 @@ impl<'ast> WebpackAstParser<'ast> {
 					}
 				};
 				let uses =
-					parser.get_uses_of_import(imported_id, &exported_name);
+					parser.get_uses_of_import(imported_id, &export_name);
 				// FIXME: support nested re-exports
 				let exported_as = parser.does_re_export_from_import(
 					imported_id,
-					exported_name[0].clone(),
+					export_name[0].clone(),
 				);
 
-				if let Some(exported_as) = exported_as
+				if let Some(exported_as) = dbg!(exported_as)
 					&& let Ok(where_) =
 						parser.get_modules_that_require_this_module()
 				{
@@ -529,7 +528,6 @@ impl<'ast> WebpackAstParser<'ast> {
 		module_id: ModuleId,
 		export_name: ExportMapKey,
 	) -> Option<ExportMapKey> {
-		let decl = self.get_imported_var(module_id)?;
 		if self
 			.does_re_export_whole_module()
 			.is_some()
@@ -540,6 +538,7 @@ impl<'ast> WebpackAstParser<'ast> {
 			);
 			return Some(export_name);
 		}
+		let decl = self.get_imported_var(module_id)?;
 		let mut maybe_re_exports = self
 			.get_export_map_raw()
 			.exports
