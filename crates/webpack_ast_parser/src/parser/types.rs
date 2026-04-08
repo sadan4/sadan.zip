@@ -3,7 +3,7 @@
 use std::rc::Rc;
 
 use ast_parser::{ast_kind::IntoAstKind, exts::MemberExprAccessKind};
-use derive_more::{From, Into, TryInto, Unwrap};
+use derive_more::From;
 use oxc::ast::{
 	AstKind,
 	ast::{

@@ -276,10 +276,10 @@ impl<T> ExportValue<T> {
 			Self::Map(map) => map.get_default_arr_mut().insert(0, val),
 		}
 	}
-	pub fn get_hover(&self) -> Option<&SmolStr> {
+	pub const fn get_hover(&self) -> Option<&SmolStr> {
 		match self {
-			ExportValue::Range(ExportRange(_, hover))
-			| ExportValue::Map(ExportMap { hover, .. }) => hover.as_ref(),
+			Self::Range(ExportRange(_, hover))
+			| Self::Map(ExportMap { hover, .. }) => hover.as_ref(),
 		}
 	}
 }

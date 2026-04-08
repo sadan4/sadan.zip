@@ -15,7 +15,6 @@ use oxc::ast::ast::{
 	Expression,
 	IdentifierName,
 	IdentifierReference,
-	StaticMemberExpression,
 };
 
 use crate::{
@@ -216,7 +215,7 @@ pub fn flatten_export_map(
 
 /// Filter a given [`RangeExportRange`] to only include exports that include the range `pos`
 fn filter_export_range(
-	mut export_range: RangeExportRange,
+	export_range: RangeExportRange,
 	pos: u32,
 ) -> RangeExportRange {
 	if export_range

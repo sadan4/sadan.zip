@@ -69,7 +69,7 @@ use ast_parser::{
 use export_map::RawExportMap;
 use itertools::Itertools as _;
 use oxc::{
-	allocator::{Allocator, GetAddress, IntoIn, UnstableAddress},
+	allocator::{Allocator, GetAddress, UnstableAddress},
 	ast::{
 		AstKind,
 		ast::{
@@ -99,7 +99,7 @@ use std::{
 	iter,
 	rc::Rc,
 };
-use tracing::{debug, error, trace, warn};
+use tracing::{debug, error, warn};
 
 pub struct WebpackAstParser<'ast> {
 	prog: &'ast Program<'ast>,
@@ -787,9 +787,10 @@ impl<'ast> WebpackAstParser<'ast> {
 			};
 			match val {
 				ExportValue::Range(rng) => {
-					match rng.last() {
-						Some(r) => range = *r,
-						None => error!("Empty export range"),
+					if let Some(r) = rng.last() {
+						range = *r
+					} else {
+						error!("Empty export range")
 					}
 					break;
 				}
@@ -799,9 +800,10 @@ impl<'ast> WebpackAstParser<'ast> {
 						.as_deref()
 						.and_then(|a| a.try_unwrap_range_ref().ok())
 					{
-						match rng.last() {
-							Some(r) => range = *r,
-							None => error!("Empty export range"),
+						if let Some(r) = rng.last() {
+							range = *r
+						} else {
+							error!("Empty export range")
 						}
 						break;
 					}
@@ -811,10 +813,7 @@ impl<'ast> WebpackAstParser<'ast> {
 		}
 		range
 	}
-	fn try_get_module_parser(
-		&self,
-		module_id: ModuleId,
-	) -> Result<Rc<WebpackAstParser<'ast>>> {
+	fn try_get_module_parser(&self, module_id: ModuleId) -> Result<Rc<Self>> {
 		self.module_cache
 			.get_latest_module_parser(self, module_id)
 	}
@@ -1391,7 +1390,7 @@ impl<'ast> WebpackAstParser<'ast> {
 			.collect::<RangeExportRange>();
 		// smol_str is O(1) clone
 		ret.1.clone_from(annotation);
-		ret.into()
+		ret
 	}
 	// TODO: transform extra data?
 	fn raw_export_map_to_range_export_map(

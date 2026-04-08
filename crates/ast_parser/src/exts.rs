@@ -44,7 +44,7 @@ use oxc::{
 		},
 	},
 	semantic::{NodeId, ScopeId, SymbolId},
-	span::{Atom, GetSpan, Ident, Span},
+	span::{Atom, GetSpan, Span},
 };
 use oxc_ecmascript::{GlobalContext, constant_evaluation::IsLiteralValue};
 use std::borrow::Cow;
@@ -969,7 +969,7 @@ impl GetSpan for MemberExprAccessKind<'_> {
 }
 
 impl<'ast> MemberExprAccessKind<'ast> {
-	pub fn from_member_expr(member_expr: MemberExprRef<'ast>) -> Self {
+	pub const fn from_member_expr(member_expr: MemberExprRef<'ast>) -> Self {
 		match member_expr {
 			MemberExprRef::Computed(ComputedMemberExpression {
 				expression,
