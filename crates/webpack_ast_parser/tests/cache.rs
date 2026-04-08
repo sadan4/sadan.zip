@@ -281,6 +281,13 @@ fn test_cache() {
 	simple_export_in_single_file(&b);
 	simple_export_in_many_files(&b);
 	e_exports_default::test1(&b);
+	e_exports_default::test2(&b);
+	e_exports_default::test3(&b);
+	react_class_component(&b);
+	enum_uses::style_1::uses_of_member(&b);
+	enum_uses::style_1::uses_of_object(&b);
+	enum_uses::style_2::uses_of_member(&b);
+	enum_uses::style_2::uses_of_object(&b);
 }
 
 fn simple_export_in_single_file(b: &Bundle) {
@@ -377,5 +384,176 @@ mod e_exports_default {
 		    },
 		]
 		"#);
+	}
+	pub fn test2(b: &Bundle) {
+		let parser = b.parse(111113);
+		let locs = b.dbg_gen_refs(&parser, 8, 8).unwrap();
+		assert_debug_snapshot!(locs, @r#"
+		[
+		    ReferenceDumper {
+		        id: ModuleId(
+		            111111,
+		        ),
+		        range: "[33:28->33:31)",
+		    },
+		]
+		"#);
+	}
+	pub fn test3(b: &Bundle) {
+		let parser = b.parse(111113);
+		let locs = b.dbg_gen_refs(&parser, 11, 8).unwrap();
+		assert_debug_snapshot!(locs, @r#"
+		[
+		    ReferenceDumper {
+		        id: ModuleId(
+		            111111,
+		        ),
+		        range: "[34:28->34:31)",
+		    },
+		]
+		"#);
+	}
+}
+
+fn react_class_component(b: &Bundle) {
+	let parser = b.parse(555555);
+	let locs = b.dbg_gen_refs(&parser, 11, 10).unwrap();
+	let locs2 = b.dbg_gen_refs(&parser, 6, 8).unwrap();
+	assert_eq!(locs, locs2);
+	assert_debug_snapshot!(locs, @r#"
+	[
+	    ReferenceDumper {
+	        id: ModuleId(
+	            333333,
+	        ),
+	        range: "[14:52->14:53)",
+	    },
+	]
+	"#);
+}
+
+mod enum_uses {
+	use super::*;
+	pub mod style_1 {
+		use super::*;
+		pub fn uses_of_member(b: &Bundle) {
+			let parser = b.parse(333333);
+			let locs = b.dbg_gen_refs(&parser, 22, 27).unwrap();
+			assert_debug_snapshot!(locs, @r#"
+			[
+			    ReferenceDumper {
+			        id: ModuleId(
+			            111111,
+			        ),
+			        range: "[19:25->19:29)",
+			    },
+			    ReferenceDumper {
+			        id: ModuleId(
+			            111111,
+			        ),
+			        range: "[44:17->44:21)",
+			    },
+			]
+			"#);
+		}
+		pub fn uses_of_object(b: &Bundle) {
+			let parser = b.parse(333333);
+			let locs = b.dbg_gen_refs(&parser, 21, 12).unwrap();
+			assert_debug_snapshot!(locs, @r#"
+			[
+			    ReferenceDumper {
+			        id: ModuleId(
+			            111111,
+			        ),
+			        range: "[19:23->19:24)",
+			    },
+			    ReferenceDumper {
+			        id: ModuleId(
+			            111111,
+			        ),
+			        range: "[42:23->42:24)",
+			    },
+			    ReferenceDumper {
+			        id: ModuleId(
+			            111111,
+			        ),
+			        range: "[44:15->44:16)",
+			    },
+			    ReferenceDumper {
+			        id: ModuleId(
+			            111111,
+			        ),
+			        range: "[44:26->44:27)",
+			    },
+			    ReferenceDumper {
+			        id: ModuleId(
+			            222222,
+			        ),
+			        range: "[20:23->20:24)",
+			    },
+			]
+			"#);
+		}
+	}
+	pub mod style_2 {
+		use super::*;
+		pub fn uses_of_member(b: &Bundle) {
+			let parser = b.parse(333333);
+			let locs = b.dbg_gen_refs(&parser, 28, 14).unwrap();
+			assert_debug_snapshot!(locs, @r#"
+			[
+			    ReferenceDumper {
+			        id: ModuleId(
+			            111111,
+			        ),
+			        range: "[19:36->19:40)",
+			    },
+			    ReferenceDumper {
+			        id: ModuleId(
+			            111111,
+			        ),
+			        range: "[45:28->45:32)",
+			    },
+			]
+			"#);
+		}
+		pub fn uses_of_object(b: &Bundle) {
+			let parser = b.parse(333333);
+			let locs = b.dbg_gen_refs(&parser, 26, 14).unwrap();
+			assert_debug_snapshot!(locs, @r#"
+			[
+			    ReferenceDumper {
+			        id: ModuleId(
+			            111111,
+			        ),
+			        range: "[19:34->19:35)",
+			    },
+			    ReferenceDumper {
+			        id: ModuleId(
+			            111111,
+			        ),
+			        range: "[42:29->42:30)",
+			    },
+			    ReferenceDumper {
+			        id: ModuleId(
+			            111111,
+			        ),
+			        range: "[45:15->45:16)",
+			    },
+			    ReferenceDumper {
+			        id: ModuleId(
+			            111111,
+			        ),
+			        range: "[45:26->45:27)",
+			    },
+			    ReferenceDumper {
+			        id: ModuleId(
+			            222222,
+			        ),
+			        range: "[20:32->20:33)",
+			    },
+			]
+			"#);
+		}
 	}
 }
