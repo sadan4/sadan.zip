@@ -30,7 +30,13 @@ use crate::{
 			RawExportRange,
 			RawStoreData,
 		},
-		types::{ReExport, SearchElement, WreqD, WreqDExportType},
+		types::{
+			ReExport,
+			ResolvedDefinition,
+			SearchElement,
+			WreqD,
+			WreqDExportType,
+		},
 		util::{
 			filter_export_map,
 			find_return_identifier,
@@ -584,6 +590,60 @@ impl<'ast> WebpackAstParser<'ast> {
 		if let Some(num_lit) = selected_node.as_numeric_literal() {
 			return self.generate_direct_module_definition(num_lit);
 		}
+		let ResolvedDefinition {
+			parser,
+			export_names,
+		} = self.resolve_definition(selected_node)?;
+		let range = if export_names.is_empty() {
+			Span::default()
+		} else {
+			parser.find_export_location(&export_names)
+		};
+		let module_id = parser
+			.get_module_id()
+			.context("Failed to get module id from parser of export")?;
+		Ok(vec![bundle::Definition {
+			range,
+			location: bundle::Location::Inline(parser.source),
+			module_id,
+		}])
+	}
+}
+
+/// Private API
+#[allow(clippy::multiple_inherent_impl)]
+impl<'ast> WebpackAstParser<'ast> {
+	fn does_re_export_from_export(
+		&self,
+		export_name: &[ExportMapKey],
+	) -> Option<ReExport> {
+		let map = self.get_export_map_raw();
+		let exp = get_nested_export_from_map(export_name, map)?;
+		let last = exp.last()?;
+		let last = last.as_static_member_expression()?;
+		let (imported, chain) = flatten_property_access_expression(last);
+		let imported = imported.as_identifier()?;
+		let imported_sym_id = self.sym_id_of(imported)?;
+		if chain.is_empty() {
+			debug_assert!(false, "how??");
+			return None;
+		}
+		let imported_id = self.get_module_id_for_import(imported_sym_id)?;
+		let ret = ReExport {
+			import_source_id: imported_id,
+			export_names: chain
+				.into_iter()
+				.map_while(|a| a.try_unwrap_static().ok())
+				.map(|ident| &ident.name)
+				.map(ExportMapKey::from_str)
+				.collect(),
+		};
+		Some(ret)
+	}
+	fn resolve_definition(
+		&self,
+		selected_node: AstKind<'ast>,
+	) -> Result<ResolvedDefinition<'ast>> {
 		let access_chain = self
 			.find_parent(selected_node.node_id(), MemberExprRef::from_node)
 			.context("Could not find access chain")?;
@@ -613,11 +673,10 @@ impl<'ast> WebpackAstParser<'ast> {
 		}
 		debug_assert!(!names.is_empty(), "document how");
 		if names.is_empty() {
-			return Ok(vec![bundle::Definition {
-				location: bundle::Location::Inline(cur.source),
-				module_id,
-				range: Span::default(),
-			}]);
+			return Ok(ResolvedDefinition {
+				parser: cur,
+				export_names: vec![],
+			});
 		}
 		let mut mapped_names = names
 			.iter()
@@ -654,47 +713,10 @@ impl<'ast> WebpackAstParser<'ast> {
 				.try_get_module_parser(import_source_id)
 				.context("Failed to get module parser")?;
 		}
-		let range = cur.find_export_location(&mapped_names);
-		let module_id = cur
-			.get_module_id()
-			.context("Failed to get module id from parser of export")?;
-		Ok(vec![bundle::Definition {
-			location: bundle::Location::Inline(cur.source),
-			module_id,
-			range,
-		}])
-	}
-}
-
-/// Private API
-#[allow(clippy::multiple_inherent_impl)]
-impl<'ast> WebpackAstParser<'ast> {
-	fn does_re_export_from_export(
-		&self,
-		export_name: &[ExportMapKey],
-	) -> Option<ReExport> {
-		let map = self.get_export_map_raw();
-		let exp = get_nested_export_from_map(export_name, map)?;
-		let last = exp.last()?;
-		let last = last.as_static_member_expression()?;
-		let (imported, chain) = flatten_property_access_expression(last);
-		let imported = imported.as_identifier()?;
-		let imported_sym_id = self.sym_id_of(imported)?;
-		if chain.is_empty() {
-			debug_assert!(false, "how??");
-			return None;
-		}
-		let imported_id = self.get_module_id_for_import(imported_sym_id)?;
-		let ret = ReExport {
-			import_source_id: imported_id,
-			export_names: chain
-				.into_iter()
-				.map_while(|a| a.try_unwrap_static().ok())
-				.map(|ident| &ident.name)
-				.map(ExportMapKey::from_str)
-				.collect(),
-		};
-		Some(ret)
+		Ok(ResolvedDefinition {
+			export_names: mapped_names,
+			parser: cur,
+		})
 	}
 	fn find_export_location(&self, export_names: &[ExportMapKey]) -> Span {
 		let mut map = self.get_export_map();

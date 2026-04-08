@@ -318,6 +318,8 @@ fn test() {
 	react_class_component(&b);
 	enum_uses::run(&b);
 	definitions::run(&b);
+	stores::run(&b);
+	hover_text::run(&b);
 }
 
 fn simple_export_in_single_file(b: &Bundle) {
@@ -751,5 +753,17 @@ mod definitions {
 				}
 			}
 		}
+	}
+}
+mod stores {
+	use super::*;
+	pub const fn run(_b: &Bundle) {
+		// TODO
+	}
+}
+mod hover_text {
+	use super::*;
+	pub const fn run(b: &Bundle) {
+		// TODO
 	}
 }

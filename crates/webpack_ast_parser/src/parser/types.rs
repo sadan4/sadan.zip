@@ -1,5 +1,7 @@
 #![deny(clippy::missing_docs_in_private_items)]
 //! Private types for [`super::WebpackAstParser`]
+use std::rc::Rc;
+
 use ast_parser::ast_kind::IntoAstKind;
 use derive_more::{From, Into, TryInto, Unwrap};
 use oxc::ast::{
@@ -13,7 +15,7 @@ use oxc::ast::{
 	},
 };
 
-use crate::{parser::export_map::ExportMapKey, types::ModuleId};
+use crate::{WebpackAstParser, parser::export_map::ExportMapKey, types::ModuleId};
 
 /// `wreq.d(exports, { foo: () => local_foo })`
 #[derive(Copy, Clone, Debug)]
@@ -79,10 +81,20 @@ pub struct SearchElement {
 	pub export_name: Vec<ExportMapKey>,
 }
 
-/// Helper type for [`super::WebpackAstParser::does_re_export_from_export`]
+/// Helper type for [`WebpackAstParser::does_re_export_from_export`]
 pub struct ReExport {
 	/// TODO: doc
 	pub import_source_id: ModuleId,
 	/// TODO: doc
+	pub export_names: Vec<ExportMapKey>,
+}
+
+/// A definition resolved from a position.
+/// 
+/// Used to abstract logic from position/hover queries.
+pub struct ResolvedDefinition<'ast> {
+	/// the parser that has the definition
+	pub parser: Rc<WebpackAstParser<'ast>>,
+	/// the chain of export names to get the definition from [`Self::parser`]
 	pub export_names: Vec<ExportMapKey>,
 }
