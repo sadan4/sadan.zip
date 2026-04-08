@@ -1,11 +1,46 @@
 use anyhow::{Result, bail};
+use derive_more::{From, TryUnwrap};
 use itertools::Itertools as _;
 use oxc::{
 	allocator::Box as OxcBox,
 	ast::{
 		AstKind,
 		ast::{
-			Argument, ArrayExpression, ArrayExpressionElement, ArrowFunctionExpression, AssignmentExpression, AssignmentTarget, BinaryExpression, BindingIdentifier, BindingPattern, CallExpression, ComputedMemberExpression, Expression, ExpressionStatement, Function, FunctionBody, IdentifierName, IdentifierReference, ImportDeclaration, ImportDeclarationSpecifier, MemberExpression, ModuleDeclaration, NumericLiteral, ObjectExpression, ObjectProperty, PrivateFieldExpression, PrivateIdentifier, PropertyKey, ReturnStatement, SequenceExpression, SpreadElement, Statement, StaticMemberExpression, StringLiteral, TaggedTemplateExpression, TemplateLiteral
+			Argument,
+			ArrayExpression,
+			ArrayExpressionElement,
+			ArrowFunctionExpression,
+			AssignmentExpression,
+			AssignmentTarget,
+			BinaryExpression,
+			BindingIdentifier,
+			BindingPattern,
+			CallExpression,
+			ComputedMemberExpression,
+			Expression,
+			ExpressionStatement,
+			Function,
+			FunctionBody,
+			IdentifierName,
+			IdentifierReference,
+			ImportDeclaration,
+			ImportDeclarationSpecifier,
+			MemberExpression,
+			ModuleDeclaration,
+			NumericLiteral,
+			ObjectExpression,
+			ObjectProperty,
+			PrivateFieldExpression,
+			PrivateIdentifier,
+			PropertyKey,
+			ReturnStatement,
+			SequenceExpression,
+			SpreadElement,
+			Statement,
+			StaticMemberExpression,
+			StringLiteral,
+			TaggedTemplateExpression,
+			TemplateLiteral,
 		},
 	},
 	semantic::{NodeId, ScopeId, SymbolId},
@@ -913,5 +948,76 @@ impl NumericLiteralExt for NumericLiteral<'_> {
 		} else {
 			None
 		}
+	}
+}
+
+#[derive(Debug, Copy, Clone, TryUnwrap)]
+pub enum MemberExprAccessKind<'ast> {
+	Static(&'ast IdentifierName<'ast>),
+	Private(&'ast PrivateIdentifier<'ast>),
+	Computed(&'ast Expression<'ast>),
+}
+
+impl<'ast> MemberExprAccessKind<'ast> {
+	pub fn from_member_expr(member_expr: MemberExprRef<'ast>) -> Self {
+		match member_expr {
+			MemberExprRef::Computed(ComputedMemberExpression {
+				expression,
+				..
+			}) => Self::Computed(expression),
+			MemberExprRef::Static(StaticMemberExpression {
+				property, ..
+			}) => Self::Static(property),
+			MemberExprRef::Private(PrivateFieldExpression {
+				field, ..
+			}) => Self::Private(field),
+		}
+	}
+}
+
+#[derive(Copy, Clone, Debug, From)]
+pub enum MemberExprRef<'ast> {
+	/// [`ComputedMemberExpression`]
+	Computed(&'ast ComputedMemberExpression<'ast>),
+	/// [`StaticMemberExpression`]
+	Static(&'ast StaticMemberExpression<'ast>),
+	/// [`PrivateFieldExpression`]
+	Private(&'ast PrivateFieldExpression<'ast>),
+}
+
+impl<'ast> MemberExprRef<'ast> {
+	pub fn from_node(node: impl IntoAstKind<'ast>) -> Option<Self> {
+		match node.into_ast_kind() {
+			AstKind::ComputedMemberExpression(e) => Some(Self::Computed(e)),
+			AstKind::StaticMemberExpression(e) => Some(Self::Static(e)),
+			AstKind::PrivateFieldExpression(e) => Some(Self::Private(e)),
+			_ => None,
+		}
+	}
+	/// Gets the LHS of the member expression
+	/// ### See
+	/// [`ComputedMemberExpression::object`]
+	///
+	/// [`StaticMemberExpression::object`]
+	///
+	/// [`PrivateFieldExpression::object`]
+	pub const fn left(self) -> &'ast Expression<'ast> {
+		match self {
+			MemberExprRef::Computed(ComputedMemberExpression {
+				object,
+				..
+			})
+			| MemberExprRef::Static(StaticMemberExpression {
+				object, ..
+			})
+			| MemberExprRef::Private(PrivateFieldExpression {
+				object, ..
+			}) => object,
+		}
+	}
+
+	/// get the rhs of the member expression
+	pub fn right(self) -> MemberExprAccessKind<'ast> {
+		MemberExprAccessKind::from_member_expr(self)
 	}
 }

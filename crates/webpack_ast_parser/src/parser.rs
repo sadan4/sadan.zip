@@ -6,20 +6,38 @@ mod util;
 
 use crate::{
 	bundle::{
-		self, DefaultModuleCache, DefaultModuleDepProvider, IModuleCache,
-		IModuleDepProvider, IncomingModuleDeps, OutgoingModuleDeps,
+		self,
+		DefaultModuleCache,
+		DefaultModuleDepProvider,
+		IModuleCache,
+		IModuleDepProvider,
+		IncomingModuleDeps,
+		OutgoingModuleDeps,
 	},
 	cache::{CacheRef, CacheValue},
 	parser::{
 		enum_iife::EnumIIFEState1_2,
 		export_map::{
-			ExportMap, ExportMapKey, ExportRange, ExportValue, ExtraData,
-			RangeExportMap, RangeExportMapValue, RangeExportRange,
-			RawExportMapValue, RawExportRange, RawStoreData,
+			ExportMap,
+			ExportMapKey,
+			ExportRange,
+			ExportValue,
+			ExtraData,
+			RangeExportMap,
+			RangeExportMapValue,
+			RangeExportRange,
+			RawExportMapValue,
+			RawExportRange,
+			RawStoreData,
 		},
 		types::{ReExport, SearchElement, WreqD, WreqDExportType},
 		util::{
-			filter_export_map, find_return_identifier, flatten_export_map, flatten_property_access_expression, get_nested_export_from_map, match_export_chain
+			filter_export_map,
+			find_return_identifier,
+			flatten_export_map,
+			flatten_property_access_expression,
+			get_nested_export_from_map,
+			match_export_chain,
 		},
 	},
 	types::ModuleId,
@@ -29,8 +47,14 @@ use ast_parser::{
 	AstParser,
 	ast_kind::IntoAstKind,
 	exts::{
-		BindingPatternExt, ExpressionExt, Functionish, MemberExpressionExt,
-		NumericLiteralExt as _, ObjectExpressionExt, PropertyKeyExt,
+		BindingPatternExt,
+		ExpressionExt,
+		Functionish,
+		MemberExprRef,
+		MemberExpressionExt,
+		NumericLiteralExt as _,
+		ObjectExpressionExt,
+		PropertyKeyExt,
 		StatementExt,
 	},
 	parse,
@@ -42,10 +66,20 @@ use oxc::{
 	ast::{
 		AstKind,
 		ast::{
-			ArrowFunctionExpression, CallExpression, Class, ClassElement,
-			Expression, IdentifierReference, MethodDefinition,
-			MethodDefinitionKind, NewExpression, NumericLiteral,
-			ObjectExpression, ObjectProperty, ObjectPropertyKind, Program,
+			ArrowFunctionExpression,
+			CallExpression,
+			Class,
+			ClassElement,
+			Expression,
+			IdentifierReference,
+			MethodDefinition,
+			MethodDefinitionKind,
+			NewExpression,
+			NumericLiteral,
+			ObjectExpression,
+			ObjectProperty,
+			ObjectPropertyKind,
+			Program,
 			VariableDeclarator,
 		},
 	},
@@ -551,10 +585,7 @@ impl<'ast> WebpackAstParser<'ast> {
 			return self.generate_direct_module_definition(num_lit);
 		}
 		let access_chain = self
-			.find_parent(
-				selected_node.node_id(),
-				AstKind::as_static_member_expression,
-			)
+			.find_parent(selected_node.node_id(), MemberExprRef::from_node)
 			.context("Could not find access chain")?;
 		let (required_module, names) =
 			flatten_property_access_expression(access_chain);
@@ -590,6 +621,7 @@ impl<'ast> WebpackAstParser<'ast> {
 		}
 		let mut mapped_names = names
 			.iter()
+			.map_while(|a| a.try_unwrap_static().ok())
 			.map(|ident| &ident.name)
 			.map(ExportMapKey::from_str)
 			.collect_vec();
@@ -657,6 +689,7 @@ impl<'ast> WebpackAstParser<'ast> {
 			import_source_id: imported_id,
 			export_names: chain
 				.into_iter()
+				.map_while(|a| a.try_unwrap_static().ok())
 				.map(|ident| &ident.name)
 				.map(ExportMapKey::from_str)
 				.collect(),
@@ -1208,6 +1241,7 @@ impl<'ast> WebpackAstParser<'ast> {
 			);
 			if exports_arr
 				.last()
+				.and_then(|e| e.try_unwrap_static().ok())
 				.is_none_or(|e| e.name != "exports")
 			{
 				continue;

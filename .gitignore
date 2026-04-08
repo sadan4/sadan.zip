@@ -21,6 +21,8 @@ todos.json
 dist.server
 builds
 
+# cargo-insta
+*.pending-snap
 
 # Added by cargo
 

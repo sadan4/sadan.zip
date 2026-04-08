@@ -2,7 +2,13 @@
 #![deny(clippy::missing_docs_in_private_items)]
 use std::{iter, mem};
 
-use ast_parser::exts::{ExpressionExt, Functionish, StatementExt as _};
+use ast_parser::exts::{
+	ExpressionExt,
+	Functionish,
+	MemberExprAccessKind,
+	MemberExprRef,
+	StatementExt as _,
+};
 use itertools::Itertools as _;
 use oxc::ast::ast::{
 	ArrowFunctionExpression,
@@ -93,7 +99,7 @@ pub fn find_return_expr<'a, 'ast>(
 /// For example `foo().bar.baz` would be represented as `("foo()", ["bar", "baz"])`
 /// See: [`flatten_property_access_expression`]
 pub type PropertyAccessChain<'ast> =
-	(&'ast Expression<'ast>, Vec<&'ast IdentifierName<'ast>>);
+	(&'ast Expression<'ast>, Vec<MemberExprAccessKind<'ast>>);
 
 /// Flattens a property access expression, producing a [`PropertyAccessChain`].
 ///
@@ -103,17 +109,20 @@ pub type PropertyAccessChain<'ast> =
 ///
 /// [`ast_parser::AstParser::last_parent`] can be used to find the outermost static member expression
 pub fn flatten_property_access_expression<'ast>(
-	mut expr: &'ast StaticMemberExpression<'ast>,
+	expr: impl Into<MemberExprRef<'ast>>,
 ) -> PropertyAccessChain<'ast> {
+	let mut expr = expr.into();
 	let mut ret = Vec::new();
 	loop {
-		ret.insert(0, &expr.property);
-		match &expr.object {
-			Expression::StaticMemberExpression(next) => expr = next,
+		ret.insert(0, expr.right());
+		match expr.left() {
+			Expression::StaticMemberExpression(next) => {
+				expr = next.as_ref().into();
+			}
 			_ => break,
 		}
 	}
-	(&expr.object, ret)
+	(expr.left(), ret)
 }
 
 /// try to match `export_names` against `chain`
@@ -137,6 +146,7 @@ pub fn match_export_chain<'ast>(
 		.iter()
 		.zip(chain_v.iter().copied())
 	{
+		let chain_part = chain_part.try_unwrap_static().ok()?;
 		cur = Some(chain_part);
 		match export_name {
 			ExportMapKey::Named(name) => {

@@ -367,10 +367,8 @@ fn simple_export_in_many_files(b: &Bundle) {
 /// finds all uses of a default e.exports where the exports
 /// are assigned to the default export first
 mod e_exports_default {
-	use tracing::instrument;
-
 	use super::*;
-	#[instrument(skip_all)]
+
 	pub fn test1(b: &Bundle) {
 		let parser = b.parse(111113);
 		let deps = parser
@@ -468,6 +466,7 @@ mod enum_uses {
 	use super::*;
 	pub fn run(b: &Bundle) {
 		style_1::run(b);
+		style_2::run(b);
 	}
 	mod style_1 {
 		use super::*;
@@ -601,6 +600,7 @@ mod enum_uses {
 	}
 }
 
+// FIXME: test with invalid positions (make sure no panics)
 mod definitions {
 	use super::*;
 	pub fn run(b: &Bundle) {
@@ -610,6 +610,8 @@ mod definitions {
 		use super::*;
 		pub fn run(b: &Bundle) {
 			simple_import(b);
+			simple_import_2(b);
+			enums::run(b);
 		}
 		fn simple_import(b: &Bundle) {
 			let parser = b.parse(111111);
@@ -624,6 +626,130 @@ mod definitions {
 			    },
 			]
 			"#);
+		}
+		fn simple_import_2(b: &Bundle) {
+			let parser = b.parse(111111);
+			let defs = b.dbg_defs(&parser, 25, 34);
+			assert_debug_snapshot!(defs, @r#"
+			Ok(
+			    [
+			        DefinitionDumper {
+			            id: ModuleId(
+			                333333,
+			            ),
+			            range: "[12:13->12:15)",
+			        },
+			    ],
+			)
+			"#);
+		}
+		mod enums {
+			use super::*;
+
+			pub fn run(b: &Bundle) {
+				style_1::run(b);
+				style_2::run(b);
+			}
+			mod style_1 {
+				use super::*;
+				pub fn run(b: &Bundle) {
+					obj_def_from_obj_use(b);
+					obj_def_from_computed_access(b);
+					member_def_from_normal_use(b);
+				}
+				fn obj_def_from_obj_use(b: &Bundle) {
+					let parser = b.parse(111111);
+					let defs = b.dbg_defs(&parser, 19, 23).unwrap();
+					assert_debug_snapshot!(defs, @r#"
+					[
+					    DefinitionDumper {
+					        id: ModuleId(
+					            333333,
+					        ),
+					        range: "[21:8->21:18)",
+					    },
+					]
+					"#);
+				}
+				fn obj_def_from_computed_access(b: &Bundle) {
+					let parser = b.parse(222222);
+					let defs = b.dbg_defs(&parser, 20, 23).unwrap();
+					assert_debug_snapshot!(defs, @r#"
+					[
+					    DefinitionDumper {
+					        id: ModuleId(
+					            333333,
+					        ),
+					        range: "[21:8->21:18)",
+					    },
+					]
+					"#);
+				}
+				fn member_def_from_normal_use(b: &Bundle) {
+					let parser = b.parse(111111);
+					let defs = b.dbg_defs(&parser, 19, 27).unwrap();
+					assert_debug_snapshot!(defs, @r#"
+					[
+					    DefinitionDumper {
+					        id: ModuleId(
+					            333333,
+					        ),
+					        range: "[21:8->21:18)",
+					    },
+					]
+					"#);
+				}
+			}
+			mod style_2 {
+				use super::*;
+				pub fn run(b: &Bundle) {
+					obj_def_from_obj_use(b);
+					obj_def_from_computed_access(b);
+					member_def_from_normal_use(b);
+				}
+				fn obj_def_from_obj_use(b: &Bundle) {
+					let parser = b.parse(111111);
+					let defs = b.dbg_defs(&parser, 19, 34).unwrap();
+					assert_debug_snapshot!(defs, @r#"
+					[
+					    DefinitionDumper {
+					        id: ModuleId(
+					            333333,
+					        ),
+					        range: "[26:8->26:18)",
+					    },
+					]
+					"#);
+				}
+				fn obj_def_from_computed_access(b: &Bundle) {
+					let parser = b.parse(222222);
+					let defs = b.dbg_defs(&parser, 20, 32).unwrap();
+					assert_debug_snapshot!(defs, @r#"
+					[
+					    DefinitionDumper {
+					        id: ModuleId(
+					            333333,
+					        ),
+					        range: "[26:8->26:18)",
+					    },
+					]
+					"#);
+				}
+				fn member_def_from_normal_use(b: &Bundle) {
+					let parser = b.parse(111111);
+					let defs = b.dbg_defs(&parser, 19, 38).unwrap();
+					assert_debug_snapshot!(defs, @r#"
+					[
+					    DefinitionDumper {
+					        id: ModuleId(
+					            333333,
+					        ),
+					        range: "[26:8->26:18)",
+					    },
+					]
+					"#);
+				}
+			}
 		}
 	}
 }
