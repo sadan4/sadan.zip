@@ -1,5 +1,5 @@
 //! TODO: Document this crate.
-#![warn(missing_docs)]
+// #![warn(missing_docs)]
 pub mod ast_kind;
 mod ast_parser;
 pub mod exts;

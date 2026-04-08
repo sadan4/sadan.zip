@@ -788,9 +788,9 @@ impl<'ast> WebpackAstParser<'ast> {
 			match val {
 				ExportValue::Range(rng) => {
 					if let Some(r) = rng.last() {
-						range = *r
+						range = *r;
 					} else {
-						error!("Empty export range")
+						error!("Empty export range");
 					}
 					break;
 				}
@@ -801,9 +801,9 @@ impl<'ast> WebpackAstParser<'ast> {
 						.and_then(|a| a.try_unwrap_range_ref().ok())
 					{
 						if let Some(r) = rng.last() {
-							range = *r
+							range = *r;
 						} else {
-							error!("Empty export range")
+							error!("Empty export range");
 						}
 						break;
 					}
@@ -1104,7 +1104,7 @@ impl<'ast> WebpackAstParser<'ast> {
 			let Some(obj) = args[1].as_object_expression() else {
 				continue;
 			};
-			return Some(WreqD { call, exports, obj });
+			return Some(WreqD { _call: call, _exports: exports, obj });
 		}
 		None
 	}
@@ -1260,14 +1260,11 @@ impl<'ast> WebpackAstParser<'ast> {
 	}
 	/// TODO: document
 	fn is_constant_string(&self, sym_id: SymbolId) -> Option<Atom<'ast>> {
-		let Some(decl) = self
+		let decl = self
 			.sema
 			.symbol_declaration(sym_id)
 			.kind()
-			.as_variable_declarator()
-		else {
-			return None;
-		};
+			.as_variable_declarator()?;
 		if let Some(init) = decl.init.as_ref() {
 			return init
 				.as_string_literal()
@@ -1756,6 +1753,7 @@ impl<'ast> WebpackAstParser<'ast> {
 	}
 
 	/// Try to make a raw export map for a discord store
+	#[expect(clippy::cognitive_complexity, reason = "clippy bug: macros count")]
 	fn raw_make_export_map_store(
 		&self,
 		init: &'ast NewExpression<'ast>,

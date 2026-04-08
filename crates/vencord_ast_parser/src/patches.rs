@@ -21,7 +21,7 @@ use std::{borrow::Cow, fmt::Debug, sync::LazyLock};
 pub struct RawPatch<'ast> {
 	pub all: bool,
 	pub no_warn: bool,
-	pub _predicate: PatchPredicate<'ast>,
+	pub predicate: PatchPredicate<'ast>,
 	pub find: RawMatchLike<'ast>,
 	pub replacement: OxcVec<'ast, RawReplacement<'ast>>,
 	// I don't think Vencord uses these at all
@@ -38,7 +38,7 @@ pub struct RawReplacement<'ast> {
 	pub match_: RawMatchLike<'ast>,
 	pub replace: RawReplace<'ast>,
 	pub no_warn: bool,
-	pub _predicate: PatchPredicate<'ast>,
+	pub predicate: PatchPredicate<'ast>,
 	// i don't think vencord uses these at all
 	// from_build: Option<u32>,
 	// to_build: Option<u32>,

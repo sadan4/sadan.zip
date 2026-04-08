@@ -43,19 +43,6 @@ pub fn find_return_identifier<'a, 'ast>(
 	find_return_expr(func).and_then(Expression::as_identifier)
 }
 
-/// given a function like below, returns `a.b.c[d].#e`
-/// ```js
-/// function foo() {
-///     return a.b.c[d].#e;
-/// }
-/// ```
-/// Does not consider any early returns, only looks at the final return
-pub fn find_return_member_expression<'a, 'ast>(
-	func: Functionish<'a, 'ast>,
-) -> Option<&'a oxc::ast::ast::MemberExpression<'ast>> {
-	find_return_expr(func).and_then(Expression::as_member_expression)
-}
-
 // TODO: analysis with CFG
 /// Given a function like below, return `expr`
 /// ```js

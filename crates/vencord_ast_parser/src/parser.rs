@@ -178,7 +178,7 @@ impl<'ast> VencordAstParser<'ast> {
 			match_,
 			replace,
 			no_warn,
-			_predicate: predicate,
+			predicate,
 		})
 	}
 
@@ -249,7 +249,7 @@ impl<'ast> VencordAstParser<'ast> {
 		let ret = RawPatch {
 			all,
 			no_warn,
-			_predicate: predicate,
+			predicate,
 			find,
 			replacement,
 		};
@@ -352,7 +352,7 @@ impl<'ast> VencordAstParser<'ast> {
 			ret.push(RawPatch {
 				all,
 				no_warn,
-				_predicate: predicate,
+				predicate,
 				find,
 				replacement: OxcVec::from_iter_in(
 					replacement.iter().cloned(),

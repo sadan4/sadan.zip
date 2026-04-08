@@ -1027,7 +1027,7 @@ impl<'ast> MemberExprRef<'ast> {
 	}
 
 	/// get the rhs of the member expression
-	pub fn right(self) -> MemberExprAccessKind<'ast> {
+	pub const fn right(self) -> MemberExprAccessKind<'ast> {
 		MemberExprAccessKind::from_member_expr(self)
 	}
 }

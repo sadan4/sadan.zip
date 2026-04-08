@@ -12,13 +12,7 @@ use derive_more::{
 use oxc::{ast::AstKind, span::Span};
 use serde::{Deserialize, Serialize};
 use smol_str::SmolStr;
-use std::{
-	borrow::Borrow,
-	collections::HashMap,
-	convert::AsMut,
-	fmt::Debug,
-	iter,
-};
+use std::{collections::HashMap, convert::AsMut, fmt::Debug, iter};
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -115,10 +109,7 @@ pub struct StoreData<T> {
 
 impl<T> From<Option<StoreData<T>>> for ExtraData<T> {
 	fn from(value: Option<StoreData<T>>) -> Self {
-		match value {
-			Some(store_data) => Self::Store(store_data),
-			None => Self::None,
-		}
+		value.map_or_else(|| Self::None, |store_data| Self::Store(store_data))
 	}
 }
 
@@ -191,6 +182,7 @@ pub enum ExportMapKey {
 }
 
 impl ExportMapKey {
+	#[expect(clippy::should_implement_trait)]
 	pub fn from_str(s: &impl AsRef<str>) -> Self {
 		Self::Named(s.as_ref().into())
 	}
@@ -237,6 +229,7 @@ impl<T> ExportRange<T> {
 	pub fn annotate(&mut self, hover: SmolStr) {
 		self.1 = Some(hover);
 	}
+	#[must_use]
 	pub fn with_annotation(mut self, hover: SmolStr) -> Self {
 		self.annotate(hover);
 		self

@@ -25,9 +25,9 @@ use crate::{
 #[derive(Copy, Clone, Debug)]
 pub struct WreqD<'ast> {
 	/// the entire call expression
-	pub call: &'ast CallExpression<'ast>,
+	pub _call: &'ast CallExpression<'ast>,
 	/// `exports` in the above example
-	pub exports: &'ast IdentifierReference<'ast>,
+	pub _exports: &'ast IdentifierReference<'ast>,
 	/// `{ foo: () => local_foo }` in the above example
 	pub obj: &'ast ObjectExpression<'ast>,
 }
