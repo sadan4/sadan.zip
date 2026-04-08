@@ -5,40 +5,7 @@ use oxc::{
 	ast::{
 		AstKind,
 		ast::{
-			Argument,
-			ArrayExpression,
-			ArrayExpressionElement,
-			ArrowFunctionExpression,
-			AssignmentExpression,
-			BinaryExpression,
-			BindingIdentifier,
-			BindingPattern,
-			CallExpression,
-			ComputedMemberExpression,
-			Expression,
-			ExpressionStatement,
-			Function,
-			FunctionBody,
-			IdentifierName,
-			IdentifierReference,
-			ImportDeclaration,
-			ImportDeclarationSpecifier,
-			MemberExpression,
-			ModuleDeclaration,
-			NumericLiteral,
-			ObjectExpression,
-			ObjectProperty,
-			PrivateFieldExpression,
-			PrivateIdentifier,
-			PropertyKey,
-			ReturnStatement,
-			SequenceExpression,
-			SpreadElement,
-			Statement,
-			StaticMemberExpression,
-			StringLiteral,
-			TaggedTemplateExpression,
-			TemplateLiteral,
+			Argument, ArrayExpression, ArrayExpressionElement, ArrowFunctionExpression, AssignmentExpression, AssignmentTarget, BinaryExpression, BindingIdentifier, BindingPattern, CallExpression, ComputedMemberExpression, Expression, ExpressionStatement, Function, FunctionBody, IdentifierName, IdentifierReference, ImportDeclaration, ImportDeclarationSpecifier, MemberExpression, ModuleDeclaration, NumericLiteral, ObjectExpression, ObjectProperty, PrivateFieldExpression, PrivateIdentifier, PropertyKey, ReturnStatement, SequenceExpression, SpreadElement, Statement, StaticMemberExpression, StringLiteral, TaggedTemplateExpression, TemplateLiteral
 		},
 	},
 	semantic::{NodeId, ScopeId, SymbolId},
@@ -391,6 +358,16 @@ impl<'ast> MemberExpressionExt<'ast> for MemberExpression<'ast> {
 
 	fn as_member_expr_mut_(&mut self) -> Option<&mut Self> {
 		Some(self)
+	}
+}
+
+impl<'ast> MemberExpressionExt<'ast> for AssignmentTarget<'ast> {
+	fn as_member_expr_(&self) -> Option<&MemberExpression<'ast>> {
+		self.as_member_expression()
+	}
+
+	fn as_member_expr_mut_(&mut self) -> Option<&mut MemberExpression<'ast>> {
+		self.as_member_expression_mut()
 	}
 }
 

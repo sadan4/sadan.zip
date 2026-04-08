@@ -4,7 +4,6 @@ use derive_more::{
 	Deref,
 	DerefMut,
 	From,
-	FromStr,
 	Into,
 	IsVariant,
 	TryUnwrap,
@@ -13,12 +12,7 @@ use derive_more::{
 use oxc::{ast::AstKind, span::Span};
 use serde::{Deserialize, Serialize};
 use smol_str::SmolStr;
-use std::{
-	collections::HashMap,
-	convert::AsMut,
-	fmt::Debug,
-	ops::{BitOr, Index},
-};
+use std::{collections::HashMap, convert::AsMut, fmt::Debug, iter};
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -160,7 +154,29 @@ impl<T> FromIterator<(ExportMapKey, ExportValue<T>)> for ExportMap<T> {
 	}
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, From)]
+impl IntoIterator for RangeExportMap {
+	type Item = RangeExportMapEntry;
+
+	type IntoIter = Box<dyn Iterator<Item = Self::Item>>;
+
+	fn into_iter(self) -> Self::IntoIter {
+		let def: Box<dyn Iterator<Item = Self::Item>> = if let Some(def) =
+			self.cjs_default
+		{
+			Box::new(iter::once(ExportMapEntry(ExportMapKey::Default, *def)))
+		} else {
+			Box::new(iter::empty())
+		};
+		Box::new(
+			self.exports
+				.into_iter()
+				.map(Into::into)
+				.chain(def),
+		)
+	}
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, From, IsVariant)]
 /// Clone is `O(1)`
 pub enum ExportMapKey {
 	Named(SmolStr),
@@ -262,7 +278,7 @@ where
 }
 
 pub type RawExportMapValue<'ast> = ExportValue<AstKind<'ast>>;
-pub type RawExportMapEntry<'ast> = ExportMapEntry<AstKind<'ast>>;
+// pub type RawExportMapEntry<'ast> = ExportMapEntry<AstKind<'ast>>;
 pub type RawExportRange<'ast> = ExportRange<AstKind<'ast>>;
 pub type RawExportMap<'ast> = ExportMap<AstKind<'ast>>;
 pub type RawStoreData<'ast> = StoreData<AstKind<'ast>>;

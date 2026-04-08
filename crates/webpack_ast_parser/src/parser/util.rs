@@ -1,16 +1,25 @@
 //! Private utilities for [`super::WebpackAstParser`].
 #![deny(clippy::missing_docs_in_private_items)]
+use std::{iter, mem};
+
 use ast_parser::exts::{ExpressionExt, Functionish, StatementExt as _};
+use itertools::Itertools as _;
 use oxc::ast::ast::{
 	ArrowFunctionExpression,
 	Expression,
 	IdentifierName,
 	IdentifierReference,
-	MemberExpression,
 	StaticMemberExpression,
 };
 
-use crate::parser::export_map::ExportMapKey;
+use crate::parser::export_map::{
+	ExportMapKey,
+	RangeExportMap,
+	RangeExportMapValue,
+	RangeExportRange,
+};
+
+use super::export_map::{ExportMapEntry, ExportValue};
 
 /// Given a function like below, return `x`
 /// ```js
@@ -136,4 +145,82 @@ pub fn match_export_chain<'ast>(
 		}
 	}
 	cur
+}
+
+/// Filter a given [`RangeExportMap`] to only include exports that include the range `pos`
+pub fn filter_export_map(
+	mut export_map: RangeExportMap,
+	pos: u32,
+) -> RangeExportMap {
+	if let Some(cjs_def) = mem::take(&mut export_map.cjs_default) {
+		let new_default = filter_export_value(*cjs_def, pos);
+		if !new_default.is_empty() {
+			export_map.cjs_default = Some(Box::new(new_default));
+		}
+	}
+
+	export_map.exports = export_map
+		.exports
+		.into_iter()
+		.filter_map(|(k, v)| {
+			let new_v = filter_export_value(v, pos);
+			if new_v.is_empty() {
+				None
+			} else {
+				Some((k, new_v))
+			}
+		})
+		.collect();
+	export_map
+}
+
+/// Flattens a given [`RangeExportMap`] into a list of valid export keys
+pub fn flatten_export_map(
+	export_map: RangeExportMap,
+	prefix: Option<&[ExportMapKey]>,
+) -> Vec<Vec<ExportMapKey>> {
+	let prefix = prefix.unwrap_or(&[]);
+	export_map
+		.into_iter()
+		.flat_map(|ExportMapEntry(k, v)| {
+			let current_path = prefix
+				.iter()
+				.cloned()
+				.chain(iter::once(k))
+				.collect_vec();
+			debug_assert!(
+				!v.is_empty(),
+				"should have been filtered out by filter_export_map"
+			);
+			if let Ok(obj) = v.try_unwrap_map() {
+				flatten_export_map(obj, Some(&current_path))
+			} else {
+				vec![current_path]
+			}
+		})
+		.collect()
+}
+
+/// Filter a given [`RangeExportRange`] to only include exports that include the range `pos`
+fn filter_export_range(
+	mut export_range: RangeExportRange,
+	pos: u32,
+) -> RangeExportRange {
+	export_range.retain(|rng| pos >= rng.start && pos < rng.end);
+	export_range
+}
+
+/// Filter a given [`RangeExportMapValue`] to only include exports that include the range `pos`
+fn filter_export_value(
+	export_value: RangeExportMapValue,
+	pos: u32,
+) -> RangeExportMapValue {
+	match export_value {
+		ExportValue::Range(export_range) => {
+			filter_export_range(export_range, pos).into()
+		}
+		ExportValue::Map(export_map) => {
+			filter_export_map(export_map, pos).into()
+		}
+	}
 }

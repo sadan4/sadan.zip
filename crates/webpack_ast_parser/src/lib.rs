@@ -1,6 +1,7 @@
-mod bundle;
+// #![warn(missing_docs)]
+pub mod bundle;
 mod cache;
 mod parser;
-mod types;
+pub mod types;
 
 pub use parser::WebpackAstParser;

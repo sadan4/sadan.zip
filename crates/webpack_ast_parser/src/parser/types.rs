@@ -13,6 +13,8 @@ use oxc::ast::{
 	},
 };
 
+use crate::{parser::export_map::ExportMapKey, types::ModuleId};
+
 /// `wreq.d(exports, { foo: () => local_foo })`
 #[derive(Copy, Clone, Debug)]
 pub struct WreqD<'ast> {
@@ -51,9 +53,9 @@ impl<'ast> TryFrom<&'ast Expression<'ast>> for WreqDExportType<'ast> {
 	}
 }
 
-impl<'ast> Into<AstKind<'ast>> for WreqDExportType<'ast> {
-	fn into(self) -> oxc::ast::AstKind<'ast> {
-		match self {
+impl<'ast> From<WreqDExportType<'ast>> for AstKind<'ast> {
+	fn from(val: WreqDExportType<'ast>) -> Self {
+		match val {
 			WreqDExportType::Ident(ident) => ident.into_ast_kind(),
 			WreqDExportType::Access(mem_expr) => mem_expr.into_ast_kind(),
 		}
@@ -64,4 +66,15 @@ impl<'ast> IntoAstKind<'ast> for WreqDExportType<'ast> {
 	fn into_ast_kind(self) -> AstKind<'ast> {
 		self.into()
 	}
+}
+
+/// Helper type for [`super::WebpackAstParser::generate_references`]
+#[derive(Debug)]
+pub struct SearchElement {
+	/// The module id that is being searched for uses
+	pub module_id: ModuleId,
+	/// The id of the module that [`Self::export_name`] will be imported from
+	pub imported_id: ModuleId,
+	/// The exported name to search
+	pub export_name: Vec<ExportMapKey>,
 }

@@ -5,7 +5,15 @@ mod types;
 mod util;
 
 use crate::{
-	bundle::{DefaultModuleCache, IModuleCache},
+	bundle::{
+		self,
+		DefaultModuleCache,
+		DefaultModuleDepProvider,
+		IModuleCache,
+		IModuleDepProvider,
+		IncomingModuleDeps,
+		OutgoingModuleDeps,
+	},
 	cache::{CacheRef, CacheValue},
 	parser::{
 		enum_iife::EnumIIFEState1_2,
@@ -23,16 +31,18 @@ use crate::{
 			RawStoreData,
 			StoreData,
 		},
-		types::{WreqD, WreqDExportType},
+		types::{SearchElement, WreqD, WreqDExportType},
 		util::{
+			filter_export_map,
 			find_return_identifier,
+			flatten_export_map,
 			flatten_property_access_expression,
 			match_export_chain,
 		},
 	},
 	types::ModuleId,
 };
-use anyhow::Result;
+use anyhow::{Context, Result, bail};
 use ast_parser::{
 	AstParser,
 	ast_kind::IntoAstKind,
@@ -49,6 +59,7 @@ use ast_parser::{
 	parse,
 };
 use export_map::RawExportMap;
+use itertools::Itertools as _;
 use oxc::{
 	allocator::{Allocator, GetAddress, IntoIn, UnstableAddress},
 	ast::{
@@ -74,15 +85,20 @@ use oxc::{
 	semantic::{Reference, Semantic, SymbolId},
 	span::{Atom, GetSpan, SourceType, Span},
 };
-use smol_str::SmolStr;
-use std::{collections::HashMap, iter};
-use tracing::{debug, trace, warn};
+use smol_str::{SmolStr, ToSmolStr as _};
+use std::{
+	collections::{HashMap, HashSet},
+	iter,
+	rc::Rc,
+};
+use tracing::{debug, error, trace, warn};
 
 pub struct WebpackAstParser<'ast> {
 	prog: &'ast Program<'ast>,
 	sema: Semantic<'ast>,
 	source: &'ast str,
 	module_cache: &'ast dyn IModuleCache<'ast>,
+	module_dep_provider: &'ast dyn IModuleDepProvider,
 	/// Internal cache
 	c: Cache<'ast>,
 }
@@ -96,6 +112,8 @@ struct Cache<'ast> {
 	wreq_d: CacheValue<Option<WreqD<'ast>>>,
 	mod_arg: CacheValue<Option<SymbolId>>,
 	exports_arg: CacheValue<Option<SymbolId>>,
+	module_id: CacheValue<Option<ModuleId>>,
+	does_re_export_whole_module: CacheValue<Option<ModuleId>>,
 }
 
 impl<'ast> AstParser<'ast> for WebpackAstParser<'ast> {
@@ -117,54 +135,33 @@ impl<'ast> WebpackAstParser<'ast> {
 			sema,
 			source,
 			module_cache: &DefaultModuleCache,
+			module_dep_provider: &DefaultModuleDepProvider,
 			c: Cache::default(),
 		})
 	}
 
-	#[must_use]
-	pub fn with_module_cache(
-		mut self,
+	pub const fn get_source(&self) -> &'ast str {
+		self.source
+	}
+
+	pub fn set_module_cache(
+		&mut self,
 		module_cache: &'ast dyn IModuleCache<'ast>,
-	) -> Self {
+	) {
 		self.module_cache = module_cache;
-		self
+	}
+
+	pub fn set_module_dep_provider(
+		&mut self,
+		module_dep_provider: &'ast dyn IModuleDepProvider,
+	) {
+		self.module_dep_provider = module_dep_provider;
 	}
 
 	pub fn get_module_id(&self) -> Option<ModuleId> {
-		const WEBPACK_MODULE_HEADER: &str = "// Webpack Module ";
-		if self
-			.source
-			.starts_with(WEBPACK_MODULE_HEADER)
-		{
-			// `// Webpack Module 123456` -> parse the 123456
-			let start = WEBPACK_MODULE_HEADER.len();
-			let mut end = start;
-
-			while end < self.source.len()
-				&& self
-					.source
-					.chars()
-					.nth(end)
-					.unwrap()
-					.is_ascii_digit()
-			{
-				end += 1;
-			}
-
-			if start == end {
-				return None;
-			}
-
-			debug_assert!(
-				self.source[start..end]
-					.chars()
-					.all(|c| c.is_ascii_digit())
-			);
-			let id = self.source[start..end].parse().ok()?;
-
-			return Some(ModuleId(id));
-		}
-		None
+		self.c
+			.module_id
+			.get(|| self.get_module_id_impl())
 	}
 	pub fn get_export_map(&self) -> &RangeExportMap {
 		self.c.range_export_map.get(|| {
@@ -174,6 +171,7 @@ impl<'ast> WebpackAstParser<'ast> {
 	}
 	// FIXME: this is just a direct port from js
 	// It should probably be rewritten
+	#[expect(clippy::too_many_lines, reason = "TODO")]
 	pub fn get_uses_of_import(
 		&self,
 		m_id: ModuleId,
@@ -370,11 +368,259 @@ impl<'ast> WebpackAstParser<'ast> {
 
 		uses
 	}
+	// TODO: use custom error codes with thiserror
+	pub fn generate_references(
+		&self,
+		pos: u32,
+	) -> Result<Vec<bundle::Reference<'ast>>> {
+		let Some(self_module_id) = self.get_module_id() else {
+			bail!(
+				"Could not find module id of module to search for references of."
+			);
+		};
+		let module_exports = self.get_export_map();
+		let where_ = self.get_modules_that_require_this_module()?;
+		let mut locs = Vec::new();
+		// TODO: construct a new map from a ref instead of cloning
+		let filtered_export_map =
+			filter_export_map(module_exports.clone(), pos);
+		let exported_names = flatten_export_map(filtered_export_map, None);
+
+		for mut exported_name in exported_names {
+			let mut seen: HashMap<ModuleId, HashSet<ModuleId>> = HashMap::new();
+			// below fixme is copied verbatim from js. it might not be valid
+			// FIXME: this is a workaround for a bug in getUsesOfImport where it doesn't properly hand SYM_CJS_DEFAULT
+			if exported_name.len() > 1
+				&& exported_name
+					.last()
+					.unwrap()
+					.is_default()
+			{
+				exported_name.pop();
+			}
+
+			let mut left = where_
+				.sync
+				.iter()
+				.map(|x| {
+					SearchElement {
+						module_id: *x,
+						imported_id: self_module_id,
+						// TODO: make this cow?
+						export_name: exported_name.clone(),
+					}
+				})
+				.collect_vec();
+			while let Some(cur) = left.pop() {
+				let SearchElement {
+					module_id,
+					imported_id,
+					export_name,
+				} = cur;
+				if seen
+					.get(&imported_id)
+					.is_some_and(|s| s.contains(&module_id))
+				{
+					continue;
+				}
+				seen.entry(imported_id)
+					.or_default()
+					.insert(module_id);
+				let parser = match self
+					.module_cache
+					.get_module_parser(self, module_id, None)
+				{
+					Ok(parser) => parser,
+					Err(e) => {
+						warn!(
+							"Failed to get parser for module id {module_id}. Cause: {e:?}"
+						);
+						continue;
+					}
+				};
+				let uses =
+					parser.get_uses_of_import(imported_id, &exported_name);
+				// FIXME: support nested re-exports
+				let exported_as = parser.does_re_export_from_import(
+					imported_id,
+					exported_name[0].clone(),
+				);
+
+				if let Some(exported_as) = exported_as
+					&& let Ok(where_) =
+						parser.get_modules_that_require_this_module()
+				{
+					left.extend(
+						where_
+							.sync
+							.iter()
+							.map(|x| SearchElement {
+								module_id: *x,
+								imported_id: parser.get_module_id().unwrap(),
+								export_name: vec![exported_as.clone()],
+							}),
+					);
+				}
+				let maybe_file_path = self
+					.module_cache
+					.get_module_filepath(module_id);
+				locs.extend(uses.iter().map(|&range| {
+					maybe_file_path.clone().map_or(
+						bundle::Reference {
+							range,
+							module_id,
+							location: bundle::Location::Inline(self.source),
+						},
+						|file_path| bundle::Reference {
+							location: bundle::Location::Path(file_path),
+							module_id,
+							range,
+						},
+					)
+				}));
+			}
+		}
+
+		Ok(locs)
+	}
+	// TODO: cache
+	pub fn get_modules_that_this_module_requires(
+		&self,
+	) -> Option<OutgoingModuleDeps> {
+		let wreq = self.wreq()?;
+		// TODO: merge these loops to avoid two iterations
+		let sync = self
+			.refs(wreq)
+			.filter_map(|usage| {
+				let p_call =
+					self.find_parent(usage, AstKind::as_call_expression)?;
+				let args = &p_call.arguments;
+				if args.len() != 1 {
+					return None;
+				}
+				let ret = args[0]
+					.as_numeric_literal()?
+					.as_u32()?
+					.into();
+
+				Some(ret)
+			})
+			.collect();
+		// TODO: implement lazy require parsing
+		let lazy = Vec::new();
+		Some(OutgoingModuleDeps { sync, lazy })
+	}
+	pub fn get_modules_that_require_this_module(
+		&self,
+	) -> Result<Rc<IncomingModuleDeps>> {
+		let module_id = self
+			.get_module_id()
+			.context("Module ID not found")?;
+		self.module_dep_provider
+			.get_module_deps(module_id)
+	}
+	/// Figure out if this module re-exports another given the module id of the other and
+	/// the name of the export from the other module.
+	///
+	/// `module_id` the module id that `export_name` is from
+	/// `export_name` the name of the re-exported export
+	pub fn does_re_export_from_import(
+		&self,
+		module_id: ModuleId,
+		export_name: ExportMapKey,
+	) -> Option<ExportMapKey> {
+		let decl = self.get_imported_var(module_id)?;
+		if self
+			.does_re_export_whole_module()
+			.is_some()
+		{
+			// how???
+			debug_assert!(
+				self.does_re_export_whole_module() == Some(module_id)
+			);
+			return Some(export_name);
+		}
+		let mut maybe_re_exports = self
+			.get_export_map_raw()
+			.exports
+			.iter()
+			.filter(|(_, v)| {
+				let Ok(v) = v.try_unwrap_range_ref() else {
+					return false;
+				};
+				let Some(v) = v.first() else {
+					return false;
+				};
+				// TODO: why are we taking the first one
+				match v {
+					AstKind::IdentifierReference(node) => {
+						self.cmp_sym(*node, &decl)
+					}
+					AstKind::StaticMemberExpression(_) => todo!(),
+					v => {
+						warn!("Unhandled type for reExport: {v:?}");
+						false
+					}
+				}
+			})
+			.map(|(k, _)| k)
+			.collect_vec();
+		if maybe_re_exports.len() != 1 {
+			if maybe_re_exports.len() > 1 {
+				error!(
+					"Found more than one reExport for wreq({module_id}).{export_name:?}"
+				);
+			}
+			return None;
+		}
+		Some(
+			maybe_re_exports
+				.swap_remove(0)
+				.to_smolstr()
+				.into(),
+		)
+	}
 }
 
 /// Private API
 #[allow(clippy::multiple_inherent_impl)]
 impl<'ast> WebpackAstParser<'ast> {
+	fn get_module_id_impl(&self) -> Option<ModuleId> {
+		const WEBPACK_MODULE_HEADER: &str = "// Webpack Module ";
+		if self
+			.source
+			.starts_with(WEBPACK_MODULE_HEADER)
+		{
+			// `// Webpack Module 123456` -> parse the 123456
+			let start = WEBPACK_MODULE_HEADER.len();
+			let mut end = start;
+
+			while end < self.source.len()
+				&& self
+					.source
+					.chars()
+					.nth(end)
+					.unwrap()
+					.is_ascii_digit()
+			{
+				end += 1;
+			}
+
+			if start == end {
+				return None;
+			}
+
+			debug_assert!(
+				self.source[start..end]
+					.chars()
+					.all(|c| c.is_ascii_digit())
+			);
+			let id = self.source[start..end].parse().ok()?;
+
+			return Some(ModuleId(id));
+		}
+		None
+	}
 	/// `exports` in `function(module, exports, wreq) {...}`
 	/// also commonly `t` in `function(e, t, n) {...}`
 	fn webpack_exports(&self) -> Option<SymbolId> {
@@ -749,6 +995,62 @@ impl<'ast> WebpackAstParser<'ast> {
 	fn is_display_name_prop_key(&self, sym_id: SymbolId) -> bool {
 		self.is_constant_string(sym_id)
 			.is_some_and(|s| s == "displayName")
+	}
+	fn does_re_export_whole_module_impl(&self) -> Option<ModuleId> {
+		let mod_arg = self.mod_arg()?;
+		for use_ in self.wreq_uses()? {
+			let Some(assignment) = self
+				.find_parent(use_.node_id(), AstKind::as_assignment_expression)
+			else {
+				continue;
+			};
+
+			let Some(lhs) = assignment
+				.left
+				.as_static_member_expression()
+			else {
+				continue;
+			};
+			let (module, exports_arr) = flatten_property_access_expression(lhs);
+			let Some(module) = module.as_identifier() else {
+				continue;
+			};
+			if !self.cmp_sym(module, &mod_arg) {
+				continue;
+			}
+			debug_assert!(
+				exports_arr.len() == 1,
+				"chain should always have len 1"
+			);
+			if exports_arr
+				.last()
+				.is_none_or(|e| e.name != "exports")
+			{
+				continue;
+			}
+			let rhs = assignment.right.as_call_expression()?;
+			if rhs.callee.address() != use_.address()
+				|| rhs.arguments.len() != 1
+			{
+				continue;
+			}
+			let Some(arg) = rhs.arguments[0]
+				.as_numeric_literal()
+				.and_then(NumericLiteral::as_u32)
+				.map(ModuleId::from)
+			else {
+				continue;
+			};
+
+			return Some(arg);
+		}
+		None
+	}
+	/// Checks if this module re-exports another whole module and not just parts of it
+	fn does_re_export_whole_module(&self) -> Option<ModuleId> {
+		self.c
+			.does_re_export_whole_module
+			.get(|| self.does_re_export_whole_module_impl())
 	}
 }
 

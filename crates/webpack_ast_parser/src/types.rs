@@ -1,4 +1,4 @@
-use derive_more::{Deref, From, Into};
+use derive_more::{Deref, Display, From, Into};
 use serde::Serialize;
 
 #[derive(
@@ -14,6 +14,7 @@ use serde::Serialize;
 	PartialOrd,
 	Ord,
 	Serialize,
+	Display,
 )]
 pub struct ModuleId(pub u32);
 
