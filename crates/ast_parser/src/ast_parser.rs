@@ -5,17 +5,14 @@ use crate::{
 use anyhow::{Result, bail};
 use itertools::Itertools;
 use oxc::{
-	allocator::{Allocator, Box as OxcBox}, ast::{
+	allocator::{Allocator, Box as OxcBox},
+	ast::{
 		AstKind,
-		ast::{
-			BindingIdentifier,
-			Expression,
-			IdentifierReference,
-			ImportDeclaration,
-			ModuleDeclaration,
-			Program,
-		},
-	}, ast_visit::Visit, parser::Parser as OxcParser, semantic::{
+		ast::{Expression, ImportDeclaration, ModuleDeclaration, Program},
+	},
+	ast_visit::Visit,
+	parser::Parser as OxcParser,
+	semantic::{
 		AstNode,
 		NodeId,
 		Reference,
@@ -23,9 +20,10 @@ use oxc::{
 		Semantic,
 		SemanticBuilder,
 		SymbolId,
-	}, span::SourceType
+	},
+	span::{GetSpan as _, SourceType},
 };
-use std::{convert::Infallible, sync::Arc};
+use std::sync::Arc;
 
 macro_rules! impl_parse {
 	($alloc:expr, $source:expr, $source_type:expr, $ast:ident, $sema:ident) => {
@@ -300,6 +298,10 @@ pub trait AstParser<'ast> {
 		}
 		ret
 	}
+	/// Returns the most specific AST node whose span contains `pos`.
+	fn get_node_at(&self, pos: u32) -> AstKind<'ast> {
+		get_node_at(self.prog(), pos)
+	}
 }
 
 pub trait ESModuleParser<'ast>: AstParser<'ast> {
@@ -332,13 +334,35 @@ pub trait ESModuleParser<'ast>: AstParser<'ast> {
 }
 
 fn get_node_at<'ast>(prog: &'ast Program<'ast>, pos: u32) -> AstKind<'ast> {
-	todo!()
+	let mut finder = LocationFinder {
+		pos,
+		best: None,
+		best_span_size: u32::MAX,
+	};
+	finder.visit_program(prog);
+	finder
+		.best
+		.unwrap_or(AstKind::Program(prog))
 }
 
-struct LocationFinder {
+struct LocationFinder<'ast> {
 	pos: u32,
+	best: Option<AstKind<'ast>>,
+	best_span_size: u32,
 }
 
-impl<'ast> Visit<'ast> for LocationFinder {
+impl<'ast> Visit<'ast> for LocationFinder<'ast> {
+	fn enter_node(&mut self, kind: AstKind<'ast>) {
+		let span = kind.span();
+		let contains_pos = (span.start..span.end).contains(&self.pos);
+		if !contains_pos {
+			return;
+		}
 
+		let span_size = span.size();
+		if span_size <= self.best_span_size {
+			self.best_span_size = span_size;
+			self.best = Some(kind);
+		}
+	}
 }

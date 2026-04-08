@@ -389,11 +389,7 @@ impl<'ast> WebpackAstParser<'ast> {
 			let mut seen: HashMap<ModuleId, HashSet<ModuleId>> = HashMap::new();
 			// below fixme is copied verbatim from js. it might not be valid
 			// FIXME: this is a workaround for a bug in getUsesOfImport where it doesn't properly hand SYM_CJS_DEFAULT
-			if export_name.len() > 1
-				&& export_name
-					.last()
-					.unwrap()
-					.is_default()
+			if export_name.len() > 1 && export_name.last().unwrap().is_default()
 			{
 				export_name.pop();
 			}
@@ -437,8 +433,7 @@ impl<'ast> WebpackAstParser<'ast> {
 						continue;
 					}
 				};
-				let uses =
-					parser.get_uses_of_import(imported_id, &export_name);
+				let uses = parser.get_uses_of_import(imported_id, &export_name);
 				// FIXME: support nested re-exports
 				let exported_as = parser.does_re_export_from_import(
 					imported_id,
@@ -579,7 +574,21 @@ impl<'ast> WebpackAstParser<'ast> {
 				.into(),
 		)
 	}
-	pub fn generate_definitions(&self, pos: u32)  -> Result<Vec<bundle::Definition<'ast>>> {
+	pub fn generate_definitions(
+		&self,
+		pos: u32,
+	) -> Result<Vec<bundle::Definition<'ast>>> {
+		let selected_node = self.get_node_at(pos);
+		if let Some(num_lit) = selected_node.as_numeric_literal() {
+			return self.generate_direct_module_definition(num_lit);
+		}
+		let access_chain = self
+			.find_parent(
+				selected_node.node_id(),
+				AstKind::as_static_member_expression,
+			)
+			.context("Could not find access chain")?;
+		let (required_module, names) = flatten_property_access_expression(access_chain);
 		todo!()
 	}
 }
@@ -587,6 +596,44 @@ impl<'ast> WebpackAstParser<'ast> {
 /// Private API
 #[allow(clippy::multiple_inherent_impl)]
 impl<'ast> WebpackAstParser<'ast> {
+	fn generate_direct_module_definition(
+		&self,
+		node: &'ast NumericLiteral<'ast>,
+	) -> Result<Vec<bundle::Definition<'ast>>> {
+		let call = self
+			.p(node.node_id())
+			.as_call_expression()
+			.context("number parent is not a call")?;
+		if call.arguments.len() != 1 {
+			bail!("expected module it to be the only argument");
+		}
+		let func = call
+			.callee
+			.as_identifier()
+			.context("expected callee to be an ident")?;
+		if !self.cmp_sym(
+			func,
+			&self
+				.wreq()
+				.context("couldnt find wreq")?,
+		) {
+			bail!("expected callee to be wreq");
+		}
+		let module_id = node
+			.as_u32()
+			.context("number is not a valid module it")?
+			.into();
+		let file_path = self
+			.module_cache
+			.get_module_filepath(module_id)
+			.context("Could not get module filepath")?;
+		let ret = vec![bundle::Definition {
+			range: Span::default(),
+			module_id,
+			location: bundle::Location::Path(file_path),
+		}];
+		Ok(ret)
+	}
 	fn get_module_id_impl(&self) -> Option<ModuleId> {
 		const WEBPACK_MODULE_HEADER: &str = "// Webpack Module ";
 		if self
