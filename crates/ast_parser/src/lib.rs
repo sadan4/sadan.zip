@@ -47,7 +47,11 @@ pub fn get_line_and_column(source: &str, offset: u32) -> (u32, u32) {
 /// If `line` is past the last line, the result is clamped to `source.len()`.
 /// If `column` is past the target line's end, it is clamped to the line end
 /// (or to the newline byte for non-final lines).
-pub fn get_offset_from_line_and_column(source: &str, line: u32, column: u32) -> u32 {
+pub fn get_offset_from_line_and_column(
+	source: &str,
+	line: u32,
+	column: u32,
+) -> u32 {
 	let target_line: u32 = line;
 	let target_column: u32 = column;
 
@@ -76,7 +80,8 @@ pub fn get_offset_from_line_and_column(source: &str, line: u32, column: u32) -> 
 	let mut current_column: u32 = 0;
 	for (relative_index, ch) in source[line_start..].char_indices() {
 		if ch == '\n' {
-			return u32::try_from(line_start + relative_index).unwrap_or(u32::MAX);
+			return u32::try_from(line_start + relative_index)
+				.unwrap_or(u32::MAX);
 		}
 
 		current_column += 1;
@@ -100,10 +105,7 @@ pub fn span_line_and_column(
 
 #[cfg(test)]
 mod tests {
-	use super::{
-		get_line_and_column,
-		get_offset_from_line_and_column,
-	};
+	use super::{get_line_and_column, get_offset_from_line_and_column};
 
 	#[test]
 	fn returns_start_position_for_zero_offset() {
@@ -183,17 +185,12 @@ mod tests {
 	fn round_trips_valid_positions() {
 		let source: &str = "aé\n😀z";
 
-		let positions: [(u32, u32); 6] = [
-			(0, 0),
-			(0, 1),
-			(0, 2),
-			(1, 0),
-			(1, 1),
-			(1, 2),
-		];
+		let positions: [(u32, u32); 6] =
+			[(0, 0), (0, 1), (0, 2), (1, 0), (1, 1), (1, 2)];
 
 		for (line, column) in positions {
-			let offset: u32 = get_offset_from_line_and_column(source, line, column);
+			let offset: u32 =
+				get_offset_from_line_and_column(source, line, column);
 			assert_eq!(get_line_and_column(source, offset), (line, column));
 		}
 	}

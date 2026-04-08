@@ -10,13 +10,15 @@ use proc_macro2::TokenStream as Tokens;
 
 use quote::quote;
 
-use syn::Attribute;
-use syn::Expr;
-use syn::ItemFn;
-use syn::Lit;
-use syn::Meta;
-use syn::parse::Parse;
-use syn::parse_macro_input;
+use syn::{
+	Attribute,
+	Expr,
+	ItemFn,
+	Lit,
+	Meta,
+	parse::Parse,
+	parse_macro_input,
+};
 
 pub fn impl_test_macro(
 	attr: proc_macro::TokenStream,

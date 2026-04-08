@@ -630,7 +630,10 @@ impl<'ast> WebpackAstParser<'ast> {
 						.as_deref()
 						.and_then(ExportValue::get_hover)
 					{
-						debug_assert!(false, "cjs default hover should be on the parent export map");
+						debug_assert!(
+							false,
+							"cjs default hover should be on the parent export map"
+						);
 						last = Some(hover.clone());
 					} else {
 						last = None;

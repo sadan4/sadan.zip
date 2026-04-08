@@ -10,4 +10,3 @@ use crate::test_log::impl_test_macro;
 pub fn test(attr: TokenStream, item: TokenStream) -> TokenStream {
 	impl_test_macro(attr, item)
 }
-

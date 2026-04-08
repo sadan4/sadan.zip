@@ -15,7 +15,11 @@ use oxc::ast::{
 	},
 };
 
-use crate::{WebpackAstParser, parser::export_map::ExportMapKey, types::ModuleId};
+use crate::{
+	WebpackAstParser,
+	parser::export_map::ExportMapKey,
+	types::ModuleId,
+};
 
 /// `wreq.d(exports, { foo: () => local_foo })`
 #[derive(Copy, Clone, Debug)]
@@ -90,7 +94,7 @@ pub struct ReExport<'ast> {
 }
 
 /// A definition resolved from a position.
-/// 
+///
 /// Used to abstract logic from position/hover queries.
 pub struct ResolvedDefinition<'ast> {
 	/// the parser that has the definition
