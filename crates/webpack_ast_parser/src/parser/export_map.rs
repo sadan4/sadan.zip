@@ -12,7 +12,13 @@ use derive_more::{
 use oxc::{ast::AstKind, span::Span};
 use serde::{Deserialize, Serialize};
 use smol_str::SmolStr;
-use std::{borrow::Borrow, collections::HashMap, convert::AsMut, fmt::Debug, iter};
+use std::{
+	borrow::Borrow,
+	collections::HashMap,
+	convert::AsMut,
+	fmt::Debug,
+	iter,
+};
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -268,6 +274,12 @@ impl<T> ExportValue<T> {
 		match self {
 			Self::Range(rng) => rng.insert(0, val),
 			Self::Map(map) => map.get_default_arr_mut().insert(0, val),
+		}
+	}
+	pub fn get_hover(&self) -> Option<&SmolStr> {
+		match self {
+			ExportValue::Range(ExportRange(_, hover))
+			| ExportValue::Map(ExportMap { hover, .. }) => hover.as_ref(),
 		}
 	}
 }

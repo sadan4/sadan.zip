@@ -958,6 +958,16 @@ pub enum MemberExprAccessKind<'ast> {
 	Computed(&'ast Expression<'ast>),
 }
 
+impl GetSpan for MemberExprAccessKind<'_> {
+	fn span(&self) -> Span {
+		match self {
+			MemberExprAccessKind::Static(i) => i.span(),
+			MemberExprAccessKind::Private(i) => i.span(),
+			MemberExprAccessKind::Computed(e) => e.span(),
+		}
+	}
+}
+
 impl<'ast> MemberExprAccessKind<'ast> {
 	pub fn from_member_expr(member_expr: MemberExprRef<'ast>) -> Self {
 		match member_expr {

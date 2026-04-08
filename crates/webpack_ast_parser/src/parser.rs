@@ -56,6 +56,7 @@ use ast_parser::{
 		BindingPatternExt,
 		ExpressionExt,
 		Functionish,
+		MemberExprAccessKind,
 		MemberExprRef,
 		MemberExpressionExt,
 		NumericLiteralExt as _,
@@ -593,6 +594,7 @@ impl<'ast> WebpackAstParser<'ast> {
 		let ResolvedDefinition {
 			parser,
 			export_names,
+			raw_export_names: _,
 		} = self.resolve_definition(selected_node)?;
 		let range = if export_names.is_empty() {
 			Span::default()
@@ -608,6 +610,54 @@ impl<'ast> WebpackAstParser<'ast> {
 			module_id,
 		}])
 	}
+	pub fn get_hover_text(&self, keys: &[ExportMapKey]) -> Option<SmolStr> {
+		let mut cur = self.get_export_map();
+		let mut last = None;
+		for key in keys {
+			let Some(val) = cur.get(key) else {
+				break;
+			};
+			match val {
+				ExportValue::Range(ExportRange(_, hover)) => {
+					last = last.or_else(|| hover.clone());
+					break;
+				}
+				ExportValue::Map(map) => {
+					if let Some(hover) = &map.hover {
+						last = Some(hover.clone());
+					} else if let Some(hover) = map
+						.cjs_default
+						.as_deref()
+						.and_then(ExportValue::get_hover)
+					{
+						debug_assert!(false, "cjs default hover should be on the parent export map");
+						last = Some(hover.clone());
+					} else {
+						last = None;
+					}
+					cur = map;
+				}
+			}
+		}
+		last
+	}
+	/// FIXME: extract (Span, `SmolStr`) into a separate struct;
+	pub fn generate_hover(&self, pos: u32) -> Result<Option<(Span, SmolStr)>> {
+		let selected_node = self.get_node_at(pos);
+		let ResolvedDefinition {
+			parser,
+			export_names,
+			raw_export_names,
+		} = self.resolve_definition(selected_node)?;
+		if export_names.is_empty() {
+			return Ok(None);
+		}
+		let Some(hover) = parser.get_hover_text(&export_names) else {
+			return Ok(None);
+		};
+		let range = raw_export_names.last().unwrap().span();
+		Ok(Some((range, hover)))
+	}
 }
 
 /// Private API
@@ -616,7 +666,7 @@ impl<'ast> WebpackAstParser<'ast> {
 	fn does_re_export_from_export(
 		&self,
 		export_name: &[ExportMapKey],
-	) -> Option<ReExport> {
+	) -> Option<ReExport<'ast>> {
 		let map = self.get_export_map_raw();
 		let exp = get_nested_export_from_map(export_name, map)?;
 		let last = exp.last()?;
@@ -631,12 +681,7 @@ impl<'ast> WebpackAstParser<'ast> {
 		let imported_id = self.get_module_id_for_import(imported_sym_id)?;
 		let ret = ReExport {
 			import_source_id: imported_id,
-			export_names: chain
-				.into_iter()
-				.map_while(|a| a.try_unwrap_static().ok())
-				.map(|ident| &ident.name)
-				.map(ExportMapKey::from_str)
-				.collect(),
+			export_names: chain,
 		};
 		Some(ret)
 	}
@@ -676,14 +721,18 @@ impl<'ast> WebpackAstParser<'ast> {
 			return Ok(ResolvedDefinition {
 				parser: cur,
 				export_names: vec![],
+				raw_export_names: vec![],
 			});
 		}
-		let mut mapped_names = names
+		let mut raw_names: Vec<MemberExprAccessKind<'ast>> = names;
+		let mut mapped_names = raw_names
 			.iter()
 			.map_while(|a| a.try_unwrap_static().ok())
 			.map(|ident| &ident.name)
 			.map(ExportMapKey::from_str)
 			.collect_vec();
+		raw_names.truncate(mapped_names.len());
+		// TODO: extract updating mapped_names into a helper lambda
 		loop {
 			// check for an explicit re-export before falling back to checking for a whole module re-export
 			let ret = cur.does_re_export_from_export(&mapped_names);
@@ -708,13 +757,21 @@ impl<'ast> WebpackAstParser<'ast> {
 				}
 				break;
 			};
-			mapped_names = export_names;
+			raw_names = export_names;
+			mapped_names = raw_names
+				.iter()
+				.map_while(|a| a.try_unwrap_static().ok())
+				.map(|ident| &ident.name)
+				.map(ExportMapKey::from_str)
+				.collect_vec();
+			raw_names.truncate(mapped_names.len());
 			cur = self
 				.try_get_module_parser(import_source_id)
 				.context("Failed to get module parser")?;
 		}
 		Ok(ResolvedDefinition {
 			export_names: mapped_names,
+			raw_export_names: raw_names,
 			parser: cur,
 		})
 	}

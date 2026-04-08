@@ -2,7 +2,7 @@
 //! Private types for [`super::WebpackAstParser`]
 use std::rc::Rc;
 
-use ast_parser::ast_kind::IntoAstKind;
+use ast_parser::{ast_kind::IntoAstKind, exts::MemberExprAccessKind};
 use derive_more::{From, Into, TryInto, Unwrap};
 use oxc::ast::{
 	AstKind,
@@ -82,11 +82,11 @@ pub struct SearchElement {
 }
 
 /// Helper type for [`WebpackAstParser::does_re_export_from_export`]
-pub struct ReExport {
+pub struct ReExport<'ast> {
 	/// TODO: doc
 	pub import_source_id: ModuleId,
 	/// TODO: doc
-	pub export_names: Vec<ExportMapKey>,
+	pub export_names: Vec<MemberExprAccessKind<'ast>>,
 }
 
 /// A definition resolved from a position.
@@ -95,6 +95,8 @@ pub struct ReExport {
 pub struct ResolvedDefinition<'ast> {
 	/// the parser that has the definition
 	pub parser: Rc<WebpackAstParser<'ast>>,
+	/// the chain of export names to get the definition from [`Self::parser`]
+	pub raw_export_names: Vec<MemberExprAccessKind<'ast>>,
 	/// the chain of export names to get the definition from [`Self::parser`]
 	pub export_names: Vec<ExportMapKey>,
 }

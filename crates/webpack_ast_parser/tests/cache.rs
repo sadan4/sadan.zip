@@ -293,6 +293,16 @@ fn dbg_export_map(p: &WebpackAstParser) -> String {
 	format!("{:#?}", ExportMapDumper(p.get_export_map(), p.get_source()))
 }
 
+fn dbg_hover<'a>(
+	p: &WebpackAstParser<'a>,
+	line: u32,
+	col: u32,
+) -> Result<Option<(SmolStr, SpanDumper<'a>)>> {
+	let pos = get_offset_from_line_and_column(p.get_source(), line, col);
+	let s = p.generate_hover(pos)?;
+	Ok(s.map(|(s, t)| (t, SpanDumper(s, p.get_source()))))
+}
+
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 struct ReferenceDumper<'a> {
 	id: ModuleId,
@@ -312,9 +322,7 @@ fn test() {
 	b.bind_plugins(parsers);
 	simple_export_in_single_file(&b);
 	simple_export_in_many_files(&b);
-	e_exports_default::test1(&b);
-	e_exports_default::test2(&b);
-	e_exports_default::test3(&b);
+	e_exports_default::run(&b);
 	react_class_component(&b);
 	enum_uses::run(&b);
 	definitions::run(&b);
@@ -370,8 +378,12 @@ fn simple_export_in_many_files(b: &Bundle) {
 /// are assigned to the default export first
 mod e_exports_default {
 	use super::*;
-
-	pub fn test1(b: &Bundle) {
+	pub fn run(b: &Bundle) {
+		test1(b);
+		test2(b);
+		test3(b);
+	}
+	fn test1(b: &Bundle) {
 		let parser = b.parse(111113);
 		let deps = parser
 			.get_modules_that_require_this_module()
@@ -417,7 +429,7 @@ mod e_exports_default {
 		]
 		"#);
 	}
-	pub fn test2(b: &Bundle) {
+	fn test2(b: &Bundle) {
 		let parser = b.parse(111113);
 		let locs = b.dbg_gen_refs(&parser, 8, 8).unwrap();
 		assert_debug_snapshot!(locs, @r#"
@@ -431,7 +443,7 @@ mod e_exports_default {
 		]
 		"#);
 	}
-	pub fn test3(b: &Bundle) {
+	fn test3(b: &Bundle) {
 		let parser = b.parse(111113);
 		let locs = b.dbg_gen_refs(&parser, 11, 8).unwrap();
 		assert_debug_snapshot!(locs, @r#"
@@ -763,7 +775,41 @@ mod stores {
 }
 mod hover_text {
 	use super::*;
-	pub const fn run(b: &Bundle) {
-		// TODO
+	pub fn run(b: &Bundle) {
+		store_in_other_module(b);
+		store_in_other_module_2(b);
+	}
+	fn store_in_other_module(b: &Bundle) {
+		let parser = b.parse(555555);
+		let hov = dbg_hover(&parser, 38, 8)
+			.unwrap()
+			.unwrap();
+		assert_debug_snapshot!(hov, @r#"
+		(
+		    "MyTestingStore",
+		    "[38:11->38:13)",
+		)
+		"#);
+	}
+	fn store_in_other_module_2(b: &Bundle) {
+		let parser = b.parse(111111);
+		let hov = dbg_hover(&parser, 15, 23)
+			.unwrap()
+			.unwrap();
+		let hov2 = dbg_hover(&parser, 31, 23)
+			.unwrap()
+			.unwrap();
+		assert_debug_snapshot!(hov2, @r#"
+		(
+		    "MyTestingStore",
+		    "[31:23->31:25)",
+		)
+		"#);
+		assert_debug_snapshot!(hov, @r#"
+		(
+		    "MyTestingStore",
+		    "[15:23->15:25)",
+		)
+		"#);
 	}
 }
