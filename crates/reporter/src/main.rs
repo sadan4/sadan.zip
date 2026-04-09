@@ -19,7 +19,7 @@ use std::{
 	time::Instant,
 };
 use terminal_size::terminal_size;
-use tracing::{Level, error, warn};
+use tracing::{error, warn};
 use tracing_subscriber::util::SubscriberInitExt;
 
 use crate::{
@@ -37,10 +37,10 @@ struct Cli {
 	vc_opts: VencordOpts,
 	#[command(flatten)]
 	fetch_opts: FetchOpts,
-	/// If true, will dump the contents of the module, before any transformations, to `$PWD/{module_id}.js` whenever a module is involved in an error
+	/// Dump the contents of any module involved in an error, before any transformations, to `$PWD/{module_id}.js`
 	#[arg(long, default_value_t = false)]
 	dump_on_error: bool,
-	/// If true, will not print reporter warnings.
+	/// Do not print reporter warnings, only print errors.
 	///
 	/// This is not the same thing as a patch being noWarn
 	#[arg(long, default_value_t = false)]
@@ -77,13 +77,17 @@ fn install_tracing() {
 	// dbg!(args().collect_vec());
 	let filter_layer = EnvFilter::try_from_default_env()
 		.or_else(|_| {
-			EnvFilter::builder()
-				.with_default_directive(if cfg!(debug_assertions) {
-					Level::DEBUG.into()
-				} else {
-					Level::INFO.into()
-				})
-				.parse("")
+			EnvFilter::builder().parse(if cfg!(debug_assertions) {
+				[
+					"debug",
+					"h2::codec::framed_read=info",
+					"h2::codec::framed_write=info",
+					"hyper_util::client::legacy::pool=info",
+				]
+				.join(",")
+			} else {
+				String::from("info")
+			})
 		})
 		.unwrap();
 	let fmt_layer = fmt::layer()
@@ -141,21 +145,17 @@ async fn run(cli: Cli) -> Result<()> {
 	let bars = GLOBAL_BAR.clone();
 	let patches_bar =
 		Stage::new("Collecting Patches: ", None).and_attach(&bars);
-	let fetch_bar =
-		Stage::new("Resolving target build", None).and_attach(&bars);
 	// we need to keep the progress bars alive so that .suspend works properly
 	// SEE: https://github.com/console-rs/indicatif/issues/594
 	mem::forget(patches_bar.clone());
-	mem::forget(fetch_bar.clone());
 	// FIXME: don't wrap in spawn
 	let patches_fut =
 		tokio::spawn(
 			async move { collect_patches(cli.vc_opts, patches_bar).await },
 		);
+	let bars2 = bars.clone();
 	let target_build_fut =
-		tokio::spawn(
-			async move { fetch_build(cli.fetch_opts, fetch_bar).await },
-		);
+		tokio::spawn(async move { fetch_build(cli.fetch_opts, bars2).await });
 	let (plugins, target_build) = tokio::join!(patches_fut, target_build_fut);
 	let plugins = Arc::new(plugins??);
 	let target_build = Arc::new(target_build??);
@@ -197,12 +197,11 @@ async fn run(cli: Cli) -> Result<()> {
 				if cli.dump_on_error
 					&& let Some(m_id) = e.module_id()
 				{
-					if target_build.modules.contains_key(&m_id) {
+					if target_build.contains_key(&m_id) {
 						let target_build = target_build.clone();
 						tokio::spawn(async move {
 							let path = format!("{m_id}.js");
-							let module =
-								target_build.modules.get(&m_id).unwrap();
+							let module = target_build.get(&m_id).unwrap();
 							tokio::fs::write(path, module).await
 						});
 					} else {

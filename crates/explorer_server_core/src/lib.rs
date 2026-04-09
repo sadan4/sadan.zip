@@ -68,6 +68,29 @@ pub enum Channel {
 	Canary = 1,
 }
 
+impl Channel {
+	pub const fn asset_base(self) -> &'static str {
+		match self {
+			Self::Stable => "https://discord.com/assets/",
+			Self::Canary => "https://canary.discord.com/assets/",
+		}
+	}
+	pub const fn app_base(self) -> &'static str {
+		match self {
+			Self::Stable => "https://discord.com/app",
+			Self::Canary => "https://canary.discord.com/app",
+		}
+	}
+}
+
+pub fn asset_url(channel: Channel, mut path: &str) -> String {
+	if path.starts_with('/') {
+		path = &path[1..];
+	}
+	let asset_base = channel.asset_base();
+	format!("{asset_base}{path}")
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EncodableBuild {
 	pub channel: Channel,

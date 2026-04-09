@@ -29,6 +29,13 @@ tower-http.workspace = true
 tar.workspace = true
 html_parser.workspace = true
 const_format.workspace = true
+oxc_allocator.workspace = true
+webpack_ast_parser.workspace = true
+webpack_chunk_parser.workspace = true
+itertools.workspace = true
+memchr.workspace = true
+reqwest-retry.workspace = true
+reqwest-middleware.workspace = true
 
 [lints]
 workspace = true

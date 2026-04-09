@@ -1,19 +1,41 @@
 mod migrations;
+mod scraper;
 mod server;
 mod watcher;
 
 use std::process;
 
-use tracing::{debug, error, info, warn};
+use tracing::{Level, debug, error, info, warn};
 
 use migrations::migrate_if_needed;
+use tracing_subscriber::{
+	EnvFilter,
+	layer::SubscriberExt,
+	util::SubscriberInitExt,
+};
 
 #[allow(dead_code)]
 const BIN_EXT: &str = if cfg!(windows) { ".exe" } else { "" };
 
+fn install_tracing() {
+	let filter_layer = EnvFilter::try_from_default_env()
+		.or_else(|_| {
+			EnvFilter::builder().parse(if true /* cfg!(debug_assertions) */ {
+				"trace,h2=info,hyper=info,rustls=info,reqwest::retry=debug"
+			} else {
+				"info"
+			})
+		})
+		.unwrap();
+	tracing_subscriber::registry()
+		.with(tracing_subscriber::fmt::layer())
+		.with(filter_layer)
+		.init();
+}
+
 #[tokio::main]
 async fn main() {
-	tracing_subscriber::fmt::init();
+	install_tracing();
 	info!("Starting explorer server...");
 	// TODO: make async
 	match migrate_if_needed() {

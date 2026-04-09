@@ -224,4 +224,5 @@
     "Invoke-Expression": false,
     "iex": false
   },
+  "rust-analyzer.checkOnSave": true,
 }

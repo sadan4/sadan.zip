@@ -1,6 +1,7 @@
 use derive_more::IsVariant;
 use miette::{Diagnostic, SourceSpan};
 use thiserror::Error;
+use webpack_ast_parser::types::ModuleId;
 
 #[derive(Error, Debug, Diagnostic, IsVariant)]
 pub enum ReporterError {
@@ -27,7 +28,7 @@ pub enum ReporterError {
 	ReplaceMatchNotFound {
 		#[label("Caused by this match")]
 		match_span: SourceSpan,
-		module_id: u32,
+		module_id: ModuleId,
 		plugin_id: u16,
 	},
 	#[error("Replace Match Ambiguous")]
@@ -40,7 +41,7 @@ pub enum ReporterError {
 		#[label("Caused by this match")]
 		match_span: SourceSpan,
 		plugin_id: u16,
-		module_id: u32,
+		module_id: ModuleId,
 	},
 	#[error("Replace Syntax Error")]
 	#[diagnostic[
@@ -54,7 +55,7 @@ pub enum ReporterError {
 		#[source]
 		#[diagnostic_source]
 		cause: Box<dyn Diagnostic + Send + Sync>,
-		module_id: u32,
+		module_id: ModuleId,
 		plugin_id: u16,
 	},
 	#[error("Find Ambiguous")]
@@ -85,7 +86,7 @@ pub enum ReporterError {
 		)]
 		find_span: SourceSpan,
 		plugin_id: u16,
-		ok_id: u32,
+		ok_id: ModuleId,
 		err_ids: Vec<u32>,
 		extra_help: &'static str,
 	},
@@ -117,7 +118,7 @@ impl ReporterError {
 		}
 	}
 
-	pub const fn module_id(&self) -> Option<u32> {
+	pub const fn module_id(&self) -> Option<ModuleId> {
 		match self {
 			Self::FindNotFound { .. }
 			| Self::BadRegexSyntax { .. }

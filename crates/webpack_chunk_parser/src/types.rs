@@ -2,21 +2,7 @@
 use derive_more::{From, Into};
 use serde::Serialize;
 use smol_str::SmolStr;
-
-#[derive(
-	Debug,
-	Clone,
-	Copy,
-	PartialEq,
-	Eq,
-	Hash,
-	From,
-	Into,
-	PartialOrd,
-	Ord,
-	Serialize,
-)]
-pub struct ModuleId(pub u32);
+use webpack_ast_parser::types::ModuleId;
 
 #[derive(Debug, Clone, Into)]
 pub(crate) struct ModuleEntry(pub(crate) ModuleId, pub(crate) String);

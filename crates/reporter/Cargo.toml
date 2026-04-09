@@ -43,6 +43,14 @@ syntect.workspace = true
 memchr.workspace = true
 bitflags.workspace = true
 num-bigint.workspace = true
+const_format.workspace = true
+bytes.workspace = true
+oxc_allocator.workspace = true
+reqwest-middleware.workspace = true
+reqwest-retry.workspace = true
+webpack_chunk_parser.workspace = true
+html_parser.workspace = true
+webpack_ast_parser.workspace = true
 
 [dev-dependencies]
 insta.workspace = true

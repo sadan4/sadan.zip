@@ -1,9 +1,9 @@
-mod parser;
 mod spawn;
 use std::{fs, io, time::Duration};
 
 use anyhow::{Context as _, Result};
 use reqwest::Response;
+use tokio::time;
 use tracing::{error, info, instrument, trace};
 
 use explorer_server_core::{
@@ -13,9 +13,12 @@ use explorer_server_core::{
 	is_build_downloaded,
 };
 
-use crate::watcher::{
-	parser::{ParsedHtml, parse_html},
-	spawn::{BuildParserWorker as _, DefaultBuildParserWorker},
+use crate::{
+	scraper::{
+		html_parser::{ParsedHtml, parse_html},
+		scrape_build,
+	},
+	watcher::spawn::{BuildParserWorker as _, DefaultBuildParserWorker},
 };
 
 const fn get_app_url(c: Channel) -> &'static str {
@@ -28,9 +31,9 @@ const fn get_app_url(c: Channel) -> &'static str {
 const BUILD_ID_HEADER: &str = "x-build-id";
 
 #[derive(Debug)]
-struct Build {
+pub struct Build {
 	response: Response,
-	build_id: String,
+	build_hash: String,
 }
 
 #[instrument]
@@ -43,15 +46,15 @@ async fn get_build(channel: Channel) -> Result<Option<Build>> {
 	if build_id.is_empty() {
 		return Ok(None);
 	}
-	let build_id = build_id.to_str()?.to_string();
-	if is_build_downloaded(&build_id)? {
+	let build_hash = build_id.to_str()?.to_string();
+	if is_build_downloaded(&build_hash)? {
 		trace!("build not changed");
 		return Ok(None);
 	}
-	let build_path = get_build_path(&build_id)?;
+	let build_path = get_build_path(&build_hash)?;
 	fs::create_dir_all(build_path)?;
 	Ok(Some(Build {
-		build_id,
+		build_hash,
 		response: resp,
 	}))
 }
@@ -61,7 +64,7 @@ async fn write_to_pipe(
 	channel: Channel,
 	mut tx: io::PipeWriter,
 ) -> Result<()> {
-	let build_hash = build.build_id;
+	let build_hash = build.build_hash;
 
 	let ParsedHtml {
 		global_env_text,
@@ -95,12 +98,22 @@ async fn run_js_handler(build: Build, channel: Channel) -> Result<()> {
 #[instrument]
 async fn handle_build(c: Channel) -> Result<()> {
 	if let Some(build) = get_build(c).await? {
-		info!("new {c:?} build: {}", build.build_id);
+		info!("new {c:?} build: {}", build.build_hash);
 		// FIXME: handle run_js_handler errs
 		tokio::spawn(async move {
-			match run_js_handler(build, c).await {
-				Ok(()) => {}
+			let start = time::Instant::now();
+			match scrape_build(build.response, c, build.build_hash).await {
+				Ok(_) => {
+					info!(
+						"finished handling {c:?} build in {:?}",
+						start.elapsed()
+					);
+				}
 				Err(e) => {
+					info!(
+						"finished handling {c:?} build in {:?}",
+						start.elapsed()
+					);
 					error!("Failed to spawn js handler: {e:?}");
 				}
 			}

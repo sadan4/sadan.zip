@@ -11,6 +11,9 @@ count.txt
 .output
 .vinxi
 todos.json
+perf.data
+perf.data.old
+flamegraph.svg
 
 # Local Netlify folder
 .netlify
@@ -25,6 +28,5 @@ builds
 *.pending-snap
 
 # Added by cargo
-
 /target
 /.direnv

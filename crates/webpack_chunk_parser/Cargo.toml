@@ -12,6 +12,7 @@ serde.workspace = true
 smol_str.workspace = true
 memchr.workspace = true
 regex.workspace = true
+webpack_ast_parser.workspace = true
 
 [dev-dependencies]
 insta.workspace = true

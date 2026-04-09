@@ -1,7 +1,6 @@
 #![allow(clippy::unreadable_literal, reason = "we want verbatim module ids")]
 use crate::{
 	JsHashEntry,
-	ModuleId,
 	Sealed,
 	base::{WebpackChunkParser, WebpackChunkParserImpl},
 };
@@ -32,6 +31,7 @@ use oxc::{
 };
 use regex::Regex;
 use smol_str::SmolStr;
+use webpack_ast_parser::types::ModuleId;
 use std::sync::LazyLock;
 
 // FIXME: add basic caching with OnceCell

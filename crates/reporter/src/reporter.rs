@@ -5,7 +5,7 @@ use std::{
 	time::{Duration, Instant},
 };
 
-use crate::{diag::ReporterError, util::Stage, vc::Plugin};
+use crate::{diag::ReporterError, fetcher::ScrapedOutput, util::Stage, vc::Plugin};
 use anyhow::{Result, anyhow};
 use derive_more::IsVariant;
 use explorer_types::FullBundle;
@@ -24,6 +24,7 @@ use tokio::{
 	task,
 };
 use vencord_ast_parser::{Match, Patch, Replacement, Replacer};
+use webpack_ast_parser::types::ModuleId;
 
 #[derive(Debug)]
 pub enum Msg {
@@ -40,7 +41,7 @@ impl From<ReporterError> for Msg {
 
 #[track_caller]
 pub fn report_broken_patches(
-	target_build: Arc<FullBundle>,
+	target_build: Arc<ScrapedOutput>,
 	plugins: Arc<Vec<Plugin>>,
 ) -> mpsc::Receiver<Msg> {
 	const BUFFER_SIZE: usize = 0x4000;
@@ -60,16 +61,16 @@ struct ReporterState<'a> {
 	tx: &'a mut mpsc::Sender<Msg>,
 	m_bar: MultiProgress,
 	patches: HashSet<&'a Patch>,
-	find_map: HashMap<&'a Patch, Vec<u32>>,
+	find_map: HashMap<&'a Patch, Vec<ModuleId>>,
 	alloc: Allocator,
-	build: &'a FullBundle,
-	stats: HashMap<u32, Stats>,
+	build: &'a ScrapedOutput,
+	stats: HashMap<ModuleId, Stats>,
 }
 
 impl<'a> ReporterState<'a> {
 	fn new(
 		plugins: &'a [Plugin],
-		build: &'a FullBundle,
+		build: &'a ScrapedOutput,
 		tx: &'a mut mpsc::Sender<Msg>,
 	) -> Self {
 		let (pb_tx, rx) = oneshot::channel();
@@ -79,7 +80,7 @@ impl<'a> ReporterState<'a> {
 			.iter()
 			.flat_map(|p| p.patches.iter())
 			.collect();
-		let stats = HashMap::with_capacity(build.modules.len());
+		let stats = HashMap::with_capacity(build.len());
 		let mut find_map: HashMap<_, _> = patches
 			.iter()
 			.map(|&p| (p, Vec::new()))
@@ -143,8 +144,8 @@ impl<'a> ReporterState<'a> {
 	}
 	fn collect_finds(&mut self) {
 		let progress = self
-			.stage("Collecting find matches", Some(self.build.modules.len()));
-		for (&m_id, m_txt) in &self.build.modules {
+			.stage("Collecting find matches", Some(self.build.len()));
+		for (&m_id, m_txt) in self.build {
 			for patch in &self.patches {
 				if matches_module(m_txt, patch) {
 					// this should never error because we pre-fill all the keys with empty vectors in the ctor
@@ -201,14 +202,14 @@ impl<'a> ReporterState<'a> {
 					} else {
 						Default::default()
 					},
-					err_ids: failed,
+					err_ids: failed.into_iter().map(u32::from).collect(),
 				}
 			} else {
 				ReporterError::FindAmbiguous {
 					find_span: patch.find.s.into(),
 					plugin_id: patch.plugin_id(),
-					ok_ids: good,
-					err_ids: failed,
+					ok_ids: good.into_iter().map(u32::from).collect(),
+					err_ids: failed.into_iter().map(u32::from).collect(),
 				}
 			};
 			self.tx
@@ -238,13 +239,12 @@ impl<'a> ReporterState<'a> {
 	fn test_patch_against_module(
 		&mut self,
 		patch: &'a Patch,
-		m_id: u32,
+		m_id: ModuleId,
 		mut errs: Option<&mut Vec<ReporterError>>,
 	) -> PatchStatus {
 		let mut status = PatchStatus::Ok;
 		let m_txt = self
 			.build
-			.modules
 			.get(&m_id)
 			.expect("invalid module id");
 		let mut last_src = format!("0,{m_txt}");
@@ -340,7 +340,7 @@ impl<'a> ReporterState<'a> {
 		is_global: bool,
 		no_warn: bool,
 		replacement: &Replacement,
-		m_id: u32,
+		m_id: ModuleId,
 		plugin_id: u16,
 		report: &mut impl FnMut(ReporterError),
 	) -> bool {
@@ -397,7 +397,7 @@ impl<'a> ReporterState<'a> {
 	fn check_and_update_syntax(
 		&mut self,
 		new_src: &str,
-		m_id: u32,
+		m_id: ModuleId,
 	) -> Result<(), Box<dyn Diagnostic + Send + Sync>> {
 		let result = {
 			let chk = check_syntax_errors(
@@ -420,7 +420,7 @@ impl<'a> ReporterState<'a> {
 }
 
 fn run_reporter(
-	build: &FullBundle,
+	build: &ScrapedOutput,
 	plugins: &[Plugin],
 	tx: &mut mpsc::Sender<Msg>,
 ) {

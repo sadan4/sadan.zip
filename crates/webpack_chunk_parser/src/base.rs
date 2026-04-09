@@ -2,10 +2,11 @@ use std::collections::HashMap;
 
 use ast_parser::exts::{ExpressionExt, NumericLiteralExt as _};
 use oxc::ast::ast::{ObjectExpression, ObjectPropertyKind};
+use webpack_ast_parser::types::ModuleId;
 
 use crate::{
 	Sealed,
-	types::{ModuleEntry, ModuleId},
+	types::{ModuleEntry},
 };
 
 pub(crate) trait WebpackChunkParserImpl<'ast>: Sealed {
@@ -30,30 +31,42 @@ pub(crate) trait WebpackChunkParserImpl<'ast>: Sealed {
 				.unwrap();
 			// (...) {...} of `{foo(...) {...}}`
 			let body = &self.get_source_text()[func.span];
-			format!("0,function{body}")
+			format!("function{body}")
 		} else {
 			let func = entry.value.as_function_expression()?;
 			// function(...) {...} of `{foo: function(...) {...}}`
 			let body = &self.get_source_text()[func.span];
-			format!("0,{body}")
+			body.to_string()
+			// format!("{body}")
 		};
 		Some(ModuleEntry(key.into(), src))
 	}
 }
 
 pub trait WebpackChunkParser<'ast> {
-	fn get_defined_modules(&self) -> Option<HashMap<ModuleId, String>>;
+	fn collect_defined_module_into(
+		&self,
+		target: &mut impl Extend<(ModuleId, String)>,
+	) -> Option<()>;
+	fn get_defined_modules(&self) -> Option<HashMap<ModuleId, String>> {
+		let mut ret = HashMap::new();
+		self.collect_defined_module_into(&mut ret)?;
+		Some(ret)
+	}
 }
 
 impl<'ast, T: WebpackChunkParserImpl<'ast>> WebpackChunkParser<'ast> for T {
-	fn get_defined_modules(&self) -> Option<HashMap<ModuleId, String>> {
-		let ret = self
+	fn collect_defined_module_into(
+		&self,
+		target: &mut impl Extend<(ModuleId, String)>,
+	) -> Option<()> {
+		let other = self
 			.get_module_object()?
 			.properties
 			.iter()
 			.filter_map(|entry| self.try_parse_chunk_entry(entry))
-			.map(Into::into)
-			.collect();
-		Some(ret)
+			.map(Into::into);
+		target.extend(other);
+		Some(())
 	}
 }
