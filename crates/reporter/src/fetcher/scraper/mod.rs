@@ -93,7 +93,7 @@ pub async fn scrape_build(
 			Stage::new("Parsing Lazy Chunks: ", Some(chunks.len()))
 				.and_attach(&bars),
 		);
-		mem::forget(chunk_bar.clone());
+		mem::forget((*chunk_bar).clone());
 
 		debug!("Found {} chunks", chunks.len());
 		chunk_futures = chunks
@@ -105,7 +105,7 @@ pub async fn scrape_build(
 				let pool = pool.clone();
 				let chunk_bar = chunk_bar.clone();
 				task::spawn(async move {
-					let _ = chunk_bar.step_guard();
+					let step_guard = chunk_bar.step_guard();
 					let permit = pending_limit.acquire().await.unwrap();
 					let chunk_url = asset_url(channel, &format!("{hash}.js"));
 					let chunk_bts = client
@@ -115,8 +115,10 @@ pub async fn scrape_build(
 						.bytes()
 						.await?;
 					drop(permit);
+					step_guard.forget();
 					let chunk_modules =
 						task::spawn_blocking(move || -> Result<_> {
+							let _ = chunk_bar.step_guard();
 							if WORKER_FINDER.find(&chunk_bts).is_some() {
 								trace!("Skipping worker chunk");
 								return Ok(HashMap::new());

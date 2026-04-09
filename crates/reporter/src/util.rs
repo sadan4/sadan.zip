@@ -1,8 +1,5 @@
 use std::{
-	borrow::Cow,
-	io,
-	str::Utf8Error,
-	time::Duration,
+	borrow::Cow, io, mem::ManuallyDrop, str::Utf8Error, time::Duration
 };
 
 use anyhow::{Context as _, Result};
@@ -76,6 +73,12 @@ impl Stage {
 }
 
 pub struct StageStepGuard<'a> (&'a Stage);
+
+impl<'a> StageStepGuard<'a> {
+	pub fn forget(self) {
+		ManuallyDrop::new(self);
+	}
+}
 
 impl Drop for StageStepGuard<'_> {
 	fn drop(&mut self) {
