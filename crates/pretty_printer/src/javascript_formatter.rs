@@ -169,7 +169,11 @@ fn is_punct(tk: Kind) -> bool {
 	!tk.is_number()
 		&& tk != Kind::RegExp
 		&& tk != Kind::String
-		&& tk.is_identifier_or_keyword()
+		&& !tk.is_identifier_or_keyword()
+}
+
+fn is_kw(tk: Kind) -> bool {
+	tk.is_any_keyword() && tk != Kind::True && tk != Kind::False && tk != Kind::Null
 }
 
 const fn is_block(stmt: &Statement) -> bool {
@@ -314,7 +318,7 @@ impl<'a, const INDENT_SIZE: usize> JavaScriptFormatter<'a, INDENT_SIZE> {
 		match node {
 			N::ContinueStatement(ContinueStatement { label, .. })
 			| N::BreakStatement(BreakStatement { label, .. })
-				if label.is_some() && tk.is_any_keyword() =>
+				if label.is_some() && is_kw(tk) =>
 			{
 				&[F::Token, F::Space]
 			}
@@ -449,7 +453,7 @@ impl<'a, const INDENT_SIZE: usize> JavaScriptFormatter<'a, INDENT_SIZE> {
 			N::ObjectExpression(_) if tk == TK::Comma => {
 				&[F::Token, F::NewLine]
 			}
-			N::IfStatement(n) if tk == TK::RCurly => {
+			N::IfStatement(n) if tk == TK::RParen => {
 				if is_block(&n.consequent) {
 					&[F::Token, F::Space]
 				} else {
@@ -555,6 +559,7 @@ impl<'a, const INDENT_SIZE: usize> JavaScriptFormatter<'a, INDENT_SIZE> {
 			N::ClassBody(_) if tk == TK::RCurly => {
 				&[F::Dedent, F::NewLine, F::Token, F::NewLine]
 			}
+			N::YieldExpression(_) | N::Super(_) | N::ImportExpression(_) => &[F::Token],
 			N::ExportAllDeclaration(_) if tk == TK::Star => {
 				&[F::Space, F::Token, F::Space]
 			}
@@ -583,7 +588,7 @@ impl<'a, const INDENT_SIZE: usize> JavaScriptFormatter<'a, INDENT_SIZE> {
 				&[F::Token, F::Space]
 			}
 
-			_ if tk.is_any_keyword() && tk != TK::This => &[F::Token, F::Space],
+			_ if is_kw(tk) && tk != TK::This => &[F::Token, F::Space],
 			_ => &[F::Token],
 		}
 	}
