@@ -2286,8 +2286,12 @@ dependencies = [
  "anyhow",
  "const-str",
  "derive_more",
+ "insta",
+ "macros",
  "oxc",
  "regress",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]

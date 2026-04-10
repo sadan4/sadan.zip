@@ -124,10 +124,10 @@ mod tests {
         "#;
 		let out = test_pass!(code, InlineConstantsPass::default());
 		assert_snapshot!(out, @"
-        const foo = 2;
-        let bar = 2 + 1;
-        console.log(2 + 1, 2);
-        ");
+		const foo = 2;
+		let bar = 2 + 1;
+		console.log(2 + 1, 2);
+		");
 	}
 
 	#[test]
@@ -139,10 +139,10 @@ mod tests {
         "#;
 		let out = test_pass!(code, InlineConstantsPass::default());
 		assert_snapshot!(out, @"
-        let foo = 1;
-        foo = 2;
-        console.log(foo);
-        ");
+		let foo = 1;
+		foo = 2;
+		console.log(foo);
+		");
 	}
 
 	#[test]
@@ -153,9 +153,9 @@ mod tests {
         "#;
 		let out = test_pass!(code, InlineConstantsPass::default());
 		assert_snapshot!(out, @"
-        const foo = Date.now();
-        console.log(foo);
-        ");
+		const foo = Date.now();
+		console.log(foo);
+		");
 	}
 
 	#[test]
@@ -167,10 +167,10 @@ mod tests {
         "#;
 		let out = test_pass!(code, InlineConstantsPass::default());
 		assert_snapshot!(out, @"
-        const foo = { bar: 'baz' };
-        type Foo = typeof foo;
-        console.log({ bar: 'baz' });
-        ");
+		const foo = { bar: 'baz' };
+		type Foo = typeof foo;
+		console.log({ bar: 'baz' });
+		");
 	}
 
 	#[test]
@@ -181,9 +181,9 @@ mod tests {
         "#;
 		let out = test_pass!(code, InlineConstantsPass::default());
 		assert_snapshot!(out, @"
-        const foo = 1, bar = 'x';
-        console.log(1, 'x');
-        ");
+		const foo = 1, bar = 'x';
+		console.log(1, 'x');
+		");
 	}
 
 	#[test]
@@ -194,9 +194,9 @@ mod tests {
         "#;
 		let out = test_pass!(code, InlineConstantsPass::default());
 		assert_snapshot!(out, @"
-        export const foo = 1;
-        console.log(1);
-        ");
+		export const foo = 1;
+		console.log(1);
+		");
 	}
 
 	#[test]
@@ -207,8 +207,8 @@ mod tests {
         "#;
 		let out = test_pass!(code, InlineConstantsPass::default());
 		assert_snapshot!(out, @"
-        export let foo = 1;
-        console.log(foo);
-        ");
+		export let foo = 1;
+		console.log(foo);
+		");
 	}
 }

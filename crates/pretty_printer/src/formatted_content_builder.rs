@@ -11,7 +11,7 @@ use crate::{
 
 #[derive(Debug)]
 /// if INDENT_SIZE is 0, tabs will be used
-pub struct FormattedContentBuilder<'s, const INDENT_SIZE: usize = 0> {
+pub struct FormattedContentBuilder<'s, const INDENT_SIZE: usize = 4> {
 	#[debug(skip)]
 	alloc: &'s Allocator,
 	last_original_position: u32,
@@ -29,9 +29,8 @@ enum IndentSize {
 	Dynamic(usize),
 }
 
-struct Buf<const LEN: usize>([&'static str; LEN]);
-
-impl<'a, const INDENT_SIZE: usize> FormattedContentBuilder<'a, INDENT_SIZE> {
+impl<'a, const INDENT_SIZE: usize> FormattedContentBuilder<'a, INDENT_SIZE>
+{
 	const SPACES: &'static [u8] = &[b' '; INDENT_SIZE];
 	const INDENT_STR: &'static str = if INDENT_SIZE == 0 {
 		"\t"
@@ -56,11 +55,11 @@ impl<'a, const INDENT_SIZE: usize> FormattedContentBuilder<'a, INDENT_SIZE> {
 		}
 	}
 
-	const fn set_enforce_space_between_words(&mut self, value: bool) -> bool {
+	pub const fn set_enforce_space_between_words(&mut self, value: bool) -> bool {
 		mem::replace(&mut self.enforce_space_before_words, value)
 	}
 
-	fn add_token(&mut self, token: &'a str) {
+	pub fn add_token(&mut self, token: &'a str) {
 		// Skip the regex check if `addSoftSpace` would be a no-op
 		if self.enforce_space_before_words
 			&& self.hard_spaces == 0
@@ -81,16 +80,16 @@ impl<'a, const INDENT_SIZE: usize> FormattedContentBuilder<'a, INDENT_SIZE> {
 		self.add_text(token);
 	}
 
-	const fn add_soft_space(&mut self) {
+	pub const fn add_soft_space(&mut self) {
 		if self.hard_spaces == 0 {
 			self.soft_space = true;
 		}
 	}
-	const fn add_hard_space(&mut self) {
+	pub const fn add_hard_space(&mut self) {
 		self.soft_space = false;
 		self.hard_spaces += 1;
 	}
-	fn add_new_line(&mut self, no_squash: Option<bool>) {
+	pub fn add_new_line(&mut self, no_squash: Option<bool>) {
 		let no_squash = no_squash.unwrap_or(false);
 		// Avoid leading newlines.
 		if self.formatted_content.is_empty() {
@@ -106,20 +105,20 @@ impl<'a, const INDENT_SIZE: usize> FormattedContentBuilder<'a, INDENT_SIZE> {
 			};
 		}
 	}
-	const fn increase_nesting_level(&mut self) {
+	pub const fn increase_nesting_level(&mut self) {
 		self.nesting_level += 1;
 	}
-	const fn decrease_nesting_level(&mut self) {
+	pub const fn decrease_nesting_level(&mut self) {
 		if self.nesting_level != 0 {
 			self.nesting_level -= 1;
 		}
 	}
-	fn into_content(self) -> String {
+	pub fn into_content(self) -> String {
 		self.formatted_content.to_string()
 	}
 	fn append_formatting(&mut self) {
 		if self.new_lines != 0 {
-			for i in 0..self.new_lines {
+			for _ in 0..self.new_lines {
 				self.add_text("\n");
 			}
 			for _ in 0..self.nesting_level {
@@ -167,6 +166,8 @@ fn is_valid_ident_char(c: char) -> bool {
 }
 
 mod rope {
+    use tracing::trace;
+
 
 	#[derive(Debug, Clone)]
 	pub struct Rope<'s> {
@@ -193,6 +194,7 @@ mod rope {
 			self.total_len == 0
 		}
 		pub fn to_string(&self) -> String {
+			trace!("num ending rope pieces: {}", self.strs.len());
 			let mut result = String::new();
 			result.reserve_exact(self.total_len);
 			for s in &self.strs {

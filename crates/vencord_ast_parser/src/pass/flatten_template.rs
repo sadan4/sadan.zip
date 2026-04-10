@@ -106,9 +106,9 @@ mod tests {
         "#;
 		let out = test_pass!(code, FlattenTemplatePass);
 		assert_snapshot!(out, /* language=TypeScript */ @"
-        const msg = 'hello world';
-        console.log(msg);
-        ");
+		const msg = 'hello world';
+		console.log(msg);
+		");
 	}
 
 	#[test]
@@ -129,10 +129,10 @@ mod tests {
         "#;
 		let out = test_pass!(code, FlattenTemplatePass);
 		assert_snapshot!(out, /* language=TypeScript */ @"
-        const name = 'world';
-        const msg = `hello ${name}`;
-        console.log(msg);
-        ");
+		const name = 'world';
+		const msg = `hello ${name}`;
+		console.log(msg);
+		");
 	}
 
 	#[test]
@@ -143,9 +143,9 @@ mod tests {
         "#;
 		let out = test_pass!(code, FlattenTemplatePass);
 		assert_snapshot!(out, /* language=TypeScript */ @"
-        const msg = 'x3ytrue';
-        console.log(msg);
-        ");
+		const msg = 'x3ytrue';
+		console.log(msg);
+		");
 	}
 
 	#[test]
@@ -157,10 +157,10 @@ mod tests {
         "#;
 		let out = test_pass!(code, FlattenTemplatePass);
 		assert_snapshot!(out, /* language=TypeScript */ @"
-        const x = 'dynamic';
-        const msg = `start123middle${x}end`;
-        console.log(msg);
-        ");
+		const x = 'dynamic';
+		const msg = `start123middle${x}end`;
+		console.log(msg);
+		");
 	}
 
 	#[test]
@@ -172,10 +172,10 @@ mod tests {
         "#;
 		let out = test_pass!(code, FlattenTemplatePass);
 		assert_snapshot!(out, /* language=TypeScript */ @"
-        const x = 'dynamic';
-        const msg = `a1b2c${x}d3e`;
-        console.log(msg);
-        ");
+		const x = 'dynamic';
+		const msg = `a1b2c${x}d3e`;
+		console.log(msg);
+		");
 	}
 
 	#[test]
@@ -186,9 +186,9 @@ mod tests {
         "#;
 		let out = test_pass!(code, FlattenTemplatePass);
 		assert_snapshot!(out, /* language=TypeScript */ @"
-        const msg = `prefixfalse${name}42suffix`;
-        console.log(msg);
-        ");
+		const msg = `prefixfalse${name}42suffix`;
+		console.log(msg);
+		");
 	}
 
 	#[test]
@@ -201,9 +201,9 @@ mod tests {
 		// Processes right to left: merges ${4}${5}, then stops at ${x}
 		// Note: 'var' literal stays because it goes through plain template flatten first
 		assert_snapshot!(out, /* language=TypeScript */ @"
-        const x = 'var';
-        const msg = `123${x}45`;
-        ");
+		const x = 'var';
+		const msg = `123${x}45`;
+		");
 	}
 
 	#[test]
@@ -214,9 +214,9 @@ mod tests {
         "#;
 		let out = test_pass!(code, FlattenTemplatePass);
 		assert_snapshot!(out, /* language=TypeScript */ @"
-        const msg = `${foo}${bar}${baz}`;
-        console.log(msg);
-        ");
+		const msg = `${foo}${bar}${baz}`;
+		console.log(msg);
+		");
 	}
 
 	#[test]
@@ -227,9 +227,9 @@ mod tests {
         "#;
 		let out = test_pass!(code, FlattenTemplatePass);
 		assert_snapshot!(out, /* language=TypeScript */ @"
-        const msg = 'value: 123after';
-        console.log(msg);
-        ");
+		const msg = 'value: 123after';
+		console.log(msg);
+		");
 	}
 
 	#[test]
@@ -240,9 +240,9 @@ mod tests {
         "#;
 		let out = test_pass!(code, FlattenTemplatePass);
 		assert_snapshot!(out, /* language=TypeScript */ @"
-        const msg = 'large: 9007199254740991after';
-        console.log(msg);
-        ");
+		const msg = 'large: 9007199254740991after';
+		console.log(msg);
+		");
 	}
 
 	#[test]
@@ -253,8 +253,8 @@ mod tests {
         "#;
 		let out = test_pass!(code, FlattenTemplatePass);
 		assert_snapshot!(out, /* language=TypeScript */ @"
-        const msg = 'before```after';
-        console.log(msg);
-        ");
+		const msg = 'before```after';
+		console.log(msg);
+		");
 	}
 }

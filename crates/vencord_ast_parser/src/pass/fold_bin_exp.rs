@@ -282,9 +282,9 @@ mod tests {
         "#;
 		let out = test_pass!(code, FoldBinaryExpressionsPass);
 		assert_snapshot!(out, /* language=TypeScript */ @"
-        const value = 3;
-        console.log(value);
-        ");
+		const value = 3;
+		console.log(value);
+		");
 	}
 
 	#[test]
@@ -296,10 +296,10 @@ mod tests {
         "#;
 		let out = test_pass!(code, FoldBinaryExpressionsPass);
 		assert_snapshot!(out, /* language=TypeScript */ @"
-        const left = 'x';
-        const mid = 1;
-        const out = `${left}${mid}y`;
-        ");
+		const left = 'x';
+		const mid = 1;
+		const out = `${left}${mid}y`;
+		");
 	}
 
 	#[test]
@@ -310,9 +310,9 @@ mod tests {
         "#;
 		let out = test_pass!(code, FoldBinaryExpressionsPass);
 		assert_snapshot!(out, /* language=TypeScript */ @"
-        const mid = 1;
-        const out = `x${mid}y`;
-        ");
+		const mid = 1;
+		const out = `x${mid}y`;
+		");
 	}
 
 	#[test]
@@ -324,10 +324,10 @@ mod tests {
         "#;
 		let out = test_pass!(code, FoldBinaryExpressionsPass);
 		assert_snapshot!(out, /* language=TypeScript */ @"
-        const head = 'x';
-        const mid = 1;
-        const out = `${head}${mid}y`;
-        ");
+		const head = 'x';
+		const mid = 1;
+		const out = `${head}${mid}y`;
+		");
 	}
 
 	#[test]
@@ -339,10 +339,10 @@ mod tests {
         "#;
 		let out = test_pass!(code, FoldBinaryExpressionsPass);
 		assert_snapshot!(out, /* language=TypeScript */ @"
-        const mid = 1;
-        const tail = 'y';
-        const out = `x${mid}${tail}`;
-        ");
+		const mid = 1;
+		const tail = 'y';
+		const out = `x${mid}${tail}`;
+		");
 	}
 
 	#[test]
@@ -354,10 +354,10 @@ mod tests {
         "#;
 		let out = test_pass!(code, FoldBinaryExpressionsPass);
 		assert_snapshot!(out, /* language=TypeScript */ @"
-        const left = 1;
-        const right = 2;
-        const out = `x${left}${right}y`;
-        ");
+		const left = 1;
+		const right = 2;
+		const out = `x${left}${right}y`;
+		");
 	}
 	#[test]
 	fn folds_template_literals_with_many_vars() {
@@ -369,11 +369,11 @@ mod tests {
         "#;
 		let out = test_pass!(code, FoldBinaryExpressionsPass);
 		assert_snapshot!(out, /* language=TypeScript */ @"
-        const a = 1;
-        const b = 2;
-        let c = 3;
-        const out = `#${a}#${b}${c}#${a}#`;
-        ");
+		const a = 1;
+		const b = 2;
+		let c = 3;
+		const out = `#${a}#${b}${c}#${a}#`;
+		");
 	}
 
 	#[test]
@@ -384,9 +384,9 @@ mod tests {
         "#;
 		let out = test_pass!(code, FoldBinaryExpressionsPass);
 		assert_snapshot!(out, /* language=TypeScript */ @"
-        const value = 1048576n;
-        console.log(value);
-        ");
+		const value = 1048576n;
+		console.log(value);
+		");
 	}
 
 	#[test]
@@ -397,9 +397,9 @@ mod tests {
         "#;
 		let out = test_pass!(code, FoldBinaryExpressionsPass);
 		assert_snapshot!(out, /* language=TypeScript */ @"
-        const value = 579n;
-        console.log(value);
-        ");
+		const value = 579n;
+		console.log(value);
+		");
 	}
 
 	#[test]
@@ -411,9 +411,9 @@ mod tests {
 		let out = test_pass!(code, FoldBinaryExpressionsPass);
 		// Currently not supported - multiplication operations on BigInts are not folded
 		assert_snapshot!(out, /* language=TypeScript */ @"
-        const value = 100n * 200n;
-        console.log(value);
-        ");
+		const value = 100n * 200n;
+		console.log(value);
+		");
 	}
 
 	#[test]
@@ -425,9 +425,9 @@ mod tests {
 		let out = test_pass!(code, FoldBinaryExpressionsPass);
 		// Currently not supported - subtraction operations on BigInts are not folded
 		assert_snapshot!(out, /* language=TypeScript */ @"
-        const value = 1000n - 42n;
-        console.log(value);
-        ");
+		const value = 1000n - 42n;
+		console.log(value);
+		");
 	}
 
 	#[test]
@@ -438,9 +438,9 @@ mod tests {
         "#;
 		let out = test_pass!(code, FoldBinaryExpressionsPass);
 		assert_snapshot!(out, /* language=TypeScript */ @"
-        const value = 7n;
-        console.log(value);
-        ");
+		const value = 7n;
+		console.log(value);
+		");
 	}
 
 	#[test]
@@ -451,9 +451,9 @@ mod tests {
         "#;
 		let out = test_pass!(code, FoldBinaryExpressionsPass);
 		assert_snapshot!(out, /* language=TypeScript */ @"
-        const value = 1n;
-        console.log(value);
-        ");
+		const value = 1n;
+		console.log(value);
+		");
 	}
 
 	#[test]
@@ -464,8 +464,8 @@ mod tests {
         "#;
 		let out = test_pass!(code, FoldBinaryExpressionsPass);
 		assert_snapshot!(out, /* language=TypeScript */ @"
-        const value = 9007199254740992n;
-        console.log(value);
-        ");
+		const value = 9007199254740992n;
+		console.log(value);
+		");
 	}
 }

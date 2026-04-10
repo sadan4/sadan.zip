@@ -370,7 +370,7 @@ mod tests {
             const z = Direction.Right;
         "#;
 		let out = test_pass!(code, InlineEnumsPass::default());
-		assert_snapshot!(out, @r"
+		assert_snapshot!(out, @"
 		enum Direction {
 			Up,
 			Down,
@@ -398,7 +398,7 @@ mod tests {
             const d = Status.Error;
         "#;
 		let out = test_pass!(code, InlineEnumsPass::default());
-		assert_snapshot!(out, @r"
+		assert_snapshot!(out, @"
 		enum Status {
 			Ready = 10,
 			Waiting,
@@ -426,15 +426,15 @@ mod tests {
         "#;
 		let out = test_pass!(code, InlineEnumsPass::default());
 		assert_snapshot!(out, @"
-        enum LogLevel {
-        	ERROR = 'error',
-        	WARN = 'warn',
-        	INFO = 'info',
-        	DEBUG = 'debug'
-        }
-        const level = 'error';
-        const info = 'info';
-        ");
+		enum LogLevel {
+			ERROR = 'error',
+			WARN = 'warn',
+			INFO = 'info',
+			DEBUG = 'debug'
+		}
+		const level = 'error';
+		const info = 'info';
+		");
 	}
 
 	#[test]
@@ -453,17 +453,17 @@ mod tests {
         "#;
 		let out = test_pass!(code, InlineEnumsPass::default());
 		assert_snapshot!(out, @"
-        enum Mixed {
-        	A,
-        	B = 'string',
-        	C = 10,
-        	D
-        }
-        const a = 0;
-        const b = 'string';
-        const c = 10;
-        const d = 11;
-        ");
+		enum Mixed {
+			A,
+			B = 'string',
+			C = 10,
+			D
+		}
+		const a = 0;
+		const b = 'string';
+		const c = 10;
+		const d = 11;
+		");
 	}
 
 	#[test]
@@ -478,7 +478,7 @@ mod tests {
             const y = Computed.B;
         "#;
 		let out = test_pass!(code, InlineEnumsPass::default());
-		assert_snapshot!(out, @r"
+		assert_snapshot!(out, @"
 		const BASE = 100;
 		enum Computed {
 			A = BASE,
@@ -502,7 +502,7 @@ mod tests {
             const write = Flags.Write;
         "#;
 		let out = test_pass!(code, InlineEnumsPass::default());
-		assert_snapshot!(out, @r"
+		assert_snapshot!(out, @"
 		enum Flags {
 			None = 0,
 			Read = 1 << 0,
@@ -526,7 +526,7 @@ mod tests {
             const color = Colors.Purple;
         "#;
 		let out = test_pass!(code, InlineEnumsPass::default());
-		assert_snapshot!(out, @r"
+		assert_snapshot!(out, @"
 		enum Colors {
 			Red = 0,
 			Green = 1,
@@ -552,7 +552,7 @@ mod tests {
             const temp3 = Temperature.Warm;
         "#;
 		let out = test_pass!(code, InlineEnumsPass::default());
-		assert_snapshot!(out, @r"
+		assert_snapshot!(out, @"
 		enum Temperature {
 			Freezing = -32,
 			Cold,
@@ -581,7 +581,7 @@ mod tests {
             const e = Status.Idle;
         "#;
 		let out = test_pass!(code, InlineEnumsPass::default());
-		assert_snapshot!(out, @r"
+		assert_snapshot!(out, @"
 		enum Status {
 			Idle,
 			Active,
@@ -605,7 +605,7 @@ mod tests {
             const x = Test['A'];
         "#;
 		let out = test_pass!(code, InlineEnumsPass::default());
-		assert_snapshot!(out, @r"
+		assert_snapshot!(out, @"
 		enum Test {
 			A,
 			B
@@ -626,7 +626,7 @@ mod tests {
             const product = Numbers.Two * Numbers.Three;
         "#;
 		let out = test_pass!(code, InlineEnumsPass::default());
-		assert_snapshot!(out, @r"
+		assert_snapshot!(out, @"
 		enum Numbers {
 			One = 1,
 			Two = 2,
@@ -648,7 +648,7 @@ mod tests {
             const key = Keys.A;
         "#;
 		let out = test_pass!(code, InlineEnumsPass::default());
-		assert_snapshot!(out, @r"
+		assert_snapshot!(out, @"
 		const prefix = 'value_';
 		enum Keys {
 			A = `${prefix}a`,
@@ -668,7 +668,7 @@ mod tests {
             const x = External.A;
         "#;
 		let out = test_pass!(code, InlineEnumsPass::default());
-		assert_snapshot!(out, @r"
+		assert_snapshot!(out, @"
 		declare enum External {
 			A,
 			B
@@ -694,18 +694,18 @@ mod tests {
         "#;
 		let out = test_pass!(code, InlineEnumsPass::default());
 		assert_snapshot!(out, @"
-        enum First {
-        	A = 1,
-        	B = 2
-        }
-        enum Second {
-        	X = 'x',
-        	Y = 'y'
-        }
-        const a = 1;
-        const x = 'x';
-        const b = 2;
-        ");
+		enum First {
+			A = 1,
+			B = 2
+		}
+		enum Second {
+			X = 'x',
+			Y = 'y'
+		}
+		const a = 1;
+		const x = 'x';
+		const b = 2;
+		");
 	}
 
 	#[test]
@@ -720,7 +720,7 @@ mod tests {
             setPriority(Priority.High);
         "#;
 		let out = test_pass!(code, InlineEnumsPass::default());
-		assert_snapshot!(out, @r"
+		assert_snapshot!(out, @"
 		enum Priority {
 			Low = 0,
 			Medium = 1,
@@ -743,17 +743,17 @@ mod tests {
         "#;
 		let out = test_pass!(code, InlineEnumsPass::default());
 		assert_snapshot!(out, @"
-        enum Color {
-        	Red,
-        	Green,
-        	Blue
-        }
-        const colors = [
-        	0,
-        	1,
-        	2
-        ];
-        ");
+		enum Color {
+			Red,
+			Green,
+			Blue
+		}
+		const colors = [
+			0,
+			1,
+			2
+		];
+		");
 	}
 
 	#[test]
@@ -770,15 +770,15 @@ mod tests {
         "#;
 		let out = test_pass!(code, InlineEnumsPass::default());
 		assert_snapshot!(out, @"
-        enum Status {
-        	Pending = 'pending',
-        	Complete = 'complete'
-        }
-        const obj = {
-        	status: 'pending',
-        	final: 'complete'
-        };
-        ");
+		enum Status {
+			Pending = 'pending',
+			Complete = 'complete'
+		}
+		const obj = {
+			status: 'pending',
+			final: 'complete'
+		};
+		");
 	}
 
 	#[test]
@@ -798,7 +798,7 @@ mod tests {
             }
         "#;
 		let out = test_pass!(code, InlineEnumsPass::default());
-		assert_snapshot!(out, @r"
+		assert_snapshot!(out, @"
 		{
 			enum Inner {
 				A = 1
