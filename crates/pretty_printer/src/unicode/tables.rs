@@ -1,7 +1,7 @@
 #![expect(clippy::unreadable_literal, clippy::decimal_literal_representation)]
 //! Unicode tables.
-//! Copied from https://github.com/ridiculousfish/regress/blob/b63f21d68bb52d193646c1dcf834e000ab864438/src/unicodetables.rs
-//! TODO: generate these instead of copying them
+//! Copied from <https://github.com/ridiculousfish/regress/blob/b63f21d68bb52d193646c1dcf834e000ab864438/src/unicodetables.rs>
+//! TODO: generate these instead of copying them?
 use super::interval::Interval;
 
 const ID_CONTINUE: [Interval; 799] = [
@@ -806,6 +806,6 @@ const ID_CONTINUE: [Interval; 799] = [
     Interval::new(917760, 917999),
 ];
 
-pub(crate) fn id_continue() -> &'static [Interval] {
+pub const fn id_continue() -> &'static [Interval] {
 	&ID_CONTINUE
 }

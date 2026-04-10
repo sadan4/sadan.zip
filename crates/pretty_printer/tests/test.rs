@@ -195,6 +195,26 @@ fn if_statements() {
 	");
 }
 
+#[test]
+fn break_and_continue() {
+	let source = "for(var i in set)if(i%2===0)break;else continue;
+function foo(){while(1){if (a)continue;test();}}";
+	let out = format2(source).unwrap();
+	assert_snapshot!(out, @"
+	for (var i in set)
+	  if (i % 2 === 0)
+	    break;
+	  else
+	    continue;
+	function foo() {
+	  while (1) {
+	    if (a)
+	      continue;
+	    test();
+	  }
+	}
+	");
+}
 
 
 

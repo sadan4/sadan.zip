@@ -4,28 +4,13 @@ use anyhow::{Result, bail};
 use oxc::{
 	allocator::{Allocator, TakeIn, Vec as OxcVec},
 	ast::{
-		AstKind,
-		Comment,
+		AstKind, Comment,
 		ast::{
-			BlockStatement,
-			BreakStatement,
-			ContinueStatement,
-			DoWhileStatement,
-			ExportNamedDeclaration,
-			ForInStatement,
-			ForOfStatement,
-			ForStatement,
-			Function,
-			FunctionBody,
-			FunctionType,
-			IfStatement,
-			ImportDeclaration,
-			Program,
-			Statement,
-			TemplateLiteral,
-			TryStatement,
-			WhileStatement,
-			WithStatement,
+			BlockStatement, BreakStatement, ContinueStatement,
+			DoWhileStatement, ExportNamedDeclaration, ForInStatement,
+			ForOfStatement, ForStatement, Function, FunctionBody, FunctionType,
+			IfStatement, ImportDeclaration, Program, Statement,
+			TemplateLiteral, TryStatement, WhileStatement, WithStatement,
 		},
 	},
 	ast_visit::{Visit, walk::walk_template_literal},
@@ -38,7 +23,6 @@ use tracing::trace;
 use crate::{
 	formatted_content_builder::FormattedContentBuilder,
 	javascript_formatter::token_stream::{TokenOrComment, TokenStream},
-	node_binder::{BoundNodes, NodeBinder},
 };
 
 mod token_stream {
@@ -173,7 +157,10 @@ fn is_punct(tk: Kind) -> bool {
 }
 
 fn is_kw(tk: Kind) -> bool {
-	tk.is_any_keyword() && tk != Kind::True && tk != Kind::False && tk != Kind::Null
+	tk.is_any_keyword()
+		&& tk != Kind::True
+		&& tk != Kind::False
+		&& tk != Kind::Null
 }
 
 const fn is_block(stmt: &Statement) -> bool {
@@ -559,7 +546,9 @@ impl<'a, const INDENT_SIZE: usize> JavaScriptFormatter<'a, INDENT_SIZE> {
 			N::ClassBody(_) if tk == TK::RCurly => {
 				&[F::Dedent, F::NewLine, F::Token, F::NewLine]
 			}
-			N::YieldExpression(_) | N::Super(_) | N::ImportExpression(_) => &[F::Token],
+			N::YieldExpression(_) | N::Super(_) | N::ImportExpression(_) => {
+				&[F::Token]
+			}
 			N::ExportAllDeclaration(_) if tk == TK::Star => {
 				&[F::Space, F::Token, F::Space]
 			}

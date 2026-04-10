@@ -1,8 +1,7 @@
-use std::{mem, sync::LazyLock};
+use std::mem;
 
 use derive_more::Debug;
-use oxc::allocator::{Allocator, HashMap};
-use regress::Regex;
+use oxc::allocator::Allocator;
 
 use crate::{
 	formatted_content_builder::rope::Rope,
@@ -10,13 +9,10 @@ use crate::{
 };
 
 #[derive(Debug)]
-/// if INDENT_SIZE is 0, tabs will be used
+/// if `INDENT_SIZE` is 0, tabs will be used
 pub struct FormattedContentBuilder<'s, const INDENT_SIZE: usize = 4> {
 	#[debug(skip)]
-	alloc: &'s Allocator,
-	last_original_position: u32,
 	formatted_content: Rope<'s>,
-	last_formatted_position: usize,
 	nesting_level: usize,
 	new_lines: usize,
 	enforce_space_before_words: bool,
@@ -24,29 +20,20 @@ pub struct FormattedContentBuilder<'s, const INDENT_SIZE: usize = 4> {
 	hard_spaces: usize,
 }
 
-enum IndentSize {
-	Cached(&'static str),
-	Dynamic(usize),
-}
-
-impl<'a, const INDENT_SIZE: usize> FormattedContentBuilder<'a, INDENT_SIZE>
-{
+impl<'a, const INDENT_SIZE: usize> FormattedContentBuilder<'a, INDENT_SIZE> {
 	const SPACES: &'static [u8] = &[b' '; INDENT_SIZE];
 	const INDENT_STR: &'static str = if INDENT_SIZE == 0 {
 		"\t"
 	} else {
 		unsafe {
 			str::from_utf8_unchecked(
-				&FormattedContentBuilder::<'static, INDENT_SIZE>::SPACES,
+				FormattedContentBuilder::<'static, INDENT_SIZE>::SPACES,
 			)
 		}
 	};
-	pub fn new(alloc: &'a Allocator) -> Self {
+	pub fn new(_alloc: &'a Allocator) -> Self {
 		Self {
-			alloc,
-			last_original_position: 0,
 			formatted_content: Rope::default(),
-			last_formatted_position: 0,
 			nesting_level: 0,
 			new_lines: 0,
 			enforce_space_before_words: true,
@@ -55,7 +42,10 @@ impl<'a, const INDENT_SIZE: usize> FormattedContentBuilder<'a, INDENT_SIZE>
 		}
 	}
 
-	pub const fn set_enforce_space_between_words(&mut self, value: bool) -> bool {
+	pub const fn set_enforce_space_between_words(
+		&mut self,
+		value: bool,
+	) -> bool {
 		mem::replace(&mut self.enforce_space_before_words, value)
 	}
 
@@ -146,7 +136,7 @@ fn is_valid_ident_char(c: char) -> bool {
 	const ZWNJ: u32 = '\u{200C}' as u32;
 	const ZWJ: u32 = '\u{200D}' as u32;
 	const ASCII_IDENT_START_TABLE: [bool; 128] = {
-		let mut table = [false; _];
+		let mut table = [false; 128];
 		let mut i = 0;
 		while i < 128 {
 			table[i] = matches!(i as u8 as char, 'a'..='z' | 'A'..='Z' | '0'..='9' | '$' | '_');
@@ -166,8 +156,7 @@ fn is_valid_ident_char(c: char) -> bool {
 }
 
 mod rope {
-    use tracing::trace;
-
+	use tracing::trace;
 
 	#[derive(Debug, Clone)]
 	pub struct Rope<'s> {

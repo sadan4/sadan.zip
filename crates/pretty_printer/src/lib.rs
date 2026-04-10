@@ -8,7 +8,6 @@ use crate::{
 
 mod formatted_content_builder;
 mod javascript_formatter;
-mod node_binder;
 mod unicode;
 
 pub fn format(source: &str) -> Result<String> {
