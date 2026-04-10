@@ -216,12 +216,30 @@ function foo(){while(1){if (a)continue;test();}}";
 	");
 }
 
+#[test]
+fn null_keyword() {
+	let source = "1||null;";
+	let out = format2(source).unwrap();
+	assert_snapshot!(out, @"1 || null;");
+}
 
+#[test]
+fn exponential_operators() {
+	let source = "2**3;";
+	let out = format2(source).unwrap();
+	assert_snapshot!(out, @"2 ** 3;");
+}
+
+#[test]
+fn for_loops() {
+	let source = "for(var value of map)if (value.length%3===0)console.log(value);for(var key in myMap)print(key);for(var value of myMap)print(value);";
+	let out = format2(source).unwrap();
+	assert_snapshot!(out, @"");
+}
 
 
 // TODO: pick fix
 #[test]
-#[ignore = "TODO"]
 fn methods_on_literals() {
 	let source = r#"num=1 .toString();str="abc" . toUpperCase();"#;
 	let out = format2(source).unwrap();
