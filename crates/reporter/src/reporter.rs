@@ -5,7 +5,12 @@ use std::{
 	time::{Duration, Instant},
 };
 
-use crate::{diag::ReporterError, fetcher::ScrapedOutput, util::Stage, vc::Plugin};
+use crate::{
+	diag::ReporterError,
+	fetcher::ScrapedOutput,
+	util::Stage,
+	vc::Plugin,
+};
 use anyhow::{Result, anyhow};
 use derive_more::IsVariant;
 use indicatif::MultiProgress;
@@ -142,8 +147,8 @@ impl<'a> ReporterState<'a> {
 		});
 	}
 	fn collect_finds(&mut self) {
-		let progress = self
-			.stage("Collecting find matches", Some(self.build.len()));
+		let progress =
+			self.stage("Collecting find matches", Some(self.build.len()));
 		for (&m_id, m_txt) in self.build {
 			for patch in &self.patches {
 				if matches_module(m_txt, patch) {
@@ -201,14 +206,23 @@ impl<'a> ReporterState<'a> {
 					} else {
 						Default::default()
 					},
-					err_ids: failed.into_iter().map(u32::from).collect(),
+					err_ids: failed
+						.into_iter()
+						.map(u32::from)
+						.collect(),
 				}
 			} else {
 				ReporterError::FindAmbiguous {
 					find_span: patch.find.s.into(),
 					plugin_id: patch.plugin_id(),
-					ok_ids: good.into_iter().map(u32::from).collect(),
-					err_ids: failed.into_iter().map(u32::from).collect(),
+					ok_ids: good
+						.into_iter()
+						.map(u32::from)
+						.collect(),
+					err_ids: failed
+						.into_iter()
+						.map(u32::from)
+						.collect(),
 				}
 			};
 			self.tx

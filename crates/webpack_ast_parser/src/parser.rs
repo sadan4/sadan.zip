@@ -1104,7 +1104,11 @@ impl<'ast> WebpackAstParser<'ast> {
 			let Some(obj) = args[1].as_object_expression() else {
 				continue;
 			};
-			return Some(WreqD { _call: call, _exports: exports, obj });
+			return Some(WreqD {
+				_call: call,
+				_exports: exports,
+				obj,
+			});
 		}
 		None
 	}

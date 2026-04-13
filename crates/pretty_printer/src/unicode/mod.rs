@@ -1,2 +1,2 @@
-pub mod tables;
 pub mod interval;
+pub mod tables;

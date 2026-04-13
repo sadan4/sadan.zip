@@ -1,4 +1,4 @@
-use super::{*, test};
+use super::{test, *};
 
 #[test]
 fn simple_template_literal() {

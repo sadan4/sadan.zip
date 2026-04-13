@@ -31,8 +31,8 @@ use oxc::{
 };
 use regex::Regex;
 use smol_str::SmolStr;
-use webpack_ast_parser::types::ModuleId;
 use std::sync::LazyLock;
+use webpack_ast_parser::types::ModuleId;
 
 // FIXME: add basic caching with OnceCell
 pub struct WebpackMainChunkParser<'ast> {

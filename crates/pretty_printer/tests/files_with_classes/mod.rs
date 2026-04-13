@@ -70,7 +70,7 @@ fn consecutive_class_decls() {
 }
 
 #[test]
-fn static_methods(){
+fn static_methods() {
 	let source = "class Employer{static count(){this._counter = (this._counter || 0) + 1; return this._counter;}}";
 	let out = format2(source).unwrap();
 	assert_snapshot!(out, @"

@@ -1,4 +1,3 @@
-
 use derive_more::Debug;
 use oxc::allocator::Allocator;
 

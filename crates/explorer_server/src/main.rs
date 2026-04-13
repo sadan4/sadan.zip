@@ -20,11 +20,15 @@ const BIN_EXT: &str = if cfg!(windows) { ".exe" } else { "" };
 fn install_tracing() {
 	let filter_layer = EnvFilter::try_from_default_env()
 		.or_else(|_| {
-			EnvFilter::builder().parse(if true /* cfg!(debug_assertions) */ {
-				"trace,h2=info,hyper=info,rustls=info,reqwest::retry=debug"
-			} else {
-				"info"
-			})
+			EnvFilter::builder().parse(
+				if true
+				/* cfg!(debug_assertions) */
+				{
+					"trace,h2=info,hyper=info,rustls=info,reqwest::retry=debug"
+				} else {
+					"info"
+				},
+			)
 		})
 		.unwrap();
 	tracing_subscriber::registry()
