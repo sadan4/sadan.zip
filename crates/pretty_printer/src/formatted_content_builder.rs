@@ -1,4 +1,3 @@
-use std::mem;
 
 use derive_more::Debug;
 use oxc::allocator::Allocator;
@@ -46,7 +45,6 @@ impl<'a, const INDENT_SIZE: usize> FormattedContentBuilder<'a, INDENT_SIZE> {
 		&mut self,
 		value: bool,
 	) -> bool {
-		// mem::replace(&mut self.enforce_space_before_words, value)
 		let old_value = self.enforce_space_before_words;
 		self.enforce_space_before_words = value;
 		old_value

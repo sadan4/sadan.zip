@@ -1,5 +1,5 @@
 #![allow(clippy::redundant_pub_crate)]
-use derive_more::{From, Into};
+use derive_more::Into;
 use serde::Serialize;
 use smol_str::SmolStr;
 use webpack_ast_parser::types::ModuleId;

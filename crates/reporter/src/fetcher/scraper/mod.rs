@@ -60,7 +60,7 @@ pub async fn scrape_build(
 	pre_bar.msg("Parsing index HTML");
 	// Parse the index html file to get the urls we need
 	let ParsedHtml {
-		global_env_text: _,
+		global_env_text: _global_env_text,
 		web_js_url,
 	} = parse_html(html).context("Failed to parse index HTML")?;
 	let pending_limit = Arc::new(Semaphore::const_new(MAX_PENDING_REQUESTS));

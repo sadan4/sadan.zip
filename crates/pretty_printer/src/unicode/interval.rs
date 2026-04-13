@@ -18,6 +18,7 @@ impl Interval {
 		Self { first, last }
 	}
 
+	#[expect(clippy::inline_always, reason = "copied from regress")]
 	#[inline(always)]
 	pub const fn compare(self, cp: u32) -> Ordering {
 		if self.first > cp {

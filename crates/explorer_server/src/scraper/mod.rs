@@ -7,7 +7,6 @@ use std::{
 };
 
 use anyhow::{Context as _, Result, bail};
-use axum::body::Bytes;
 use explorer_server_core::{Channel, asset_url};
 use explorer_types::FullBundle;
 use itertools::Itertools as _;
@@ -50,12 +49,12 @@ fn make_reqwest_client() -> Result<Arc<ClientWithMiddleware>> {
 pub async fn scrape_build(
 	res: Response,
 	channel: Channel,
-	build_hash: String,
+	_build_hash: String,
 ) -> Result<FullBundle> {
 	// Parse the index html file to get the urls we need
 	let html = res.text().await?;
 	let ParsedHtml {
-		global_env_text,
+		global_env_text: _global_env_text,
 		web_js_url,
 	} = parse_html(&html).context("Failed to parse index HTML")?;
 	let pending_limit = Arc::new(Semaphore::const_new(MAX_PENDING_REQUESTS));

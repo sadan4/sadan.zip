@@ -5,7 +5,7 @@ mod watcher;
 
 use std::process;
 
-use tracing::{Level, debug, error, info, warn};
+use tracing::{debug, error, info, warn};
 
 use migrations::migrate_if_needed;
 use tracing_subscriber::{

@@ -13,12 +13,13 @@ web-sys = "0.3.4"
 js-sys = "0.3.91"
 zstd = "0.13.3"
 tar = "0.4.44"
-napi = { version = "3.8.2", default-features = false, features = [
+napi = { version = "3.8.4", default-features = false, features = [
     "napi9",
+    "napi4",
     "anyhow",
     "tracing",
 ] }
-napi-derive = "3.5.1"
+napi-derive = "3.5.3"
 napi-build = "2.3.1"
 tokio = "1.49.0"
 tokio-stream = { version = "0.1.18", default-features = false }

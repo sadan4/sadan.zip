@@ -106,11 +106,14 @@ impl<'a, 'ast: 'a, State> Ctx<'a, 'ast, State> {
 	}
 	/// used with [`std::mem::replace`]
 	/// ```ignore
+	/// # use oxc::ast::ast::Expression;
+	/// # use std::mem;
+	/// # use self::vencord_ast_parser::pass::util::*;
+	///
 	/// fn do_something<'ast>(
 	///     node: &'ast mut Expression<'ast>,
 	///     ctx: Ctx<'_, 'ast, ()>,
 	/// ) -> Expression<'ast> {
-	///     use std::mem;
 	///     let new_node = mem::replace(node, ctx.dummy());
 	///     new_node
 	/// }

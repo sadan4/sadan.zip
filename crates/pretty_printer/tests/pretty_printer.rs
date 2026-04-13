@@ -2,7 +2,7 @@
 //! ported from <https://github.com/ChromeDevTools/devtools-frontend/blob/main/front_end/entrypoints/formatter_worker/JavaScriptFormatter.test.ts>
 use insta::assert_snapshot;
 use macros::test;
-use pretty_printer::{format, format2};
+use pretty_printer::{format2};
 #[test]
 fn await_expressions() {
 	let source = r#"(async () => { await someFunctionThatNeedsAwaiting(); callSomeOtherFunction(); })();"#;

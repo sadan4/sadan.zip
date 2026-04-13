@@ -6,17 +6,35 @@ use anyhow::{Result, bail};
 use oxc::{
 	allocator::{Allocator, TakeIn, Vec as OxcVec},
 	ast::{
-		AstKind, Comment,
+		AstKind,
+		Comment,
 		ast::{
-			ArrowFunctionExpression, BlockStatement, BreakStatement,
-			ContinueStatement, DoWhileStatement, ExportNamedDeclaration,
-			Expression, ForInStatement, ForOfStatement, ForStatement, Function,
-			FunctionBody, FunctionType, Hashbang, IfStatement,
-			ImportDeclaration, Program, Statement, StaticMemberExpression,
-			TemplateLiteral, TryStatement, WhileStatement, WithStatement,
+			ArrowFunctionExpression,
+			BlockStatement,
+			BreakStatement,
+			ContinueStatement,
+			DoWhileStatement,
+			ExportNamedDeclaration,
+			Expression,
+			ForInStatement,
+			ForOfStatement,
+			ForStatement,
+			Function,
+			FunctionBody,
+			FunctionType,
+			Hashbang,
+			IfStatement,
+			ImportDeclaration,
+			Program,
+			Statement,
+			StaticMemberExpression,
+			TemplateLiteral,
+			TryStatement,
+			WhileStatement,
+			WithStatement,
 		},
 	},
-	ast_visit::{Visit, walk::walk_template_literal},
+	ast_visit::Visit,
 	parser::{Kind, Parser, Token, config::TokensParserConfig},
 	semantic::{AstNodes, NodeId, SemanticBuilder},
 	span::{GetSpan, SourceType},
@@ -73,14 +91,8 @@ mod token_stream {
 	impl TokenOrComment {
 		pub fn start(&self) -> u32 {
 			match self {
-				Self::Token(token) => token.span().start,
+				Self::Token(token) => token.start(),
 				Self::Comment(comment) => comment.span.start,
-			}
-		}
-		pub fn end(&self) -> u32 {
-			match self {
-				Self::Token(token) => token.span().end,
-				Self::Comment(comment) => comment.span.end,
 			}
 		}
 	}
@@ -106,13 +118,13 @@ mod token_stream {
 						"Tokens and comments must not have the same start position"
 					);
 					if token.span().start < comment.span.start {
-						// SAFTEY: we just checked that self.tokens.last() is Some
+						// SAFETY: we just checked that self.tokens.last() is Some
 						Some(
 							unsafe { self.tokens.pop().unwrap_unchecked() }
 								.into(),
 						)
 					} else {
-						// SAFTEY: we just checked that self.comments.last() is Some
+						// SAFETY: we just checked that self.comments.last() is Some
 						Some(
 							unsafe { self.comments.pop().unwrap_unchecked() }
 								.into(),
@@ -283,6 +295,11 @@ impl<'a, const INDENT_SIZE: usize> JavaScriptFormatter<'a, INDENT_SIZE> {
 		self.visit_program(self.program);
 	}
 
+	#[expect(
+		clippy::cognitive_complexity,
+		clippy::too_many_lines,
+		reason = "TODO: refactor?"
+	)]
 	fn format_token(
 		&self,
 		node: AstKind<'_>,
@@ -650,6 +667,7 @@ impl<'a, const INDENT_SIZE: usize> JavaScriptFormatter<'a, INDENT_SIZE> {
 		}
 	}
 
+	#[expect(clippy::too_many_lines, reason = "TODO: refactor?")]
 	fn finish_node(&self, node: AstKind<'a>) -> &'static [FormatDirective] {
 		use AstKind as N;
 		use FormatDirective as F;
@@ -771,7 +789,6 @@ impl<'a, const INDENT_SIZE: usize> Visit<'a>
 			let token = unsafe { self.tokenizer.next().unwrap_unchecked() };
 			let format = self
 				.format_token(self.nodes.parent_kind(kind.node_id()), &token);
-			let format = dbg!(format);
 
 			self.push(Some(&token), format);
 		}

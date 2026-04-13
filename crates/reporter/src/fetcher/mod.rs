@@ -1,19 +1,16 @@
 mod scraper;
-use std::{mem, path::{Path, PathBuf}};
+use std::mem;
 
-use anyhow::{Context as _, Result, bail};
+use anyhow::{Context as _, Result};
 use clap::Args;
 use explorer_server_core::Channel;
-use explorer_types::{BuildList, BundleMetadata, FullBundle};
 use indicatif::MultiProgress;
-use itertools::Itertools;
 use reqwest_middleware::ClientWithMiddleware;
-use tokio::fs;
-use tracing::{debug, info, instrument, warn};
+use tracing::{info, warn};
 
 use crate::{
 	fetcher::scraper::make_reqwest_client,
-	util::{ByteStr, Stage, read_struct},
+	util::{ByteStr, Stage},
 };
 
 pub use scraper::ScrapedOutput;
@@ -54,12 +51,18 @@ pub async fn fetch_build(
 	let client =
 		make_reqwest_client().context("Failed to create HTTP client")?;
 	let index_response = fetch_index(&client, channel).await?;
-	let scraped =
-		scraper::scrape_build(index_response.as_ref(), channel, bar, bars, client)
-			.await?;
+	let scraped = scraper::scrape_build(
+		index_response.as_ref(),
+		channel,
+		bar,
+		bars,
+		client,
+	)
+	.await?;
 	Ok(scraped)
 }
 
+#[allow(clippy::cognitive_complexity, reason = "clippy bug: macros count")]
 async fn fetch_index(
 	client: &ClientWithMiddleware,
 	channel: Channel,

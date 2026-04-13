@@ -66,6 +66,6 @@ fn test_inline_string_raw() {
 
 #[test]
 fn test_inline_typescript_enums() {
-	let patches = dump_patches!("data/plugin8.tsx", dbg_code);
+	let patches = dump_patches!("data/plugin8.tsx");
 	assert_ron_snapshot!(patches);
 }

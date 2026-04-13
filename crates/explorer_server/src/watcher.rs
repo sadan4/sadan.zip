@@ -1,25 +1,12 @@
-mod spawn;
-use std::{fs, io, time::Duration};
-
-use anyhow::{Context as _, Result};
+// mod spawn;
+use anyhow::Result;
+use explorer_server_core::{Channel, get_build_path, is_build_downloaded};
 use reqwest::Response;
+use std::{fs, time::Duration};
 use tokio::time;
 use tracing::{error, info, instrument, trace};
 
-use explorer_server_core::{
-	Channel,
-	EncodableBuild,
-	get_build_path,
-	is_build_downloaded,
-};
-
-use crate::{
-	scraper::{
-		html_parser::{ParsedHtml, parse_html},
-		scrape_build,
-	},
-	watcher::spawn::{BuildParserWorker as _, DefaultBuildParserWorker},
-};
+use crate::scraper::scrape_build;
 
 const fn get_app_url(c: Channel) -> &'static str {
 	match c {
@@ -59,41 +46,45 @@ async fn get_build(channel: Channel) -> Result<Option<Build>> {
 	}))
 }
 
-async fn write_to_pipe(
-	build: Build,
-	channel: Channel,
-	mut tx: io::PipeWriter,
-) -> Result<()> {
-	let build_hash = build.build_hash;
+// use std::io;
+// use crate::scraper::html_parser::{ParsedHtml, parse_html};
+// use crate::watcher::spawn::{BuildParserWorker as _, DefaultBuildParserWorker},
+// use explorer_server_core::EncodableBuild;
+// async fn write_to_pipe(
+// 	build: Build,
+// 	channel: Channel,
+// 	mut tx: io::PipeWriter,
+// ) -> Result<()> {
+// 	let build_hash = build.build_hash;
 
-	let ParsedHtml {
-		global_env_text,
-		web_js_url,
-	} = parse_html(&build.response.text().await?)?;
+// 	let ParsedHtml {
+// 		global_env_text,
+// 		web_js_url,
+// 	} = parse_html(&build.response.text().await?)?;
 
-	let eb = EncodableBuild {
-		channel,
-		build_hash,
-		global_env_text,
-		web_js_url,
-	};
-	rmp_serde::encode::write(&mut tx, &eb)?;
-	Ok(())
-}
+// 	let eb = EncodableBuild {
+// 		channel,
+// 		build_hash,
+// 		global_env_text,
+// 		web_js_url,
+// 	};
+// 	rmp_serde::encode::write(&mut tx, &eb)?;
+// 	Ok(())
+// }
 
-async fn run_js_handler(build: Build, channel: Channel) -> Result<()> {
-	let (rx, tx) = io::pipe()?;
-	let writer_fut = tokio::spawn(write_to_pipe(build, channel, tx));
-	spawn::DefaultBuildParserWorker::spawn(rx).await?;
+// async fn run_js_handler(build: Build, channel: Channel) -> Result<()> {
+// 	let (rx, tx) = io::pipe()?;
+// 	let writer_fut = tokio::spawn(write_to_pipe(build, channel, tx));
+// 	spawn::DefaultBuildParserWorker::spawn(rx).await?;
 
-	writer_fut
-		.await
-		.map_err(From::from)
-		.flatten()
-		.context("Failed to write build info to pipe")?;
+// 	writer_fut
+// 		.await
+// 		.map_err(From::from)
+// 		.flatten()
+// 		.context("Failed to write build info to pipe")?;
 
-	Ok(())
-}
+// 	Ok(())
+// }
 
 #[instrument]
 async fn handle_build(c: Channel) -> Result<()> {
@@ -124,14 +115,14 @@ async fn handle_build(c: Channel) -> Result<()> {
 
 #[allow(clippy::cognitive_complexity, reason = "broken and counts macros")]
 pub async fn start_watcher() {
-	info!("setting up parser worker");
-	if let Err(e) = DefaultBuildParserWorker::setup()
-		.await
-		.context("Failed to setup parser worker")
-	{
-		error!("{e:?}");
-		return;
-	}
+	// info!("setting up parser worker");
+	// if let Err(e) = DefaultBuildParserWorker::setup()
+	// 	.await
+	// 	.context("Failed to setup parser worker")
+	// {
+	// 	error!("{e:?}");
+	// 	return;
+	// }
 	info!("starting watcher loop");
 	let mut interval = tokio::time::interval(Duration::from_secs(5));
 	loop {

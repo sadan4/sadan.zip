@@ -200,8 +200,8 @@ impl From<ProcessingDepInfo> for DepInfo {
 	}
 }
 
-#[derive(Debug, Default, Clone)]
 #[napi]
+#[derive(Debug, Default, Clone)]
 pub struct ProcessingBuild {
 	metadata: ProcessingMetadata,
 	dep_info: ProcessingDepInfo,

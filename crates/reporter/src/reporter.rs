@@ -8,7 +8,6 @@ use std::{
 use crate::{diag::ReporterError, fetcher::ScrapedOutput, util::Stage, vc::Plugin};
 use anyhow::{Result, anyhow};
 use derive_more::IsVariant;
-use explorer_types::FullBundle;
 use indicatif::MultiProgress;
 use itertools::Itertools as _;
 use miette::{Diagnostic, Severity};

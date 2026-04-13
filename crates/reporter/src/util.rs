@@ -1,8 +1,5 @@
-use std::{
-	borrow::Cow, io, mem::ManuallyDrop, str::Utf8Error, time::Duration
-};
+use std::{borrow::Cow, mem, str::Utf8Error, time::Duration};
 
-use anyhow::{Context as _, Result};
 use bytes::Bytes;
 use derive_more::{Deref, DerefMut, From};
 use indicatif::{
@@ -12,15 +9,6 @@ use indicatif::{
 	ProgressFinish,
 	ProgressStyle,
 };
-use serde::de::DeserializeOwned;
-
-pub fn read_struct<T: DeserializeOwned>(from: impl io::Read) -> Result<T> {
-	let mpk_raw_data =
-		zstd::decode_all(from).context("failed to decompress struct")?;
-	let data: T = rmp_serde::from_slice(&mpk_raw_data)
-		.context("failed to deserialize struct")?;
-	Ok(data)
-}
 
 #[derive(From, Deref, DerefMut)]
 pub struct Stage(pub ProgressBar);
@@ -64,7 +52,7 @@ impl Stage {
 	pub fn step(&self) {
 		self.0.inc(1);
 	}
-	pub fn step_guard(&self) -> StageStepGuard<'_> {
+	pub const fn step_guard(&self) -> StageStepGuard<'_> {
 		StageStepGuard(self)
 	}
 	pub fn msg(&self, msg: impl Into<Cow<'static, str>>) {
@@ -72,11 +60,11 @@ impl Stage {
 	}
 }
 
-pub struct StageStepGuard<'a> (&'a Stage);
+pub struct StageStepGuard<'a>(&'a Stage);
 
-impl<'a> StageStepGuard<'a> {
-	pub fn forget(self) {
-		ManuallyDrop::new(self);
+impl StageStepGuard<'_> {
+	pub const fn forget(self) {
+		mem::forget(self);
 	}
 }
 
