@@ -4,7 +4,7 @@ use ast_parser::span_line_and_column;
 use insta::assert_debug_snapshot;
 use itertools::Itertools;
 use macros::test;
-use oxc::span::{Atom, Span};
+use oxc::{ast::ast::Str, span::Span};
 use std::fmt::{self, Debug};
 
 macro_rules! parse {
@@ -89,7 +89,7 @@ impl Debug for ExportMapDumper<'_> {
 }
 
 impl<'ast> WebpackAstParser<'ast> {
-	fn t_sym_info<'a>(&'a self, sym_id: SymbolId) -> (Atom<'a>, Span)
+	fn t_sym_info<'a>(&'a self, sym_id: SymbolId) -> (Str<'a>, Span)
 	where
 		'ast: 'a,
 	{
@@ -97,7 +97,7 @@ impl<'ast> WebpackAstParser<'ast> {
 			.sema
 			.scoping()
 			.symbol_ident(sym_id)
-			.as_atom();
+			.as_arena_str();
 		let span = self
 			.sema
 			.scoping()

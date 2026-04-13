@@ -3,10 +3,16 @@ use ast_parser::exts::ExpressionExt as _;
 use derive_more::{Deref, DerefMut};
 use oxc::{
 	allocator::{Allocator, CloneIn},
-	ast::ast::{Expression, IdentifierReference, NumberBase, TSEnumMemberName},
+	ast::ast::{
+		Expression,
+		IdentifierReference,
+		NumberBase,
+		Str,
+		TSEnumMemberName,
+	},
 	minifier::PropertyReadSideEffects,
 	semantic::{ReferenceId, SymbolId},
-	span::{Atom, GetSpan, Span},
+	span::{GetSpan, Span},
 };
 use oxc_ecmascript::{
 	GlobalContext,
@@ -22,7 +28,7 @@ use std::collections::HashMap;
 
 #[derive(Default, Debug)]
 pub struct InlineEnumsPass<'ast> {
-	value_map: HashMap<SymbolId, HashMap<Atom<'ast>, (Span, EnumValue<'ast>)>>,
+	value_map: HashMap<SymbolId, HashMap<Str<'ast>, (Span, EnumValue<'ast>)>>,
 }
 
 /// Recursively inline enum member references within an expression
@@ -31,7 +37,7 @@ fn inline_enum_references_in_expr<'ast>(
 	expr: &Expression<'ast>,
 	tracker: &EnumValueTracker<'_, 'ast>,
 	enum_symbol_id: SymbolId,
-	value_map: &HashMap<Atom<'ast>, (Span, EnumValue<'ast>)>,
+	value_map: &HashMap<Str<'ast>, (Span, EnumValue<'ast>)>,
 	ctx: &Ctx<'_, 'ast, ()>,
 ) -> Expression<'ast> {
 	match expr {
@@ -47,7 +53,7 @@ fn inline_enum_references_in_expr<'ast>(
 			{
 				// This is a reference to our enum, try to inline it
 				if let Some((span, enum_value)) =
-					value_map.get(&member_expr.property.name.as_atom())
+					value_map.get(&member_expr.property.name.as_arena_str())
 				{
 					return enum_value_to_expression(enum_value, *span, ctx);
 				}
@@ -117,7 +123,7 @@ fn enum_value_to_expression<'ast>(
 #[derive(Debug)]
 enum EnumValue<'ast> {
 	Number(f64),
-	String(Atom<'ast>),
+	String(Str<'ast>),
 	Computed(Expression<'ast>),
 }
 
@@ -192,7 +198,7 @@ impl<'ast> Traverse<'ast, ()> for InlineEnumsPass<'ast> {
 
 					let value = match evaluated {
 						Some(ConstantValue::String(s)) => {
-							let atom = Atom::from_cow_in(&s, ctx.a());
+							let atom = Str::from_cow_in(&s, ctx.a());
 							EnumValue::String(atom)
 						}
 						Some(ConstantValue::Number(n)) => {
@@ -267,7 +273,7 @@ impl<'ast> Traverse<'ast, ()> for InlineEnumsPass<'ast> {
 			return;
 		};
 		let Some((span, constant_value)) =
-			enum_value_map.get(&expr.property.name.as_atom())
+			enum_value_map.get(&expr.property.name.as_arena_str())
 		else {
 			return;
 		};

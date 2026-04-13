@@ -9,10 +9,11 @@ use oxc::{
 		ArrowFunctionExpression,
 		Expression,
 		RegExpLiteral,
+		Str,
 		StringLiteral,
 		TemplateLiteral,
 	},
-	span::{Atom, Span},
+	span::Span,
 };
 use regress::Regex;
 use std::{borrow::Cow, fmt::Debug, sync::LazyLock};
@@ -51,7 +52,7 @@ pub enum RawReplace<'ast> {
 	#[allow(dead_code)]
 	Func(&'ast ArrowFunctionExpression<'ast>),
 	Template(&'ast TemplateLiteral<'ast>),
-	ComputedString(Atom<'ast>, Span),
+	ComputedString(Str<'ast>, Span),
 }
 
 #[derive(Copy, Clone)]
@@ -59,7 +60,7 @@ pub enum RawMatchLike<'ast> {
 	String(&'ast StringLiteral<'ast>),
 	Regex(&'ast RegExpLiteral<'ast>),
 	Template(&'ast TemplateLiteral<'ast>),
-	ComputedString(Atom<'ast>, Span),
+	ComputedString(Str<'ast>, Span),
 }
 
 static PATCH_INTL_REGEX: LazyLock<Regex> =

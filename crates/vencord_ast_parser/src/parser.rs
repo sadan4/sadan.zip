@@ -144,7 +144,7 @@ impl<'ast> VencordAstParser<'ast> {
 			Expression::BinaryExpression(b) => {
 				if let Some(cow) = b.evaluate_value_to_string(self) {
 					Ok(RawMatchLike::ComputedString(
-						self.ast_builder.atom_from_cow(&cow),
+						self.ast_builder.str_from_cow(&cow),
 						b.span,
 					))
 				} else {
@@ -197,7 +197,7 @@ impl<'ast> VencordAstParser<'ast> {
 			Expression::BinaryExpression(s) => {
 				if let Some(cow) = s.evaluate_value_to_string(self) {
 					Ok(RawReplace::ComputedString(
-						self.ast_builder.atom_from_cow(&cow),
+						self.ast_builder.str_from_cow(&cow),
 						s.span,
 					))
 				} else {

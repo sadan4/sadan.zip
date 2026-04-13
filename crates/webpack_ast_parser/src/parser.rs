@@ -87,11 +87,12 @@ use oxc::{
 			ObjectProperty,
 			ObjectPropertyKind,
 			Program,
+			Str,
 			VariableDeclarator,
 		},
 	},
 	semantic::{Reference, Semantic, SymbolId},
-	span::{Atom, GetSpan, SourceType, Span},
+	span::{GetSpan, SourceType, Span},
 };
 use smol_str::{SmolStr, ToSmolStr as _};
 use std::{
@@ -1263,7 +1264,7 @@ impl<'ast> WebpackAstParser<'ast> {
 		None
 	}
 	/// TODO: document
-	fn is_constant_string(&self, sym_id: SymbolId) -> Option<Atom<'ast>> {
+	fn is_constant_string(&self, sym_id: SymbolId) -> Option<Str<'ast>> {
 		let decl = self
 			.sema
 			.symbol_declaration(sym_id)

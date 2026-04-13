@@ -8,12 +8,13 @@ use oxc::{
 		Expression,
 		IdentifierReference,
 		NumberBase,
+		Str,
 		TemplateElementValue,
 		TemplateLiteral,
 	},
 	minifier::PropertyReadSideEffects,
 	semantic::IsGlobalReference,
-	span::{Atom, Span},
+	span::Span,
 };
 use oxc_ecmascript::{
 	GlobalContext,
@@ -57,7 +58,7 @@ impl<'a, 'ast: 'a, State> Ctx<'a, 'ast, State> {
 				)
 			}
 			ConstantValue::String(cow) => {
-				let atom = self.ast.atom_from_cow(&cow);
+				let atom = self.ast.str_from_cow(&cow);
 				self.ast
 					.expression_string_literal(span, atom, None)
 			}
@@ -78,7 +79,7 @@ impl<'a, 'ast: 'a, State> Ctx<'a, 'ast, State> {
 	/// # Panics
 	/// Panics if the template has non-literal values
 	/// Use [`TemplateLiteralExt::is_literal`] to check if a template is a literal
-	pub fn eval_template(&self, t: &TemplateLiteral<'ast>) -> Atom<'ast> {
+	pub fn eval_template(&self, t: &TemplateLiteral<'ast>) -> Str<'ast> {
 		debug_assert!(
 			!t.is_no_substitution_template(),
 			"no substution templates should be handled outside of this function to better preserve AST span and source info"
@@ -128,8 +129,8 @@ impl<'a, 'ast: 'a, State> Ctx<'a, 'ast, State> {
 
 pub fn empty_template_element_value() -> TemplateElementValue<'static> {
 	TemplateElementValue {
-		raw: Atom::from(""),
-		cooked: Some(Atom::from("")),
+		raw: Str::from(""),
+		cooked: Some(Str::from("")),
 	}
 }
 

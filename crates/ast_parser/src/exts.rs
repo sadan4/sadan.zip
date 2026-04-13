@@ -38,13 +38,14 @@ use oxc::{
 			SpreadElement,
 			Statement,
 			StaticMemberExpression,
+			Str,
 			StringLiteral,
 			TaggedTemplateExpression,
 			TemplateLiteral,
 		},
 	},
 	semantic::{NodeId, ScopeId, SymbolId},
-	span::{Atom, GetSpan, Span},
+	span::{GetSpan, Span},
 };
 use oxc_ecmascript::{GlobalContext, constant_evaluation::IsLiteralValue};
 use std::borrow::Cow;
@@ -763,7 +764,7 @@ pub trait ExpressionExt<'ast> {
 		}
 	}
 
-	fn as_string_literal_like(&self) -> Option<Atom<'ast>> {
+	fn as_string_literal_like(&self) -> Option<Str<'ast>> {
 		match self.as_expr_()? {
 			Expression::StringLiteral(s) => Some(s.value),
 			Expression::TemplateLiteral(t)

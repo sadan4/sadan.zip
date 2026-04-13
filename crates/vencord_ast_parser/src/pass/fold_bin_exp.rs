@@ -1,8 +1,8 @@
 use crate::pass::util::{Ctx, empty_template_element_value};
 use ast_parser::exts::ExpressionExt as _;
 use oxc::{
-	ast::ast::{BinaryOperator, Expression, TemplateElementValue},
-	span::{Atom, Span},
+	ast::ast::{BinaryOperator, Expression, Str, TemplateElementValue},
+	span::Span,
 };
 use oxc_ecmascript::constant_evaluation::{
 	ConstantValue,
@@ -85,8 +85,8 @@ fn fold_template_literals<'ast, State>(
 		let new_q1 = ctx.ast.template_element(
 			q1.span,
 			TemplateElementValue {
-				raw: Atom::from(new_q1_raw),
-				cooked: Some(Atom::from(new_q1_val)),
+				raw: Str::from(new_q1_raw),
+				cooked: Some(Str::from(new_q1_val)),
 			},
 			q1.tail,
 			false,
@@ -121,8 +121,8 @@ fn fold_template_literals<'ast, State>(
 		let new_q = ctx.ast.template_element(
 			q.span,
 			TemplateElementValue {
-				raw: Atom::from(new_q_raw),
-				cooked: Some(Atom::from(new_q_val)),
+				raw: Str::from(new_q_raw),
+				cooked: Some(Str::from(new_q_val)),
 			},
 			q.tail,
 			false,
@@ -200,8 +200,8 @@ fn fold_template_literals<'ast, State>(
 		let joiner = ctx.ast.template_element(
 			left_joiner.span,
 			TemplateElementValue {
-				raw: Atom::from(joiner_raw),
-				cooked: Some(Atom::from(joiner_cooked)),
+				raw: Str::from(joiner_raw),
+				cooked: Some(Str::from(joiner_cooked)),
 			},
 			right_joiner.tail,
 			false,
