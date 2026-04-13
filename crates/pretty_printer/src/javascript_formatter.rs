@@ -133,9 +133,11 @@ mod token_stream {
 				}
 				(None, None) => None,
 				(None, Some(_comment)) => Some(
+					// SAFETY: comment is Some
 					unsafe { self.comments.pop().unwrap_unchecked() }.into(),
 				),
 				(Some(_token), None) => {
+					// SAFETY: token is Some
 					Some(unsafe { self.tokens.pop().unwrap_unchecked() }.into())
 				}
 			}
@@ -143,8 +145,8 @@ mod token_stream {
 	}
 }
 
-pub struct JavaScriptFormatter<'a, const INDENT_SIZE: usize = 4> {
-	builder: FormattedContentBuilder<'a, INDENT_SIZE>,
+pub struct JavaScriptFormatter<'a> {
+	builder: FormattedContentBuilder<'a>,
 	content: &'a str,
 	last_line_number: u32,
 	program: &'a Program<'a>,
@@ -196,7 +198,7 @@ fn cache_lines(src: &str) -> Vec<u32> {
 			line_pos_cache.push(i as u32 + 1);
 		}
 	}
-	if *unsafe { line_pos_cache.last().unwrap_unchecked() } >= src.len() as u32
+	if *line_pos_cache.last().unwrap() >= src.len() as u32
 	{
 		line_pos_cache.pop();
 	}
@@ -241,7 +243,7 @@ fn stmt_id(stmt: &Statement) -> NodeId {
 	}
 }
 
-impl<'a, const INDENT_SIZE: usize> JavaScriptFormatter<'a, INDENT_SIZE> {
+impl<'a> JavaScriptFormatter<'a> {
 	fn is_in_for_loop_header(&self, node_id: NodeId) -> bool {
 		let parent = self.nodes.parent_kind(node_id);
 		matches!(
@@ -254,7 +256,7 @@ impl<'a, const INDENT_SIZE: usize> JavaScriptFormatter<'a, INDENT_SIZE> {
 
 	pub fn run(
 		alloc: &'a Allocator,
-		builder: FormattedContentBuilder<'a, INDENT_SIZE>,
+		builder: FormattedContentBuilder<'a>,
 		content: &'a str,
 	) -> Result<String> {
 		let mut parsed = Parser::new(alloc, content, SourceType::default())
@@ -777,8 +779,7 @@ impl<'a, const INDENT_SIZE: usize> JavaScriptFormatter<'a, INDENT_SIZE> {
 	}
 }
 
-impl<'a, const INDENT_SIZE: usize> Visit<'a>
-	for JavaScriptFormatter<'a, INDENT_SIZE>
+impl<'a> Visit<'a> for JavaScriptFormatter<'a>
 {
 	fn enter_node(&mut self, kind: AstKind<'a>) {
 		let node_start = kind.span().start;

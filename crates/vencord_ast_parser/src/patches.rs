@@ -180,6 +180,8 @@ pub fn canonicalize_regex_ident(s: &str) -> Cow<'_, str> {
 }
 
 pub fn canonicalize_replace_for_regress(s: &mut str) {
+	// SAFETY: we only ever operate on single ASCII chars;
+	// therefore, the string will always be valid UTF8
 	let bts = unsafe { s.as_bytes_mut() };
 	let mut it = (0..bts.len()).peekable();
 	while let Some(i) = it.next() {

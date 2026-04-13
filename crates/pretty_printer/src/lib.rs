@@ -10,22 +10,16 @@ mod formatted_content_builder;
 mod javascript_formatter;
 mod unicode;
 
-pub fn format(source: &str) -> Result<String> {
+pub fn format(source: &str, indent_size: usize) -> Result<String> {
 	let alloc = Allocator::new();
-	format_with_alloc(source, &alloc)
+	format_with_alloc(source, &alloc, indent_size)
 }
 
-pub fn format_with_alloc(source: &str, alloc: &Allocator) -> Result<String> {
-	let builder = FormattedContentBuilder::<4>::new(alloc);
-	JavaScriptFormatter::run(alloc, builder, source)
-}
-
-pub fn format2(source: &str) -> Result<String> {
-	let alloc = Allocator::new();
-	format_with_alloc2(source, &alloc)
-}
-
-pub fn format_with_alloc2(source: &str, alloc: &Allocator) -> Result<String> {
-	let builder = FormattedContentBuilder::<2>::new(alloc);
+pub fn format_with_alloc(
+	source: &str,
+	alloc: &Allocator,
+	indent_size: usize,
+) -> Result<String> {
+	let builder = FormattedContentBuilder::new(alloc, indent_size);
 	JavaScriptFormatter::run(alloc, builder, source)
 }

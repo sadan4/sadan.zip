@@ -1,8 +1,14 @@
 #![allow(clippy::needless_raw_string_hashes)]
 //! ported from <https://github.com/ChromeDevTools/devtools-frontend/blob/main/front_end/entrypoints/formatter_worker/JavaScriptFormatter.test.ts>
+use anyhow::Result;
 use insta::assert_snapshot;
 use macros::test;
-use pretty_printer::format2;
+use pretty_printer::format;
+
+fn format2(source: &str) -> Result<String> {
+	format(source, 2)
+}
+
 #[test]
 fn await_expressions() {
 	let source = r#"(async () => { await someFunctionThatNeedsAwaiting(); callSomeOtherFunction(); })();"#;

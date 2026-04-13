@@ -137,7 +137,8 @@ opt-level = 3
 [workspace.lints.clippy]
 pedantic = { priority = -1, level = "warn" }
 #TODO: add safety docs later
-missing_safety_doc = "allow"
+missing_safety_doc = "deny"
+undocumented_unsafe_blocks = "deny"
 # pedantic
 # i'd love to be able to get docs on everything, but it doesn't matter that much
 missing_panics_doc = "allow"

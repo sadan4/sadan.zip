@@ -7,10 +7,11 @@ use crate::{
 };
 
 #[derive(Debug)]
-/// if `INDENT_SIZE` is 0, tabs will be used
-pub struct FormattedContentBuilder<'s, const INDENT_SIZE: usize = 4> {
+/// if `indent_size` is 0, tabs will be used
+pub struct FormattedContentBuilder<'s> {
 	#[debug(skip)]
 	formatted_content: Rope<'s>,
+	indent_size: usize,
 	nesting_level: usize,
 	new_lines: usize,
 	enforce_space_before_words: bool,
@@ -18,20 +19,11 @@ pub struct FormattedContentBuilder<'s, const INDENT_SIZE: usize = 4> {
 	hard_spaces: usize,
 }
 
-impl<'a, const INDENT_SIZE: usize> FormattedContentBuilder<'a, INDENT_SIZE> {
-	const SPACES: &'static [u8] = &[b' '; INDENT_SIZE];
-	const INDENT_STR: &'static str = if INDENT_SIZE == 0 {
-		"\t"
-	} else {
-		unsafe {
-			str::from_utf8_unchecked(
-				FormattedContentBuilder::<'static, INDENT_SIZE>::SPACES,
-			)
-		}
-	};
-	pub fn new(_alloc: &'a Allocator) -> Self {
+impl<'a> FormattedContentBuilder<'a> {
+	pub fn new(alloc: &'a Allocator, indent_size: usize) -> Self {
 		Self {
-			formatted_content: Rope::default(),
+			formatted_content: Rope::new_in(alloc),
+			indent_size,
 			nesting_level: 0,
 			new_lines: 0,
 			enforce_space_before_words: true,
@@ -112,7 +104,13 @@ impl<'a, const INDENT_SIZE: usize> FormattedContentBuilder<'a, INDENT_SIZE> {
 				self.add_text("\n");
 			}
 			for _ in 0..self.nesting_level {
-				self.add_text(Self::INDENT_STR);
+				if self.indent_size == 0 {
+					self.add_text("\t");
+				} else {
+					for _ in 0..self.indent_size {
+						self.add_text(" ");
+					}
+				}
 			}
 		} else if self.soft_space {
 			self.add_text(" ");
@@ -156,21 +154,24 @@ fn is_valid_ident_char(c: char) -> bool {
 }
 
 mod rope {
+	use oxc::allocator::{Allocator, Vec as OxcVec};
+
 	// TODO: would it be better to use a linked list over a vec
 	// here since 99% of ops are appends?
-	#[derive(Debug, Clone)]
+	#[derive(Debug)]
 	pub struct Rope<'s> {
-		strs: Vec<&'s str>,
+		strs: OxcVec<'s, &'s str>,
 		total_len: usize,
 	}
 
-	impl Rope<'_> {
-		pub const fn new() -> Self {
+	impl<'s> Rope<'s> {
+		pub fn new_in(alloc: &'s Allocator) -> Self {
 			Self {
-				strs: Vec::new(),
+				strs: OxcVec::new_in(alloc),
 				total_len: 0,
 			}
 		}
+
 		pub fn last_char(&self) -> Option<char> {
 			self.strs
 				.last()
@@ -191,18 +192,10 @@ mod rope {
 			debug_assert!(result.len() == self.total_len);
 			result
 		}
-	}
 
-	impl<'s> Rope<'s> {
 		pub fn push(&mut self, s: &'s str) {
 			self.total_len += s.len();
 			self.strs.push(s);
-		}
-	}
-
-	impl Default for Rope<'_> {
-		fn default() -> Self {
-			Self::new()
 		}
 	}
 }
