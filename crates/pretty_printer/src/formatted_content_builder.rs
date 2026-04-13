@@ -46,7 +46,10 @@ impl<'a, const INDENT_SIZE: usize> FormattedContentBuilder<'a, INDENT_SIZE> {
 		&mut self,
 		value: bool,
 	) -> bool {
-		mem::replace(&mut self.enforce_space_before_words, value)
+		// mem::replace(&mut self.enforce_space_before_words, value)
+		let old_value = self.enforce_space_before_words;
+		self.enforce_space_before_words = value;
+		old_value
 	}
 
 	pub fn add_token(&mut self, token: &'a str) {

@@ -99,7 +99,7 @@ mod token_stream {
 		type Item = TokenOrComment;
 
 		fn next(&mut self) -> Option<Self::Item> {
-			match dbg!((self.tokens.last(), self.comments.last())) {
+			match (self.tokens.last(), self.comments.last()) {
 				(Some(token), Some(comment)) => {
 					debug_assert_ne!(
 						token.span().start,
@@ -261,7 +261,7 @@ impl<'a, const INDENT_SIZE: usize> JavaScriptFormatter<'a, INDENT_SIZE> {
 			.comments
 			.sort_by_key(|c| c.span.start);
 		let comments = parsed.program.comments.take_in(alloc);
-		let tokens = dbg!(parsed.tokens);
+		let tokens = parsed.tokens;
 		trace!("start num toks: {}", tokens.len());
 		let tok_stream = TokenStream::new(tokens, comments);
 		let (_, nodes) = SemanticBuilder::new()
@@ -295,10 +295,7 @@ impl<'a, const INDENT_SIZE: usize> JavaScriptFormatter<'a, INDENT_SIZE> {
 		use Kind as TK;
 		let token = match token {
 			TokenOrComment::Token(token) => token,
-			TokenOrComment::Comment(c) => {
-				trace!("Processing comment: {c:?}");
-				return &[F::Token, F::NewLine];
-			}
+			TokenOrComment::Comment(_) => return &[F::Token, F::NewLine],
 		};
 
 		let tk = token.kind();
@@ -621,7 +618,8 @@ impl<'a, const INDENT_SIZE: usize> JavaScriptFormatter<'a, INDENT_SIZE> {
 		token: Option<&TokenOrComment>,
 		format: &[FormatDirective],
 	) {
-		for inst in dbg!(format) {
+		let _guh = format!("{token:#?}");
+		for inst in format {
 			match inst {
 				FormatDirective::Space => self.builder.add_soft_space(),
 				FormatDirective::HardSpace => self.builder.add_hard_space(),
@@ -657,7 +655,6 @@ impl<'a, const INDENT_SIZE: usize> JavaScriptFormatter<'a, INDENT_SIZE> {
 	fn finish_node(&self, node: AstKind<'a>) -> &'static [FormatDirective] {
 		use AstKind as N;
 		use FormatDirective as F;
-		trace!("Finishing node: {:?}", node.debug_name());
 		match node {
 			N::WithStatement(WithStatement { body, .. }) if !is_block(body) => {
 				&[F::NewLine, F::Dedent]
@@ -776,6 +773,7 @@ impl<'a, const INDENT_SIZE: usize> Visit<'a>
 			let token = unsafe { self.tokenizer.next().unwrap_unchecked() };
 			let format = self
 				.format_token(self.nodes.parent_kind(kind.node_id()), &token);
+			let format = dbg!(format);
 
 			self.push(Some(&token), format);
 		}
@@ -785,6 +783,8 @@ impl<'a, const INDENT_SIZE: usize> Visit<'a>
 		self.builder
 			.set_enforce_space_between_words(false);
 		walk_template_literal(self, it);
+		self.builder
+			.set_enforce_space_between_words(true);
 	}
 
 	fn leave_node(&mut self, kind: AstKind<'a>) {
@@ -804,12 +804,9 @@ impl<'a, const INDENT_SIZE: usize> Visit<'a>
 			self.push(Some(&token), format);
 		}
 		let finished_format = self.finish_node(kind);
-		trace!("Finished node: {:?}", finished_format);
 		self.push(None, self.finish_node(kind));
 		self.builder
-			.set_enforce_space_between_words(
-				restore || kind.as_template_literal().is_some(),
-			);
+			.set_enforce_space_between_words(restore);
 	}
 
 	/// Oxc is bugged and doesn't provide a hashbang token

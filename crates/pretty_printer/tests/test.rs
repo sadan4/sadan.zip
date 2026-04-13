@@ -319,7 +319,6 @@ fn declaration_for_dollar_sign() {
 	assert_snapshot!(out, @"let $ = 1;");
 }
 
-
 #[test]
 fn declaration_for_underscore() {
 	let source = "let _=1;";
@@ -501,7 +500,6 @@ var onStart = function() {}, delay=1000, belay=document.activeElement;";
 	  , delay = 1000
 	  , belay = document.activeElement;
 	");
-	
 }
 
 #[test]
@@ -540,3 +538,6 @@ fn methods_on_literals() {
 	str = "abc".toUpperCase();
 	"#);
 }
+
+mod files_with_classes;
+mod template_literals;
