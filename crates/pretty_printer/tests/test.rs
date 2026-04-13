@@ -529,6 +529,93 @@ fn arrow_functions() {
 
 mod files_with_comments;
 
+mod files_with_classes;
+mod template_literals;
+
+#[test]
+fn removes_consecutive_newlines() {
+	let source = "a();
+
+
+
+
+
+
+
+
+b();";
+	let out = format2(source).unwrap();
+	assert_snapshot!(out, @"
+	a();
+
+	b();
+	");
+}
+
+#[test]
+fn formats_expressions_in_parentheses() {
+	let source = "if((a))((b));else (c);";
+	let out = format2(source).unwrap();
+	assert_snapshot!(out, @"
+	if ((a))
+	  ((b));
+	else
+	  (c);
+	");
+}
+
+#[test]
+fn formats_obfuscated_code() {
+	let source = include_str!("./obfuscated_code");
+	let out = format2(source).unwrap();
+	assert_snapshot!(out);
+}
+
+#[test]
+fn formats_import_meta() {
+	let source = "function foo(){console.log(import.meta.url);}";
+	let out = format2(source).unwrap();
+	assert_snapshot!(out, @"
+	function foo() {
+	  console.log(import.meta.url);
+	}
+	");
+}
+
+#[test]
+fn class_fields() {
+	let source = "class Clazz {map=new Map();someMethod(){console.log(42);}map2=new Map();}";
+	let out = format2(source).unwrap();
+	assert_snapshot!(out, @"
+	class Clazz {
+	  map = new Map();
+	  someMethod() {
+	    console.log(42);
+	  }
+	  map2 = new Map();
+	}
+	");
+}
+
+#[test]
+fn template_literals() {
+	let source = "`foo${bar}foo${bar}`";
+	let out = format2(source).unwrap();
+	assert_eq!(out, source);
+}
+
+#[test]
+fn expressions_in_template_literals() {
+	let source = "`${function(){let a}}`";
+	let out = format2(source).unwrap();
+	assert_snapshot!(out, @"
+	`${function() {
+	  let a
+	}
+	}`
+	");
+}
+
 #[test]
 fn methods_on_literals() {
 	let source = r#"num=1 .toString();str="abc" . toUpperCase();"#;
@@ -539,5 +626,31 @@ fn methods_on_literals() {
 	"#);
 }
 
-mod files_with_classes;
-mod template_literals;
+mod custom_tests {
+	use super::{*, test};
+	
+	/// <https://issues.chromium.org/442209349>
+	#[test]
+	fn keywords_in_template_literals() {
+		let source = r"function _() {
+  bar = function (){};
+  `${foo instanceof bar}`;
+  `${async function () { }}`;
+  `${async function* () { }}`;
+}
+_()";
+		let out = format2(source).unwrap();
+		assert_snapshot!(out, @"
+		function _() {
+		  bar = function() {}
+		  ;
+		  `${fooinstanceof bar}`;
+		  `${asyncfunction() {}
+		  }`;
+		  `${asyncfunction*() {}
+		  }`;
+		}
+		_()
+		");
+	}
+}
