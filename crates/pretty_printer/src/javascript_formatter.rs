@@ -1,16 +1,36 @@
+//! Last content commit was `59ef2610ba7c43fc42c64fc71f6096e91e19ae16`
+//! <https://github.com/ChromeDevTools/devtools-frontend/commit/59ef2610ba7c43fc42c64fc71f6096e91e19ae16>
 use std::iter::{self};
 
 use anyhow::{Result, bail};
 use oxc::{
 	allocator::{Allocator, TakeIn, Vec as OxcVec},
 	ast::{
-		AstKind, Comment,
+		AstKind,
+		Comment,
 		ast::{
-			BlockStatement, BreakStatement, ContinueStatement,
-			DoWhileStatement, ExportNamedDeclaration, ForInStatement,
-			ForOfStatement, ForStatement, Function, FunctionBody, FunctionType,
-			IfStatement, ImportDeclaration, Program, Statement,
-			TemplateLiteral, TryStatement, WhileStatement, WithStatement,
+			ArrowFunctionExpression,
+			BlockStatement,
+			BreakStatement,
+			ContinueStatement,
+			DoWhileStatement,
+			ExportNamedDeclaration,
+			Expression,
+			ForInStatement,
+			ForOfStatement,
+			ForStatement,
+			Function,
+			FunctionBody,
+			FunctionType,
+			IfStatement,
+			ImportDeclaration,
+			Program,
+			Statement,
+			StaticMemberExpression,
+			TemplateLiteral,
+			TryStatement,
+			WhileStatement,
+			WithStatement,
 		},
 	},
 	ast_visit::{Visit, walk::walk_template_literal},
@@ -140,6 +160,7 @@ pub struct JavaScriptFormatter<'a, const INDENT_SIZE: usize = 4> {
 	line_pos_cache: Vec<u32>,
 }
 
+#[derive(Debug)]
 enum FormatDirective {
 	Token,
 	NewLine,
@@ -257,7 +278,7 @@ impl<'a, const INDENT_SIZE: usize> JavaScriptFormatter<'a, INDENT_SIZE> {
 			.comments
 			.sort_by_key(|c| c.span.start);
 		let comments = parsed.program.comments.take_in(alloc);
-		let tokens = parsed.tokens;
+		let tokens = dbg!(parsed.tokens);
 		trace!("start num toks: {}", tokens.len());
 		let tok_stream = TokenStream::new(tokens, comments);
 		let (_, nodes) = SemanticBuilder::new()
@@ -304,12 +325,16 @@ impl<'a, const INDENT_SIZE: usize> JavaScriptFormatter<'a, INDENT_SIZE> {
 		#[allow(clippy::match_same_arms)]
 		match node {
 			N::ContinueStatement(ContinueStatement { label, .. })
-			| N::BreakStatement(BreakStatement { label, .. })
-				if label.is_some() && is_kw(tk) =>
-			{
-				&[F::Token, F::Space]
+			| N::BreakStatement(BreakStatement { label, .. }) => {
+				if label.is_some() && is_kw(tk) {
+					&[F::Token, F::Space]
+				} else {
+					&[F::Token]
+				}
 			}
-			N::BindingIdentifier(_) | N::IdentifierName(_) => &[F::Token],
+			N::BindingIdentifier(_)
+			| N::IdentifierName(_)
+			| N::IdentifierReference(_) => &[F::Token],
 			N::PrivateIdentifier(_) => &[F::Token],
 			N::ReturnStatement(n) => {
 				if tk == TK::Semicolon {
@@ -355,8 +380,12 @@ impl<'a, const INDENT_SIZE: usize> JavaScriptFormatter<'a, INDENT_SIZE> {
 				&[F::Space, F::Token]
 			}
 			N::ObjectPattern(_) if tk == TK::Comma => &[F::Token, F::Space],
-			N::Function(n) if tk == TK::Function && n.id.is_some() => {
-				&[F::Token, F::Space]
+			N::Function(n) => {
+				if tk == TK::Function && n.id.is_some() {
+					&[F::Token, F::Space]
+				} else {
+					&[F::Token]
+				}
 			}
 			N::FormalParameters(_) | N::ArrowFunctionExpression(_)
 				if tk == TK::Comma || tk == TK::RParen =>
@@ -576,6 +605,10 @@ impl<'a, const INDENT_SIZE: usize> JavaScriptFormatter<'a, INDENT_SIZE> {
 			{
 				&[F::Token, F::Space]
 			}
+			N::StaticMemberExpression(StaticMemberExpression {
+				object: Expression::NumericLiteral(_),
+				..
+			}) => &[F::Space, F::Token],
 
 			_ if is_kw(tk) && tk != TK::This => &[F::Token, F::Space],
 			_ => &[F::Token],
@@ -602,7 +635,7 @@ impl<'a, const INDENT_SIZE: usize> JavaScriptFormatter<'a, INDENT_SIZE> {
 		token: Option<&TokenOrComment>,
 		format: &[FormatDirective],
 	) {
-		for inst in format {
+		for inst in dbg!(format) {
 			match inst {
 				FormatDirective::Space => self.builder.add_soft_space(),
 				FormatDirective::HardSpace => self.builder.add_hard_space(),
@@ -638,6 +671,7 @@ impl<'a, const INDENT_SIZE: usize> JavaScriptFormatter<'a, INDENT_SIZE> {
 	fn finish_node(&self, node: AstKind<'a>) -> &'static [FormatDirective] {
 		use AstKind as N;
 		use FormatDirective as F;
+		trace!("Finishing node: {:?}", node.debug_name());
 		match node {
 			N::WithStatement(WithStatement { body, .. }) if !is_block(body) => {
 				&[F::NewLine, F::Dedent]
@@ -659,6 +693,13 @@ impl<'a, const INDENT_SIZE: usize> JavaScriptFormatter<'a, INDENT_SIZE> {
 			N::BlockStatement(_) | N::FunctionBody(_) => {
 				let parent = self.nodes.parent_kind(node.node_id());
 				let grand_parent = self.nodes.parent_kind(parent.node_id());
+				if let N::ArrowFunctionExpression(ArrowFunctionExpression {
+					expression: true,
+					..
+				}) = parent
+				{
+					return &[];
+				}
 				if let N::IfStatement(parent) = parent
 					&& parent.alternate.is_some()
 					&& stmt_id(&parent.consequent) == node.node_id()
@@ -709,6 +750,20 @@ impl<'a, const INDENT_SIZE: usize> JavaScriptFormatter<'a, INDENT_SIZE> {
 			N::IfStatement(IfStatement {
 				consequent: stmt, ..
 			}) if !is_block(stmt) => &[F::Dedent],
+			// Arrow functions with a single expression have an expression statement as their body
+			N::ExpressionStatement(_)
+				if self
+					.nodes
+					.parent_kind(node.node_id())
+					.as_function_body()
+					.is_some_and(|fb| {
+						let gp = self.nodes.parent_kind(fb.node_id());
+						gp.as_arrow_function_expression()
+							.is_some_and(|gp| gp.expression)
+					}) =>
+			{
+				&[]
+			}
 			N::BreakStatement(_)
 			| N::ContinueStatement(_)
 			| N::ThrowStatement(_)
@@ -762,6 +817,8 @@ impl<'a, const INDENT_SIZE: usize> Visit<'a>
 
 			self.push(Some(&token), format);
 		}
+		let finished_format = self.finish_node(kind);
+		trace!("Finished node: {:?}", finished_format);
 		self.push(None, self.finish_node(kind));
 		self.builder
 			.set_enforce_space_between_words(
