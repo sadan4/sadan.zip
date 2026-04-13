@@ -6,31 +6,14 @@ use anyhow::{Result, bail};
 use oxc::{
 	allocator::{Allocator, TakeIn, Vec as OxcVec},
 	ast::{
-		AstKind,
-		Comment,
+		AstKind, Comment,
 		ast::{
-			ArrowFunctionExpression,
-			BlockStatement,
-			BreakStatement,
-			ContinueStatement,
-			DoWhileStatement,
-			ExportNamedDeclaration,
-			Expression,
-			ForInStatement,
-			ForOfStatement,
-			ForStatement,
-			Function,
-			FunctionBody,
-			FunctionType,
-			IfStatement,
-			ImportDeclaration,
-			Program,
-			Statement,
-			StaticMemberExpression,
-			TemplateLiteral,
-			TryStatement,
-			WhileStatement,
-			WithStatement,
+			ArrowFunctionExpression, BlockStatement, BreakStatement,
+			ContinueStatement, DoWhileStatement, ExportNamedDeclaration,
+			Expression, ForInStatement, ForOfStatement, ForStatement, Function,
+			FunctionBody, FunctionType, Hashbang, IfStatement,
+			ImportDeclaration, Program, Statement, StaticMemberExpression,
+			TemplateLiteral, TryStatement, WhileStatement, WithStatement,
 		},
 	},
 	ast_visit::{Visit, walk::walk_template_literal},
@@ -46,7 +29,7 @@ use crate::{
 };
 
 mod token_stream {
-	use derive_more::From;
+	use derive_more::{From, IsVariant};
 
 	use super::{Comment, GetSpan, Kind, OxcVec, Token};
 	pub struct TokenStream<'a> {
@@ -82,7 +65,7 @@ mod token_stream {
 		}
 	}
 
-	#[derive(Copy, Clone, Debug, From)]
+	#[derive(Copy, Clone, Debug, From, IsVariant)]
 	pub enum TokenOrComment {
 		Token(Token),
 		Comment(Comment),
@@ -116,7 +99,7 @@ mod token_stream {
 		type Item = TokenOrComment;
 
 		fn next(&mut self) -> Option<Self::Item> {
-			match (self.tokens.last(), self.comments.last()) {
+			match dbg!((self.tokens.last(), self.comments.last())) {
 				(Some(token), Some(comment)) => {
 					debug_assert_ne!(
 						token.span().start,
@@ -304,7 +287,7 @@ impl<'a, const INDENT_SIZE: usize> JavaScriptFormatter<'a, INDENT_SIZE> {
 
 	fn format_token(
 		&self,
-		node: AstKind<'a>,
+		node: AstKind<'_>,
 		token: &TokenOrComment,
 	) -> &'static [FormatDirective] {
 		use AstKind as N;
@@ -312,7 +295,10 @@ impl<'a, const INDENT_SIZE: usize> JavaScriptFormatter<'a, INDENT_SIZE> {
 		use Kind as TK;
 		let token = match token {
 			TokenOrComment::Token(token) => token,
-			TokenOrComment::Comment(_) => return &[F::Token, F::NewLine],
+			TokenOrComment::Comment(c) => {
+				trace!("Processing comment: {c:?}");
+				return &[F::Token, F::NewLine];
+			}
 		};
 
 		let tk = token.kind();
@@ -826,6 +812,14 @@ impl<'a, const INDENT_SIZE: usize> Visit<'a>
 			);
 	}
 
+	/// Oxc is bugged and doesn't provide a hashbang token
+	/// despite having a [token type for it](Kind::HashbangComment)
+	fn visit_hashbang(&mut self, it: &Hashbang<'a>) {
+		self.builder
+			.add_token(&self.content[it.span]);
+		self.builder.add_new_line(None);
+	}
+
 	/// handle program as a special case so we don't have to branch
 	///  on it in [`Self::enter_node`] and [`Self::leave_node`]
 	fn visit_program(&mut self, it: &Program<'a>) {
@@ -834,5 +828,14 @@ impl<'a, const INDENT_SIZE: usize> Visit<'a>
 		}
 		self.visit_directives(&it.directives);
 		self.visit_statements(&it.body);
+		// finish any trailing comments
+		while let Some(token) = self.tokenizer.next() {
+			debug_assert!(
+				token.is_comment(),
+				"Expected only comments after program end"
+			);
+			let format = self.format_token(AstKind::Program(it), &token);
+			self.push(Some(&token), format);
+		}
 	}
 }
