@@ -780,9 +780,22 @@ impl<'a, const INDENT_SIZE: usize> Visit<'a>
 	}
 
 	fn visit_template_literal(&mut self, it: &TemplateLiteral<'a>) {
+		let it = self.alloc(it);
 		self.builder
 			.set_enforce_space_between_words(false);
-		walk_template_literal(self, it);
+		self.enter_node(AstKind::TemplateLiteral(it));
+		self.visit_span(&it.span);
+		debug_assert!(it.expressions.len() + 1 == it.quasis.len(), "how?");
+		let mut quasis = it.quasis.iter();
+		// visit the quasis in source order
+		// oxc will visit all quasis then all elements
+		// instead of visiting in source order
+		self.visit_template_element(quasis.next().unwrap());
+		for (expr, quasi) in it.expressions.iter().zip(&it.quasis) {
+			self.visit_expression(expr);
+			self.visit_template_element(quasi);
+		}
+		self.leave_node(AstKind::TemplateLiteral(it));
 		self.builder
 			.set_enforce_space_between_words(true);
 	}
@@ -791,7 +804,8 @@ impl<'a, const INDENT_SIZE: usize> Visit<'a>
 		let restore = self
 			.builder
 			.set_enforce_space_between_words(
-				kind.as_template_element().is_none(),
+				kind.as_template_element().is_none()
+					&& kind.as_template_literal().is_none(),
 			);
 		let node_end = kind.span().end;
 		while let Some(token) = self.tokenizer.peek()
@@ -803,7 +817,6 @@ impl<'a, const INDENT_SIZE: usize> Visit<'a>
 
 			self.push(Some(&token), format);
 		}
-		let finished_format = self.finish_node(kind);
 		self.push(None, self.finish_node(kind));
 		self.builder
 			.set_enforce_space_between_words(restore);

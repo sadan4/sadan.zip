@@ -16,20 +16,6 @@ bar`;";
 }
 
 #[test]
-fn dbg_guh1() {
-	let source = r#"`${1+2}`"#;
-	let out = format2(source).unwrap();
-	assert_snapshot!(out, @r#"`${1 + 2}`"#);
-}
-
-#[test]
-fn dbg_guh2() {
-	let source = r"1+2";
-	let out = format2(source).unwrap();
-	assert_snapshot!(out, @r"1 + 2");
-}
-
-#[test]
 fn string_substitution() {
 	let source = r#"var a=`I have ${credit+cash}$`;
 var a=`${name} has ${credit+cash}${currency?currency:"$"}`;"#;
