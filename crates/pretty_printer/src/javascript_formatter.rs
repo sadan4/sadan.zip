@@ -21,7 +21,6 @@ use oxc::{
 	semantic::{AstNodes, NodeId, SemanticBuilder},
 	span::{GetSpan, SourceType},
 };
-use tracing::trace;
 
 use crate::{
 	formatted_content_builder::FormattedContentBuilder,
@@ -262,7 +261,6 @@ impl<'a, const INDENT_SIZE: usize> JavaScriptFormatter<'a, INDENT_SIZE> {
 			.sort_by_key(|c| c.span.start);
 		let comments = parsed.program.comments.take_in(alloc);
 		let tokens = parsed.tokens;
-		trace!("start num toks: {}", tokens.len());
 		let tok_stream = TokenStream::new(tokens, comments);
 		let (_, nodes) = SemanticBuilder::new()
 			.build(&parsed.program)
@@ -299,11 +297,11 @@ impl<'a, const INDENT_SIZE: usize> JavaScriptFormatter<'a, INDENT_SIZE> {
 		};
 
 		let tk = token.kind();
-		trace!(
-			"Processing token: {:?} in node: {:?}",
-			tk,
-			node.debug_name()
-		);
+		// tracing::trace!(
+		// 	"Processing token: {:?} in node: {:?}",
+		// 	tk,
+		// 	node.debug_name()
+		// );
 
 		#[allow(clippy::match_same_arms)]
 		match node {

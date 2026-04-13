@@ -630,6 +630,7 @@ mod custom_tests {
 	use super::{*, test};
 	
 	/// <https://issues.chromium.org/442209349>
+	/// TODO: fix this output or maintain byte-for-byte output with original formatter
 	#[test]
 	fn keywords_in_template_literals() {
 		let source = r"function _() {

@@ -159,8 +159,8 @@ fn is_valid_ident_char(c: char) -> bool {
 }
 
 mod rope {
-	use tracing::trace;
-
+	// TODO: would it be better to use a linked list over a vec
+	// here since 99% of ops are appends?
 	#[derive(Debug, Clone)]
 	pub struct Rope<'s> {
 		strs: Vec<&'s str>,
@@ -179,14 +179,13 @@ mod rope {
 				.last()
 				.and_then(|s| s.chars().last())
 		}
-		pub const fn len(&self) -> usize {
-			self.total_len
-		}
+
 		pub const fn is_empty(&self) -> bool {
 			self.total_len == 0
 		}
+
+		#[allow(clippy::inherent_to_string)]
 		pub fn to_string(&self) -> String {
-			trace!("num ending rope pieces: {}", self.strs.len());
 			let mut result = String::new();
 			result.reserve_exact(self.total_len);
 			for s in &self.strs {
