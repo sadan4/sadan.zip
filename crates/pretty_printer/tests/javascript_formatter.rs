@@ -3,10 +3,10 @@
 use anyhow::Result;
 use insta::assert_snapshot;
 use macros::test;
-use pretty_printer::format;
+use pretty_printer::format_to_str;
 
 fn format2(source: &str) -> Result<String> {
-	format(source, 2)
+	format_to_str(source, 2)
 }
 
 #[test]
@@ -464,7 +464,7 @@ fn block_comments() {
  */
 var a = 10;"#;
 	let out = format2(source).unwrap();
-	assert_eq!(out, source);
+	assert_eq!(out, format!("{source}\n"));
 }
 #[test]
 fn let_assignments() {
@@ -607,7 +607,7 @@ fn class_fields() {
 fn template_literals() {
 	let source = "`foo${bar}foo${bar}`";
 	let out = format2(source).unwrap();
-	assert_eq!(out, source);
+	assert_eq!(out, format!("{source}\n"));
 }
 
 #[test]

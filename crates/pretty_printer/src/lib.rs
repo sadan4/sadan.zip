@@ -12,12 +12,18 @@ mod javascript_formatter;
 mod unicode;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct FormatResult {
-	formatted_code: String,
-	position_mappings: Vec<(u32, u32)>,
+pub struct FormattedContent {
+	/// The formatted code.
+	code: String,
+	/// `Vec<(original_position, formatted_position)>`
+	mappings: Vec<(u32, u32)>,
 }
 
-pub fn format(source: &str, indent_size: u8) -> Result<String> {
+pub fn format_to_str(source: &str, indent_size: u8) -> Result<String> {
+	format(source, indent_size).map(|c| c.code)
+}
+
+pub fn format(source: &str, indent_size: u8) -> Result<FormattedContent> {
 	let alloc = Allocator::new();
 	format_with_alloc(source, &alloc, indent_size)
 }
@@ -26,7 +32,7 @@ pub fn format_with_alloc(
 	source: &str,
 	alloc: &Allocator,
 	indent_size: u8,
-) -> Result<String> {
+) -> Result<FormattedContent> {
 	let builder = FormattedContentBuilder::new(alloc, indent_size);
 	JavaScriptFormatter::run(alloc, builder, source)
 }

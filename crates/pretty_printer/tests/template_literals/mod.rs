@@ -4,7 +4,7 @@ use super::{test, *};
 fn simple_template_literal() {
 	let source = "var foo = `bar`;";
 	let out = format2(source).unwrap();
-	assert_eq!(source, out);
+	assert_eq!(out, format!("{source}\n"));
 }
 
 #[test]
@@ -12,7 +12,7 @@ fn multiline_template() {
 	let source = "var foo = `this
 bar`;";
 	let out = format2(source).unwrap();
-	assert_eq!(source, out);
+	assert_eq!(out, format!("{source}\n"));
 }
 
 #[test]

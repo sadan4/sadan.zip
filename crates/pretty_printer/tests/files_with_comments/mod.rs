@@ -5,7 +5,7 @@ fn file_with_one_leading_comment() {
 	let source = "// This is a starting comment
 console.log('5');";
 	let out = format2(source).unwrap();
-	assert_eq!(out, source);
+	assert_eq!(out, format!("{source}\n"));
 }
 
 #[test]
@@ -40,7 +40,7 @@ fn one_trailing_comment_on_new_line() {
 	let source = "console.log('5');
 // This is a new line comment";
 	let out = format2(source).unwrap();
-	assert_eq!(out, source);
+	assert_eq!(out, format!("{source}\n"));
 }
 
 #[test]
@@ -49,7 +49,7 @@ fn two_leading_comments() {
 /* This is a starting block comment */
 console.log('5');";
 	let out = format2(source).unwrap();
-	assert_eq!(out, source);
+	assert_eq!(out, format!("{source}\n"));
 }
 
 #[test]

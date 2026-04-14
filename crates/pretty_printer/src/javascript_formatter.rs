@@ -41,8 +41,7 @@ use oxc::{
 };
 
 use crate::{
-	formatted_content_builder::FormattedContentBuilder,
-	javascript_formatter::token_stream::{TokenOrComment, TokenStream},
+	FormattedContent, formatted_content_builder::FormattedContentBuilder, javascript_formatter::token_stream::{TokenOrComment, TokenStream}
 };
 
 mod token_stream {
@@ -255,9 +254,9 @@ impl<'a> JavaScriptFormatter<'a> {
 
 	pub fn run(
 		alloc: &'a Allocator,
-		builder: FormattedContentBuilder<'a>,
+		mut builder: FormattedContentBuilder<'a>,
 		content: &'a str,
-	) -> Result<String> {
+	) -> Result<FormattedContent> {
 		let mut parsed = Parser::new(alloc, content, SourceType::default())
 			.with_config(TokensParserConfig)
 			.parse();
@@ -274,6 +273,7 @@ impl<'a> JavaScriptFormatter<'a> {
 			.sort_by_key(|c| c.span.start);
 		let comments = parsed.program.comments.take_in(alloc);
 		let tokens = parsed.tokens;
+		builder.hint_num_tokens(comments.len() + tokens.len());
 		let tok_stream = TokenStream::new(tokens, comments);
 		let (_, nodes) = SemanticBuilder::new()
 			.build(&parsed.program)
@@ -289,7 +289,7 @@ impl<'a> JavaScriptFormatter<'a> {
 			line_pos_cache: cache_lines(content),
 		};
 		formatter.format();
-		Ok(formatter.builder.into_content())
+		Ok(formatter.builder.build_with_mappings())
 	}
 
 	fn format(&mut self) {
@@ -656,7 +656,7 @@ impl<'a> JavaScriptFormatter<'a> {
 						}
 						self.last_line_number = self.line_of_pos(span.end);
 						self.builder
-							.add_token(&self.content[span]);
+							.add_token(&self.content[span], span.start);
 					} else {
 						debug_assert!(
 							false,
@@ -840,7 +840,7 @@ impl<'a> Visit<'a> for JavaScriptFormatter<'a> {
 	/// despite having a [token type for it](Kind::HashbangComment)
 	fn visit_hashbang(&mut self, it: &Hashbang<'a>) {
 		self.builder
-			.add_token(&self.content[it.span]);
+			.add_token(&self.content[it.span], it.span.start);
 		self.builder.add_new_line(None);
 	}
 
