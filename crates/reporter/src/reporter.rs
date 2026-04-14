@@ -124,7 +124,8 @@ impl<'a> ReporterState<'a> {
 	}
 	#[must_use = "RAII guard"]
 	fn stage(&self, msg: &'static str, n: Option<usize>) -> Stage {
-		Stage::new(format!("[{:?}]: {msg}", self.channel), n).and_attach(&self.m_bar)
+		Stage::new(format!("[{:?}]: {msg}", self.channel), n)
+			.and_attach(&self.m_bar)
 	}
 	fn prune_bad_finds(&mut self) {
 		let bar = self.stage("Pruning bad finds", Some(self.patches.len()));

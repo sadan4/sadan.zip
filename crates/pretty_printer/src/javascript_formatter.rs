@@ -198,8 +198,7 @@ fn cache_lines(src: &str) -> Vec<u32> {
 			line_pos_cache.push(i as u32 + 1);
 		}
 	}
-	if *line_pos_cache.last().unwrap() >= src.len() as u32
-	{
+	if *line_pos_cache.last().unwrap() >= src.len() as u32 {
 		line_pos_cache.pop();
 	}
 	line_pos_cache
@@ -779,8 +778,7 @@ impl<'a> JavaScriptFormatter<'a> {
 	}
 }
 
-impl<'a> Visit<'a> for JavaScriptFormatter<'a>
-{
+impl<'a> Visit<'a> for JavaScriptFormatter<'a> {
 	fn enter_node(&mut self, kind: AstKind<'a>) {
 		let node_start = kind.span().start;
 		while let Some(token) = self.tokenizer.peek()

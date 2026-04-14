@@ -3,6 +3,7 @@ use oxc::allocator::Allocator;
 
 use crate::{
 	formatted_content_builder::rope::Rope,
+	indent_cache::INDENT_CACHE,
 	unicode::{interval::interval_contains, tables::id_continue},
 };
 
@@ -11,16 +12,18 @@ use crate::{
 pub struct FormattedContentBuilder<'s> {
 	#[debug(skip)]
 	formatted_content: Rope<'s>,
-	indent_size: usize,
-	nesting_level: usize,
-	new_lines: usize,
+	indent_size: u8,
+	nesting_level: u32,
+	new_lines: u32,
 	enforce_space_before_words: bool,
 	soft_space: bool,
-	hard_spaces: usize,
+	hard_spaces: u32,
+	last_original_position: u32,
+	last_formatted_position: u32,
 }
 
 impl<'a> FormattedContentBuilder<'a> {
-	pub fn new(alloc: &'a Allocator, indent_size: usize) -> Self {
+	pub fn new(alloc: &'a Allocator, indent_size: u8) -> Self {
 		Self {
 			formatted_content: Rope::new_in(alloc),
 			indent_size,
@@ -29,6 +32,8 @@ impl<'a> FormattedContentBuilder<'a> {
 			enforce_space_before_words: true,
 			soft_space: false,
 			hard_spaces: 0,
+			last_formatted_position: 0,
+			last_original_position: 0,
 		}
 	}
 
@@ -103,12 +108,19 @@ impl<'a> FormattedContentBuilder<'a> {
 			for _ in 0..self.new_lines {
 				self.add_text("\n");
 			}
-			for _ in 0..self.nesting_level {
-				if self.indent_size == 0 {
-					self.add_text("\t");
-				} else {
-					for _ in 0..self.indent_size {
-						self.add_text(" ");
+			if let Some(str) = INDENT_CACHE
+				.get(self.indent_size as usize)
+				.and_then(|arr| arr.get(self.nesting_level as usize))
+			{
+				self.add_text(str);
+			} else {
+				for _ in 0..self.nesting_level {
+					if self.indent_size == 0 {
+						self.add_text("\t");
+					} else {
+						for _ in 0..self.indent_size {
+							self.add_text(" ");
+						}
 					}
 				}
 			}

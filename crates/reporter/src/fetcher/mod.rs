@@ -33,7 +33,7 @@ pub struct FetchOpts {
 	// #[arg(long)]
 	// bundle_file: Option<PathBuf>,
 	/// The branches to run the reporter for
-	/// 
+	///
 	/// Can be passed more than once
 	#[arg(short, long, value_enum, default_values_t = vec![Branch::Stable])]
 	pub branches: Vec<Branch>,
@@ -73,9 +73,8 @@ async fn fetch_for_channel(
 	bars: &MultiProgressWrapper,
 ) -> Result<ScrapedOutput> {
 	info!("Fetching build from {channel:?} channel");
-	let bar =
-		Stage::new(format!("[{channel:?}]: Scraping build data: "), None)
-			.and_attach(&bars);
+	let bar = Stage::new(format!("[{channel:?}]: Scraping build data: "), None)
+		.and_attach(&bars);
 	bar.msg("Fetching index HTML");
 	let client =
 		make_reqwest_client().context("Failed to create HTTP client")?;

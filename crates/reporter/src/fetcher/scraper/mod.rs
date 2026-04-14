@@ -90,8 +90,11 @@ pub async fn scrape_build(
 			.context("Failed to get JS chunk hashes")?;
 		drop(pre_bar);
 		chunk_bar = Arc::new(
-			Stage::new(format!("[{channel:?}]: Parsing Lazy Chunks: "), Some(chunks.len()))
-				.and_attach(&bars),
+			Stage::new(
+				format!("[{channel:?}]: Parsing Lazy Chunks: "),
+				Some(chunks.len()),
+			)
+			.and_attach(&bars),
 		);
 
 		debug!("Found {} chunks", chunks.len());

@@ -8,6 +8,7 @@ use tracing::level_filters::LevelFilter;
 mod build;
 mod clean;
 mod deps;
+mod gen_;
 mod run;
 mod util;
 
@@ -48,6 +49,7 @@ enum Command {
 	Build(build::Command),
 	Clean(clean::Command),
 	Run(run::Command),
+	Gen(gen_::Command),
 	Completions {
 		#[arg(value_enum)]
 		shell: Shell,
@@ -60,6 +62,7 @@ impl Runnable for Command {
 			Self::Build(cmd) => cmd.run(),
 			Self::Clean(cmd) => cmd.run(),
 			Self::Run(cmd) => cmd.run(),
+			Self::Gen(cmd) => cmd.run(),
 			// this is handled in main and we exit early
 			Self::Completions { shell } => {
 				clap_complete::generate(
