@@ -8,12 +8,12 @@ use std::{
 use crate::{
 	diag::ReporterError,
 	fetcher::ScrapedOutput,
-	util::Stage,
+	util::{MultiProgressWrapper, Stage},
 	vc::Plugin,
 };
 use anyhow::{Result, anyhow};
 use derive_more::IsVariant;
-use indicatif::MultiProgress;
+use explorer_server_core::Channel;
 use itertools::Itertools as _;
 use miette::{Diagnostic, Severity};
 use oxc::{
@@ -32,7 +32,7 @@ use webpack_ast_parser::types::ModuleId;
 
 #[derive(Debug)]
 pub enum Msg {
-	RequestProgressBar(oneshot::Sender<MultiProgress>),
+	RequestProgressBar(oneshot::Sender<&'static MultiProgressWrapper>),
 	Error(ReporterError),
 	Done(Result<Duration>),
 }
@@ -45,6 +45,7 @@ impl From<ReporterError> for Msg {
 
 #[track_caller]
 pub fn report_broken_patches(
+	channel: Channel,
 	target_build: Arc<ScrapedOutput>,
 	plugins: Arc<Vec<Plugin>>,
 ) -> mpsc::Receiver<Msg> {
@@ -52,7 +53,7 @@ pub fn report_broken_patches(
 	let (mut tx, rx) = mpsc::channel(BUFFER_SIZE);
 	task::spawn_blocking(move || {
 		let start = Instant::now();
-		run_reporter(&target_build, &plugins, &mut tx);
+		run_reporter(channel, &target_build, &plugins, &mut tx);
 		let duration = start.elapsed();
 		tx.blocking_send(Msg::Done(Ok(duration)))
 			.unwrap();
@@ -63,12 +64,13 @@ pub fn report_broken_patches(
 
 struct ReporterState<'a> {
 	tx: &'a mut mpsc::Sender<Msg>,
-	m_bar: MultiProgress,
+	m_bar: &'static MultiProgressWrapper,
 	patches: HashSet<&'a Patch>,
 	find_map: HashMap<&'a Patch, Vec<ModuleId>>,
 	alloc: Allocator,
 	build: &'a ScrapedOutput,
 	stats: HashMap<ModuleId, Stats>,
+	channel: Channel,
 }
 
 impl<'a> ReporterState<'a> {
@@ -76,6 +78,7 @@ impl<'a> ReporterState<'a> {
 		plugins: &'a [Plugin],
 		build: &'a ScrapedOutput,
 		tx: &'a mut mpsc::Sender<Msg>,
+		channel: Channel,
 	) -> Self {
 		let (pb_tx, rx) = oneshot::channel();
 		tx.blocking_send(Msg::RequestProgressBar(pb_tx))
@@ -99,6 +102,7 @@ impl<'a> ReporterState<'a> {
 			stats,
 			find_map,
 			alloc: Allocator::new(),
+			channel,
 		}
 	}
 }
@@ -120,7 +124,7 @@ impl<'a> ReporterState<'a> {
 	}
 	#[must_use = "RAII guard"]
 	fn stage(&self, msg: &'static str, n: Option<usize>) -> Stage {
-		Stage::new(msg, n).and_attach(&self.m_bar)
+		Stage::new(format!("[{:?}]: {msg}", self.channel), n).and_attach(&self.m_bar)
 	}
 	fn prune_bad_finds(&mut self) {
 		let bar = self.stage("Pruning bad finds", Some(self.patches.len()));
@@ -433,11 +437,12 @@ impl<'a> ReporterState<'a> {
 }
 
 fn run_reporter(
+	channel: Channel,
 	build: &ScrapedOutput,
 	plugins: &[Plugin],
 	tx: &mut mpsc::Sender<Msg>,
 ) {
-	ReporterState::new(plugins, build, tx).run();
+	ReporterState::new(plugins, build, tx, channel).run();
 }
 
 fn matches_module(m_txt: &str, patch: &Patch) -> bool {

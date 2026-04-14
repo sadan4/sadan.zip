@@ -1,5 +1,6 @@
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, bail};
 use clap::Args;
+use itertools::Itertools as _;
 use oxc::{allocator::Allocator, ast::ast::RegExpFlags};
 use regress::escape;
 use std::{
@@ -7,18 +8,23 @@ use std::{
 	fs,
 	path::{Path, PathBuf},
 };
-use tracing::{trace, warn};
+use tokio::task;
+use tracing::{debug, trace, warn};
 use vencord_ast_parser::{Match, MatchRegex, Patch, VencordAstParser};
 
 use crate::util::Stage;
 
-#[derive(Args, Debug)]
+#[derive(Args, Debug, Clone)]
 pub struct VencordOpts {
 	/// Path to vencord source dir. Defaults to $PWD
 	#[arg(short = 'C', long, default_value_os_t = default_vencord_dir())]
 	pub vencord_dir: PathBuf,
 	/// Dirs to load plugins from, relative to the root dir.
-	#[arg(short, long, default_values_os_t = default_plugin_dirs())]
+	///
+	/// If not passed, will be the result of globing [`vencord_dir`](Self::vencord_dir) with `src/*plugins/{., _api, _core}`
+	///
+	/// note: `src/userplugins` is not globbed by default and needs to be explicitly passed
+	#[arg(short, long)]
 	pub plugin_dirs: Vec<PathBuf>,
 }
 
@@ -41,19 +47,27 @@ impl Plugin {
 }
 
 pub async fn collect_patches(
-	opts: VencordOpts,
+	mut opts: VencordOpts,
 	bar: Stage,
 ) -> Result<Vec<Plugin>> {
-	tokio::task::spawn_blocking(move || do_collect_patches(opts, bar)).await?
+	task::spawn_blocking(move || do_collect_patches(&mut opts, bar)).await?
 }
 
 #[expect(clippy::needless_pass_by_value, reason = "RAII")]
-fn do_collect_patches(opts: VencordOpts, bar: Stage) -> Result<Vec<Plugin>> {
+fn do_collect_patches(
+	opts: &mut VencordOpts,
+	bar: Stage,
+) -> Result<Vec<Plugin>> {
 	bar.msg("Globbing plugins");
+	if opts.plugin_dirs.is_empty() {
+		opts.plugin_dirs = infer_plugin_dirs(&opts.vencord_dir)
+			.context("infer plugin dirs")?;
+		debug!("Inferred plugin dirs: {:?}", opts.plugin_dirs);
+	}
 	let mut plugins = Vec::new();
 	for plugin_base_dir in opts
 		.plugin_dirs
-		.into_iter()
+		.iter()
 		.map(|d| opts.vencord_dir.join(d))
 	{
 		if !plugin_base_dir.exists() {
@@ -83,6 +97,69 @@ fn do_collect_patches(opts: VencordOpts, bar: Stage) -> Result<Vec<Plugin>> {
 	compile_plugin_regexes(&mut plugins);
 
 	Ok(plugins)
+}
+
+pub async fn collect_plugins_from_paths(
+	paths: Vec<(PathBuf, String)>,
+) -> Result<Vec<Plugin>> {
+	task::spawn_blocking(move || do_collect_plugins_from_paths(paths)).await?
+}
+
+fn do_collect_plugins_from_paths(
+	paths: Vec<(PathBuf, String)>,
+) -> Result<Vec<Plugin>> {
+	let mut allocator = Allocator::new();
+	let mut plugins = paths
+		.into_iter()
+		.map(|(entry_point, entry_source)| Plugin {
+			entry_point,
+			entry_source,
+			patches: Vec::new(),
+		})
+		.collect_vec();
+	for plugin in &mut plugins {
+		let parser =
+			VencordAstParser::try_new(&allocator, &plugin.entry_source)?;
+		plugin.patches = parser.patches()?;
+		allocator.reset();
+	}
+	drop(allocator);
+	debug!("Binding plugin IDs");
+	bind_plugin_ids(&mut plugins);
+	debug!("Compiling plugin regexes");
+	compile_plugin_regexes(&mut plugins);
+	Ok(plugins)
+}
+
+fn infer_plugin_dirs(vencord_dir: &Path) -> Result<Vec<PathBuf>> {
+	const PLUGIN_SUB_DIRS: &[&str] = &["_core", "_api"];
+	let src_dir = vencord_dir.join("src");
+	let mut ret = Vec::new();
+	for path in fs::read_dir(src_dir)? {
+		let path = path?;
+		if !path.file_type()?.is_dir() {
+			continue;
+		}
+		let path = path.path();
+		// This should never be none as read_dir does not iterate over . and .. entries
+		let file_name = path
+			.file_name()
+			.unwrap()
+			.to_string_lossy();
+		if file_name == "userplugins" {
+			continue;
+		}
+		if file_name.ends_with("plugins") {
+			for sub_dir in PLUGIN_SUB_DIRS {
+				let sub_dir = path.join(sub_dir);
+				if sub_dir.is_dir() {
+					ret.push(sub_dir);
+				}
+			}
+			ret.push(path);
+		}
+	}
+	Ok(ret)
 }
 
 fn bind_plugin_ids(plugins: &mut [Plugin]) {

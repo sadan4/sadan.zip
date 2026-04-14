@@ -85,6 +85,9 @@ vencord_ast_parser = { path = "crates/vencord_ast_parser" }
 webpack_ast_parser = { path = "crates/webpack_ast_parser" }
 webpack_chunk_parser = { path = "crates/webpack_chunk_parser" }
 rayon = "1.11.0"
+notify = "8.2.0"
+rustc-hash = "2.1.2"
+clearscreen = "4.0.6"
 
 [profile.release]
 incremental = true

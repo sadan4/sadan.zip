@@ -6,16 +6,18 @@ use clap::Args;
 use explorer_server_core::Channel;
 use indicatif::MultiProgress;
 use reqwest_middleware::ClientWithMiddleware;
+use tokio::task;
 use tracing::{info, warn};
 
 use crate::{
+	Branch,
 	fetcher::scraper::make_reqwest_client,
-	util::{ByteStr, Stage},
+	util::{ByteStr, MultiProgressWrapper, Stage},
 };
 
 pub use scraper::ScrapedOutput;
 
-#[derive(Args, Debug)]
+#[derive(Args, Debug, Clone)]
 pub struct FetchOpts {
 	// // /// Try to run reporter against the build with this number. Fails if the build can't be found.
 	// // build_number: Option<u32>,
@@ -30,23 +32,50 @@ pub struct FetchOpts {
 	// /// If this is provided, nothing will be fetched from [`Self::backend_url`]
 	// #[arg(long)]
 	// bundle_file: Option<PathBuf>,
-	/// Fetch the canary build instead of the stable build.
-	#[arg(short, long, default_value_t = false)]
-	canary: bool,
+	/// The branches to run the reporter for
+	/// 
+	/// Can be passed more than once
+	#[arg(short, long, value_enum, default_values_t = vec![Branch::Stable])]
+	pub branches: Vec<Branch>,
+}
+
+pub struct ScrapedBranch {
+	pub channel: Channel,
+	pub out: ScrapedOutput,
 }
 
 pub async fn fetch_build(
 	opts: FetchOpts,
-	bars: MultiProgress,
+	bars: &'static MultiProgressWrapper,
+) -> Result<Vec<ScrapedBranch>> {
+	let mut futs: Vec<task::JoinHandle<Result<ScrapedBranch>>> =
+		Vec::with_capacity(2);
+	for &branch in &opts.branches {
+		let ch = branch.into();
+		let bars = bars.clone();
+		futs.push(tokio::spawn(async move {
+			let scraped = fetch_for_channel(ch, bars).await?;
+			Ok(ScrapedBranch {
+				channel: ch,
+				out: scraped,
+			})
+		}));
+	}
+	let mut results = Vec::with_capacity(futs.len());
+	for fut in futs {
+		results.push(fut.await.context("Join error")??);
+	}
+	Ok(results)
+}
+
+async fn fetch_for_channel(
+	channel: Channel,
+	bars: &MultiProgressWrapper,
 ) -> Result<ScrapedOutput> {
-	let channel = if opts.canary {
-		Channel::Canary
-	} else {
-		Channel::Stable
-	};
 	info!("Fetching build from {channel:?} channel");
-	let bar = Stage::new("Scraping build data: ", None).and_attach(&bars);
-	mem::forget(bar.clone());
+	let bar =
+		Stage::new(format!("[{channel:?}]: Scraping build data: "), None)
+			.and_attach(&bars);
 	bar.msg("Fetching index HTML");
 	let client =
 		make_reqwest_client().context("Failed to create HTTP client")?;
@@ -71,7 +100,7 @@ async fn fetch_index(
 	let res = client.get(url).send().await?;
 	if let Some(build_hash) = res.headers().get("x-build-id") {
 		match build_hash.to_str() {
-			Ok(s) => info!("Target build hash: {s}"),
+			Ok(s) => info!("{channel:?} build hash: {s}"),
 			Err(e) => {
 				warn!("Failed to read build hash from response header: {e:?}");
 			}

@@ -1,3 +1,4 @@
+mod cmds;
 mod diag;
 mod err;
 mod fetcher;
@@ -5,39 +6,37 @@ mod reporter;
 mod util;
 mod vc;
 use anyhow::{Result, bail};
-use clap::{CommandFactory as _, Parser};
+use clap::{CommandFactory as _, Parser, ValueEnum};
 use clap_complete::Shell;
 use derive_more::{From, Into};
+use explorer_server_core::Channel;
 use indicatif::MultiProgress;
-use miette::{Diagnostic, NamedSource, Report, Severity::Warning, SourceCode};
+use miette::SourceCode;
 use std::{
 	io,
-	mem,
 	path::Path,
 	process,
 	sync::{Arc, LazyLock},
-	time::Instant,
 };
 use terminal_size::terminal_size;
-use tracing::{error, warn};
+use tracing::error;
 use tracing_subscriber::util::SubscriberInitExt;
 
 use crate::{
 	err::printer::GraphicalReportHandler,
-	fetcher::{FetchOpts, fetch_build},
-	reporter::{Msg, report_broken_patches},
-	util::Stage,
-	vc::{Plugin, VencordOpts, collect_patches},
+	fetcher::FetchOpts,
+	util::MultiProgressWrapper,
+	vc::{Plugin, VencordOpts},
 };
 
-#[derive(Parser)]
+#[derive(Parser, Clone)]
 #[command(version, about)]
 struct Cli {
 	#[command(flatten)]
 	vc_opts: VencordOpts,
 	#[command(flatten)]
 	fetch_opts: FetchOpts,
-	/// Dump the contents of any module involved in an error, before any transformations, to `$PWD/{module_id}.js`
+	/// Dump the contents of any module involved in an error, before any transformations, to `$PWD/{Stable, Canary}/<module_id>.js`
 	#[arg(long, default_value_t = false)]
 	dump_on_error: bool,
 	/// Do not print reporter warnings, only print errors.
@@ -48,12 +47,29 @@ struct Cli {
 	/// Generate shell completions
 	#[arg(long, value_enum)]
 	completions: Option<Shell>,
+	#[command(subcommand)]
+	cmd: cmds::Cmd,
+}
+
+#[derive(ValueEnum, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum Branch {
+	Stable,
+	Canary,
+}
+
+impl From<Branch> for Channel {
+	fn from(value: Branch) -> Self {
+		match value {
+			Branch::Stable => Self::Stable,
+			Branch::Canary => Self::Canary,
+		}
+	}
 }
 
 #[derive(From)]
-struct MultiProgressWrapper(MultiProgress);
+struct MultiProgressWriteWrapper(&'static MultiProgress);
 
-impl io::Write for MultiProgressWrapper {
+impl io::Write for MultiProgressWriteWrapper {
 	fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
 		self.0
 			.suspend(|| io::stderr().lock().write(buf))
@@ -65,7 +81,8 @@ impl io::Write for MultiProgressWrapper {
 	}
 }
 
-static GLOBAL_BAR: LazyLock<MultiProgress> = LazyLock::new(MultiProgress::new);
+static GLOBAL_BAR: LazyLock<MultiProgressWrapper> =
+	LazyLock::new(MultiProgressWrapper::default);
 
 fn install_tracing() {
 	use tracing_subscriber::{
@@ -91,7 +108,7 @@ fn install_tracing() {
 		})
 		.unwrap();
 	let fmt_layer = fmt::layer()
-		.with_writer(|| MultiProgressWrapper::from(GLOBAL_BAR.clone()));
+		.with_writer(|| MultiProgressWriteWrapper::from(GLOBAL_BAR.inner_()));
 	registry()
 		.with(filter_layer)
 		.with(fmt_layer)
@@ -126,13 +143,16 @@ async fn async_main() {
 		);
 		process::exit(0);
 	}
-	if let Err(e) = run(cli).await {
-		error!("{e:?}");
-		process::exit(1);
+	match run(cli).await {
+		Err(e) => {
+			error!("{e:?}");
+			process::exit(1);
+		}
+		Ok(code) => process::exit(i32::from(code)),
 	}
 }
 
-async fn run(cli: Cli) -> Result<()> {
+async fn run(mut cli: Cli) -> Result<i8> {
 	if !is_likely_vencord_dir(&cli.vc_opts.vencord_dir) {
 		Cli::command()
 			.print_long_help()
@@ -142,89 +162,9 @@ async fn run(cli: Cli) -> Result<()> {
 			cli.vc_opts.vencord_dir.display()
 		);
 	}
-	let bars = GLOBAL_BAR.clone();
-	let patches_bar =
-		Stage::new("Collecting Patches: ", None).and_attach(&bars);
-	// we need to keep the progress bars alive so that .suspend works properly
-	// SEE: https://github.com/console-rs/indicatif/issues/594
-	mem::forget(patches_bar.clone());
-	// FIXME: don't wrap in spawn
-	let patches_fut =
-		tokio::spawn(
-			async move { collect_patches(cli.vc_opts, patches_bar).await },
-		);
-	let bars2 = bars.clone();
-	let target_build_fut =
-		tokio::spawn(async move { fetch_build(cli.fetch_opts, bars2).await });
-	let (plugins, target_build) = tokio::join!(patches_fut, target_build_fut);
-	let plugins = Arc::new(plugins??);
-	let target_build = Arc::new(target_build??);
-	let start = Instant::now();
-	let plugins2 = plugins.clone();
-	let mut rx = report_broken_patches(target_build.clone(), plugins2);
-
-	while let Some(msg) = rx.recv().await {
-		match msg {
-			Msg::RequestProgressBar(tx) => {
-				tx.send(bars.clone()).unwrap();
-			}
-			Msg::Done(res) => {
-				match res {
-					Err(e) => {
-						bars.println(format!(
-							"Reporter failed with error: {e:?}"
-						))
-						.unwrap();
-					}
-					Ok(raw_time) => {
-						bars.println(format!(
-							"Reporter finished in {:.2?}. (raw time: {raw_time:.2?})",
-							start.elapsed()
-						))
-						.unwrap();
-					}
-				}
-				break;
-			}
-			Msg::Error(e) => 'm: {
-				let e = if (e.severity() == Some(Warning) && cli.no_warnings)
-					|| e.is_no_warn()
-				{
-					break 'm;
-				} else {
-					e
-				};
-				if cli.dump_on_error
-					&& let Some(m_id) = e.module_id()
-				{
-					if target_build.contains_key(&m_id) {
-						let target_build = target_build.clone();
-						tokio::spawn(async move {
-							let path = format!("{m_id}.js");
-							let module = target_build.get(&m_id).unwrap();
-							tokio::fs::write(path, module).await
-						});
-					} else {
-						warn!(
-							"expected target_build to have the contents of module {m_id}"
-						);
-					}
-				}
-				let id = e.plugin_id();
-				let path = &plugins[id as usize].entry_point;
-				let source = SourceWrapper(plugins.clone(), id);
-				let report = Report::new(e).with_source_code(
-					NamedSource::new(path.to_string_lossy(), source)
-						.with_language("JavaScript"),
-				);
-				bars.suspend(|| {
-					eprintln!("{report:?}");
-				});
-			}
-		}
-	}
-
-	Ok(())
+	cli.fetch_opts.branches.dedup();
+	cli.fetch_opts.branches.sort();
+	cmds::run(cli).await
 }
 
 fn is_likely_vencord_dir(path: &Path) -> bool {

@@ -51,6 +51,9 @@ reqwest-retry.workspace = true
 webpack_chunk_parser.workspace = true
 html_parser.workspace = true
 webpack_ast_parser.workspace = true
+notify.workspace = true
+rustc-hash.workspace = true
+clearscreen.workspace = true
 
 [dev-dependencies]
 insta.workspace = true

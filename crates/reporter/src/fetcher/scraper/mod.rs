@@ -2,7 +2,7 @@ pub mod html_parser;
 
 use crate::{
 	fetcher::scraper::html_parser::{ParsedHtml, parse_html},
-	util::Stage,
+	util::{MultiProgressWrapper, Stage},
 };
 use anyhow::{Context as _, Result};
 use explorer_server_core::{Channel, asset_url};
@@ -54,7 +54,7 @@ pub async fn scrape_build(
 	html: &str,
 	channel: Channel,
 	pre_bar: Stage,
-	bars: MultiProgress,
+	bars: &MultiProgressWrapper,
 	client: Arc<ClientWithMiddleware>,
 ) -> Result<ScrapedOutput> {
 	pre_bar.msg("Parsing index HTML");
@@ -90,10 +90,9 @@ pub async fn scrape_build(
 			.context("Failed to get JS chunk hashes")?;
 		drop(pre_bar);
 		chunk_bar = Arc::new(
-			Stage::new("Parsing Lazy Chunks: ", Some(chunks.len()))
+			Stage::new(format!("[{channel:?}]: Parsing Lazy Chunks: "), Some(chunks.len()))
 				.and_attach(&bars),
 		);
-		mem::forget((*chunk_bar).clone());
 
 		debug!("Found {} chunks", chunks.len());
 		chunk_futures = chunks

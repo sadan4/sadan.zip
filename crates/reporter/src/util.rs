@@ -1,7 +1,7 @@
 use std::{borrow::Cow, mem, str::Utf8Error, time::Duration};
 
 use bytes::Bytes;
-use derive_more::{Deref, DerefMut, From};
+use derive_more::{Debug, Deref, DerefMut, From};
 use indicatif::{
 	MultiProgress,
 	ProgressBar,
@@ -21,7 +21,7 @@ impl Drop for Stage {
 
 impl Stage {
 	#[allow(clippy::literal_string_with_formatting_args)]
-	pub fn new(msg: &'static str, n: Option<usize>) -> Self {
+	pub fn new(msg: impl Into<Cow<'static, str>>, n: Option<usize>) -> Self {
 		let bar = n.map_or_else(
             || {
                 ProgressBar::with_draw_target(None, ProgressDrawTarget::hidden()).with_style(
@@ -45,7 +45,7 @@ impl Stage {
 		bar.enable_steady_tick(Duration::from_millis(1000 / 20));
 		Self(bar)
 	}
-	pub fn and_attach(self, target: &MultiProgress) -> Self {
+	pub fn and_attach(self, target: &MultiProgressWrapper) -> Self {
 		target.add(self.0.clone());
 		self
 	}
@@ -57,6 +57,31 @@ impl Stage {
 	}
 	pub fn msg(&self, msg: impl Into<Cow<'static, str>>) {
 		self.0.set_message(msg);
+	}
+}
+
+#[derive(Default, Debug)]
+pub struct MultiProgressWrapper {
+	inner: MultiProgress,
+	bars: std::sync::Mutex<Vec<ProgressBar>>,
+}
+
+impl MultiProgressWrapper {
+	pub const fn inner_(&self) -> &MultiProgress {
+		&self.inner
+	}
+	fn add(&self, bar: ProgressBar) {
+		self.inner.add(bar.clone());
+		self.bars.lock().unwrap().push(bar);
+	}
+	pub fn clear(&self) {
+		let bars = mem::take(&mut *self.bars.lock().unwrap());
+		for bar in bars {
+			self.inner.remove(&bar);
+		}
+	}
+	pub fn suspend<R>(&self, f: impl FnOnce() -> R) -> R {
+		self.inner.suspend(f)
 	}
 }
 
@@ -100,4 +125,15 @@ impl std::fmt::Display for ByteStr {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		self.as_ref().fmt(f)
 	}
+}
+
+pub async fn join_all<T>(
+	futs: impl IntoIterator<Item = impl Future<Output = T>>,
+) -> Vec<T> {
+	let futs = futs.into_iter();
+	let mut ret = Vec::with_capacity(futs.size_hint().0);
+	for fut in futs {
+		ret.push(fut.await);
+	}
+	ret
 }
