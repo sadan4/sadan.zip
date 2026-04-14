@@ -1,5 +1,5 @@
 ---
-source: crates/pretty_printer/tests/pretty_printer.rs
+source: crates/pretty_printer/tests/javascript_formatter.rs
 expression: out
 ---
 function formatted1() {
