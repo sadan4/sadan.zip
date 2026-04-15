@@ -2763,6 +2763,7 @@ dependencies = [
  "oxc_allocator",
  "oxc_ecmascript",
  "oxc_traverse",
+ "pretty_printer",
  "regress",
  "reqwest",
  "reqwest-middleware",

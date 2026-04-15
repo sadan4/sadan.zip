@@ -14,9 +14,9 @@ mod unicode;
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct FormattedContent {
 	/// The formatted code.
-	code: String,
+	pub code: String,
 	/// `Vec<(original_position, formatted_position)>`
-	mappings: Vec<(u32, u32)>,
+	pub mappings: Vec<(u32, u32)>,
 }
 
 pub fn format_to_str(source: &str, indent_size: u8) -> Result<String> {

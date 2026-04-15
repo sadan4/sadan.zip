@@ -54,7 +54,7 @@ pub enum ReporterError {
 		replace_span: SourceSpan,
 		#[source]
 		#[diagnostic_source]
-		cause: Box<dyn Diagnostic + Send + Sync>,
+		cause: Box<dyn Diagnostic + Send + Sync + 'static>,
 		module_id: ModuleId,
 		plugin_id: u16,
 	},

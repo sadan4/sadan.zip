@@ -79,20 +79,106 @@ struct FinderDef {
 }
 
 impl TemplateEvaluator {
-	pub fn make_replacer<'a: 'b, 'b: 'a>(
-		&'a self,
-		src: &'b str,
-	) -> impl 'a + 'b + Fn(&regress::Match) -> String {
-		|m| {
-			let lits = self.lits.iter().map(String::as_str);
-			let caps = self.captures.iter().map(|&i| {
-				let range = m
-					.group(i as _)
-					.expect("capture group out of range");
-				&src[range]
-			});
-			debug_assert_eq!(self.lits.len(), self.captures.len() + 1);
-			lits.interleave_shortest(caps).collect()
+	pub fn make_replacer<'this: 's, 's: 'this>(
+		&'this self,
+		src: &'s str,
+	) -> impl 'this + 's + Fn(&regress::Match) -> String {
+		|m| self.do_replace(src, m)
+	}
+	pub fn do_replace(&self, src: &str, m: &regress::Match) -> String {
+		let lits = self.lits.iter().map(String::as_str);
+		let caps = self.captures.iter().map(|&i| {
+			let range = m
+				.group(i as _)
+				.expect("capture group out of range");
+			&src[range]
+		});
+		debug_assert_eq!(self.lits.len(), self.captures.len() + 1);
+		lits.interleave_shortest(caps).collect()
+	}
+}
+
+/// This is a re-implementation (read: copy-paste) of [`regress::Regex::expand_replacement`] as it is private
+fn process_string_replacement(
+	repl: &str,
+	text: &str,
+	m: &regress::Match,
+) -> String {
+	const MAX_CAPTURE_GROUPS: usize = u16::MAX as _;
+	let mut output = String::with_capacity(m.end() - m.start());
+	let mut chars = repl.chars().peekable();
+	while let Some(ch) = chars.next() {
+		if ch == '$' {
+			match chars.peek() {
+				Some('$') => {
+					// $$ -> literal $
+					chars.next();
+					output.push('$');
+				}
+				Some(&digit) if digit.is_ascii_digit() => {
+					// Parse the group number
+					let mut group_num = 0;
+					while let Some(&digit) = chars.peek() {
+						if digit.is_ascii_digit() {
+							chars.next();
+							group_num = group_num * 10
+								+ (digit as u32 - '0' as u32) as usize;
+							// Limit to reasonable group numbers to avoid overflow
+							if group_num > MAX_CAPTURE_GROUPS {
+								break;
+							}
+						} else {
+							break;
+						}
+					}
+
+					// Get the matched text for this group
+					if let Some(range) = m.group(group_num) {
+						output.push_str(&text[range]);
+					}
+					// If group doesn't exist or didn't match, add nothing
+				}
+				Some('{') => {
+					// Handle ${name} syntax for named groups
+					chars.next(); // consume '{'
+					let mut name = String::new();
+					let mut found_closing_brace = false;
+
+					for ch in chars.by_ref() {
+						if ch == '}' {
+							found_closing_brace = true;
+							break;
+						}
+						name.push(ch);
+					}
+
+					if found_closing_brace {
+						if let Some(range) = m.named_group(&name) {
+							output.push_str(&text[range]);
+						}
+					} else {
+						// Malformed ${...}, treat as literal
+						output.push_str("${");
+						output.push_str(&name);
+					}
+				}
+				_ => {
+					// Just a $ at end or followed by non-digit
+					output.push('$');
+				}
+			}
+		} else {
+			output.push(ch);
+		}
+	}
+	output
+}
+
+impl Replacer {
+	pub fn do_replace(&self, src: &str, m: &regress::Match) -> String {
+		match self {
+			Self::Str(repl) => process_string_replacement(repl, src, m),
+			Self::Template(repl) => repl.do_replace(src, m),
 		}
 	}
 }

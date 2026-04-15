@@ -1,32 +1,36 @@
-use std::{
-	collections::{HashMap, HashSet},
-	mem,
-	sync::Arc,
-	time::{Duration, Instant},
-};
-
 use crate::{
 	diag::ReporterError,
 	fetcher::ScrapedOutput,
 	util::{MultiProgressWrapper, Stage},
 	vc::Plugin,
 };
-use anyhow::{Result, anyhow};
-use derive_more::IsVariant;
+use anyhow::{Context, Result, anyhow, bail};
+use derive_more::{Deref, From, IsVariant};
 use explorer_server_core::Channel;
-use itertools::Itertools as _;
-use miette::{Diagnostic, Severity};
+use itertools::{Itertools as _, PutBack, put_back};
+use miette::{Diagnostic, NamedSource, Severity, SourceCode};
 use oxc::{
 	allocator::Allocator,
 	ast::ast::RegExpFlags,
+	diagnostics::OxcDiagnostic,
 	parser::Parser,
 	semantic::{SemanticBuilder, Stats},
-	span::SourceType,
+	span::{SourceType, Span},
+};
+use pretty_printer::{FormattedContent, format_with_alloc};
+use regress::Regex;
+use std::{
+	collections::{HashMap, HashSet},
+	mem,
+	ops::Range,
+	sync::Arc,
+	time::{Duration, Instant},
 };
 use tokio::{
 	sync::{mpsc, oneshot},
 	task,
 };
+use tracing::error;
 use vencord_ast_parser::{Match, Patch, Replacement, Replacer};
 use webpack_ast_parser::types::ModuleId;
 
@@ -314,9 +318,25 @@ impl<'a> ReporterState<'a> {
 			);
 
 			if let Err(e) = self.check_and_update_syntax(&new_src, m_id) {
+				let formatted_error = match self.format_syntax_error(
+					e,
+					&last_src,
+					m_id,
+					pat,
+					&r.replace.v,
+					is_global,
+				) {
+					Ok(e) => e,
+					Err(e) => {
+						error!(
+							"Failed to format syntax error, skipping: {e:?}"
+						);
+						continue;
+					}
+				};
 				report(ReporterError::ReplaceSyntaxError {
 					replace_span: r.replace.s.into(),
-					cause: e,
+					cause: formatted_error.into(),
 					module_id: m_id,
 					plugin_id,
 				});
@@ -325,6 +345,103 @@ impl<'a> ReporterState<'a> {
 			last_src = new_src;
 		}
 		status
+	}
+
+	fn format_syntax_error(
+		&self,
+		mut e: OxcDiagnostic,
+		original_source: &str,
+		m_id: ModuleId,
+		pat: &Regex,
+		replacement: &Replacer,
+		is_global: bool,
+	) -> Result<Box<dyn Diagnostic + Send + Sync + 'static>> {
+		let FormattedContent {
+			code: mut formatted_source,
+			mappings,
+		} = format_with_alloc(original_source, &self.alloc, 2)
+			.context("Failed to format valid module source")?;
+		// determine the ranges and contents of each replacement
+		let mut ranges = Vec::new();
+		if is_global {
+			for m in pat.find_iter(original_source) {
+				let repl_txt = replacement.do_replace(original_source, &m);
+				ranges.push((
+					Span::new(m.start() as u32, m.end() as u32),
+					repl_txt,
+				));
+			}
+			debug_assert!(
+				!ranges.is_empty(),
+				"we should only be here if a previous replacement applied with a syntax error"
+			);
+		} else {
+			let m = pat.find(original_source).unwrap();
+			let repl_txt = replacement.do_replace(original_source, &m);
+			ranges
+				.push((Span::new(m.start() as u32, m.end() as u32), repl_txt));
+		}
+		let mut new_ranges = Vec::with_capacity(ranges.len());
+
+		for (before_span, replaced_text) in ranges {
+			let new_range = Self::find_new_span(&mappings, before_span);
+			new_ranges.push((new_range, replaced_text));
+		}
+
+		// TODO: reserve space for the replacements using data from previous loops
+		// Do the replace and get the new source
+		// sort so we can pop to iterate in reverse order
+		new_ranges.sort_by_key(|a| a.0);
+		// Iterate in reverse (pop()) so that the early ranges dont shift the later ones
+		while let Some((repl_range, repl_txt)) = new_ranges.pop() {
+			formatted_source.replace_range(
+				repl_range.start as usize..repl_range.end as usize,
+				&repl_txt,
+			);
+		}
+
+		// Map the error spans from the original diagnostic
+		if let Some(labels) = &mut e.labels {
+			for label in labels {
+				// miette is evil and doesn't let you mutate the offset or go into string
+				let label_span = Span::new(
+					label.offset() as u32,
+					(label.offset() + label.len()) as u32,
+				);
+				// i can't get Option.cloned() to work for some reason
+				let txt = label.label().map(String::from);
+				*label = Self::find_new_span(&mappings, label_span).into();
+				label.set_label(txt);
+			}
+		}
+
+		let src = NamedSource::new(format!("{m_id}.js"), formatted_source)
+			.with_language("JavaScript");
+		Ok(Box::new(WrappedOxcDiagnostic::new(e, src)))
+	}
+
+	fn find_new_span(mappings: &[(u32, u32)], original_span: Span) -> Span {
+		let mut it = put_back(mappings.iter().copied().rev());
+		let new_end = Self::find_new_pos(&mut it, original_span.end);
+		let new_start = Self::find_new_pos(&mut it, original_span.start);
+		Span::new(new_start, new_end)
+	}
+
+	/// Mappings must be a reverse iterator (highest to lowest)
+	fn find_new_pos(
+		mappings: &mut PutBack<impl Iterator<Item = (u32, u32)>>,
+		prev: u32,
+	) -> u32 {
+		for (before, after) in mappings.by_ref() {
+			if prev >= before {
+				// We need to put it back because the next one might be within this mapping as well
+				mappings.put_back((before, after));
+				return after + (prev - before);
+			}
+		}
+		unreachable!(
+			"we should always find a mapping because the first mapping should be (0, 0)"
+		)
 	}
 
 	fn compile_replacement_pattern<'r>(
@@ -416,7 +533,7 @@ impl<'a> ReporterState<'a> {
 		&mut self,
 		new_src: &str,
 		m_id: ModuleId,
-	) -> Result<(), Box<dyn Diagnostic + Send + Sync>> {
+	) -> Result<(), OxcDiagnostic> {
 		let result = {
 			let chk = check_syntax_errors(
 				&self.alloc,
@@ -465,7 +582,7 @@ fn check_syntax_errors(
 	alloc: &Allocator,
 	src: &str,
 	stats: Option<Stats>,
-) -> Result<Stats, Box<dyn Diagnostic + Send + Sync>> {
+) -> Result<Stats, OxcDiagnostic> {
 	let mut p_ret = Parser::new(alloc, src, SourceType::unambiguous()).parse();
 	if !p_ret.errors.is_empty() {
 		let ret = p_ret.errors.swap_remove(0);
@@ -485,5 +602,88 @@ fn check_syntax_errors(
 	} else {
 		let ret = sema.errors.swap_remove(0);
 		Err(ret.into())
+	}
+}
+
+struct WrappedOxcDiagnostic {
+	diag: OxcDiagnostic,
+	src: Box<dyn SourceCode>,
+}
+impl WrappedOxcDiagnostic {
+	fn new(diag: OxcDiagnostic, src: NamedSource<String>) -> Self {
+		Self {
+			diag,
+			src: Box::new(src),
+		}
+	}
+}
+
+impl std::fmt::Display for WrappedOxcDiagnostic {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		<OxcDiagnostic as std::fmt::Display>::fmt(&self.diag, f)
+	}
+}
+
+impl std::fmt::Debug for WrappedOxcDiagnostic {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		<OxcDiagnostic as std::fmt::Debug>::fmt(&self.diag, f)
+	}
+}
+
+impl std::error::Error for WrappedOxcDiagnostic {
+	fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+		self.diag.source()
+	}
+
+	fn description(&self) -> &str {
+		#[allow(deprecated)]
+		self.diag.description()
+	}
+
+	fn cause(&self) -> Option<&dyn std::error::Error> {
+		#[allow(deprecated)]
+		self.diag.cause()
+	}
+}
+
+impl Diagnostic for WrappedOxcDiagnostic {
+	fn code<'a>(&'a self) -> Option<Box<dyn std::fmt::Display + 'a>> {
+		self.diag.code()
+	}
+
+	fn severity(&self) -> Option<Severity> {
+		self.diag.severity()
+	}
+
+	fn help<'a>(&'a self) -> Option<Box<dyn std::fmt::Display + 'a>> {
+		self.diag.help()
+	}
+
+	fn note<'a>(&'a self) -> Option<Box<dyn std::fmt::Display + 'a>> {
+		self.diag.note()
+	}
+
+	fn url<'a>(&'a self) -> Option<Box<dyn std::fmt::Display + 'a>> {
+		self.diag.url()
+	}
+
+	fn source_code(&self) -> Option<&dyn SourceCode> {
+		Some(self.src.as_ref())
+	}
+
+	fn labels(
+		&self,
+	) -> Option<Box<dyn Iterator<Item = miette::LabeledSpan> + '_>> {
+		self.diag.labels()
+	}
+
+	fn related<'a>(
+		&'a self,
+	) -> Option<Box<dyn Iterator<Item = &'a dyn Diagnostic> + 'a>> {
+		self.diag.related()
+	}
+
+	fn diagnostic_source(&self) -> Option<&dyn Diagnostic> {
+		self.diag.diagnostic_source()
 	}
 }
