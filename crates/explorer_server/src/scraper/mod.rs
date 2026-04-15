@@ -1,14 +1,16 @@
+mod bundle_parser;
 pub mod html_parser;
 
 use std::{
 	collections::HashMap,
-	sync::{Arc, LazyLock},
+	ops::Deref,
+	sync::{Arc, LazyLock, Mutex},
 	thread,
 };
 
 use anyhow::{Context as _, Result, bail};
 use explorer_server_core::{Channel, asset_url};
-use explorer_types::FullBundle;
+use explorer_types::{FullBundle, TModuleId};
 use itertools::Itertools as _;
 use memchr::memmem::Finder;
 use oxc_allocator::AllocatorPool;
@@ -72,6 +74,8 @@ pub async fn scrape_build(
 	let chunk_futures: Vec<task::JoinHandle<Result<_>>>;
 	let mut modules;
 	let num_chunks;
+	let module_sources: Arc<Mutex<HashMap<String, Vec<TModuleId>>>> =
+		Arc::new(Mutex::new(HashMap::new()));
 	{
 		let alloc_guard = pool.get();
 		let alloc = &*alloc_guard;
@@ -90,9 +94,11 @@ pub async fn scrape_build(
 				let client = client.clone();
 				let pending_limit = pending_limit.clone();
 				let pool = pool.clone();
+				let module_sources = module_sources.clone();
 				task::spawn(async move {
 					let permit = pending_limit.acquire().await.unwrap();
-					let chunk_url = asset_url(channel, &format!("{hash}.js"));
+					let chunk_name = format!("{hash}.js");
+					let chunk_url = asset_url(channel, &chunk_name);
 					let chunk_bts = client
 						.get(chunk_url)
 						.send()
@@ -120,6 +126,13 @@ pub async fn scrape_build(
 							Result::Ok(modules)
 						})
 						.await??;
+					let keys = chunk_modules
+						.keys()
+						.map(Deref::deref)
+						.copied()
+						.collect_vec();
+					module_sources.lock().unwrap().insert(chunk_name, keys);
+
 					Result::Ok(chunk_modules)
 				})
 			})
@@ -136,5 +149,7 @@ pub async fn scrape_build(
 	}
 
 	info!("collected {} chunks. {} modules", num_chunks, modules.len());
+	drop(pool);
+
 	bail!("TODO");
 }

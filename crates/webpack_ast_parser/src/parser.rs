@@ -11,8 +11,6 @@ use crate::{
 		DefaultModuleDepProvider,
 		IModuleCache,
 		IModuleDepProvider,
-		IncomingModuleDeps,
-		OutgoingModuleDeps,
 	},
 	cache::{CacheRef, CacheValue},
 	parser::{
@@ -46,7 +44,6 @@ use crate::{
 			match_export_chain,
 		},
 	},
-	types::ModuleId,
 };
 use anyhow::{Context, Result, bail};
 use ast_parser::{
@@ -66,6 +63,7 @@ use ast_parser::{
 	},
 	parse,
 };
+use explorer_types::{IncomingModuleDeps, ModuleId, OutgoingModuleDeps};
 use export_map::RawExportMap;
 use itertools::Itertools as _;
 use oxc::{

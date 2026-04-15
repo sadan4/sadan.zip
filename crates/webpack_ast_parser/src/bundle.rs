@@ -1,26 +1,10 @@
-use crate::{parser::WebpackAstParser, types::ModuleId};
+use crate::{parser::WebpackAstParser};
 use anyhow::{Result, bail};
+use explorer_types::{IncomingModuleDeps, ModuleId};
 use oxc::span::Span;
 use smol_str::SmolStr;
 use std::rc::Rc;
 
-/// Information about a module's dependents
-#[derive(Debug, Clone, Default)]
-pub struct IncomingModuleDeps {
-	/// The modules that require this module synchronously
-	pub sync: Vec<ModuleId>,
-	/// the module that require this module lazily (dynamic import)
-	pub lazy: Vec<ModuleId>,
-}
-
-/// Information about a module's dependencies
-#[derive(Default, Clone, Debug)]
-pub struct OutgoingModuleDeps {
-	/// The modules that this module requires synchronously
-	pub sync: Vec<ModuleId>,
-	/// the module that this module requires lazily (dynamic import)
-	pub lazy: Vec<ModuleId>,
-}
 
 #[derive(Debug, Clone)]
 pub enum Location<'a> {

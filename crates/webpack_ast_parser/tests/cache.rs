@@ -10,6 +10,7 @@ use std::{
 
 use anyhow::{Context, Result, anyhow};
 use ast_parser::{get_offset_from_line_and_column, span_line_and_column};
+use explorer_types::{IncomingModuleDeps, ModuleId};
 use insta::{assert_debug_snapshot, assert_snapshot};
 use itertools::Itertools;
 use macros::test;
@@ -17,9 +18,8 @@ use oxc::{allocator::Allocator, span::Span};
 use smol_str::SmolStr;
 use webpack_ast_parser::{
 	WebpackAstParser,
-	bundle::{IModuleCache, IModuleDepProvider, IncomingModuleDeps},
+	bundle::{IModuleCache, IModuleDepProvider},
 	export_map::{ExportValue, RangeExportMap, RangeExportMapValue},
-	types::ModuleId,
 };
 
 struct Bundle<'a> {

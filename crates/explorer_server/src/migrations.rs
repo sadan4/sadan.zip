@@ -2,12 +2,7 @@ use std::{collections::HashMap, fs, io, path::Path};
 
 use anyhow::{Result, anyhow, bail};
 use explorer_types::{
-	BundleMetadata,
-	DepInfo,
-	ExportName,
-	FullBundle,
-	KeyModules,
-	ModuleDeps,
+	BundleMetadata, DepInfo, ExportName, FullBundle, IncomingModuleDeps, KeyModules, ModuleId
 };
 use serde::Deserialize;
 use tracing::{Level, error, info, instrument, span};
@@ -191,16 +186,16 @@ impl V3Migration {
 					.map(|(k, v)| {
 						Ok((
 							k.parse()?,
-							ModuleDeps {
-								sync_uses: v
+							IncomingModuleDeps {
+								sync: v
 									.sync_uses
 									.into_iter()
-									.map(|s| s.parse())
+									.map(|s| s.parse().map(ModuleId))
 									.collect::<Result<_, _>>()?,
-								lazy_uses: v
+								lazy: v
 									.lazy_uses
 									.into_iter()
-									.map(|s| s.parse())
+									.map(|s| s.parse().map(ModuleId))
 									.collect::<Result<_, _>>()?,
 							},
 						))

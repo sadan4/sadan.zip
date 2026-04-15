@@ -4,6 +4,7 @@ use std::rc::Rc;
 
 use ast_parser::{ast_kind::IntoAstKind, exts::MemberExprAccessKind};
 use derive_more::From;
+use explorer_types::ModuleId;
 use oxc::ast::{
 	AstKind,
 	ast::{
@@ -15,11 +16,7 @@ use oxc::ast::{
 	},
 };
 
-use crate::{
-	WebpackAstParser,
-	parser::export_map::ExportMapKey,
-	types::ModuleId,
-};
+use crate::{WebpackAstParser, parser::export_map::ExportMapKey};
 
 /// `wreq.d(exports, { foo: () => local_foo })`
 #[derive(Copy, Clone, Debug)]

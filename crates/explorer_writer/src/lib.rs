@@ -11,13 +11,7 @@ use explorer_server_core::{
 	write_full_bundle,
 };
 use explorer_types::{
-	BundleMetadata,
-	DepInfo,
-	ExportName,
-	FullBundle,
-	KeyModules,
-	ModuleDeps,
-	TModuleId,
+	BundleMetadata, DepInfo, ExportName, FullBundle, IncomingModuleDeps, KeyModules, ModuleId, TModuleId
 };
 use napi_derive::napi;
 
@@ -147,7 +141,7 @@ impl From<ProcessingKeyModules> for KeyModules {
 #[derive(Default, Debug, Clone)]
 pub struct ProcessingDepInfo {
 	key_modules: ProcessingKeyModules,
-	module_deps: HashMap<TModuleId, ModuleDeps>,
+	module_deps: HashMap<TModuleId, IncomingModuleDeps>,
 }
 
 #[napi]
@@ -169,8 +163,8 @@ impl ProcessingDepInfo {
 		self.module_deps
 			.entry(module_id)
 			.or_default()
-			.sync_uses
-			.push(sync_use_id);
+			.sync
+			.push(ModuleId(sync_use_id));
 	}
 	#[napi]
 	pub fn add_lazy_dep(
@@ -181,8 +175,8 @@ impl ProcessingDepInfo {
 		self.module_deps
 			.entry(module_id)
 			.or_default()
-			.lazy_uses
-			.push(lazy_use_id);
+			.lazy
+			.push(ModuleId(lazy_use_id));
 	}
 }
 

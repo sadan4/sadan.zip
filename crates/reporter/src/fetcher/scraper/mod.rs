@@ -6,6 +6,7 @@ use crate::{
 };
 use anyhow::{Context as _, Result};
 use explorer_server_core::{Channel, asset_url};
+use explorer_types::ModuleId;
 use itertools::Itertools as _;
 use memchr::memmem::Finder;
 use oxc_allocator::AllocatorPool;
@@ -18,7 +19,6 @@ use std::{
 };
 use tokio::{sync::Semaphore, task};
 use tracing::{debug, trace};
-use webpack_ast_parser::types::ModuleId;
 use webpack_chunk_parser::{
 	WebpackLazyChunkParser,
 	WebpackMainChunkParser,

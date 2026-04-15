@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use derive_more::{Deref, Display, From, Into};
 use std::collections::HashMap;
 
 pub type TModuleId = u32;
@@ -21,24 +22,17 @@ pub enum ExportName {
 	Named(String),
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct KeyModules {
 	pub flux_dispatcher_class: Vec<(TModuleId, ExportName)>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Default, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct ModuleDeps {
-	pub sync_uses: Vec<TModuleId>,
-	pub lazy_uses: Vec<TModuleId>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct DepInfo {
 	pub key_modules: KeyModules,
-	pub module_deps: HashMap<TModuleId, ModuleDeps>,
+	pub module_deps: HashMap<TModuleId, IncomingModuleDeps>,
 }
 
 pub type ModuleSources = HashMap<String, Vec<TModuleId>>;
@@ -59,4 +53,55 @@ pub struct FullBundle {
 pub struct BuildList {
 	/// array of zstd compressed msgpack serialized [`BundleMetadata`]
 	pub builds: Vec<Box<[u8]>>,
+}
+
+
+#[derive(
+	Debug,
+	Clone,
+	Copy,
+	PartialEq,
+	Eq,
+	Hash,
+	From,
+	Into,
+	Deref,
+	PartialOrd,
+	Ord,
+	Serialize,
+	Deserialize,
+	Display,
+)]
+pub struct ModuleId(pub u32);
+
+impl TryFrom<f64> for ModuleId {
+	// TODO: is this a good error type
+	type Error = ();
+
+	fn try_from(value: f64) -> Result<Self, Self::Error> {
+		if value.fract() == 0. && value >= 0. && value <= f64::from(u32::MAX) {
+			Ok(Self(value as u32))
+		} else {
+			Err(())
+		}
+	}
+}
+
+/// Information about a module's dependents
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IncomingModuleDeps {
+	/// The modules that require this module synchronously
+	pub sync: Vec<ModuleId>,
+	/// the module that require this module lazily (dynamic import)
+	pub lazy: Vec<ModuleId>,
+}
+
+/// Information about a module's dependencies
+#[derive(Default, Clone, Debug)]
+pub struct OutgoingModuleDeps {
+	/// The modules that this module requires synchronously
+	pub sync: Vec<ModuleId>,
+	/// the module that this module requires lazily (dynamic import)
+	pub lazy: Vec<ModuleId>,
 }

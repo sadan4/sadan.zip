@@ -7,6 +7,7 @@ use crate::{
 use anyhow::{Context, Result, anyhow};
 use derive_more::IsVariant;
 use explorer_server_core::Channel;
+use explorer_types::ModuleId;
 use itertools::{Itertools as _, PutBack, put_back};
 use miette::{Diagnostic, NamedSource, Severity, SourceCode};
 use oxc::{
@@ -31,7 +32,6 @@ use tokio::{
 };
 use tracing::error;
 use vencord_ast_parser::{Match, Patch, Replacement, Replacer};
-use webpack_ast_parser::types::ModuleId;
 
 #[derive(Debug)]
 pub enum Msg {

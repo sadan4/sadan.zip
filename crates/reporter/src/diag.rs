@@ -1,7 +1,7 @@
 use derive_more::IsVariant;
+use explorer_types::ModuleId;
 use miette::{Diagnostic, SourceSpan};
 use thiserror::Error;
-use webpack_ast_parser::types::ModuleId;
 
 #[derive(Error, Debug, Diagnostic, IsVariant)]
 pub enum ReporterError {

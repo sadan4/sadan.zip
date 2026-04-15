@@ -1,8 +1,8 @@
 #![allow(clippy::redundant_pub_crate)]
 use derive_more::Into;
+use explorer_types::ModuleId;
 use serde::Serialize;
 use smol_str::SmolStr;
-use webpack_ast_parser::types::ModuleId;
 
 #[derive(Debug, Clone, Into)]
 pub(crate) struct ModuleEntry(pub(crate) ModuleId, pub(crate) String);

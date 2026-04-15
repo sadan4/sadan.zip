@@ -15,6 +15,7 @@ use ast_parser::{
 	},
 	parse,
 };
+use explorer_types::ModuleId;
 use memchr::memmem::Finder;
 use oxc::{
 	allocator::Allocator,
@@ -32,7 +33,6 @@ use oxc::{
 use regex::Regex;
 use smol_str::SmolStr;
 use std::sync::LazyLock;
-use webpack_ast_parser::types::ModuleId;
 
 // FIXME: add basic caching with OnceCell
 pub struct WebpackMainChunkParser<'ast> {

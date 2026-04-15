@@ -36,6 +36,7 @@ itertools.workspace = true
 memchr.workspace = true
 reqwest-retry.workspace = true
 reqwest-middleware.workspace = true
+smol_str.workspace = true
 
 [lints]
 workspace = true

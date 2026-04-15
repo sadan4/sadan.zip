@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use ast_parser::exts::{ExpressionExt, NumericLiteralExt as _};
+use explorer_types::ModuleId;
 use oxc::ast::ast::{ObjectExpression, ObjectPropertyKind};
-use webpack_ast_parser::types::ModuleId;
 
 use crate::{Sealed, types::ModuleEntry};
 

@@ -4,7 +4,7 @@ use crate::{
 	explorer::meta::Meta,
 	util::fetch_struct,
 };
-use explorer_types::{DepInfo, FullBundle, ModuleSources, Modules, TModuleId};
+use explorer_types::{DepInfo, FullBundle, ModuleId, ModuleSources, Modules, TModuleId};
 use serde::Serialize;
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 
@@ -21,8 +21,8 @@ pub struct Bundle {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ModuleDepsJs<'a> {
-	sync_uses: &'a Vec<TModuleId>,
-	lazy_uses: &'a Vec<TModuleId>,
+	sync_uses: &'a Vec<ModuleId>,
+	lazy_uses: &'a Vec<ModuleId>,
 }
 
 #[wasm_bindgen]
@@ -37,8 +37,8 @@ impl Bundle {
 			.module_deps
 			.get(&module_id)?;
 		let tmp = ModuleDepsJs {
-			sync_uses: &deps.sync_uses,
-			lazy_uses: &deps.lazy_uses,
+			sync_uses: &deps.sync,
+			lazy_uses: &deps.lazy,
 		};
 		let ret = serde_wasm_bindgen::to_value(&tmp).unwrap();
 		Some(ret)

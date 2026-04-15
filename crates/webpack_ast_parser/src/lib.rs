@@ -2,6 +2,5 @@
 pub mod bundle;
 mod cache;
 mod parser;
-pub mod types;
 
 pub use parser::{WebpackAstParser, export_map};
