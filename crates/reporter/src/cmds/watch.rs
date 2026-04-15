@@ -1,11 +1,10 @@
 use std::{
 	collections::HashMap,
 	convert::Infallible,
-	hash::{Hash, Hasher},
+	hash::Hasher,
 	mem,
 	path::{Path, PathBuf},
 	sync::Arc,
-	time::Duration,
 };
 
 use anyhow::{Context as _, Result, bail};
@@ -13,7 +12,7 @@ use derive_more::{Deref, From};
 use explorer_server_core::Channel;
 use notify::{RecommendedWatcher, Watcher as _};
 use rustc_hash::FxHasher;
-use tokio::{fs, sync::mpsc, time::sleep};
+use tokio::{fs, sync::mpsc};
 use tracing::{debug, info, trace, warn};
 
 use crate::{

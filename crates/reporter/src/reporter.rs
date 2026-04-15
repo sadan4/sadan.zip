@@ -4,8 +4,8 @@ use crate::{
 	util::{MultiProgressWrapper, Stage},
 	vc::Plugin,
 };
-use anyhow::{Context, Result, anyhow, bail};
-use derive_more::{Deref, From, IsVariant};
+use anyhow::{Context, Result, anyhow};
+use derive_more::IsVariant;
 use explorer_server_core::Channel;
 use itertools::{Itertools as _, PutBack, put_back};
 use miette::{Diagnostic, NamedSource, Severity, SourceCode};
@@ -22,7 +22,6 @@ use regress::Regex;
 use std::{
 	collections::{HashMap, HashSet},
 	mem,
-	ops::Range,
 	sync::Arc,
 	time::{Duration, Instant},
 };
@@ -129,7 +128,7 @@ impl<'a> ReporterState<'a> {
 	#[must_use = "RAII guard"]
 	fn stage(&self, msg: &'static str, n: Option<usize>) -> Stage {
 		Stage::new(format!("[{:?}]: {msg}", self.channel), n)
-			.and_attach(&self.m_bar)
+			.and_attach(self.m_bar)
 	}
 	fn prune_bad_finds(&mut self) {
 		let bar = self.stage("Pruning bad finds", Some(self.patches.len()));
@@ -336,7 +335,7 @@ impl<'a> ReporterState<'a> {
 				};
 				report(ReporterError::ReplaceSyntaxError {
 					replace_span: r.replace.s.into(),
-					cause: formatted_error.into(),
+					cause: formatted_error,
 					module_id: m_id,
 					plugin_id,
 				});
@@ -586,7 +585,7 @@ fn check_syntax_errors(
 	let mut p_ret = Parser::new(alloc, src, SourceType::unambiguous()).parse();
 	if !p_ret.errors.is_empty() {
 		let ret = p_ret.errors.swap_remove(0);
-		return Err(ret.into());
+		return Err(ret);
 	}
 	let sema = SemanticBuilder::new()
 		.with_check_syntax_error(true)
@@ -601,7 +600,7 @@ fn check_syntax_errors(
 		Ok(sema.semantic.stats())
 	} else {
 		let ret = sema.errors.swap_remove(0);
-		Err(ret.into())
+		Err(ret)
 	}
 }
 

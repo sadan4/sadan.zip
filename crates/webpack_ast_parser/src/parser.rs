@@ -1758,7 +1758,7 @@ impl<'ast> WebpackAstParser<'ast> {
 	}
 
 	/// Try to make a raw export map for a discord store
-	#[expect(clippy::cognitive_complexity, reason = "clippy bug: macros count")]
+	#[allow(clippy::cognitive_complexity, reason = "clippy bug: macros count")]
 	fn raw_make_export_map_store(
 		&self,
 		init: &'ast NewExpression<'ast>,

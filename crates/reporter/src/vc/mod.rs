@@ -203,12 +203,6 @@ fn compile_plugin_regexes(plugins: &mut [Plugin]) {
 	}
 }
 
-fn default_plugin_dirs() -> impl IntoIterator<Item = PathBuf> {
-	["src/plugins", "src/plugins/_api", "src/plugins/_core"]
-		.iter()
-		.map(PathBuf::from)
-}
-
 fn default_vencord_dir() -> PathBuf {
 	env::current_dir().expect("Failed to get current directory")
 }

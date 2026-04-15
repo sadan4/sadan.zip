@@ -6,7 +6,6 @@ use crate::{
 };
 use anyhow::{Context as _, Result};
 use explorer_server_core::{Channel, asset_url};
-use indicatif::MultiProgress;
 use itertools::Itertools as _;
 use memchr::memmem::Finder;
 use oxc_allocator::AllocatorPool;
@@ -14,7 +13,6 @@ use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
 use reqwest_retry::{RetryTransientMiddleware, policies::ExponentialBackoff};
 use std::{
 	collections::HashMap,
-	mem,
 	sync::{Arc, LazyLock},
 	thread,
 };
@@ -94,7 +92,7 @@ pub async fn scrape_build(
 				format!("[{channel:?}]: Parsing Lazy Chunks: "),
 				Some(chunks.len()),
 			)
-			.and_attach(&bars),
+			.and_attach(bars),
 		);
 
 		debug!("Found {} chunks", chunks.len());

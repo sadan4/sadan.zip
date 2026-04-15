@@ -1,10 +1,8 @@
 mod scraper;
-use std::mem;
 
 use anyhow::{Context as _, Result};
 use clap::Args;
 use explorer_server_core::Channel;
-use indicatif::MultiProgress;
 use reqwest_middleware::ClientWithMiddleware;
 use tokio::task;
 use tracing::{info, warn};
@@ -52,7 +50,6 @@ pub async fn fetch_build(
 		Vec::with_capacity(2);
 	for &branch in &opts.branches {
 		let ch = branch.into();
-		let bars = bars.clone();
 		futs.push(tokio::spawn(async move {
 			let scraped = fetch_for_channel(ch, bars).await?;
 			Ok(ScrapedBranch {
@@ -74,7 +71,7 @@ async fn fetch_for_channel(
 ) -> Result<ScrapedOutput> {
 	info!("Fetching build from {channel:?} channel");
 	let bar = Stage::new(format!("[{channel:?}]: Scraping build data: "), None)
-		.and_attach(&bars);
+		.and_attach(bars);
 	bar.msg("Fetching index HTML");
 	let client =
 		make_reqwest_client().context("Failed to create HTTP client")?;
