@@ -95,7 +95,7 @@ const PATH_DELIMITER: char = ':';
 #[cfg(windows)]
 const PATH_DELIMITER: char = ';';
 
-fn resolve_program_in_path(file: impl AsRef<OsStr>) -> Result<PathBuf> {
+pub fn resolve_program_in_path(file: impl AsRef<OsStr>) -> Result<PathBuf> {
 	let file = Path::new(&file);
 	if file.is_absolute() {
 		if !file.exists() {
@@ -120,13 +120,7 @@ fn resolve_program_in_path(file: impl AsRef<OsStr>) -> Result<PathBuf> {
 					.map(move |dir| dir.join(&file_name))
 			});
 		for path in paths {
-			dbg!(&path);
 			if path.exists() {
-				eprintln!(
-					"found {} in PATH at {}",
-					file.display(),
-					path.display()
-				);
 				return Ok(path);
 			}
 		}
@@ -136,11 +130,6 @@ fn resolve_program_in_path(file: impl AsRef<OsStr>) -> Result<PathBuf> {
 			.map(|dir| dir.join(file));
 		for path in paths {
 			if path.exists() {
-				eprintln!(
-					"found {} in PATH at {}",
-					file.display(),
-					path.display()
-				);
 				return Ok(path);
 			}
 		}
