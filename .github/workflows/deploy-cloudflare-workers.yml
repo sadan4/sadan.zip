@@ -38,11 +38,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Build site
+        run: cargo xtask build client
+
       - name: Typecheck
         run: pnpm lint:types
 
-      - name: Build site
-        run: cargo xtask build client
 
       - name: Deploy to Cloudflare Workers
         run: pnpm deploy
