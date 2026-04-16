@@ -2,6 +2,8 @@ name: Nightly Rust Binaries
 
 on:
   push:
+    branches:
+      - web
 
 permissions:
   contents: write
