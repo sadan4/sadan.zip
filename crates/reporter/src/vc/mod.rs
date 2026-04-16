@@ -4,8 +4,7 @@ use itertools::Itertools as _;
 use oxc::{allocator::Allocator, ast::ast::RegExpFlags};
 use regress::escape;
 use std::{
-	env,
-	fs,
+	env, fs,
 	path::{Path, PathBuf},
 };
 use tokio::task;
@@ -133,14 +132,15 @@ fn do_collect_plugins_from_paths(
 
 fn infer_plugin_dirs(vencord_dir: &Path) -> Result<Vec<PathBuf>> {
 	const PLUGIN_SUB_DIRS: &[&str] = &["_core", "_api"];
+	let vencord_dir = vencord_dir.canonicalize()?;
 	let src_dir = vencord_dir.join("src");
-	let mut ret = Vec::new();
+	let mut ret = Vec::<PathBuf>::new();
 	for path in fs::read_dir(src_dir)? {
 		let path = path?;
 		if !path.file_type()?.is_dir() {
 			continue;
 		}
-		let path = path.path();
+		let path = path.path().canonicalize()?;
 		// This should never be none as read_dir does not iterate over . and .. entries
 		let file_name = path
 			.file_name()
@@ -151,11 +151,19 @@ fn infer_plugin_dirs(vencord_dir: &Path) -> Result<Vec<PathBuf>> {
 		}
 		if file_name.ends_with("plugins") {
 			for sub_dir in PLUGIN_SUB_DIRS {
-				let sub_dir = path.join(sub_dir);
+				let sub_dir = path.join(sub_dir).canonicalize()?;
+				let sub_dir = sub_dir
+					.strip_prefix(&vencord_dir)
+					.context("inferred plugin dir is not in vencord dir")?
+					.to_owned();
 				if sub_dir.is_dir() {
 					ret.push(sub_dir);
 				}
 			}
+			let path = path
+				.strip_prefix(&vencord_dir)
+				.context("inferred plugin dir is not in vencord dir")?
+				.to_owned();
 			ret.push(path);
 		}
 	}
