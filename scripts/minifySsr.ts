@@ -3,6 +3,7 @@ import { CircularDependencyRspackPlugin, type ExternalItemFunctionData, type Ext
 
 import { move } from "fs-extra";
 import { rm } from "node:fs/promises";
+import { builtinModules } from "node:module";
 import { join, relative, resolve } from "node:path";
 
 const { dirname } = import.meta;
@@ -77,8 +78,12 @@ function main() {
 
                 return `module ${relativeToRoot}`;
             // NOTE: rspack uses createRequire instead of actual imports for some fucking reason
-            } else if (ctx.request && ctx.request.startsWith("node:")) {
-                return `module ${ctx.request}`;
+            } else if (ctx.request) {
+                if (ctx.request.startsWith("node:")) {
+                    return `module ${ctx.request}`;
+                } else if (builtinModules.includes(ctx.request)) {
+                    return `module node:${ctx.request}`;
+                }
             }
         },
     });
