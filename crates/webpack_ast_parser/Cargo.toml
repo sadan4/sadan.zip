@@ -1,0 +1,23 @@
+[package]
+name = "webpack_ast_parser"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+oxc.workspace = true
+ast_parser.workspace = true
+derive_more.workspace = true
+anyhow.workspace = true
+serde.workspace = true
+smol_str.workspace = true
+tracing.workspace = true
+itertools.workspace = true
+explorer_types.workspace = true
+
+[dev-dependencies]
+insta.workspace = true
+macros.workspace = true
+tracing-subscriber.workspace = true # used by test macro
+
+[lints]
+workspace = true

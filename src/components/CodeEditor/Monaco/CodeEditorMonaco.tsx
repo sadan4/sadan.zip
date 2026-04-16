@@ -54,6 +54,7 @@ function MonacoCodeEditorInner({
     use(loadOnigasmPromise());
 
     const [ref, setRef] = useState<HTMLDivElement | null>(null);
+    const uriRef = useRecent(uri);
     const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor>(null);
     const themeString = useMonacoTheme(theme);
     const lock = useLock();
@@ -73,7 +74,14 @@ function MonacoCodeEditorInner({
             onDidChangeCursorPositionRef.current(e);
         });
         editorRef.current.onDidChangeModelContent(lock.bindIf(() => {
-            const text = editorRef.current?.getModel()?.getValue() ?? "";
+            const model = editorRef.current?.getModel();
+
+            // don't set code if we're being controlled via a uri
+            if (model?.uri === uriRef.current) {
+                return;
+            }
+
+            const text = model?.getValue() ?? "";
 
             setCode(text);
         }));

@@ -1,0 +1,210 @@
+[workspace]
+package.edition = "2024"
+members = ["crates/*"]
+resolver = "3"
+
+[workspace.dependencies]
+wasm-bindgen = "0.2.113"
+serde-wasm-bindgen = "0.6.5"
+anyhow = "1.0.102"
+serde = { version = "1.0.228", features = ["derive"] }
+console_error_panic_hook = "0.1.7"
+web-sys = "0.3.4"
+js-sys = "0.3.91"
+zstd = "0.13.3"
+tar = "0.4.44"
+napi = { version = "3.8.4", default-features = false, features = [
+    "napi9",
+    "napi4",
+    "anyhow",
+    "tracing",
+] }
+napi-derive = "3.5.3"
+napi-build = "2.3.1"
+tokio = "1.49.0"
+tokio-stream = { version = "0.1.18", default-features = false }
+tokio-util = { version = "0.7.18", default-features = false }
+reqwest = "0.13.2"
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+rmp-serde = "1.3.1"
+serde_json = "1.0.149"
+axum = { version = "0.8.8", features = ["macros"] }
+http = "1.4.0"
+wasm-bindgen-futures = "0.4.64"
+thiserror = "2.0.18"
+const_format = { version = "0.2.35", features = ["fmt"] }
+tower-http = { version = "0.6.8", features = ["cors"] }
+html_parser = "0.7.0"
+clap = { version = "4.6.0", features = ["derive"] }
+clap_complete = "4.6.0"
+itertools = "0.14.0"
+xxhash-rust = { version = "0.8.15", features = ["xxh64"] }
+oxc = { version = "0.125.0", default-features = false, features = [
+    "ast_visit",
+    "semantic",
+    "minifier",  # we use some traits from it
+    "serialize",
+    "codegen",   # for tests
+] }
+oxc_traverse = "0.125.0"
+oxc_ecmascript = "0.125.0"
+oxc_allocator = { version = "0.125.0", features = ["pool", "serialize"] }
+regress = "0.11.1"
+derive_more = { version = "2.1.1", features = ["full"] }
+oxc-miette = { version = "2.7.0", features = ["fancy"] }
+indicatif = "0.18.4"
+insta = { version = "1.47.1", features = ["ron"] }
+bitflags = { version = "2.11.0", features = ["serde"] }
+owo-colors = "4.3.0"
+unicode-width = "0.2.2"
+unicode-segmentation = "1.13.1"
+textwrap = "0.16.2"
+terminal_size = "0.4.4"
+syntect = "5.3.0"
+memchr = "2.8.0"
+num-bigint = "0.4"
+regex = "1.12.3"
+smol_str = { version = "0.3.6", features = ["std", "serde"] }
+proc-macro2 = { version = "1.0.32", default-features = false }
+quote = { version = "1.0", default-features = false }
+syn = { version = "2.0", default-features = false, features = [
+    "full",
+    "parsing",
+    "printing",
+    "proc-macro",
+] }
+reqwest-retry = "0.9.1"
+reqwest-middleware = "0.5.1"
+bytes = "1.11.1"
+macros = { path = "crates/macros" }
+explorer_types = { path = "crates/explorer_types" }
+explorer_server_core = { path = "crates/explorer_server_core" }
+ast_parser = { path = "crates/ast_parser" }
+vencord_ast_parser = { path = "crates/vencord_ast_parser" }
+webpack_ast_parser = { path = "crates/webpack_ast_parser" }
+webpack_chunk_parser = { path = "crates/webpack_chunk_parser" }
+pretty_printer = { path = "crates/pretty_printer" }
+rayon = "1.11.0"
+notify = "8.2.0"
+rustc-hash = "2.1.2"
+clearscreen = "4.0.6"
+
+[profile.release]
+incremental = true
+lto = "thin"
+opt-level = 3
+debug = true
+split-debuginfo = "packed"
+strip = true
+panic = "abort"
+
+[profile.dev]
+opt-level = 0
+incremental = true
+debug = true
+
+[profile.dev.package.regex]
+opt-level = 3
+
+[profile.dev.package.regress]
+opt-level = 3
+
+[profile.dev.package.memchr]
+opt-level = 3
+
+# https://docs.rs/insta/latest/insta/#optional-faster-runs
+[profile.dev.package.insta]
+opt-level = 3
+
+[profile.dev.package.similar]
+opt-level = 3
+
+# During testing, we parse large javascript files, up to 20mb!
+# Compile oxc with -O3 so the tests run 2-4x faster
+[profile.test.package.oxc_allocator]
+opt-level = 3
+[profile.test.package.oxc_ast]
+opt-level = 3
+[profile.test.package.oxc_parser]
+opt-level = 3
+[profile.test.package.oxc_semantic]
+opt-level = 3
+[profile.test.package.oxc_span]
+opt-level = 3
+[profile.test.package.oxc_syntax]
+opt-level = 3
+
+[workspace.lints.rust]
+# too buggy and noisy when used in the editor, but can be uncommented to find unused deps
+# unused_crate_dependencies = "deny"
+[workspace.lints.clippy]
+pedantic = { priority = -1, level = "warn" }
+#TODO: add safety docs later
+missing_safety_doc = "deny"
+undocumented_unsafe_blocks = "deny"
+# pedantic
+# i'd love to be able to get docs on everything, but it doesn't matter that much
+missing_panics_doc = "allow"
+missing_errors_doc = "allow"
+# too noisy
+cast_possible_truncation = "allow"
+cast_sign_loss = "allow"
+cast_ptr_alignment = "allow"
+# only good to browse
+must_use_candidate = "allow"
+
+# Nursery
+clear_with_drain = "warn"
+coerce_container_to_any = "warn"
+collection_is_never_read = "warn"
+debug_assert_with_mut_call = "warn"
+derive_partial_eq_without_eq = "warn"
+equatable_if_let = "warn"
+fallible_impl_from = "warn"
+iter_on_empty_collections = "warn"
+iter_on_single_items = "warn"
+# iter_with_drain = "warn"
+large_stack_frames = "warn"
+literal_string_with_formatting_args = "warn"
+missing_const_for_fn = "warn"
+needless_collect = "warn"
+needless_pass_by_ref_mut = "warn"
+needless_type_cast = "warn"
+non_send_fields_in_send_ty = "warn"
+nonstandard_macro_braces = "warn"
+option_if_let_else = "warn"
+or_fun_call = "warn"
+path_buf_push_overwrite = "warn"
+read_zero_byte_vec = "warn"
+redundant_clone = "warn"
+redundant_pub_crate = "warn"
+search_is_some = "warn"
+set_contains_or_insert = "warn"
+significant_drop_in_scrutinee = "warn"
+# love to enable this, however it is very broken rust-lang/rust-clippy#11279
+significant_drop_tightening = "allow"
+single_option_map = "warn"
+string_lit_as_bytes = "warn"
+suspicious_operation_groupings = "warn"
+trait_duplication_in_bounds = "warn"
+type_repetition_in_bounds = "warn"
+uninhabited_references = "warn"
+unnecessary_struct_initialization = "warn"
+unused_peekable = "warn"
+unused_rounding = "warn"
+use_self = "warn"
+useless_let_if_seq = "warn"
+while_float = "warn"
+#restriction
+# allow_attributes = "warn"
+# love to set this up, but no auto-fixes
+# arbitrary_source_item_ordering = "warn"
+cognitive_complexity = "warn"
+create_dir = "warn"
+decimal_literal_representation = "warn"
+filetype_is_file = "warn"
+fn_to_numeric_cast_any = "warn"
+multiple_inherent_impl = "warn"
+precedence_bits = "warn"
+semicolon_outside_block = "warn"

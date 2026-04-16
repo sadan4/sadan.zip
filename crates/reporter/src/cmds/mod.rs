@@ -1,0 +1,28 @@
+mod run;
+mod watch;
+
+use clap::Subcommand;
+
+#[derive(Subcommand, Default, Clone, Copy)]
+pub enum Cmd {
+	/// Run the reporter once and exit.
+	///
+	/// Prints results to stderr and exits with 0 if no errors were found.
+	///
+	/// If only one [branch](crate::fetcher::FetchOpts::branches) is provided, the results will be streamed to stderr
+	#[default]
+	Run,
+	Watch,
+}
+
+pub async fn run(cli: super::Cli) -> anyhow::Result<i8> {
+	match cli.cmd {
+		Cmd::Run => run::run_reporter(&cli)
+			.await
+			.map(|r| r.num_errs.try_into().unwrap_or(-1)),
+		Cmd::Watch => {
+			let _ = watch::run_watcher(cli).await?;
+			unreachable!()
+		}
+	}
+}

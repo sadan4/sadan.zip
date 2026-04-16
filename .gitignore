@@ -11,6 +11,9 @@ count.txt
 .output
 .vinxi
 todos.json
+perf.data
+perf.data.old
+flamegraph.svg
 
 # Local Netlify folder
 .netlify
@@ -20,3 +23,10 @@ todos.json
 .vite-inspect
 dist.server
 builds
+
+# cargo-insta
+*.pending-snap
+
+# Added by cargo
+/target
+/.direnv

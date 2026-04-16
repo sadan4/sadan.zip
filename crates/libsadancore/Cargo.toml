@@ -1,0 +1,58 @@
+[package]
+name = "libsadancore"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+wasm-bindgen.workspace = true
+anyhow.workspace = true
+console_error_panic_hook.workspace = true
+js-sys.workspace = true
+zstd.workspace = true
+explorer_types.workspace = true
+wasm-bindgen-futures.workspace = true
+thiserror.workspace = true
+const_format.workspace = true
+rmp-serde.workspace = true
+serde.workspace = true
+serde-wasm-bindgen.workspace = true
+
+[dependencies.web-sys]
+workspace = true
+features = [
+    "CanvasRenderingContext2d",
+    "HtmlCanvasElement",
+    "Document",
+    "Window",
+    "Element",
+    "CssStyleDeclaration",
+    "Request",
+    "Response",
+]
+
+[lints]
+workspace = true
+
+[package.metadata.wasm-pack.profile.dev]
+# doesn't work with dwarf debug info
+wasm-opt = false
+
+[package.metadata.wasm-pack.profile.dev.wasm-bindgen]
+# Should we enable wasm-bindgen's debug assertions in its generated JS glue?
+debug-js-glue = true
+# Should wasm-bindgen demangle the symbols in the "name" custom section?
+demangle-name-section = true
+# # Should we emit the DWARF debug info custom sections?
+dwarf-debug-info = true
+# Should we omit the default import path?
+omit-default-module-path = false
+
+[package.metadata.wasm-pack.profile.profiling]
+wasm-opt = ["-O4", "--enable-bulk-memory"]
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-O4", "--enable-bulk-memory"]

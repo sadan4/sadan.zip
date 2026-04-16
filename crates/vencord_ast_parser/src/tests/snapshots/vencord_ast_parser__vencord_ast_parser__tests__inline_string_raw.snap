@@ -1,0 +1,42 @@
+---
+source: crates/vencord_ast_parser/src/vencord_ast_parser/tests/mod.rs
+assertion_line: 64
+expression: patches
+---
+[
+  Patch(
+    plugin_id: None,
+    all: false,
+    no_warn: false,
+    find: MatchLike(
+      v: Str(FinderDef(
+        needle: "/^```(?:([a-z0-9_+\\-.#]+?)\\n)?\\n*([^\\n][^]*?)\\n*```",
+      )),
+      s: {
+        "start": 147,
+        "end": 210,
+      },
+    ),
+    replacement: [
+      Replacement(
+        match_: MatchLike(
+          v: Str(FinderDef(
+            needle: "/^```(?:([a-z0-9_+\\-.#]+?)\\n)?\\n*([^\\n][^]*?)\\n*```",
+          )),
+          s: {
+            "start": 272,
+            "end": 335,
+          },
+        ),
+        replace: ReplaceLike(
+          v: Str("$0\\n?"),
+          s: {
+            "start": 362,
+            "end": 370,
+          },
+        ),
+        no_warn: false,
+      ),
+    ],
+  ),
+]

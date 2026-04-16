@@ -1,0 +1,273 @@
+---
+source: crates/vencord_ast_parser/src/vencord_ast_parser/tests/mod.rs
+assertion_line: 70
+expression: patches
+---
+[
+  Patch(
+    plugin_id: None,
+    all: false,
+    no_warn: false,
+    find: MatchLike(
+      v: Str(FinderDef(
+        needle: ".GUILD_SUBSCRIPTION_UNAVAILABLE;",
+      )),
+      s: {
+        "start": 595,
+        "end": 629,
+      },
+    ),
+    replacement: [
+      Replacement(
+        match_: MatchLike(
+          v: Regex(MatchRegex(
+            pattern: "(?<=\\.USE_EXTERNAL_EMOJIS.+?;)(?<=intention:((?:[A-Za-z_$][\\w]*)).+?)",
+            flags: RegExpFlagsDef(
+              bits: 0,
+            ),
+          )),
+          s: {
+            "start": 806,
+            "end": 860,
+          },
+        ),
+        replace: ReplaceLike(
+          v: Template(TemplateEvaluator(
+            lits: [
+              "const fakeNitroIntention=",
+              ";",
+            ],
+            captures: [
+              1,
+            ],
+          )),
+          s: {
+            "start": 891,
+            "end": 949,
+          },
+        ),
+        no_warn: false,
+      ),
+      Replacement(
+        match_: MatchLike(
+          v: Regex(MatchRegex(
+            pattern: "&&!(?:[A-Za-z_$][\\w]*)&&!(?:[A-Za-z_$][\\w]*)(?=\\)return (?:[A-Za-z_$][\\w]*)\\.(?:[A-Za-z_$][\\w]*)\\.DISALLOW_EXTERNAL;)",
+            flags: RegExpFlagsDef(
+              bits: 0,
+            ),
+          )),
+          s: {
+            "start": 1103,
+            "end": 1154,
+          },
+        ),
+        replace: ReplaceLike(
+          v: Template(TemplateEvaluator(
+            lits: [
+              "",
+              "&&![3,4].includes(fakeNitroIntention)",
+            ],
+            captures: [
+              0,
+            ],
+          )),
+          s: {
+            "start": 1185,
+            "end": 1226,
+          },
+        ),
+        no_warn: false,
+      ),
+      Replacement(
+        match_: MatchLike(
+          v: Regex(MatchRegex(
+            pattern: "!(?:[A-Za-z_$][\\w]*)\\.available(?=\\)return (?:[A-Za-z_$][\\w]*)\\.(?:[A-Za-z_$][\\w]*)\\.GUILD_SUBSCRIPTION_UNAVAILABLE;)",
+            flags: RegExpFlagsDef(
+              bits: 0,
+            ),
+          )),
+          s: {
+            "start": 1383,
+            "end": 1451,
+          },
+        ),
+        replace: ReplaceLike(
+          v: Template(TemplateEvaluator(
+            lits: [
+              "",
+              "&&![3,4].includes(fakeNitroIntention)",
+            ],
+            captures: [
+              0,
+            ],
+          )),
+          s: {
+            "start": 1482,
+            "end": 1523,
+          },
+        ),
+        no_warn: false,
+      ),
+      Replacement(
+        match_: MatchLike(
+          v: Regex(MatchRegex(
+            pattern: "!((?:[A-Za-z_$][\\w]*)\\.(?:[A-Za-z_$][\\w]*)\\.canUseEmojisEverywhere\\((?:[A-Za-z_$][\\w]*)\\))",
+            flags: RegExpFlagsDef(
+              bits: 0,
+            ),
+          )),
+          s: {
+            "start": 1683,
+            "end": 1724,
+          },
+        ),
+        replace: ReplaceLike(
+          v: Template(TemplateEvaluator(
+            lits: [
+              "(",
+              "&&![3,4].includes(fakeNitroIntention))",
+            ],
+            captures: [
+              0,
+            ],
+          )),
+          s: {
+            "start": 1755,
+            "end": 1798,
+          },
+        ),
+        no_warn: false,
+      ),
+      Replacement(
+        match_: MatchLike(
+          v: Regex(MatchRegex(
+            pattern: "(?<=\\|\\|)(?:[A-Za-z_$][\\w]*)\\.(?:[A-Za-z_$][\\w]*)\\.canUseAnimatedEmojis\\((?:[A-Za-z_$][\\w]*)\\)",
+            flags: RegExpFlagsDef(
+              bits: 0,
+            ),
+          )),
+          s: {
+            "start": 1946,
+            "end": 1991,
+          },
+        ),
+        replace: ReplaceLike(
+          v: Template(TemplateEvaluator(
+            lits: [
+              "(",
+              "||[3,4].includes(fakeNitroIntention))",
+            ],
+            captures: [
+              0,
+            ],
+          )),
+          s: {
+            "start": 2022,
+            "end": 2064,
+          },
+        ),
+        no_warn: false,
+      ),
+    ],
+  ),
+  Patch(
+    plugin_id: None,
+    all: false,
+    no_warn: false,
+    find: MatchLike(
+      v: Str(FinderDef(
+        needle: ".hGWuxU",
+      )),
+      s: {
+        "start": 2144,
+        "end": 2204,
+      },
+    ),
+    replacement: [
+      Replacement(
+        match_: MatchLike(
+          v: Regex(MatchRegex(
+            pattern: "(let (?:[A-Za-z_$][\\w]*),{sticker:(?:[A-Za-z_$][\\w]*),channel:(?:[A-Za-z_$][\\w]*),closePopout:(?:[A-Za-z_$][\\w]*).+?}=((?:[A-Za-z_$][\\w]*)).+?;)(.+?description:)((?:[A-Za-z_$][\\w]*))(?=,sticker:(?:[A-Za-z_$][\\w]*))",
+            flags: RegExpFlagsDef(
+              bits: 0,
+            ),
+          )),
+          s: {
+            "start": 2335,
+            "end": 2432,
+          },
+        ),
+        replace: ReplaceLike(
+          v: Template(TemplateEvaluator(
+            lits: [
+              "",
+              "let{fakeNitroRenderableSticker}=",
+              ";",
+              "$self.addFakeNotice(0,",
+              ",!!fakeNitroRenderableSticker?.fake)",
+            ],
+            captures: [
+              1,
+              2,
+              3,
+              4,
+            ],
+          )),
+          s: {
+            "start": 2463,
+            "end": 2653,
+          },
+        ),
+        no_warn: false,
+      ),
+    ],
+  ),
+  Patch(
+    plugin_id: None,
+    all: false,
+    no_warn: false,
+    find: MatchLike(
+      v: Str(FinderDef(
+        needle: ".FJ6Z01",
+      )),
+      s: {
+        "start": 2726,
+        "end": 2789,
+      },
+    ),
+    replacement: [
+      Replacement(
+        match_: MatchLike(
+          v: Regex(MatchRegex(
+            pattern: "(?<=emojiDescription:)((?:[A-Za-z_$][\\w]*))(?<=\\1=(?:[A-Za-z_$][\\w]*)\\(((?:[A-Za-z_$][\\w]*))\\).+?)",
+            flags: RegExpFlagsDef(
+              bits: 0,
+            ),
+          )),
+          s: {
+            "start": 2892,
+            "end": 2941,
+          },
+        ),
+        replace: ReplaceLike(
+          v: Template(TemplateEvaluator(
+            lits: [
+              "$self.addFakeNotice(1,",
+              ",!!",
+              "?.fakeNitroNode?.fake)",
+            ],
+            captures: [
+              1,
+              2,
+            ],
+          )),
+          s: {
+            "start": 2968,
+            "end": 3084,
+          },
+        ),
+        no_warn: false,
+      ),
+    ],
+  ),
+]

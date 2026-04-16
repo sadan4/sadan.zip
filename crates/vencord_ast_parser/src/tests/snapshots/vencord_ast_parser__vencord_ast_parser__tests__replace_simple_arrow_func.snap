@@ -1,0 +1,57 @@
+---
+source: crates/vencord_ast_parser/src/vencord_ast_parser/tests/mod.rs
+assertion_line: 33
+expression: patches
+---
+[
+  Patch(
+    plugin_id: None,
+    all: false,
+    no_warn: false,
+    find: MatchLike(
+      v: Str(FinderDef(
+        needle: "Unexpected value for option",
+      )),
+      s: {
+        "start": 136,
+        "end": 165,
+      },
+    ),
+    replacement: [
+      Replacement(
+        match_: MatchLike(
+          v: Regex(MatchRegex(
+            pattern: ",((?:[A-Za-z_$][\\w]*))\\.execute\\(((?:[A-Za-z_$][\\w]*)),((?:[A-Za-z_$][\\w]*))\\)",
+            flags: RegExpFlagsDef(
+              bits: 0,
+            ),
+          )),
+          s: {
+            "start": 217,
+            "end": 246,
+          },
+        ),
+        replace: ReplaceLike(
+          v: Template(TemplateEvaluator(
+            lits: [
+              ",Vencord.Api.Commands._handleCommand(",
+              ", ",
+              ", ",
+              ")",
+            ],
+            captures: [
+              1,
+              2,
+              3,
+            ],
+          )),
+          s: {
+            "start": 273,
+            "end": 359,
+          },
+        ),
+        no_warn: false,
+      ),
+    ],
+  ),
+]

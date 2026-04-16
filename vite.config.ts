@@ -12,7 +12,6 @@ import { dirname, join } from "node:path";
 import { generate } from "rollup-plugin-generate";
 import { defineConfig, type UserConfig } from "vite";
 import devtoolsJSON from "vite-plugin-devtools-json";
-import inspect from "vite-plugin-inspect";
 
 
 const config = defineConfig(async ({ command, isSsrBuild }) => {
@@ -78,12 +77,6 @@ const config = defineConfig(async ({ command, isSsrBuild }) => {
                         },
                     },
                 },
-            }),
-            // incompatible with netlify plugin
-            !isCi && inspect({
-                build: true,
-                // breaks on dev
-                dev: false,
             }),
         ],
         resolve: {
