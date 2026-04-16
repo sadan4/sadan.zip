@@ -2,7 +2,13 @@ use std::{collections::HashMap, fs, io, path::Path};
 
 use anyhow::{Result, anyhow, bail};
 use explorer_types::{
-	BundleMetadata, DepInfo, ExportName, FullBundle, IncomingModuleDeps, KeyModules, ModuleId
+	BundleMetadata,
+	DepInfo,
+	ExportName,
+	FullBundle,
+	IncomingModuleDeps,
+	KeyModules,
+	ModuleId,
 };
 use serde::Deserialize;
 use tracing::{Level, error, info, instrument, span};
@@ -155,7 +161,8 @@ impl V3Migration {
 					anyhow!("expected file in module dir to end with .js")
 				})?
 				.to_string_lossy()
-				.parse()?;
+				.parse()
+				.map(ModuleId)?;
 			let m_source = fs::read_to_string(m_path)?;
 
 			modules.insert(m_id, m_source);
@@ -167,7 +174,7 @@ impl V3Migration {
 				first_seen: info_json.first_seen,
 				entry_point: info_json
 					.entry_point
-					.map(|s| s.parse())
+					.map(|s| s.parse().map(ModuleId))
 					.transpose()?,
 				env_var_text: info_json.env_var_text,
 			},
@@ -177,7 +184,9 @@ impl V3Migration {
 						.key_modules
 						.flux_dispatcher_class
 						.into_iter()
-						.map(|(k, v)| Ok((k.parse()?, ExportName::Named(v))))
+						.map(|(k, v)| {
+							Ok((k.parse().map(ModuleId)?, ExportName::Named(v)))
+						})
 						.collect::<Result<_>>()?,
 				},
 				module_deps: deps_json
@@ -185,7 +194,7 @@ impl V3Migration {
 					.into_iter()
 					.map(|(k, v)| {
 						Ok((
-							k.parse()?,
+							k.parse().map(ModuleId)?,
 							IncomingModuleDeps {
 								sync: v
 									.sync_uses
@@ -207,7 +216,7 @@ impl V3Migration {
 				.map(|(k, v)| {
 					let new_v = v
 						.into_iter()
-						.map(|s| s.parse())
+						.map(|s| s.parse().map(ModuleId))
 						.collect::<Result<_, _>>()?;
 					Ok((k, new_v))
 				})

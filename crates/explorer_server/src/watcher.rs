@@ -1,6 +1,6 @@
 // mod spawn;
 use anyhow::Result;
-use explorer_server_core::{Channel, get_build_path, is_build_downloaded};
+use explorer_server_core::{Channel, get_build_path, is_build_downloaded, write_full_bundle};
 use reqwest::Response;
 use std::{fs, time::Duration};
 use tokio::time;
@@ -94,7 +94,10 @@ async fn handle_build(c: Channel) -> Result<()> {
 		tokio::spawn(async move {
 			let start = time::Instant::now();
 			match scrape_build(build.response, c, build.build_hash).await {
-				Ok(_) => {
+				Ok(build) => {
+					if let Err(e) = write_full_bundle(&build) {
+						error!("Failed to write full bundle: {e:?}");
+					}
 					info!(
 						"finished handling {c:?} build in {:?}",
 						start.elapsed()

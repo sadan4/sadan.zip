@@ -1,7 +1,7 @@
 use std::{collections::HashMap, rc::Rc, sync::OnceLock};
 
 use anyhow::{Result, anyhow};
-use explorer_types::{FullBundle, IncomingModuleDeps, ModuleId};
+use explorer_types::{DepInfo, FullBundle, IncomingModuleDeps, KeyModules, ModuleId};
 use oxc_allocator::Allocator;
 use smol_str::{SmolStr, format_smolstr};
 use webpack_ast_parser::{
@@ -45,10 +45,10 @@ impl<'a> IModuleCache<'a> for CacheProvider<'a> {
 	}
 }
 
-pub fn parse_bundle(modules: HashMap<ModuleId, String>) -> Result<FullBundle> {
+pub fn parse_bundle(modules: &HashMap<ModuleId, String>) -> Result<DepInfo> {
 	let alloc = Allocator::new();
 	let mut parsers = HashMap::with_capacity(modules.len());
-	for (id, code) in &modules {
+	for (id, code) in modules {
 		let parser = WebpackAstParser::try_new(&alloc, &code)?;
 		parsers.insert(*id, parser);
 	}
@@ -75,24 +75,8 @@ pub fn parse_bundle(modules: HashMap<ModuleId, String>) -> Result<FullBundle> {
 				.push(*id);
 		}
 	}
-	let deps = deps
-		.into_iter()
-		.map(|(id, deps)| (id, Rc::new(deps)))
-		.collect();
-	let dep_provider = DepProvider(deps);
-	let cache_provider = CacheProvider::default();
-	let parsers = parsers
-		.into_iter()
-		.map(|(id, mut parser)| {
-			parser.set_module_cache(&cache_provider);
-			parser.set_module_dep_provider(&dep_provider);
-			(id, Rc::new(parser))
-		})
-		.collect();
-	{
-		let tmp = cache_provider.0.set(parsers);
-		debug_assert!(tmp.is_ok());
-	};
-
-	todo!()
+	Ok(DepInfo {
+		key_modules: KeyModules::default(),
+		module_deps: deps,
+	})
 }

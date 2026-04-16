@@ -27,15 +27,15 @@ struct ModuleDepsJs<'a> {
 
 #[wasm_bindgen]
 impl Bundle {
-	pub fn get_module_text(&self, module_id: TModuleId) -> Option<String> {
-		self.modules.get(&module_id).cloned()
+	pub fn get_module_text(&self, module_id: u32) -> Option<String> {
+		self.modules.get(&ModuleId(module_id)).cloned()
 	}
 	#[wasm_bindgen(skip_typescript)]
-	pub fn get_module_deps(&self, module_id: TModuleId) -> Option<JsValue> {
+	pub fn get_module_deps(&self, module_id: u32) -> Option<JsValue> {
 		let deps = self
 			.dep_info
 			.module_deps
-			.get(&module_id)?;
+			.get(&ModuleId(module_id))?;
 		let tmp = ModuleDepsJs {
 			sync_uses: &deps.sync,
 			lazy_uses: &deps.lazy,
@@ -44,12 +44,12 @@ impl Bundle {
 		Some(ret)
 	}
 	pub fn get_id_list(&self) -> Box<[TModuleId]> {
-		let mut ret: Vec<_> = self.modules.keys().copied().collect();
+		let mut ret: Vec<u32> = self.modules.keys().copied().map(Into::into).collect();
 		ret.sort_unstable();
 		ret.into()
 	}
-	pub fn has_id(&self, module_id: TModuleId) -> bool {
-		self.modules.contains_key(&module_id)
+	pub fn has_id(&self, module_id: u32) -> bool {
+		self.modules.contains_key(&ModuleId(module_id))
 	}
 }
 

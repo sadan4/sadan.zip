@@ -10,7 +10,7 @@ pub struct BundleMetadata {
 	pub build_hash: String,
 	pub build_number: u32,
 	pub first_seen: u64,
-	pub entry_point: Option<TModuleId>,
+	pub entry_point: Option<ModuleId>,
 	pub env_var_text: String,
 }
 
@@ -25,27 +25,27 @@ pub enum ExportName {
 #[derive(Serialize, Deserialize, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct KeyModules {
-	pub flux_dispatcher_class: Vec<(TModuleId, ExportName)>,
+	pub flux_dispatcher_class: Vec<(ModuleId, ExportName)>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct DepInfo {
 	pub key_modules: KeyModules,
-	pub module_deps: HashMap<TModuleId, IncomingModuleDeps>,
+	pub module_deps: HashMap<ModuleId, IncomingModuleDeps>,
 }
 
-pub type ModuleSources = HashMap<String, Vec<TModuleId>>;
+pub type ModuleSources = HashMap<String, Vec<ModuleId>>;
 
-pub type Modules = HashMap<TModuleId, String>;
+pub type Modules = HashMap<ModuleId, String>;
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct FullBundle {
 	pub metadata: BundleMetadata,
 	pub dep_info: DepInfo,
-	pub module_sources: HashMap<String, Vec<TModuleId>>,
-	pub modules: HashMap<TModuleId, String>,
+	pub module_sources: HashMap<String, Vec<ModuleId>>,
+	pub modules: HashMap<ModuleId, String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default)]

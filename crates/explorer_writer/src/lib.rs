@@ -81,7 +81,7 @@ impl From<ProcessingMetadata> for BundleMetadata {
 			build_hash,
 			build_number,
 			first_seen: first_seen as u64,
-			entry_point,
+			entry_point: entry_point.map(ModuleId),
 			env_var_text,
 		}
 	}
@@ -132,7 +132,7 @@ impl From<ProcessingKeyModules> for KeyModules {
 			flux_dispatcher_class: value
 				.flux_dispatcher_class
 				.into_iter()
-				.map(|(id, export_name)| (id, export_name.into()))
+				.map(|(id, export_name)| (id.into(), export_name.into()))
 				.collect(),
 		}
 	}
@@ -141,7 +141,7 @@ impl From<ProcessingKeyModules> for KeyModules {
 #[derive(Default, Debug, Clone)]
 pub struct ProcessingDepInfo {
 	key_modules: ProcessingKeyModules,
-	module_deps: HashMap<TModuleId, IncomingModuleDeps>,
+	module_deps: HashMap<ModuleId, IncomingModuleDeps>,
 }
 
 #[napi]
@@ -157,11 +157,11 @@ impl ProcessingDepInfo {
 	#[napi]
 	pub fn add_sync_dep(
 		&mut self,
-		module_id: TModuleId,
-		sync_use_id: TModuleId,
+		module_id: u32,
+		sync_use_id: u32,
 	) {
 		self.module_deps
-			.entry(module_id)
+			.entry(ModuleId(module_id))
 			.or_default()
 			.sync
 			.push(ModuleId(sync_use_id));
@@ -169,11 +169,11 @@ impl ProcessingDepInfo {
 	#[napi]
 	pub fn add_lazy_dep(
 		&mut self,
-		module_id: TModuleId,
-		lazy_use_id: TModuleId,
+		module_id: u32,
+		lazy_use_id: u32,
 	) {
 		self.module_deps
-			.entry(module_id)
+			.entry(ModuleId(module_id))
 			.or_default()
 			.lazy
 			.push(ModuleId(lazy_use_id));
@@ -199,8 +199,8 @@ impl From<ProcessingDepInfo> for DepInfo {
 pub struct ProcessingBuild {
 	metadata: ProcessingMetadata,
 	dep_info: ProcessingDepInfo,
-	module_sources: HashMap<String, Vec<TModuleId>>,
-	modules: HashMap<TModuleId, String>,
+	module_sources: HashMap<String, Vec<u32>>,
+	modules: HashMap<u32, String>,
 }
 
 #[napi]
@@ -251,8 +251,22 @@ impl From<ProcessingBuild> for FullBundle {
 		Self {
 			metadata: metadata.into(),
 			dep_info: dep_info.into(),
-			module_sources,
-			modules,
+			module_sources: module_sources
+				.into_iter()
+				.map(|(chunk_name, module_ids)| {
+					(
+						chunk_name,
+						module_ids
+							.into_iter()
+							.map(ModuleId)
+							.collect(),
+					)
+				})
+				.collect(),
+			modules: modules
+				.into_iter()
+				.map(|(id, source)| (ModuleId(id), source))
+				.collect(),
 		}
 	}
 }

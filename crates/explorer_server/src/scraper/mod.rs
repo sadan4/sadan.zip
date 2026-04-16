@@ -6,14 +6,15 @@ use std::{
 	ops::Deref,
 	sync::{Arc, LazyLock, Mutex},
 	thread,
+	time::{SystemTime, UNIX_EPOCH},
 };
 
 use anyhow::{Context as _, Result, bail};
 use explorer_server_core::{Channel, asset_url};
-use explorer_types::{FullBundle, TModuleId};
+use explorer_types::{BundleMetadata, FullBundle, ModuleId, TModuleId};
 use itertools::Itertools as _;
 use memchr::memmem::Finder;
-use oxc_allocator::AllocatorPool;
+use oxc_allocator::{AllocatorPool, IntoIn};
 use reqwest::Response;
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
 use reqwest_retry::{RetryTransientMiddleware, policies::ExponentialBackoff};
@@ -25,7 +26,10 @@ use webpack_chunk_parser::{
 	base::WebpackChunkParser,
 };
 
-use crate::scraper::html_parser::{ParsedHtml, parse_html};
+use crate::scraper::{
+	bundle_parser::parse_bundle,
+	html_parser::{ParsedHtml, parse_html},
+};
 
 const MAX_PENDING_REQUESTS: usize = 1024;
 
@@ -51,12 +55,12 @@ fn make_reqwest_client() -> Result<Arc<ClientWithMiddleware>> {
 pub async fn scrape_build(
 	res: Response,
 	channel: Channel,
-	_build_hash: String,
+	build_hash: String,
 ) -> Result<FullBundle> {
 	// Parse the index html file to get the urls we need
 	let html = res.text().await?;
 	let ParsedHtml {
-		global_env_text: _global_env_text,
+		global_env_text: env_var_text,
 		web_js_url,
 	} = parse_html(&html).context("Failed to parse index HTML")?;
 	let pending_limit = Arc::new(Semaphore::const_new(MAX_PENDING_REQUESTS));
@@ -74,8 +78,10 @@ pub async fn scrape_build(
 	let chunk_futures: Vec<task::JoinHandle<Result<_>>>;
 	let mut modules;
 	let num_chunks;
-	let module_sources: Arc<Mutex<HashMap<String, Vec<TModuleId>>>> =
+	let module_sources: Arc<Mutex<HashMap<String, Vec<ModuleId>>>> =
 		Arc::new(Mutex::new(HashMap::new()));
+	let build_number;
+	let entry_point;
 	{
 		let alloc_guard = pool.get();
 		let alloc = &*alloc_guard;
@@ -119,29 +125,42 @@ pub async fn scrape_build(
 							let chunk_parser = WebpackLazyChunkParser::try_new(
 								alloc, chunk_str,
 							)?;
-							let modules = chunk_parser
+							let mut modules = chunk_parser
 								.get_defined_modules()
 								.context("Failed to get modules from chunk")?;
+							for code in modules.values_mut() {
+								code.insert_str(0, "0,");
+							}
 
 							Result::Ok(modules)
 						})
 						.await??;
 					let keys = chunk_modules
 						.keys()
-						.map(Deref::deref)
 						.copied()
 						.collect_vec();
-					module_sources.lock().unwrap().insert(chunk_name, keys);
+					module_sources
+						.lock()
+						.unwrap()
+						.insert(chunk_name, keys);
 
 					Result::Ok(chunk_modules)
 				})
 			})
 			.collect_vec();
-		modules = task::block_in_place(move || {
-			main_parser
-				.get_defined_modules()
-				.context("Failed to get modules from main chunk")
-		})?;
+		build_number = main_parser
+			.get_build_number()
+			.unwrap_or_default()
+			.parse()
+			.unwrap_or_default();
+		entry_point = main_parser.get_entrypoint_id();
+		let mut tmp_modules = main_parser
+			.get_defined_modules()
+			.context("Failed to get modules from main chunk")?;
+		for code in tmp_modules.values_mut() {
+			code.insert_str(0, "0,");
+		}
+		modules = tmp_modules;
 	};
 
 	for fut in chunk_futures {
@@ -150,6 +169,32 @@ pub async fn scrape_build(
 
 	info!("collected {} chunks. {} modules", num_chunks, modules.len());
 	drop(pool);
+	let dep_info = parse_bundle(&modules)?;
 
-	bail!("TODO");
+	let module_sources = Arc::into_inner(module_sources)
+		.expect("how")
+		.into_inner()
+		.unwrap();
+
+	let current_time = SystemTime::now()
+		.duration_since(UNIX_EPOCH)
+		.context("Bad System Clock")?
+		.as_millis();
+	debug_assert!(u64::try_from(current_time).is_ok());
+	let first_seen = current_time as u64;
+
+	let ret = FullBundle {
+		metadata: BundleMetadata {
+			build_hash,
+			build_number,
+			first_seen,
+			entry_point,
+			env_var_text,
+		},
+		dep_info,
+		module_sources,
+		modules,
+	};
+
+	Ok(ret)
 }

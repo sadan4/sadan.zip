@@ -37,7 +37,7 @@ impl Meta {
 	}
 	#[wasm_bindgen(getter)]
 	pub fn entry_point(&self) -> Option<TModuleId> {
-		self.0.entry_point
+		self.0.entry_point.map(Into::into)
 	}
 	#[wasm_bindgen(getter)]
 	pub fn env_var_text(&self) -> String {
