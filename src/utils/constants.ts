@@ -13,8 +13,7 @@ export const REPLACEMENT_CHARACTER = "\uFFFD";
 export const GITHUB_REPO_URL = "https://github.com/sadan4/sadan.zip";
 export const GITHUB_REPO_CREATE_ISSUE_URL = "https://github.com/sadan4/sadan.zip/issues/new";
 
-export const EXPLORER_BACKEND_URL = "http://localhost:8484";
-// export const EXPLORER_BACKEND_URL = "https://s-d-br.sadan.zip";
+export const EXPLORER_BACKEND_URL = "https://s-d-br.sadan.zip";
 
 export function EXPLORER_BUILD_DOWNLOAD_URL(buildHash: TBundleHash): string {
     return `${EXPLORER_BACKEND_URL}/build/${buildHash}/archive.tar.zst`;

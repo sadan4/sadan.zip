@@ -12,8 +12,8 @@ export declare class ProcessingBuild {
 export declare class ProcessingDepInfo {
   constructor()
   set keyModules(keyModules: ProcessingKeyModules)
-  addSyncDep(moduleId: TModuleId, syncUseId: TModuleId): void
-  addLazyDep(moduleId: TModuleId, lazyUseId: TModuleId): void
+  addSyncDep(moduleId: number, syncUseId: number): void
+  addLazyDep(moduleId: number, lazyUseId: number): void
 }
 
 export declare class ProcessingKeyModules {
