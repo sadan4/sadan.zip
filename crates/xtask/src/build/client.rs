@@ -11,7 +11,7 @@ pub struct Command {
 	///
 	/// You should not pass or change this flag
 	#[arg(long, default_value_t = true)]
-	release: bool,
+	pub release: bool,
 }
 impl Command {
 	pub fn build_wasm(&self) -> Result<()> {
