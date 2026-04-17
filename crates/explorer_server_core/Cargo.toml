@@ -3,6 +3,10 @@ name = "explorer_server_core"
 version = "0.1.0"
 edition.workspace = true
 
+[lib]
+test = false
+doctest = false
+
 [dependencies]
 explorer_types.workspace = true 
 anyhow.workspace = true

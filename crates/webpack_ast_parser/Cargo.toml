@@ -3,6 +3,9 @@ name = "webpack_ast_parser"
 version = "0.1.0"
 edition.workspace = true
 
+[lib]
+doctest = false
+
 [dependencies]
 oxc.workspace = true
 ast_parser.workspace = true

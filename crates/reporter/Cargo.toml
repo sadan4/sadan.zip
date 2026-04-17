@@ -20,29 +20,20 @@ clap_complete.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 zstd.workspace = true
-rmp-serde.workspace = true
 serde.workspace = true
 itertools.workspace = true
-tokio-stream = { workspace = true, features = ["fs"] }
-tokio-util = { workspace = true }
 oxc.workspace = true
-oxc_ecmascript.workspace = true
-oxc_traverse.workspace = true
 thiserror.workspace = true
 regress.workspace = true
-xxhash-rust.workspace = true
 derive_more.workspace = true
 oxc-miette.workspace = true
 indicatif.workspace = true
 owo-colors.workspace = true
 unicode-width.workspace = true
-unicode-segmentation.workspace = true
 textwrap.workspace = true
 terminal_size.workspace = true
 syntect = { workspace = true, features = ["regex-onig", "parsing"] }
 memchr.workspace = true
-bitflags.workspace = true
-num-bigint.workspace = true
 const_format.workspace = true
 bytes.workspace = true
 oxc_allocator.workspace = true
@@ -50,15 +41,11 @@ reqwest-middleware.workspace = true
 reqwest-retry.workspace = true
 webpack_chunk_parser.workspace = true
 html_parser.workspace = true
-webpack_ast_parser.workspace = true
 notify.workspace = true
 rustc-hash.workspace = true
 clearscreen.workspace = true
 pretty_printer.workspace = true
 bitcode.workspace = true
-
-[dev-dependencies]
-insta.workspace = true
 
 [lints]
 workspace = true

@@ -58,7 +58,6 @@ insta = { version = "1.47.1", features = ["ron"] }
 bitflags = { version = "2.11.0", features = ["serde"] }
 owo-colors = "4.3.0"
 unicode-width = "0.2.2"
-unicode-segmentation = "1.13.1"
 textwrap = "0.16.2"
 terminal_size = "0.4.4"
 syntect = { version = "5.3.0", default-features = false }
@@ -85,7 +84,6 @@ vencord_ast_parser = { path = "crates/vencord_ast_parser" }
 webpack_ast_parser = { path = "crates/webpack_ast_parser" }
 webpack_chunk_parser = { path = "crates/webpack_chunk_parser" }
 pretty_printer = { path = "crates/pretty_printer" }
-rayon = "1.11.0"
 notify = "8.2.0"
 rustc-hash = "2.1.2"
 clearscreen = "4.0.6"

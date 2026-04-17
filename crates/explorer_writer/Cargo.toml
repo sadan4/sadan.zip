@@ -5,6 +5,7 @@ edition.workspace = true
 
 [lib]
 crate-type = ["cdylib"]
+test = false
 
 [dependencies]
 napi.workspace = true
