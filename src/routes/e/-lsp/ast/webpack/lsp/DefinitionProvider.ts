@@ -1,9 +1,9 @@
 import { ModuleViewerStore, parseModuleURI } from "@/routes/e/-data";
 import { error } from "@/utils/error";
 import { type Monaco, monaco } from "@/utils/monaco";
+import type { TModuleId } from "@/utils/types";
 import { isWebpackModule } from "@vencord-companion/webpack-ast-parser/util";
 
-import type { TModuleId } from "../../../../../../../server/types";
 import { toMonacoRange, toParserPosition } from "../../../util";
 
 export class WebpackDefinitionProvider implements Monaco.languages.DefinitionProvider {
@@ -44,7 +44,7 @@ export class WebpackDefinitionProvider implements Monaco.languages.DefinitionPro
             for (const def of defs) {
                 monacoDefs.push({
                     range: toMonacoRange(def.range),
-                    uri: (await getModuleModel(def.moduleId as TModuleId)).uri,
+                    uri: (await getModuleModel(+def.moduleId as TModuleId)).uri,
                 });
             }
 

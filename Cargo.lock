@@ -542,15 +542,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "convert_case"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "affbf0190ed2caf063e3def54ff444b449371d55c58e513a95ab98eca50adb49"
-dependencies = [
- "unicode-segmentation",
-]
-
-[[package]]
 name = "core-foundation"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -611,22 +602,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ctor"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "352d39c2f7bef1d6ad73db6f5160efcaed66d94ef8c6c573a8410c00bf909a98"
-dependencies = [
- "ctor-proc-macro",
- "dtor",
-]
-
-[[package]]
-name = "ctor-proc-macro"
-version = "0.0.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "52560adf09603e58c9a7ee1fe1dcb95a16927b17c127f0ac02d6e768a0e25bc1"
-
-[[package]]
 name = "derive_more"
 version = "2.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -641,7 +616,7 @@ version = "2.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "799a97264921d8623a957f6c3b9011f3b5492f557bbb7a5a19b7fa6d06ba8dcb"
 dependencies = [
- "convert_case 0.10.0",
+ "convert_case",
  "proc-macro2",
  "quote",
  "rustc_version",
@@ -681,21 +656,6 @@ name = "dragonbox_ecma"
 version = "0.1.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fd8e701084c37e7ef62d3f9e453b618130cbc0ef3573847785952a3ac3f746bf"
-
-[[package]]
-name = "dtor"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f1057d6c64987086ff8ed0fd3fbf377a6b7d205cc7715868cd401705f715cbe4"
-dependencies = [
- "dtor-proc-macro",
-]
-
-[[package]]
-name = "dtor-proc-macro"
-version = "0.0.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f678cf4a922c215c63e0de95eb1ff08a958a81d47e485cf9da1e27bf6305cfa5"
 
 [[package]]
 name = "dunce"
@@ -802,20 +762,6 @@ version = "0.1.0"
 dependencies = [
  "derive_more",
  "serde",
-]
-
-[[package]]
-name = "explorer_writer"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "explorer_server_core",
- "explorer_types",
- "napi",
- "napi-build",
- "napi-derive",
- "rmp-serde",
- "tracing-subscriber",
 ]
 
 [[package]]
@@ -1556,16 +1502,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "52ff2c0fe9bc6cb6b14a0592c2ff4fa9ceb83eea9db979b0487cd054946a2b8f"
 
 [[package]]
-name = "libloading"
-version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "754ca22de805bb5744484a5b151a9e1a8e837d5dc232c2d7d8c2e3492edc8b60"
-dependencies = [
- "cfg-if",
- "windows-link",
-]
-
-[[package]]
 name = "libredox"
 version = "0.1.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1700,65 +1636,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "napi"
-version = "3.8.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fb7848c221fb7bb789e02f01875287ebb1e078b92a6566a34de01ef8806e7c2b"
-dependencies = [
- "anyhow",
- "bitflags 2.11.0",
- "ctor",
- "futures",
- "napi-build",
- "napi-sys",
- "nohash-hasher",
- "rustc-hash",
- "tracing",
-]
-
-[[package]]
-name = "napi-build"
-version = "2.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d376940fd5b723c6893cd1ee3f33abbfd86acb1cd1ec079f3ab04a2a3bc4d3b1"
-
-[[package]]
-name = "napi-derive"
-version = "3.5.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "60867ff9a6f76e82350e0c3420cb0736f5866091b61d7d8a024baa54b0ec17dd"
-dependencies = [
- "convert_case 0.11.0",
- "ctor",
- "napi-derive-backend",
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
-name = "napi-derive-backend"
-version = "5.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f0864cf6a82e2cfb69067374b64c9253d7e910e5b34db833ed7495dda56ccb18"
-dependencies = [
- "convert_case 0.11.0",
- "proc-macro2",
- "quote",
- "semver",
- "syn",
-]
-
-[[package]]
-name = "napi-sys"
-version = "3.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8eb602b84d7c1edae45e50bbf1374696548f36ae179dfa667f577e384bb90c2b"
-dependencies = [
- "libloading",
-]
-
-[[package]]
 name = "nix"
 version = "0.31.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1769,12 +1646,6 @@ dependencies = [
  "cfg_aliases",
  "libc",
 ]
-
-[[package]]
-name = "nohash-hasher"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2bf50223579dc7cdcfb3bfcacf7069ff68243f8c363f62ffa99cf000a6b9c451"
 
 [[package]]
 name = "nom"

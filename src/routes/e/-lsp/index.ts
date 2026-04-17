@@ -2,13 +2,13 @@ import { getRouter } from "@/router";
 import { once } from "@/utils/functional";
 import { type Monaco, monaco } from "@/utils/monaco";
 import { entries, mapValues } from "@/utils/obj";
+import type { TModuleId } from "@/utils/types";
 import { WebpackAstParser } from "@vencord-companion/webpack-ast-parser/WebpackAstParser";
 
 import { WebpackExportHover } from "./ast/webpack/hover/ExportHover";
 import { WebpackI18nHover } from "./ast/webpack/hover/I18nHover";
 import { WebpackDefinitionProvider } from "./ast/webpack/lsp/DefinitionProvider";
 import { WebpackReferenceProvider } from "./ast/webpack/lsp/ReferenceProvider";
-import type { TModuleId } from "../../../../server/types";
 import { getModuleURI, ModuleViewerSettingsStore, ModuleViewerStore, parseModuleURI } from "../-data";
 
 function _register() {
@@ -16,17 +16,17 @@ function _register() {
 
     WebpackAstParser.setDefaultModuleDepManager({
         getModDeps(moduleId) {
-            return getDepsForModule(moduleId as TModuleId);
+            return getDepsForModule(+moduleId as TModuleId);
         },
     });
 
     WebpackAstParser.setDefaultModuleCache({
         getModuleFilepath(id) {
             // FIXME: ensure this model is available when monaco loads it
-            return getModuleURI(ModuleViewerStore.getState().buildHash, id as TModuleId).toString();
+            return getModuleURI(ModuleViewerStore.getState().buildHash, +id as TModuleId).toString();
         },
         getModuleParser(_requestor, id, _latest) {
-            return Promise.resolve(ModuleViewerStore.getState().getModuleParser(id as TModuleId));
+            return Promise.resolve(ModuleViewerStore.getState().getModuleParser(+id as TModuleId));
         },
     });
 

@@ -22,6 +22,9 @@ rmp-serde.workspace = true
 serde.workspace = true
 serde-wasm-bindgen.workspace = true
 
+[features]
+local-server = []
+
 [dependencies.web-sys]
 workspace = true
 features = [

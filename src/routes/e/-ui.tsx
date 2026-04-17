@@ -14,13 +14,15 @@ import { Text } from "@/components/Text";
 import { ToggleButtonGroup } from "@/components/ToggleButtonGroup";
 import { TooltipPosition } from "@/components/Tooltip/constants";
 import cn from "@/utils/cn";
-import { EXPLORER_BUILD_DOWNLOAD_FILENAME, EXPLORER_BUILD_DOWNLOAD_URL, GITHUB_REPO_URL, NBSP } from "@/utils/constants";
+import { GITHUB_REPO_URL, NBSP } from "@/utils/constants";
 import { debug_assert } from "@/utils/error";
 import { isNumber } from "@/utils/functional";
 import type { Monaco } from "@/utils/monaco";
 import { visibleIf } from "@/utils/react";
 import { Language } from "@/utils/textmate";
 import { TextmateTheme, themeDisplayNames } from "@/utils/textmate/theme";
+import type { TModuleId } from "@/utils/types";
+import { bundle_tarball_filename, bundle_tarball_url } from "@sadan4/libsadancore";
 import { createLink } from "@tanstack/react-router";
 import type { WebpackAstParser } from "@vencord-companion/webpack-ast-parser/WebpackAstParser";
 import { ReactFlow } from "@xyflow/react";
@@ -35,7 +37,6 @@ import {
     ViewMode,
 } from "./-data";
 import { Route } from "./view.{-$buildHash}.{-$moduleId}";
-import { TModuleId } from "../../../server/types";
 
 import "@xyflow/react/dist/style.css";
 import {
@@ -122,7 +123,7 @@ function pendingUri(str: string) {
 
 function ModuleViewer() {
     const moduleId = useModuleViewerStore(({ selectedModule }) => selectedModule);
-    const uri = useModuleViewerStore(({ selectedModule, getModuleModel }) => (selectedModule == null ? pendingUri("// Select a Module") : getModuleModel(`${selectedModule}` as TModuleId).uri));
+    const uri = useModuleViewerStore(({ selectedModule, getModuleModel }) => (selectedModule == null ? pendingUri("// Select a Module") : getModuleModel(selectedModule as TModuleId).uri));
     const { sl, sc, el, ec } = Route.useSearch();
     const [codeEditor, setCodeEditor] = useState<MonacoCodeEditor.Handle | null>(null);
     const editorTheme = useModuleViewerSettingsStore(({ editorTheme }) => editorTheme);
@@ -492,8 +493,8 @@ function ExplorerHeader() {
                     tooltipPosition={TooltipPosition.BOTTOM}
                     loadingAnimation
                     onClick={undefined}
-                    href={EXPLORER_BUILD_DOWNLOAD_URL(buildHash)}
-                    download={EXPLORER_BUILD_DOWNLOAD_FILENAME(buildHash)}
+                    href={bundle_tarball_url(buildHash)}
+                    download={bundle_tarball_filename(buildHash)}
                 >
                     <DownloadIcon />
                 </IconButton>

@@ -1,12 +1,10 @@
 import { makeLazy } from "@/utils/lazy";
 import { type Monaco, monaco } from "@/utils/monaco";
 import { TextmateTheme } from "@/utils/textmate/theme";
-import type { Fields } from "@/utils/types";
+import type { Fields, TBundleHash, TModuleId } from "@/utils/types";
 import { type Bundle, get_bundle } from "@sadan4/libsadancore";
 import type { ModuleDep } from "@vencord-companion/webpack-ast-parser/types";
 import { WebpackAstParser } from "@vencord-companion/webpack-ast-parser/WebpackAstParser";
-
-import type { TBundleHash, TModuleId } from "../../../server/types";
 
 import "core-js/proposals/array-buffer-base64";
 import z from "zod";
@@ -189,7 +187,7 @@ export function parseModuleURI(uri: Monaco.Uri): ParsedModuleURI | undefined {
 
     return {
         buildHash: buildHash as TBundleHash,
-        moduleId: moduleId as TModuleId,
+        moduleId: +moduleId as TModuleId,
     };
 }
 

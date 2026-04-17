@@ -12,6 +12,9 @@ pub struct Command {
 	/// You should not pass or change this flag
 	#[arg(long, default_value_t = true)]
 	pub release: bool,
+	#[arg(short, long, default_value_t = false)]
+	/// Connect to the local server for the bundle explorer
+	pub local_server: bool,
 }
 impl Command {
 	pub fn build_wasm(&self) -> Result<()> {
@@ -23,6 +26,9 @@ impl Command {
 			.arg("sadan4")
 			.arg("crates/libsadancore")
 			.arg_if(!self.release, "--dev")
+			.arg_if(self.local_server, "--")
+			.arg_if(self.local_server, "-F")
+			.arg_if(self.local_server, "local-server")
 			.run()
 			.context("Failed to build libsadancore")
 	}

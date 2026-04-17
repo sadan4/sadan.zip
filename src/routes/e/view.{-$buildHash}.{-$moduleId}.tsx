@@ -1,8 +1,7 @@
 import { unavailableImport } from "@/utils/error";
+import { TBundleHash } from "@/utils/types";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
-
-import { TBundleHash } from "../../../server/types";
 
 import z from "zod";
 

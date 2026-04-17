@@ -1,8 +1,7 @@
 use crate::{
 	Runnable,
-	build::{self, server::ArgJsMode},
+	build::{self},
 	clean,
-	util::server::ServerTarget,
 };
 use anyhow::{Context, Result};
 use clap::Args;
@@ -13,8 +12,6 @@ pub struct Command {
 	#[arg(short, long, default_value_t = false)]
 	/// Run the server in debug mode.
 	debug: bool,
-	#[command(flatten)]
-	js_mode: ArgJsMode,
 	#[arg(short, long, default_value_t = false)]
 	/// Clean the build cache of the server that stores previous scraped builds
 	clean_cache: bool,
@@ -34,9 +31,6 @@ impl Runnable for Command {
 		info!("Running Server");
 		build::server::Command {
 			release: !self.debug,
-			deps_mode: build::server::DepsMode { no_deps: false },
-			target: ServerTarget::Native,
-			js_mode: self.js_mode,
 		}
 		.build_server("run")?;
 

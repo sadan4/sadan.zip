@@ -5,10 +5,9 @@ import { TextLink } from "@/components/Links";
 import { Text } from "@/components/Text";
 import { Tooltip } from "@/components/Tooltip";
 import { EM_DASH } from "@/utils/constants";
+import type { TBundleHash } from "@/utils/types";
 import { get_builds, Meta } from "@sadan4/libsadancore";
 import { useQuery } from "@tanstack/react-query";
-
-import type { TBundleHash } from "../../../../server/types";
 
 import { ExternalLinkIcon } from "lucide-react";
 import { useMemo } from "react";

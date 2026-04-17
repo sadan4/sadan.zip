@@ -6,29 +6,26 @@ use crate::{
 	util::cmd::CommandExt,
 };
 use anyhow::Result;
-use clap::{Args, ValueEnum};
+use clap::{Args};
 use tracing::info;
 
 #[derive(Args)]
 pub struct Command {
 	#[arg(long, default_value_t = false)]
 	release: bool,
+	#[arg(short, long, default_value_t = false)]
+	/// Connect to the local server for the bundle explorer
+	local_server: bool,
 	#[arg(long, default_value_t = false)]
 	/// Start the explorer server along with the client
 	with_server: bool,
-}
-
-#[derive(Default, Debug, Clone, Copy, ValueEnum)]
-enum Target {
-	Wasm,
-	#[default]
-	Js,
 }
 
 impl Command {
 	fn run_client(&self) -> Result<()> {
 		let guh = build::client::Command {
 			release: self.release,
+			local_server: self.local_server,
 		};
 		info!("Building client wasm");
 		guh.build_wasm()?;

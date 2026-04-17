@@ -5,6 +5,7 @@ use crate::Runnable;
 
 mod indent_cache;
 mod syntax;
+mod types;
 
 #[derive(Args)]
 pub struct Command {
@@ -18,6 +19,7 @@ impl Runnable for Command {
 		match &self.target {
 			Target::IndentCache(c) => c.run(),
 			Target::Syntax(c) => c.run(),
+			Target::Types(c) => c.run(),
 		}
 	}
 }
@@ -28,4 +30,6 @@ enum Target {
 	IndentCache(indent_cache::Command),
 	/// Generate syntax highlighting theme and language definitions for reporter
 	Syntax(syntax::Command),
+	/// Generate types
+	Types(types::Command),
 }
