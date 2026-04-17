@@ -1,12 +1,12 @@
-use crate::{Runnable, util::cmd::CommandExt};
+use crate::Runnable;
 use anyhow::{Context, Result};
 use clap::Args;
-use std::{fmt::Write as _, fs, io, path, process};
+use std::{fs, io};
 use syntect::{
 	highlighting::ThemeSet,
-	parsing::{SyntaxDefinition, SyntaxSet, SyntaxSetBuilder},
+	parsing::{SyntaxDefinition, SyntaxSetBuilder},
 };
-use tracing::{info, warn};
+use tracing::info;
 
 #[derive(Args)]
 pub struct Command;

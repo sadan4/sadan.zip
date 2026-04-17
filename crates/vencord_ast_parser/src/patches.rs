@@ -1,5 +1,10 @@
-use crate::{Match, MatchLike, MatchRegex, hash::hash_message_key};
-use anyhow::{Context, Result, bail};
+use crate::{
+	Match,
+	MatchLike,
+	MatchRegex,
+	diag::{PResult, err},
+	hash::hash_message_key,
+};
 use ast_parser::exts::{ExpressionExt as _, TemplateLiteralExt as _};
 use itertools::Itertools;
 use memchr::memmem::Finder;
@@ -70,7 +75,9 @@ static PATCH_INTL_REGEX: LazyLock<Regex> =
 pub fn canonicalize_intl(
 	s: &str,
 	needs_regex_escape: bool,
-) -> Result<Cow<'_, str>> {
+	loc: impl Into<Option<Span>>,
+) -> PResult<Cow<'_, str>> {
+	let loc = loc.into().unwrap_or_default();
 	// TODO: should this be find iter ascii
 	let mut it = PATCH_INTL_REGEX.find_iter(s).peekable();
 	if it.peek().is_none() {
@@ -89,7 +96,7 @@ pub fn canonicalize_intl(
 		let key = if is_raw {
 			key.chars()
 				.collect_array()
-				.context("Raw intl key has invalid len")?
+				.ok_or_else(|| err(&loc, "Raw intl key has invalid len"))?
 		} else {
 			hash_message_key(key)
 		};
@@ -232,11 +239,11 @@ pub fn canonicalize_replace_for_regress(s: &mut str) {
 
 // TODO: Helper for COW regex
 
-pub fn canonicalize_match_like(raw: &RawMatchLike<'_>) -> Result<MatchLike> {
+pub fn canonicalize_match_like(raw: &RawMatchLike<'_>) -> PResult<MatchLike> {
 	let ret = match raw {
 		RawMatchLike::String(StringLiteral { value, span, .. })
 		| RawMatchLike::ComputedString(value, span) => {
-			let value = canonicalize_intl(value, false)?;
+			let value = canonicalize_intl(value, false, *span)?;
 			MatchLike {
 				v: Match::Str(Finder::new(value.as_bytes()).into_owned()),
 				s: *span,
@@ -246,7 +253,7 @@ pub fn canonicalize_match_like(raw: &RawMatchLike<'_>) -> Result<MatchLike> {
 			let flags = pat.regex.flags;
 			let span = pat.span;
 			let pat = pat.regex.pattern.text.as_str();
-			let pat = canonicalize_intl(pat, true)?;
+			let pat = canonicalize_intl(pat, true, span)?;
 			let pat = canonicalize_regex_ident(&pat);
 			MatchLike {
 				v: Match::Regex(MatchRegex {
@@ -257,8 +264,8 @@ pub fn canonicalize_match_like(raw: &RawMatchLike<'_>) -> Result<MatchLike> {
 				s: span,
 			}
 		}
-		RawMatchLike::Template(_) => {
-			bail!("TODO: Support inlining template literals in match like")
+		RawMatchLike::Template(TemplateLiteral {span, ..}) => {
+			return Err(err(span, "TODO: Support inlining template literals in match like"));
 		}
 	};
 
@@ -336,13 +343,13 @@ mod tests {
 		let regex_1 = r"(?<=children:\[)(?=.{10,80}tooltip:.{0,100}#{intl::ATTACHMENT_UTILITIES_SPOILER})";
 		let canon_1 =
 			r"(?<=children:\[)(?=.{10,80}tooltip:.{0,100}(?:\.cuurzA))";
-		assert_eq!(canonicalize_intl(regex_1, true).unwrap(), canon_1);
+		assert_eq!(canonicalize_intl(regex_1, true, None).unwrap(), canon_1);
 	}
 
 	#[test]
 	fn test_canonicalize_intl_with_hash() {
 		let src = r##""#{intl::APP_TAG::hash}":"##;
-		assert_snapshot!(canonicalize_intl(src, false).unwrap(), @r#""9RNkeF":"#);
-		assert_snapshot!(canonicalize_intl(src, true).unwrap(), @r#""(?:9RNkeF)":"#);
+		assert_snapshot!(canonicalize_intl(src, false, None).unwrap(), @r#""9RNkeF":"#);
+		assert_snapshot!(canonicalize_intl(src, true, None).unwrap(), @r#""(?:9RNkeF)":"#);
 	}
 }

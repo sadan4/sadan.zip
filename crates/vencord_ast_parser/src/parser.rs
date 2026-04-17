@@ -1,22 +1,30 @@
-use std::borrow::Cow;
+use std::sync::mpsc;
 
 use crate::{
-	Patch, ReplaceLike, Replacement, Replacer, TemplateEvaluator,
-	pass::{
-		EvalStringRawPass, FlattenTemplatePass, FoldBinaryExpressionsPass,
-		InlineConstantsPass, InlineEnumsPass, PassManager,
-	},
-	patches::{
-		RawMatchLike, RawPatch, RawReplace, RawReplacement,
-		canonicalize_match_like, canonicalize_replace_for_regress,
-	},
+	Patch, ReplaceLike, Replacement, Replacer, TemplateEvaluator, diag::{LocalSource, PResult, ParserDiagnostic, err, err_ns}, pass::{
+		EvalStringRawPass,
+		FlattenTemplatePass,
+		FoldBinaryExpressionsPass,
+		InlineConstantsPass,
+		InlineEnumsPass,
+		PassManager,
+	}, patches::{
+		RawMatchLike,
+		RawPatch,
+		RawReplace,
+		RawReplacement,
+		canonicalize_match_like,
+		canonicalize_replace_for_regress,
+	}
 };
-use anyhow::{Context, Result, bail};
 use ast_parser::{
-	AstParser, ESModuleParser,
+	AstParser,
+	ESModuleParser,
 	exts::{
-		ArrayExpressionElementExt as _, BindingPatternExt as _,
-		ExpressionExt as _, ImportDeclarationExt as _,
+		ArrayExpressionElementExt as _,
+		BindingPatternExt as _,
+		ExpressionExt as _,
+		ImportDeclarationExt as _,
 		ObjectExpressionExt as _,
 	},
 	parse_for_traverse,
@@ -24,23 +32,29 @@ use ast_parser::{
 use oxc::{
 	allocator::{Allocator, HashMap as OxcHashMap, Vec as OxcVec},
 	ast::{
-		AstBuilder, AstKind,
+		AstBuilder,
+		AstKind,
 		ast::{
-			Argument, ArrayExpressionElement, ArrowFunctionExpression,
-			Expression, ObjectExpression, Program, SpreadElement,
-			StringLiteral,
+			Argument,
+			ArrayExpressionElement,
+			ArrowFunctionExpression,
+			Expression,
+			ObjectExpression,
+			Program,
+			SpreadElement,
+			StringLiteral, TemplateLiteral,
 		},
 	},
+	diagnostics::OxcDiagnostic,
 	minifier::PropertyReadSideEffects,
 	semantic::{Semantic, SymbolId},
-	span::{GetSpan, SourceType, Span},
+	span::{GetSpan, SourceType},
 };
 use oxc_ecmascript::{
 	GlobalContext,
 	constant_evaluation::{ConstantEvaluation, ConstantEvaluationCtx},
 	side_effects::MayHaveSideEffectsContext,
 };
-use thiserror::Error;
 use tracing::{debug, trace, warn};
 
 pub struct VencordAstParser<'ast> {
@@ -48,32 +62,30 @@ pub struct VencordAstParser<'ast> {
 	pub(crate) ast_builder: AstBuilder<'ast>,
 	pub(crate) prog: &'ast Program<'ast>,
 	pub(crate) sema: Semantic<'ast>,
+	pub(crate) txt: &'ast str,
+	pub(crate) path: &'ast str,
+	pub diag_ch: Option<mpsc::Sender<ParserDiagnostic>>,
 }
 
 const DEFINE_PLUGIN_IMPORT_SOURCE: &str = "@utils/types";
 
-#[derive(Error, Debug, Clone)]
-#[error("VencordAstParser: {msg} at {pos:?}")]
-struct ParserError {
-	msg: Cow<'static, str>,
-	pos: Span,
-}
-
-fn err(pos: &impl GetSpan, msg: impl Into<Cow<'static, str>>) -> ParserError {
-	ParserError {
-		msg: msg.into(),
-		pos: pos.span(),
-	}
-}
-
-fn err_ns(msg: impl Into<Cow<'static, str>>) -> ParserError {
-	err(&Span::default(), msg)
-}
-
 // TODO: get webpack finds
 impl<'ast> VencordAstParser<'ast> {
-	pub fn try_new(alloc: &'ast Allocator, source: &'ast str) -> Result<Self> {
-		let pass_data = parse_for_traverse(alloc, source, SourceType::tsx())?;
+	pub fn try_new(alloc: &'ast Allocator, source: &'ast str, path: Option<&'ast str>) -> PResult<Self> {
+		let pass_data =
+			match parse_for_traverse(alloc, source, SourceType::tsx()) {
+				Ok(d) => d,
+				Err(e) => {
+					let mut err = err_ns("Failed to parse source");
+					if e.is::<OxcDiagnostic>() {
+						let oxc_diag = e.downcast::<OxcDiagnostic>().unwrap();
+						err = err.s(oxc_diag);
+					} else {
+						err = err.s(miette::miette!(e));
+					}
+					return Err(err);
+				}
+			};
 
 		let (prog, sema) = PassManager::new(alloc, pass_data)
 			.run_pass(EvalStringRawPass)
@@ -90,18 +102,28 @@ impl<'ast> VencordAstParser<'ast> {
 			ast_builder: AstBuilder::new(alloc),
 			prog,
 			sema,
+			txt: source,
+			path: path.unwrap_or("file.tsx"),
+			diag_ch: None,
 		})
+	}
+
+	pub fn collect_diagnostics(&self) {
+		debug_assert!(self.diag_ch.is_some(), "diag_ch should be set before calling collect_diagnostics");
+		if let Err(e) = self.raw_patches() {
+			_ = self.diag_ch.as_ref().unwrap().send(e);
+		}
 	}
 
 	fn define_plugin<'a: 'ast>(
 		&'a self,
-	) -> Result<&'ast ObjectExpression<'ast>> {
+	) -> PResult<&'ast ObjectExpression<'ast>> {
 		let utils_types_import = self
 			.find_import_by_name(DEFINE_PLUGIN_IMPORT_SOURCE)
-			.with_context(|| err_ns("Failed to find `@utils/types` import"))?;
+			.ok_or_else(|| err_ns("Failed to find `@utils/types` import"))?;
 		let define_plugin = utils_types_import
 			.default_var()
-			.with_context(|| {
+			.ok_or_else(|| {
 				err(
 					utils_types_import,
 					"No default import used from `@utils/types` for definePlugin",
@@ -123,22 +145,22 @@ impl<'ast> VencordAstParser<'ast> {
 			};
 			return Ok(obj.as_ref());
 		}
-		Err(err_ns("Failed to find definePlugin call").into())
+		Err(err_ns("Failed to find definePlugin call"))
 	}
 
-	fn plugin_name<'a: 'ast>(&'a self) -> Result<&'ast str> {
+	fn plugin_name<'a: 'ast>(&'a self) -> PResult<&'ast str> {
 		let define_plugin = self
 			.define_plugin()
-			.with_context(|| err_ns("Failed to find definePlugin"))?;
+			.map_err(|e| err_ns("Failed to find definePlugin").s(e))?;
 		let name_prop = define_plugin
 			.get_property("name")
-			.with_context(|| {
+			.ok_or_else(|| {
 				err(define_plugin, "definePlugin does not have `name` prop")
 			})?;
 		let name_val = name_prop
 			.value
 			.as_string_literal()
-			.with_context(|| {
+			.ok_or_else(|| {
 				err(&name_prop.value, "`name` is not a string literal")
 			})?
 			.value
@@ -149,7 +171,7 @@ impl<'ast> VencordAstParser<'ast> {
 	fn try_into_raw_match_like<'a: 'ast>(
 		&'a self,
 		value: &'ast Expression<'ast>,
-	) -> Result<RawMatchLike<'ast>> {
+	) -> PResult<RawMatchLike<'ast>> {
 		match value {
 			Expression::RegExpLiteral(r) => Ok(RawMatchLike::Regex(r.as_ref())),
 			Expression::StringLiteral(s) => {
@@ -159,34 +181,42 @@ impl<'ast> VencordAstParser<'ast> {
 				Ok(RawMatchLike::Template(t.as_ref()))
 			}
 			Expression::BinaryExpression(b) => {
-				if let Some(cow) = b.evaluate_value_to_string(self) {
-					Ok(RawMatchLike::ComputedString(
-						self.ast_builder.str_from_cow(&cow),
-						b.span,
-					))
-				} else {
-					bail!("invalid bin exp for match-like");
-				}
+				let cow = b
+					.evaluate_value_to_string(self)
+					.ok_or_else(|| {
+						err(
+							b.as_ref(),
+							"Invalid binary expression for match-like",
+						)
+					})?;
+				Ok(RawMatchLike::ComputedString(
+					self.ast_builder.str_from_cow(&cow),
+					b.span,
+				))
 			}
-			_ => bail!("invalid match-like type"),
+			_ => Err(err(value, "Invalid match-like type")),
 		}
 	}
 
 	fn try_into_raw_replacement<'a: 'ast>(
 		&'a self,
 		obj: &'ast ObjectExpression<'ast>,
-	) -> Result<RawReplacement<'ast>> {
+	) -> PResult<RawReplacement<'ast>> {
 		let match_ = &obj
 			.get_property("match")
-			.context("replacement missing match")?
+			.ok_or_else(|| err(obj, "replacement missing match"))?
 			.value;
 		let match_ = self.try_into_raw_match_like(match_)?;
 		let replace = &obj
 			.get_property("replace")
-			.context("replacement missing replace")?
+			.ok_or_else(|| err(obj, "replacement missing replace"))?
 			.value;
-		let replace = self.try_into_raw_replace(replace)?;
-		let no_warn = obj.parse_bool_flag("noWarn")?;
+		let replace = self
+			.try_into_raw_replace(replace)
+			.map_err(|e| err(replace, "Failed to parse replacement").s(e))?;
+		let no_warn = obj
+			.parse_bool_flag("noWarn")
+			.map_err(|e| err(e, "noWarn prop is not a boolean"))?;
 		let predicate = obj
 			.get_property("predicate")
 			.map(|p| &p.value)
@@ -202,7 +232,7 @@ impl<'ast> VencordAstParser<'ast> {
 	fn try_into_raw_replace<'a: 'ast>(
 		&'a self,
 		value: &'ast Expression<'ast>,
-	) -> Result<RawReplace<'ast>> {
+	) -> PResult<RawReplace<'ast>> {
 		match value {
 			Expression::StringLiteral(s) => Ok(RawReplace::String(s.as_ref())),
 			Expression::ArrowFunctionExpression(s) => {
@@ -212,54 +242,57 @@ impl<'ast> VencordAstParser<'ast> {
 				Ok(RawReplace::Template(s.as_ref()))
 			}
 			Expression::BinaryExpression(s) => {
-				if let Some(cow) = s.evaluate_value_to_string(self) {
-					Ok(RawReplace::ComputedString(
-						self.ast_builder.str_from_cow(&cow),
-						s.span,
-					))
-				} else {
-					bail!("invalid bin exp for replace");
-				}
+				let cow = s
+					.evaluate_value_to_string(self)
+					.ok_or_else(|| {
+						err(s.as_ref(), "Invalid bin exp for replace")
+					})?;
+				Ok(RawReplace::ComputedString(
+					self.ast_builder.str_from_cow(&cow),
+					s.span,
+				))
 			}
-			_ => bail!("invalid replace type {}", value.dbg_name()),
+			_ => Err(err(value, "Invalid replace type")),
 		}
 	}
 
 	fn parse_single_patch<'a: 'ast>(
 		&'a self,
 		obj: &'ast ArrayExpressionElement<'ast>,
-	) -> Result<RawPatch<'ast>> {
+	) -> PResult<RawPatch<'ast>> {
 		let obj = match obj {
-			ArrayExpressionElement::SpreadElement(_) => {
-				bail!(
-					"Spreads and dynamic expressions are not supported in patches yet."
-				)
+			ArrayExpressionElement::SpreadElement(e) => {
+				return Err(err(
+					e.as_ref(),
+					"Spreads and dynamic expressions are not supported in patches yet.",
+				));
 			}
 			ArrayExpressionElement::ObjectExpression(obj) => obj.as_ref(),
 			_ => {
-				bail!(
-					"invalid element in patches array, got: {}",
-					obj.dbg_name()
-				);
+				return Err(err(obj, "invalid element in patches array"));
 			}
 		};
 
-		let all = obj.parse_bool_flag("all")?;
-		let no_warn = obj.parse_bool_flag("noWarn")?;
+		let all = obj
+			.parse_bool_flag("all")
+			.map_err(|e| err(e, "all prop is not a boolean literal"))?;
+		let no_warn = obj
+			.parse_bool_flag("noWarn")
+			.map_err(|e| err(e, "noWarn prop is not a boolean literal"))?;
 		let predicate = obj
 			.get_property("predicate")
 			.map(|p| &p.value)
 			.into();
 		let find = &obj
 			.get_property("find")
-			.context("patch missing find")?
+			.ok_or_else(|| err(obj, "patch missing find property"))?
 			.value;
 
 		let find = self.try_into_raw_match_like(find)?;
 
 		let replacement = self.parse_replacement(
 			&obj.get_property("replacement")
-				.context("patch missing replacement")?
+				.ok_or_else(|| err(obj, "patch missing replacement"))?
 				.value,
 		)?;
 
@@ -277,7 +310,7 @@ impl<'ast> VencordAstParser<'ast> {
 	fn parse_replacement<'a: 'ast>(
 		&'a self,
 		prop: &'ast Expression<'ast>,
-	) -> Result<OxcVec<'ast, RawReplacement<'ast>>> {
+	) -> PResult<OxcVec<'ast, RawReplacement<'ast>>> {
 		let ret = match prop {
 			Expression::ArrayExpression(arr) => {
 				let elements = &arr.elements;
@@ -287,8 +320,13 @@ impl<'ast> VencordAstParser<'ast> {
 					let elem = elem
 						.as_expression()
 						.and_then(Expression::as_object_expression)
-						.context("invalid replacement type")?;
-					ret.push(self.try_into_raw_replacement(elem)?);
+						.ok_or_else(|| err(elem, "invalid replacement type"))?;
+					ret.push(
+						self.try_into_raw_replacement(elem)
+							.map_err(|e| {
+								err_ns("Failed to parse replacement").s(e)
+							})?,
+					);
 				}
 				ret
 			}
@@ -296,11 +334,12 @@ impl<'ast> VencordAstParser<'ast> {
 				[self.try_into_raw_replacement(obj.as_ref())?],
 				self.alloc,
 			),
-			_ => bail!("invalid replacement type"),
+			_ => return Err(err(prop, "invalid replacement type")),
 		};
 		Ok(ret)
 	}
 
+	/// TODO: better error handling
 	fn parse_spread_patch<'a: 'ast>(
 		&'a self,
 		spread: &'ast SpreadElement<'ast>,
@@ -392,11 +431,13 @@ impl<'ast> VencordAstParser<'ast> {
 	// TODO: skip all && noWarn patches?
 	// maybe noop the replace and just test that the find matches at least once
 	#[allow(clippy::cognitive_complexity)]
-	fn raw_patches<'a: 'ast>(&'a self) -> Result<OxcVec<'ast, RawPatch<'ast>>> {
+	fn raw_patches<'a: 'ast>(
+		&'a self,
+	) -> PResult<OxcVec<'ast, RawPatch<'ast>>> {
 		let mut ret = OxcVec::new_in(self.alloc);
 		let define_plugin = self
 			.define_plugin()
-			.with_context(|| err_ns("Failed to find definePlugin"))?;
+			.map_err(|e| err_ns("Failed to find definePlugin").s(e))?;
 		let Some(patches) = define_plugin
 			.get_property("patches")
 			.map(|p| &p.value)
@@ -407,7 +448,7 @@ impl<'ast> VencordAstParser<'ast> {
 
 		let patches = patches
 			.as_array_expression()
-			.with_context(|| {
+			.ok_or_else(|| {
 				err(patches, "Expected patches to be an array literal")
 			})?;
 
@@ -428,9 +469,14 @@ impl<'ast> VencordAstParser<'ast> {
 						ret.push(patch);
 					}
 					Err(e) => {
-						let plugin_name = self.plugin_name();
+						let e = miette::Report::from(e);
+						let e = LocalSource {
+							name: self.path,
+							source: self.txt,
+							inner: e,
+						};
 						debug!(
-							"Failed to parse patch for plugin {plugin_name:?}, skipping. Error: {e:#?}"
+							"Failed to parse patch, skipping. Cause:\n{e:?}"
 						);
 					}
 				}
@@ -449,27 +495,40 @@ impl<'ast> VencordAstParser<'ast> {
 	pub fn canonicalize_replace_func<'a: 'ast>(
 		&self,
 		f: &'ast ArrowFunctionExpression<'ast>,
-	) -> Result<ReplaceLike> {
-		let template_val = self
+	) -> PResult<ReplaceLike> {
+		let f_ret = self
 			.get_arrow_single_return_value(f)
-			.context("replace function does not have a single return value")?
+			.ok_or_else(|| {
+				err(
+					f.body.as_ref(),
+					"replace function does not have a single return value",
+				)
+			})?;
+		let template_val = f_ret
 			.as_template_literal()
-			.context(
-				"replace functions only support a template literal return as of now",
-			)?;
+			.ok_or_else(|| {
+				err(
+					f_ret,
+					"replace functions only support a template literal return as of now",
+				)
+			})?;
 		let mut parameter_map: OxcHashMap<SymbolId, u8> =
 			OxcHashMap::with_capacity_in(f.params.items.len(), self.alloc);
-		if f.params.rest.is_some() {
-			bail!("replace function has a rest param")
+		if let Some(r) = f.params.rest.as_deref() {
+			return Err(err(
+				r,
+				"replace function cannot have a rest parameter",
+			));
 		}
 		for (i, param) in f.params.items.iter().enumerate() {
-			if param.initializer.is_some() {
-				bail!("replace function has a default param")
+			if let Some(e) = param.initializer.as_deref() {
+				return Err(err(e, "replace function has a default param"));
 			}
 			let Some(ident) = param.pattern.get_binding_identifier() else {
-				bail!(
-					"replace function has parameter that is not a plain identifier"
-				);
+				return Err(err(
+					&param.pattern,
+					"replace function has parameter that is not a plain identifier",
+				));
 			};
 			// should be true, but for sanity
 			debug_assert!(param.pattern.is_binding_identifier());
@@ -499,19 +558,26 @@ impl<'ast> VencordAstParser<'ast> {
 		ret.lits.push(it.next().unwrap());
 
 		for (lit, expr) in it.zip(template_val.expressions.iter()) {
-			let ref_id = expr
-				.as_identifier()
-				.context("Template expr is not an identifier")?
-				.reference_id();
+			let ident_ref = expr.as_identifier().ok_or_else(|| {
+				err(expr, "Template expr is not an identifier")
+			})?;
+			let ref_id = ident_ref.reference_id();
 			let sym_id = self
 				.sema
 				.scoping()
 				.get_reference(ref_id)
 				.symbol_id()
-				.context("template expr has unbound ident")?;
+				.ok_or_else(|| {
+					err(ident_ref, "template expr has an unbound ident")
+				})?;
 			let capture_idx = *parameter_map
 				.get(&sym_id)
-				.context("template expr uses ident that is not a parameter")?;
+				.ok_or_else(|| {
+					err(
+						ident_ref,
+						"template expr uses ident that is not a parameter",
+					)
+				})?;
 			ret.captures.push(capture_idx);
 			ret.lits.push(lit);
 		}
@@ -528,7 +594,7 @@ impl<'ast> VencordAstParser<'ast> {
 		Ok(ret)
 	}
 
-	pub fn canonicalize_patch(&self, raw: RawPatch<'_>) -> Result<Patch> {
+	pub fn canonicalize_patch(&self, raw: RawPatch<'_>) -> PResult<Patch> {
 		let all = raw.all;
 		let no_warn = raw.no_warn;
 		let find = canonicalize_match_like(&raw.find)?;
@@ -548,8 +614,11 @@ impl<'ast> VencordAstParser<'ast> {
 					}
 				}
 				RawReplace::Func(f) => self.canonicalize_replace_func(f)?,
-				RawReplace::Template(_) => {
-					bail!("Template literal replacements are not supported yet")
+				RawReplace::Template(TemplateLiteral {span, ..}) => {
+					return Err(err(
+						span,
+						"Template literal replacements are not supported yet",
+					));
 				}
 			};
 
@@ -568,18 +637,23 @@ impl<'ast> VencordAstParser<'ast> {
 			plugin_id: None,
 		})
 	}
-	pub fn patches(&self) -> Result<Vec<Patch>> {
+	pub fn patches(&self) -> PResult<Vec<Patch>> {
 		let name = self
 			.plugin_name()
 			.unwrap_or("<unknown plugin>");
 		let ret = self
-			.raw_patches()?
+			.raw_patches().map_err(|e| err_ns("Failed to parse raw patches").s(e))?
 			.into_iter()
 			.filter_map(|raw| match self.canonicalize_patch(raw) {
 				Ok(patch) => Some(patch),
 				Err(e) => {
+					let e = LocalSource {
+						name: self.path,
+						source: self.txt,
+						inner: miette::Report::from(e),
+					};
 					debug!(
-						"Failed to canonicalize patch for plugin {name}, skipping. Cause: {e:?}"
+						"Failed to canonicalize patch for plugin {name}, skipping. Cause:\n{e:?}"
 					);
 					None
 				}

@@ -11,7 +11,7 @@ use oxc::{
 		ast::{Expression, ImportDeclaration, ModuleDeclaration, Program},
 	},
 	ast_visit::Visit,
-	parser::Parser as OxcParser,
+	parser::{Parser as OxcParser, ParseOptions},
 	semantic::{
 		AstNode,
 		NodeId,
@@ -27,7 +27,12 @@ use std::sync::Arc;
 
 macro_rules! impl_parse {
 	($alloc:expr, $source:expr, $source_type:expr, $ast:ident, $sema:ident) => {
-		let parsed = OxcParser::new($alloc, $source, $source_type).parse();
+		let parsed = OxcParser::new($alloc, $source, $source_type)
+			.with_options(ParseOptions {
+				parse_regular_expression: true,
+				..Default::default()
+			})
+			.parse();
 		if parsed.panicked {
 			let dbg_src = Arc::new($source.to_string());
 			let errs_with_src = parsed

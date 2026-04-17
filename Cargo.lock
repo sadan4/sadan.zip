@@ -3664,6 +3664,7 @@ dependencies = [
  "memchr",
  "num-bigint",
  "oxc",
+ "oxc-miette",
  "oxc_ecmascript",
  "oxc_traverse",
  "regress",

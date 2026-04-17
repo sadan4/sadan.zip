@@ -86,7 +86,8 @@ fn do_collect_patches(
 			p.patches.is_empty(),
 			"Patches should be empty before parsing"
 		);
-		let parser = VencordAstParser::try_new(&allocator, &p.entry_source)?;
+		let path = p.entry_point.to_string_lossy();
+		let parser = VencordAstParser::try_new(&allocator, &p.entry_source, Some(&path))?;
 		p.patches = parser.patches()?;
 		allocator.reset();
 	}
@@ -118,8 +119,9 @@ fn do_collect_plugins_from_paths(
 		})
 		.collect_vec();
 	for plugin in &mut plugins {
+		let path = plugin.entry_point.to_string_lossy();
 		let parser =
-			VencordAstParser::try_new(&allocator, &plugin.entry_source)?;
+			VencordAstParser::try_new(&allocator, &plugin.entry_source, Some(&path))?;
 		plugin.patches = parser.patches()?;
 		allocator.reset();
 	}
