@@ -66,6 +66,7 @@ function drawSnowflake(ctx: CanvasRenderingContext2D, snowflake: Snowflake) {
     ctx.fill();
 }
 
+const TARGET_FRAME_RATE = 1000 / 60;
 
 export function SnowCanvas({
     density = 75,
@@ -145,7 +146,15 @@ export function SnowCanvas({
                 drawSnowflake(ctx, flake);
             }
 
-            animationFrameRef.current = requestAnimationFrame(() => animate(ctx, snowColor));
+            const prev = performance.now();
+
+            animationFrameRef.current = requestAnimationFrame(function time(now) {
+                if (now - prev >= TARGET_FRAME_RATE) {
+                    animate(ctx, snowColor);
+                } else {
+                    animationFrameRef.current = requestAnimationFrame(time);
+                }
+            });
         }
 
         resizeCanvas();
