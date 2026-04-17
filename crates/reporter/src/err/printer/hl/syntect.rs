@@ -1,19 +1,14 @@
-use std::path::Path;
+use std::{path::Path, sync::LazyLock};
 
 // all syntect imports are explicitly qualified, but their paths are shortened for convenience
 #[allow(clippy::module_inception)]
 mod syntect {
 	pub(super) use syntect::{
 		highlighting::{
-			Color,
-			HighlightIterator,
-			HighlightState,
-			Highlighter,
-			Style,
+			Color, HighlightIterator, HighlightState, Highlighter, Style,
 			Theme,
-			ThemeSet,
 		},
-		parsing::{ParseState, ScopeStack, SyntaxReference, SyntaxSet},
+		parsing::{SyntaxSet, ParseState, SyntaxReference, ScopeStack},
 	};
 }
 
@@ -24,22 +19,33 @@ use crate::err::printer::hl::{Highlighter, HighlighterState};
 
 use super::BlankHighlighterState;
 
+fn read_bin<T: for<'de> serde::Deserialize<'de>>(bts: &[u8]) -> T {
+	let decompressed = zstd::decode_all(bts).expect("bad zstd data");
+	bitcode::deserialize(&decompressed).expect("bad bitcode data")
+}
+
+static SYNTAX_SET: LazyLock<syntect::SyntaxSet> =
+	LazyLock::new(|| read_bin(include_bytes!("syntaxes.bin")));
+
+static THEME: LazyLock<syntect::Theme> =
+	LazyLock::new(|| read_bin(include_bytes!("theme.bin")));
+
 /// Highlights miette [`SpanContents`] with the [syntect](https://docs.rs/syntect/latest/syntect/) highlighting crate.
 ///
 /// Currently only 24-bit truecolor output is supported due to syntect themes
 /// representing color as RGBA.
 #[derive(Debug, Clone)]
 pub struct SyntectHighlighter {
-	theme: syntect::Theme,
-	syntax_set: syntect::SyntaxSet,
+	// theme: syntect::Theme,
+	// syntax_set: syntect::SyntaxSet,
 	use_bg_color: bool,
 }
 
 impl Default for SyntectHighlighter {
 	fn default() -> Self {
-		let theme_set = syntect::ThemeSet::load_defaults();
-		let theme = theme_set.themes["base16-ocean.dark"].clone();
-		Self::new_themed(theme, false)
+		// let theme_set = syntect::ThemeSet::load_defaults();
+		// let theme = theme_set.themes["base16-ocean.dark"].clone();
+		Self::new_themed(/*theme,*/ false)
 	}
 }
 
@@ -49,14 +55,14 @@ impl Highlighter for SyntectHighlighter {
 		source: &dyn SpanContents<'_>,
 	) -> Box<dyn HighlighterState + 'h> {
 		if let Some(syntax) = self.detect_syntax(source) {
-			let highlighter = syntect::Highlighter::new(&self.theme);
+			let highlighter = syntect::Highlighter::new(&THEME);
 			let parse_state = syntect::ParseState::new(syntax);
 			let highlight_state = syntect::HighlightState::new(
 				&highlighter,
 				syntect::ScopeStack::new(),
 			);
 			Box::new(SyntectHighlighterState {
-				syntax_set: &self.syntax_set,
+				syntax_set: &SYNTAX_SET,
 				highlighter,
 				parse_state,
 				highlight_state,
@@ -71,22 +77,22 @@ impl Highlighter for SyntectHighlighter {
 impl SyntectHighlighter {
 	/// Create a syntect highlighter with the given theme and syntax set.
 	pub fn new(
-		syntax_set: syntect::SyntaxSet,
-		theme: syntect::Theme,
+		// syntax_set: syntect::SyntaxSet,
+		// theme: syntect::Theme,
 		use_bg_color: bool,
 	) -> Self {
 		Self {
-			theme,
-			syntax_set,
+			// theme,
+			// syntax_set,
 			use_bg_color,
 		}
 	}
 
 	/// Create a syntect highlighter with the given theme and the default syntax set.
-	pub fn new_themed(theme: syntect::Theme, use_bg_color: bool) -> Self {
+	pub fn new_themed(/*theme: syntect::Theme,*/ use_bg_color: bool,) -> Self {
 		Self::new(
-			syntect::SyntaxSet::load_defaults_nonewlines(),
-			theme,
+			// syntect::SyntaxSet::load_defaults_nonewlines(),
+			// theme,
 			use_bg_color,
 		)
 	}
@@ -96,28 +102,25 @@ impl SyntectHighlighter {
 		&self,
 		contents: &dyn SpanContents<'_>,
 	) -> Option<&syntect::SyntaxReference> {
+		let ss: &'static syntect::SyntaxSet = &SYNTAX_SET;
 		// use language if given
 		if let Some(language) = contents.language() {
-			return self
-				.syntax_set
-				.find_syntax_by_name(language);
+			return ss.find_syntax_by_name(language);
 		}
 		// otherwise try to use any file extension provided in the name
 		if let Some(name) = contents.name()
 			&& let Some(ext) = Path::new(name).extension()
 		{
-			return self
-				.syntax_set
+			return ss
 				.find_syntax_by_extension(ext.to_string_lossy().as_ref());
 		}
 		// finally, attempt to guess syntax based on first line
-		self.syntax_set
-			.find_syntax_by_first_line(
-				std::str::from_utf8(contents.data())
-					.ok()?
-					.split('\n')
-					.next()?,
-			)
+		ss.find_syntax_by_first_line(
+			std::str::from_utf8(contents.data())
+				.ok()?
+				.split('\n')
+				.next()?,
+		)
 	}
 }
 

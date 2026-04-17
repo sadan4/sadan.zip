@@ -39,7 +39,7 @@ unicode-width.workspace = true
 unicode-segmentation.workspace = true
 textwrap.workspace = true
 terminal_size.workspace = true
-syntect.workspace = true
+syntect = { workspace = true, features = ["regex-onig", "parsing"] }
 memchr.workspace = true
 bitflags.workspace = true
 num-bigint.workspace = true
@@ -55,6 +55,7 @@ notify.workspace = true
 rustc-hash.workspace = true
 clearscreen.workspace = true
 pretty_printer.workspace = true
+bitcode.workspace = true
 
 [dev-dependencies]
 insta.workspace = true

@@ -8,6 +8,15 @@ anyhow.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 clap.workspace = true
+syntect = { workspace = true, features = [
+    "default-syntaxes",
+    "default-themes",
+    "yaml-load",
+    "regex-onig",
+] }
+bitcode.workspace = true
+zstd.workspace = true
+serde.workspace = true
 
 [lints]
 workspace = true
