@@ -35,7 +35,8 @@ function main() {
         },
         optimization: {
             moduleIds: "natural",
-            mangleExports: "size",
+            // https://github.com/web-infra-dev/rspack/issues/13733
+            // mangleExports: "size",
         },
         plugins: [
             new optimize.LimitChunkCountPlugin({
