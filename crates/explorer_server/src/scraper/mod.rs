@@ -170,6 +170,10 @@ pub async fn scrape_build(
 	info!("collected {} chunks. {} modules", num_chunks, modules.len());
 	drop(pool);
 	let dep_info = parse_bundle(&modules)?;
+	// We prepended `0,` to each module so that we can parse them, but we have to remove them now before we store them
+	for code in modules.values_mut() {
+		code.drain(0..2);
+	}
 
 	let module_sources = Arc::into_inner(module_sources)
 		.expect("how")
