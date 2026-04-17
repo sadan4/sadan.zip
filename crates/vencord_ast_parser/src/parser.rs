@@ -1,35 +1,22 @@
+use std::borrow::Cow;
+
 use crate::{
-	Patch,
-	ReplaceLike,
-	Replacement,
-	Replacer,
-	TemplateEvaluator,
+	Patch, ReplaceLike, Replacement, Replacer, TemplateEvaluator,
 	pass::{
-		EvalStringRawPass,
-		FlattenTemplatePass,
-		FoldBinaryExpressionsPass,
-		InlineConstantsPass,
-		InlineEnumsPass,
-		PassManager,
+		EvalStringRawPass, FlattenTemplatePass, FoldBinaryExpressionsPass,
+		InlineConstantsPass, InlineEnumsPass, PassManager,
 	},
 	patches::{
-		RawMatchLike,
-		RawPatch,
-		RawReplace,
-		RawReplacement,
-		canonicalize_match_like,
-		canonicalize_replace_for_regress,
+		RawMatchLike, RawPatch, RawReplace, RawReplacement,
+		canonicalize_match_like, canonicalize_replace_for_regress,
 	},
 };
 use anyhow::{Context, Result, bail};
 use ast_parser::{
-	AstParser,
-	ESModuleParser,
+	AstParser, ESModuleParser,
 	exts::{
-		ArrayExpressionElementExt as _,
-		BindingPatternExt as _,
-		ExpressionExt as _,
-		ImportDeclarationExt as _,
+		ArrayExpressionElementExt as _, BindingPatternExt as _,
+		ExpressionExt as _, ImportDeclarationExt as _,
 		ObjectExpressionExt as _,
 	},
 	parse_for_traverse,
@@ -37,28 +24,23 @@ use ast_parser::{
 use oxc::{
 	allocator::{Allocator, HashMap as OxcHashMap, Vec as OxcVec},
 	ast::{
-		AstBuilder,
-		AstKind,
+		AstBuilder, AstKind,
 		ast::{
-			Argument,
-			ArrayExpressionElement,
-			ArrowFunctionExpression,
-			Expression,
-			ObjectExpression,
-			Program,
-			SpreadElement,
+			Argument, ArrayExpressionElement, ArrowFunctionExpression,
+			Expression, ObjectExpression, Program, SpreadElement,
 			StringLiteral,
 		},
 	},
 	minifier::PropertyReadSideEffects,
 	semantic::{Semantic, SymbolId},
-	span::SourceType,
+	span::{GetSpan, SourceType, Span},
 };
 use oxc_ecmascript::{
 	GlobalContext,
 	constant_evaluation::{ConstantEvaluation, ConstantEvaluationCtx},
 	side_effects::MayHaveSideEffectsContext,
 };
+use thiserror::Error;
 use tracing::{debug, trace, warn};
 
 pub struct VencordAstParser<'ast> {
@@ -69,6 +51,24 @@ pub struct VencordAstParser<'ast> {
 }
 
 const DEFINE_PLUGIN_IMPORT_SOURCE: &str = "@utils/types";
+
+#[derive(Error, Debug, Clone)]
+#[error("VencordAstParser: {msg} at {pos:?}")]
+struct ParserError {
+	msg: Cow<'static, str>,
+	pos: Span,
+}
+
+fn err(pos: &impl GetSpan, msg: impl Into<Cow<'static, str>>) -> ParserError {
+	ParserError {
+		msg: msg.into(),
+		pos: pos.span(),
+	}
+}
+
+fn err_ns(msg: impl Into<Cow<'static, str>>) -> ParserError {
+	err(&Span::default(), msg)
+}
 
 // TODO: get webpack finds
 impl<'ast> VencordAstParser<'ast> {
@@ -95,10 +95,18 @@ impl<'ast> VencordAstParser<'ast> {
 
 	fn define_plugin<'a: 'ast>(
 		&'a self,
-	) -> Option<&'ast ObjectExpression<'ast>> {
-		let define_plugin = self
-			.find_import_by_name(DEFINE_PLUGIN_IMPORT_SOURCE)?
-			.default_var()?;
+	) -> Result<&'ast ObjectExpression<'ast>> {
+		let utils_types_import = self
+			.find_import_by_name(DEFINE_PLUGIN_IMPORT_SOURCE)
+			.with_context(|| err_ns("Failed to find `@utils/types` import"))?;
+		let define_plugin = utils_types_import
+			.default_var()
+			.with_context(|| {
+				err(
+					utils_types_import,
+					"No default import used from `@utils/types` for definePlugin",
+				)
+			})?;
 		for var_use in self
 			.sema
 			.symbol_references(define_plugin)
@@ -113,20 +121,29 @@ impl<'ast> VencordAstParser<'ast> {
 			let Argument::ObjectExpression(obj) = &call.arguments[0] else {
 				continue;
 			};
-			return Some(obj.as_ref());
+			return Ok(obj.as_ref());
 		}
-		None
+		Err(err_ns("Failed to find definePlugin call").into())
 	}
 
-	fn plugin_name<'a: 'ast>(&'a self) -> Option<&'ast str> {
-		Some(
-			self.define_plugin()?
-				.get_property("name")?
-				.value
-				.as_string_literal()?
-				.value
-				.as_str(),
-		)
+	fn plugin_name<'a: 'ast>(&'a self) -> Result<&'ast str> {
+		let define_plugin = self
+			.define_plugin()
+			.with_context(|| err_ns("Failed to find definePlugin"))?;
+		let name_prop = define_plugin
+			.get_property("name")
+			.with_context(|| {
+				err(define_plugin, "definePlugin does not have `name` prop")
+			})?;
+		let name_val = name_prop
+			.value
+			.as_string_literal()
+			.with_context(|| {
+				err(&name_prop.value, "`name` is not a string literal")
+			})?
+			.value
+			.as_str();
+		Ok(name_val)
 	}
 
 	fn try_into_raw_match_like<'a: 'ast>(
@@ -377,19 +394,22 @@ impl<'ast> VencordAstParser<'ast> {
 	#[allow(clippy::cognitive_complexity)]
 	fn raw_patches<'a: 'ast>(&'a self) -> Result<OxcVec<'ast, RawPatch<'ast>>> {
 		let mut ret = OxcVec::new_in(self.alloc);
-		let Some(patches) = self
+		let define_plugin = self
 			.define_plugin()
-			.and_then(|o| Some(&o.get_property("patches")?.value))
+			.with_context(|| err_ns("Failed to find definePlugin"))?;
+		let Some(patches) = define_plugin
+			.get_property("patches")
+			.map(|p| &p.value)
 		else {
 			trace!("No patches found for plugin");
 			return Ok(ret);
 		};
 
-		let Expression::ArrayExpression(patches) = patches else {
-			bail!("invalid type for patches, expected array");
-		};
-
-		let patches = patches.as_ref();
+		let patches = patches
+			.as_array_expression()
+			.with_context(|| {
+				err(patches, "Expected patches to be an array literal")
+			})?;
 
 		for patch_obj in &patches.elements {
 			if let Some(spread) = patch_obj.as_spread() {

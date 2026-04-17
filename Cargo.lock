@@ -3668,6 +3668,7 @@ dependencies = [
  "oxc_traverse",
  "regress",
  "serde",
+ "thiserror 2.0.18",
  "tracing",
  "xxhash-rust",
 ]
