@@ -15,7 +15,7 @@ use tracing_subscriber::{
 	util::SubscriberInitExt,
 };
 
-#[derive(Parser, Clone)]
+#[derive(Parser)]
 #[command(version, about)]
 struct Cli {
 	#[arg(long, default_value_t = 8484)]

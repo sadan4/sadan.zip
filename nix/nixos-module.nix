@@ -19,33 +19,33 @@ in {
 			mkOption {
 				default = "salad";
 				type = types.str;
-				description = "User account under which malware runs.";
+				description = "User account under which explorer-server runs.";
 			};
 		group =
 			mkOption {
 				default = "salad";
 				type = types.str;
-				description = "Group under which malware runs.";
+				description = "Group under which explorer-server runs.";
 			};
 		stateDir =
 			mkOption {
 				default = "/var/lib/explorer-server";
 				type = types.str;
-				description = "Malware data directory.";
+				description = "explorer-server data directory.";
 			};
 		settings = {
 			host =
 				lib.mkOption {
 					type = types.str;
 					default = "0.0.0.0";
-					description = "The host address which the malware should listens to.";
+					description = "The host address which the explorer-server should listen to.";
 				};
 
 			port =
 				mkOption {
 					default = 8484;
 					type = types.port;
-					description = "The port which the malware should listen to.";
+					description = "The port which the explorer-server should listen to.";
 				};
 		};
 	};
