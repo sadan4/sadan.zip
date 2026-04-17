@@ -3,18 +3,17 @@ pub mod html_parser;
 
 use std::{
 	collections::HashMap,
-	ops::Deref,
 	sync::{Arc, LazyLock, Mutex},
 	thread,
 	time::{SystemTime, UNIX_EPOCH},
 };
 
-use anyhow::{Context as _, Result, bail};
+use anyhow::{Context as _, Result};
 use explorer_server_core::{Channel, asset_url};
-use explorer_types::{BundleMetadata, FullBundle, ModuleId, TModuleId};
+use explorer_types::{BundleMetadata, FullBundle, ModuleId};
 use itertools::Itertools as _;
 use memchr::memmem::Finder;
-use oxc_allocator::{AllocatorPool, IntoIn};
+use oxc_allocator::AllocatorPool;
 use reqwest::Response;
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
 use reqwest_retry::{RetryTransientMiddleware, policies::ExponentialBackoff};

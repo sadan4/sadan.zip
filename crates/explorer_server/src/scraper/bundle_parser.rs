@@ -1,61 +1,56 @@
-use std::{collections::HashMap, rc::Rc, sync::OnceLock};
+use std::collections::HashMap;
 
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use explorer_types::{
 	DepInfo,
-	FullBundle,
 	IncomingModuleDeps,
 	KeyModules,
 	ModuleId,
 };
 use oxc_allocator::Allocator;
-use smol_str::{SmolStr, format_smolstr};
-use webpack_ast_parser::{
-	WebpackAstParser,
-	bundle::{IModuleCache, IModuleDepProvider},
-};
+use webpack_ast_parser::WebpackAstParser;
 
-struct DepProvider(HashMap<ModuleId, Rc<IncomingModuleDeps>>);
+// struct DepProvider(HashMap<ModuleId, Rc<IncomingModuleDeps>>);
 
-impl<'a> IModuleDepProvider for DepProvider {
-	fn get_module_deps(&self, id: ModuleId) -> Result<Rc<IncomingModuleDeps>> {
-		self.0
-			.get(&id)
-			.cloned()
-			.ok_or_else(|| anyhow!("requesting deps for missing module {id:?}"))
-	}
-}
+// impl IModuleDepProvider for DepProvider {
+// 	fn get_module_deps(&self, id: ModuleId) -> Result<Rc<IncomingModuleDeps>> {
+// 		self.0
+// 			.get(&id)
+// 			.cloned()
+// 			.ok_or_else(|| anyhow!("requesting deps for missing module {id:?}"))
+// 	}
+// }
 
-#[derive(Default)]
-struct CacheProvider<'a>(OnceLock<HashMap<ModuleId, Rc<WebpackAstParser<'a>>>>);
+// #[derive(Default)]
+// struct CacheProvider<'a>(OnceLock<HashMap<ModuleId, Rc<WebpackAstParser<'a>>>>);
 
-impl<'a> IModuleCache<'a> for CacheProvider<'a> {
-	fn get_module_filepath(&self, id: ModuleId) -> Option<SmolStr> {
-		Some(format_smolstr!("{id}.js"))
-	}
+// impl<'a> IModuleCache<'a> for CacheProvider<'a> {
+// 	fn get_module_filepath(&self, id: ModuleId) -> Option<SmolStr> {
+// 		Some(format_smolstr!("{id}.js"))
+// 	}
 
-	fn get_module_parser(
-		&self,
-		_requestor: &WebpackAstParser<'a>,
-		id: ModuleId,
-		_latest: Option<bool>,
-	) -> Result<Rc<WebpackAstParser<'a>>> {
-		self.0
-			.get()
-			.unwrap()
-			.get(&id)
-			.cloned()
-			.ok_or_else(|| {
-				anyhow!("requesting parser for missing module {id:?}")
-			})
-	}
-}
+// 	fn get_module_parser(
+// 		&self,
+// 		_requestor: &WebpackAstParser<'a>,
+// 		id: ModuleId,
+// 		_latest: Option<bool>,
+// 	) -> Result<Rc<WebpackAstParser<'a>>> {
+// 		self.0
+// 			.get()
+// 			.unwrap()
+// 			.get(&id)
+// 			.cloned()
+// 			.ok_or_else(|| {
+// 				anyhow!("requesting parser for missing module {id:?}")
+// 			})
+// 	}
+// }
 
 pub fn parse_bundle(modules: &HashMap<ModuleId, String>) -> Result<DepInfo> {
 	let alloc = Allocator::new();
 	let mut parsers = HashMap::with_capacity(modules.len());
 	for (id, code) in modules {
-		let parser = WebpackAstParser::try_new(&alloc, &code)?;
+		let parser = WebpackAstParser::try_new(&alloc, code)?;
 		parsers.insert(*id, parser);
 	}
 	let mut deps: HashMap<_, IncomingModuleDeps> =
