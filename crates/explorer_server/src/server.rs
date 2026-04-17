@@ -22,7 +22,6 @@ use tracing::{info, instrument};
 
 type Result<T = Response> = std::result::Result<T, AppError>;
 
-const SERVER_ADDR: &str = "0.0.0.0:8484";
 const ZSTD_MIME_TYPE: &str = "application/zstd";
 const ZSTD_HEADERS: [(header::HeaderName, &str); 1] =
 	[(header::CONTENT_TYPE, ZSTD_MIME_TYPE)];
@@ -198,15 +197,15 @@ async fn get_all_builds() -> Result<Response> {
 }
 
 #[instrument]
-pub async fn serve() -> anyhow::Result<()> {
+pub async fn serve(server_addr: &str) -> anyhow::Result<()> {
 	let app = Router::new()
 		.route("/build/{id}/metadata", get(get_build_metadata))
 		.route("/build/{id}/full", get(get_build_full))
 		.route("/build/{id}/archive.tar.zst", get(get_bundle_tarball))
 		.route("/builds", get(get_all_builds))
 		.layer(cors::CorsLayer::new().allow_origin(cors::Any));
-	let listener = net::TcpListener::bind(SERVER_ADDR).await?;
-	info!("Server listening on http://{}", SERVER_ADDR);
+	let listener = net::TcpListener::bind(server_addr).await?;
+	info!("Server listening on http://{}", server_addr);
 	axum::serve(listener, app).await?;
 	Ok(())
 }

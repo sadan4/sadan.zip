@@ -1,10 +1,9 @@
-use crate::{parser::WebpackAstParser};
+use crate::parser::WebpackAstParser;
 use anyhow::{Result, bail};
 use explorer_types::{IncomingModuleDeps, ModuleId};
 use oxc::span::Span;
 use smol_str::SmolStr;
 use std::rc::Rc;
-
 
 #[derive(Debug, Clone)]
 pub enum Location<'a> {

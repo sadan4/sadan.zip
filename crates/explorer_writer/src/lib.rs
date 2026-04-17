@@ -11,7 +11,14 @@ use explorer_server_core::{
 	write_full_bundle,
 };
 use explorer_types::{
-	BundleMetadata, DepInfo, ExportName, FullBundle, IncomingModuleDeps, KeyModules, ModuleId, TModuleId
+	BundleMetadata,
+	DepInfo,
+	ExportName,
+	FullBundle,
+	IncomingModuleDeps,
+	KeyModules,
+	ModuleId,
+	TModuleId,
 };
 use napi_derive::napi;
 
@@ -155,11 +162,7 @@ impl ProcessingDepInfo {
 		mem::swap(&mut self.key_modules, key_modules);
 	}
 	#[napi]
-	pub fn add_sync_dep(
-		&mut self,
-		module_id: u32,
-		sync_use_id: u32,
-	) {
+	pub fn add_sync_dep(&mut self, module_id: u32, sync_use_id: u32) {
 		self.module_deps
 			.entry(ModuleId(module_id))
 			.or_default()
@@ -167,11 +170,7 @@ impl ProcessingDepInfo {
 			.push(ModuleId(sync_use_id));
 	}
 	#[napi]
-	pub fn add_lazy_dep(
-		&mut self,
-		module_id: u32,
-		lazy_use_id: u32,
-	) {
+	pub fn add_lazy_dep(&mut self, module_id: u32, lazy_use_id: u32) {
 		self.module_deps
 			.entry(ModuleId(module_id))
 			.or_default()

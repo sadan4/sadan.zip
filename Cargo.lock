@@ -731,6 +731,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum",
+ "clap",
  "const_format",
  "explorer_server_core",
  "explorer_types",

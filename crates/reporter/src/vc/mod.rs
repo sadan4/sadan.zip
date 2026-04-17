@@ -4,7 +4,8 @@ use itertools::Itertools as _;
 use oxc::{allocator::Allocator, ast::ast::RegExpFlags};
 use regress::escape;
 use std::{
-	env, fs,
+	env,
+	fs,
 	path::{Path, PathBuf},
 };
 use tokio::task;

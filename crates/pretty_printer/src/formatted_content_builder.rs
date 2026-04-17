@@ -113,8 +113,7 @@ impl<'a> FormattedContentBuilder<'a> {
 	#[cfg(test)]
 	/// TODO: move to impl in [`tests`] module
 	fn build(self) -> String {
-		self.build_with_mappings()
-			.code
+		self.build_with_mappings().code
 	}
 	pub fn build_with_mappings(mut self) -> crate::FormattedContent {
 		if self.new_lines != 0 {
@@ -362,7 +361,8 @@ mod tests {
 			mappings: position_mappings,
 		} = b.build_with_mappings();
 
-		let (orig, fmt): (Vec<_>, Vec<_>) = position_mappings.into_iter().unzip();
+		let (orig, fmt): (Vec<_>, Vec<_>) =
+			position_mappings.into_iter().unzip();
 
 		assert_eq!(orig, [0, 5, 6, 17]);
 		assert_eq!(fmt, [0, 6, 10, 22]);
