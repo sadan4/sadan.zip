@@ -41,7 +41,9 @@ use oxc::{
 };
 
 use crate::{
-	FormattedContent, formatted_content_builder::FormattedContentBuilder, javascript_formatter::token_stream::{TokenOrComment, TokenStream}
+	FormattedContent,
+	formatted_content_builder::FormattedContentBuilder,
+	javascript_formatter::token_stream::{TokenOrComment, TokenStream},
 };
 
 mod token_stream {

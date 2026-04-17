@@ -1,6 +1,11 @@
 // mod spawn;
 use anyhow::Result;
-use explorer_server_core::{Channel, get_build_path, is_build_downloaded, write_full_bundle};
+use explorer_server_core::{
+	Channel,
+	get_build_path,
+	is_build_downloaded,
+	write_full_bundle,
+};
 use reqwest::Response;
 use std::{fs, time::Duration};
 use tokio::time;
@@ -127,7 +132,7 @@ pub async fn start_watcher() {
 	// 	return;
 	// }
 	info!("starting watcher loop");
-	let mut interval = tokio::time::interval(Duration::from_secs(5));
+	let mut interval = tokio::time::interval(Duration::from_mins(1));
 	loop {
 		interval.tick().await;
 		match handle_build(Channel::Stable).await {

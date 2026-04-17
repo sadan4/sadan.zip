@@ -4,7 +4,14 @@ use crate::{
 	explorer::meta::Meta,
 	util::fetch_struct,
 };
-use explorer_types::{DepInfo, FullBundle, ModuleId, ModuleSources, Modules, TModuleId};
+use explorer_types::{
+	DepInfo,
+	FullBundle,
+	ModuleId,
+	ModuleSources,
+	Modules,
+	TModuleId,
+};
 use serde::Serialize;
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 
@@ -28,7 +35,9 @@ struct ModuleDepsJs<'a> {
 #[wasm_bindgen]
 impl Bundle {
 	pub fn get_module_text(&self, module_id: u32) -> Option<String> {
-		self.modules.get(&ModuleId(module_id)).cloned()
+		self.modules
+			.get(&ModuleId(module_id))
+			.cloned()
 	}
 	#[wasm_bindgen(skip_typescript)]
 	pub fn get_module_deps(&self, module_id: u32) -> Option<JsValue> {
@@ -44,12 +53,18 @@ impl Bundle {
 		Some(ret)
 	}
 	pub fn get_id_list(&self) -> Box<[TModuleId]> {
-		let mut ret: Vec<u32> = self.modules.keys().copied().map(Into::into).collect();
+		let mut ret: Vec<u32> = self
+			.modules
+			.keys()
+			.copied()
+			.map(Into::into)
+			.collect();
 		ret.sort_unstable();
 		ret.into()
 	}
 	pub fn has_id(&self, module_id: u32) -> bool {
-		self.modules.contains_key(&ModuleId(module_id))
+		self.modules
+			.contains_key(&ModuleId(module_id))
 	}
 }
 

@@ -30,3 +30,6 @@ builds
 # Added by cargo
 /target
 /.direnv
+
+# nix
+result*

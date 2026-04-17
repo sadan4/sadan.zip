@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use derive_more::{Deref, Display, From, Into};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 pub type TModuleId = u32;
@@ -54,7 +54,6 @@ pub struct BuildList {
 	/// array of zstd compressed msgpack serialized [`BundleMetadata`]
 	pub builds: Vec<Box<[u8]>>,
 }
-
 
 #[derive(
 	Debug,

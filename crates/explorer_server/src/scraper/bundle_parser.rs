@@ -1,7 +1,13 @@
 use std::{collections::HashMap, rc::Rc, sync::OnceLock};
 
 use anyhow::{Result, anyhow};
-use explorer_types::{DepInfo, FullBundle, IncomingModuleDeps, KeyModules, ModuleId};
+use explorer_types::{
+	DepInfo,
+	FullBundle,
+	IncomingModuleDeps,
+	KeyModules,
+	ModuleId,
+};
 use oxc_allocator::Allocator;
 use smol_str::{SmolStr, format_smolstr};
 use webpack_ast_parser::{

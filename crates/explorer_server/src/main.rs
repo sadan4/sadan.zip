@@ -3,6 +3,7 @@ mod scraper;
 mod server;
 mod watcher;
 
+use clap::Parser;
 use std::process;
 
 use tracing::{debug, error, info, warn};
@@ -13,6 +14,15 @@ use tracing_subscriber::{
 	layer::SubscriberExt,
 	util::SubscriberInitExt,
 };
+
+#[derive(Parser)]
+#[command(version, about)]
+struct Cli {
+	#[arg(long, default_value_t = 8484)]
+	port: u16,
+	#[arg(long, default_value_t = String::from("0.0.0.0"))]
+	host: String,
+}
 
 #[allow(dead_code)]
 const BIN_EXT: &str = if cfg!(windows) { ".exe" } else { "" };
@@ -39,6 +49,7 @@ fn install_tracing() {
 
 #[tokio::main]
 async fn main() {
+	let cli = Cli::parse();
 	install_tracing();
 	info!("Starting explorer server...");
 	// TODO: make async
@@ -56,7 +67,9 @@ async fn main() {
 	}));
 	debug!("spawned watcher");
 	tasks.push(tokio::spawn(async move {
-		if let Err(e) = server::serve().await {
+		if let Err(e) =
+			server::serve(&format!("{}:{}", cli.host, cli.port)).await
+		{
 			error!("Error in HTTP server: {e}");
 		}
 		warn!("HTTP server exited");
