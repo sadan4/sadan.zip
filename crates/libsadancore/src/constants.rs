@@ -2,7 +2,11 @@ use const_format::formatc;
 
 // pub const SERVER_BASE_URL: &str = "https://s-d-br.sadan.zip";
 
-const IS_SERVER_LOCAL: bool = true;
+const IS_SERVER_LOCAL: bool = false;
+#[cfg(not(debug_assertions))]
+const _: () = {
+	assert!(!IS_SERVER_LOCAL, "IS_SERVER_LOCAL must be false in release builds");
+};
 
 pub const SERVER_BASE_URL: &str = if IS_SERVER_LOCAL {
 	"http://localhost:8484"
