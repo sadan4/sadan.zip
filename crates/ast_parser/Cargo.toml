@@ -12,6 +12,7 @@ itertools.workspace = true
 oxc.workspace = true
 oxc_ecmascript.workspace = true
 derive_more.workspace = true
+oxc-miette.workspace = true
 
 [lints]
 workspace = true

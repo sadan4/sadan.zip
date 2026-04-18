@@ -1,12 +1,7 @@
 use std::collections::HashMap;
 
 use anyhow::Result;
-use explorer_types::{
-	DepInfo,
-	IncomingModuleDeps,
-	KeyModules,
-	ModuleId,
-};
+use explorer_types::{DepInfo, IncomingModuleDeps, KeyModules, ModuleId};
 use oxc_allocator::Allocator;
 use webpack_ast_parser::WebpackAstParser;
 

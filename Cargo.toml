@@ -46,6 +46,7 @@ oxc = { version = "0.125.0", default-features = false, features = [
     "minifier",  # we use some traits from it
     "serialize",
     "codegen",   # for tests
+    "regular_expression",
 ] }
 oxc_traverse = "0.125.0"
 oxc_ecmascript = "0.125.0"

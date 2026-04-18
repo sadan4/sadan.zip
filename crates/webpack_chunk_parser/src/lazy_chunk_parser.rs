@@ -1,5 +1,5 @@
 use crate::{Sealed, base::WebpackChunkParserImpl};
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use ast_parser::{
 	exts::{ExpressionExt, MemberExpressionExt, StatementExt},
 	parse_no_sema,
@@ -22,7 +22,8 @@ impl<'ast> WebpackLazyChunkParser<'ast> {
 		alloc: &'ast Allocator,
 		source_text: &'ast str,
 	) -> Result<Self> {
-		let prog = parse_no_sema(alloc, source_text, SourceType::script())?;
+		let prog = parse_no_sema(alloc, source_text, SourceType::script())
+			.map_err(|e| anyhow!(e))?;
 		Ok(Self {
 			source_text,
 			prog: alloc.alloc(prog),

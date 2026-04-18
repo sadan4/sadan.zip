@@ -6,7 +6,10 @@ use wasm_bindgen::prelude::wasm_bindgen;
 const IS_SERVER_LOCAL: bool = cfg!(feature = "local-server");
 #[cfg(not(debug_assertions))]
 const _: () = {
-	assert!(!IS_SERVER_LOCAL, "IS_SERVER_LOCAL must be false in release builds");
+	assert!(
+		!IS_SERVER_LOCAL,
+		"IS_SERVER_LOCAL must be false in release builds"
+	);
 };
 
 pub(crate) const SERVER_BASE_URL: &str = if IS_SERVER_LOCAL {
@@ -15,7 +18,8 @@ pub(crate) const SERVER_BASE_URL: &str = if IS_SERVER_LOCAL {
 	"https://s-d-br.sadan.zip"
 };
 
-pub(crate) const LIST_BUILDS_ENDPOINT: &str = formatc!("{SERVER_BASE_URL}/builds");
+pub(crate) const LIST_BUILDS_ENDPOINT: &str =
+	formatc!("{SERVER_BASE_URL}/builds");
 
 #[expect(non_snake_case)]
 pub(crate) fn FULL_BUNDLE_ENDPOINT(build_hash: &str) -> String {

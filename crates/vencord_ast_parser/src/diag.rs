@@ -7,12 +7,13 @@ use thiserror::Error;
 #[derive(Error, Debug, Clone, Default)]
 #[error("VencordAstParser: {msg}")]
 pub struct ParserDiagnostic {
-	msg: Cow<'static, str>,
-	pos: Span,
-	severity: miette::Severity,
+	pub(crate) msg: Cow<'static, str>,
+	pub(crate) labels: Vec<(Span, Cow<'static, str>)>,
+	pub(crate) severity: miette::Severity,
 	#[debug("({:?})", txt.as_deref().and_then(|s| s.name()).unwrap_or("unknown source"))]
-	txt: Option<Arc<dyn miette::SourceCode + Send + Sync + 'static>>,
-	cause: Option<Arc<dyn miette::Diagnostic + Send + Sync + 'static>>,
+	pub(crate) txt: Option<Arc<dyn miette::SourceCode + Send + Sync + 'static>>,
+	pub(crate) cause:
+		Option<Arc<dyn miette::Diagnostic + Send + Sync + 'static>>,
 }
 
 impl ParserDiagnostic {
@@ -55,11 +56,13 @@ impl miette::Diagnostic for ParserDiagnostic {
 	fn labels(
 		&self,
 	) -> Option<Box<dyn Iterator<Item = miette::LabeledSpan> + '_>> {
-		if self.pos == Span::default() {
-			None
-		} else {
-			Some(Box::new(iter::once(self.pos.into())))
-		}
+		Some(Box::new(self.labels.iter().map(|(span, label)| {
+			if label.is_empty() {
+				(*span).into()
+			} else {
+				miette::LabeledSpan::at(*span, label.clone().into_owned())
+			}
+		})))
 	}
 
 	fn related<'a>(
@@ -79,7 +82,7 @@ pub(crate) fn err(
 ) -> ParserDiagnostic {
 	ParserDiagnostic {
 		msg: msg.into(),
-		pos: pos.span(),
+		labels: vec![(pos.span(), "".into())],
 		..Default::default()
 	}
 }
@@ -124,14 +127,16 @@ impl<'a> miette::SpanContents<'a> for NamedSpanContents<'a> {
 	}
 
 	fn language(&self) -> Option<&str> {
-		self.inner.language().or(Some("JavaScript"))
+		self.inner
+			.language()
+			.or(Some("JavaScript"))
 	}
 }
 
-pub(crate) struct LocalSource<'a> {
-	pub(crate) name: &'a str,
-	pub(crate) source: &'a str,
-	pub(crate) inner: miette::Report,
+pub struct LocalSource<'a> {
+	pub name: &'a str,
+	pub source: &'a str,
+	pub inner: miette::Report,
 }
 
 impl std::fmt::Display for LocalSource<'_> {

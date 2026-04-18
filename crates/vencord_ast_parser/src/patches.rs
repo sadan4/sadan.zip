@@ -264,8 +264,11 @@ pub fn canonicalize_match_like(raw: &RawMatchLike<'_>) -> PResult<MatchLike> {
 				s: span,
 			}
 		}
-		RawMatchLike::Template(TemplateLiteral {span, ..}) => {
-			return Err(err(span, "TODO: Support inlining template literals in match like"));
+		RawMatchLike::Template(TemplateLiteral { span, .. }) => {
+			return Err(err(
+				span,
+				"TODO: Support inlining template literals in match like",
+			));
 		}
 	};
 

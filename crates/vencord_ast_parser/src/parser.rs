@@ -1,21 +1,36 @@
-use std::sync::mpsc;
+mod collect_capture_groups;
+
+use std::{sync::mpsc, vec};
 
 use crate::{
-	Patch, ReplaceLike, Replacement, Replacer, TemplateEvaluator, diag::{LocalSource, PResult, ParserDiagnostic, err, err_ns}, pass::{
+	Patch,
+	ReplaceLike,
+	Replacement,
+	Replacer,
+	TemplateEvaluator,
+	diag::{LocalSource, PResult, ParserDiagnostic, err, err_ns},
+	parser::collect_capture_groups::{
+		Capture,
+		GroupInfo,
+		GroupReference,
+		collect_capture_groups,
+	},
+	pass::{
 		EvalStringRawPass,
 		FlattenTemplatePass,
 		FoldBinaryExpressionsPass,
 		InlineConstantsPass,
 		InlineEnumsPass,
 		PassManager,
-	}, patches::{
+	},
+	patches::{
 		RawMatchLike,
 		RawPatch,
 		RawReplace,
 		RawReplacement,
 		canonicalize_match_like,
 		canonicalize_replace_for_regress,
-	}
+	},
 };
 use ast_parser::{
 	AstParser,
@@ -41,14 +56,15 @@ use oxc::{
 			Expression,
 			ObjectExpression,
 			Program,
+			RegExpFlags,
 			SpreadElement,
-			StringLiteral, TemplateLiteral,
+			StringLiteral,
+			TemplateLiteral,
 		},
 	},
-	diagnostics::OxcDiagnostic,
 	minifier::PropertyReadSideEffects,
 	semantic::{Semantic, SymbolId},
-	span::{GetSpan, SourceType},
+	span::{SourceType, Span},
 };
 use oxc_ecmascript::{
 	GlobalContext,
@@ -71,21 +87,12 @@ const DEFINE_PLUGIN_IMPORT_SOURCE: &str = "@utils/types";
 
 // TODO: get webpack finds
 impl<'ast> VencordAstParser<'ast> {
-	pub fn try_new(alloc: &'ast Allocator, source: &'ast str, path: Option<&'ast str>) -> PResult<Self> {
-		let pass_data =
-			match parse_for_traverse(alloc, source, SourceType::tsx()) {
-				Ok(d) => d,
-				Err(e) => {
-					let mut err = err_ns("Failed to parse source");
-					if e.is::<OxcDiagnostic>() {
-						let oxc_diag = e.downcast::<OxcDiagnostic>().unwrap();
-						err = err.s(oxc_diag);
-					} else {
-						err = err.s(miette::miette!(e));
-					}
-					return Err(err);
-				}
-			};
+	pub fn try_new(
+		alloc: &'ast Allocator,
+		source: &'ast str,
+		path: Option<&'ast str>,
+	) -> Result<Self, miette::Error> {
+		let pass_data = parse_for_traverse(alloc, source, SourceType::tsx())?;
 
 		let (prog, sema) = PassManager::new(alloc, pass_data)
 			.run_pass(EvalStringRawPass)
@@ -108,10 +115,333 @@ impl<'ast> VencordAstParser<'ast> {
 		})
 	}
 
+	fn unused_capture_group(capture: &Capture) -> ParserDiagnostic {
+		let extra_label = capture.group.name.map_or_else(|| {
+						let start_span = Span::new(
+							capture.group.span.start + 1,
+							capture.group.span.start + 1,
+						);
+							(start_span, "Consider inserting `?:` here to make this a non-capturing group".into())
+					}, |name| {
+						let group_syntax_span = Span::new(
+							capture.group.span.start + 1,
+							capture.group.span.start + 1 + 1 + name.len() as u32 + 1,
+						);
+							(group_syntax_span, "Consider replacing this with `?:` to make it a non-capturing group".into())
+					});
+		ParserDiagnostic {
+			msg: "Unused capture group".into(),
+			labels: vec![extra_label],
+			severity: miette::Severity::Warning,
+			..Default::default()
+		}
+	}
+
+	fn check_find(&self, find: RawMatchLike<'_>) {
+		if let RawMatchLike::Regex(r) = find {
+			// TODO: send a diagnostic for this instead of panicking
+			let pat = r
+				.regex
+				.pattern
+				.pattern
+				.as_deref()
+				.expect("regex not parsed");
+			let group_info = collect_capture_groups(self, pat);
+			let ch = self.diag_ch.as_ref().unwrap();
+			if r.regex.flags.contains(RegExpFlags::G) {
+				let diag = ParserDiagnostic {
+					msg: "Using the global flag in a find has no effect".into(),
+					// TODO: better label span
+					labels: vec![(
+						r.span,
+						"Consider setting `all: true` on the patch, which was probably the original intent.".into(),
+					)],
+					severity: miette::Severity::Warning,
+					..Default::default()
+				};
+				ch.send(diag).ok();
+			}
+			for unbound_ref in &group_info.unbound_refs {
+				ch.send(err(unbound_ref, "Unbound backreference"))
+					.ok();
+			}
+			for capture in &group_info.indexed_groups {
+				if capture.refs.is_empty() {
+					ch.send(Self::unused_capture_group(capture))
+						.ok();
+					continue;
+				}
+				if let Some(name) = capture.group.name {
+					for r in &capture.refs {
+						let GroupReference::Indexed(r) = *r else {
+							continue;
+						};
+						let diag = ParserDiagnostic {
+							msg: format!(
+								"Named capture group `{name}` used in an indexed backreference"
+							)
+							.into(),
+							labels: vec![
+								(
+									capture.group.span,
+									format!("Group `{name}` declared here")
+										.into(),
+								),
+								(
+									r.span,
+									format!(
+										"Consider replacing this with `\\k<{name}>`"
+									)
+									.into(),
+								),
+							],
+							severity: miette::Severity::Warning,
+							..Default::default()
+						};
+						ch.send(diag).ok();
+					}
+				}
+			}
+		}
+	}
+
+	fn check_replacement(&self, repl: &RawReplacement<'ast>) {
+		let RawMatchLike::Regex(lit) = repl.match_ else {
+			return;
+		};
+
+		let Some((value, replace_span)) = (match repl.replace {
+			RawReplace::ComputedString(value, span) => {
+				Some((value.as_str(), span))
+			}
+			RawReplace::String(string_lit) => {
+				Some((string_lit.value.as_str(), string_lit.span))
+			}
+			RawReplace::Func(_) | RawReplace::Template(_) => None,
+		}) else {
+			return;
+		};
+
+		let captures = collect_capture_groups(
+			self,
+			lit.regex
+				.pattern
+				.pattern
+				.as_deref()
+				.unwrap(),
+		);
+
+		self.check_replacement_string(value, replace_span, lit.span, &captures);
+	}
+
+	fn check_replacement_string(
+		&self,
+		value: &str,
+		replace_span: Span,
+		regex_span: Span,
+		captures: &GroupInfo<'ast>,
+	) {
+		let mut visited_captures =
+			Vec::with_capacity(captures.indexed_groups.len());
+		let mut it = value.chars().enumerate().peekable();
+
+		while let Some((start_idx, c)) = it.next() {
+			if c != '$' {
+				continue;
+			}
+
+			let Some((_, marker)) = it.peek().copied() else {
+				continue;
+			};
+
+			match marker {
+				'$' => {
+					it.next();
+				}
+				'1'..='9' => {
+					let mut group_num = 0usize;
+					let mut end_idx = start_idx;
+					while let Some(&(idx, digit)) = it.peek() {
+						if !digit.is_ascii_digit() {
+							break;
+						}
+						it.next();
+						group_num *= 10;
+						group_num += (digit as u32 - '0' as u32) as usize;
+						end_idx = idx;
+						if group_num > u16::MAX as usize {
+							break;
+						}
+					}
+
+					let capture_idx = group_num - 1;
+					visited_captures.push(capture_idx);
+					self.check_indexed_replacement_reference(
+						group_num,
+						start_idx,
+						end_idx,
+						replace_span,
+						regex_span,
+						captures.indexed_groups.len(),
+					);
+				}
+				'<' => {
+					it.next();
+					let name: String = it
+						.by_ref()
+						.map_while(|(_, c)| (c != '>').then_some(c))
+						.collect();
+					if let Some(capture_idx) = self
+						.check_named_replacement_reference(
+							name.as_str(),
+							start_idx,
+							replace_span,
+							regex_span,
+							captures,
+						) {
+						visited_captures.push(capture_idx);
+					}
+				}
+				_ => {}
+			}
+		}
+
+		self.warn_unused_replacement_captures(captures, &visited_captures);
+	}
+
+	fn check_indexed_replacement_reference(
+		&self,
+		group_num: usize,
+		start_idx: usize,
+		end_idx: usize,
+		replace_span: Span,
+		regex_span: Span,
+		capture_count: usize,
+	) {
+		if group_num <= capture_count {
+			return;
+		}
+
+		let diag = ParserDiagnostic {
+			msg: "Replace references a non-existent capture group".into(),
+			labels: vec![
+				(
+					Span::new(
+						replace_span.start + start_idx as u32 + 1,
+						replace_span.start + end_idx as u32 + 2,
+					),
+					format!("Group {group_num} referenced here").into(),
+				),
+				(
+					regex_span,
+					format!(
+						"Only {capture_count} capture groups declared here"
+					)
+					.into(),
+				),
+			],
+			..Default::default()
+		};
+		self.diag_ch
+			.as_ref()
+			.unwrap()
+			.send(diag)
+			.ok();
+	}
+
+	fn check_named_replacement_reference(
+		&self,
+		name: &str,
+		start_idx: usize,
+		replace_span: Span,
+		regex_span: Span,
+		captures: &GroupInfo<'ast>,
+	) -> Option<usize> {
+		let group_idx = captures
+			.indexed_groups
+			.iter()
+			.position(|capture| {
+				capture.group.name.map(|n| n.as_str()) == Some(name)
+			});
+
+		if group_idx.is_some() {
+			return group_idx;
+		}
+
+		let diag = ParserDiagnostic {
+			msg: format!(
+				"Replace references non-existent capture group `{name}`"
+			)
+			.into(),
+			labels: vec![
+				(
+					Span::new(
+						replace_span.start + start_idx as u32 + 1,
+						replace_span.start
+							+ start_idx as u32 + 1
+							+ name.len() as u32,
+					),
+					format!("Group `{name}` referenced here").into(),
+				),
+				(
+					regex_span,
+					format!("No capture group named `{name}` declared here",)
+						.into(),
+				),
+			],
+			..Default::default()
+		};
+		self.diag_ch
+			.as_ref()
+			.unwrap()
+			.send(diag)
+			.ok();
+		None
+	}
+
+	fn warn_unused_replacement_captures(
+		&self,
+		captures: &GroupInfo<'ast>,
+		visited_captures: &[usize],
+	) {
+		for (idx, capture) in captures
+			.indexed_groups
+			.iter()
+			.enumerate()
+		{
+			if visited_captures.contains(&idx) || !capture.refs.is_empty() {
+				continue;
+			}
+
+			self.diag_ch
+				.as_ref()
+				.unwrap()
+				.send(Self::unused_capture_group(capture))
+				.ok();
+		}
+	}
+
 	pub fn collect_diagnostics(&self) {
-		debug_assert!(self.diag_ch.is_some(), "diag_ch should be set before calling collect_diagnostics");
-		if let Err(e) = self.raw_patches() {
-			_ = self.diag_ch.as_ref().unwrap().send(e);
+		debug_assert!(
+			self.diag_ch.is_some(),
+			"diag_ch should be set before calling collect_diagnostics"
+		);
+		let patches = match self.raw_patches() {
+			Err(e) => {
+				self.diag_ch
+					.as_ref()
+					.unwrap()
+					.send(e)
+					.ok();
+				return;
+			}
+			Ok(e) => e,
+		};
+		for patch in patches {
+			self.check_find(patch.find);
+			for repl in &patch.replacement {
+				self.check_replacement(repl);
+			}
 		}
 	}
 
@@ -428,7 +758,7 @@ impl<'ast> VencordAstParser<'ast> {
 		// TODO: use CFG to get return value of arrow function that might have a body
 		func.get_expression()
 	}
-	// TODO: skip all && noWarn patches?
+	// TODO: Cache this
 	// maybe noop the replace and just test that the find matches at least once
 	#[allow(clippy::cognitive_complexity)]
 	fn raw_patches<'a: 'ast>(
@@ -614,7 +944,7 @@ impl<'ast> VencordAstParser<'ast> {
 					}
 				}
 				RawReplace::Func(f) => self.canonicalize_replace_func(f)?,
-				RawReplace::Template(TemplateLiteral {span, ..}) => {
+				RawReplace::Template(TemplateLiteral { span, .. }) => {
 					return Err(err(
 						span,
 						"Template literal replacements are not supported yet",
@@ -642,7 +972,8 @@ impl<'ast> VencordAstParser<'ast> {
 			.plugin_name()
 			.unwrap_or("<unknown plugin>");
 		let ret = self
-			.raw_patches().map_err(|e| err_ns("Failed to parse raw patches").s(e))?
+			.raw_patches()
+			.map_err(|e| err_ns("Failed to parse raw patches").s(e))?
 			.into_iter()
 			.filter_map(|raw| match self.canonicalize_patch(raw) {
 				Ok(patch) => Some(patch),

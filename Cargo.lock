@@ -102,6 +102,7 @@ dependencies = [
  "derive_more",
  "itertools",
  "oxc",
+ "oxc-miette",
  "oxc_ecmascript",
 ]
 
@@ -1802,6 +1803,7 @@ dependencies = [
  "oxc_mangler",
  "oxc_minifier",
  "oxc_parser",
+ "oxc_regular_expression",
  "oxc_semantic",
  "oxc_span",
  "oxc_syntax",

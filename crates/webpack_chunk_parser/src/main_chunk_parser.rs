@@ -4,7 +4,7 @@ use crate::{
 	Sealed,
 	base::{WebpackChunkParser, WebpackChunkParserImpl},
 };
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use ast_parser::{
 	AstParser,
 	exts::{
@@ -65,7 +65,8 @@ impl<'ast> WebpackMainChunkParser<'ast> {
 		alloc: &'ast Allocator,
 		source_text: &'ast str,
 	) -> Result<Self> {
-		let (prog, sema) = parse(alloc, source_text, SourceType::script())?;
+		let (prog, sema) = parse(alloc, source_text, SourceType::script())
+			.map_err(|e| anyhow!(e))?;
 		Ok(Self {
 			source_text,
 			prog,

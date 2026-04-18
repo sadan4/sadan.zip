@@ -5,10 +5,14 @@ use std::{path::Path, sync::LazyLock};
 mod syntect {
 	pub(super) use syntect::{
 		highlighting::{
-			Color, HighlightIterator, HighlightState, Highlighter, Style,
+			Color,
+			HighlightIterator,
+			HighlightState,
+			Highlighter,
+			Style,
 			Theme,
 		},
-		parsing::{SyntaxSet, ParseState, SyntaxReference, ScopeStack},
+		parsing::{ParseState, ScopeStack, SyntaxReference, SyntaxSet},
 	};
 }
 
@@ -111,8 +115,7 @@ impl SyntectHighlighter {
 		if let Some(name) = contents.name()
 			&& let Some(ext) = Path::new(name).extension()
 		{
-			return ss
-				.find_syntax_by_extension(ext.to_string_lossy().as_ref());
+			return ss.find_syntax_by_extension(ext.to_string_lossy().as_ref());
 		}
 		// finally, attempt to guess syntax based on first line
 		ss.find_syntax_by_first_line(

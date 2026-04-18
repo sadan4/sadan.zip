@@ -11,7 +11,8 @@ use oxc::{
 		ast::{Expression, ImportDeclaration, ModuleDeclaration, Program},
 	},
 	ast_visit::Visit,
-	parser::{Parser as OxcParser, ParseOptions},
+	diagnostics::OxcDiagnostic,
+	parser::{ParseOptions, Parser as OxcParser},
 	semantic::{
 		AstNode,
 		NodeId,
@@ -27,32 +28,19 @@ use std::sync::Arc;
 
 macro_rules! impl_parse {
 	($alloc:expr, $source:expr, $source_type:expr, $ast:ident, $sema:ident) => {
-		let parsed = OxcParser::new($alloc, $source, $source_type)
+		let mut parsed = OxcParser::new($alloc, $source, $source_type)
 			.with_options(ParseOptions {
 				parse_regular_expression: true,
 				..Default::default()
 			})
 			.parse();
-		if parsed.panicked {
-			let dbg_src = Arc::new($source.to_string());
-			let errs_with_src = parsed
-				.errors
-				.into_iter()
-				.map(move |err| err.with_source_code(dbg_src.clone()))
-				.collect_vec();
-			bail!(
-				"OxcParser panicked while parsing source. errors: \n{:?}\n",
-				errs_with_src
-			);
-		}
 		if !parsed.errors.is_empty() {
 			let dbg_src = Arc::new($source.to_string());
-			let errs_with_src = parsed
+			let err = parsed
 				.errors
-				.into_iter()
-				.map(move |err| err.with_source_code(dbg_src.clone()))
-				.collect_vec();
-			bail!("Failed to parse source: \n{:#?}\n", errs_with_src);
+				.swap_remove(0)
+				.with_source_code(dbg_src);
+			return Err(err);
 		}
 		let $ast: &'ast mut Program<'ast> = $alloc.alloc(parsed.program);
 		let $sema = SemanticBuilder::new()
@@ -60,16 +48,13 @@ macro_rules! impl_parse {
 			.with_check_syntax_error(true)
 			.build($ast);
 		if !$sema.errors.is_empty() {
+			let mut sema = $sema;
 			let dbg_src = Arc::new($source.to_string());
-			let errs_with_src = $sema
+			let err = sema
 				.errors
-				.into_iter()
-				.map(move |err| err.with_source_code(dbg_src.clone()))
-				.collect_vec();
-			bail!(
-				"Failed to perform semantic analysis on source: \n{:#?}\n",
-				errs_with_src
-			);
+				.swap_remove(0)
+				.with_source_code(dbg_src);
+			return Err(err);
 		}
 	};
 }
@@ -78,7 +63,7 @@ pub fn parse<'ast>(
 	alloc: &'ast Allocator,
 	source: &'ast str,
 	source_type: SourceType,
-) -> Result<(&'ast Program<'ast>, Semantic<'ast>)> {
+) -> Result<(&'ast Program<'ast>, Semantic<'ast>), miette::Error> {
 	impl_parse!(alloc, source, source_type, ast, sema);
 	Ok((ast, sema.semantic))
 }
@@ -87,27 +72,15 @@ pub fn parse_no_sema<'ast>(
 	alloc: &'ast Allocator,
 	source: &'ast str,
 	source_type: SourceType,
-) -> Result<Program<'ast>> {
-	let parsed = OxcParser::new(alloc, source, source_type).parse();
-	if parsed.panicked {
-		let dbg_src = Arc::new(source.to_string());
-		let errs_with_src = parsed
-			.errors
-			.into_iter()
-			.map(move |err| err.with_source_code(dbg_src.clone()))
-			.collect_vec();
-		bail!(
-			"OxcParser panicked while parsing source. errors: \n{errs_with_src:?}\n"
-		);
-	}
+) -> Result<Program<'ast>, miette::Error> {
+	let mut parsed = OxcParser::new(alloc, source, source_type).parse();
 	if !parsed.errors.is_empty() {
 		let dbg_src = Arc::new(source.to_string());
-		let errs_with_src = parsed
+		let err = parsed
 			.errors
-			.into_iter()
-			.map(move |err| err.with_source_code(dbg_src.clone()))
-			.collect_vec();
-		bail!("Failed to parse source: \n{errs_with_src:#?}\n");
+			.swap_remove(0)
+			.with_source_code(dbg_src);
+		return Err(err);
 	}
 	Ok(parsed.program)
 }
@@ -116,7 +89,7 @@ pub fn parse_for_traverse<'ast>(
 	alloc: &'ast Allocator,
 	source: &'ast str,
 	source_type: SourceType,
-) -> Result<(&'ast mut Program<'ast>, Scoping)> {
+) -> Result<(&'ast mut Program<'ast>, Scoping), miette::Error> {
 	impl_parse!(alloc, source, source_type, ast, sema);
 	let scoping = sema.semantic.into_scoping();
 	Ok((ast, scoping))

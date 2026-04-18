@@ -1,9 +1,9 @@
+pub mod diag;
 mod hash;
 pub mod parser;
 mod pass;
 mod patches;
 mod types;
-pub mod diag;
 
 pub use parser::VencordAstParser;
 pub use types::{

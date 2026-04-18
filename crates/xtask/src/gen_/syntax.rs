@@ -13,14 +13,17 @@ pub struct Command;
 
 impl Command {}
 
-const INCLUDED_SYNTAXES: &[&str] = &[
-	include_str!("./data/JavaScript.sublime-syntax"),
-];
+const INCLUDED_SYNTAXES: &[&str] =
+	&[include_str!("./data/JavaScript.sublime-syntax")];
 
-fn encode<T: serde::Serialize>(value: &T, w: &mut impl io::Write) -> Result<()> {
+fn encode<T: serde::Serialize>(
+	value: &T,
+	w: &mut impl io::Write,
+) -> Result<()> {
 	let raw = bitcode::serialize(value).context("bitcode")?;
 	let compressed = zstd::encode_all(&*raw, 15).context("zstd")?;
-	w.write_all(&compressed).context("write")?;
+	w.write_all(&compressed)
+		.context("write")?;
 	Ok(())
 }
 
@@ -36,9 +39,12 @@ impl Runnable for Command {
 		}
 		let ss = sb.build();
 
-		let mut ss_file = fs::File::create("crates/reporter/src/err/printer/hl/syntaxes.bin")?;
+		let mut ss_file = fs::File::create(
+			"crates/reporter/src/err/printer/hl/syntaxes.bin",
+		)?;
 		encode(&ss, &mut ss_file)?;
-		let mut theme_file = fs::File::create("crates/reporter/src/err/printer/hl/theme.bin")?;
+		let mut theme_file =
+			fs::File::create("crates/reporter/src/err/printer/hl/theme.bin")?;
 		encode(&theme, &mut theme_file)?;
 
 		info!("Done");

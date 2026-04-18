@@ -6,7 +6,7 @@ use crate::{
 	util::cmd::CommandExt,
 };
 use anyhow::Result;
-use clap::{Args};
+use clap::Args;
 use tracing::info;
 
 #[derive(Args)]

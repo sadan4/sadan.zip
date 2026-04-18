@@ -10,7 +10,9 @@ use tracing::{debug, error, info, warn};
 
 use migrations::migrate_if_needed;
 use tracing_subscriber::{
-	EnvFilter, layer::SubscriberExt, util::SubscriberInitExt,
+	EnvFilter,
+	layer::SubscriberExt,
+	util::SubscriberInitExt,
 };
 
 #[derive(Parser)]

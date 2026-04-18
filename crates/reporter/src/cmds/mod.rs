@@ -1,3 +1,4 @@
+mod lint;
 mod run;
 mod watch;
 
@@ -13,6 +14,7 @@ pub enum Cmd {
 	#[default]
 	Run,
 	Watch,
+	Lint,
 }
 
 pub async fn run(cli: super::Cli) -> anyhow::Result<i8> {
@@ -23,6 +25,10 @@ pub async fn run(cli: super::Cli) -> anyhow::Result<i8> {
 		Cmd::Watch => {
 			let _ = watch::run_watcher(cli).await?;
 			unreachable!()
+		}
+		Cmd::Lint => {
+			lint::lint(cli)?;
+			Ok(0)
 		}
 	}
 }
