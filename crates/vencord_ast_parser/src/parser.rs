@@ -139,15 +139,21 @@ impl<'ast> VencordAstParser<'ast> {
 
 	fn check_find(&self, find: RawMatchLike<'_>) {
 		if let RawMatchLike::Regex(r) = find {
-			// TODO: send a diagnostic for this instead of panicking
-			let pat = r
-				.regex
-				.pattern
-				.pattern
-				.as_deref()
-				.expect("regex not parsed");
-			let group_info = collect_capture_groups(self, pat);
 			let ch = self.diag_ch.as_ref().unwrap();
+			let Some(pat) = r.regex.pattern.pattern.as_deref() else {
+				let diag = ParserDiagnostic {
+					msg: "Regex pattern could not be parsed".into(),
+					labels: vec![(
+						r.span,
+						"Skipping regex-specific lint checks for this find.".into(),
+					)],
+					severity: miette::Severity::Warning,
+					..Default::default()
+				};
+				ch.send(diag).ok();
+				return;
+			};
+			let group_info = collect_capture_groups(self, pat);
 			if r.regex.flags.contains(RegExpFlags::G) {
 				let diag = ParserDiagnostic {
 					msg: "Using the global flag in a find has no effect".into(),
