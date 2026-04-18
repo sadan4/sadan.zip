@@ -1,9 +1,6 @@
 use std::process;
 
-use crate::{
-	Runnable,
-	util::cmd::CommandExt as _,
-};
+use crate::{Runnable, util::cmd::CommandExt as _};
 use anyhow::Result;
 use clap::Args;
 use tracing::{info, instrument};

@@ -45,7 +45,7 @@ use crate::{
 		},
 	},
 };
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result, anyhow, bail};
 use ast_parser::{
 	AstParser,
 	ast_kind::IntoAstKind,
@@ -136,7 +136,8 @@ impl<'ast> AstParser<'ast> for WebpackAstParser<'ast> {
 /// Public API
 impl<'ast> WebpackAstParser<'ast> {
 	pub fn try_new(alloc: &'ast Allocator, source: &'ast str) -> Result<Self> {
-		let (prog, sema) = parse(alloc, source, SourceType::script())?;
+		let (prog, sema) = parse(alloc, source, SourceType::script())
+			.map_err(|e| anyhow!(e))?;
 		Ok(Self {
 			prog,
 			sema,

@@ -6,7 +6,7 @@ macro_rules! dump_patches {
 	($path:literal, $dump_code:literal) => {{
 		let a = Allocator::new();
 		let code = include_str!($path);
-		let parser = VencordAstParser::try_new(&a, code).unwrap();
+		let parser = VencordAstParser::try_new(&a, code, Some($path)).unwrap();
 		if $dump_code {
 			let code = dump_ast(&parser.prog);
 			eprintln!("{code}");

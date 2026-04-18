@@ -1,4 +1,4 @@
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result, anyhow, bail};
 use clap::Args;
 use itertools::Itertools as _;
 use oxc::{allocator::Allocator, ast::ast::RegExpFlags};
@@ -86,7 +86,10 @@ fn do_collect_patches(
 			p.patches.is_empty(),
 			"Patches should be empty before parsing"
 		);
-		let parser = VencordAstParser::try_new(&allocator, &p.entry_source)?;
+		let path = p.entry_point.to_string_lossy();
+		let parser =
+			VencordAstParser::try_new(&allocator, &p.entry_source, Some(&path))
+				.map_err(|e| anyhow!(e))?;
 		p.patches = parser.patches()?;
 		allocator.reset();
 	}
@@ -118,8 +121,13 @@ fn do_collect_plugins_from_paths(
 		})
 		.collect_vec();
 	for plugin in &mut plugins {
-		let parser =
-			VencordAstParser::try_new(&allocator, &plugin.entry_source)?;
+		let path = plugin.entry_point.to_string_lossy();
+		let parser = VencordAstParser::try_new(
+			&allocator,
+			&plugin.entry_source,
+			Some(&path),
+		)
+		.map_err(|e| anyhow!(e))?;
 		plugin.patches = parser.patches()?;
 		allocator.reset();
 	}
@@ -131,12 +139,16 @@ fn do_collect_plugins_from_paths(
 	Ok(plugins)
 }
 
-fn infer_plugin_dirs(vencord_dir: &Path) -> Result<Vec<PathBuf>> {
+pub fn infer_plugin_dirs(vencord_dir: &Path) -> Result<Vec<PathBuf>> {
 	const PLUGIN_SUB_DIRS: &[&str] = &["_core", "_api"];
-	let vencord_dir = vencord_dir.canonicalize()?;
+	let vencord_dir = vencord_dir
+		.canonicalize()
+		.context("Failed to canonicalize vencord dir")?;
 	let src_dir = vencord_dir.join("src");
 	let mut ret = Vec::<PathBuf>::new();
-	for path in fs::read_dir(src_dir)? {
+	for path in fs::read_dir(&src_dir).with_context(|| {
+		anyhow!("failed to read src dir: {}", src_dir.as_path().display())
+	})? {
 		let path = path?;
 		if !path.file_type()?.is_dir() {
 			continue;
@@ -152,7 +164,9 @@ fn infer_plugin_dirs(vencord_dir: &Path) -> Result<Vec<PathBuf>> {
 		}
 		if file_name.ends_with("plugins") {
 			for sub_dir in PLUGIN_SUB_DIRS {
-				let sub_dir = path.join(sub_dir).canonicalize()?;
+				let Ok(sub_dir) = path.join(sub_dir).canonicalize() else {
+					continue;
+				};
 				let sub_dir = sub_dir
 					.strip_prefix(&vencord_dir)
 					.context("inferred plugin dir is not in vencord dir")?
@@ -217,7 +231,10 @@ fn default_vencord_dir() -> PathBuf {
 }
 
 #[allow(clippy::cognitive_complexity)]
-fn glob_plugins_for_dir(dir: &Path, plugins: &mut Vec<Plugin>) -> Result<()> {
+pub fn glob_plugins_for_dir(
+	dir: &Path,
+	plugins: &mut Vec<Plugin>,
+) -> Result<()> {
 	for path in fs::read_dir(dir)? {
 		let path = path?;
 		let file_name = path.path();

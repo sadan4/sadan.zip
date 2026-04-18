@@ -26,7 +26,7 @@ oxc.workspace = true
 thiserror.workspace = true
 regress.workspace = true
 derive_more.workspace = true
-oxc-miette.workspace = true
+oxc-miette = {workspace = true, features = ["fancy"]}
 indicatif.workspace = true
 owo-colors.workspace = true
 unicode-width.workspace = true

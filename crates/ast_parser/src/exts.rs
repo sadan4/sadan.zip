@@ -1,4 +1,4 @@
-use anyhow::{Result, bail};
+use anyhow::Result;
 use derive_more::{From, TryUnwrap};
 use itertools::Itertools as _;
 use oxc::{
@@ -124,15 +124,16 @@ pub trait ObjectExpressionExt {
 	-> Option<&'a ObjectProperty<'a>>;
 	/// try to get a boolean literal property from an object
 	/// returns Ok(false) if not present
-	/// returns Err(e) if present but not a bool
-	fn parse_bool_flag(&self, key: &str) -> Result<bool> {
-		match self.get_property(key) {
-			Some(prop) => match &prop.value {
+	/// returns Err(expr) if present but not a bool
+	fn parse_bool_flag<'a>(
+		&'a self,
+		key: &str,
+	) -> Result<bool, &'a Expression<'a>> {
+		self.get_property(key)
+			.map_or(Ok(false), |prop| match &prop.value {
 				Expression::BooleanLiteral(b) => Ok(b.value),
-				_ => bail!("not a boolean literal"),
-			},
-			None => Ok(false),
-		}
+				other => Err(other),
+			})
 	}
 }
 

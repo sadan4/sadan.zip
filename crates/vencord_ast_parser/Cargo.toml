@@ -21,6 +21,8 @@ regress.workspace = true
 serde = { workspace = true, features = ["derive"] }
 tracing.workspace = true
 xxhash-rust.workspace = true
+thiserror.workspace = true
+oxc-miette = { workspace = true }
 
 [dev-dependencies]
 insta.workspace = true

@@ -108,6 +108,9 @@ fn install_tracing() {
 		})
 		.unwrap();
 	let fmt_layer = fmt::layer()
+		.with_line_number(true)
+		.with_ansi_sanitization(false)
+		.with_ansi(true)
 		.with_writer(|| MultiProgressWriteWrapper::from(GLOBAL_BAR.inner_()));
 	registry()
 		.with(filter_layer)
