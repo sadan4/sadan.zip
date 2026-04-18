@@ -2,7 +2,7 @@ use crate::{
 	exts::{ExpressionExt, ModuleDeclarationExt},
 	sym_id::GetSymId,
 };
-use anyhow::{Result, bail};
+use anyhow::Result;
 use itertools::Itertools;
 use oxc::{
 	allocator::{Allocator, Box as OxcBox},
@@ -11,7 +11,6 @@ use oxc::{
 		ast::{Expression, ImportDeclaration, ModuleDeclaration, Program},
 	},
 	ast_visit::Visit,
-	diagnostics::OxcDiagnostic,
 	parser::{ParseOptions, Parser as OxcParser},
 	semantic::{
 		AstNode,

@@ -1,4 +1,4 @@
-use std::{borrow::Cow, iter, sync::Arc};
+use std::{borrow::Cow, sync::Arc};
 
 use derive_more::Debug;
 use oxc::span::{GetSpan, Span};

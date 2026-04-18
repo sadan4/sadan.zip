@@ -1,7 +1,6 @@
 use bitflags::bitflags;
 use oxc::{
-	allocator::{Allocator, HashMap as OxcHashMap, Vec as OxcVec},
-	ast::ast::Str,
+	allocator::Vec as OxcVec,
 	regular_expression::{
 		ast::{CapturingGroup, IndexedReference, NamedReference, Pattern},
 		visit::{
@@ -16,7 +15,6 @@ use oxc::{
 	span::{GetSpan, Span},
 };
 
-use crate::diag::ParserDiagnostic;
 
 #[derive(Debug, Clone, Copy)]
 pub enum GroupReference<'ast> {

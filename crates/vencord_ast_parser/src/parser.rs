@@ -385,7 +385,7 @@ impl<'ast> VencordAstParser<'ast> {
 				),
 				(
 					regex_span,
-					format!("No capture group named `{name}` declared here",)
+					format!("No capture group named `{name}` declared here")
 						.into(),
 				),
 			],
