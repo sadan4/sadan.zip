@@ -7,7 +7,6 @@ use crate::{
 use anyhow::{Result, anyhow};
 use ast_parser::{
 	AstParser,
-	ast_kind::IntoAstKind,
 	exts::{
 		BindingPatternExt,
 		ExpressionExt,
