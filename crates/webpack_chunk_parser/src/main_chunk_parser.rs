@@ -7,11 +7,13 @@ use crate::{
 use anyhow::{Result, anyhow};
 use ast_parser::{
 	AstParser,
+	ast_kind::IntoAstKind,
 	exts::{
 		BindingPatternExt,
 		ExpressionExt,
 		MemberExpressionExt,
 		NumericLiteralExt,
+		StatementExt as _,
 	},
 	parse,
 };
@@ -26,8 +28,9 @@ use oxc::{
 		ObjectProperty,
 		Program,
 		PropertyKind,
+		VariableDeclarator,
 	},
-	semantic::{Semantic, SymbolId},
+	semantic::{ReferenceFlags, Semantic, SymbolFlags, SymbolId},
 	span::SourceType,
 };
 use regex::Regex;
@@ -41,8 +44,6 @@ pub struct WebpackMainChunkParser<'ast> {
 	sema: Semantic<'ast>,
 }
 
-const WEBPACK_REQUIRE_NAME: &str = "__webpack_require__";
-const WEBPACK_MODULES_NAME: &str = "__webpack_modules__";
 const WEBPACK_EXPORTS_NAME: &str = "__webpack_exports__";
 const KNOWN_BUILD_MODULE_IDS: &[ModuleId] =
 	&[ModuleId(128014), ModuleId(446023)];
@@ -60,6 +61,7 @@ fn as_valid_module_id<'ast>(expr: &'ast Expression<'ast>) -> Option<ModuleId> {
 	}
 }
 
+// TODO: cache get_webpack_require
 impl<'ast> WebpackMainChunkParser<'ast> {
 	pub fn try_new(
 		alloc: &'ast Allocator,
@@ -75,38 +77,107 @@ impl<'ast> WebpackMainChunkParser<'ast> {
 	}
 	/// gets `__webpack_require__`
 	fn get_webpack_require(&self) -> Option<SymbolId> {
-		// i think this is the most efficient want to do this
-		for scope_id in self
-			.sema
-			.scoping()
-			.scope_descendants_from_root()
-		{
-			if let Some(symbol_id) = self
-				.sema
-				.scoping()
-				.get_binding(scope_id, WEBPACK_REQUIRE_NAME.into())
+		let root_iife_scope_id = self.root_iife_scope_id()?;
+		let scoping = self.sema.scoping();
+		for sym_id in scoping.iter_bindings_in(root_iife_scope_id) {
+			if !scoping
+				.symbol_flags(sym_id)
+				.contains(SymbolFlags::Function)
 			{
-				return Some(symbol_id);
+				continue;
+			}
+			if self.prop_set(sym_id, "nmd") && self.prop_set(sym_id, "hmd") {
+				return Some(sym_id);
 			}
 		}
 		None
 	}
-	/// gets `__webpack_modules__`
-	fn get_webpack_modules(&self) -> Option<SymbolId> {
-		for scope_id in self
+
+	fn root_iife_scope_id(&self) -> Option<oxc::semantic::ScopeId> {
+		Some(
+			self.prog
+				.body
+				.first()?
+				.as_expression_statement()?
+				.expression
+				.as_call_expression()?
+				.callee
+				.get_inner_expression()
+				.as_arrow_function_expression()?
+				.scope_id(),
+		)
+	}
+
+	fn prop_set(&self, obj: SymbolId, prop_name: impl AsRef<str>) -> bool {
+		for ref_ in self
 			.sema
 			.scoping()
-			.scope_descendants_from_root()
+			.get_resolved_references(obj)
 		{
-			if let Some(symbol_id) = self
-				.sema
-				.scoping()
-				.get_binding(scope_id, WEBPACK_MODULES_NAME.into())
+			if !ref_
+				.flags()
+				.contains(ReferenceFlags::MemberWriteTarget)
 			{
-				return Some(symbol_id);
+				continue;
+			}
+			let Some(member_write_expr) = self
+				.p(ref_.node_id())
+				.as_static_member_expression()
+			else {
+				continue;
+			};
+			if member_write_expr.property.name == prop_name.as_ref() {
+				return true;
 			}
 		}
-		None
+		false
+	}
+	/// gets `__webpack_modules__`
+	fn get_webpack_modules(&self) -> Option<SymbolId> {
+		let root_iife_scope_id = self.root_iife_scope_id()?;
+		let mut cur = Option::<&VariableDeclarator>::None;
+		for sym_id in self
+			.sema
+			.scoping()
+			.iter_bindings_in(root_iife_scope_id)
+		{
+			let decl_id = self
+				.sema
+				.scoping()
+				.symbol_declaration(sym_id);
+			let decl_parent = self.n(decl_id).kind();
+			let Some(decl_parent) = decl_parent.as_variable_declarator() else {
+				continue;
+			};
+			let Some(init) = &decl_parent.init else {
+				continue;
+			};
+			let Some(init) = init.as_object_expression() else {
+				continue;
+			};
+			let Some(cur_decl) = cur else {
+				cur = Some(decl_parent);
+				continue;
+			};
+			if init.properties.len()
+				> cur_decl
+					.init
+					.as_ref()
+					.unwrap()
+					.as_object_expression()
+					.unwrap()
+					.properties
+					.len()
+			{
+				cur = Some(decl_parent);
+			}
+		}
+		cur.map(|decl| {
+			decl.id
+				.as_binding_identifier()
+				.unwrap()
+				.symbol_id()
+		})
 	}
 
 	fn parse_js_hash_map_entry(prop: &ObjectProperty) -> Option<JsHashEntry> {
@@ -185,7 +256,7 @@ impl<'ast> WebpackMainChunkParser<'ast> {
 		Some(ret)
 	}
 
-	pub fn get_entrypoint_id(&self) -> Option<ModuleId> {
+	fn get_entrypoint_id_1(&self) -> Option<ModuleId> {
 		let wreq_sym_id = self.get_webpack_require()?;
 		let uses = self
 			.sema
@@ -225,6 +296,47 @@ impl<'ast> WebpackMainChunkParser<'ast> {
 			return Some(maybe_id);
 		}
 		None
+	}
+
+	fn get_entrypoint_id_2(&self) -> Option<ModuleId> {
+		let entry_call = self
+			.prog
+			.body
+			.first()?
+			.as_expression_statement()?
+			.expression
+			.as_call_expression()?
+			.callee
+			.get_inner_expression()
+			.as_arrow_function_expression()?
+			.body
+			.statements
+			.last()?
+			.as_expression_statement()?
+			.expression
+			.get_inner_expression()
+			.as_sequence_expression()?
+			.expressions
+			.last()?
+			.as_call_expression()?;
+		if !self.cmp_sym(
+			entry_call.callee.as_identifier()?,
+			&self.get_webpack_require()?,
+		) {
+			return None;
+		}
+		if entry_call.arguments.len() != 1 {
+			return None;
+		}
+		entry_call.arguments[0]
+			.as_numeric_literal()?
+			.as_u32()
+			.map(Into::into)
+	}
+
+	pub fn get_entrypoint_id(&self) -> Option<ModuleId> {
+		self.get_entrypoint_id_1()
+			.or_else(|| self.get_entrypoint_id_2())
 	}
 
 	pub fn get_build_number(&self) -> Option<SmolStr> {
@@ -332,6 +444,42 @@ mod tests {
 		{
 			let build_number = parser.get_build_number();
 			assert_eq!(build_number.as_deref(), Some("492031"));
+		};
+		{
+			let mut hashes = parser.get_js_chunk_hashes().unwrap();
+			hashes.sort_by(|a, b| a.chunk_id.cmp(&b.chunk_id));
+			assert_ron_snapshot!(hashes);
+		};
+		{
+			let modules = parser
+				.get_defined_modules()
+				.unwrap()
+				.into_keys()
+				.sorted()
+				.collect_vec();
+			assert_ron_snapshot!(modules);
+		};
+	}
+
+	#[test]
+	fn format_3() {
+		let alloc = Allocator::new();
+		let parser = parse!(alloc, "test_data/fullWeb3.js");
+		{
+			let entrypoint = parser.get_entrypoint_id();
+			assert_eq!(
+				entrypoint,
+				Some(ModuleId(329563)),
+				"entrypoint mismatch"
+			);
+		};
+		{
+			let build_number = parser.get_build_number();
+			assert_eq!(
+				build_number.as_deref(),
+				Some("533645"),
+				"build number mismatch"
+			);
 		};
 		{
 			let mut hashes = parser.get_js_chunk_hashes().unwrap();
