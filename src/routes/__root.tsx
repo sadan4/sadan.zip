@@ -1,4 +1,5 @@
 import { LayerContext } from "@/components/Layer/context";
+import { NotFoundPage } from "@/routes/-404";
 import { installF8Break, uninstallF8Break } from "@/utils/devtools";
 import { assert } from "@/utils/error";
 import { default as initWasm } from "@sadan4/libsadancore";
@@ -17,6 +18,7 @@ export const Route = createRootRoute({
     loader({ location: { publicHref } }) {
         return {
             publicHref,
+            notFoundQuoteSeed: Math.floor(Math.random() * 1_000_000_000),
         };
     },
     head(ctx) {
@@ -71,6 +73,7 @@ export const Route = createRootRoute({
         };
     },
 
+    notFoundComponent: NotFoundPage,
     shellComponent: RootComponent,
 });
 
