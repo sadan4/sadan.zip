@@ -2,6 +2,8 @@ import { Link } from "@/components/Links";
 import { Text } from "@/components/Text";
 import { rootRouteId, useMatch } from "@tanstack/react-router";
 
+// Quotes from https://combineoverwiki.net/wiki/Black_Mesa_Science_Team/Quotes
+// TODO: add more quotes starting at the Following and Unfollowing section
 const quotes = Object.freeze([
     "Get away from there! I'm expecting an important message!",
     "Quick! It's about to go critical!",
