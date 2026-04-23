@@ -61,6 +61,7 @@ fn as_valid_module_id<'ast>(expr: &'ast Expression<'ast>) -> Option<ModuleId> {
 	}
 }
 
+// TODO: cache get_webpack_require
 impl<'ast> WebpackMainChunkParser<'ast> {
 	pub fn try_new(
 		alloc: &'ast Allocator,
@@ -298,7 +299,7 @@ impl<'ast> WebpackMainChunkParser<'ast> {
 	}
 
 	fn get_entrypoint_id_2(&self) -> Option<ModuleId> {
-		let expression = &self
+		let entry_call = self
 			.prog
 			.body
 			.first()?
@@ -306,9 +307,7 @@ impl<'ast> WebpackMainChunkParser<'ast> {
 			.expression
 			.as_call_expression()?
 			.callee
-			.get_inner_expression();
-		dbg!(expression.into_ast_kind().debug_name());
-		let entry_call = expression
+			.get_inner_expression()
 			.as_arrow_function_expression()?
 			.body
 			.statements
