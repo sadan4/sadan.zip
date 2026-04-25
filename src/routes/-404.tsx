@@ -27,7 +27,7 @@ const quotes = Object.freeze([
     "It's ready! You must go! Now!",
 ]);
 
-const [fallbackQuote] = quotes;
+const fallbackQuote = "404";
 
 function getSeededQuote(seed: number | undefined): string {
     if (typeof seed !== "number") {
