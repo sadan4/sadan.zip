@@ -1,4 +1,4 @@
-import { Boilerplate } from "@/components/Boilerplate";
+import { Boilerplate } from "@/components/Boilerplate.tsrx";
 import { Button } from "@/components/Button";
 import { Box } from "@/components/layout/Box";
 import { Text } from "@/components/Text";

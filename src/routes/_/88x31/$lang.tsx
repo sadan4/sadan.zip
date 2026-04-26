@@ -1,5 +1,5 @@
 import _88x31Image from "@/assets/88x31.png";
-import { Boilerplate } from "@/components/Boilerplate";
+import { Boilerplate } from "@/components/Boilerplate.tsrx";
 import { Clickable } from "@/components/Clickable";
 import { Codeblock } from "@/components/Codeblock/Codeblock";
 import { Box } from "@/components/layout/Box";

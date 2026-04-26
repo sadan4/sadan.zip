@@ -16,7 +16,7 @@ import { getChildrenWithMode, getNodeKey, getNodeName, getParent, TreeMode } fro
 
 import { TreeAccordion } from "./TreeAccordion";
 
-import { createContext, type RefObject, use, useEffect, useRef, useState } from "react";
+import { createContext, Fragment, type RefObject, use, useEffect, useRef, useState } from "react";
 import scrollIntoView from "scroll-into-view-if-needed";
 import type { Node, SourceFile } from "typescript";
 import { createStore, type StoreApi, useStore } from "zustand";
@@ -69,7 +69,7 @@ function useNodeTreeStore<T extends (state: NodeTreeStore) => any>(selector: T):
     return useStore(store!, useShallow(selector));
 }
 
-export function NodeTree({
+export component NodeTree({
     onSelectNode: _onSelectNode = NOOP,
     root,
     highlightedNodes,
@@ -241,28 +241,26 @@ export function NodeTree({
 
     const refs = useComposedRefs(installKeybinds, focusRef);
 
-    return (
-        <div className="flex size-full flex-col">
-            <div className="bg-cyan-600">
-                Input Box
-            </div>
-            <ScrollArea dir={ScrollAreaDirection.BOTH}>
-                <div
-                    ref={refs}
-                    tabIndex={0}
-                >
-                    <NodeTreeStoreContext value={store}>
-                        <NodeTreeNode
-                            node={root}
-                            nodeKey={getNodeKey(root)}
-                            onNodeArrowClick={onNodeArrowClick}
-                            onSelectNode={onSelectNode}
-                        />
-                    </NodeTreeStoreContext>
-                </div>
-            </ScrollArea>
+    <div className="flex size-full flex-col">
+        <div className="bg-cyan-600">
+            {"Input Box"}
         </div>
-    );
+        <ScrollArea dir={ScrollAreaDirection.BOTH}>
+            <div
+                {ref refs}
+                tabIndex={0}
+            >
+                <NodeTreeStoreContext value={store}>
+                    <NodeTreeNode
+                        node={root}
+                        nodeKey={getNodeKey(root)}
+                        onNodeArrowClick={onNodeArrowClick}
+                        onSelectNode={onSelectNode}
+                    />
+                </NodeTreeStoreContext>
+            </div>
+        </ScrollArea>
+    </div>
 }
 
 interface NodeTreeNodeProps {
@@ -272,7 +270,7 @@ interface NodeTreeNodeProps {
     onSelectNode: RefObject<NodeTreeProps["onSelectNode"] & {}>;
 }
 
-function NodeTreeNode({ node, nodeKey: key, onNodeArrowClick, onSelectNode }: NodeTreeNodeProps) {
+component NodeTreeNode({ node, nodeKey: key, onNodeArrowClick, onSelectNode }: NodeTreeNodeProps) {
     const name = getNodeName(node);
     const ref = useRef<HTMLDivElement>(null);
     const scrollAreaCtx = use(ScrollAreaContext);
@@ -319,7 +317,7 @@ function NodeTreeNode({ node, nodeKey: key, onNodeArrowClick, onSelectNode }: No
         }
     }, isSelected);
 
-    const children = (
+    const children = <tsx>
         <Clickable
             ref={ref}
             onClick={(e) => {
@@ -335,31 +333,19 @@ function NodeTreeNode({ node, nodeKey: key, onNodeArrowClick, onSelectNode }: No
                 {name}
             </Text>
         </Clickable>
-    );
+    </tsx>;
 
     if (childNodes.length) {
-        return (
+            const contents = <tsx>
+                <NodeTreeNodeContentsWrapper
+                    reparseCount={reparseCount}
+                    childNodes={childNodes}
+                    onNodeArrowClick={onNodeArrowClick}
+                    onSelectNode={onSelectNode}
+                />
+            </tsx>;
             <TreeAccordion
-                contents={(
-                    <div className="flex h-fit">
-                        <div className="w-5 shrink-0" />
-                        <div className="grow">
-                            {childNodes.map((child) => {
-                                const key = getNodeKey(child);
-
-                                return (
-                                    <NodeTreeNode
-                                        key={`${key}-${reparseCount}`}
-                                        node={child}
-                                        nodeKey={key}
-                                        onNodeArrowClick={onNodeArrowClick}
-                                        onSelectNode={onSelectNode}
-                                    />
-                                );
-                            })}
-                        </div>
-                    </div>
-                )}
+                {contents}
                 onArrowClick={() => {
                     onNodeArrowClick.current(key);
                 }}
@@ -367,7 +353,31 @@ function NodeTreeNode({ node, nodeKey: key, onNodeArrowClick, onSelectNode }: No
             >
                 {children}
             </TreeAccordion>
-        );
+    } else {
+        <Fragment>{children}</Fragment>
     }
-    return children;
+}
+
+interface NodeTreeNodeContentsWrapperProps {
+    reparseCount: number;
+    childNodes: readonly Node[];
+    onNodeArrowClick: NodeTreeNodeProps["onNodeArrowClick"];
+    onSelectNode: NodeTreeNodeProps["onSelectNode"];
+}
+
+component NodeTreeNodeContentsWrapper({reparseCount, childNodes, onNodeArrowClick, onSelectNode}: NodeTreeNodeContentsWrapperProps) {
+    <div className="flex h-fit">
+        <div className="w-5 shrink-0" />
+        <div className="grow">
+            for (const node of childNodes; key `${getNodeKey(node)}-${reparseCount}`) {
+                const nodeKey = getNodeKey(node);
+                <NodeTreeNode
+                    {node}
+                    {nodeKey}
+                    {onNodeArrowClick}
+                    {onSelectNode}
+                />
+            }
+        </div>
+    </div>
 }

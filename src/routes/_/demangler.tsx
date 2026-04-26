@@ -1,4 +1,4 @@
-import { Boilerplate } from "@/components/Boilerplate";
+import { Boilerplate } from "@/components/Boilerplate.tsrx";
 import { Clickable } from "@/components/Clickable";
 import { Text } from "@/components/Text";
 import { TextArea } from "@/components/TextArea";

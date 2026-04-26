@@ -2,6 +2,7 @@ import babel from "@rolldown/plugin-babel";
 import tailwindcss from "@tailwindcss/vite";
 import { devtools } from "@tanstack/devtools-vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
+import tsrxReact from "@tsrx/vite-plugin-react";
 import viteReact, { reactCompilerPreset } from "@vitejs/plugin-react";
 
 import { monacoEditor } from "./scripts/vite-plugin-monaco-editor";
@@ -23,6 +24,7 @@ const config = defineConfig(async ({ command, isSsrBuild }) => {
 
     return {
         plugins: [
+            tsrxReact(),
             devtoolsJSON(),
             monacoEditor({
                 languages: ["typescript", "javascript"],

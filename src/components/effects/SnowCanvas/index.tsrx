@@ -68,7 +68,7 @@ function drawSnowflake(ctx: CanvasRenderingContext2D, snowflake: Snowflake) {
 
 const TARGET_FRAME_RATE = 1000 / 60;
 
-export function SnowCanvas({
+export component SnowCanvas({
     density = 75,
     minSpeed = 1,
     maxSpeed = 2.5,
@@ -176,10 +176,8 @@ export function SnowCanvas({
         };
     }, [density, minSpeed, maxSpeed, minSize, maxSize, windStrength]);
 
-    return (
-        <canvas
-            ref={canvasRef}
-            className={styles.canvas}
-        />
-    );
+    <canvas
+        {ref canvasRef}
+        className={styles.canvas}
+    />
 }

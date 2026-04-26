@@ -1,4 +1,4 @@
-import { Boilerplate } from "@/components/Boilerplate";
+import { Boilerplate } from "@/components/Boilerplate.tsrx";
 import { IconButton } from "@/components/Button";
 import { Clickable } from "@/components/Clickable";
 import { MonacoCodeEditor } from "@/components/CodeEditor/Monaco";

@@ -1,4 +1,4 @@
-import { Boilerplate } from "@/components/Boilerplate";
+import { Boilerplate } from "@/components/Boilerplate.tsrx";
 import { Button } from "@/components/Button";
 import { AnimateHeight } from "@/components/effects/AnimateHeight";
 import { LabeledInput } from "@/components/Input";

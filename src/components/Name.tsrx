@@ -12,7 +12,6 @@ const nameTextProps: TextProps<"span"> = {
     weight: "bold",
 };
 
-
 function makeDiscordEmojiImage(emojiId: string, emojiName: string): TypewriterImage {
     return {
         htmlTag: `<img src="https://cdn.discordapp.com/emojis/${emojiId}.webp?size=128" alt=":${emojiName}:"></img>`,
@@ -56,7 +55,7 @@ const possibleNameStrings = [
 ];
 
 const NAME = "sadan";
-const INITIAL_NAME = <Text {...nameTextProps}>{NAME}</Text>;
+const INITIAL_NAME = <tsx><Text {...nameTextProps}>{NAME}</Text></tsx>;
 
 function clickMe(): TypewriterSource {
     return {
@@ -95,7 +94,7 @@ const possibleNames = possibleNameStrings
     .map((str) => (typeof str === "string" ? textComponentTypewriter(50, str, nameTextProps) : str))
     .concat(possibleImages.map((img) => imageTypewriter(img, nameTextProps)));
 
-export default function Name() {
+export default component Name() {
     const typewriterRef = useRef<TypewriterRef>(null);
     const lastIndexRef = useRef(-1);
     const [typing, setTyping] = useState(false);
@@ -117,33 +116,31 @@ export default function Name() {
 
         return () => clearTimeout(timeout);
     }, []);
-    return (
-        <div
-            className="max-w-3xl min-w-24 text-center"
-            style={{
-                cursor: typing ? "not-allowed" : "pointer",
+    <div
+        className="max-w-3xl min-w-24 text-center"
+        style={{
+            cursor: typing ? "not-allowed" : "pointer",
+        }}
+    >
+        <Typewriter
+            className="mt-6 mb-6 flex min-h-10 justify-center text-balance break-all"
+            initialContent={INITIAL_NAME}
+            onTypingStateChange={(prevState) => {
+                setTyping(prevState);
             }}
-        >
-            <Typewriter
-                className="mt-6 mb-6 flex min-h-10 justify-center text-balance break-all"
-                initialContent={INITIAL_NAME}
-                onTypingStateChange={(prevState) => {
-                    setTyping(prevState);
-                }}
-                ref={typewriterRef}
-                onClick={() => {
-                    if (typing)
-                        return;
+            ref={typewriterRef}
+            onClick={() => {
+                if (typing)
+                    return;
 
-                    let idx: number;
+                let idx: number;
 
-                    // TODO: just a tad cursed
-                    while ((idx = randInt(0, possibleNames.length)) === lastIndexRef.current)
-                        ;
-
-                    typewriterRef.current?.sendWord(possibleNames[idx]);
-                }}
-            />
-        </div>
-    );
+                // TODO: just a tad cursed
+                while ((idx = randInt(0, possibleNames.length)) === lastIndexRef.current)
+                    ;
+                lastIndexRef.current = idx;
+                typewriterRef.current?.sendWord(possibleNames[idx]);
+            }}
+        />
+    </div>
 }

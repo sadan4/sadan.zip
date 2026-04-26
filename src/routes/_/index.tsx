@@ -1,7 +1,7 @@
 import Avatar from "@/components/Avatar";
-import { Boilerplate } from "@/components/Boilerplate";
+import { Boilerplate } from "@/components/Boilerplate.tsrx";
 import { DiscordIconLink, FortniteDBIconLink, GithubIconLink, LastFMIconLink, NameMCIconLink, SteamIconLink } from "@/components/Links";
-import Name from "@/components/Name";
+import Name from "@/components/Name.tsrx";
 import { Text } from "@/components/Text";
 import { createFileRoute } from "@tanstack/react-router";
 

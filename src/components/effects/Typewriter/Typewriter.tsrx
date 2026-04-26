@@ -1,26 +1,13 @@
 import { Clickable } from "@/components/Clickable";
 import { sleep } from "@/utils/async";
 
-import { defaultEraser } from "./utils";
+import { defaultEraser, type TypewriterRef, type TypewriterSource } from ".";
 
-import { type ComponentPropsWithoutRef, type ReactNode, type Ref, type RefObject, useCallback, useEffect, useId, useImperativeHandle, useRef, useState } from "react";
+import { type ComponentPropsWithoutRef, type ReactNode, type Ref, type RefObject, type SetStateAction, type Dispatch, useCallback, useEffect, useId, useImperativeHandle, useRef, useState } from "react";
 
-export interface TypewriterFrame {
-    component: ReactNode;
-    nextDelay: number;
-}
+type Guh = ComponentPropsWithoutRef<"div">;
 
-export interface TypewriterSource {
-    type(): Generator<TypewriterFrame, void, ReactNode>;
-    erase(prev: ReactNode): Generator<TypewriterFrame, void, ReactNode>;
-}
-
-export interface TypewriterRef {
-    sendWord(source: TypewriterSource, dontDeleteOld?: boolean): void;
-    isTyping: RefObject<boolean>;
-}
-
-export interface TypewriterProps extends ComponentPropsWithoutRef<"div"> {
+export interface TypewriterProps extends Guh {
     ref: Ref<TypewriterRef>;
     initialContent: ReactNode | TypewriterSource;
     children?: never;
@@ -31,15 +18,16 @@ function isTypewriterSource(source: any): source is TypewriterSource {
     return Object.keys(source ?? {}).length === 2 && "type" in source && "erase" in source;
 }
 
+type SendWord = (source: TypewriterSource, dontDeleteOld?: boolean | undefined) => void;
 
-export function Typewriter({ ref, initialContent, onTypingStateChange, ...props }: TypewriterProps) {
-    const typingRef = useRef(false);
-    const eraserRef = useRef<TypewriterSource["erase"]>(defaultEraser);
-    const isInitialTypewriterSource = isTypewriterSource(initialContent);
-    const [content, setContent] = useState(isInitialTypewriterSource ? "" : initialContent);
-    const id = useId();
-
-    const sendWord = useCallback(async (source: TypewriterSource, dontDeleteOld?: boolean) => {
+function makeSendWord(
+    content: ReactNode,
+    onTypingStateChange?: TypewriterProps["onTypingStateChange"],
+    typingRef: RefObject<boolean>,
+    eraserRef: RefObject<TypewriterSource["erase"]>,
+    setContent: Dispatch<SetStateAction<ReactNode>>,
+): SendWord {
+    return async (source: TypewriterSource, dontDeleteOld?: boolean | undefined) => {
         if (typingRef.current) {
             console.warn("Typewriter: sendWord called while already typing");
             return;
@@ -79,7 +67,18 @@ export function Typewriter({ ref, initialContent, onTypingStateChange, ...props 
         // release the lock
         typingRef.current = false;
         onTypingStateChange?.(false);
-    }, [content, onTypingStateChange]);
+    }
+}
+
+
+export component Typewriter({ ref, initialContent, onTypingStateChange, ...props }: TypewriterProps) {
+    const typingRef = useRef(false);
+    const eraserRef = useRef<TypewriterSource["erase"]>(defaultEraser);
+    const isInitialTypewriterSource = isTypewriterSource(initialContent);
+    const [content, setContent] = useState(isInitialTypewriterSource ? "" : initialContent);
+    const id = useId();
+
+    const sendWord = useCallback<SendWord>(makeSendWord(content, onTypingStateChange, typingRef, eraserRef, setContent), [content, onTypingStateChange]);
 
     useImperativeHandle(ref, () => {
         return {
@@ -89,21 +88,19 @@ export function Typewriter({ ref, initialContent, onTypingStateChange, ...props 
     }, [sendWord]);
     useEffect(() => {
         if (isInitialTypewriterSource) {
-            sendWord(initialContent);
+            sendWord(initialContent, undefined);
         }
     }, [initialContent, isInitialTypewriterSource, sendWord]);
-    return (
-        <Clickable
-            id={id}
-            tag="div"
-            {...props}
-            style={{
-                userSelect: "none",
-                ...props.style,
-            }}
-            aria-labelledby={id}
-        >
-            {content}
-        </Clickable>
-    );
+    <Clickable
+        id={id}
+        tag="div"
+        {...props}
+        style={{
+            userSelect: "none",
+            ...props.style,
+        }}
+        aria-labelledby={id}
+    >
+        {content}
+    </Clickable>
 }

@@ -1,4 +1,4 @@
-import { DefaultFooter } from "@/components/Footer";
+import { DefaultFooter } from "@/components/Footer.tsrx";
 import { ScrollArea } from "@/components/layout/ScrollArea";
 import { createFileRoute, Outlet } from "@tanstack/react-router";
 
