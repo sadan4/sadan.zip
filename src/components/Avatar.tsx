@@ -45,7 +45,7 @@ export default function Avatar({ round = false, ...props }: AvatarProps) {
         : defaultPositionProxy()), [_rect]);
 
     return (
-        // put the ref on Clicable because it's before all the effects that might change the size/position
+        // put the ref on Clickable because it's before all the effects that might change the size/position
         <Clickable ref={setImg}>
             <PerspectiveHover
                 hoverFactor={4}

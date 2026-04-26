@@ -2,9 +2,9 @@ import { useRect } from "@/hooks/rect";
 import { useResizeObserver } from "@/hooks/resizeObserver";
 import { single } from "@/utils/array";
 import { makeBorderPath } from "@/utils/dom/path";
-import { animated } from "@react-spring/web";
+import { animated, useSpring } from "@react-spring/web";
 
-import { type BaseBorderHoldProps, useBorderHoldAnim } from "./common";
+import { type BaseBorderHoldProps, borderHoldAnimConfig } from "./common";
 import styles from "./rounded.module.scss";
 
 import { type RefObject, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
@@ -19,7 +19,6 @@ export interface BorderHoldCircularProps extends BaseBorderHoldProps {
 
 export function BorderHoldRounded({ children, onHold, ref }: BorderHoldCircularProps) {
     const [wrapper, setWrapper] = useState<HTMLDivElement | null>(null);
-    const [held, setHeld] = useState(false);
     const borderRef = useRef<SVGPathElement>(null);
     const maskRef = useRef<SVGPathElement>(null);
     const [borderLen, setBorderLen] = useState(-1);
@@ -48,10 +47,55 @@ export function BorderHoldRounded({ children, onHold, ref }: BorderHoldCircularP
 
     useEffect(updateBorderLength, [updateBorderLength]);
 
-    const { progress, opacity } = useBorderHoldAnim({
-        held,
-        onHold,
-    });
+    const dispatchedRef = useRef(false);
+
+    const [{ progress, opacity }, api] = useSpring(() => ({
+        from: {
+            progress: 0,
+            opacity: 0,
+        },
+    }));
+
+    const onStartHold = useCallback(() => {
+        api.start({
+            async to(next) {
+                await next({
+                    progress: 100,
+                    opacity: 1,
+                    onChange(progress) {
+                        // bug in react-spring types
+                        const value = progress.value.progress as number;
+
+                        if (!progress.cancelled && !dispatchedRef.current && value >= 98) {
+                            dispatchedRef.current = true;
+                            onHold?.();
+                        }
+                    },
+                });
+            },
+            config: borderHoldAnimConfig(true),
+        });
+    }, [api, onHold]);
+
+    const onStopHold = useCallback(() => {
+        api.start({
+            async to(next) {
+                await next({
+                    progress: 0,
+                    onChange(progress) {
+                        if (!progress.cancelled && (progress.value.progress as number) <= 5) {
+                            // react spring doesn't like this, but it works
+                            next({
+                                opacity: 0,
+                            }).catch(() => {});
+                            dispatchedRef.current = false;
+                        }
+                    },
+                });
+            },
+            config: borderHoldAnimConfig(false),
+        });
+    }, [api]);
 
     // mean(width, height) / 10
     const strokeWidth = (width + height) / 20;
@@ -64,15 +108,15 @@ export function BorderHoldRounded({ children, onHold, ref }: BorderHoldCircularP
                     width,
                     height,
                 }}
-                onPointerDown={() => setHeld(true)}
+                onPointerDown={() => onStartHold()}
                 onContextMenu={(e) => {
                 // it's a pointer event, react is stupid https://developer.mozilla.org/en-US/docs/Web/API/Element/contextmenu_event#browser_compatibility
                     if ((e.nativeEvent as PointerEvent).pointerType !== "mouse") {
                         e.preventDefault();
                     }
                 }}
-                onPointerUp={() => setHeld(false)}
-                onPointerLeave={() => setHeld(false)}
+                onPointerUp={() => onStopHold()}
+                onPointerLeave={() => onStopHold()}
             >
                 <animated.path
                     ref={borderRef}
