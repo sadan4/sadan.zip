@@ -1,4 +1,5 @@
 import { unreachable } from "@/utils/error";
+import type { SpringConfig } from "@react-spring/web";
 
 import { type PropsWithChildren } from "react";
 
@@ -18,14 +19,14 @@ export interface UseBorderHoldAnimProps {
 }
 
 export function borderHoldAnimConfig(held: boolean) {
-    return (k: "opacity" | "progress") => {
+    return (k: "opacity" | "progress"): SpringConfig => {
         switch (k) {
             case "opacity":
                 return {};
             case "progress":
                 return {
                     mass: 5,
-                    friction: held ? 110 : 50,
+                    friction: held ? 75 : 50,
                 };
             default:
                 unreachable(k);
