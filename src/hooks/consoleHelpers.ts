@@ -59,8 +59,6 @@ export function useConsoleHelpers(helpers: Record<string, any>, { settable = "se
                         case false:
                             error(`cannot set ${key}`);
                             break;
-                        default:
-                            error("unhandled case");
                     }
                 },
             });

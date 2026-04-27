@@ -222,7 +222,6 @@ function collectExternalReferencesInRules(
 
         const reference = parseInclude(include);
 
-        // eslint-disable-next-line default-case
         switch (reference.kind) {
             case IncludeReferenceKind.Base:
                 collectExternalReferencesInTopLevelRule({

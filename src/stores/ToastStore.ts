@@ -11,6 +11,7 @@ export enum ToastType {
 
 export enum ToastPosition {
     TOP,
+    BOTTOM,
 }
 
 export interface Toast {
@@ -26,6 +27,7 @@ export interface Toast {
 
 export interface IToastStore {
     pushToast(toast: Toast): void;
+    popToast(id?: PropertyKey): void;
     genId(): PropertyKey;
     _toasts: Toast[];
 }
@@ -47,6 +49,23 @@ function createToastStore(): StoreApi<IToastStore> {
             set((state) => ({
                 _toasts: [...state._toasts, toast],
             }));
+        },
+        popToast(id?: PropertyKey) {
+            if (id === undefined) {
+                set(({ _toasts: [, ..._toasts] }) => ({ _toasts }));
+            } else {
+                set(({ _toasts }) => {
+                    const idx = _toasts.findIndex((t) => t.id === id);
+
+                    if (idx !== -1) {
+                        return {
+                            _toasts: _toasts.toSpliced(idx, 1),
+                        };
+                    }
+
+                    return {};
+                });
+            }
         },
     }));
 }

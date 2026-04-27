@@ -4,7 +4,7 @@ import { ScrollArea } from "@/components/layout/ScrollArea";
 import { Text, type TextProps } from "@/components/Text";
 import { useRecent } from "@/hooks/recent";
 import { NBSP } from "@/utils/constants";
-import { error, todo, unreachable } from "@/utils/error";
+import { todo } from "@/utils/error";
 import { getPropertyDescriptor } from "@/utils/obj";
 import { type Primitive } from "@/utils/types";
 import { getNodeName, getPublicKeys, isNode } from "@/utils/typescript";
@@ -84,8 +84,6 @@ function invokeNodeMethod(node: Node, methodName: NodeMethodName, sf: SourceFile
         case "getFullText":
         case "getText":
             return node[methodName](sf);
-        default:
-            error(`Unsupported node method: ${methodName}`);
     }
 }
 
@@ -413,8 +411,6 @@ function SingleValueText({ value }: { value: Primitive; }) {
         case "function":
             todo("handle functions as classes (static) (not here)");
             break;
-        default:
-            unreachable(`${typeof value}`);
     }
     return (
         <Text

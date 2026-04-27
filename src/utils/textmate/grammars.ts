@@ -26,10 +26,8 @@ export function lazyLoadGrammar(language: Language): Promise<LazyLang> {
             return css();
         }
 
-
         case Language.PLAINTEXT:
         case Language.UNKNOWN:
-        default:
             error(`No grammar available for language: ${language}`);
     }
 }
@@ -42,7 +40,14 @@ export function getLanguageDeps(language: Language): Language[] {
                 ...getLanguageDeps(Language.JAVASCRIPT),
                 Language.HTML,
             ];
-        default:
+        case Language.PLAINTEXT:
+        case Language.UNKNOWN:
+        case Language.JSON:
+        case Language.TYPESCRIPT:
+        case Language.JAVASCRIPT:
+        case Language.TYPESCRIPT_REACT:
+        case Language.JAVASCRIPT_REACT:
+        case Language.CSS:
             return [language];
     }
 }

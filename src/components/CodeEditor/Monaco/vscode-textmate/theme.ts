@@ -341,7 +341,7 @@ export function parseTheme(source: IRawTheme | undefined): ParsedThemeRule[] {
             for (let j = 0, lenJ = segments.length; j < lenJ; j++) {
                 const segment = segments[j];
 
-                // eslint-disable-next-line default-case
+                // eslint-disable-next-line @typescript-eslint/switch-exhaustiveness-check
                 switch (segment) {
                     case "italic":
                         fontStyle |= FontStyle.Italic;

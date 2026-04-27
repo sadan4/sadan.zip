@@ -911,7 +911,6 @@ export class RuleFactory {
                 if (pattern.include) {
                     const reference = parseInclude(pattern.include);
 
-                    // eslint-disable-next-line default-case
                     switch (reference.kind) {
                         case IncludeReferenceKind.Base:
                         case IncludeReferenceKind.Self:

@@ -1,4 +1,3 @@
-import { unreachable } from "@/utils/error";
 import type { SpringConfig } from "@react-spring/web";
 
 import { type PropsWithChildren } from "react";
@@ -28,8 +27,6 @@ export function borderHoldAnimConfig(held: boolean) {
                     mass: 5,
                     friction: held ? 75 : 50,
                 };
-            default:
-                unreachable(k);
         }
     };
 }

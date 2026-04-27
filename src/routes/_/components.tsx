@@ -119,7 +119,10 @@ function ToastExample() {
 
     return (
         <>
-            <Text>
+            <Text
+                size="xl"
+                center
+            >
                 Toasts
             </Text>
             <div className="flex justify-between gap-4">
@@ -161,6 +164,11 @@ function ToastExample() {
                             value: ToastPosition.TOP,
                             typedValue: "top",
                         },
+                        {
+                            label: "Bottom",
+                            value: ToastPosition.BOTTOM,
+                            typedValue: "bottom",
+                        },
                     ]}
                     defaultValue={ToastPosition.TOP}
                     onChange={setPos}
@@ -177,7 +185,16 @@ function ToastExample() {
                     });
                 }}
                 >
-                    Show Toast
+                    Push Toast
+                </Button>
+                <Button
+                    onClick={() => {
+                        api.getState().popToast();
+                    }}
+                    color="error"
+                    colorType="outline"
+                >
+                    Pop Toast
                 </Button>
             </div>
         </>

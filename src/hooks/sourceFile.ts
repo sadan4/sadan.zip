@@ -1,4 +1,4 @@
-import { assert, unreachable } from "@/utils/error";
+import { assert } from "@/utils/error";
 import { extensionForLanguage, Language } from "@/utils/textmate";
 import { defaultScriptTarget, getTextChanges, scriptKindForLanguage, type TS, ts } from "@/utils/typescript";
 
@@ -109,8 +109,6 @@ export function useSourceFile(
                 );
                 break;
             }
-            default:
-                unreachable();
         }
         if (import.meta.env.DEV) {
             operatedOn.set(state, res);

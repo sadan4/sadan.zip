@@ -137,7 +137,6 @@ const ESLintRules: Partial<IESLintRules> = {
         },
     ],
     "block-scoped-var": "error",
-    "default-case": "error",
     "default-case-last": "error",
     "dot-notation": "error",
     eqeqeq: ["error", "always", { null: "ignore" }],
@@ -232,6 +231,14 @@ const TSLintRules: Partial<ITSLintRules> = {
         },
         {
             enforceForRenamedProperties: false,
+        },
+    ],
+    "@typescript-eslint/switch-exhaustiveness-check": [
+        "error",
+        {
+            allowDefaultCaseForExhaustiveSwitch: false,
+            requireDefaultForNonUnion: true,
+            considerDefaultExhaustiveForUnions: false,
         },
     ],
 };
@@ -738,7 +745,7 @@ const tailwindCallees = Object.freeze({
 });
 
 // TODO: re-add stories when storybook is re-added
-export default TSEslint.config({ ignores: ["dist", "src/**/*.stories.tsx", "dist.server", "builds", "node_modules", ".vite-inspect"] }, {
+export default TSEslint.config({ ignores: ["dist", "crates", "src/**/*.stories.tsx", "dist.server", "builds", "node_modules", ".vite-inspect"] }, {
     files: [`src/**/*.${extensions}`, `server/**/*.${extensions}`, `eslint.config.${extensions}`, `vite.config.${extensions}`, `stylelint.config.${extensions}`, `scripts/**/*.${extensions}`, `vitest.config.${extensions}`, `.storybook/*.${extensions}`],
     plugins: {
         "@stylistic": stylistic,

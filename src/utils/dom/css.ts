@@ -1,4 +1,4 @@
-import { error, unreachable } from "@/utils/error";
+import { error } from "@/utils/error";
 
 export function getLineHeight(element: Element) {
     // Get computed style
@@ -37,8 +37,6 @@ function getPercentReferenceValue(element: Element, reference: PercentReference)
             return element.clientWidth;
         case PercentReference.HEIGHT:
             return element.clientHeight;
-        default:
-            unreachable();
     }
 }
 

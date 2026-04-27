@@ -14,7 +14,10 @@ export function ToastContainer({ children }: ToastContainerProps) {
 
     return (
         <ToastContext value={store}>
-            <div ref={ref}>
+            <div
+                ref={ref}
+                className="contents"
+            >
                 {children}
                 <Toaster containerRef={ref} />
             </div>

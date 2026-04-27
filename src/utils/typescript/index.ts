@@ -1,5 +1,5 @@
 import { markerMap } from "./publicApi.gen&gen";
-import { error, unavailableImport, unreachable } from "../error";
+import { error, unavailableImport } from "../error";
 import { Language } from "../textmate";
 
 import type * as TS from "typescript";
@@ -23,7 +23,10 @@ export function scriptKindForLanguage(language: Language): TS.ScriptKind {
             return ts.ScriptKind.TSX;
         case Language.JAVASCRIPT_REACT:
             return ts.ScriptKind.JSX;
-        default:
+        case Language.PLAINTEXT:
+        case Language.UNKNOWN:
+        case Language.HTML:
+        case Language.CSS:
             error(`unsupported language: ${language}`);
     }
 }
@@ -37,7 +40,10 @@ export function defaultScriptTarget(language: Language): TS.ScriptTarget {
         case Language.TYPESCRIPT_REACT:
         case Language.JAVASCRIPT_REACT:
             return ts.ScriptTarget.ESNext;
-        default:
+        case Language.PLAINTEXT:
+        case Language.UNKNOWN:
+        case Language.HTML:
+        case Language.CSS:
             error(`unsupported language: ${language}`);
     }
 }
@@ -68,8 +74,6 @@ export function getChildrenWithMode(node: TS.Node, mode: TreeMode): readonly TS.
             });
             return children;
         }
-        default:
-            unreachable();
     }
 }
 
