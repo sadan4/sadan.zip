@@ -7,7 +7,7 @@ import { animated, SpringRef, useSpring } from "@react-spring/web";
 import { type BaseBorderHoldProps, borderHoldAnimConfig } from "./common";
 import styles from "./rounded.module.scss";
 
-import { type RefObject, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { type Ref, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 
 export interface BorderHoldSpring {
     progress: number;
@@ -21,7 +21,7 @@ export interface BorderHoldHandle {
 }
 
 export interface BorderHoldRoundedProps extends BaseBorderHoldProps {
-    ref?: RefObject<BorderHoldHandle | null>;
+    ref?: Ref<BorderHoldHandle | null>;
     onPointerDown?: () => void;
 }
 
