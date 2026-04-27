@@ -2,22 +2,30 @@ import { useRect } from "@/hooks/rect";
 import { useResizeObserver } from "@/hooks/resizeObserver";
 import { single } from "@/utils/array";
 import { makeBorderPath } from "@/utils/dom/path";
-import { animated, useSpring } from "@react-spring/web";
+import { animated, SpringRef, useSpring } from "@react-spring/web";
 
 import { type BaseBorderHoldProps, borderHoldAnimConfig } from "./common";
 import styles from "./rounded.module.scss";
 
 import { type RefObject, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 
+export interface BorderHoldSpring {
+    progress: number;
+    opacity: number;
+}
+
 export interface BorderHoldHandle {
     recalculateBorder(): void;
+    reactSpringApi: SpringRef<BorderHoldSpring>;
+    onStopHold(): void;
 }
 
-export interface BorderHoldCircularProps extends BaseBorderHoldProps {
+export interface BorderHoldRoundedProps extends BaseBorderHoldProps {
     ref?: RefObject<BorderHoldHandle | null>;
+    onPointerDown?: () => void;
 }
 
-export function BorderHoldRounded({ children, onHold, ref }: BorderHoldCircularProps) {
+export function BorderHoldRounded({ children, onHold, onPointerDown, ref }: BorderHoldRoundedProps) {
     const [wrapper, setWrapper] = useState<HTMLDivElement | null>(null);
     const borderRef = useRef<SVGPathElement>(null);
     const maskRef = useRef<SVGPathElement>(null);
@@ -38,10 +46,6 @@ export function BorderHoldRounded({ children, onHold, ref }: BorderHoldCircularP
             maskRef.current?.setAttribute("d", path);
         }
     }, [wrapper]);
-
-    useImperativeHandle(ref, () => ({
-        recalculateBorder: updateBorderLength,
-    }), [updateBorderLength]);
 
     useResizeObserver(wrapper, updateBorderLength);
 
@@ -97,6 +101,13 @@ export function BorderHoldRounded({ children, onHold, ref }: BorderHoldCircularP
         });
     }, [api]);
 
+    useImperativeHandle(ref, () => ({
+        recalculateBorder: updateBorderLength,
+        reactSpringApi: api,
+        onStopHold,
+    }), [api, onStopHold, updateBorderLength]);
+
+
     // mean(width, height) / 10
     const strokeWidth = (width + height) / 20;
 
@@ -108,7 +119,10 @@ export function BorderHoldRounded({ children, onHold, ref }: BorderHoldCircularP
                     width,
                     height,
                 }}
-                onPointerDown={() => onStartHold()}
+                onPointerDown={() => {
+                    onPointerDown?.();
+                    onStartHold();
+                }}
                 onContextMenu={(e) => {
                 // it's a pointer event, react is stupid https://developer.mozilla.org/en-US/docs/Web/API/Element/contextmenu_event#browser_compatibility
                     if ((e.nativeEvent as PointerEvent).pointerType !== "mouse") {
