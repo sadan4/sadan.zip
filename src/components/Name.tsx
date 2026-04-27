@@ -1,5 +1,5 @@
 import { imageTypewriter, makeTextComponentEraser, textComponentTypewriter, Typewriter, type TypewriterFrame, type TypewriterImage, type TypewriterRef, type TypewriterSource } from "@/components/effects/Typewriter";
-import { REPLACEMENT_CHARACTER } from "@/utils/constants";
+import { GNU_LINUX_COPYPASTA, REPLACEMENT_CHARACTER } from "@/utils/constants";
 import { randInt } from "@/utils/math";
 
 import { Text, type TextProps } from "./Text";
@@ -36,7 +36,10 @@ const possibleImages: TypewriterImage[] = [
 
 const possibleNameStrings = [
     "sadan",
+    "GNU/Sadan",
     "salad",
+    "GNU/Salad",
+    "satan",
     ":3",
     "hiiiii",
     "minecraft addict",
@@ -53,6 +56,8 @@ const possibleNameStrings = [
     ":blobcatcozy:",
     ":wires:",
     "Hop on Vencord",
+    "AGPL-3",
+    GNU_LINUX_COPYPASTA,
     textComponentTypewriter(75, REPLACEMENT_CHARACTER.repeat(9), nameTextProps),
 ];
 
@@ -141,6 +146,7 @@ export default function Name() {
                     // TODO: just a tad cursed
                     while ((idx = randInt(0, possibleNames.length)) === lastIndexRef.current)
                         ;
+                    lastIndexRef.current = idx;
 
                     typewriterRef.current?.sendWord(possibleNames[idx]);
                 }}
