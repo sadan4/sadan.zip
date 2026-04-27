@@ -1,5 +1,5 @@
 @layer components {
-    .rounded-border {
+    .border-progress {
         position: absolute;
         top: 0;
         left: 0;
@@ -16,10 +16,6 @@
             mask-type: luminance;
 
             > rect {
-            //     x: -100vw;
-            //     y: -100vh;
-            //     width: 200vw;
-            //     height: 200vh;
                 fill: white;
             }
 

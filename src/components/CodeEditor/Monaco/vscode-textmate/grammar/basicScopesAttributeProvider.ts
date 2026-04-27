@@ -58,7 +58,6 @@ export class BasicScopeAttributesProvider {
         if (!m) {
             return OptionalStandardTokenType.NotSet;
         }
-        // eslint-disable-next-line default-case
         switch (m[1]) {
             case "comment":
                 return OptionalStandardTokenType.Comment;
@@ -68,8 +67,9 @@ export class BasicScopeAttributesProvider {
                 return OptionalStandardTokenType.RegEx;
             case "meta.embedded":
                 return OptionalStandardTokenType.Other;
+            default:
+                throw new Error("Unexpected match for standard token type!");
         }
-        throw new Error("Unexpected match for standard token type!");
     }
 
     private static STANDARD_TOKEN_TYPE_REGEXP = /\b(comment|string|regex|meta\.embedded)\b/;

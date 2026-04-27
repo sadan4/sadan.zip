@@ -18,7 +18,6 @@ import {
     rectWidthCanBeContainedBy,
     removeMarginFromRect,
 } from "@/utils/dom/rect";
-import { unreachable } from "@/utils/error";
 import { measureFragmentRect } from "@/utils/react";
 import type { TOmit } from "@/utils/types";
 import { animated, type AnimatedProps, type SpringValue, to, useSpringValue, useTransition } from "@react-spring/web";
@@ -107,8 +106,6 @@ function makeArrowStyles(
                 translate: "-100% -50%",
             };
         }
-        default:
-            unreachable();
     }
 }
 
@@ -170,10 +167,6 @@ function makeTooltipPositionStyles({
                 "--pad": paddingLeft,
             };
         }
-
-        default: {
-            unreachable();
-        }
     }
 }
 
@@ -196,9 +189,6 @@ function getInitialPos(position: TooltipPosition, targetRect: DOMRectReadOnly) {
         case TooltipPosition.LEFT: {
             top += height / 2;
             break;
-        }
-        default: {
-            unreachable();
         }
     }
 
@@ -283,8 +273,6 @@ function makeAvoidBounds(rect: DOMRectReadOnly, position: TooltipPosition): Pick
                 bottom: Infinity,
             };
         }
-        default:
-            unreachable();
     }
 }
 

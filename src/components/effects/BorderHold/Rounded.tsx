@@ -1,13 +1,9 @@
-import { useRect } from "@/hooks/rect";
-import { useResizeObserver } from "@/hooks/resizeObserver";
-import { single } from "@/utils/array";
-import { makeBorderPath } from "@/utils/dom/path";
-import { animated, SpringRef, useSpring } from "@react-spring/web";
+import { SpringRef, useSpring } from "@react-spring/web";
 
 import { type BaseBorderHoldProps, borderHoldAnimConfig } from "./common";
-import styles from "./rounded.module.scss";
+import { BorderProgress } from "../BorderProgress";
 
-import { type Ref, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { type Ref, useCallback, useImperativeHandle, useRef } from "react";
 
 export interface BorderHoldSpring {
     progress: number;
@@ -23,34 +19,24 @@ export interface BorderHoldHandle {
 export interface BorderHoldRoundedProps extends BaseBorderHoldProps {
     ref?: Ref<BorderHoldHandle | null>;
     onPointerDown?: () => void;
+    /**
+     * higher number, thinner border.
+     * 
+     * min value: 1
+     *
+     * @default 10
+     */
+    widthCoefficient?: number;
 }
 
-export function BorderHoldRounded({ children, onHold, onPointerDown, ref }: BorderHoldRoundedProps) {
-    const [wrapper, setWrapper] = useState<HTMLDivElement | null>(null);
-    const borderRef = useRef<SVGPathElement>(null);
-    const maskRef = useRef<SVGPathElement>(null);
-    const [borderLen, setBorderLen] = useState(-1);
-
-    const { width, height } = useRect(wrapper) ?? {
-        width: 1,
-        height: 1,
-    };
-
-    const updateBorderLength = useCallback(() => {
-        if (wrapper) {
-            const child = single(wrapper.children);
-            const [length, path] = makeBorderPath(child);
-
-            setBorderLen(length);
-            borderRef.current?.setAttribute("d", path);
-            maskRef.current?.setAttribute("d", path);
-        }
-    }, [wrapper]);
-
-    useResizeObserver(wrapper, updateBorderLength);
-
-    useEffect(updateBorderLength, [updateBorderLength]);
-
+export function BorderHoldRounded({
+    children,
+    onHold,
+    onPointerDown,
+    ref,
+    widthCoefficient = 10,
+}: BorderHoldRoundedProps) {
+    const borderRef = useRef<BorderProgress.Handle | null>(null);
     const dispatchedRef = useRef(false);
 
     const [{ progress, opacity }, api] = useSpring(() => ({
@@ -102,65 +88,36 @@ export function BorderHoldRounded({ children, onHold, onPointerDown, ref }: Bord
     }, [api]);
 
     useImperativeHandle(ref, () => ({
-        recalculateBorder: updateBorderLength,
+        recalculateBorder() {
+            borderRef.current?.recalculateBorder();
+        },
         reactSpringApi: api,
         onStopHold,
-    }), [api, onStopHold, updateBorderLength]);
+    }), [api, onStopHold]);
 
-
-    // mean(width, height) / 10
-    const strokeWidth = (width + height) / 20;
 
     return (
-        <div>
-            <svg
-                className={styles.roundedBorder}
-                style={{
-                    width,
-                    height,
-                }}
-                onPointerDown={() => {
-                    onPointerDown?.();
-                    onStartHold();
-                }}
-                onContextMenu={(e) => {
+        <BorderProgress
+            ref={borderRef}
+            progress={progress}
+            onPointerDown={() => {
+                onPointerDown?.();
+                onStartHold();
+            }}
+            onContextMenu={(e) => {
                 // it's a pointer event, react is stupid https://developer.mozilla.org/en-US/docs/Web/API/Element/contextmenu_event#browser_compatibility
-                    if ((e.nativeEvent as PointerEvent).pointerType !== "mouse") {
-                        e.preventDefault();
-                    }
-                }}
-                onPointerUp={() => onStopHold()}
-                onPointerLeave={() => onStopHold()}
-            >
-                <animated.path
-                    ref={borderRef}
-                    style={{
-                        strokeWidth,
-                        strokeDasharray: progress.to((progress) => {
-                            const curLen = (borderLen * progress) / 100;
-
-                            return `${curLen} ${borderLen - curLen}`;
-                        }),
-                        opacity,
-                    }}
-                    mask="url(#m)"
-                />
-                <mask
-                    maskContentUnits="userSpaceOnUse"
-                    id="m"
-                >
-                    <rect
-                        x={-strokeWidth}
-                        y={-strokeWidth}
-                        width={width + (strokeWidth * 2)}
-                        height={height + (strokeWidth * 2)}
-                    />
-                    <path ref={maskRef} />
-                </mask>
-            </svg>
-            <div ref={setWrapper}>
-                {children}
-            </div>
-        </div>
+                if ((e.nativeEvent as PointerEvent).pointerType !== "mouse") {
+                    e.preventDefault();
+                }
+            }}
+            onPointerUp={() => onStopHold()}
+            onPointerLeave={() => onStopHold()}
+            pathStyle={{
+                opacity,
+            }}
+            widthCoefficient={widthCoefficient}
+        >
+            {children}
+        </BorderProgress>
     );
 }

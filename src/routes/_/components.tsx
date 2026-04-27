@@ -1,10 +1,13 @@
 import { Boilerplate } from "@/components/Boilerplate";
+import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
 import { Box } from "@/components/layout/Box";
 import { HorizontalLine } from "@/components/Lines/HorizontalLine";
 import { Select, type SelectOption } from "@/components/Select";
 import { Text } from "@/components/Text";
 import { LabeledTextArea, TextArea } from "@/components/TextArea";
+import { useToaster } from "@/hooks/toaster";
+import { ToastPosition, ToastType } from "@/stores/ToastStore";
 import { textSize, textWeight } from "@/utils/cn";
 import { createFileRoute } from "@tanstack/react-router";
 
@@ -109,6 +112,95 @@ function TextAreaExample() {
     );
 }
 
+function ToastExample() {
+    const api = useToaster();
+    const [type, setType] = useState(ToastType.UNKNOWN);
+    const [pos, setPos] = useState(ToastPosition.TOP);
+
+    return (
+        <>
+            <Text
+                size="xl"
+                center
+            >
+                Toasts
+            </Text>
+            <div className="flex justify-between gap-4">
+                <Select
+                    items={[
+                        {
+                            label: "Unknown",
+                            value: ToastType.UNKNOWN,
+                            typedValue: "unknown",
+                        },
+                        {
+                            label: "Info",
+                            value: ToastType.INFO,
+                            typedValue: "info",
+                        },
+                        {
+                            label: "Success",
+                            value: ToastType.SUCCESS,
+                            typedValue: "success",
+                        },
+                        {
+                            label: "Warning",
+                            value: ToastType.WARNING,
+                            typedValue: "warning",
+                        },
+                        {
+                            label: "Error",
+                            value: ToastType.ERROR,
+                            typedValue: "error",
+                        },
+                    ]}
+                    defaultValue={ToastType.UNKNOWN}
+                    onChange={setType}
+                />
+                <Select
+                    items={[
+                        {
+                            label: "Top",
+                            value: ToastPosition.TOP,
+                            typedValue: "top",
+                        },
+                        {
+                            label: "Bottom",
+                            value: ToastPosition.BOTTOM,
+                            typedValue: "bottom",
+                        },
+                    ]}
+                    defaultValue={ToastPosition.TOP}
+                    onChange={setPos}
+                />
+                <Button onClick={() => {
+                    const s = api.getState();
+
+                    s.pushToast({
+                        id: s.genId(),
+                        duration: 3000,
+                        type,
+                        pos,
+                        render: () => <div>Hello World!</div>,
+                    });
+                }}
+                >
+                    Push Toast
+                </Button>
+                <Button
+                    onClick={() => {
+                        api.getState().popToast();
+                    }}
+                    color="error"
+                    colorType="outline"
+                >
+                    Pop Toast
+                </Button>
+            </div>
+        </>
+    );
+}
+
 function Components() {
     return (
         <>
@@ -124,6 +216,8 @@ function Components() {
                     <TextExample />
                     <HorizontalLine className="my-4" />
                     <TextAreaExample />
+                    <HorizontalLine className="my-4" />
+                    <ToastExample />
                 </Box>
             </div>
         </>

@@ -1,4 +1,5 @@
 import { LayerContext } from "@/components/Layer/context";
+import { ToastContainer } from "@/components/Toast";
 import { NotFoundPage } from "@/routes/-404";
 import { installF8Break, uninstallF8Break } from "@/utils/devtools";
 import { assert } from "@/utils/error";
@@ -137,7 +138,9 @@ function RootComponent({ children }: { children: React.ReactNode; }) {
             <body id="root">
                 <QueryClientProvider client={queryClient}>
                     <LayerContext value={layerCtx}>
-                        {children}
+                        <ToastContainer>
+                            {children}
+                        </ToastContainer>
                     </LayerContext>
                     <TanStackDevtools
                         config={{

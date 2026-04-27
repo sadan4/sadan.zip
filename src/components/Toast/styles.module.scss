@@ -1,0 +1,62 @@
+@layer components {
+    .toaster-container {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+
+        > * {
+            pointer-events: initial;
+        }
+
+        > .toast-wrapper {
+            position: absolute;
+            transform: translateX(-50%);
+
+            &.pos-top,
+            &.pos-bottom {
+                left: 50%;
+            }
+
+            &.success {
+                --border-hold-color: var(--color-success-300);
+            }
+
+            &.warning {
+                --border-hold-color: var(--color-warning-300);
+            }
+
+            &.error {
+                --border-hold-color: var(--color-error-400);
+            }
+
+            .toast {
+                padding: .5rem;
+                border-radius: 1rem;
+                display: flex;
+                gap: .5rem;
+                align-items: center;
+
+                &.info,
+                &.unknown {
+                    background-color: var(--color-bg-200);
+                }
+
+                &.success {
+                    background-color: var(--color-success-900);
+                }
+
+                &.warning {
+                    background-color: color-mix(in oklab, var(--color-warning-400) 45%, var(--color-bg-100));
+                }
+
+                &.error {
+                    background-color: var(--color-error-950);
+                }
+            }
+        }
+    }
+
+}

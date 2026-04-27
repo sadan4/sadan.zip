@@ -2,7 +2,7 @@ import { ScrollArea } from "@/components/layout/ScrollArea";
 import { useDeepState } from "@/hooks/deepState";
 import { copy } from "@/utils/clipboard";
 import cn from "@/utils/cn";
-import { assert, unreachable } from "@/utils/error";
+import { assert } from "@/utils/error";
 import * as shiki from "@/utils/shiki";
 import { Language } from "@/utils/textmate";
 import { languageDisplayNames } from "@/utils/textmate/language";
@@ -134,9 +134,6 @@ function CodeblockInner({
             break;
         }
         case HorizontalOverflowMode.CLIP: break;
-        default: {
-            unreachable();
-        }
     }
 
     return (

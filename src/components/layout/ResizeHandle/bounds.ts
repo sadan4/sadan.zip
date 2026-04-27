@@ -1,4 +1,3 @@
-import { error } from "@/utils/error";
 import { clamp } from "@/utils/math";
 
 export const enum Direction {
@@ -41,9 +40,6 @@ export function getBounds(dir: Direction, boundingElement: HTMLElement | undefin
             max = bottom;
             size = height;
             break;
-        default: {
-            error("Invalid direction");
-        }
     }
 
     return {

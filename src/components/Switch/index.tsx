@@ -1,5 +1,5 @@
 import cn from "@/utils/cn";
-import { assert, error } from "@/utils/error";
+import { assert } from "@/utils/error";
 import { animated, useSpring } from "@react-spring/web";
 
 import styles from "./styles.module.scss";
@@ -22,9 +22,6 @@ function xFromSwitchState(state: SwitchState): number {
             return 18;
         case SwitchState.HELD:
             return 12;
-        default: {
-            error("unhandled state");
-        }
     }
 }
 
@@ -36,9 +33,6 @@ function rFromSwitchState(state: SwitchState) {
             return 8;
         case SwitchState.HELD:
             return 7;
-        default: {
-            error("unhandled state");
-        }
     }
 }
 

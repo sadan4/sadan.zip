@@ -1,5 +1,4 @@
 import { ellipseCircumference } from "@/utils/math";
-import { dedent } from "@/utils/string";
 
 import { parseCSSValue, PercentReference } from "./css";
 
@@ -24,28 +23,24 @@ export function makeBorderPath(element: Element): [length: number, path: string]
 
     function makePath(): string {
         if (isSquare) {
-            return dedent`
-                M ${width / 2} 0
-                H ${width}
-                V ${height}
-                H 0
-                V 0
-                Z
-            `;
+            return `M ${width / 2} 0`
+              + ` H ${width}`
+              + ` V ${height}`
+              + " H 0"
+              + " V 0"
+              + " Z";
         }
 
-        return dedent`
-            M ${width / 2} 0
-            H ${width - topRightA}
-            A ${topRightA} ${topRightB} 0 0 1 ${width} ${topRightB}
-            V ${height - bottomRightB}
-            A ${bottomRightA} ${bottomRightB} 0 0 1 ${width - bottomRightA} ${height}
-            H ${bottomLeftA}
-            A ${bottomLeftA} ${bottomLeftB} 0 0 1 0 ${height - bottomLeftB}
-            V ${topLeftB}
-            A ${topLeftA} ${topLeftB} 0 0 1 ${topLeftA} 0
-            Z
-        `;
+        return `M ${width / 2} 0`
+          + ` H ${width - topRightA}`
+          + ` A ${topRightA} ${topRightB} 0 0 1 ${width} ${topRightB}`
+          + ` V ${height - bottomRightB}`
+          + ` A ${bottomRightA} ${bottomRightB} 0 0 1 ${width - bottomRightA} ${height}`
+          + ` H ${bottomLeftA}`
+          + ` A ${bottomLeftA} ${bottomLeftB} 0 0 1 0 ${height - bottomLeftB}`
+          + ` V ${topLeftB}`
+          + ` A ${topLeftA} ${topLeftB} 0 0 1 ${topLeftA} 0`
+          + " Z";
     }
 
     /**
