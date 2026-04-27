@@ -12,7 +12,16 @@ import rootCss from "../index.css?url";
 
 import { use, useEffect, useState } from "react";
 
-const initWasmPromise: Promise<void> = import.meta.env.SSR ? Promise.resolve() : initWasm() as Promise<never>;
+const initWasmPromise: Promise<void> = import.meta.env.SSR
+    ? Promise.resolve()
+    : async function () {
+        try {
+            await initWasm();
+        } catch (err) {
+            console.error("Failed to init wasm");
+            console.error(err);
+        }
+    }() as Promise<never>;
 
 export const Route = createRootRoute({
     loader({ location: { publicHref } }) {
