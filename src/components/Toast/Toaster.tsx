@@ -7,12 +7,8 @@ import styles from "./styles.module.scss";
 import { BorderProgress } from "../effects/BorderProgress";
 
 import { CircleXIcon, InfoIcon, TriangleAlertIcon } from "lucide-react";
-import { type ReactNode, type RefObject, useCallback, useEffect, useLayoutEffect } from "react";
+import { type ReactNode, useCallback, useEffect, useLayoutEffect } from "react";
 import { useStore } from "zustand";
-
-export interface ToasterProps {
-    containerRef: RefObject<HTMLDivElement | null>;
-}
 
 const typeStyle = {
     [ToastType.UNKNOWN]: styles.unknown,
@@ -87,12 +83,8 @@ function pickTransitionProps<T extends Record<keyof ToastTransitionProps, any>>(
     }
 }
 
-export function Toaster({ containerRef }: ToasterProps) {
+export function Toaster() {
     const [cur, next] = useToastQueue();
-
-    containerRef;
-    next;
-
     const transitions = useTransition(cur, TOAST_TRANSITION_PROPS);
 
     return (

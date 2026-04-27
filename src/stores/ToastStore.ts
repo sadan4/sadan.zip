@@ -32,13 +32,10 @@ export interface IToastStore {
     _toasts: Toast[];
 }
 
+let id = 0;
+
 function genId(): number {
-    let id: number;
-
-    while (!(id = Math.random()))
-        ;
-
-    return id;
+    return ++id;
 }
 
 function createToastStore(): StoreApi<IToastStore> {

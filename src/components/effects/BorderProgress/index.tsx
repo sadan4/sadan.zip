@@ -8,7 +8,7 @@ import { animated, type SpringValue, to } from "@react-spring/web";
 
 import styles from "./styles.module.scss";
 
-import { type ComponentProps, type ComponentPropsWithoutRef, type Ref, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { type ComponentProps, type ComponentPropsWithoutRef, type Ref, useCallback, useEffect, useId, useImperativeHandle, useRef, useState } from "react";
 
 type AnimatedPath = typeof animated.path;
 
@@ -44,6 +44,7 @@ export function BorderProgress({
     const borderRef = useRef<SVGPathElement>(null);
     const maskRef = useRef<SVGPathElement>(null);
     const [borderLen, setBorderLen] = useState(-1);
+    const maskId = useId();
     const { width = 1, height = 1 } = useRect(wrapper) ?? {};
     // mean(width, height) / widthCoefficient
     const strokeWidth = (width + height) / (widthCoefficient * 2);
@@ -68,7 +69,7 @@ export function BorderProgress({
     }), [updateBorderLength]);
 
     return (
-        <div>
+        <div className="relative">
             <svg
                 {...props}
                 style={{
@@ -89,11 +90,11 @@ export function BorderProgress({
                         }),
                         ...pathStyle,
                     }}
-                    mask="url(#m)"
+                    mask={`url(#${maskId})`}
                 />
                 <mask
                     maskContentUnits="userSpaceOnUse"
-                    id="m"
+                    id={maskId}
                 >
                     <rect
                         x={-strokeWidth}

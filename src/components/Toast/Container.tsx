@@ -19,7 +19,7 @@ export function ToastContainer({ children }: ToastContainerProps) {
                 className="contents"
             >
                 {children}
-                <Toaster containerRef={ref} />
+                <Toaster />
             </div>
         </ToastContext>
     );
