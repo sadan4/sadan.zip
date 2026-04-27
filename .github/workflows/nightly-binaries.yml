@@ -4,6 +4,10 @@ on:
   push:
     branches:
       - web
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "crates/**"
 
 permissions:
   contents: write
