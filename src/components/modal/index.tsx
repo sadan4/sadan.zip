@@ -3,7 +3,7 @@ import cn from "@/utils/cn";
 import { visibleIf } from "@/utils/react";
 
 import { ModalContext } from "./context";
-import * as styles from "./styles.module.scss";
+import styles from "./styles.module.scss";
 import { Layer } from "../Layer";
 
 import { Activity, type ComponentPropsWithoutRef, type Ref, Suspense, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";

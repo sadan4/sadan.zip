@@ -1,4 +1,4 @@
-import * as styles from "./styles.module.scss";
+import styles from "./styles.module.scss";
 
 export const colors = {
     primary: styles.primary,

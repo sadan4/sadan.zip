@@ -1,8 +1,6 @@
 {
   "search.exclude": {
-    "**/routeTree.gen.ts": true,
-    "crates/webpack_ast_parser/src/tests/.modules/**": true,
-    "crates/webpack_chunk_parser/src/test_data/**": true,
+    "**/routeTree.gen.ts": true
   },
   "files.readonlyInclude": {
     "**/routeTree.gen.ts": true

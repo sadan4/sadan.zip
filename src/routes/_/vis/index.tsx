@@ -14,7 +14,7 @@ import { assert } from "@/utils/error";
 import { createFileRoute } from "@tanstack/react-router";
 
 import defaultJson from "./default.json?raw";
-import * as styles from "./styles.module.scss";
+import styles from "./styles.module.scss";
 
 import { AlertCircleIcon } from "lucide-react";
 import { Fragment, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";

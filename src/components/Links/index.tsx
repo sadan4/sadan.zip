@@ -4,7 +4,7 @@ import { discordUrl } from "@/utils/constants";
 import type { ComponentPropsWithRef } from "@react-spring/web";
 import { createLink } from "@tanstack/react-router";
 
-import * as styles from "./styles.module.scss";
+import styles from "./styles.module.scss";
 import { Clickable } from "../Clickable";
 import Discord from "../icons/Discord";
 import Github from "../icons/Github";

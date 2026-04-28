@@ -9,7 +9,7 @@ import { SourceFileContext } from "./PropViewer/context";
 import { astViewerStore, leftAstSidebarStateStore, rightAstSidebarStateStore, updateASTViewerCode } from "./data";
 import { NodeTree } from "./NodeTree";
 import { PropViewer } from "./PropViewer";
-import * as styles from "./styles.module.scss";
+import styles from "./styles.module.scss";
 import { Boilerplate } from "../Boilerplate";
 import { ResizableSidebar, Side, SidebarStateStoreProvider } from "../layout/ResizableSidebar";
 

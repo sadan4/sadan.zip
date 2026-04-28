@@ -1,7 +1,7 @@
 import { useControlledState } from "@/hooks/controlledState";
 import cn from "@/utils/cn";
 
-import * as styles from "./styles.module.scss";
+import styles from "./styles.module.scss";
 import { Clickable } from "../Clickable";
 import { Tooltip } from "../Tooltip";
 import type { TooltipPosition } from "../Tooltip/constants";

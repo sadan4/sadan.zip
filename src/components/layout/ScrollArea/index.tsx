@@ -2,7 +2,7 @@ import { useComposedRefs } from "@/hooks/composedRefs";
 import cn from "@/utils/cn";
 
 import { ScrollAreaContext } from "./context";
-import * as styles from "./styles.module.scss";
+import styles from "./styles.module.scss";
 import { ScrollAreaDirection, type ScrollAreaType } from "./types";
 
 import { type ComponentPropsWithRef, useMemo, useRef } from "react";

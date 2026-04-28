@@ -6,7 +6,7 @@ import { makeBorderPath } from "@/utils/dom/path";
 import type { TOmit } from "@/utils/types";
 import { animated, type SpringValue, to } from "@react-spring/web";
 
-import * as styles from "./styles.module.scss";
+import styles from "./styles.module.scss";
 
 import { type ComponentProps, type ComponentPropsWithoutRef, type Ref, useCallback, useEffect, useId, useImperativeHandle, useRef, useState } from "react";
 

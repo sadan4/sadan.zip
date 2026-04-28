@@ -11,7 +11,7 @@ import type { LineNumberColor } from "@/utils/textmate/themes";
 
 import { highlightCode } from "./_internal/highlightCode";
 import { HorizontalOverflowMode } from "./enums";
-import * as styles from "./styles.module.scss";
+import styles from "./styles.module.scss";
 import { IconButton } from "../Button";
 import { ScrollAreaDirection } from "../layout/ScrollArea/types";
 import { Text } from "../Text";

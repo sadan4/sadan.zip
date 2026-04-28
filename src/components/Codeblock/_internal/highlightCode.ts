@@ -3,7 +3,7 @@ import { Language } from "@/utils/textmate";
 import { TextmateTheme } from "@/utils/textmate/theme";
 import { truthy } from "@/utils/types";
 
-import * as styles from "../styles.module.scss";
+import styles from "../styles.module.scss";
 
 import type { HighlighterCore, ShikiTransformer } from "shiki/core";
 

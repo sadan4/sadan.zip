@@ -2,7 +2,7 @@
 // react hot reload would replace this with an exact copy, with a new identity, breaking the comparison
 
 import { CircleItemContext } from "./context";
-import * as styles from "./styles.module.scss";
+import styles from "./styles.module.scss";
 
 import { type PropsWithChildren, use } from "react";
 

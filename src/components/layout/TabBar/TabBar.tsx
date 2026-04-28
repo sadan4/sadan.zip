@@ -15,7 +15,7 @@ import { updateRef } from "@/utils/ref";
 import { animated } from "@react-spring/web";
 
 import { TabBarPosition } from "./enum";
-import * as styles from "./styles.module.scss";
+import styles from "./styles.module.scss";
 
 import { type ReactNode, type RefCallback, useCallback, useEffect, useRef, useState } from "react";
 

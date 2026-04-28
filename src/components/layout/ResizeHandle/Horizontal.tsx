@@ -4,7 +4,7 @@ import { assert } from "@/utils/error";
 
 import type { ResizeHandleProps } from ".";
 import { Direction, getBounds } from "./bounds";
-import * as styles from "./styles.module.scss";
+import styles from "./styles.module.scss";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 

@@ -23,7 +23,7 @@ import type { TOmit } from "@/utils/types";
 import { animated, type AnimatedProps, type SpringValue, to, useSpringValue, useTransition } from "@react-spring/web";
 
 import { TooltipPosition } from "./constants";
-import * as styles from "./styles.module.scss";
+import styles from "./styles.module.scss";
 import { LayerPortal } from "../Layer";
 import { LayerContext } from "../Layer/context";
 import { Box } from "../layout/Box";

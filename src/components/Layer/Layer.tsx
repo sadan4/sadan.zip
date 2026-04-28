@@ -1,5 +1,5 @@
 import { LayerContext } from "./context";
-import * as styles from "./styles.module.scss";
+import styles from "./styles.module.scss";
 
 import { type PropsWithChildren, use, useMemo, useState } from "react";
 import { createPortal } from "react-dom";

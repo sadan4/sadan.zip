@@ -4,7 +4,7 @@ import { error } from "@/utils/error";
 
 import { CircleItemContext } from "./context";
 import { DefaultPlacementCircleItem } from "./DefaultPlacementCircleItem";
-import * as styles from "./styles.module.scss";
+import styles from "./styles.module.scss";
 
 import { type ComponentProps, createContext, type PropsWithChildren, type ReactElement, type ReactNode, use, useEffect, useMemo, useState } from "react";
 

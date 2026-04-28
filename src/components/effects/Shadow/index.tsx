@@ -2,7 +2,7 @@ import { useRect } from "@/hooks/rect";
 import cn from "@/utils/cn";
 import toCSS from "@/utils/toCSS";
 
-import * as styles from "./style.module.scss";
+import styles from "./style.module.scss";
 
 import { type CSSProperties, type PropsWithChildren, useLayoutEffect, useState } from "react";
 
