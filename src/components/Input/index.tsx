@@ -6,7 +6,7 @@ import cn, { textColors, textSize, textWeight } from "@/utils/cn";
 import { error } from "@/utils/error";
 import type { TOmit } from "@/utils/types";
 
-import styles from "./styles.module.scss";
+import * as styles from "./styles.module.scss";
 import { Clickable } from "../Clickable";
 import { ErrorIcon } from "../icons/ErrorIcon";
 import { Text } from "../Text";

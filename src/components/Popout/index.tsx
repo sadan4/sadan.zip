@@ -4,7 +4,7 @@ import cn from "@/utils/cn";
 import { error } from "@/utils/error";
 
 import { Position } from "./enums";
-import styles from "./styles.module.scss";
+import * as styles from "./styles.module.scss";
 import { Clickable } from "../Clickable";
 
 import { createContext, type PropsWithChildren, use, useEffect, useMemo, useRef, useState } from "react";

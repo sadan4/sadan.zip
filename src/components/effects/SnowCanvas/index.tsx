@@ -1,7 +1,7 @@
 import { debounce } from "@/utils/functional";
 import { PI2 } from "@/utils/math";
 
-import styles from "./styles.module.scss";
+import * as styles from "./styles.module.scss";
 
 import { useEffect, useRef } from "react";
 

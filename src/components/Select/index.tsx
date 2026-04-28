@@ -5,7 +5,7 @@ import { assert } from "@/utils/error";
 import { prop } from "@/utils/functional";
 import { animated, useSpringValue } from "@react-spring/web";
 
-import styles from "./styles.module.scss";
+import * as styles from "./styles.module.scss";
 import { Clickable } from "../Clickable";
 import { ScrollArea } from "../layout/ScrollArea";
 import { ScrollAreaContext } from "../layout/ScrollArea/context";

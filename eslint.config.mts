@@ -2,6 +2,8 @@
 import eslintReact from "@eslint-react/eslint-plugin";
 import stylistic, { type RuleOptions } from "@stylistic/eslint-plugin";
 
+import requireCssAsNamespace from "./scripts/requireCssAsNamespace.ts";
+
 import { type Linter } from "eslint";
 import type { ESLintRules as IESLintRules } from "eslint/rules";
 import reactHooks from "eslint-plugin-react-hooks";
@@ -757,6 +759,14 @@ export default TSEslint.config({ ignores: ["dist", "crates", "src/**/*.stories.t
         tailwindcss,
         // eslint-react has a handful of plugins, add them all
         ...eslintReact.configs.all.plugins,
+        local: {
+            rules: {
+                "require-css-as-namespace": requireCssAsNamespace,
+            },
+            meta: {
+                name: "local",
+            },
+        },
     },
     settings: {
         "react-x": {
@@ -816,5 +826,6 @@ export default TSEslint.config({ ignores: ["dist", "crates", "src/**/*.stories.t
         // not yet working in the beta
         // "tailwindcss/no-custom-classname": ["error", tailwindCallees],
         "tailwindcss/no-unnecessary-arbitrary-value": ["error", tailwindCallees],
+        "local/require-css-as-namespace": "error",
     },
 }, storybook.configs["flat/recommended"]);

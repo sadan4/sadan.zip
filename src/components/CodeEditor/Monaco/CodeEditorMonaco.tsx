@@ -11,7 +11,7 @@ import { hasGrammar, Language } from "@/utils/textmate";
 import { ClientOnly } from "@tanstack/react-router";
 
 import { registry, wireTmGrammars } from "./grammars";
-import styles from "./styles.module.scss";
+import * as styles from "./styles.module.scss";
 import { DEFAULT_MONACO_THEME, type MonacoTheme, useMonacoTheme } from "./themes";
 import { type CodeEditorProps } from "../base";
 
