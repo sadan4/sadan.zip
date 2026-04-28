@@ -147,7 +147,7 @@ const config = defineConfig(async ({ command, isSsrBuild }) => {
                 },
                 optimization: {
                     inlineConst: {
-                        mode: "all",
+                        mode: "smart",
                         pass: 1,
                     },
                 },
