@@ -10,9 +10,43 @@ import { fileURLToPath } from "url";
 
 import { dirname, join } from "node:path";
 import { generate } from "rollup-plugin-generate";
-import { defineConfig, type UserConfig } from "vite";
+import { defineConfig, type Rollup, type UserConfig } from "vite";
 import devtoolsJSON from "vite-plugin-devtools-json";
 
+const groups: Rollup.CodeSplittingGroup[] = [
+    {
+        test: /node_modules\/(?:react|react-dom)/,
+        name: "c-react",
+    },
+    {
+        test: /node_modules\/typescript/,
+        name: "c-ts",
+    },
+    {
+        test: /node_modules\/zod/,
+        name: "c-zod",
+    },
+    {
+        test: /node_modules\/monaco-editor\/esm\/vs\/language\/typescript\/ts.worker.js/,
+        name: "c-monaco-ts-worker",
+    },
+    {
+        test: /node_modules\/monaco-editor/,
+        name: "c-monaco",
+    },
+    {
+        test: /node_modules\/lucide/,
+        name: "c-icons",
+    },
+    {
+        test: /node_modules\/zustand/,
+        name: "c-zustand",
+    },
+    {
+        test: /node_modules\/(?:@vencord-companion|acorn|ts-api-utils|@sadan4\/devtools-pretty-printer)/,
+        name: "c-dbp",
+    },
+];
 
 const config = defineConfig(async ({ command, isSsrBuild }) => {
     const isWindowsOnArm = process.platform === "win32" && process.arch === "arm64";
@@ -96,8 +130,16 @@ const config = defineConfig(async ({ command, isSsrBuild }) => {
             rolldownOptions: {
                 output: {
                     assetFileNames: "a/[hash:16].[ext]",
-                    chunkFileNames: "j/[hash:16].js",
+                    chunkFileNames(info) {
+                        if (groups.findIndex((g) => g.name === info.name) !== -1) {
+                            return "j/[name].[hash:16].js";
+                        }
+                        return "j/[hash:16].js";
+                    },
                     inlineDynamicImports: isSsrBuild || undefined,
+                    codeSplitting: {
+                        groups,
+                    },
                 },
                 experimental: {
                     lazyBarrel: true,
