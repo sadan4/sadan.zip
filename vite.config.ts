@@ -99,6 +99,9 @@ const config = defineConfig(async ({ command, isSsrBuild }) => {
                     chunkFileNames: "j/[hash:16].js",
                     inlineDynamicImports: isSsrBuild || undefined,
                 },
+                experimental: {
+                    lazyBarrel: true,
+                },
             },
             cssMinify: "lightningcss",
             sourcemap: true,
