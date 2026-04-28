@@ -3,7 +3,7 @@ import { type Toast as IToast, ToastPosition, ToastType } from "@/stores/ToastSt
 import { cn } from "@/utils/cn";
 import { animated, useSpringValue, useTransition } from "@react-spring/web";
 
-import styles from "./styles.module.scss";
+import * as styles from "./styles.module.scss";
 import { BorderProgress } from "../effects/BorderProgress";
 
 import { CircleXIcon, InfoIcon, TriangleAlertIcon } from "lucide-react";

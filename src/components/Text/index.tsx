@@ -1,6 +1,6 @@
 import cn, { type SizeProp, textSize, textWeight, type WeightProp } from "@/utils/cn";
 
-import styles from "./styles.module.scss";
+import * as styles from "./styles.module.scss";
 
 import { type ComponentProps, type PropsWithChildren } from "react";
 
