@@ -10,6 +10,7 @@ import { type AnyRouteMatch, createRootRoute, HeadContent, Scripts } from "@tans
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 
 import rootCss from "../index.css?url";
+import rootCssFontUrl from "../assets/comicsans.otf?url";
 
 import { use, useEffect, useState } from "react";
 
@@ -75,6 +76,12 @@ export const Route = createRootRoute({
         return {
             meta,
             links: [
+                // preload the font nested in the root css
+                {
+                    rel: "preload",
+                    as: "font",
+                    href: rootCssFontUrl,
+                },
                 {
                     rel: "stylesheet",
                     href: rootCss,
