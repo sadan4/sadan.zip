@@ -9,7 +9,7 @@ import { friends } from "@/utils/friends";
 
 import { FriendModalContext, NORMAL_MAIN_CIRCLE_DIAMETER } from "./other";
 import { FriendButton } from "./shared";
-import styles from "./styles.module.scss";
+import * as styles from "./styles.module.scss";
 
 import { ArrowLeftIcon, ArrowRightIcon, XIcon } from "lucide-react";
 import { use, useMemo, useState } from "react";

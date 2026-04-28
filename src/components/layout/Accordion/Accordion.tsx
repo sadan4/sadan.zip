@@ -6,7 +6,7 @@ import cn from "@/utils/cn";
 import { NOOP } from "@/utils/constants";
 import { animated, useSpring } from "@react-spring/web";
 
-import styles from "./styles.module.scss";
+import * as styles from "./styles.module.scss";
 import { AccordionAnimation, ArrowPosition, ClickableArea } from "./utils";
 
 import { createContext, type PropsWithChildren, type ReactNode, type Ref, use, useEffect, useImperativeHandle, useMemo, useState } from "react";

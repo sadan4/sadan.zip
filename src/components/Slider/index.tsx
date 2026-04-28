@@ -8,7 +8,7 @@ import { parseCSSValue, PercentReference } from "@/utils/dom/css";
 import { assert } from "@/utils/error";
 import { clamp } from "@/utils/math";
 
-import styles from "./styles.module.scss";
+import * as styles from "./styles.module.scss";
 import { HorizontalLine } from "../Lines";
 import { VerticalLine } from "../Lines/VerticalLine";
 

@@ -6,7 +6,7 @@ import { clamp } from "@/utils/math";
 
 import type { ResizeHandleProps } from ".";
 import { Direction, getBounds } from "./bounds";
-import styles from "./styles.module.scss";
+import * as styles from "./styles.module.scss";
 
 import { useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 

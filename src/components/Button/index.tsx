@@ -4,7 +4,7 @@ import type { Thenable } from "@/utils/types";
 import { TAssert } from "@vencord-companion/webpack-ast-parser/util";
 
 import { colors, colorTypes } from "./colors";
-import styles from "./styles.module.scss";
+import * as styles from "./styles.module.scss";
 import { Clickable, type ClickableTags } from "../Clickable";
 import { Text } from "../Text";
 import { Tooltip } from "../Tooltip";
