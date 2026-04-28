@@ -101,6 +101,7 @@ const config = defineConfig(async ({ command, isSsrBuild }) => {
                 },
                 experimental: {
                     lazyBarrel: true,
+                    nativeMagicString: true,
                 },
             },
             cssMinify: "lightningcss",

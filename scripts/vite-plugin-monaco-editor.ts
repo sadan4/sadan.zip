@@ -145,6 +145,9 @@ export function monacoEditor({ features, languages }: MonacoEditorOptions = {}):
         },
         load: {
             order: "pre",
+            filter: {
+                id: /bundle-monaco-editor$/,
+            },
             handler(id) {
                 if (id !== MONACO_VIRTUAL_MODULE_ID) {
                     return;
