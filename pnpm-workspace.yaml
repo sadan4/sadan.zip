@@ -17,5 +17,6 @@ patchedDependencies:
   '@tanstack/start-plugin-core': patches/@tanstack__start-plugin-core.patch
   eslint-plugin-react-x: patches/eslint-plugin-react-x.patch
   typescript: patches/typescript.patch
+  vite: patches/vite.patch
 
 verifyDepsBeforeRun: install
