@@ -115,6 +115,14 @@ export function PersonalButtonLink() {
     );
 }
 
+export function DownloadRamLink() {
+    return (
+        <Link to="/download-ram">
+            <Text tag="span">Download RAM</Text>
+        </Link>
+    );
+}
+
 export interface IconLinkProps extends ComponentProps<"svg"> {
 }
 
