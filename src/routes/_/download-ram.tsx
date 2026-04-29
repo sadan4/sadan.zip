@@ -12,7 +12,7 @@ export const Route = createFileRoute("/_/download-ram")({
 
 function RAMDownloaderPage() {
     return (
-        <div className="flex flex-col items-center justify-center min-h-[60vh] p-4">
+        <div className="flex min-h-[60vh] flex-col items-center justify-center p-4">
             <Boilerplate />
             <RAMDownloader />
         </div>

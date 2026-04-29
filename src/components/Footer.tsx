@@ -1,6 +1,6 @@
 import { Text } from "@/components/Text";
 
-import { DownloadRamLink, PersonalButtonLink, SourceLink, ThemeLink } from "./Links";
+import { PersonalButtonLink, SourceLink, ThemeLink } from "./Links";
 import { joinWithKey } from "../utils/array";
 
 import {
