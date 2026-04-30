@@ -57,11 +57,13 @@ if (import.meta.hot?.data) {
     (import.meta.hot.data.defaultItems ??= new Set()).add(DefaultPlacementCircleItem);
 }
 
-import.meta.hot?.accept(() => {
-    if (import.meta.hot) {
-        (import.meta.hot.data.defaultItems ??= new Set()).add(DefaultPlacementCircleItem);
-    }
-});
+if (import.meta.hot) {
+    import.meta.hot.accept(() => {
+        if (import.meta.hot) {
+            (import.meta.hot.data.defaultItems ??= new Set()).add(DefaultPlacementCircleItem);
+        }
+    });
+}
 
 function isDefaultPlacementCircleItem(component: ReactNode): boolean {
     if (import.meta.env.DEV) {
