@@ -38,3 +38,8 @@ export function ellipseCircumference(a: number, b: number): number {
 }
 
 export const PI2 = Math.PI * 2;
+
+
+export function polarToCartesian(r: number, theta: number): [x: number, y: number] {
+    return [Math.cos(theta) * r, Math.sin(theta) * r];
+}

@@ -1,6 +1,7 @@
 import { useRect } from "@/hooks/rect";
 import cn from "@/utils/cn";
 import { error } from "@/utils/error";
+import { polarToCartesian } from "@/utils/math";
 
 import { CircleItemContext } from "./context";
 import { DefaultPlacementCircleItem } from "./DefaultPlacementCircleItem";
@@ -120,6 +121,7 @@ export function CircleItems({
     const numItems = _numItems ?? children.length;
     const angleStep = (2 * Math.PI) / numItems;
     const { rect: { top = 0, left = 0, width = 0, height = 0 } = {} } = useCircleContextInternal();
+    const radius = diameter / 2;
 
     if (children.length === 0)
         return null;
@@ -132,8 +134,8 @@ export function CircleItems({
                 ...props.style,
                 width: diameter,
                 height: diameter,
-                top: top + ((height / 2) - (diameter / 2)),
-                left: left + ((width / 2) - (diameter / 2)),
+                top: top + ((height / 2) - radius),
+                left: left + ((width / 2) - radius),
             }}
         >
             {Array.from({ length: numItems }, (_, i) => {
@@ -144,14 +146,18 @@ export function CircleItems({
                 }
 
                 const angle = angleStep * (i + offset);
-                const x = (diameter / 2) + ((diameter / 2) * Math.cos(angle));
-                const y = (diameter / 2) + ((diameter / 2) * Math.sin(angle));
                 const lastAngle = angleStep * (i + (i ? offset - 1 : offset - children.length - 1));
-                const lastX = (diameter / 2) + ((diameter / 2) * Math.cos(lastAngle));
-                const lastY = (diameter / 2) + ((diameter / 2) * Math.sin(lastAngle));
                 const nextAngle = angleStep * (i + (i < numItems - 1 ? offset + 1 : offset - children.length + 1));
-                const nextX = (diameter / 2) + ((diameter / 2) * Math.cos(nextAngle));
-                const nextY = (diameter / 2) + ((diameter / 2) * Math.sin(nextAngle));
+                let [x, y] = polarToCartesian(radius, angle);
+                let [lastX, lastY] = polarToCartesian(radius, lastAngle);
+                let [nextX, nextY] = polarToCartesian(radius, nextAngle);
+
+                x += radius;
+                y += radius;
+                lastX += radius;
+                lastY += radius;
+                nextX += radius;
+                nextY += radius;
 
                 const nextItem = {
                     x: nextX,
