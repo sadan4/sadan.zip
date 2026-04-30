@@ -7,12 +7,12 @@
             pointer-events: auto;
         }
 
-        .default {
+        .default-item {
             position: absolute;
         }
 
         > *,
-        .default {
+        .default-item {
             translate: -50% -50%;
         }
     }

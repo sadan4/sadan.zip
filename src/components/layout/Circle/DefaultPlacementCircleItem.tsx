@@ -1,4 +1,4 @@
-// this has its own file for react hot reload, as it's found with an equality compare
+// this has its own file for react hot reload, as it's used with an strict equality comparison
 // react hot reload would replace this with an exact copy, with a new identity, breaking the comparison
 
 import { CircleItemContext } from "./context";
@@ -11,7 +11,7 @@ export function DefaultPlacementCircleItem({ children }: PropsWithChildren) {
 
     return (
         <div
-            className={styles.default}
+            className={styles.defaultItem}
             style={{
                 top,
                 left,
