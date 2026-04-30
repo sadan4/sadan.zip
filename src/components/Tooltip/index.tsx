@@ -526,7 +526,7 @@ export function Tooltip({
 
     const tooltipTransition = useTooltipAnim(shouldShow);
 
-    const show = () => {
+    function show() {
         clearTimeout(timeoutRef.current);
         if (!hoverShowDelay) {
             setShouldShow(true);
@@ -535,9 +535,9 @@ export function Tooltip({
                 setShouldShow(true);
             }, hoverShowDelay);
         }
-    };
+    }
 
-    const hide = () => {
+    function hide() {
         clearTimeout(timeoutRef.current);
         if (!lingerDelay) {
             setShouldShow(false);
@@ -546,7 +546,7 @@ export function Tooltip({
                 setShouldShow(false);
             }, lingerDelay);
         }
-    };
+    }
 
     return (
         <div

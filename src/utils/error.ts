@@ -118,7 +118,7 @@ export function todo(msg?: string) {
 }
 
 export function unavailableImport<T = never>(importName?: string): T {
-    const func = function () {};
+    function func() { }
 
     Object.defineProperty(func, "name", {
         configurable: true,

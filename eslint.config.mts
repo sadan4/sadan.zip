@@ -207,6 +207,7 @@ const ESLintRules: Partial<IESLintRules> = {
     "prefer-template": "error",
     "require-yield": "error",
     yoda: ["error", "never"],
+    "func-style": ["error", "declaration"],
 };
 
 const TSLintRules: Partial<ITSLintRules> = {

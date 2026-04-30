@@ -73,17 +73,17 @@ export function RAMDownloader() {
         return () => clearInterval(interval);
     }, [status, selectedRam]);
 
-    const handleStart = (val: number) => {
+    function handleStart(val: number) {
         setSelectedRam(val);
         setStatus("downloading");
         setProgress(0);
-    };
+    }
 
-    const handleReset = () => {
+    function handleReset() {
         setStatus("idle");
         setSelectedRam(null);
         setProgress(0);
-    };
+    }
 
     return (
         <Box className="mx-auto my-8 max-w-150 rounded-lg bg-bg-100 p-8 text-center shadow-lg">

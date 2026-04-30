@@ -41,16 +41,18 @@ export const enum ViewMode {
 }
 
 
-const getValueDefaults = (): Fields<ModuleViewerStore> => ({
-    buildHash: "" as TBundleHash,
-    _bundle: null,
-    _moduleModelMap: new Map(),
-    _parserMap: new Map(),
-    _idList: null,
-    selectedModule: null,
-    activePanel: ViewMode.CODE,
-    moduleSidebarOpen: true,
-});
+function getValueDefaults(): Fields<ModuleViewerStore> {
+    return {
+        buildHash: "" as TBundleHash,
+        _bundle: null,
+        _moduleModelMap: new Map(),
+        _parserMap: new Map(),
+        _idList: null,
+        selectedModule: null,
+        activePanel: ViewMode.CODE,
+        moduleSidebarOpen: true,
+    };
+}
 
 export const useModuleViewerStore = create<ModuleViewerStore>((set, get) => ({
     ...getValueDefaults(),

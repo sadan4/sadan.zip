@@ -41,9 +41,9 @@ export function useEventHandler<K extends keyof AllEventMaps, E extends HTMLElem
 
         const el = element === undefined ? window : element;
 
-        const wrappedHandler = function (this: E, ev: AllEventMaps[K]) {
+        function wrappedHandler(this: E, ev: AllEventMaps[K]) {
             return handlerRef.current.call(this, ev);
-        };
+        }
 
         el.addEventListener(type, wrappedHandler as EventListenerOrEventListenerObject, opts);
 
