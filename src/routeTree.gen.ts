@@ -13,6 +13,7 @@ import { Route as RouteImport } from "./routes/_";
 import { Route as AstViewerIndexRouteImport } from "./routes/ast-viewer/index";
 import { Route as IndexRouteImport } from "./routes/_/index";
 import { Route as MinkyRouteImport } from "./routes/_/minky";
+import { Route as LinksRouteImport } from "./routes/_/links";
 import { Route as DownloadRamRouteImport } from "./routes/_/download-ram";
 import { Route as DemanglerRouteImport } from "./routes/_/demangler";
 import { Route as ComponentsRouteImport } from "./routes/_/components";
@@ -40,6 +41,11 @@ const IndexRoute = IndexRouteImport.update({
 const MinkyRoute = MinkyRouteImport.update({
   id: "/minky",
   path: "/minky",
+  getParentRoute: () => Route,
+} as any);
+const LinksRoute = LinksRouteImport.update({
+  id: "/links",
+  path: "/links",
   getParentRoute: () => Route,
 } as any);
 const DownloadRamRoute = DownloadRamRouteImport.update({
@@ -94,6 +100,7 @@ export interface FileRoutesByFullPath {
   "/components": typeof ComponentsRoute;
   "/demangler": typeof DemanglerRoute;
   "/download-ram": typeof DownloadRamRoute;
+  "/links": typeof LinksRoute;
   "/minky": typeof MinkyRoute;
   "/ast-viewer/": typeof AstViewerIndexRoute;
   "/88x31/$lang": typeof R88x31LangRoute;
@@ -107,6 +114,7 @@ export interface FileRoutesByTo {
   "/components": typeof ComponentsRoute;
   "/demangler": typeof DemanglerRoute;
   "/download-ram": typeof DownloadRamRoute;
+  "/links": typeof LinksRoute;
   "/minky": typeof MinkyRoute;
   "/": typeof IndexRoute;
   "/ast-viewer": typeof AstViewerIndexRoute;
@@ -123,6 +131,7 @@ export interface FileRoutesById {
   "/_/components": typeof ComponentsRoute;
   "/_/demangler": typeof DemanglerRoute;
   "/_/download-ram": typeof DownloadRamRoute;
+  "/_/links": typeof LinksRoute;
   "/_/minky": typeof MinkyRoute;
   "/_/": typeof IndexRoute;
   "/ast-viewer/": typeof AstViewerIndexRoute;
@@ -140,6 +149,7 @@ export interface FileRouteTypes {
     | "/components"
     | "/demangler"
     | "/download-ram"
+    | "/links"
     | "/minky"
     | "/ast-viewer/"
     | "/88x31/$lang"
@@ -153,6 +163,7 @@ export interface FileRouteTypes {
     | "/components"
     | "/demangler"
     | "/download-ram"
+    | "/links"
     | "/minky"
     | "/"
     | "/ast-viewer"
@@ -168,6 +179,7 @@ export interface FileRouteTypes {
     | "/_/components"
     | "/_/demangler"
     | "/_/download-ram"
+    | "/_/links"
     | "/_/minky"
     | "/_/"
     | "/ast-viewer/"
@@ -213,6 +225,13 @@ declare module "@tanstack/react-router" {
       path: "/minky";
       fullPath: "/minky";
       preLoaderRoute: typeof MinkyRouteImport;
+      parentRoute: typeof Route;
+    };
+    "/_/links": {
+      id: "/_/links";
+      path: "/links";
+      fullPath: "/links";
+      preLoaderRoute: typeof LinksRouteImport;
       parentRoute: typeof Route;
     };
     "/_/download-ram": {
@@ -285,6 +304,7 @@ interface RouteChildren {
   ComponentsRoute: typeof ComponentsRoute;
   DemanglerRoute: typeof DemanglerRoute;
   DownloadRamRoute: typeof DownloadRamRoute;
+  LinksRoute: typeof LinksRoute;
   MinkyRoute: typeof MinkyRoute;
   IndexRoute: typeof IndexRoute;
   R88x31LangRoute: typeof R88x31LangRoute;
@@ -298,6 +318,7 @@ const RouteChildren: RouteChildren = {
   ComponentsRoute: ComponentsRoute,
   DemanglerRoute: DemanglerRoute,
   DownloadRamRoute: DownloadRamRoute,
+  LinksRoute: LinksRoute,
   MinkyRoute: MinkyRoute,
   IndexRoute: IndexRoute,
   R88x31LangRoute: R88x31LangRoute,
