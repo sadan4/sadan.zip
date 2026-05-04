@@ -1,12 +1,13 @@
-import { extensionForLanguage } from "./textmate/language";
-import { error, unavailableImport } from "./error";
-import { getLanguageDeps, Language } from "./textmate";
+import { error, unavailableImport } from "@/utils/error";
+import { extensionForLanguage, getLanguageDeps, Language } from "@/utils/textmate";
 
 import type * as Monaco from "monaco-editor";
+
 export {
     type Monaco,
 };
-export const monaco: typeof import("monaco-editor") = import.meta.env.SSR ? unavailableImport("monaco-editor") : await import("monaco-editor");
+
+export const monaco: typeof import("monaco-editor") = import.meta.env.SSR ? unavailableImport("monaco-editor") : await import("./generated/entry");
 
 /**
  * null == undefined

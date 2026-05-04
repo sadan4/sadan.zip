@@ -1,6 +1,6 @@
 use crate::{
 	Runnable,
-	gen_::{Target, client_grammars, monaco_themes, ts_api},
+	gen_::{Target, client_grammars, monaco_editor, monaco_themes, ts_api},
 	util::cmd::CommandExt,
 };
 use anyhow::{Context, Result, anyhow};
@@ -16,6 +16,7 @@ impl Command {}
 static CLIENT_GEN_CMDS: &[&Target] = &[
 	&Target::ClientGrammars(client_grammars::Command),
 	&Target::ClientMonacoThemes(monaco_themes::Command),
+	&Target::ClientMonacoEntry(monaco_editor::Command),
 	&Target::ClientTsApi(ts_api::Command),
 ];
 

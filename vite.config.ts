@@ -4,8 +4,6 @@ import { devtools } from "@tanstack/devtools-vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import viteReact, { reactCompilerPreset } from "@vitejs/plugin-react";
 
-import { monacoEditor } from "./scripts/vite-plugin-monaco-editor";
-
 import { fileURLToPath } from "url";
 
 import { dirname, join } from "node:path";
@@ -57,9 +55,6 @@ const config = defineConfig(async ({ command, isSsrBuild }) => {
     return {
         plugins: [
             devtoolsJSON(),
-            monacoEditor({
-                languages: ["typescript", "javascript"],
-            }),
             devtools({
                 consolePiping: {
                     enabled: true,
@@ -170,6 +165,11 @@ const config = defineConfig(async ({ command, isSsrBuild }) => {
             watch: {
                 ignored: ["**/target", "**/builds", "**/dist", "**/.direnv"],
             },
+        },
+        devtools: {
+            // https://github.com/rolldown/rolldown/issues/5896
+            // https://github.com/rolldown/rolldown/pull/9219
+            enabled: true,
         },
         optimizeDeps: {
         },

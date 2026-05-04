@@ -10,6 +10,7 @@ mod monaco_themes;
 mod types;
 mod ts_api;
 mod client;
+mod monaco_editor;
 
 #[derive(Args)]
 pub struct Command {
@@ -26,6 +27,7 @@ impl Runnable for Command {
 			Target::Types(c) => c.run(),
 			Target::ClientGrammars(c) => c.run(),
 			Target::ClientMonacoThemes(c) => c.run(),
+			Target::ClientMonacoEntry(c) => c.run(),
 			Target::ClientTsApi(c) => c.run(),
 			Target::Client(c) => c.run(),
 		}
@@ -42,8 +44,10 @@ enum Target {
 	Types(types::Command),
 	/// Generate client grammars for syntax highlighting in the browser
 	ClientGrammars(client_grammars::Command),
-	// generate and convert vscode themes to monaco themes for monaco-editor
+	/// generate and convert vscode themes to monaco themes for monaco-editor
 	ClientMonacoThemes(monaco_themes::Command),
+	/// Generate the entry point for monaco-editor in the client
+	ClientMonacoEntry(monaco_editor::Command),
 	/// Generate the keys of node types that are publicly visible in the ts API
 	ClientTsApi(ts_api::Command),
 	/// Generate all code needed for the client
