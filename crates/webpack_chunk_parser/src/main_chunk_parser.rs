@@ -33,7 +33,7 @@ use oxc::{
 	span::SourceType,
 };
 use regex::Regex;
-use smol_str::SmolStr;
+use smol_str::{SmolStr, SmolStrBuilder, ToSmolStr};
 use std::sync::LazyLock;
 
 // FIXME: add basic caching with OnceCell
@@ -55,7 +55,39 @@ static BUILD_NUMBER_REGEX: LazyLock<Regex> = LazyLock::new(|| {
 
 fn as_valid_module_id<'ast>(expr: &'ast Expression<'ast>) -> Option<ModuleId> {
 	match expr {
-		Expression::NumericLiteral(n) => n.as_u32().map(Into::into),
+		Expression::NumericLiteral(n) => n.as_u32().map(ModuleId),
+		Expression::StringLiteral(s) => s.value.parse().ok().map(ModuleId),
+		_ => None,
+	}
+}
+
+fn handle_chunk_cond_rhs(
+	module_id: &str,
+	rhs: &Expression,
+) -> Option<JsHashEntry> {
+	match rhs {
+		Expression::BinaryExpression(cur) => {
+			let cur = cur.as_ref();
+			let chunk_hash_with_ext = &*cur.right.as_string_literal()?.value;
+			let chunk_hash = chunk_hash_with_ext
+				.strip_suffix(".js")
+				.unwrap_or(chunk_hash_with_ext);
+			let mut sb = SmolStrBuilder::new();
+			sb.push_str(module_id);
+			sb.push_str(chunk_hash);
+			Some(JsHashEntry {
+				chunk_id: module_id.to_smolstr(),
+				hash: sb.finish(),
+			})
+		}
+		Expression::StringLiteral(cur) => {
+			let cur = &*cur.as_ref().value;
+			let chunk_hash = cur.strip_suffix(".js").unwrap_or(cur);
+			Some(JsHashEntry {
+				chunk_id: module_id.to_smolstr(),
+				hash: chunk_hash.to_smolstr(),
+			})
+		}
 		_ => None,
 	}
 }
@@ -198,6 +230,31 @@ impl<'ast> WebpackMainChunkParser<'ast> {
 		Some(ret)
 	}
 
+	fn process_wreq_u_map_expr(
+		&self,
+		expr: &'ast Expression<'ast>,
+	) -> Option<Vec<JsHashEntry>> {
+		let expr = expr.as_binary_expression()?;
+		if expr.operator != BinaryOperator::Addition {
+			return None;
+		}
+		let concat_with_hash_map = expr.left.as_binary_expression()?;
+		if concat_with_hash_map.operator != BinaryOperator::Addition {
+			return None;
+		}
+		let hash_map = concat_with_hash_map
+			.right
+			.as_computed_member()?
+			.object
+			.get_inner_expression()
+			.as_object_expression()?;
+		let mut ret = Vec::with_capacity(hash_map.properties.len());
+		for prop in &hash_map.properties {
+			ret.push(Self::parse_js_hash_map_entry(prop.as_property()?)?);
+		}
+		Some(ret)
+	}
+
 	pub fn get_js_chunk_hashes(&self) -> Option<Vec<JsHashEntry>> {
 		let wreq = self.get_webpack_require()?;
 		let uses = self
@@ -232,26 +289,32 @@ impl<'ast> WebpackMainChunkParser<'ast> {
 			return None;
 		};
 		// expect body to be BinExp>[BinExp>["" + {id:hash}[id]] + ".js"]
-		let expr = u_func
-			.get_expression()?
-			.as_binary_expression()?;
-		if expr.operator != BinaryOperator::Addition {
-			return None;
+		let mut cur = u_func.get_expression()?;
+		let mut ret = Vec::new();
+		while let Some(expr) = cur.as_conditional_expression() {
+			let cond = expr
+				.test
+				.get_inner_expression()
+				.as_binary_expression()?;
+			if cond.operator != BinaryOperator::StrictEquality {
+				return None;
+			}
+			let chunk_id = cond
+				.left
+				.as_string_literal()
+				.map(|s| &*s.value)
+				.or_else(|| {
+					cond.right
+						.as_string_literal()
+						.map(|s| &*s.value)
+				})?;
+			let rhs = &expr.consequent;
+			let entry = handle_chunk_cond_rhs(chunk_id, rhs)?;
+			ret.push(entry);
+			cur = &expr.alternate;
 		}
-		let concat_with_hash_map = expr.left.as_binary_expression()?;
-		if concat_with_hash_map.operator != BinaryOperator::Addition {
-			return None;
-		}
-		let hash_map = concat_with_hash_map
-			.right
-			.as_computed_member()?
-			.object
-			.get_inner_expression()
-			.as_object_expression()?;
-		let mut ret = Vec::with_capacity(hash_map.properties.len());
-		for prop in &hash_map.properties {
-			ret.push(Self::parse_js_hash_map_entry(prop.as_property()?)?);
-		}
+		let from_map_expr = self.process_wreq_u_map_expr(cur)?;
+		ret.extend(from_map_expr);
 		Some(ret)
 	}
 
@@ -477,6 +540,42 @@ mod tests {
 			assert_eq!(
 				build_number.as_deref(),
 				Some("533645"),
+				"build number mismatch"
+			);
+		};
+		{
+			let mut hashes = parser.get_js_chunk_hashes().unwrap();
+			hashes.sort_by(|a, b| a.chunk_id.cmp(&b.chunk_id));
+			assert_ron_snapshot!(hashes);
+		};
+		{
+			let modules = parser
+				.get_defined_modules()
+				.unwrap()
+				.into_keys()
+				.sorted()
+				.collect_vec();
+			assert_ron_snapshot!(modules);
+		};
+	}
+
+	#[test]
+	fn format_4() {
+		let alloc = Allocator::new();
+		let parser = parse!(alloc, "test_data/fullWeb4.js");
+		{
+			let entrypoint = parser.get_entrypoint_id();
+			assert_eq!(
+				entrypoint,
+				None, // TODO: UPDATE
+				"entrypoint mismatch"
+			);
+		};
+		{
+			let build_number = parser.get_build_number();
+			assert_eq!(
+				build_number.as_deref(),
+				None, // TODO: UPDATE
 				"build number mismatch"
 			);
 		};

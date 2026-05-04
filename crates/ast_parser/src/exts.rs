@@ -17,6 +17,7 @@ use oxc::{
 			BindingPattern,
 			CallExpression,
 			ComputedMemberExpression,
+			ConditionalExpression,
 			Expression,
 			ExpressionStatement,
 			Function,
@@ -633,6 +634,24 @@ pub trait ExpressionExt<'ast> {
 	fn as_string_literal(&self) -> Option<&StringLiteral<'ast>> {
 		match self.as_expr_()? {
 			Expression::StringLiteral(s) => Some(s),
+			_ => None,
+		}
+	}
+
+	fn as_conditional_expression(
+		&self,
+	) -> Option<&ConditionalExpression<'ast>> {
+		match self.as_expr_()? {
+			Expression::ConditionalExpression(c) => Some(c.as_ref()),
+			_ => None,
+		}
+	}
+
+	fn as_conditional_expression_mut(
+		&mut self,
+	) -> Option<&mut ConditionalExpression<'ast>> {
+		match self.as_expr_mut_()? {
+			Expression::ConditionalExpression(c) => Some(c.as_mut()),
 			_ => None,
 		}
 	}
