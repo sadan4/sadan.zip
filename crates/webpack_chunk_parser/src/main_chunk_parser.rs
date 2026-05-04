@@ -80,6 +80,7 @@ fn handle_chunk_cond_rhs(
 				hash: sb.finish(),
 			})
 		}
+		// if the module id is small enough, it might be inlined instead of concatenated
 		Expression::StringLiteral(cur) => {
 			let cur = &*cur.as_ref().value;
 			let chunk_hash = cur.strip_suffix(".js").unwrap_or(cur);
