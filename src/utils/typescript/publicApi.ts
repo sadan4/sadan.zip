@@ -1,4 +1,4 @@
-import { publicNodeProperties } from "./publicApi.gen&gen";
+import { publicNodeProperties } from "./generated/publicApi";
 import { type TS, ts } from ".";
 import { error } from "../error";
 

@@ -1,6 +1,7 @@
-import { css, html, js, json, jsx, type LazyLang, ts, tsx } from "./_grammars.gen&gen";
-import { Language } from ".";
-import { error } from "../error";
+import { error } from "@/utils/error";
+import { Language } from "@/utils/textmate/language";
+
+import { css, html, js, json, jsx, type LazyLang, ts, tsx } from "./generated";
 
 export function lazyLoadGrammar(language: Language): Promise<LazyLang> {
     switch (language) {

@@ -3,7 +3,7 @@ use anyhow::{Context, Result};
 use clap::Args;
 use tracing::{info, instrument, warn};
 
-#[derive(Args)]
+#[derive(Args, Clone, Debug)]
 pub struct Command;
 
 impl Command {

@@ -1,16 +1,11 @@
 import { type StandardTextProps, Text } from "@/components/Text";
 import cn from "@/utils/cn";
-import { discordUrl, nameMCUrl } from "@/utils/constants";
 import type { ComponentPropsWithRef } from "@react-spring/web";
 import { createLink } from "@tanstack/react-router";
 
 import * as styles from "./styles.module.scss";
 import { Clickable } from "../Clickable";
-import Discord from "../icons/Discord";
-import Github from "../icons/Github";
 import { LinkIcon } from "../icons/Link";
-import NameMC from "../icons/NameMC";
-import SaveTheWorld from "../icons/SaveTheWorld";
 
 import type { ComponentProps, PropsWithChildren } from "react";
 

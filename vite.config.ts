@@ -9,7 +9,6 @@ import { monacoEditor } from "./scripts/vite-plugin-monaco-editor";
 import { fileURLToPath } from "url";
 
 import { dirname, join } from "node:path";
-import { generate } from "rollup-plugin-generate";
 import { defineConfig, type Rollup, type UserConfig } from "vite";
 import devtoolsJSON from "vite-plugin-devtools-json";
 
@@ -77,13 +76,6 @@ const config = defineConfig(async ({ command, isSsrBuild }) => {
                 prerender: {
                     enabled: true,
                     failOnError: false,
-                },
-            }),
-            generate({
-                emitDts: true,
-                cache: {
-                    build: "filesystem",
-                    watch: "filesystem",
                 },
             }),
             viteReact(),
@@ -174,7 +166,12 @@ const config = defineConfig(async ({ command, isSsrBuild }) => {
             },
             devSourcemap: true,
         },
-        experimental: {
+        server: {
+            watch: {
+                ignored: ["**/target", "**/builds", "**/dist", "**/.direnv"],
+            },
+        },
+        optimizeDeps: {
         },
     } satisfies UserConfig;
 });

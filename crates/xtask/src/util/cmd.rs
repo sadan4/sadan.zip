@@ -14,6 +14,9 @@ pub trait CommandExt {
 	fn npx(program: &str) -> Result<Self>
 	where
 		Self: Sized;
+	fn tsx(script_file: impl AsRef<OsStr>) -> Self
+	where
+		Self: Sized;
 	fn cargo(sub_cmd: &str) -> Result<Self>
 	where
 		Self: Sized;
@@ -34,6 +37,7 @@ impl CommandExt for process::Command {
 		}
 		Ok(())
 	}
+
 	#[instrument]
 	fn npx(program: &str) -> Result<Self> {
 		fn npx_(
@@ -65,6 +69,14 @@ impl CommandExt for process::Command {
 		}
 		npx_(program, &node_modules)
 			.with_context(|| format!("failed to resolve program {program}"))
+	}
+
+	#[instrument(skip(script_file), fields(script_file = ?script_file.as_ref()))]
+	fn tsx(script_file: impl AsRef<OsStr>) -> Self {
+		let mut ret = Self::new("bun");
+		ret.arg("run");
+		ret.arg(script_file);
+		ret
 	}
 
 	#[instrument]

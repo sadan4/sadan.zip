@@ -8,7 +8,7 @@ use syntect::{
 };
 use tracing::info;
 
-#[derive(Args)]
+#[derive(Args, Clone, Debug)]
 pub struct Command;
 
 impl Command {}

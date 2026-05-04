@@ -1,4 +1,4 @@
-import { languagesWithGrammars } from "./_grammars.gen&gen";
+import { languagesWithGrammars } from "./grammars/generated";
 import type { Language } from "./language";
 
 export function hasGrammar(language: string | Language): language is Language {

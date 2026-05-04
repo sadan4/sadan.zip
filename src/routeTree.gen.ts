@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from "./routes/__root";
 import { Route as RouteImport } from "./routes/_";
 import { Route as AstViewerIndexRouteImport } from "./routes/ast-viewer/index";
 import { Route as IndexRouteImport } from "./routes/_/index";
+import { Route as Char123TabChar125RouteImport } from "./routes/_/{-$tab}";
 import { Route as MinkyRouteImport } from "./routes/_/minky";
 import { Route as DownloadRamRouteImport } from "./routes/_/download-ram";
 import { Route as DemanglerRouteImport } from "./routes/_/demangler";
@@ -35,6 +36,11 @@ const AstViewerIndexRoute = AstViewerIndexRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: "/",
   path: "/",
+  getParentRoute: () => Route,
+} as any);
+const Char123TabChar125Route = Char123TabChar125RouteImport.update({
+  id: "/{-$tab}",
+  path: "/{-$tab}",
   getParentRoute: () => Route,
 } as any);
 const MinkyRoute = MinkyRouteImport.update({
@@ -95,6 +101,7 @@ export interface FileRoutesByFullPath {
   "/demangler": typeof DemanglerRoute;
   "/download-ram": typeof DownloadRamRoute;
   "/minky": typeof MinkyRoute;
+  "/{-$tab}": typeof Char123TabChar125Route;
   "/ast-viewer/": typeof AstViewerIndexRoute;
   "/88x31/$lang": typeof R88x31LangRoute;
   "/88x31/": typeof R88x31IndexRoute;
@@ -108,6 +115,7 @@ export interface FileRoutesByTo {
   "/demangler": typeof DemanglerRoute;
   "/download-ram": typeof DownloadRamRoute;
   "/minky": typeof MinkyRoute;
+  "/{-$tab}": typeof Char123TabChar125Route;
   "/": typeof IndexRoute;
   "/ast-viewer": typeof AstViewerIndexRoute;
   "/88x31/$lang": typeof R88x31LangRoute;
@@ -124,6 +132,7 @@ export interface FileRoutesById {
   "/_/demangler": typeof DemanglerRoute;
   "/_/download-ram": typeof DownloadRamRoute;
   "/_/minky": typeof MinkyRoute;
+  "/_/{-$tab}": typeof Char123TabChar125Route;
   "/_/": typeof IndexRoute;
   "/ast-viewer/": typeof AstViewerIndexRoute;
   "/_/88x31/$lang": typeof R88x31LangRoute;
@@ -141,6 +150,7 @@ export interface FileRouteTypes {
     | "/demangler"
     | "/download-ram"
     | "/minky"
+    | "/{-$tab}"
     | "/ast-viewer/"
     | "/88x31/$lang"
     | "/88x31/"
@@ -154,6 +164,7 @@ export interface FileRouteTypes {
     | "/demangler"
     | "/download-ram"
     | "/minky"
+    | "/{-$tab}"
     | "/"
     | "/ast-viewer"
     | "/88x31/$lang"
@@ -169,6 +180,7 @@ export interface FileRouteTypes {
     | "/_/demangler"
     | "/_/download-ram"
     | "/_/minky"
+    | "/_/{-$tab}"
     | "/_/"
     | "/ast-viewer/"
     | "/_/88x31/$lang"
@@ -206,6 +218,13 @@ declare module "@tanstack/react-router" {
       path: "/";
       fullPath: "/";
       preLoaderRoute: typeof IndexRouteImport;
+      parentRoute: typeof Route;
+    };
+    "/_/{-$tab}": {
+      id: "/_/{-$tab}";
+      path: "/{-$tab}";
+      fullPath: "/{-$tab}";
+      preLoaderRoute: typeof Char123TabChar125RouteImport;
       parentRoute: typeof Route;
     };
     "/_/minky": {
@@ -286,6 +305,7 @@ interface RouteChildren {
   DemanglerRoute: typeof DemanglerRoute;
   DownloadRamRoute: typeof DownloadRamRoute;
   MinkyRoute: typeof MinkyRoute;
+  Char123TabChar125Route: typeof Char123TabChar125Route;
   IndexRoute: typeof IndexRoute;
   R88x31LangRoute: typeof R88x31LangRoute;
   R88x31IndexRoute: typeof R88x31IndexRoute;
@@ -299,6 +319,7 @@ const RouteChildren: RouteChildren = {
   DemanglerRoute: DemanglerRoute,
   DownloadRamRoute: DownloadRamRoute,
   MinkyRoute: MinkyRoute,
+  Char123TabChar125Route: Char123TabChar125Route,
   IndexRoute: IndexRoute,
   R88x31LangRoute: R88x31LangRoute,
   R88x31IndexRoute: R88x31IndexRoute,

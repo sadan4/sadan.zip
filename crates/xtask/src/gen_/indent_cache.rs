@@ -4,7 +4,7 @@ use clap::Args;
 use std::{fmt::Write as _, fs, path, process};
 use tracing::{info, warn};
 
-#[derive(Args)]
+#[derive(Args, Clone, Debug)]
 pub struct Command;
 
 impl Command {}

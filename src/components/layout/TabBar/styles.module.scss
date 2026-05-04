@@ -31,7 +31,7 @@
             }
 
             >.marker {
-                transition-property: right, left;
+                transition-property: left, right;
                 transition-duration: 500ms;
                 position-anchor: $anchor-name;
                 pointer-events: none;

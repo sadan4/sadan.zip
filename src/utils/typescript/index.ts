@@ -1,4 +1,4 @@
-import { markerMap } from "./publicApi.gen&gen";
+import { markerMap } from "./generated/markerMap";
 import { error, unavailableImport } from "../error";
 import { Language } from "../textmate";
 

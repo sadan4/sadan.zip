@@ -3,7 +3,7 @@ import { type Monaco, monaco } from "@/utils/monaco";
 import { filterObject } from "@/utils/obj";
 import { TextmateTheme } from "@/utils/textmate/theme";
 
-import { loaderMap } from "./_themes.gen&gen";
+import { loaderMap } from "./generated";
 
 import { use } from "react";
 
