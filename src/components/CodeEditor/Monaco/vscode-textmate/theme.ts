@@ -422,7 +422,7 @@ export function fontStyleToString(fontStyle: OrMask<FontStyle>) {
 }
 
 
-const emptyParentScopes = Object.freeze(<ScopeName[]>[]);
+const emptyParentScopes = Object.freeze(([] as ScopeName[]));
 
 export class ThemeTrieElementRule {
     scopeDepth: number;

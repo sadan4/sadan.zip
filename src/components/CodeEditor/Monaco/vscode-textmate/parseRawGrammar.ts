@@ -16,14 +16,14 @@ export function parseRawGrammar(content: string, filePath: string | null = null)
 
 function parseJSONGrammar(contents: string, filename: string | null): IRawGrammar {
     if (DebugFlags.InDebugMode) {
-        return <IRawGrammar>parseJSON(contents, filename, true);
+        return parseJSON(contents, filename, true) as IRawGrammar;
     }
-    return <IRawGrammar>JSON.parse(contents);
+    return JSON.parse(contents) as IRawGrammar;
 }
 
 function parsePLISTGrammar(contents: string, filename: string | null): IRawGrammar {
     if (DebugFlags.InDebugMode) {
-        return <IRawGrammar>plist.parseWithLocation(contents, filename, "$vscodeTextmateLocation");
+        return plist.parseWithLocation(contents, filename, "$vscodeTextmateLocation") as IRawGrammar;
     }
-    return <IRawGrammar>plist.parsePLIST(contents);
+    return plist.parsePLIST(contents) as IRawGrammar;
 }

@@ -428,7 +428,7 @@ export class Grammar implements IGrammar, IRuleFactoryHelper, IOnigLib {
 function initGrammar(grammar: IRawGrammar, base: IRawRule | null | undefined): IRawGrammar {
     grammar = clone(grammar);
 
-    grammar.repository = grammar.repository || <any>{};
+    grammar.repository = grammar.repository || {} as any;
     grammar.repository.$self = {
         $vscodeTextmateLocation: grammar.$vscodeTextmateLocation,
         patterns: grammar.patterns,

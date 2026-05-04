@@ -58,6 +58,7 @@
     "eslint.config.mts",
     "stylelint.config.ts",
     "vite.config.ts",
+    "rsbuild.config.ts",
     "scripts"
   ],
   "exclude": [

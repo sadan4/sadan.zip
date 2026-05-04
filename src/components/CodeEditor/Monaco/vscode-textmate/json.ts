@@ -85,7 +85,7 @@ export function parseJSON(source: string, filename: string | null, withMetadata:
             if (token.type === JSONTokenType.STRING) {
                 const keyValue = token.value!;
 
-                if (!nextJSONToken(streamState, token) || (/* TS bug*/<any>token.type) !== JSONTokenType.COLON) {
+                if (!nextJSONToken(streamState, token) || (/* TS bug*/token.type as any) !== JSONTokenType.COLON) {
                     fail("expected colon");
                 }
                 if (!nextJSONToken(streamState, token)) {
@@ -392,7 +392,7 @@ function nextJSONToken(_state: JSONStreamState, _out: JSONToken): boolean {
         }
 
         _out.value = source.substring(_out.offset + 1, pos - 1).replace(/\\u([0-9A-Fa-f]{4})/g, (_, m0) => {
-            return (<any>String).fromCodePoint(parseInt(m0, 16));
+            return (String as any).fromCodePoint(parseInt(m0, 16));
         })
             .replace(/\\(.)/g, (_, m0) => {
                 switch (m0) {

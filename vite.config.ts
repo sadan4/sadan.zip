@@ -7,6 +7,7 @@ import viteReact, { reactCompilerPreset } from "@vitejs/plugin-react";
 import { fileURLToPath } from "url";
 
 import { dirname, join } from "node:path";
+import { inspect } from "node:util";
 import { defineConfig, type Rollup, type UserConfig } from "vite";
 import devtoolsJSON from "vite-plugin-devtools-json";
 
@@ -44,6 +45,16 @@ const groups: Rollup.CodeSplittingGroup[] = [
         name: "c-dbp",
     },
 ];
+
+const a = reactCompilerPreset();
+
+console.log(inspect(a, {
+    colors: true,
+    depth: null,
+}));
+
+console.log(a.preset.toString());
+console.log(a.rolldown.applyToEnvironmentHook?.toString());
 
 const config = defineConfig(async ({ command, isSsrBuild }) => {
     const isWindowsOnArm = process.platform === "win32" && process.arch === "arm64";

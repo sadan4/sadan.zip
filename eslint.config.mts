@@ -244,6 +244,14 @@ const TSLintRules: Partial<ITSLintRules> = {
             considerDefaultExhaustiveForUnions: false,
         },
     ],
+    "@typescript-eslint/consistent-type-assertions": [
+        "error",
+        {
+            assertionStyle: "as",
+        },
+        // FIXME: why is this needed
+        // https://typescript-eslint.io/rules/consistent-type-assertions#options
+    ] as any,
 };
 
 const styleRules: Partial<IStyleRules> = {

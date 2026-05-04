@@ -111,7 +111,7 @@ export function _tokenizeString(
 
         if (matchedRuleId === endRuleId) {
             // We matched the `end` for this rule => pop it
-            const poppedRule = <BeginEndRule>stack.getRule(grammar);
+            const poppedRule = stack.getRule(grammar) as BeginEndRule;
 
             if (DebugFlags.InDebugMode) {
                 console.log(`  popping ${
@@ -230,7 +230,7 @@ export function _tokenizeString(
                     return;
                 }
             } else if (_rule instanceof BeginWhileRule) {
-                const pushedRule = <BeginWhileRule>_rule;
+                const pushedRule = _rule as BeginWhileRule;
 
                 if (DebugFlags.InDebugMode) {
                     console.log(`  pushing ${pushedRule.debugName}`);
@@ -278,7 +278,7 @@ export function _tokenizeString(
                     return;
                 }
             } else {
-                const matchingRule = <MatchRule>_rule;
+                const matchingRule = _rule as MatchRule;
 
                 if (DebugFlags.InDebugMode) {
                     console.log(`  matched ${
