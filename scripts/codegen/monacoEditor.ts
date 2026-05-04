@@ -3,7 +3,7 @@ import { dedent } from "@/utils/string";
 
 import metadata, { type EditorFeature, type EditorLanguage, type IFeatureDefinition, type IWorkerDefinition, type NegatedEditorFeature } from "monaco-editor/esm/metadata.js";
 import { mkdir, writeFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { posix, resolve } from "node:path";
 
 interface MonacoEditorOptions {
     /**
@@ -70,6 +70,12 @@ const resolvedWorkers: MonacoWorker[] = [
 ];
 
 const { languages, features } = OPTIONS;
+const rootDir = resolve(import.meta.dirname, "..", "..");
+const monacoWorkerPrefix = resolve(rootDir, "node_modules", "monaco-editor", "esm");
+const outDir = resolve(rootDir, "src", "utils", "monaco", "generated");
+const outPath = resolve(outDir, "entry.ts");
+
+await mkdir(outDir, { recursive: true });
 
 // resolve languages
 if (languages) {
@@ -139,7 +145,8 @@ for (const { id, entry, name } of resolvedWorkers) {
         continue;
     }
 
-    const workerEntryId = `monaco-editor/esm/${entry}`;
+    const fullWorkerPath = resolve(monacoWorkerPrefix, entry);
+    const workerEntryId = posix.relative(outDir, fullWorkerPath);
     const refId = `new URL("${workerEntryId}", import.meta.url)`;
     const names = new Set([name]);
 
@@ -199,9 +206,4 @@ const generatedContent = dedent/*js*/`
     ${makeImports(resolvedLanguages)}
 `;
 
-const rootDir = resolve(import.meta.dirname, "..", "..");
-const outDir = resolve(rootDir, "src", "utils", "monaco", "generated");
-const outPath = resolve(outDir, "entry.ts");
-
-await mkdir(outDir, { recursive: true });
 await writeFile(outPath, generatedContent);

@@ -4,10 +4,10 @@ globalThis.MonacoEnvironment = {
     getWorker(_name, label) {
         switch (label) {
             case "editorWorkerService":
-            return new Worker(new URL("monaco-editor/esm/vs/editor/editor.worker", import.meta.url), {type: "module", name: "vs/editor/editor" });
+            return new Worker(new URL("../../../../node_modules/monaco-editor/esm/vs/editor/editor.worker", import.meta.url), {type: "module", name: "vs/editor/editor" });
             case "javascript":
             case "typescript":
-            return new Worker(new URL("monaco-editor/esm/vs/language/typescript/ts.worker", import.meta.url), {type: "module", name: "vs/language/typescript/tsWorker" });
+            return new Worker(new URL("../../../../node_modules/monaco-editor/esm/vs/language/typescript/ts.worker", import.meta.url), {type: "module", name: "vs/language/typescript/tsWorker" });
         }
         throw new Error(`No worker found for label: ${label}`);
     }
