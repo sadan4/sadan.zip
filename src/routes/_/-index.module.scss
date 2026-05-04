@@ -1,0 +1,15 @@
+@use "u";
+
+.links {
+    &, a {
+        color: var(--color-primary-400);
+    }
+}
+
+.hover-arrow-container {
+    &:hover {
+        .hover-arrow {
+            rotate: -45deg;
+        }
+    }
+}

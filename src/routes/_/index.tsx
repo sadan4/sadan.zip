@@ -1,9 +1,35 @@
 import Avatar from "@/components/Avatar";
 import { Boilerplate } from "@/components/Boilerplate";
-import { DiscordIconLink, FortniteDBIconLink, GithubIconLink, LastFMIconLink, NameMCIconLink, SteamIconLink } from "@/components/Links";
+import Discord from "@/components/icons/Discord";
+import Github from "@/components/icons/Github";
+import LastFM from "@/components/icons/LastFM";
+import NameMC from "@/components/icons/NameMC";
+import SaveTheWorld from "@/components/icons/SaveTheWorld";
+import Steam from "@/components/icons/Steam";
+import { TabBar } from "@/components/layout/TabBar";
+import { ExternalLink } from "@/components/Links";
 import Name from "@/components/Name";
 import { Text } from "@/components/Text";
+import cn from "@/utils/cn";
+import {
+    DISCORD_ID,
+    discordUrl,
+    EPIC_USERNAME,
+    fndbProfileUrl,
+    GITHUB_PROFILE_URL,
+    LASTFM_USERNAME,
+    lastFMProfileUrl,
+    MC_UUID,
+    nameMCUrl,
+    STEAM_USERNAME,
+    steamProfileUrl,
+} from "@/utils/constants";
 import { createFileRoute } from "@tanstack/react-router";
+
+import * as styles from "./-index.module.scss";
+
+import { ArrowRightIcon } from "lucide-react";
+import type { ReactNode } from "react";
 
 export const Route = createFileRoute("/_/")({
     component: HomePage,
@@ -14,39 +40,80 @@ export const Route = createFileRoute("/_/")({
     },
 });
 
-function Links() {
+interface ContactLinkProps {
+    name: string;
+    to: string;
+    icon?: ReactNode;
+}
+
+function HoverArrow() {
     return (
-        <div className="flex gap-3 [&_svg]:h-14 [&_svg]:text-secondary-500">
-            <DiscordIconLink
-                userId="521819891141967883"
-                key="521819891141967883"
-                aria-label="Discord"
-            />
-            <NameMCIconLink
-                UUID="b7c4f5b1-762f-41ea-b6b4-45aba74198e5"
-                key="b7c4f5b1-762f-41ea-b6b4-45aba74198e5"
-                aria-label="NameMC"
-            />
-            <LastFMIconLink
-                username="sadan4"
-                key="lastfm-sadan4"
-                aria-label="LastFM"
-            />
-            <SteamIconLink
-                userId="sadan4"
-                key="steam-sadan4"
-                aria-label="Steam"
-            />
-            <FortniteDBIconLink
-                username="sadan4"
-                key="fndb-sadan4"
-                aria-label="FortniteDB"
-            />
-            <GithubIconLink
-                username="sadan4"
-                key="gh-sadan4"
-                aria-label="GitHub"
-            />
+        <ArrowRightIcon className={cn(styles.hoverArrow)} />
+    );
+}
+
+function ContactLink({ name, to, icon }: ContactLinkProps) {
+    return (
+        <div>
+            <ExternalLink to={to}>
+                <div className={cn("flex w-fit items-center gap-2", styles.hoverArrowContainer)}>
+                    {icon}
+                    <Text
+                        size="lg"
+                        color="primary"
+                    >
+                        {name}
+                    </Text>
+                    <HoverArrow />
+                </div>
+            </ExternalLink>
+        </div>
+    );
+}
+
+function LinksTabSection() {
+    return (
+        <div>
+            <Text size="md">
+                I'm most active on Discord. If you need to contact me, you should reach out there.
+            </Text>
+            <div className={styles.links}>
+                <ContactLink
+                    name="Discord"
+                    icon={<Discord className="size-6" />}
+                    to={discordUrl(DISCORD_ID)}
+                />
+            </div>
+            <Text>
+                You can find me on other platforms as well!
+            </Text>
+            <div className={cn(styles.links, "flex gap-4")}>
+                <ContactLink
+                    name="GitHub"
+                    to={GITHUB_PROFILE_URL}
+                    icon={<Github className="size-6" />}
+                />
+                <ContactLink
+                    name="Steam"
+                    to={steamProfileUrl(STEAM_USERNAME)}
+                    icon={<Steam className="size-6" />}
+                />
+                <ContactLink
+                    name="NameMC"
+                    to={nameMCUrl(MC_UUID)}
+                    icon={<NameMC className="size-6" />}
+                />
+                <ContactLink
+                    name="last.fm"
+                    to={lastFMProfileUrl(LASTFM_USERNAME)}
+                    icon={<LastFM className="size-6" />}
+                />
+                <ContactLink
+                    name="FNDB"
+                    to={fndbProfileUrl(EPIC_USERNAME)}
+                    icon={<SaveTheWorld className="size-6" />}
+                />
+            </div>
         </div>
     );
 }
@@ -61,14 +128,41 @@ function HomePage() {
                     round
                 />
                 <Name />
-                <Links />
-                <Text
-                    color="success"
-                    size="md"
-                    className="mt-6"
-                >
-                    Random loser on the internet.
-                </Text>
+                <div className="w-1/2">
+                    <TabBar tabs={[
+                        {
+                            id: "about",
+                            render() {
+                                return (
+                                    <Text>
+                                        About Tab
+                                    </Text>
+                                );
+                            },
+                            renderTab(props) {
+                                return (
+                                    <Text size="xl">
+                                        About
+                                    </Text>
+                                );
+                            },
+                        },
+                        {
+                            id: "links",
+                            render() {
+                                return <LinksTabSection />;
+                            },
+                            renderTab(props) {
+                                return (
+                                    <Text size="xl">
+                                        Links
+                                    </Text>
+                                );
+                            },
+                        },
+                    ]}
+                    />
+                </div>
             </div>
         </>
     );

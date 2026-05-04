@@ -1,6 +1,6 @@
 import { type StandardTextProps, Text } from "@/components/Text";
 import cn from "@/utils/cn";
-import { discordUrl } from "@/utils/constants";
+import { discordUrl, nameMCUrl } from "@/utils/constants";
 import type { ComponentPropsWithRef } from "@react-spring/web";
 import { createLink } from "@tanstack/react-router";
 
@@ -8,11 +8,9 @@ import * as styles from "./styles.module.scss";
 import { Clickable } from "../Clickable";
 import Discord from "../icons/Discord";
 import Github from "../icons/Github";
-import LastFM from "../icons/LastFM";
 import { LinkIcon } from "../icons/Link";
 import NameMC from "../icons/NameMC";
 import SaveTheWorld from "../icons/SaveTheWorld";
-import Steam from "../icons/Steam";
 
 import type { ComponentProps, PropsWithChildren } from "react";
 
@@ -23,7 +21,7 @@ export interface ExternalLinkProps extends PropsWithChildren {
       | (HTMLAnchorElement["target"] & Record<never, never>);
 }
 
-export default function ExternalLink({ target = "_blank", to: href, children }: ExternalLinkProps) {
+export function ExternalLink({ target = "_blank", to: href, children }: ExternalLinkProps) {
     return (
         <Clickable
             tag="a"
@@ -124,77 +122,6 @@ export function DownloadRamLink() {
 }
 
 export interface IconLinkProps extends ComponentProps<"svg"> {
-}
-
-export interface DiscordIconLinkProps extends IconLinkProps {
-    userId: string;
-}
-
-export function DiscordIconLink({ userId, ...props }: DiscordIconLinkProps) {
-    return (
-        <ExternalLink to={discordUrl(userId)}>
-            <Discord {...props} />
-        </ExternalLink>
-    );
-}
-
-export interface NameMCIconLinkProps extends IconLinkProps {
-    UUID: string;
-}
-
-export function NameMCIconLink({ UUID, ...props }: NameMCIconLinkProps) {
-    return (
-        <ExternalLink to={`https://namemc.com/profile/${UUID}`}>
-            <NameMC {...props} />
-        </ExternalLink>
-    );
-}
-
-export interface LastFMIconLinkProps extends IconLinkProps {
-    username: string;
-}
-
-export function LastFMIconLink({ username, ...props }: LastFMIconLinkProps) {
-    return (
-        <ExternalLink to={`https://last.fm/user/${username}`}>
-            <LastFM {...props} />
-        </ExternalLink>
-    );
-}
-
-export interface SteamIconLinkProps extends IconLinkProps {
-    userId: string;
-}
-export function SteamIconLink({ userId, ...props }: SteamIconLinkProps) {
-    return (
-        <ExternalLink to={`https://steamcommunity.com/id/${userId}`}>
-            <Steam {...props} />
-        </ExternalLink>
-    );
-}
-
-export interface FortniteDBIconLinkProps extends IconLinkProps {
-    username: string;
-}
-
-export function FortniteDBIconLink({ username, ...props }: FortniteDBIconLinkProps) {
-    return (
-        <ExternalLink to={`https://fortnitedb.com/profile/${username}`}>
-            <SaveTheWorld {...props} />
-        </ExternalLink>
-    );
-}
-
-export interface GithubIconLinkProps extends IconLinkProps {
-    username: string;
-}
-
-export function GithubIconLink({ username, ...props }: GithubIconLinkProps) {
-    return (
-        <ExternalLink to={`https://github.com/${username}`}>
-            <Github {...props} />
-        </ExternalLink>
-    );
 }
 
 export interface FriendWebsiteLinkProps extends IconLinkProps {

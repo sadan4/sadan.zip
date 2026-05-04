@@ -2,14 +2,41 @@ export function discordUrl(userId: string): string {
     return `https://discord.com/users/${userId}`;
 }
 
+export function nameMCUrl(UUID: string): string {
+    return `https://namemc.com/profile/${UUID}`;
+}
+export function githubProfileUrl(username: string): string {
+    return `https://github.com/${username}`;
+}
+
+export function steamProfileUrl(userId: string): string {
+    return `https://steamcommunity.com/id/${userId}`;
+}
+
+export function lastFMProfileUrl(username: string): string {
+    return `https://last.fm/user/${username}`;
+}
+
+export function fndbProfileUrl(username: string): string {
+    return `https://fortnitedb.com/profile/${username}`;
+}
+
 export const NBSP = "\u00A0";
 
 export const EM_DASH = "\u2014";
 
 export const REPLACEMENT_CHARACTER = "\uFFFD";
 
-export const GITHUB_REPO_URL = "https://github.com/sadan4/sadan.zip";
-export const GITHUB_REPO_CREATE_ISSUE_URL = "https://github.com/sadan4/sadan.zip/issues/new";
+export const DISCORD_ID = "521819891141967883";
+export const MC_UUID = "b7c4f5b1-762f-41ea-b6b4-45aba74198e5";
+export const GITHUB_USERNAME = "sadan4";
+export const STEAM_USERNAME = "sadan4";
+export const LASTFM_USERNAME = "sadan4";
+export const EPIC_USERNAME = "sadan4";
+
+export const GITHUB_PROFILE_URL = githubProfileUrl(GITHUB_USERNAME);
+export const GITHUB_REPO_URL = `${GITHUB_PROFILE_URL}/sadan.zip`;
+export const GITHUB_REPO_CREATE_ISSUE_URL = `${GITHUB_REPO_URL}/issues/new`;
 
 // cspell:disable
 export const lorem = `
