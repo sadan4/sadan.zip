@@ -152,6 +152,10 @@ export function CircleItems({
                 let [lastX, lastY] = polarToCartesian(radius, lastAngle);
                 let [nextX, nextY] = polarToCartesian(radius, nextAngle);
 
+                // we need to offset every value by radius because the values
+                // are calculated assuming the center of the circle is the origin
+                // but the origin is actually at the top left
+
                 x += radius;
                 y += radius;
                 lastX += radius;
