@@ -45,7 +45,7 @@ pub struct WebpackMainChunkParser<'ast> {
 
 const WEBPACK_EXPORTS_NAME: &str = "__webpack_exports__";
 const KNOWN_BUILD_MODULE_IDS: &[ModuleId] =
-	&[ModuleId(128014), ModuleId(446023)];
+	&[ModuleId(128014), ModuleId(446023), ModuleId(927815)];
 static BUILD_MODULE_NEEDLE: LazyLock<Finder<'static>> = LazyLock::new(|| {
 	Finder::new(b"Trying to open a changelog for an invalid build number")
 });
@@ -396,9 +396,51 @@ impl<'ast> WebpackMainChunkParser<'ast> {
 			.map(Into::into)
 	}
 
+	fn get_entrypoint_id_3(&self) -> Option<ModuleId> {
+		let wreq = self.get_webpack_require()?;
+		let call_expr = 'c: {
+			for node in self.refs(wreq) {
+				let Some(mem_expr) = self
+					.p(node)
+					.as_static_member_expression()
+				else {
+					continue;
+				};
+				if mem_expr.property.name != "O" {
+					continue;
+				}
+				let Some(call) = self
+					.p(mem_expr.node_id())
+					.as_call_expression()
+				else {
+					continue;
+				};
+				if call.arguments.len() != 3
+					|| self
+						.p(call.node_id())
+						.as_variable_declarator()
+						.is_none()
+				{
+					continue;
+				}
+				break 'c call;
+			}
+			return None;
+		};
+		call_expr.arguments[2]
+			.as_arrow_function_expression()?
+			.get_expression()?
+			.as_call_expression()?
+			.arguments[0]
+			.as_numeric_literal()?
+			.as_u32()
+			.map(ModuleId)
+	}
+
 	pub fn get_entrypoint_id(&self) -> Option<ModuleId> {
 		self.get_entrypoint_id_1()
 			.or_else(|| self.get_entrypoint_id_2())
+			.or_else(|| self.get_entrypoint_id_3())
 	}
 
 	pub fn get_build_number(&self) -> Option<SmolStr> {
@@ -567,7 +609,7 @@ mod tests {
 			let entrypoint = parser.get_entrypoint_id();
 			assert_eq!(
 				entrypoint,
-				None, // TODO: UPDATE
+				Some(ModuleId(329563)),
 				"entrypoint mismatch"
 			);
 		};
@@ -575,7 +617,7 @@ mod tests {
 			let build_number = parser.get_build_number();
 			assert_eq!(
 				build_number.as_deref(),
-				None, // TODO: UPDATE
+				Some("538030"),
 				"build number mismatch"
 			);
 		};
