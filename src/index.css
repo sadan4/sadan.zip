@@ -153,7 +153,7 @@
 
 @font-face {
     font-family: comicsans;
-    src: url("assets/comicsans.otf");
+    src: url("https://foo.bar/assets/comicsans.otf");
 }
 
 @font-face {

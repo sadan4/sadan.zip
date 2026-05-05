@@ -5,7 +5,7 @@ import type { RegexEngine } from "shiki";
 import * as _vscodeOniguruma from "vscode-oniguruma";
 import onigurumaWasmURL from "vscode-oniguruma/release/onig.wasm?url";
 
-const vscodeOniguruma = import.meta.env.SSR ? (_vscodeOniguruma as any).default as never : _vscodeOniguruma;
+const vscodeOniguruma = IS_CLOUDFLARE ? (_vscodeOniguruma as any).default as never : _vscodeOniguruma;
 
 export const loadOnigasmPromise = makeLazy(async () => {
     if (import.meta.env.SSR) {
@@ -21,13 +21,15 @@ export const loadOnigasmPromise = makeLazy(async () => {
                     };
                 },
             });
+        // eslint-disable-next-line no-else-return -- easier for bundlers to tree-shake
+        } else {
+            const { readFile } = await import("node:fs/promises");
+            const { resolve } = await import("node:path");
+            // rspack is buggy and return a relative path instead of a absolute URI
+            const resolved = resolve(import.meta.resolve("vscode-oniguruma/release/onig.wasm"));
+
+            return vscodeOniguruma.loadWASM(await readFile(resolved));
         }
-
-        const { fileURLToPath } = await import("node:url");
-        const { readFile } = await import("node:fs/promises");
-        const wasmPath = fileURLToPath(import.meta.resolve("vscode-oniguruma/release/onig.wasm"));
-
-        return vscodeOniguruma.loadWASM(await readFile(wasmPath));
     }
 
     const res = await fetch(onigurumaWasmURL);

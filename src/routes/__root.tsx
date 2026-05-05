@@ -9,9 +9,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { type AnyRouteMatch, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 
-import rootCssFontUrl from "../assets/comicsans.otf?url";
-import rootCss from "../index.css?url";
-
+import "../index.css";
 import { use, useEffect, useState } from "react";
 
 const initWasmPromise: Promise<void> = import.meta.env.SSR
@@ -75,18 +73,6 @@ export const Route = createRootRoute({
 
         return {
             meta,
-            links: [
-                // preload the font nested in the root css
-                {
-                    rel: "preload",
-                    as: "font",
-                    href: rootCssFontUrl,
-                },
-                {
-                    rel: "stylesheet",
-                    href: rootCss,
-                },
-            ],
         };
     },
 

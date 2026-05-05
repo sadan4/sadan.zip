@@ -1,4 +1,2 @@
-export {
-    default as border,
-} from "./border.module.scss";
+export * as border from "./border.module.scss";
 
