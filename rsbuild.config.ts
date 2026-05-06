@@ -2,8 +2,7 @@ import { defineConfig, type RsbuildConfig } from "@rsbuild/core";
 import { tanstackStart } from "@tanstack/react-start/plugin/rsbuild";
 import { pluginReact } from "@rsbuild/plugin-react";
 import { pluginBabel } from "@rsbuild/plugin-babel";
-import type { ExternalItemFunctionData, ExternalItemValue } from "@rspack/core";
-import { builtinModules } from "node:module";
+import { pluginNodePolyfill } from "@rsbuild/plugin-node-polyfill";
 import { pluginSass } from "@rsbuild/plugin-sass";
 
 import tailwindPostCss from "@tailwindcss/postcss";
@@ -17,6 +16,7 @@ export default defineConfig(({envMode}) => {
 
     return {
         plugins: [
+            pluginNodePolyfill(),
             pluginReact({ splitChunks: false }),
             pluginBabel({
                 include: /\.[jt]sx?$/,
@@ -50,19 +50,11 @@ export default defineConfig(({envMode}) => {
             sourceMap: {
                 extract: true,
                 css: true,
-                js: isDev ? "inline-source-map" : "source-map",
-            },
-            externals(data: ExternalItemFunctionData): ExternalItemValue | undefined {
-                let id = data.request;
-                if (id?.startsWith("node:")) {
-                    return true;
-                } else if (builtinModules.includes(id!)) {
-                    return true;
-                } 
             },
             cssModules: {
                 exportLocalsConvention: "camelCaseOnly",
                 namedExport: true,
+                localIdentName: isDev ? "[local]__[hash:base64:6]" : "[hash:base64:6]",
             }
         },
         source: {
@@ -84,8 +76,24 @@ export default defineConfig(({envMode}) => {
                             type: "asset/source",
                         }
                     ]
+                },
+                optimization: {
+                    splitChunks: {
+                        cacheGroups: {
+                            "global-css": {
+                                test: /src\/index\.css/,
+                                chunks: "all",
+                                minSize: 0,
+                                name: "global-css",
+                                priority: 10_000,
+                            }
+                        }
+                    }
                 }
             }
+        },
+        performance: {
+            buildCache: true,
         },
         environments: {
             client: {
@@ -94,9 +102,19 @@ export default defineConfig(({envMode}) => {
                         "import.meta.env.SSR": "false",
                         "IS_CLOUDFLARE": "false",
                     }
-                }
+                },
+                output: {
+                    sourceMap: {
+                        js: "source-map",
+                    }
+                },
             },
             ssr: {
+                output: {
+                    sourceMap: {
+                        js: isDev ? "inline-source-map" : "source-map",
+                    }
+                },
                 source: {
                     define: {
                         "import.meta.env.SSR": "true",

@@ -9,7 +9,7 @@
       "DOM.Iterable"
     ],
     "types": [
-      "vite/client",
+      "@rsbuild/core/types",
       "react/canary",
       "react-dom/canary",
     ],

@@ -54,24 +54,46 @@ function useCircleContextInternal(): InternalCircleContext {
     return ctx;
 }
 
-if (import.meta.hot?.data) {
-    (import.meta.hot.data.defaultItems ??= new Set()).add(DefaultPlacementCircleItem);
+interface HotData {
+    defaultItems?: Set<any>;
 }
 
-if (import.meta.hot) {
-    import.meta.hot.accept(() => {
-        if (import.meta.hot) {
-            (import.meta.hot.data.defaultItems ??= new Set()).add(DefaultPlacementCircleItem);
-        }
+// if (import.meta.hot?.data) {
+//     (import.meta.hot.data.defaultItems ??= new Set()).add(DefaultPlacementCircleItem);
+// }
+
+if (import.meta.env.DEV && import.meta.webpackHot) {
+    import.meta.webpackHot.data ??= Object.create(null);
+}
+
+if (import.meta.webpackHot?.data) {
+    ((import.meta.webpackHot.data as HotData).defaultItems ??= new Set()).add(DefaultPlacementCircleItem);
+}
+
+// if (import.meta.hot) {
+//     import.meta.hot.accept(() => {
+//         if (import.meta.hot) {
+//             (import.meta.hot.data.defaultItems ??= new Set()).add(DefaultPlacementCircleItem);
+//         }
+//     });
+// }
+
+if (import.meta.webpackHot) {
+    import.meta.webpackHot.dispose((data) => {
+        ((data as HotData).defaultItems ??= new Set()).add(DefaultPlacementCircleItem);
     });
 }
 
 function isDefaultPlacementCircleItem(component: ReactNode): boolean {
-    if (import.meta.env.DEV) {
-        if (!import.meta.hot?.data.defaultItems) {
+    if (import.meta.env.DEV && import.meta.webpackHot) {
+        // if (!import.meta.hot?.data.defaultItems) {
+        //     error("Default items set not found");
+        // }
+        // return import.meta.hot.data.defaultItems.has((component as ReactElement)?.type);
+        if (!(import.meta.webpackHot.data as HotData | undefined)?.defaultItems) {
             error("Default items set not found");
         }
-        return import.meta.hot.data.defaultItems.has((component as ReactElement)?.type);
+        return (import.meta.webpackHot!.data as HotData).defaultItems!.has((component as ReactElement)?.type);
     }
     return (component as ReactElement)?.type === DefaultPlacementCircleItem;
 }

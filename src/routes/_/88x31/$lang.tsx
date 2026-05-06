@@ -11,8 +11,8 @@ import { Language } from "@/utils/textmate";
 import { TextmateTheme } from "@/utils/textmate/theme";
 import { createFileRoute } from "@tanstack/react-router";
 
-import htmlExampleContent from "./-sample.html?raw";
-import _reactExampleContent from "./-sample.tsx?raw";
+import htmlExampleContent from "./-sample.html.txt?raw";
+import _reactExampleContent from "./-sample.tsx.txt?raw";
 
 import { type ComponentProps } from "react";
 import { z } from "zod";
