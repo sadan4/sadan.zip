@@ -178,7 +178,7 @@ export default defineConfig(({ envMode }) => {
                     },
                 },
                 plugins: [
-                    pluginNodePolyfill({
+                    !isDev && pluginNodePolyfill({
                         include: polyfilledSsrModules,
                     }),
                 ],
@@ -208,11 +208,14 @@ export default defineConfig(({ envMode }) => {
                             importMetaName: !isDev ? '{url: "file://"}' : undefined,
                         },
                         target: "node",
-                        externals({ request: id }: ExternalItemFunctionData): ExternalItemValue | undefined {
-                            if (id?.startsWith("node:") || builtinModules.includes(id!)) {
-                                return `module ${id}`;
-                            }
-                        },
+                        // This causes weird errors in dev mode
+                        externals: isDev
+                            ? undefined
+                            : function ({ request: id }: ExternalItemFunctionData): ExternalItemValue | undefined {
+                                if (id?.startsWith("node:") || builtinModules.includes(id!)) {
+                                    return `module ${id}`;
+                                }
+                            },
                     },
                 },
             },
