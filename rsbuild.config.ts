@@ -4,7 +4,7 @@ import { pluginNodePolyfill } from "@rsbuild/plugin-node-polyfill";
 import { pluginReact } from "@rsbuild/plugin-react";
 import { pluginSass } from "@rsbuild/plugin-sass";
 import { RsdoctorRspackPlugin } from "@rsdoctor/rspack-plugin";
-import { experiments, type ExternalItemFunctionData, type ExternalItemValue, optimize } from "@rspack/core";
+import { type ExternalItemFunctionData, type ExternalItemValue, optimize } from "@rspack/core";
 import tailwindPostCss from "@tailwindcss/postcss";
 import { tanstackStart } from "@tanstack/react-start/plugin/rsbuild";
 
@@ -127,6 +127,7 @@ export default defineConfig(({ envMode }) => {
         },
         dev: {
             lazyCompilation: true,
+            writeToDisk: true,
         },
         environments: {
             client: {
@@ -139,7 +140,7 @@ export default defineConfig(({ envMode }) => {
                 plugins: [pluginNodePolyfill()],
                 output: {
                     sourceMap: {
-                        js: "source-map",
+                        js: isDev ? "eval" : "source-map",
                     },
                     distPath: {
                         js: "j",
@@ -204,7 +205,7 @@ export default defineConfig(({ envMode }) => {
                             // https://github.com/web-infra-dev/rsbuild/issues/7533
                             devtoolModuleFilenameTemplate: isDev ? "file://[absolute-resource-path]" : undefined,
                             // Insane workaround for cloudflare workers not supporting `import.meta.url`
-                            importMetaName: '{url: "file://"}',
+                            importMetaName: !isDev ? '{url: "file://"}' : undefined,
                         },
                         target: "node",
                         externals({ request: id }: ExternalItemFunctionData): ExternalItemValue | undefined {
