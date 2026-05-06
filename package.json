@@ -102,6 +102,7 @@
     "raw-loader": "^4.0.2",
     "rollup": "^4.57.1",
     "rollup-plugin-tsconfig-paths": "^1.5.2",
+    "srvx": "^0.11.15",
     "stylelint": "^16.24.0",
     "stylelint-config-standard": "^39.0.0",
     "stylelint-config-standard-scss": "^16.0.0",

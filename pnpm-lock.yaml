@@ -260,6 +260,9 @@ importers:
       rollup-plugin-tsconfig-paths:
         specifier: ^1.5.2
         version: 1.5.2(rollup@4.57.1)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
+      srvx:
+        specifier: ^0.11.15
+        version: 0.11.15
       stylelint:
         specifier: ^16.24.0
         version: 16.26.1(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
