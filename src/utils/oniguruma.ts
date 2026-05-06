@@ -7,9 +7,15 @@ import onigurumaWasmURL from "vscode-oniguruma/release/onig.wasm?url";
 
 export const loadOnigasmPromise = makeLazy(async () => {
     if (import.meta.env.SSR) {
-        if (IS_CLOUDFLARE) {
-            // @ts-expect-error cloudflare/vite-plugin handles this import
-            const { default: onigWasmModule } = await import("vscode-oniguruma/release/onig.wasm") as { default: WebAssembly.Module; };
+        notCloudflare: if (IS_CLOUDFLARE) {
+            let onigWasmModule: WebAssembly.Module;
+
+            try {
+                // @ts-expect-error This is handled by cloudflare workers
+                ({ default: onigWasmModule } = await import(/* webpackIgnore: true */ "vscode-oniguruma/release/onig.wasm") as { default: WebAssembly.Module; });
+            } catch {
+                break notCloudflare;
+            }
 
             if (onigWasmModule instanceof WebAssembly.Module) {
                 return vscodeOniguruma.loadWASM({

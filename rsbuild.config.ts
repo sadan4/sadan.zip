@@ -3,12 +3,24 @@ import { pluginBabel } from "@rsbuild/plugin-babel";
 import { pluginNodePolyfill } from "@rsbuild/plugin-node-polyfill";
 import { pluginReact } from "@rsbuild/plugin-react";
 import { pluginSass } from "@rsbuild/plugin-sass";
-import { optimize } from "@rspack/core";
+import { RsdoctorRspackPlugin } from "@rsdoctor/rspack-plugin";
+import { experiments, type ExternalItemFunctionData, type ExternalItemValue, optimize } from "@rspack/core";
 import tailwindPostCss from "@tailwindcss/postcss";
 import { tanstackStart } from "@tanstack/react-start/plugin/rsbuild";
 
+import { builtinModules } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+
+const polyfilledSsrModules = [
+    "fs",
+    "inspector",
+    "os",
+    "perf_hooks",
+    "module",
+]
+    .flatMap((mod) => [mod, `node:${mod}`]);
+
 
 export default defineConfig(({ envMode }) => {
     const isDev = envMode === "development";
@@ -17,7 +29,6 @@ export default defineConfig(({ envMode }) => {
 
     return {
         plugins: [
-            pluginNodePolyfill(),
             pluginReact({ splitChunks: false }),
             pluginBabel({
                 include: /\.[jt]sx?$/,
@@ -81,6 +92,7 @@ export default defineConfig(({ envMode }) => {
             rspack: {
                 experiments: {
                     nativeWatcher: true,
+                    pureFunctions: true,
                 },
                 module: {
                     rules: [
@@ -104,20 +116,9 @@ export default defineConfig(({ envMode }) => {
                         },
                     ],
                 },
+                plugins: [process.env.RSDOCTOR && new RsdoctorRspackPlugin()],
                 optimization: {
                     concatenateModules: true,
-
-                    splitChunks: {
-                        cacheGroups: {
-                            c: {
-                                test: /src\/index\.css/,
-                                chunks: "all",
-                                minSize: 0,
-                                name: "c",
-                                priority: 10_000,
-                            },
-                        },
-                    },
                 },
             },
         },
@@ -135,6 +136,7 @@ export default defineConfig(({ envMode }) => {
                         IS_CLOUDFLARE: "false",
                     },
                 },
+                plugins: [pluginNodePolyfill()],
                 output: {
                     sourceMap: {
                         js: "source-map",
@@ -142,6 +144,23 @@ export default defineConfig(({ envMode }) => {
                     distPath: {
                         js: "j",
                         jsAsync: "j",
+                    },
+                },
+                tools: {
+                    rspack: {
+                        optimization: {
+                            splitChunks: {
+                                cacheGroups: {
+                                    c: {
+                                        test: /src\/index\.css/,
+                                        chunks: "all",
+                                        minSize: 0,
+                                        name: "c",
+                                        priority: 10_000,
+                                    },
+                                },
+                            },
+                        },
                     },
                 },
             },
@@ -157,6 +176,11 @@ export default defineConfig(({ envMode }) => {
                         IS_CLOUDFLARE: JSON.stringify(!isDev),
                     },
                 },
+                plugins: [
+                    pluginNodePolyfill({
+                        include: polyfilledSsrModules,
+                    }),
+                ],
                 tools: {
                     rspack: {
                         optimization: {
@@ -165,6 +189,9 @@ export default defineConfig(({ envMode }) => {
                         plugins: [
                             new optimize.LimitChunkCountPlugin({
                                 maxChunks: 1,
+                            }),
+                            new experiments.VirtualModulesPlugin({
+                                "webpack/runtime/module_chunk_loading": "asdasd.asdsa()",
                             }),
                         ],
                         module: {
@@ -179,6 +206,12 @@ export default defineConfig(({ envMode }) => {
                         output: {
                             // https://github.com/web-infra-dev/rsbuild/issues/7533
                             devtoolModuleFilenameTemplate: isDev ? "file://[absolute-resource-path]" : undefined,
+                        },
+                        target: "node",
+                        externals({ request: id }: ExternalItemFunctionData): ExternalItemValue | undefined {
+                            if (id?.startsWith("node:") || builtinModules.includes(id!)) {
+                                return `module ${id}`;
+                            }
                         },
                     },
                 },

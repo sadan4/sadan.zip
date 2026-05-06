@@ -3,7 +3,16 @@
   "name": "sadan-zip",
   "compatibility_date": "2025-09-02",
   "compatibility_flags": [
-    "nodejs_compat"
+    "nodejs_compat_v2",
+    "enable_nodejs_fs_module",
+    "enable_nodejs_inspector_module",
+    "enable_nodejs_os_module",
+    "enable_nodejs_perf_hooks_module",
+    "enable_nodejs_http_modules",
+    "enable_nodejs_http2_module",
   ],
-  "main": "@tanstack/react-start/server-entry"
+  "main": "dist/server/index.js",
+  "assets": {
+    "directory": "dist/client"
+  }
 }

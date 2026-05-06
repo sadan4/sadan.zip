@@ -67,6 +67,7 @@
     "@rsbuild/plugin-node-polyfill": "^1.4.4",
     "@rsbuild/plugin-react": "^2.0.0",
     "@rsbuild/plugin-sass": "^1.5.2",
+    "@rsdoctor/rspack-plugin": "^1.5.9",
     "@rspack/core": "^2.0.1",
     "@sadan4/devtools-pretty-printer": "^1.0.4",
     "@shikijs/langs": "^3.21.0",
@@ -115,7 +116,7 @@
   },
   "optionalDependencies": {
     "@cloudflare/vite-plugin": "^1.23.0",
-    "wrangler": "^4.62.0"
+    "wrangler": "^4.88.0"
   },
   "packageManager": "pnpm@10.28.2+sha512.41872f037ad22f7348e3b1debbaf7e867cfd448f2726d9cf74c08f19507c31d2c8e7a11525b983febc2df640b5438dee6023ebb1f84ed43cc2d654d2bc326264"
 }
