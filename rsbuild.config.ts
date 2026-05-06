@@ -190,9 +190,6 @@ export default defineConfig(({ envMode }) => {
                             new optimize.LimitChunkCountPlugin({
                                 maxChunks: 1,
                             }),
-                            new experiments.VirtualModulesPlugin({
-                                "webpack/runtime/module_chunk_loading": "asdasd.asdsa()",
-                            }),
                         ],
                         module: {
                             parser: {
@@ -206,6 +203,8 @@ export default defineConfig(({ envMode }) => {
                         output: {
                             // https://github.com/web-infra-dev/rsbuild/issues/7533
                             devtoolModuleFilenameTemplate: isDev ? "file://[absolute-resource-path]" : undefined,
+                            // Insane workaround for cloudflare workers not supporting `import.meta.url`
+                            importMetaName: '{url: "file://"}',
                         },
                         target: "node",
                         externals({ request: id }: ExternalItemFunctionData): ExternalItemValue | undefined {

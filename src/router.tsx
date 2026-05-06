@@ -8,8 +8,6 @@ import { routeTree } from "./routeTree.gen";
 // Create a new router instance
 
 export const getRouter = (import.meta.env.SSR ? identity : makeLazy)(() => {
-    console.log("Foobar");
-
     const router = createRouter({
         routeTree,
         scrollRestoration: true,

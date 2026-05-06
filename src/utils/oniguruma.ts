@@ -9,10 +9,11 @@ export const loadOnigasmPromise = makeLazy(async () => {
     if (import.meta.env.SSR) {
         notCloudflare: if (IS_CLOUDFLARE) {
             let onigWasmModule: WebAssembly.Module;
+            const guh3 = __webpack_require__(import.meta.resolve("vscode-oniguruma/release/onig.wasm")) as string;
 
             try {
-                // @ts-expect-error This is handled by cloudflare workers
-                ({ default: onigWasmModule } = await import(/* webpackIgnore: true */ "vscode-oniguruma/release/onig.wasm") as { default: WebAssembly.Module; });
+                ({ default: onigWasmModule }
+                    = await import(/* webpackIgnore: true */guh3) as { default: WebAssembly.Module; });
             } catch {
                 break notCloudflare;
             }
