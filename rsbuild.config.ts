@@ -127,7 +127,6 @@ export default defineConfig(({ envMode }) => {
         },
         dev: {
             lazyCompilation: true,
-            writeToDisk: true,
         },
         environments: {
             client: {
@@ -140,7 +139,7 @@ export default defineConfig(({ envMode }) => {
                 plugins: [pluginNodePolyfill()],
                 output: {
                     sourceMap: {
-                        js: isDev ? "eval" : "source-map",
+                        js: "source-map",
                     },
                     distPath: {
                         js: "j",
@@ -185,7 +184,7 @@ export default defineConfig(({ envMode }) => {
                 tools: {
                     rspack: {
                         optimization: {
-                            minimize: false,
+                            minimize: !isDev,
                         },
                         plugins: [
                             new optimize.LimitChunkCountPlugin({

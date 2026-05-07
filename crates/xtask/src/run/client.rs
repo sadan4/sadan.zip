@@ -31,17 +31,17 @@ impl Command {
 		guh.build_wasm()?;
 		if self.release {
 			info!("Building client for preview");
-			guh.build_vite()?;
+			guh.build_rsbuild()?;
 			info!("Starting preview server");
-			process::Command::npx("vite")?
+			process::Command::npx("rsbuild")?
 				.arg("preview")
 				.run()?;
 		} else {
-			info!("Starting vite dev server");
-			process::Command::npx("vite")?
+			info!("Starting rsbuild dev server");
+			process::Command::npx("rsbuild")?
 				.arg("dev")
 				.run()?;
-			info!("Vite dev server stopped");
+			info!("rsbuild dev server stopped");
 		}
 		Ok(())
 	}

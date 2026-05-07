@@ -32,20 +32,13 @@ impl Command {
 			.run()
 			.context("Failed to build libsadancore")
 	}
-	pub fn build_vite(&self) -> Result<()> {
+	pub fn build_rsbuild(&self) -> Result<()> {
 		assert!(self.release, "Vite can only build for release");
-		process::Command::npx("vite")
-			.context("Failed to find vite binary")?
+		process::Command::npx("rsbuild")
+			.context("Failed to find rsbuild binary")?
 			.arg("build")
 			.run()
-			.context("Failed to build site with vite")
-	}
-	pub fn minify_ssr(&self) -> Result<()> {
-		assert!(self.release, "Minification can only be done for release");
-		process::Command::new("node")
-			.arg("scripts/minifySsr.ts")
-			.run()
-			.context("Failed to minify site SSR")
+			.context("Failed to build site with rsbuild")
 	}
 }
 
@@ -53,12 +46,8 @@ impl Runnable for Command {
 	fn run(&self) -> Result<()> {
 		info!("Building libsadancore...");
 		self.build_wasm()?;
-		info!("Building site with vite...");
-		self.build_vite()?;
-		if self.release {
-			info!("Minifying site SSR");
-			self.minify_ssr()?;
-		}
+		info!("Building site with rsbuild...");
+		self.build_rsbuild()?;
 		info!("Finished building site");
 		Ok(())
 	}
