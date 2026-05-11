@@ -227,22 +227,6 @@
     {
       "span": {
         "start": 663,
-        "end": 669
-      },
-      "kind": "Command",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 669,
-        "end": 670
-      },
-      "kind": "Eq",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 670,
         "end": 671
       },
       "kind": "Command",
@@ -275,22 +259,6 @@
     {
       "span": {
         "start": 679,
-        "end": 683
-      },
-      "kind": "Command",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 683,
-        "end": 684
-      },
-      "kind": "Eq",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 684,
         "end": 685
       },
       "kind": "Command",
@@ -317,7 +285,7 @@
         "start": 687,
         "end": 689
       },
-      "kind": "Command",
+      "kind": "If",
       "flags": ""
     },
     {
@@ -357,7 +325,7 @@
         "start": 693,
         "end": 696
       },
-      "kind": "Command",
+      "kind": "Ident",
       "flags": ""
     },
     {
@@ -371,17 +339,9 @@
     {
       "span": {
         "start": 697,
-        "end": 698
-      },
-      "kind": "Minus",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 698,
         "end": 700
       },
-      "kind": "Command",
+      "kind": "ArithmeticEQTest",
       "flags": ""
     },
     {
@@ -397,7 +357,7 @@
         "start": 701,
         "end": 702
       },
-      "kind": "Command",
+      "kind": "StringContents",
       "flags": ""
     },
     {
@@ -437,7 +397,7 @@
         "start": 706,
         "end": 710
       },
-      "kind": "Command",
+      "kind": "Then",
       "flags": ""
     },
     {
@@ -533,7 +493,7 @@
         "start": 783,
         "end": 785
       },
-      "kind": "Command",
+      "kind": "Fi",
       "flags": ""
     },
     {
@@ -581,7 +541,7 @@
         "start": 819,
         "end": 822
       },
-      "kind": "Command",
+      "kind": "Ident",
       "flags": ""
     },
     {
@@ -637,7 +597,7 @@
         "start": 830,
         "end": 832
       },
-      "kind": "Decrement",
+      "kind": "Command",
       "flags": ""
     },
     {
@@ -741,7 +701,7 @@
         "start": 868,
         "end": 869
       },
-      "kind": "Colon",
+      "kind": "Command",
       "flags": ""
     },
     {
@@ -1029,7 +989,7 @@
         "start": 955,
         "end": 956
       },
-      "kind": "Colon",
+      "kind": "Command",
       "flags": ""
     },
     {
@@ -1157,7 +1117,7 @@
         "start": 1005,
         "end": 1006
       },
-      "kind": "Colon",
+      "kind": "Command",
       "flags": ""
     },
     {
@@ -1237,7 +1197,7 @@
         "start": 1030,
         "end": 1031
       },
-      "kind": "Colon",
+      "kind": "Command",
       "flags": ""
     },
     {
@@ -1333,7 +1293,7 @@
         "start": 1098,
         "end": 1102
       },
-      "kind": "Command",
+      "kind": "Ident",
       "flags": ""
     },
     {
@@ -1347,73 +1307,9 @@
     {
       "span": {
         "start": 1103,
-        "end": 1104
-      },
-      "kind": "Slash",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 1104,
-        "end": 1111
-      },
-      "kind": "Command",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 1111,
-        "end": 1112
-      },
-      "kind": "Colon",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 1112,
-        "end": 1113
-      },
-      "kind": "Slash",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 1113,
-        "end": 1116
-      },
-      "kind": "Command",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 1116,
-        "end": 1117
-      },
-      "kind": "Colon",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 1117,
-        "end": 1118
-      },
-      "kind": "Slash",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 1118,
-        "end": 1131
-      },
-      "kind": "Command",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 1131,
         "end": 1132
       },
-      "kind": "Colon",
+      "kind": "StringContents",
       "flags": ""
     },
     {
@@ -1549,7 +1445,7 @@
         "start": 1208,
         "end": 1232
       },
-      "kind": "Command",
+      "kind": "Ident",
       "flags": ""
     },
     {
@@ -1565,7 +1461,7 @@
         "start": 1233,
         "end": 1234
       },
-      "kind": "RParen",
+      "kind": "LParen",
       "flags": ""
     },
     {
@@ -1725,7 +1621,7 @@
         "start": 1283,
         "end": 1284
       },
-      "kind": "Command",
+      "kind": "Ident",
       "flags": ""
     },
     {
@@ -1835,14 +1731,6 @@
     {
       "span": {
         "start": 1308,
-        "end": 1309
-      },
-      "kind": "Minus",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 1309,
         "end": 1310
       },
       "kind": "Command",
@@ -1931,14 +1819,6 @@
     {
       "span": {
         "start": 1439,
-        "end": 1440
-      },
-      "kind": "Minus",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 1440,
         "end": 1441
       },
       "kind": "Command",
@@ -1987,14 +1867,6 @@
     {
       "span": {
         "start": 1453,
-        "end": 1454
-      },
-      "kind": "Slash",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 1454,
         "end": 1462
       },
       "kind": "Command",
@@ -2027,14 +1899,6 @@
     {
       "span": {
         "start": 1465,
-        "end": 1466
-      },
-      "kind": "Slash",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 1466,
         "end": 1474
       },
       "kind": "Command",
@@ -2053,7 +1917,7 @@
         "start": 1475,
         "end": 1477
       },
-      "kind": "Command",
+      "kind": "If",
       "flags": ""
     },
     {
@@ -2083,17 +1947,9 @@
     {
       "span": {
         "start": 1480,
-        "end": 1481
-      },
-      "kind": "Minus",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 1481,
         "end": 1482
       },
-      "kind": "Command",
+      "kind": "FileTest",
       "flags": ""
     },
     {
@@ -2107,17 +1963,9 @@
     {
       "span": {
         "start": 1483,
-        "end": 1484
-      },
-      "kind": "Slash",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 1484,
         "end": 1492
       },
-      "kind": "Command",
+      "kind": "StringContents",
       "flags": ""
     },
     {
@@ -2157,7 +2005,7 @@
         "start": 1496,
         "end": 1500
       },
-      "kind": "Command",
+      "kind": "Then",
       "flags": ""
     },
     {
@@ -2179,14 +2027,6 @@
     {
       "span": {
         "start": 1502,
-        "end": 1503
-      },
-      "kind": "Slash",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 1503,
         "end": 1511
       },
       "kind": "Command",
@@ -2221,7 +2061,7 @@
         "start": 1521,
         "end": 1525
       },
-      "kind": "Command",
+      "kind": "Else",
       "flags": ""
     },
     {
@@ -2293,7 +2133,7 @@
         "start": 1547,
         "end": 1549
       },
-      "kind": "Command",
+      "kind": "Fi",
       "flags": ""
     },
     {
@@ -2363,14 +2203,6 @@
     {
       "span": {
         "start": 1561,
-        "end": 1562
-      },
-      "kind": "Minus",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 1562,
         "end": 1563
       },
       "kind": "Command",
@@ -2387,14 +2219,6 @@
     {
       "span": {
         "start": 1564,
-        "end": 1565
-      },
-      "kind": "Slash",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 1565,
         "end": 1573
       },
       "kind": "Command",
@@ -2467,14 +2291,6 @@
     {
       "span": {
         "start": 1627,
-        "end": 1628
-      },
-      "kind": "Slash",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 1628,
         "end": 1634
       },
       "kind": "Command",
@@ -2557,7 +2373,7 @@
         "start": 1672,
         "end": 1673
       },
-      "kind": "Slash",
+      "kind": "Command",
       "flags": ""
     },
     {
@@ -2653,7 +2469,7 @@
         "start": 1694,
         "end": 1695
       },
-      "kind": "Slash",
+      "kind": "Command",
       "flags": ""
     },
     {
@@ -2763,14 +2579,6 @@
     {
       "span": {
         "start": 1762,
-        "end": 1763
-      },
-      "kind": "Minus",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 1763,
         "end": 1764
       },
       "kind": "Command",
@@ -2837,7 +2645,7 @@
         "start": 1811,
         "end": 1826
       },
-      "kind": "Command",
+      "kind": "Ident",
       "flags": ""
     },
     {
@@ -2853,7 +2661,7 @@
         "start": 1827,
         "end": 1828
       },
-      "kind": "Command",
+      "kind": "StringContents",
       "flags": ""
     },
     {
@@ -2899,14 +2707,6 @@
     {
       "span": {
         "start": 1840,
-        "end": 1841
-      },
-      "kind": "Minus",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 1841,
         "end": 1842
       },
       "kind": "Command",
@@ -3027,14 +2827,6 @@
     {
       "span": {
         "start": 1937,
-        "end": 1938
-      },
-      "kind": "Minus",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 1938,
         "end": 1939
       },
       "kind": "Command",
@@ -3101,7 +2893,7 @@
         "start": 2004,
         "end": 2019
       },
-      "kind": "Command",
+      "kind": "Ident",
       "flags": ""
     },
     {
@@ -3117,7 +2909,7 @@
         "start": 2020,
         "end": 2021
       },
-      "kind": "Command",
+      "kind": "StringContents",
       "flags": ""
     },
     {
@@ -3163,14 +2955,6 @@
     {
       "span": {
         "start": 2033,
-        "end": 2034
-      },
-      "kind": "Minus",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 2034,
         "end": 2035
       },
       "kind": "Command",
@@ -3277,7 +3061,7 @@
         "start": 2134,
         "end": 2135
       },
-      "kind": "Slash",
+      "kind": "Command",
       "flags": ""
     },
     {
@@ -3467,14 +3251,6 @@
     {
       "span": {
         "start": 2435,
-        "end": 2436
-      },
-      "kind": "Slash",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 2436,
         "end": 2444
       },
       "kind": "Command",
@@ -3571,14 +3347,6 @@
     {
       "span": {
         "start": 2515,
-        "end": 2516
-      },
-      "kind": "Slash",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 2516,
         "end": 2524
       },
       "kind": "Command",
@@ -3763,6 +3531,14 @@
     {
       "span": {
         "start": 2624,
+        "end": 2630
+      },
+      "kind": "Ident",
+      "flags": ""
+    },
+    {
+      "span": {
+        "start": 2630,
         "end": 2638
       },
       "kind": "Command",
@@ -3795,17 +3571,9 @@
     {
       "span": {
         "start": 2646,
-        "end": 2654
-      },
-      "kind": "Command",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 2654,
         "end": 2655
       },
-      "kind": "Eq",
+      "kind": "Command",
       "flags": ""
     },
     {
@@ -3819,6 +3587,14 @@
     {
       "span": {
         "start": 2656,
+        "end": 2662
+      },
+      "kind": "Ident",
+      "flags": ""
+    },
+    {
+      "span": {
+        "start": 2662,
         "end": 2670
       },
       "kind": "Command",
@@ -3899,14 +3675,6 @@
     {
       "span": {
         "start": 2697,
-        "end": 2698
-      },
-      "kind": "Minus",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 2698,
         "end": 2699
       },
       "kind": "Command",
@@ -3931,6 +3699,14 @@
     {
       "span": {
         "start": 2701,
+        "end": 2707
+      },
+      "kind": "Ident",
+      "flags": ""
+    },
+    {
+      "span": {
+        "start": 2707,
         "end": 2715
       },
       "kind": "Command",
@@ -4005,7 +3781,7 @@
         "start": 2789,
         "end": 2793
       },
-      "kind": "Command",
+      "kind": "Ident",
       "flags": ""
     },
     {
@@ -4021,7 +3797,7 @@
         "start": 2794,
         "end": 2795
       },
-      "kind": "Command",
+      "kind": "StringContents",
       "flags": ""
     },
     {
@@ -4187,14 +3963,6 @@
     {
       "span": {
         "start": 2847,
-        "end": 2848
-      },
-      "kind": "Minus",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 2848,
         "end": 2849
       },
       "kind": "Command",
@@ -4293,7 +4061,7 @@
         "start": 2929,
         "end": 2933
       },
-      "kind": "Command",
+      "kind": "Ident",
       "flags": ""
     },
     {
@@ -4467,14 +4235,6 @@
     {
       "span": {
         "start": 2986,
-        "end": 2987
-      },
-      "kind": "Minus",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 2987,
         "end": 2988
       },
       "kind": "Command",
@@ -4603,14 +4363,6 @@
     {
       "span": {
         "start": 3118,
-        "end": 3119
-      },
-      "kind": "Minus",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 3119,
         "end": 3120
       },
       "kind": "Command",
@@ -4643,14 +4395,6 @@
     {
       "span": {
         "start": 3124,
-        "end": 3125
-      },
-      "kind": "Minus",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 3125,
         "end": 3126
       },
       "kind": "Command",
@@ -4747,14 +4491,6 @@
     {
       "span": {
         "start": 3164,
-        "end": 3165
-      },
-      "kind": "Minus",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 3165,
         "end": 3166
       },
       "kind": "Command",
@@ -4787,14 +4523,6 @@
     {
       "span": {
         "start": 3170,
-        "end": 3171
-      },
-      "kind": "Minus",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 3171,
         "end": 3172
       },
       "kind": "Command",
@@ -5043,14 +4771,6 @@
     {
       "span": {
         "start": 3357,
-        "end": 3358
-      },
-      "kind": "Minus",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 3358,
         "end": 3359
       },
       "kind": "Command",
@@ -5347,14 +5067,6 @@
     {
       "span": {
         "start": 3558,
-        "end": 3559
-      },
-      "kind": "Minus",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 3559,
         "end": 3560
       },
       "kind": "Command",
@@ -5413,7 +5125,7 @@
         "start": 3597,
         "end": 3598
       },
-      "kind": "Minus",
+      "kind": "Command",
       "flags": ""
     },
     {
@@ -5635,14 +5347,6 @@
     {
       "span": {
         "start": 3812,
-        "end": 3813
-      },
-      "kind": "Minus",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 3813,
         "end": 3814
       },
       "kind": "Command",
@@ -5683,14 +5387,6 @@
     {
       "span": {
         "start": 3821,
-        "end": 3822
-      },
-      "kind": "Slash",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 3822,
         "end": 3831
       },
       "kind": "Command",
@@ -6067,14 +5763,6 @@
     {
       "span": {
         "start": 4000,
-        "end": 4001
-      },
-      "kind": "Minus",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 4001,
         "end": 4002
       },
       "kind": "Command",
@@ -6187,14 +5875,6 @@
     {
       "span": {
         "start": 4097,
-        "end": 4098
-      },
-      "kind": "Slash",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 4098,
         "end": 4114
       },
       "kind": "Command",
@@ -6283,14 +5963,6 @@
     {
       "span": {
         "start": 4136,
-        "end": 4137
-      },
-      "kind": "Slash",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 4137,
         "end": 4145
       },
       "kind": "Command",
@@ -6365,7 +6037,7 @@
         "start": 4153,
         "end": 4156
       },
-      "kind": "Command",
+      "kind": "StringContents",
       "flags": ""
     },
     {
@@ -6437,7 +6109,7 @@
         "start": 4171,
         "end": 4172
       },
-      "kind": "Colon",
+      "kind": "Command",
       "flags": ""
     },
     {
@@ -6549,7 +6221,7 @@
         "start": 4196,
         "end": 4202
       },
-      "kind": "Command",
+      "kind": "Ident",
       "flags": ""
     },
     {
@@ -6605,7 +6277,7 @@
         "start": 4216,
         "end": 4218
       },
-      "kind": "Command",
+      "kind": "If",
       "flags": ""
     },
     {
@@ -6635,17 +6307,9 @@
     {
       "span": {
         "start": 4221,
-        "end": 4222
-      },
-      "kind": "Minus",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 4222,
         "end": 4223
       },
-      "kind": "Command",
+      "kind": "ExecutableTest",
       "flags": ""
     },
     {
@@ -6659,17 +6323,9 @@
     {
       "span": {
         "start": 4224,
-        "end": 4225
-      },
-      "kind": "Slash",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 4225,
         "end": 4234
       },
-      "kind": "Command",
+      "kind": "StringContents",
       "flags": ""
     },
     {
@@ -6709,7 +6365,7 @@
         "start": 4238,
         "end": 4242
       },
-      "kind": "Command",
+      "kind": "Then",
       "flags": ""
     },
     {
@@ -6731,30 +6387,6 @@
     {
       "span": {
         "start": 4244,
-        "end": 4249
-      },
-      "kind": "Command",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 4249,
-        "end": 4250
-      },
-      "kind": "Eq",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 4250,
-        "end": 4251
-      },
-      "kind": "Slash",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 4251,
         "end": 4260
       },
       "kind": "Command",
@@ -6773,7 +6405,7 @@
         "start": 4261,
         "end": 4265
       },
-      "kind": "Command",
+      "kind": "Elif",
       "flags": ""
     },
     {
@@ -6803,17 +6435,9 @@
     {
       "span": {
         "start": 4268,
-        "end": 4269
-      },
-      "kind": "Minus",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 4269,
         "end": 4270
       },
-      "kind": "Command",
+      "kind": "ExecutableTest",
       "flags": ""
     },
     {
@@ -6827,17 +6451,9 @@
     {
       "span": {
         "start": 4271,
-        "end": 4272
-      },
-      "kind": "Slash",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 4272,
         "end": 4285
       },
-      "kind": "Command",
+      "kind": "StringContents",
       "flags": ""
     },
     {
@@ -6877,7 +6493,7 @@
         "start": 4289,
         "end": 4293
       },
-      "kind": "Command",
+      "kind": "Then",
       "flags": ""
     },
     {
@@ -6899,30 +6515,6 @@
     {
       "span": {
         "start": 4295,
-        "end": 4300
-      },
-      "kind": "Command",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 4300,
-        "end": 4301
-      },
-      "kind": "Eq",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 4301,
-        "end": 4302
-      },
-      "kind": "Slash",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 4302,
         "end": 4315
       },
       "kind": "Command",
@@ -6941,7 +6533,7 @@
         "start": 4316,
         "end": 4320
       },
-      "kind": "Command",
+      "kind": "Else",
       "flags": ""
     },
     {
@@ -6963,17 +6555,9 @@
     {
       "span": {
         "start": 4322,
-        "end": 4327
-      },
-      "kind": "Command",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 4327,
         "end": 4328
       },
-      "kind": "Eq",
+      "kind": "Command",
       "flags": ""
     },
     {
@@ -7013,7 +6597,7 @@
         "start": 4344,
         "end": 4346
       },
-      "kind": "Command",
+      "kind": "Fi",
       "flags": ""
     },
     {
@@ -7277,7 +6861,7 @@
         "start": 4531,
         "end": 4536
       },
-      "kind": "Command",
+      "kind": "Ident",
       "flags": ""
     },
     {
@@ -7533,7 +7117,7 @@
         "start": 4699,
         "end": 4706
       },
-      "kind": "Command",
+      "kind": "Ident",
       "flags": ""
     },
     {
@@ -7547,14 +7131,6 @@
     {
       "span": {
         "start": 4707,
-        "end": 4708
-      },
-      "kind": "Minus",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 4708,
         "end": 4709
       },
       "kind": "Command",
@@ -7613,7 +7189,7 @@
         "start": 4745,
         "end": 4752
       },
-      "kind": "Command",
+      "kind": "Ident",
       "flags": ""
     },
     {
@@ -7627,14 +7203,6 @@
     {
       "span": {
         "start": 4753,
-        "end": 4754
-      },
-      "kind": "Minus",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 4754,
         "end": 4755
       },
       "kind": "Command",
@@ -7701,7 +7269,7 @@
         "start": 4782,
         "end": 4789
       },
-      "kind": "Command",
+      "kind": "Ident",
       "flags": ""
     },
     {
@@ -7715,14 +7283,6 @@
     {
       "span": {
         "start": 4790,
-        "end": 4791
-      },
-      "kind": "Minus",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 4791,
         "end": 4792
       },
       "kind": "Command",
@@ -7781,7 +7341,7 @@
         "start": 4818,
         "end": 4825
       },
-      "kind": "Command",
+      "kind": "Ident",
       "flags": ""
     },
     {
@@ -7795,14 +7355,6 @@
     {
       "span": {
         "start": 4826,
-        "end": 4827
-      },
-      "kind": "Minus",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 4827,
         "end": 4828
       },
       "kind": "Command",
@@ -8170,6 +7722,7 @@
     }
   ],
   "errors": [
+    "invalid ident in function decl",
     "unexpected char in parameter expansion: 45"
   ]
 }
