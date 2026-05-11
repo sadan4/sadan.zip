@@ -691,14 +691,6 @@
     {
       "span": {
         "start": 859,
-        "end": 868
-      },
-      "kind": "Command",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 868,
         "end": 869
       },
       "kind": "Command",
@@ -979,14 +971,6 @@
     {
       "span": {
         "start": 951,
-        "end": 955
-      },
-      "kind": "Command",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 955,
         "end": 956
       },
       "kind": "Command",
@@ -1107,14 +1091,6 @@
     {
       "span": {
         "start": 1001,
-        "end": 1005
-      },
-      "kind": "Command",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 1005,
         "end": 1006
       },
       "kind": "Command",
@@ -1187,14 +1163,6 @@
     {
       "span": {
         "start": 1021,
-        "end": 1030
-      },
-      "kind": "Command",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 1030,
         "end": 1031
       },
       "kind": "Command",
@@ -4643,9 +4611,17 @@
     {
       "span": {
         "start": 3320,
+        "end": 3321
+      },
+      "kind": "Minus",
+      "flags": ""
+    },
+    {
+      "span": {
+        "start": 3321,
         "end": 3326
       },
-      "kind": "Unknown",
+      "kind": "StringContents",
       "flags": ""
     },
     {
@@ -6099,14 +6075,6 @@
     {
       "span": {
         "start": 4167,
-        "end": 4171
-      },
-      "kind": "Command",
-      "flags": ""
-    },
-    {
-      "span": {
-        "start": 4171,
         "end": 4172
       },
       "kind": "Command",
@@ -6387,9 +6355,25 @@
     {
       "span": {
         "start": 4244,
+        "end": 4249
+      },
+      "kind": "Ident",
+      "flags": ""
+    },
+    {
+      "span": {
+        "start": 4249,
+        "end": 4250
+      },
+      "kind": "Eq",
+      "flags": ""
+    },
+    {
+      "span": {
+        "start": 4250,
         "end": 4260
       },
-      "kind": "Command",
+      "kind": "StringContents",
       "flags": ""
     },
     {
@@ -6515,9 +6499,25 @@
     {
       "span": {
         "start": 4295,
+        "end": 4300
+      },
+      "kind": "Ident",
+      "flags": ""
+    },
+    {
+      "span": {
+        "start": 4300,
+        "end": 4301
+      },
+      "kind": "Eq",
+      "flags": ""
+    },
+    {
+      "span": {
+        "start": 4301,
         "end": 4315
       },
-      "kind": "Command",
+      "kind": "StringContents",
       "flags": ""
     },
     {
@@ -6555,9 +6555,17 @@
     {
       "span": {
         "start": 4322,
+        "end": 4327
+      },
+      "kind": "Ident",
+      "flags": ""
+    },
+    {
+      "span": {
+        "start": 4327,
         "end": 4328
       },
-      "kind": "Command",
+      "kind": "Eq",
       "flags": ""
     },
     {
@@ -7722,7 +7730,7 @@
     }
   ],
   "errors": [
-    "invalid ident in function decl",
-    "unexpected char in parameter expansion: 45"
+    "invalid ident in function decl"
   ]
 }
+
