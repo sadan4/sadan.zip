@@ -34,9 +34,9 @@ export const STEAM_USERNAME = "sadan4";
 export const LASTFM_USERNAME = "sadan4";
 export const EPIC_USERNAME = "sadan4";
 
-export const GITHUB_PROFILE_URL = githubProfileUrl(GITHUB_USERNAME);
-export const GITHUB_REPO_URL = `${GITHUB_PROFILE_URL}/sadan.zip`;
-export const GITHUB_REPO_CREATE_ISSUE_URL = `${GITHUB_REPO_URL}/issues/new`;
+export const GITHUB_PROFILE_URL = /* @__PURE__ */ githubProfileUrl(GITHUB_USERNAME);
+export const GITHUB_REPO_URL = /* @__PURE__ */ `${GITHUB_PROFILE_URL}/sadan.zip`;
+export const GITHUB_REPO_CREATE_ISSUE_URL = /* @__PURE__ */ `${GITHUB_REPO_URL}/issues/new`;
 
 // cspell:disable
 export const lorem = `
@@ -49,9 +49,9 @@ export const GNU_LINUX_COPYPASTA = "I'd just like to interject for a moment. Wha
 
 // cspell:enable
 
-export const EMPTY_OBJECT = Object.freeze({});
-export const EMPTY_SET = Object.freeze(new Set<never>());
-export const EMPTY_MAP = Object.freeze(new Map<never, never>());
-export const EMPTY_ARRAY = Object.freeze([]);
-export const EMPTY_NULL_OBJECT = Object.freeze(Object.create(null));
-export const NOOP = Object.freeze(() => { });
+export const EMPTY_OBJECT = /* @__PURE__ */ Object.freeze({});
+export const EMPTY_SET = /* @__PURE__ */ Object.freeze(new Set<never>());
+export const EMPTY_MAP = /* @__PURE__ */ Object.freeze(new Map<never, never>());
+export const EMPTY_ARRAY = /* @__PURE__ */ Object.freeze([]);
+export const EMPTY_NULL_OBJECT = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.create(null));
+export const NOOP = /* @__PURE__ */ Object.freeze(() => { });
