@@ -75,6 +75,21 @@ const knownColors: Record<string, string> = {
     Colon: cn("border-info-600 bg-info-600/50"),
     Slash: cn("border-info-600 bg-info-600/50"),
     Unknown: cn("border-error-900 bg-error-400/50"),
+    Case: cn("border-pink-700 bg-pink-700/35"),
+    Do: cn("border-pink-700 bg-pink-700/35"),
+    Done: cn("border-pink-700 bg-pink-700/35"),
+    Elif: cn("border-pink-700 bg-pink-700/35"),
+    Easc: cn("border-pink-700 bg-pink-700/35"),
+    Fi: cn("border-pink-700 bg-pink-700/35"),
+    For: cn("border-pink-700 bg-pink-700/35"),
+    Function: cn("border-pink-700 bg-pink-700/35"),
+    If: cn("border-pink-700 bg-pink-700/35"),
+    In: cn("border-pink-700 bg-pink-700/35"),
+    Select: cn("border-pink-700 bg-pink-700/35"),
+    Then: cn("border-pink-700 bg-pink-700/35"),
+    Time: cn("border-pink-700 bg-pink-700/35"),
+    Until: cn("border-pink-700 bg-pink-700/35"),
+    While: cn("border-pink-700 bg-pink-700/35"),
 };
 
 function colorForType(type: string) {
