@@ -15,7 +15,7 @@ export function createMatchers<T>(
     selector: string,
     matchesName: (names: string[], matcherInput: T) => boolean,
 ): MatcherWithPriority<T>[] {
-    const results = <MatcherWithPriority<T>[]>[];
+    const results = [] as MatcherWithPriority<T>[];
     const tokenizer = newTokenizer(selector);
     let token = tokenizer.next();
 

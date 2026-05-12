@@ -364,7 +364,7 @@ export abstract class Rule {
     public get debugName(): string {
         const location = this.$location ? `${basename(this.$location.filename)}:${this.$location.line}` : "unknown";
 
-        return `${(<any> this.constructor).name}#${this.id} @ ${location}`;
+        return `${(this.constructor as any).name}#${this.id} @ ${location}`;
     }
 
     public getName(lineText: string | null, captureIndices: IOnigCaptureIndex[] | null): string | null {
