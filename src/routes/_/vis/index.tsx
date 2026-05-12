@@ -3,6 +3,7 @@ import { Button } from "@/components/Button";
 import { Box } from "@/components/layout/Box";
 import { Text } from "@/components/Text";
 import { TextArea } from "@/components/TextArea";
+import { ToggleButtonGroup } from "@/components/ToggleButtonGroup";
 import { Tooltip } from "@/components/Tooltip";
 import { useForceUpdater } from "@/hooks/forceUpdater";
 import { useResizeObserverFromRef } from "@/hooks/resizeObserver";
@@ -13,23 +14,29 @@ import { NBSP } from "@/utils/constants";
 import { assert } from "@/utils/error";
 import { createFileRoute } from "@tanstack/react-router";
 
-import defaultJson from "./default.json?raw";
+import defaultJson from "./defaultJson.txt?raw";
+import defaultSource from "./defaultSource.txt?raw";
 import * as styles from "./styles.module.scss";
 
-import { AlertCircleIcon } from "lucide-react";
+import { AlertCircleIcon, BracesIcon, FileIcon } from "lucide-react";
 import { Fragment, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 interface Token {
-    type: string;
-    pos: {
+    kind: string;
+    span: {
         start: number;
-        length: number;
+        end: number;
     };
+    flags: string;
     contents(): ReactNode;
 }
 
+interface RawInput {
+    tokens: RawToken[];
+}
+
+
 interface RawToken extends Omit<Token, "contents"> {
-    contents: string;
 }
 
 export const Route = createFileRoute("/_/vis/")({
@@ -37,11 +44,37 @@ export const Route = createFileRoute("/_/vis/")({
 });
 
 const knownColors: Record<string, string> = {
-    LiteralToken: cn("border-accent-300 bg-accent-300/50"),
-    BlankSpaceToken: cn("border-info-500 bg-transparent"),
-    MinusToken: cn("border-warning-300 bg-warning-300/60"),
-    EofToken: cn("border-error-400 bg-transparent"),
-    DoubleQuoteToken: cn("border-info-300 bg-info-300/50"),
+    Comment: cn("border-info-600"),
+    NewLine: cn("border-0 border-transparent"),
+    StringContents: cn("border-success-800 bg-success-300/50"),
+    Whitespace: cn("border-info-400/50 bg-transparent"),
+    Eq: cn("border-accent-800 bg-accent-300/50"),
+    Semi: cn("border-accent-800 bg-accent-300/50"),
+    RedirectFdOutput: cn("border-accent-800 bg-accent-300/50"),
+    Dollar: cn("border-accent-800 bg-accent-300/50"),
+    DollarBrace: cn("border-accent-800 bg-accent-300/50"),
+    LBrace: cn("border-accent-800 bg-accent-300/50"),
+    RBrace: cn("border-accent-800 bg-accent-300/50"),
+    LBracket: cn("border-accent-800 bg-accent-300/50"),
+    RBracket: cn("border-accent-800 bg-accent-300/50"),
+    LParen: cn("border-accent-800 bg-accent-300/50"),
+    RParen: cn("border-accent-800 bg-accent-300/50"),
+    RAngle: cn("border-accent-800 bg-accent-300/50"),
+    LAngle: cn("border-accent-800 bg-accent-300/50"),
+    OrOr: cn("border-accent-800 bg-accent-300/50"),
+    Pipe: cn("border-accent-800 bg-accent-300/50"),
+    And: cn("border-accent-800 bg-accent-300/50"),
+    Grave: cn("border-accent-800 bg-accent-300/50"),
+    Quote: cn("border-accent-800 bg-accent-300/50"),
+    DoubleQuote: cn("border-accent-800 bg-accent-300/50"),
+    Command: cn("border-secondary-900 bg-secondary-400/50"),
+    Ident: cn("border-warning-900 bg-warning-400/50"),
+    // TODO: color once lexer supports these
+    Minus: cn("border-info-600 bg-info-600/50"),
+    Decrement: cn("border-info-600 bg-info-600/50"),
+    Colon: cn("border-info-600 bg-info-600/50"),
+    Slash: cn("border-info-600 bg-info-600/50"),
+    Unknown: cn("border-error-900 bg-error-400/50"),
 };
 
 function colorForType(type: string) {
@@ -53,8 +86,6 @@ function colorForType(type: string) {
 
     return knownColors[type];
 }
-
-const REMOVE_FQN_REGEX = /.*\./;
 
 function EmptyToken(count: number) {
     const svgRef = useRef<SVGSVGElement>(null);
@@ -87,28 +118,29 @@ function EmptyToken(count: number) {
     );
 }
 
-function parseTokens(json: string): Token[] {
-    const arr: RawToken[] = JSON.parse(json);
+function parseTokens(json: string, source: string): Token[] {
+    const arr: RawInput = JSON.parse(json);
 
-    assert(Array.isArray(arr), "Expected an array");
+    assert(Array.isArray(arr.tokens), "Expected an array");
 
-    return arr.map(({ contents, pos, type }) => {
-        const parsedType = type.replace(REMOVE_FQN_REGEX, "");
-        const tokenColor = colorForType(parsedType);
+    return arr.tokens.map(({ kind, span, flags }) => {
+        const tokenColor = colorForType(kind);
+        const contents = source.substring(span.start, span.end);
 
         return {
-            type: parsedType,
-            pos,
+            kind,
+            span,
+            flags,
             contents(): ReactNode {
                 return (
                     <Tooltip
                         text={(
                             <ul className="text-left">
                                 <li>
-                                    {parsedType}
+                                    {kind}
                                 </li>
                                 <li>
-                                    [{pos.start}, {pos.start + pos.length})
+                                    [{span.start}, {span.end})
                                 </li>
                                 {
                                     !contents && (
@@ -126,7 +158,7 @@ function parseTokens(json: string): Token[] {
                         <span
                             className={cn("relative border align-middle", tokenColor)}
                         >
-                            {contents || EmptyToken(pos.length)}
+                            {kind === "NewLine" ? <br /> : contents || (!!(span.end - span.start) && EmptyToken(span.end - span.start))}
                         </span>
                     </Tooltip>
                 );
@@ -137,13 +169,15 @@ function parseTokens(json: string): Token[] {
 
 function Vis() {
     const [text, setText] = useState("");
+    const [source, setSource] = useState("");
     const [tokens, setTokens] = useState<Token[]>([]);
+    const [tab, setTab] = useState<"json" | "code">("json");
     // react refresh hack
 
     function updateTokens() {
         if (text) {
             try {
-                setTokens(parseTokens(text));
+                setTokens(parseTokens(text, source));
             } catch {
                 // noop
             }
@@ -152,7 +186,7 @@ function Vis() {
         }
     }
 
-    useEffect(updateTokens, [text]);
+    useEffect(updateTokens, [source, text]);
 
     return (
         <>
@@ -165,11 +199,35 @@ function Vis() {
                     Token Visualizer
                 </Text>
                 <div className="mt-6 flex w-9/10 flex-col items-center gap-6">
+                    <ToggleButtonGroup
+                        className="m-2 rounded-lg border-2 border-fg-700 bg-bg-200 p-2"
+                        onSelectItem={(item) => setTab(item)}
+                        items={[
+                            {
+                                id: "json",
+                                label: "JSON",
+                                renderIcon() {
+                                    return <BracesIcon />;
+                                },
+                            },
+                            {
+                                id: "code",
+                                label: "Code",
+                                renderIcon() {
+                                    return <FileIcon />;
+                                },
+                            },
+                        ]}
+                    />
                     <TextArea
                         size="lg"
-                        value={text}
+                        value={tab === "json" ? text : source}
                         onChange={(e) => {
-                            setText(e.target.value);
+                            if (tab === "json") {
+                                setText(e.target.value);
+                            } else {
+                                setSource(e.target.value);
+                            }
                         }}
                         placeholder='some json here'
                         className="h-[10vh] max-h-[25vh] min-h-20 w-[60vw] max-w-[60vw] min-w-50 resize"
@@ -187,6 +245,7 @@ function Vis() {
                             colorType="outline"
                             onClick={() => {
                                 setText(defaultJson);
+                                setSource(defaultSource);
                             }}
                         >
                             Fill With Example
@@ -194,7 +253,7 @@ function Vis() {
                     </div>
                     <Box className="inline w-full [&>*:not(:first-child)]:ml-0.5">
                         {
-                            tokens.length ? tokens.map((t) => <Fragment key={`${t.type}-${t.pos.start}`}><t.contents /></Fragment>) : null
+                            tokens.length ? tokens.map((t) => <Fragment key={`${t.kind}-${t.span.start}`}><t.contents /></Fragment>) : null
                         }
                     </Box>
                 </div>
