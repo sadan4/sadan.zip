@@ -74,9 +74,9 @@ const config = defineConfig(async ({ command, isSsrBuild }) => {
                 },
             }),
             viteReact(),
-            babel({
-                presets: [reactCompilerPreset()],
-            }),
+            // babel({
+            //     presets: [reactCompilerPreset()],
+            // }),
             !isWindowsOnArm && (await import("@cloudflare/vite-plugin")).cloudflare({
                 viteEnvironment: {
                     name: "ssr",
@@ -169,7 +169,7 @@ const config = defineConfig(async ({ command, isSsrBuild }) => {
         devtools: {
             // https://github.com/rolldown/rolldown/issues/5896
             // https://github.com/rolldown/rolldown/pull/9219
-            enabled: true,
+            enabled: false,
         },
         optimizeDeps: {
         },
