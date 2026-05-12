@@ -132,9 +132,21 @@ export function HomePage({ tab }: HomePageProps) {
                                 id: "about",
                                 render() {
                                     return (
-                                        <Text>
-                                            About Tab
-                                        </Text>
+                                        <div>
+                                            <Text
+                                                size="2xl"
+                                                color="primary"
+                                            >
+                                                About Me
+                                            </Text>
+                                            <Text size="md">
+                                                {/* eslint-disable @stylistic/max-len */}
+                                                I'm a student who loves tinkering with and building software.
+                                                I love web development, developer tooling, open source software and modding.
+                                                In my free time, I enjoy playing video games with my friends, tinkering with hardware and reading books.
+                                                {/* eslint-enable @stylistic/max-len */}
+                                            </Text>
+                                        </div>
                                     );
                                 },
                                 renderTab(_props) {
