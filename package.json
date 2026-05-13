@@ -63,7 +63,7 @@
     "@rollup/plugin-commonjs": "^29.0.0",
     "@rollup/plugin-node-resolve": "^16.0.3",
     "@rollup/plugin-swc": "^0.4.0",
-    "@rspack/core": "^1.7.5",
+    "@rspack/core": "1.7.5",
     "@sadan4/devtools-pretty-printer": "^1.0.4",
     "@shikijs/langs": "^3.21.0",
     "@shikijs/themes": "^3.21.0",
