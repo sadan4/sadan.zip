@@ -1,2 +1,5 @@
-export * as border from "./border.module.scss";
+import * as border from "./border.module.scss";
+export {
+    border,
+};
 

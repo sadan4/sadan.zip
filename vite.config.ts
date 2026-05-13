@@ -74,9 +74,9 @@ const config = defineConfig(async ({ command, isSsrBuild }) => {
                 },
             }),
             viteReact(),
-            // babel({
-            //     presets: [reactCompilerPreset()],
-            // }),
+            babel({
+                presets: [reactCompilerPreset()],
+            }),
             !isWindowsOnArm && (await import("@cloudflare/vite-plugin")).cloudflare({
                 viteEnvironment: {
                     name: "ssr",
