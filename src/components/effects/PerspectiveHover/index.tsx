@@ -1,6 +1,5 @@
 import { MouseButtons } from "@/utils/dom";
 import { measureRect } from "@/utils/dom/rect";
-import toCSS from "@/utils/toCSS";
 import { animated, to, useSpring } from "@react-spring/web";
 
 import { type PropsWithChildren, useRef } from "react";
@@ -43,7 +42,7 @@ export default function PerspectiveHover({ children, hoverFactor, className }: P
         <animated.div
             ref={ref}
             style={{
-                transform: toCSS.perspective(600),
+                transform: "perspective(600px)",
                 x,
                 y,
                 scale: to([scale, zoom], (s, z) => s + z),

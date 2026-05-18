@@ -1,6 +1,5 @@
 import { useRect } from "@/hooks/rect";
 import cn from "@/utils/cn";
-import toCSS from "@/utils/toCSS";
 
 import * as styles from "./style.module.scss";
 
@@ -25,10 +24,9 @@ export default function Shadow({ children, noHover = false, className }: ShadowP
         const logHeight = Math.log(height);
 
         setCssProps({
-            "--shadow-container-width": toCSS.px(width),
-            "--shadow-container-height": toCSS.px(height),
-            "--log-shadow-container-height": toCSS.px(logHeight),
-
+            "--shadow-container-width": `${width}px`,
+            "--shadow-container-height": `${height}px`,
+            "--log-shadow-container-height": `${logHeight}px`,
         } as CSSProperties);
     }, [width, height]);
 
