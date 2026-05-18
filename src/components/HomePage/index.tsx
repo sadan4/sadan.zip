@@ -63,7 +63,7 @@ function ContactLink({ name, to, icon }: ContactLinkProps) {
 
 function LinksTabSection() {
     return (
-        <div>
+        <div className="contain-inline-size">
             <Text size="md">
                 I'm most active on Discord. If you need to contact me, you should reach out there.
             </Text>
@@ -77,7 +77,7 @@ function LinksTabSection() {
             <Text>
                 You can find me on other platforms as well!
             </Text>
-            <div className={cn(styles.links, "flex gap-4")}>
+            <div className={cn(styles.links, "flex flex-wrap gap-4")}>
                 <ContactLink
                     name="GitHub"
                     to={GITHUB_PROFILE_URL}
@@ -124,7 +124,7 @@ export function HomePage({ tab }: HomePageProps) {
                     round
                 />
                 <Name />
-                <div className="w-1/2">
+                <div className="w-full px-4 md:w-3/4 md:px-0 lg:w-1/2">
                     <TabBar
                         selectedTab={tab}
                         tabs={[

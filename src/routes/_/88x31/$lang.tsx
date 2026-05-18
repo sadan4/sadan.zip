@@ -84,7 +84,7 @@ function ButtonPage() {
         <>
             <Boilerplate />
             <div className="mt-4 flex w-full justify-center">
-                <Box className="mr-2">
+                <Box className="mr-2 w-full md:w-2/3">
                     <Text
                         size="3xl"
                         color="primary"
