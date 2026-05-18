@@ -1,10 +1,9 @@
 import _88x31Image from "@/assets/88x31.png";
 import { Boilerplate } from "@/components/Boilerplate";
-import { Clickable } from "@/components/Clickable";
 import { Codeblock } from "@/components/Codeblock/Codeblock";
 import { Box } from "@/components/layout/Box";
 import { TabBar, TabBarPosition } from "@/components/layout/TabBar";
-import { TextLink } from "@/components/Links";
+import { Link, TextLink } from "@/components/Links";
 import { Text } from "@/components/Text";
 import { loadGrammar, loadTheme } from "@/utils/shiki";
 import { Language } from "@/utils/textmate";
@@ -14,22 +13,17 @@ import { createFileRoute } from "@tanstack/react-router";
 import htmlExampleContent from "./-sample.html?raw";
 import _reactExampleContent from "./-sample.tsx?raw";
 
-import { type ComponentProps } from "react";
 import { z } from "zod";
 
 const reactExampleContent = _reactExampleContent.trimEnd();
 
-interface Sadan88x31ButtonProps extends Omit<ComponentProps<"a">, "href" | "rel"> {
-}
-
-// this file only exports components, eslint is stupid
-
-function Sadan88x31Button(props: Sadan88x31ButtonProps) {
+function Sadan88x31Button() {
     return (
-        <Clickable
-            {...props}
-            tag="a"
-            href="/"
+        <Link
+            to="/{-$tab}"
+            params={{
+                tab: "about",
+            }}
             rel="nofollow"
             className="size-88x31"
         >
@@ -37,7 +31,7 @@ function Sadan88x31Button(props: Sadan88x31ButtonProps) {
                 src={_88x31Image}
                 className="size-88x31 pixelated"
             />
-        </Clickable>
+        </Link>
     );
 }
 
