@@ -3,10 +3,12 @@ import { border } from "@/styles";
 import cn from "@/utils/cn";
 import { assert } from "@/utils/error";
 import { prop } from "@/utils/functional";
+import { autoUpdate, flip, offset, useFloating } from "@floating-ui/react-dom";
 import { animated, useSpringValue } from "@react-spring/web";
 
 import * as styles from "./styles.module.scss";
 import { Clickable } from "../Clickable";
+import { LayerPortal } from "../Layer";
 import { ScrollArea } from "../layout/ScrollArea";
 import { ScrollAreaContext } from "../layout/ScrollArea/context";
 import { Text } from "../Text";
@@ -51,9 +53,19 @@ function SelectItem<T>({ item: { label, value, disabled }, isSelected, onChange 
         <Clickable
             ref={ref}
             className={cn("flex items-center p-2", disabled ? "brightness-50" : "hover:bg-bg-200")}
-            onClick={() => onChange(value)}
+            onClick={() => {
+                console.log("clicked", {
+                    value,
+                    label,
+                    isSelected,
+                });
+                return onChange(value);
+            }}
         >
-            <div className="flex-1/1">{label}</div>
+            <div
+                className="flex-1/1"
+            >{label}
+            </div>
             {isSelected && <CircleCheck className="text-info-500"/>}
         </Clickable>
     );
@@ -72,7 +84,7 @@ function SelectMenu<T>({ items, onChange, selectedItem, scrollAreaClassName }: S
             {items.map((item) => {
                 return (
                     <SelectItem
-                        key={item.key}
+                        key={item.key ?? String(item.key)}
                         onChange={onChange}
                         isSelected={selectedItem === item.value}
                         item={item}
@@ -125,6 +137,20 @@ export function Select<T extends PropertyKey>({
         handleChange: onChange,
     });
 
+    // FIXME: facebook/react#34775
+    const {
+        refs: {
+            floating: floatingRef,
+            setFloating,
+            reference: ref,
+            setReference: setRef,
+        },
+        floatingStyles,
+        update: updateFloatingUi,
+    } = useFloating({
+        middleware: [offset(8), flip()],
+    });
+
     // const isOpenManaged = _open !== undefined;
     const [open, setOpen] = useControlledState({
         initialValue: false,
@@ -133,14 +159,29 @@ export function Select<T extends PropertyKey>({
         handleChange: onOpenChange,
     });
 
-    const ref = useRef<HTMLDivElement>(null);
-    const menuRef = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        const floatingEl = floatingRef.current;
+        const referenceEl = ref.current;
+
+        if (open && floatingEl && referenceEl) {
+            const cleanup = autoUpdate(
+                referenceEl,
+                floatingEl,
+                updateFloatingUi,
+            );
+
+            return cleanup;
+        }
+    }, [floatingRef, open, ref, updateFloatingUi]);
+
 
     useEffect(() => {
-        if (open && menuRef.current) {
-            menuRef.current.focus();
+        const ref = floatingRef.current;
+
+        if (open && ref) {
+            ref.focus();
         }
-    }, [open]);
+    }, [open, floatingRef]);
 
     function getItem(value: T) {
         return items.find((i) => i.value === value);
@@ -164,7 +205,7 @@ export function Select<T extends PropertyKey>({
 
     return (
         <div
-            ref={ref}
+            ref={setRef}
             className="relative"
         >
             <Clickable
@@ -187,7 +228,9 @@ export function Select<T extends PropertyKey>({
                     ? children
                     : (
                         <>
-                            <div className="flex-1/1">
+                            <div
+                                className="flex-1/1"
+                            >
                                 {currentLabel}
                             </div>
                             <animated.svg
@@ -207,18 +250,21 @@ export function Select<T extends PropertyKey>({
                         </>
                     )}
             </Clickable>
-            {/* TODO: portal this */}
-            <div className={cn("absolute top-6/5 left-0 w-full")}>
+            <LayerPortal>
                 {open && (
                     <div
-                        onBlur={({ relatedTarget }) => {
-                            assert(ref.current, "how are we running this without ref.current being set");
-                            if (ref.current.contains(relatedTarget)) {
+                        onBlur={({ relatedTarget, currentTarget }) => {
+                            const el = ref.current as HTMLDivElement;
+
+                            assert(el, "how are we running this without ref.current being set");
+
+                            if (el.contains(relatedTarget) || currentTarget.contains(relatedTarget)) {
                                 return;
                             }
                             setOpen(false);
                         }}
-                        ref={menuRef}
+                        ref={setFloating}
+                        style={floatingStyles}
                         tabIndex={-1}
                     >
                         <SelectMenu
@@ -234,7 +280,7 @@ export function Select<T extends PropertyKey>({
                         />
                     </div>
                 )}
-            </div>
+            </LayerPortal>
         </div>
     );
 }

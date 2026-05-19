@@ -4,6 +4,7 @@ import { Input } from "@/components/Input";
 import { Box } from "@/components/layout/Box";
 import { HorizontalLine } from "@/components/Lines/HorizontalLine";
 import { Select, type SelectOption } from "@/components/Select";
+import { Slider, type SliderProps } from "@/components/Slider";
 import { Text } from "@/components/Text";
 import { LabeledTextArea, TextArea } from "@/components/TextArea";
 import { useToaster } from "@/hooks/toaster";
@@ -201,6 +202,61 @@ function ToastExample() {
     );
 }
 
+function SliderExample() {
+    const [size, setSize] = useState<SliderProps["size"] & {}>("md");
+
+    return (
+        <>
+            <Text
+                size="xl"
+                center
+            >
+                Slider
+            </Text>
+            <div>
+                <div className="flex w-fit items-center">
+                    <Text
+                        size="md"
+                        className="pr-4"
+                    >
+                        Size:
+                    </Text>
+                    <Select
+                        items={[
+                            {
+                                label: "Extra Small",
+                                typedValue: "ExtraSmall",
+                                value: "xs",
+                            },
+                            {
+                                label: "Small",
+                                typedValue: "Small",
+                                value: "sm",
+                            },
+                            {
+                                label: "Medium",
+                                typedValue: "Medium",
+                                value: "md",
+                            },
+                            {
+                                label: "Large",
+                                typedValue: "Large",
+                                value: "lg",
+                            },
+                        ]}
+                        selectedValue={size}
+                        onChange={setSize}
+                    />
+                </div>
+            </div>
+            <div>
+                <Slider size={size} />
+            </div>
+
+        </>
+    );
+}
+
 function Components() {
     return (
         <>
@@ -218,6 +274,8 @@ function Components() {
                     <TextAreaExample />
                     <HorizontalLine className="my-4" />
                     <ToastExample />
+                    <HorizontalLine className="my-4" />
+                    <SliderExample />
                 </Box>
             </div>
         </>

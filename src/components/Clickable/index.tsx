@@ -28,7 +28,6 @@ export function Clickable<T extends ClickableTags = "div">(_props: ClickableProp
             tabIndex={0}
             // TODO: type this
             onMouseUp={(e: any) => {
-                e.target?.blur();
                 onMouseUp?.(e);
             }}
             className={cn(styles.clickable, className)}

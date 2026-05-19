@@ -21,6 +21,9 @@
     "typegen": "wrangler types"
   },
   "dependencies": {
+    "@floating-ui/core": "^1.7.5",
+    "@floating-ui/dom": "^1.7.6",
+    "@floating-ui/react-dom": "2.1.8",
     "@react-spring/shared": "^10.0.3",
     "@react-spring/web": "^10.0.3",
     "@sadan4/demangler": "^1.0.4",
