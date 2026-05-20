@@ -595,6 +595,7 @@ const styleRules: Partial<IStyleRules> = {
                 "*",
                 // template literal tags
                 "js",
+                "css",
             ],
         },
     ],
@@ -756,85 +757,100 @@ const tailwindCallees = Object.freeze({
 });
 
 // TODO: re-add stories when storybook is re-added
-export default TSEslint.config({ ignores: ["dist", "crates", "src/**/*.stories.tsx", "dist.server", "builds", "node_modules", ".vite-inspect"] }, {
-    files: [`src/**/*.${extensions}`, `server/**/*.${extensions}`, `eslint.config.${extensions}`, `vite.config.${extensions}`, `stylelint.config.${extensions}`, `scripts/**/*.${extensions}`, `vitest.config.${extensions}`, `.storybook/*.${extensions}`],
-    plugins: {
-        "@stylistic": stylistic,
-        "@typescript-eslint": TSEslint.plugin,
-        "simple-import-sort": simpleImportSort,
-        "unused-imports": unusedImports,
-        "react-hooks": reactHooks,
-        "react-refresh": reactRefresh,
-        tailwindcss,
-        // eslint-react has a handful of plugins, add them all
-        ...eslintReact.configs.all.plugins,
-        local: {
-            rules: {
-                "require-css-as-namespace": requireCssAsNamespace,
-            },
-            meta: {
-                name: "local",
+export default TSEslint.config(
+    {
+        ignores: [
+            "dist",
+            "crates",
+            "src/**/*.stories.tsx",
+            "dist.server",
+            "builds",
+            "node_modules",
+            ".vite-inspect",
+            ".wrangler",
+        ],
+    },
+    {
+        files: [`src/**/*.${extensions}`, `server/**/*.${extensions}`, `eslint.config.${extensions}`, `vite.config.${extensions}`, `stylelint.config.${extensions}`, `scripts/**/*.${extensions}`, `vitest.config.${extensions}`, `.storybook/*.${extensions}`],
+        plugins: {
+            "@stylistic": stylistic,
+            "@typescript-eslint": TSEslint.plugin,
+            "simple-import-sort": simpleImportSort,
+            "unused-imports": unusedImports,
+            "react-hooks": reactHooks,
+            "react-refresh": reactRefresh,
+            tailwindcss,
+            // eslint-react has a handful of plugins, add them all
+            ...eslintReact.configs.all.plugins,
+            local: {
+                rules: {
+                    "require-css-as-namespace": requireCssAsNamespace,
+                },
+                meta: {
+                    name: "local",
+                },
             },
         },
-    },
-    settings: {
-        "react-x": {
-            additionalEffectHooks: "(useIsomorphicLayoutEffect)",
-            polymorphicPropName: "tag",
-            compilationMode: "infer",
+        settings: {
+            "react-x": {
+                additionalEffectHooks: "(useIsomorphicLayoutEffect)",
+                polymorphicPropName: "tag",
+                compilationMode: "infer",
+            },
+        },
+        languageOptions: {
+            parser: TSEslint.parser,
+            parserOptions: {
+                projectService: true,
+                tsconfigRootDir: import.meta.dirname,
+            },
+        },
+        rules: {
+            ...ESLintRules,
+            ...TSLintRules,
+            // Style Rules
+            ...styleRules,
+            ...reactHooksRules,
+            ...eslintReactRules,
+            "unused-imports/no-unused-imports": "error",
+            "unused-imports/no-unused-vars": [
+                "warn",
+                {
+                    vars: "all",
+                    varsIgnorePattern: "^_",
+                    args: "after-used",
+                    argsIgnorePattern: "^_",
+                },
+            ],
+            // Plugin Rules
+            "simple-import-sort/imports": [
+                "error",
+                {
+                    groups: [
+                        ["^@.+$"],
+                        ["^\\./(?=.*/)(?!/?$)", "^\\.(?!/?$)", "^\\./?$", "^\\.\\.(?!/?$)", "^\\.\\./?$"],
+                        ["^(assert|buffer|child_process|cluster|console|constants|crypto|dgram|dns|domain|events|fs|http|https|module|net|os|path|punycode|querystring|readline|repl|stream|string_decoder|sys|timers|tls|tty|url|util|vm|zlib|freelist|v8|process|async_hooks|http2|perf_hooks)(/.*|$)"],
+                    ],
+                },
+            ],
+            "simple-import-sort/exports": "error",
+            "react-refresh/only-export-components": [
+                "warn",
+                { allowConstantExport: true },
+            ],
+            "tailwindcss/classnames-order": [
+                "error",
+                tailwindCallees,
+            ],
+            "tailwindcss/enforces-negative-arbitrary-values": ["error", tailwindCallees],
+            "tailwindcss/enforces-shorthand": ["error", tailwindCallees],
+            // maybe add no-arbitrary-value
+            "tailwindcss/no-contradicting-classname": ["error", tailwindCallees],
+            // not yet working in the beta
+            // "tailwindcss/no-custom-classname": ["error", tailwindCallees],
+            "tailwindcss/no-unnecessary-arbitrary-value": ["error", tailwindCallees],
+            "local/require-css-as-namespace": "error",
         },
     },
-    languageOptions: {
-        parser: TSEslint.parser,
-        parserOptions: {
-            projectService: true,
-            tsconfigRootDir: import.meta.dirname,
-        },
-    },
-    rules: {
-        ...ESLintRules,
-        ...TSLintRules,
-        // Style Rules
-        ...styleRules,
-        ...reactHooksRules,
-        ...eslintReactRules,
-        "unused-imports/no-unused-imports": "error",
-        "unused-imports/no-unused-vars": [
-            "warn",
-            {
-                vars: "all",
-                varsIgnorePattern: "^_",
-                args: "after-used",
-                argsIgnorePattern: "^_",
-            },
-        ],
-        // Plugin Rules
-        "simple-import-sort/imports": [
-            "error",
-            {
-                groups: [
-                    ["^@.+$"],
-                    ["^\\./(?=.*/)(?!/?$)", "^\\.(?!/?$)", "^\\./?$", "^\\.\\.(?!/?$)", "^\\.\\./?$"],
-                    ["^(assert|buffer|child_process|cluster|console|constants|crypto|dgram|dns|domain|events|fs|http|https|module|net|os|path|punycode|querystring|readline|repl|stream|string_decoder|sys|timers|tls|tty|url|util|vm|zlib|freelist|v8|process|async_hooks|http2|perf_hooks)(/.*|$)"],
-                ],
-            },
-        ],
-        "simple-import-sort/exports": "error",
-        "react-refresh/only-export-components": [
-            "warn",
-            { allowConstantExport: true },
-        ],
-        "tailwindcss/classnames-order": [
-            "error",
-            tailwindCallees,
-        ],
-        "tailwindcss/enforces-negative-arbitrary-values": ["error", tailwindCallees],
-        "tailwindcss/enforces-shorthand": ["error", tailwindCallees],
-        // maybe add no-arbitrary-value
-        "tailwindcss/no-contradicting-classname": ["error", tailwindCallees],
-        // not yet working in the beta
-        // "tailwindcss/no-custom-classname": ["error", tailwindCallees],
-        "tailwindcss/no-unnecessary-arbitrary-value": ["error", tailwindCallees],
-        "local/require-css-as-namespace": "error",
-    },
-}, storybook.configs["flat/recommended"]);
+    storybook.configs["flat/recommended"],
+);

@@ -88,7 +88,10 @@ export function SnowCanvas({
         }
 
         const canvas = _canvas;
-        const _ctx = canvas.getContext("2d");
+
+        const _ctx = canvas.getContext("2d", {
+            desynchronized: true,
+        });
 
         if (!_ctx) {
             return;

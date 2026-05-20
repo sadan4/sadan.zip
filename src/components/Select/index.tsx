@@ -3,7 +3,7 @@ import { border } from "@/styles";
 import cn from "@/utils/cn";
 import { assert } from "@/utils/error";
 import { prop } from "@/utils/functional";
-import { autoUpdate, flip, offset, useFloating } from "@floating-ui/react-dom";
+import { autoUpdate, flip, offset, useFloating } from "@floating-ui/react";
 import { animated, useSpringValue } from "@react-spring/web";
 
 import * as styles from "./styles.module.scss";

@@ -3,4 +3,5 @@ export const enum TooltipPosition {
     BOTTOM,
     LEFT,
     RIGHT,
+    // AUTO,
 }
