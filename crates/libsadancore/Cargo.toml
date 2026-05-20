@@ -21,6 +21,10 @@ const_format.workspace = true
 rmp-serde.workspace = true
 serde.workspace = true
 serde-wasm-bindgen.workspace = true
+oxc.workspace = true
+webpack_ast_parser.workspace = true
+derive_more.workspace = true
+smol_str.workspace = true
 
 [features]
 local-server = []

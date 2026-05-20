@@ -27,6 +27,7 @@ import { createLink } from "@tanstack/react-router";
 import type { WebpackAstParser } from "@vencord-companion/webpack-ast-parser/WebpackAstParser";
 import { ReactFlow } from "@xyflow/react";
 
+import { getBuildService } from "./-data/worker/api";
 import {
     ModuleViewerSettingsStore,
     ModuleViewerStore,
@@ -49,6 +50,7 @@ import {
     GithubIcon,
     NetworkIcon,
     SettingsIcon,
+    TestTube2Icon,
     TriangleAlertIcon,
     Undo2Icon,
     XIcon,
@@ -485,6 +487,24 @@ function ExplorerHeader() {
                 />
             </div>
             <div className="flex gap-2">
+                <IconButton
+                    label="do thing"
+                    colorType="outline"
+                    tooltipPosition={TooltipPosition.BOTTOM}
+                    loadingAnimation
+                    tooltipClassName="z-6"
+                    onClick={async () => {
+                        const { buildHash } = ModuleViewerStore.getState();
+                        const buildService = await getBuildService(buildHash);
+                        const result = await buildService.add(1, 3);
+
+                        console.log("Result from worker:", result);
+
+                        return true;
+                    }}
+                >
+                    <TestTube2Icon />
+                </IconButton>
                 <IconButton
                     tag="a"
                     label={`Download${NBSP}Bundle`}
