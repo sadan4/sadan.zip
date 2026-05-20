@@ -3,8 +3,9 @@ import { useControlledState } from "@/hooks/controlledState";
 import cn from "@/utils/cn";
 import { EMPTY_OBJECT } from "@/utils/constants";
 import { measureRect } from "@/utils/dom/rect";
+import { error } from "@/utils/error";
 import type { TOmit } from "@/utils/types";
-import { arrow, autoPlacement, flip, FloatingArrow, offset, type Placement, shift, useFloating } from "@floating-ui/react";
+import { arrow, autoUpdate, flip, FloatingArrow, offset, type Placement, shift, useFloating } from "@floating-ui/react";
 import { animated, type AnimatedProps, type SpringValue, to, useTransition } from "@react-spring/web";
 
 import { TooltipPosition } from "./constants";
@@ -12,10 +13,10 @@ import * as styles from "./styles.module.scss";
 import { LayerPortal } from "../Layer";
 import { Box } from "../layout/Box";
 
-import { type ComponentProps, type CSSProperties, type ReactNode, useRef } from "react";
+import { type ComponentProps, type CSSProperties, type ReactNode, useEffect, useRef } from "react";
 
 interface MakeTooltipPositionStylesOptions {
-    position: Exclude<TooltipPosition, TooltipPosition.AUTO>;
+    position: Exclude<TooltipPosition, /* TooltipPosition.AUTO */never>;
     percentIn: SpringValue<number>;
     triggerHeight: number;
     triggerWidth: number;
@@ -139,12 +140,34 @@ export interface TooltipProps extends ComponentProps<"div"> {
     offset?: number;
 }
 
-const floatingPosotionMap = /* @__PURE__ */ Object.freeze({
+function getFinalPlacement(finalPlacement: Placement): TooltipPosition {
+    switch (finalPlacement) {
+        case "top":
+            return TooltipPosition.TOP;
+        case "right":
+            return TooltipPosition.RIGHT;
+        case "bottom":
+            return TooltipPosition.BOTTOM;
+        case "left":
+            return TooltipPosition.LEFT;
+        case "top-start":
+        case "top-end":
+        case "right-start":
+        case "right-end":
+        case "bottom-start":
+        case "bottom-end":
+        case "left-start":
+        case "left-end":
+            error(`invalid placement: ${finalPlacement}`);
+    }
+}
+
+const floatingPositionMap = /* @__PURE__ */ Object.freeze({
     [TooltipPosition.TOP]: "top",
     [TooltipPosition.BOTTOM]: "bottom",
     [TooltipPosition.LEFT]: "left",
     [TooltipPosition.RIGHT]: "right",
-    [TooltipPosition.AUTO]: undefined,
+    // [TooltipPosition.AUTO]: undefined,
 } satisfies Record<TooltipPosition, Placement | undefined>);
 
 export function Tooltip({
@@ -178,24 +201,26 @@ export function Tooltip({
 
     const {
         refs: {
-            setFloating: setTooltipRef,
+            setFloating: setTooltipEl,
             setReference: setTriggerEl,
             domReference: triggerEl,
+            floating: tooltipEl,
         },
         context,
         floatingStyles,
+        update: updateFloatingUi,
     } = useFloating<HTMLDivElement>({
-        placement: floatingPosotionMap[position],
+        placement: floatingPositionMap[position],
         middleware: [
             offset(offsetLen),
-            ...floatingPosotionMap[position]
-                ? [
-                    shift({
-                        padding: offsetLen,
-                    }),
-                    flip(),
-                ]
-                : [autoPlacement()],
+            // ...floatingPositionMap[position]
+            //     ? [
+            shift({
+                padding: offsetLen,
+            }),
+            flip(),
+            // ]
+            // : [autoPlacement()],
             // eslint-disable-next-line react-hooks/refs
             arrow({
                 element: arrowRef,
@@ -227,6 +252,21 @@ export function Tooltip({
         }
     }
 
+    useEffect(() => {
+        const tooltipElement = tooltipEl.current;
+        const triggerElement = triggerEl.current;
+
+        if (shouldShow && tooltipElement && triggerElement) {
+            const cleanup = autoUpdate(
+                triggerElement,
+                tooltipElement,
+                updateFloatingUi,
+            );
+
+            return cleanup;
+        }
+    }, [shouldShow, tooltipEl, triggerEl, updateFloatingUi]);
+
     return (
         <div
             {...props}
@@ -237,12 +277,13 @@ export function Tooltip({
         >
             <LayerPortal>
                 {tooltipTransition(({ percentIn, ...styleProps }, show) => {
+                    const position = getFinalPlacement(context.placement);
                     const el = triggerEl.current;
                     const triggerRect = el && measureRect(el);
 
                     const animStyles = makeTooltipPositionStyles({
                         percentIn,
-                        position: position as any,
+                        position,
                         triggerHeight: triggerRect?.height ?? 0,
                         triggerWidth: triggerRect?.width ?? 0,
                     });
@@ -251,7 +292,7 @@ export function Tooltip({
                         <div
                             className={tooltipClassName}
                             style={floatingStyles}
-                            ref={setTooltipRef}
+                            ref={setTooltipEl}
                         >
                             <animated.div
                                 style={{
