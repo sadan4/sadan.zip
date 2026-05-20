@@ -1,11 +1,7 @@
-@use "u";
-
 @layer components {
     .tooltip,
     .trigger {
         display: inline;
-        width: fit-content;
-        height: fit-content;
     }
 
     .container {
