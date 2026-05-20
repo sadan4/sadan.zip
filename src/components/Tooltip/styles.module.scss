@@ -1,79 +1,29 @@
 @use "u";
 
 @layer components {
-    .tooltip {
-        display: contents;
-        height: fit-content;
+    .tooltip,
+    .trigger {
+        display: inline;
         width: fit-content;
-
-
-        > .trigger {
-            width: fit-content;
-            height: fit-content;
-            display: contents;
-        }
+        height: fit-content;
     }
 
-    .position-wrapper {
-        // Keep in sync with js file
-        $pad: var(--pad, 1rem);
-        $max-content-size: 16rem;
+    .container {
+        > .arrow {
+            fill: var(--color-bg-100);
 
-        position: fixed;
-
-        &.top {
-            translate: -50% -100%;
-        }
-
-        &.bottom {
-            translate: -50%;
-        }
-
-        &.left {
-            translate: -100% -50%;
-        }
-
-        &.right {
-            translate: 0 -50%;
-        }
-
-        > .container {
-            > .arrow {
-                position: absolute;
-
-                > path {
-                    fill: var(--color-bg-100)
-                }
-
-                > path.border {
-                    stroke: u.alpha(var(--color-fg-600) 25%);
-                    stroke-width: 3px;
-                }
-            }
-
-            > .box {
-                $box-padding: 1rem;
-
-                padding: calc($box-padding / 2) $box-padding;
-
-                > .wrapper {
-                    text-align: center;
-                }
-            }
-
-        }
-
-        &.left,
-        &.right {
-            > .container > .arrow {
-                top: 50%;
+            > path:first-of-type {
+                stroke: color-mix(in oklab, var(--color-fg-600) 25%, transparent);
             }
         }
 
-        &.top,
-        &.bottom {
-            > .container > .arrow {
-                left: 50%;
+        > .box {
+            $box-padding: 1rem;
+
+            padding: calc($box-padding / 2) $box-padding;
+
+            > .wrapper {
+                text-align: center;
             }
         }
     }

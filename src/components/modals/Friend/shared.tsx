@@ -155,6 +155,7 @@ export function FriendButton({ friend, tooltipPosition, mobile }: FriendButtonPr
                             onHide={() => {
                                 setTooltipVisible(false);
                             }}
+                            offset={16}
                         >
                             <div
                                 ref={setEl}
