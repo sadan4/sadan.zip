@@ -25,6 +25,8 @@ oxc.workspace = true
 webpack_ast_parser.workspace = true
 derive_more.workspace = true
 smol_str.workspace = true
+ast_parser.workspace = true
+pretty_printer.workspace = true
 
 [features]
 local-server = []

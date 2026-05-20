@@ -15,6 +15,7 @@ use crate::{
 	util::fetch_struct,
 };
 use anyhow::Context;
+use ast_parser::{get_line_and_column, get_offset_from_line_and_column};
 use derive_more::Deref;
 use explorer_types::{
 	DepInfo,
@@ -26,7 +27,8 @@ use explorer_types::{
 	Modules,
 	TModuleId,
 };
-use oxc::allocator::Allocator;
+use oxc::{allocator::Allocator, span::Span};
+use pretty_printer::{FormattedContent, format_with_alloc};
 use serde::Serialize;
 use smol_str::{SmolStr, format_smolstr};
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
@@ -68,8 +70,10 @@ struct BundleInner {
 	dep_info: RcDepInfo,
 	#[expect(dead_code)]
 	module_sources: ModuleSources,
-	#[expect(clippy::box_collection)]
-	modules: HashMap<ModuleId, Pin<Box<String>>>,
+	// FIXME: use formatted sources
+	unformatted_modules_: HashMap<ModuleId, Pin<Box<String>>>,
+	format_alloc: RefCell<Allocator>,
+	formatted_modules: RefCell<HashMap<ModuleId, Pin<Box<String>>>>,
 	raw_alloc: Box<Allocator>,
 	parsers: RefCell<HashMap<ModuleId, Rc<WebpackAstParser<'static>>>>,
 	self_ptr: *const Self,
@@ -100,14 +104,7 @@ impl IModuleCache<'static> for BundleInner {
 		id: ModuleId,
 		_latest: Option<bool>,
 	) -> anyhow::Result<Rc<WebpackAstParser<'static>>> {
-		let mut parsers = self.parsers.borrow_mut();
-		if let Some(parser) = parsers.get(&id) {
-			Ok(parser.clone())
-		} else {
-			let parser = Rc::new(self.make_parser(id)?);
-			parsers.insert(id, parser.clone());
-			Ok(parser)
-		}
+		self.get_or_make_parser(id)
 	}
 }
 
@@ -118,6 +115,7 @@ struct ModuleDepsJs<'a> {
 	lazy_uses: &'a Vec<ModuleId>,
 }
 
+/// 1-based
 #[wasm_bindgen]
 #[derive(Copy, Clone, Debug)]
 pub struct MonacoRange {
@@ -127,10 +125,25 @@ pub struct MonacoRange {
 	/// 1-based
 	#[wasm_bindgen(readonly)]
 	pub start_column: u32,
+	/// 1-based
 	#[wasm_bindgen(readonly)]
 	pub end_line: u32,
+	/// 1-based
 	#[wasm_bindgen(readonly)]
 	pub end_column: u32,
+}
+
+impl MonacoRange {
+	fn from_span(span: Span, src: &str) -> Self {
+		let (start_line, start_col) = get_line_and_column(src, span.start);
+		let (end_line, end_col) = get_line_and_column(src, span.end);
+		Self {
+			start_line: start_line + 1,
+			start_column: start_col + 1,
+			end_line: end_line + 1,
+			end_column: end_col + 1,
+		}
+	}
 }
 
 #[wasm_bindgen]
@@ -149,7 +162,7 @@ impl BundleInner {
 			mem::transmute::<&Allocator, &'static Allocator>(raw_alloc)
 		};
 		let raw_source_str = self
-			.modules
+			.unformatted_modules
 			.get(&id)
 			.context("Module source not found")?
 			.as_str();
@@ -164,13 +177,59 @@ impl BundleInner {
 		parser.set_module_dep_provider(static_self_ref);
 		Ok(parser)
 	}
+	fn get_or_make_parser(
+		&self,
+		id: ModuleId,
+	) -> anyhow::Result<Rc<WebpackAstParser<'static>>> {
+		let mut parsers = self.parsers.borrow_mut();
+		if let Some(parser) = parsers.get(&id) {
+			Ok(parser.clone())
+		} else {
+			let parser = Rc::new(self.make_parser(id)?);
+			parsers.insert(id, parser.clone());
+			Ok(parser)
+		}
+	}
+	fn get_formatted_module<'a>(
+		&'a self,
+		id: ModuleId,
+	) -> anyhow::Result<&'a str> {
+		let mut fmt_mods = self.formatted_modules.borrow_mut();
+		if let Some(fmt) = fmt_mods.get(&id) {
+			let ret = fmt.as_str();
+			// SAFETY: TODO
+			let ret = unsafe { mem::transmute::<&str, &'a str>(ret) };
+			Ok(ret)
+		} else {
+			let formatted_source = self.format_module(id)?;
+			let boxed = Box::pin(formatted_source);
+			fmt_mods.insert(id, boxed);
+			let ret = fmt_mods.get(&id).unwrap().as_str();
+			// SAFETY: TODO
+			let ret = unsafe { mem::transmute::<&str, &'a str>(ret) };
+			Ok(ret)
+		}
+	}
+	fn format_module(&self, id: ModuleId) -> anyhow::Result<String> {
+		let alloc = self.format_alloc.borrow();
+		debug_assert_eq!(alloc.capacity(), 0);
+		let unformatted = self
+			.unformatted_modules
+			.get(&id)
+			.context("Module source not found")?
+			.as_str();
+		let FormattedContent { code, mappings: _ } =
+			format_with_alloc(unformatted, &alloc, 4)
+				.context("Failed to format module")?;
+		Ok(code)
+	}
 }
 
 #[wasm_bindgen]
 impl Bundle {
 	pub fn get_module_text(&self, module_id: u32) -> Option<String> {
 		self.inner
-			.modules
+			.unformatted_modules
 			.get(&ModuleId(module_id))
 			.map(|s| (**s).clone())
 	}
@@ -191,7 +250,7 @@ impl Bundle {
 	pub fn get_id_list(&self) -> Box<[TModuleId]> {
 		let mut ret: Vec<u32> = self
 			.inner
-			.modules
+			.unformatted_modules
 			.keys()
 			.copied()
 			.map(Into::into)
@@ -201,14 +260,32 @@ impl Bundle {
 	}
 	pub fn has_id(&self, module_id: u32) -> bool {
 		self.inner
-			.modules
+			.unformatted_modules
 			.contains_key(&ModuleId(module_id))
 	}
+	/// line and column are 1-based
 	pub fn provide_definition(
 		&mut self,
 		module_id: u32,
-	) -> Box<[ModuleLocation]> {
-		todo!()
+		line: u32,
+		col: u32,
+	) -> Result<Box<[ModuleLocation]>> {
+		let m_id = ModuleId(module_id);
+		let fmt_src = self.inner.get_formatted_module(m_id)?;
+		let parser = self.inner.get_or_make_parser(m_id)?;
+		let pos = get_offset_from_line_and_column(fmt_src, line - 1, col - 1);
+		let locs = parser.generate_definitions(pos)?;
+		let ret = locs
+			.into_iter()
+			.map(|loc| {
+				let range = MonacoRange::from_span(loc.range, fmt_src);
+				ModuleLocation {
+					id: *loc.module_id,
+					range,
+				}
+			})
+			.collect();
+		Ok(ret)
 	}
 }
 
@@ -240,16 +317,19 @@ pub async fn get_bundle(
 	};
 	let raw_alloc = Box::new(Allocator::new());
 	let parsers = RefCell::new(HashMap::new());
+	let formatted_modules = RefCell::new(HashMap::new());
 	let inner = BundleInner {
 		metadata: metadata.into(),
 		dep_info: dep_info.into(),
 		module_sources,
-		modules: modules
+		unformatted_modules: modules
 			.into_iter()
 			.map(|(k, v)| (k, Box::pin(v)))
 			.collect(),
 		raw_alloc,
 		parsers,
+		format_alloc: RefCell::new(Allocator::new()),
+		formatted_modules,
 		self_ptr: ptr::null(),
 		_pin: PhantomPinned,
 	};
