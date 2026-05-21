@@ -88,8 +88,6 @@ function ModuleSelector({ modules, onSelectModule }: ModuleSelectorProps) {
     const scrollerRef = useRef<BufferedScroller.Handle<number>>(null);
     const selectedModule = useModuleViewerStore(({ selectedModule }) => selectedModule);
 
-    console.log("rendering module selector", modules.length, "modules", { selectedModule });
-
     useEffect(() => {
         if (modules.length && selectedModule) {
             scrollerRef.current?.scrollItemIntoView((e) => e === selectedModule);
