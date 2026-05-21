@@ -25,13 +25,3 @@ pub(crate) const LIST_BUILDS_ENDPOINT: &str =
 pub(crate) fn FULL_BUNDLE_ENDPOINT(build_hash: &str) -> String {
 	format!("{SERVER_BASE_URL}/build/{build_hash}/full")
 }
-
-#[wasm_bindgen]
-pub fn bundle_tarball_url(build_hash: &str) -> String {
-	format!("{SERVER_BASE_URL}/build/{build_hash}/archive.tar.zst")
-}
-
-#[wasm_bindgen]
-pub fn bundle_tarball_filename(build_hash: &str) -> String {
-	format!("{build_hash}.tar.zst")
-}

@@ -4,9 +4,9 @@ import { GITHUB_REPO_CREATE_ISSUE_URL } from "@/utils/constants";
 import { tryMapIntlKey } from "@/utils/discordI18n";
 import { error } from "@/utils/error";
 import { type Monaco, monaco } from "@/utils/monaco";
-import { isWebpackModule } from "@vencord-companion/webpack-ast-parser";
+import { AstParser } from "@vencord-companion/ast-parser";
 
-import { toMonacoRange, toParserPosition } from "../../../util";
+import { isWebpackModule, toMonacoRange, toParserPosition } from "../../../util";
 
 import { isElementAccessExpression, isIdentifier, isPropertyAccessExpression, isStringLiteralLike } from "typescript";
 
@@ -15,6 +15,7 @@ interface CopyHoverDataArgs {
     maybeUnHashedKey: string | null;
 }
 
+// TODO: Move to worker?
 export class WebpackI18nHover implements Monaco.languages.HoverProvider {
     static #COMMAND_NAME = "webpackI18nHover.copy";
 
@@ -22,14 +23,14 @@ export class WebpackI18nHover implements Monaco.languages.HoverProvider {
 
     }
 
-    async provideHover(
+    provideHover(
         model: Monaco.editor.ITextModel,
         position: Monaco.Position,
         _token: Monaco.CancellationToken,
         _context?: Monaco.languages.HoverContext<Monaco.languages.Hover> | undefined,
-    ): Promise<Monaco.languages.Hover | undefined> {
+    ): Monaco.languages.Hover | undefined {
         try {
-            const { buildHash, getModuleParser } = ModuleViewerStore.getState();
+            const { buildHash } = ModuleViewerStore.getState();
             const parsedUri = parseModuleURI(model.uri);
             const text = model.getValue();
 
@@ -40,7 +41,7 @@ export class WebpackI18nHover implements Monaco.languages.HoverProvider {
                 return;
             }
 
-            const parser = await getModuleParser(parsedUri.moduleId);
+            const parser = new AstParser(text);
             const pos = toParserPosition(position);
             const node = parser.getTokenAtPosition(pos);
 

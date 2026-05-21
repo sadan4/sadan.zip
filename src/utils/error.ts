@@ -110,7 +110,7 @@ export function error(message?: string): never {
 }
 
 
-export function todo(msg?: string) {
+export function todo(msg?: string): never {
     const err = new NotImplementedError(msg);
 
     NotImplementedError.captureStackTrace(err, todo);

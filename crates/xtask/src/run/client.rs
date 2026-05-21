@@ -24,8 +24,10 @@ pub struct Command {
 impl Command {
 	fn run_client(&self) -> Result<()> {
 		let guh = build::client::Command {
-			release: self.release,
+			debug: !self.release,
 			local_server: self.local_server,
+			sub_target: None,
+			no_minify_ssr: false,
 		};
 		info!("Building client wasm");
 		guh.build_wasm()?;

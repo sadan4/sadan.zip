@@ -3,7 +3,6 @@ import { ToastContainer } from "@/components/Toast";
 import { NotFoundPage } from "@/routes/-404";
 import { installF8Break, uninstallF8Break } from "@/utils/devtools";
 import { assert } from "@/utils/error";
-import { default as initWasm } from "@sadan4/libsadancore";
 import { TanStackDevtools } from "@tanstack/react-devtools";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { type AnyRouteMatch, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
@@ -12,18 +11,7 @@ import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import rootCssFontUrl from "../assets/comicsans.otf?url";
 import rootCss from "../index.css?url";
 
-import { use, useEffect, useState } from "react";
-
-const initWasmPromise: Promise<void> = import.meta.env.SSR
-    ? Promise.resolve()
-    : async function () {
-        try {
-            await initWasm();
-        } catch (err) {
-            console.error("Failed to init wasm");
-            console.error(err);
-        }
-    }() as Promise<never>;
+import { useEffect, useState } from "react";
 
 export const Route = createRootRoute({
     loader({ location: { publicHref } }) {
@@ -107,8 +95,6 @@ if (!import.meta.env.SSR) {
 }
 
 function RootComponent({ children }: { children: React.ReactNode; }) {
-    use(initWasmPromise);
-
     const [layerCtx, setLayerCtx] = useState<LayerContext>({
         level: 0,
         root: null,

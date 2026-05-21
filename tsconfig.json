@@ -64,5 +64,6 @@
     "dist",
     "node_modules",
     ".netlify",
+    "src/omt.d.ts",
   ],
 }

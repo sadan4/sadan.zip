@@ -1,3 +1,5 @@
+import type { TBundleHash } from "./types";
+
 export function discordUrl(userId: string): string {
     return `https://discord.com/users/${userId}`;
 }
@@ -37,6 +39,17 @@ export const EPIC_USERNAME = "sadan4";
 export const GITHUB_PROFILE_URL = /* @__PURE__ */ githubProfileUrl(GITHUB_USERNAME);
 export const GITHUB_REPO_URL = /* @__PURE__ */ `${GITHUB_PROFILE_URL}/sadan.zip`;
 export const GITHUB_REPO_CREATE_ISSUE_URL = /* @__PURE__ */ `${GITHUB_REPO_URL}/issues/new`;
+
+const IS_SERVER_LOCAL = false;
+const SERVER_BASE_URL = IS_SERVER_LOCAL ? "http://localhost:8484" : "https://s-d-br.sadan.zip";
+
+export function BUNDLE_TARBALL_URL(buildHash: TBundleHash): string {
+    return `${SERVER_BASE_URL}/bundles/${buildHash}/archive.tar.zst`;
+}
+
+export function BUNDLE_TARBALL_FILENAME(buildHash: TBundleHash): string {
+    return `${buildHash}.tar.zst`;
+}
 
 // cspell:disable
 export const lorem = `

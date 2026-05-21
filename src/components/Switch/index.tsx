@@ -76,7 +76,7 @@ export function Switch({ initialValue, value, onChange }: SwitchProps) {
 
     return (
         <Clickable
-            className={cn(styles.switch, enabled && styles.enabled)}
+            className={cn(styles.switchFix, enabled && styles.enabled)}
             onPointerDown={(e) => {
                 // stop random other text from being selected
                 if (e.detail > 1) {

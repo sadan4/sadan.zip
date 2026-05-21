@@ -94,11 +94,12 @@ use oxc::{
 };
 use smol_str::{SmolStr, ToSmolStr as _};
 use std::{
+	borrow::Cow,
 	collections::{HashMap, HashSet},
 	iter,
 	rc::Rc,
 };
-use tracing::{debug, error, warn};
+use tracing::{debug, error, trace, warn};
 
 pub struct WebpackAstParser<'ast> {
 	prog: &'ast Program<'ast>,
@@ -595,7 +596,19 @@ impl<'ast> WebpackAstParser<'ast> {
 			parser,
 			export_names,
 			raw_export_names: _,
-		} = self.resolve_definition(selected_node)?;
+		} = self
+			.resolve_definition(selected_node)
+			.with_context(|| {
+				format!(
+					"Failed to resolve definition of selected node at {:?} {}",
+					selected_node.span(),
+					if cfg!(debug_assertions) {
+						selected_node.debug_name()
+					} else {
+						Cow::Borrowed("")
+					}
+				)
+			})?;
 		let range = if export_names.is_empty() {
 			Span::default()
 		} else {
@@ -651,7 +664,13 @@ impl<'ast> WebpackAstParser<'ast> {
 			parser,
 			export_names,
 			raw_export_names,
-		} = self.resolve_definition(selected_node)?;
+		} = match self.resolve_definition(selected_node) {
+			Ok(it) => it,
+			Err(err) => {
+				trace!("Failed to resolve definition for hover: {err}");
+				return Ok(None);
+			}
+		};
 		if export_names.is_empty() {
 			return Ok(None);
 		}

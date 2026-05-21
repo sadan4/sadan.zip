@@ -3,7 +3,6 @@ import { error } from "@/utils/error";
 import { type Monaco, monaco } from "@/utils/monaco";
 import { isWebpackModule } from "@vencord-companion/webpack-ast-parser/util";
 
-import { toMonacoRange, toParserPosition } from "../../../util";
 
 export class WebpackExportHover implements Monaco.languages.HoverProvider {
     private constructor() {
@@ -16,34 +15,34 @@ export class WebpackExportHover implements Monaco.languages.HoverProvider {
         _context?: Monaco.languages.HoverContext<Monaco.languages.Hover> | undefined,
     ): Promise<Monaco.languages.Hover | null | undefined> {
         try {
-            const { buildHash, getModuleParser } = ModuleViewerStore.getState();
-            const parsedUri = parseModuleURI(model.uri);
+            const { buildHash: currentBuildHash, _buildService } = ModuleViewerStore.getState();
+            const { buildHash, moduleId } = parseModuleURI(model.uri) ?? {};
             const text = model.getValue();
 
-            if (parsedUri?.buildHash !== buildHash) {
+            if (buildHash !== currentBuildHash) {
                 error("Build hash mismatch");
             }
-            if (!parsedUri || !isWebpackModule(text)) {
+
+            if (!isWebpackModule(text)) {
                 return;
             }
 
-            const parser = await getModuleParser(parsedUri.moduleId);
-            const [range, hoverText] = await parser.generateHover(toParserPosition(position)) ?? [];
+            const { range, content } = await _buildService!.generateHover(moduleId!, position) ?? {};
 
             // also catches empty string for hoverText
-            if (!hoverText) {
+            if (!content) {
                 return;
             }
             return {
-                range: toMonacoRange(range!),
+                range: range!,
                 contents: [
                     {
-                        value: hoverText,
+                        value: content,
                     },
                 ],
             };
         } catch (e) {
-            console.error("[WebpackExportHover]:", e);
+            console.error(e);
         }
     }
 

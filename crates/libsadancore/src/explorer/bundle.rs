@@ -1,6 +1,7 @@
 use std::{
 	cell::{OnceCell, RefCell},
 	collections::HashMap,
+	fmt::Write as _,
 	marker::PhantomPinned,
 	mem,
 	pin::Pin,
@@ -14,7 +15,7 @@ use crate::{
 	explorer::meta::Meta,
 	util::fetch_struct,
 };
-use anyhow::Context;
+use anyhow::{Context, anyhow};
 use ast_parser::{get_line_and_column, get_offset_from_line_and_column};
 use derive_more::Deref;
 use explorer_types::{
@@ -27,6 +28,7 @@ use explorer_types::{
 	Modules,
 	TModuleId,
 };
+use js_sys::JsString;
 use oxc::{allocator::Allocator, span::Span};
 use pretty_printer::{FormattedContent, format_with_alloc};
 use serde::Serialize;
@@ -71,8 +73,9 @@ struct BundleInner {
 	#[expect(dead_code)]
 	module_sources: ModuleSources,
 	// FIXME: use formatted sources
-	unformatted_modules_: HashMap<ModuleId, Pin<Box<String>>>,
+	unformatted_modules: HashMap<ModuleId, String>,
 	format_alloc: RefCell<Allocator>,
+	#[expect(clippy::box_collection)]
 	formatted_modules: RefCell<HashMap<ModuleId, Pin<Box<String>>>>,
 	raw_alloc: Box<Allocator>,
 	parsers: RefCell<HashMap<ModuleId, Rc<WebpackAstParser<'static>>>>,
@@ -115,34 +118,73 @@ struct ModuleDepsJs<'a> {
 	lazy_uses: &'a Vec<ModuleId>,
 }
 
+#[wasm_bindgen]
+#[derive(Copy, Clone, Debug)]
+pub struct MonacoPosition {
+	/// 1-based
+	pub line: u32,
+	/// 1-based
+	pub column: u32,
+}
+
+#[wasm_bindgen]
+impl MonacoPosition {
+	/// Create a new [`MonacoPosition`]
+	///
+	/// line and column are 1-based
+	#[wasm_bindgen(constructor)]
+	pub fn new(line: u32, column: u32) -> Self {
+		debug_assert_ne!(line, 0, "Line number must be greater than 0");
+		debug_assert_ne!(column, 0, "Column number must be greater than 0");
+		Self { line, column }
+	}
+	fn from_offset(src: &str, offset: u32) -> Self {
+		let (line, column) = get_line_and_column(src, offset);
+		Self {
+			line: line + 1,
+			column: column + 1,
+		}
+	}
+	fn to_offset(self, src: &str) -> u32 {
+		let Self { line, column } = self;
+		get_offset_from_line_and_column(src, line - 1, column - 1)
+	}
+}
+
 /// 1-based
 #[wasm_bindgen]
 #[derive(Copy, Clone, Debug)]
 pub struct MonacoRange {
 	/// 1-based
 	#[wasm_bindgen(readonly)]
-	pub start_line: u32,
+	pub start: MonacoPosition,
 	/// 1-based
 	#[wasm_bindgen(readonly)]
-	pub start_column: u32,
-	/// 1-based
-	#[wasm_bindgen(readonly)]
-	pub end_line: u32,
-	/// 1-based
-	#[wasm_bindgen(readonly)]
-	pub end_column: u32,
+	pub end: MonacoPosition,
 }
 
 impl MonacoRange {
 	fn from_span(span: Span, src: &str) -> Self {
-		let (start_line, start_col) = get_line_and_column(src, span.start);
-		let (end_line, end_col) = get_line_and_column(src, span.end);
 		Self {
-			start_line: start_line + 1,
-			start_column: start_col + 1,
-			end_line: end_line + 1,
-			end_column: end_col + 1,
+			start: MonacoPosition::from_offset(src, span.start),
+			end: MonacoPosition::from_offset(src, span.end),
 		}
+	}
+}
+
+#[wasm_bindgen]
+#[derive(Clone, Debug)]
+pub struct HoverInfo {
+	#[wasm_bindgen(readonly)]
+	pub range: MonacoRange,
+	content: SmolStr,
+}
+
+#[wasm_bindgen]
+impl HoverInfo {
+	#[wasm_bindgen(getter)]
+	pub fn content(&self) -> String {
+		self.content.to_string()
 	}
 }
 
@@ -162,10 +204,8 @@ impl BundleInner {
 			mem::transmute::<&Allocator, &'static Allocator>(raw_alloc)
 		};
 		let raw_source_str = self
-			.unformatted_modules
-			.get(&id)
-			.context("Module source not found")?
-			.as_str();
+			.get_formatted_module(id)
+			.context("Failed to get formatted module source")?;
 		let source_str =
 		// SAFETY: TODO
 			unsafe { mem::transmute::<&str, &'static str>(raw_source_str) };
@@ -210,28 +250,58 @@ impl BundleInner {
 			Ok(ret)
 		}
 	}
+	// TODO: add proper webpack header
 	fn format_module(&self, id: ModuleId) -> anyhow::Result<String> {
-		let alloc = self.format_alloc.borrow();
-		debug_assert_eq!(alloc.capacity(), 0);
+		let mut alloc = self.format_alloc.borrow_mut();
+		alloc.reset();
 		let unformatted = self
 			.unformatted_modules
 			.get(&id)
 			.context("Module source not found")?
 			.as_str();
-		let FormattedContent { code, mappings: _ } =
-			format_with_alloc(unformatted, &alloc, 4)
-				.context("Failed to format module")?;
+		let FormattedContent {
+			mut code,
+			mappings: _,
+		} = format_with_alloc(unformatted, &alloc, 4)
+			.context("Failed to format module")?;
+		format_module_header(&mut code, id, false);
 		Ok(code)
 	}
 }
 
+fn is_webpack_module(src: &str) -> bool {
+	src.starts_with("// Webpack Module")
+		|| src[0..src.len().min(100)].contains("//OPEN FULL MODULE:")
+}
+
+fn format_module_header(src: &mut String, m_id: ModuleId, is_find: bool) {
+	const BUF_LEN: usize = 128;
+	if is_webpack_module(src) {
+		return;
+	}
+	let mut buf = String::with_capacity(BUF_LEN);
+	_ = writeln!(buf, "// Webpack Module {m_id}");
+	if is_find {
+		_ = writeln!(buf, "//OPEN FULL MODULE: {m_id}");
+	}
+	_ = writeln!(buf, "//EXTRACTED WEBPACK MODULE {m_id}");
+	_ = writeln!(buf, "0,");
+	debug_assert!(
+		buf.len() <= BUF_LEN,
+		"increase BUF_LEN to avoid reallocation"
+	);
+	src.insert_str(0, &buf);
+}
+
 #[wasm_bindgen]
 impl Bundle {
-	pub fn get_module_text(&self, module_id: u32) -> Option<String> {
-		self.inner
-			.unformatted_modules
-			.get(&ModuleId(module_id))
-			.map(|s| (**s).clone())
+	pub fn get_module_text(&self, module_id: u32) -> Result<String> {
+		// TODO: better errors
+		let ret = self
+			.inner
+			.get_formatted_module(ModuleId(module_id))?
+			.to_string();
+		Ok(ret)
 	}
 	#[wasm_bindgen(skip_typescript)]
 	pub fn get_module_deps(&self, module_id: u32) -> Option<JsValue> {
@@ -267,24 +337,80 @@ impl Bundle {
 	pub fn provide_definition(
 		&mut self,
 		module_id: u32,
-		line: u32,
-		col: u32,
+		m_pos: MonacoPosition,
 	) -> Result<Box<[ModuleLocation]>> {
 		let m_id = ModuleId(module_id);
 		let fmt_src = self.inner.get_formatted_module(m_id)?;
 		let parser = self.inner.get_or_make_parser(m_id)?;
-		let pos = get_offset_from_line_and_column(fmt_src, line - 1, col - 1);
+		let pos = m_pos.to_offset(fmt_src);
 		let locs = parser.generate_definitions(pos)?;
 		let ret = locs
 			.into_iter()
 			.map(|loc| {
-				let range = MonacoRange::from_span(loc.range, fmt_src);
+				let range = MonacoRange::from_span(
+					loc.range,
+					self.inner
+						.get_formatted_module(loc.module_id)
+						.unwrap_or_default(),
+				);
 				ModuleLocation {
 					id: *loc.module_id,
 					range,
 				}
 			})
 			.collect();
+		Ok(ret)
+	}
+
+	pub fn provide_references(
+		&mut self,
+		module_id: u32,
+		m_pos: MonacoPosition,
+	) -> Result<Box<[ModuleLocation]>> {
+		let m_id = ModuleId(module_id);
+		let fmt_src = self.inner.get_formatted_module(m_id)?;
+		let parser = self.inner.get_or_make_parser(m_id)?;
+		let pos = m_pos.to_offset(fmt_src);
+
+		let locs = parser.generate_references(pos)?;
+
+		let ret = locs
+			.into_iter()
+			.map(|loc| {
+				let range = MonacoRange::from_span(
+					loc.range,
+					self.inner
+						.get_formatted_module(loc.module_id)
+						// this should never fail since it is needed to create the parser for this module
+						.unwrap(),
+				);
+				ModuleLocation {
+					id: *loc.module_id,
+					range,
+				}
+			})
+			.collect();
+
+		Ok(ret)
+	}
+
+	pub fn provide_hover(
+		&mut self,
+		module_id: u32,
+		m_pos: MonacoPosition,
+	) -> Result<Option<HoverInfo>> {
+		let m_id = ModuleId(module_id);
+		let fmt_src = self.inner.get_formatted_module(m_id)?;
+		let parser = self.inner.get_or_make_parser(m_id)?;
+		let pos = m_pos.to_offset(fmt_src);
+
+		let ret = parser
+			.generate_hover(pos)?
+			.map(|(span, content)| {
+				let range = MonacoRange::from_span(span, fmt_src);
+				HoverInfo { range, content }
+			});
+
 		Ok(ret)
 	}
 }
@@ -322,10 +448,7 @@ pub async fn get_bundle(
 		metadata: metadata.into(),
 		dep_info: dep_info.into(),
 		module_sources,
-		unformatted_modules: modules
-			.into_iter()
-			.map(|(k, v)| (k, Box::pin(v)))
-			.collect(),
+		unformatted_modules: modules,
 		raw_alloc,
 		parsers,
 		format_alloc: RefCell::new(Allocator::new()),
@@ -342,5 +465,6 @@ pub async fn get_bundle(
 			.get_unchecked_mut()
 			.self_ptr = self_ptr;
 	};
-	todo!()
+	let ret = Bundle { inner };
+	Ok(ret)
 }

@@ -9,3 +9,7 @@ export function toMonacoRange(r: SharedRange.IRange) {
 export function toParserPosition(pos: Monaco.IPosition) {
     return new SharedPosition.Position(pos.lineNumber - 1, pos.column - 1);
 }
+
+export {
+    isWebpackModule,
+} from "@vencord-companion/webpack-ast-parser";

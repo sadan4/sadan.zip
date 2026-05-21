@@ -1,4 +1,5 @@
 import babel from "@rolldown/plugin-babel";
+import omt from "@surma/rollup-plugin-off-main-thread";
 import tailwindcss from "@tailwindcss/vite";
 import { devtools } from "@tanstack/devtools-vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
@@ -22,14 +23,6 @@ const groups: Rollup.CodeSplittingGroup[] = [
     {
         test: /node_modules\/zod/,
         name: "c-zod",
-    },
-    {
-        test: /node_modules\/monaco-editor\/esm\/vs\/language\/typescript\/ts.worker.js/,
-        name: "c-monaco-ts-worker",
-    },
-    {
-        test: /node_modules\/monaco-editor/,
-        name: "c-monaco",
     },
     {
         test: /node_modules\/lucide/,
@@ -77,6 +70,7 @@ const config = defineConfig(async ({ command, isSsrBuild }) => {
             babel({
                 presets: [reactCompilerPreset()],
             }),
+            omt(),
             !isWindowsOnArm && (await import("@cloudflare/vite-plugin")).cloudflare({
                 viteEnvironment: {
                     name: "ssr",
@@ -142,6 +136,9 @@ const config = defineConfig(async ({ command, isSsrBuild }) => {
             cssMinify: "lightningcss",
             sourcemap: true,
         },
+        worker: {
+            format: "es",
+        },
         json: {
             namedExports: false,
             stringify: true,
@@ -163,7 +160,7 @@ const config = defineConfig(async ({ command, isSsrBuild }) => {
         },
         server: {
             watch: {
-                ignored: ["**/target", "**/builds", "**/dist", "**/.direnv"],
+                ignored: ["**/target", "**/builds", "**/dist", "**/.direnv", "**/crates"],
             },
         },
         devtools: {
