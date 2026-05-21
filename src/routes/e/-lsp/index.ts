@@ -4,14 +4,12 @@ import { type Monaco, monaco } from "@/utils/monaco";
 import { entries, mapValues } from "@/utils/obj";
 
 import { WebpackExportHover } from "./ast/webpack/hover/ExportHover";
-// import { WebpackI18nHover } from "./ast/webpack/hover/I18nHover";
 import { WebpackDefinitionProvider } from "./ast/webpack/lsp/DefinitionProvider";
 import { WebpackReferenceProvider } from "./ast/webpack/lsp/ReferenceProvider";
 import { ModuleViewerSettingsStore, parseModuleURI } from "../-data";
 
 function _register() {
     WebpackExportHover.register();
-    // WebpackI18nHover.register();
     WebpackDefinitionProvider.register();
     WebpackReferenceProvider.register();
 

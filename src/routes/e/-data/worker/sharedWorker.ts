@@ -15,6 +15,7 @@ export interface ModuleLocation {
 export interface HoverInfo {
     content: string;
     range: Monaco.IRange;
+    i18nKey?: string;
 }
 
 export interface IBuildService {
@@ -53,10 +54,11 @@ function convertModuleLocation({ id, range }: RawModuleLocation): ModuleLocation
     };
 }
 
-function convertHoverInfo({ content, range }: RawHoverInfo): HoverInfo {
+function convertHoverInfo({ content, range, i18n_key: i18nKey }: RawHoverInfo): HoverInfo {
     return {
         content,
         range: convertRange(range),
+        i18nKey,
     };
 }
 class BuildService implements IBuildService {

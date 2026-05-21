@@ -1,5 +1,4 @@
 use const_format::formatc;
-use wasm_bindgen::prelude::wasm_bindgen;
 
 // pub const SERVER_BASE_URL: &str = "https://s-d-br.sadan.zip";
 

@@ -680,6 +680,27 @@ impl<'ast> WebpackAstParser<'ast> {
 		let range = raw_export_names.last().unwrap().span();
 		Ok(Some((range, hover)))
 	}
+
+	pub fn get_i18n_key_at(&self, pos: u32) -> Option<(Span, SmolStr)> {
+		let node = self.get_node_at(pos);
+		let key = match node {
+			AstKind::IdentifierReference(id) => id.name.to_smolstr(),
+			AstKind::IdentifierName(id) => id.name.to_smolstr(),
+			AstKind::StringLiteral(s) => s.value.to_smolstr(),
+			_ => return None,
+		};
+
+		if key.len() != 6 {
+			return None;
+		}
+
+		let parent = self.p(node.node_id());
+		match parent {
+			AstKind::StaticMemberExpression(_)
+			| AstKind::ComputedMemberExpression(_) => Some((node.span(), key)),
+			_ => None,
+		}
+	}
 }
 
 /// Private API

@@ -1,11 +1,11 @@
 use std::{
-	cell::{OnceCell, RefCell},
+	cell::RefCell,
 	collections::HashMap,
 	fmt::Write as _,
 	marker::PhantomPinned,
 	mem,
 	pin::Pin,
-	ptr::{self, NonNull},
+	ptr,
 	rc::Rc,
 };
 
@@ -15,9 +15,8 @@ use crate::{
 	explorer::meta::Meta,
 	util::fetch_struct,
 };
-use anyhow::{Context, anyhow};
+use anyhow::Context;
 use ast_parser::{get_line_and_column, get_offset_from_line_and_column};
-use derive_more::Deref;
 use explorer_types::{
 	DepInfo,
 	FullBundle,
@@ -25,10 +24,8 @@ use explorer_types::{
 	KeyModules,
 	ModuleId,
 	ModuleSources,
-	Modules,
 	TModuleId,
 };
-use js_sys::JsString;
 use oxc::{allocator::Allocator, span::Span};
 use pretty_printer::{FormattedContent, format_with_alloc};
 use serde::Serialize;
@@ -40,6 +37,7 @@ use webpack_ast_parser::{
 };
 
 struct RcDepInfo {
+	#[expect(dead_code)]
 	key_modules: KeyModules,
 	module_deps: HashMap<ModuleId, Rc<IncomingModuleDeps>>,
 }
@@ -182,7 +180,8 @@ impl MonacoRange {
 pub struct HoverInfo {
 	#[wasm_bindgen(readonly)]
 	pub range: MonacoRange,
-	content: SmolStr,
+	pub(crate) content: SmolStr,
+	pub(crate) i18n_key: Option<SmolStr>,
 }
 
 #[wasm_bindgen]
@@ -190,6 +189,11 @@ impl HoverInfo {
 	#[wasm_bindgen(getter)]
 	pub fn content(&self) -> String {
 		self.content.to_string()
+	}
+
+	#[wasm_bindgen(getter)]
+	pub fn i18n_key(&self) -> Option<String> {
+		self.i18n_key.as_ref().map(|s| s.to_string())
 	}
 }
 
@@ -411,14 +415,37 @@ impl Bundle {
 		let parser = self.inner.get_or_make_parser(m_id)?;
 		let pos = m_pos.to_offset(fmt_src);
 
+		if let Some(hover) = self.provide_i18n_hover(fmt_src, &parser, pos) {
+			return Ok(Some(hover));
+		}
+
 		let ret = parser
 			.generate_hover(pos)?
 			.map(|(span, content)| {
 				let range = MonacoRange::from_span(span, fmt_src);
-				HoverInfo { range, content }
+				HoverInfo {
+					range,
+					content,
+					i18n_key: None,
+				}
 			});
 
 		Ok(ret)
+	}
+
+	fn provide_i18n_hover(
+		&self,
+		fmt_src: &str,
+		parser: &WebpackAstParser,
+		pos: u32,
+	) -> Option<HoverInfo> {
+		let (span, hashed_key) = parser.get_i18n_key_at(pos)?;
+
+		Some(HoverInfo {
+			range: MonacoRange::from_span(span, fmt_src),
+			content: SmolStr::default(),
+			i18n_key: Some(hashed_key),
+		})
 	}
 }
 

@@ -1530,6 +1530,7 @@ dependencies = [
  "rmp-serde",
  "serde",
  "serde-wasm-bindgen",
+ "serde_json",
  "smol_str",
  "thiserror 2.0.18",
  "wasm-bindgen",
