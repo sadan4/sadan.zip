@@ -1093,6 +1093,54 @@ mod export_parsing {
 		}
 
 		#[test]
+		fn persisted_store() {
+			let alloc = Allocator::new();
+			let p = parse!(alloc, "test_data/wp/stores/persistedStore.js");
+			let map = p.dbg_export_map();
+			assert_debug_snapshot!(map, @r#"
+			{
+			    "A": "ThemeStore"(
+			        {
+			            "displayName": "ThemeStore"(
+			                [
+			                    "[59:29->59:41)",
+			                ],
+			            ),
+			            "getState": [
+			                "[78:8->78:16)",
+			            ],
+			            "initialize": [
+			                "[70:8->70:18)",
+			            ],
+			            "migrations": [
+			                "[61:28->69:17)",
+			            ],
+			            "persistKey": "ThemeStore"(
+			                [
+			                    "[60:28->60:40)",
+			                ],
+			            ),
+			            "systemTheme": [
+			                "[34:12->35:10)",
+			            ],
+			            "theme": [
+			                "[36:12->36:16)",
+			            ],
+			            "themePreferenceForSystemTheme": [
+			                "[91:8->91:37)",
+			            ],
+			            "SYM_CJS_DEFAULT": [
+			                "[6:8->6:9)",
+			                "[95:16->95:17)",
+			                "[58:10->58:11)",
+			            ],
+			        },
+			    ),
+			}
+			"#);
+		}
+
+		#[test]
 		#[ignore = "never seen example of this"]
 		fn exported_via_module_exports() {
 			unimplemented!();
