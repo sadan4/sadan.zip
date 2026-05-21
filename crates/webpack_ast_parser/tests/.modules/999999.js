@@ -6,6 +6,7 @@ function(e, t, n) {
     });
     var r, i, l, a = n(555002),
         _2 = n(222222);
+    let foo;
     class p extends (l = a.ZP.Store) {
         initialize() {
             window.doThing();
@@ -15,6 +16,9 @@ function(e, t, n) {
         }
         getBar() {
             return 2;
+        }
+        get qux() {
+            return foo;
         }
     }
     i = "MyTestingStore",
@@ -26,7 +30,7 @@ function(e, t, n) {
     }) : p[r] = i;
     let h = new p(o.Z,{
         FLUX_EVENT_HANDLER(e) {
-            update_state_123(e)
+            update_state_123(foo, e);
         }
     })
 }

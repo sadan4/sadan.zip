@@ -339,7 +339,7 @@ fn simple_export_in_single_file(b: &Bundle) {
 	        id: ModuleId(
 	            111111,
 	        ),
-	        range: "[16:26->16:27)",
+	        range: "[17:26->17:27)",
 	    },
 	]
 	"#);
@@ -355,19 +355,19 @@ fn simple_export_in_many_files(b: &Bundle) {
 	            id: ModuleId(
 	                111111,
 	            ),
-	            range: "[16:18->16:19)",
+	            range: "[17:18->17:19)",
 	        },
 	        ReferenceDumper {
 	            id: ModuleId(
 	                111111,
 	            ),
-	            range: "[16:40->16:41)",
+	            range: "[17:40->17:41)",
 	        },
 	        ReferenceDumper {
 	            id: ModuleId(
 	                999999,
 	            ),
-	            range: "[13:41->13:42)",
+	            range: "[14:41->14:42)",
 	        },
 	    ],
 	)
@@ -424,7 +424,7 @@ mod e_exports_default {
 		        id: ModuleId(
 		            111111,
 		        ),
-		        range: "[32:28->32:31)",
+		        range: "[33:28->33:31)",
 		    },
 		]
 		"#);
@@ -438,7 +438,7 @@ mod e_exports_default {
 		        id: ModuleId(
 		            111111,
 		        ),
-		        range: "[33:28->33:31)",
+		        range: "[34:28->34:31)",
 		    },
 		]
 		"#);
@@ -452,7 +452,7 @@ mod e_exports_default {
 		        id: ModuleId(
 		            111111,
 		        ),
-		        range: "[34:28->34:31)",
+		        range: "[35:28->35:31)",
 		    },
 		]
 		"#);
@@ -497,13 +497,13 @@ mod enum_uses {
 			        id: ModuleId(
 			            111111,
 			        ),
-			        range: "[19:25->19:29)",
+			        range: "[20:25->20:29)",
 			    },
 			    ReferenceDumper {
 			        id: ModuleId(
 			            111111,
 			        ),
-			        range: "[44:17->44:21)",
+			        range: "[45:17->45:21)",
 			    },
 			]
 			"#);
@@ -517,25 +517,25 @@ mod enum_uses {
 			        id: ModuleId(
 			            111111,
 			        ),
-			        range: "[19:23->19:24)",
+			        range: "[20:23->20:24)",
 			    },
 			    ReferenceDumper {
 			        id: ModuleId(
 			            111111,
 			        ),
-			        range: "[42:23->42:24)",
+			        range: "[43:23->43:24)",
 			    },
 			    ReferenceDumper {
 			        id: ModuleId(
 			            111111,
 			        ),
-			        range: "[44:15->44:16)",
+			        range: "[45:15->45:16)",
 			    },
 			    ReferenceDumper {
 			        id: ModuleId(
 			            111111,
 			        ),
-			        range: "[44:26->44:27)",
+			        range: "[45:26->45:27)",
 			    },
 			    ReferenceDumper {
 			        id: ModuleId(
@@ -562,13 +562,13 @@ mod enum_uses {
 			        id: ModuleId(
 			            111111,
 			        ),
-			        range: "[19:36->19:40)",
+			        range: "[20:36->20:40)",
 			    },
 			    ReferenceDumper {
 			        id: ModuleId(
 			            111111,
 			        ),
-			        range: "[45:28->45:32)",
+			        range: "[46:28->46:32)",
 			    },
 			]
 			"#);
@@ -582,25 +582,25 @@ mod enum_uses {
 			        id: ModuleId(
 			            111111,
 			        ),
-			        range: "[19:34->19:35)",
+			        range: "[20:34->20:35)",
 			    },
 			    ReferenceDumper {
 			        id: ModuleId(
 			            111111,
 			        ),
-			        range: "[42:29->42:30)",
+			        range: "[43:29->43:30)",
 			    },
 			    ReferenceDumper {
 			        id: ModuleId(
 			            111111,
 			        ),
-			        range: "[45:15->45:16)",
+			        range: "[46:15->46:16)",
 			    },
 			    ReferenceDumper {
 			        id: ModuleId(
 			            111111,
 			        ),
-			        range: "[45:26->45:27)",
+			        range: "[46:26->46:27)",
 			    },
 			    ReferenceDumper {
 			        id: ModuleId(
@@ -629,7 +629,7 @@ mod definitions {
 		}
 		fn simple_import(b: &Bundle) {
 			let parser = b.parse(111111);
-			let defs = b.dbg_defs(&parser, 22, 29).unwrap();
+			let defs = b.dbg_defs(&parser, 23, 29).unwrap();
 			assert_debug_snapshot!(defs, @r#"
 			[
 			    DefinitionDumper {
@@ -643,7 +643,7 @@ mod definitions {
 		}
 		fn simple_import_2(b: &Bundle) {
 			let parser = b.parse(111111);
-			let defs = b.dbg_defs(&parser, 25, 34);
+			let defs = b.dbg_defs(&parser, 26, 34);
 			assert_debug_snapshot!(defs, @r#"
 			Ok(
 			    [
@@ -673,7 +673,7 @@ mod definitions {
 				}
 				fn obj_def_from_obj_use(b: &Bundle) {
 					let parser = b.parse(111111);
-					let defs = b.dbg_defs(&parser, 19, 23).unwrap();
+					let defs = b.dbg_defs(&parser, 20, 23).unwrap();
 					assert_debug_snapshot!(defs, @r#"
 					[
 					    DefinitionDumper {
@@ -701,7 +701,7 @@ mod definitions {
 				}
 				fn member_def_from_normal_use(b: &Bundle) {
 					let parser = b.parse(111111);
-					let defs = b.dbg_defs(&parser, 19, 27).unwrap();
+					let defs = b.dbg_defs(&parser, 20, 27).unwrap();
 					assert_debug_snapshot!(defs, @r#"
 					[
 					    DefinitionDumper {
@@ -723,7 +723,7 @@ mod definitions {
 				}
 				fn obj_def_from_obj_use(b: &Bundle) {
 					let parser = b.parse(111111);
-					let defs = b.dbg_defs(&parser, 19, 34).unwrap();
+					let defs = b.dbg_defs(&parser, 20, 34).unwrap();
 					assert_debug_snapshot!(defs, @r#"
 					[
 					    DefinitionDumper {
@@ -751,7 +751,7 @@ mod definitions {
 				}
 				fn member_def_from_normal_use(b: &Bundle) {
 					let parser = b.parse(111111);
-					let defs = b.dbg_defs(&parser, 19, 38).unwrap();
+					let defs = b.dbg_defs(&parser, 20, 38).unwrap();
 					assert_debug_snapshot!(defs, @r#"
 					[
 					    DefinitionDumper {
@@ -769,8 +769,23 @@ mod definitions {
 }
 mod stores {
 	use super::*;
-	pub const fn run(_b: &Bundle) {
-		// TODO
+	pub fn run(b: &Bundle) {
+		definition_location_of_store_getter(b);
+	}
+	fn definition_location_of_store_getter(b: &Bundle) {
+		let parser = b.parse(111111);
+		let defs = b.dbg_defs(&parser, 16, 27).unwrap();
+		// FIXME: this is the correct data; the logic is wrong
+		assert_debug_snapshot!(defs, @r#"
+		[
+		    DefinitionDumper {
+		        id: ModuleId(
+		            999999,
+		        ),
+		        range: "[8:8->8:11)",
+		    },
+		]
+		"#);
 	}
 }
 mod hover_text {
