@@ -3,15 +3,11 @@ use crate::{
 	err::{BadCast, Error, Result},
 	util::fut::JsPromiseExt,
 };
-use js_sys::{ArrayBuffer, Uint8Array};
+use js_sys::{ArrayBuffer, Uint8Array, global};
 use serde::de::DeserializeOwned;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::JsFuture;
-use web_sys::{Response, Window, window};
-
-pub fn get_window() -> Window {
-	window().unwrap()
-}
+use web_sys::{Response, Window, WorkerGlobalScope};
 
 // #[wasm_bindgen]
 // extern "C" {
@@ -26,8 +22,16 @@ pub fn get_window() -> Window {
 // pub(crate) use console_log;
 
 pub async fn fetch(url: &str) -> Result<Response> {
-	let w = get_window();
-	let maybe_rsp = JsFuture::from(w.fetch_with_str(url)).await?;
+	let global_this = global();
+	#[expect(clippy::option_if_let_else)]
+	let maybe_rsp = if let Some(window) = global_this.dyn_ref::<Window>() {
+		window.fetch_with_str(url)
+	} else if let Some(self_) = global_this.dyn_ref::<WorkerGlobalScope>() {
+		self_.fetch_with_str(url)
+	} else {
+		panic!("could not find fetch on global object");
+	};
+	let maybe_rsp = JsFuture::from(maybe_rsp).await?;
 
 	assert!(maybe_rsp.is_instance_of::<Response>());
 	let rsp = maybe_rsp

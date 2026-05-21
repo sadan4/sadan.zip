@@ -5,7 +5,7 @@ import { zodValidator } from "@tanstack/zod-adapter";
 
 import z from "zod";
 
-let data: typeof import("./-data") = import.meta.env.SSR ? unavailableImport("./-data") : null!;
+let data: typeof import("./-data") | null = import.meta.env.SSR ? unavailableImport("./-data") : null;
 const ui = import.meta.env.SSR ? unavailableImport("./-ui") : await import("./-ui");
 
 const viewBundleParamsSchema = z.object({
@@ -61,14 +61,24 @@ export const Route = createFileRoute("/e/view/{-$buildHash}/{-$moduleId}")({
             return result;
         },
     },
-    async loader({ params: { buildHash } }) {
-        data ||= await import("./-data");
+    beforeLoad(_) {
+        // preload data and lsp modules
         if (!import.meta.env.SSR) {
+            import("./-data").then((mod) => {
+                data = mod;
+            });
+            import("./-lsp");
+        }
+    },
+    async loader({ params: { buildHash } }) {
+        if (!import.meta.env.SSR) {
+            data ||= await import("./-data");
+
             const lsp = await import("./-lsp");
 
+            await data.ModuleViewerStore.getState().init(buildHash);
             lsp.registerLSPHandlers();
         }
-        await data.ModuleViewerStore.getState().init(buildHash);
     },
     validateSearch: zodValidator(searchParamsSchema),
     ssr: false,

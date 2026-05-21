@@ -2,3 +2,14 @@
     /* stylelint-disable-next-line custom-property-pattern */
     background: var(--vscode-editor-findMatchHighlightBackground, red);
 }
+
+@layer components {
+    :where([data-code-editor="monaco"]) {
+        :where(*, ::after, ::before, ::backdrop, ::file-selector-button) {
+            box-sizing: unset;
+            margin: unset;
+            padding: unset;
+            border: unset;
+        }
+    }
+}

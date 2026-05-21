@@ -3,7 +3,6 @@ use crate::{
 	sym_id::GetSymId,
 };
 use anyhow::Result;
-use itertools::Itertools;
 use oxc::{
 	allocator::{Allocator, Box as OxcBox},
 	ast::{

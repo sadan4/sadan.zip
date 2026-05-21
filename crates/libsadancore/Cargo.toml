@@ -20,7 +20,14 @@ thiserror.workspace = true
 const_format.workspace = true
 rmp-serde.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 serde-wasm-bindgen.workspace = true
+oxc.workspace = true
+webpack_ast_parser.workspace = true
+derive_more.workspace = true
+smol_str.workspace = true
+ast_parser.workspace = true
+pretty_printer.workspace = true
 
 [features]
 local-server = []
@@ -36,6 +43,7 @@ features = [
     "CssStyleDeclaration",
     "Request",
     "Response",
+    "WorkerGlobalScope"
 ]
 
 [lints]
@@ -56,7 +64,7 @@ dwarf-debug-info = true
 omit-default-module-path = false
 
 [package.metadata.wasm-pack.profile.profiling]
-wasm-opt = ["-O4", "--enable-bulk-memory"]
+wasm-opt = ["-O4", "--enable-bulk-memory", "--enable-nontrapping-float-to-int"]
 
 [package.metadata.wasm-pack.profile.release]
-wasm-opt = ["-O4", "--enable-bulk-memory"]
+wasm-opt = ["-O4", "--enable-bulk-memory", "--enable-nontrapping-float-to-int"]

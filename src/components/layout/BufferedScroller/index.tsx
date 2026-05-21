@@ -369,8 +369,10 @@ export function BufferedScroller<T>({
         }
     }
 
-    useImperativeHandle(handle, () => {
-        const api = {
+    const selfHandleRef = useRef<BufferedScroller.Handle<T>>(null);
+
+    useImperativeHandle(useComposedRefs(selfHandleRef, handle), () => {
+        return {
             scrollItemIntoView(arg, { ifNeeded = true, ...domOptions } = {}) {
                 const scrollArea = scrollAreaRef.current;
 
@@ -412,9 +414,9 @@ export function BufferedScroller<T>({
 
                 // If we are called by a parent before we have setup padding
                 // scrolling will do nothing until the padding is setup
-                if (hasNoPadding && itemOffset > scrollHeight) {
+                if (hasNoPadding) {
                     setTimeout(() => {
-                        api.scrollItemIntoView(arg, {
+                        selfHandleRef.current?.scrollItemIntoView(idx, {
                             ifNeeded,
                             ...domOptions,
                         });
@@ -428,8 +430,6 @@ export function BufferedScroller<T>({
                 });
             },
         } satisfies BufferedScroller.Handle<T>;
-
-        return api;
     }, [averageItemHeight, hasNoPadding, items]);
 
     useEffect(() => {

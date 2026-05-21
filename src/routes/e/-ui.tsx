@@ -14,7 +14,7 @@ import { Text } from "@/components/Text";
 import { ToggleButtonGroup } from "@/components/ToggleButtonGroup";
 import { TooltipPosition } from "@/components/Tooltip/constants";
 import cn from "@/utils/cn";
-import { GITHUB_REPO_URL, NBSP } from "@/utils/constants";
+import { BUNDLE_TARBALL_FILENAME, BUNDLE_TARBALL_URL, GITHUB_REPO_URL, NBSP } from "@/utils/constants";
 import { debug_assert } from "@/utils/error";
 import { isNumber } from "@/utils/functional";
 import type { Monaco } from "@/utils/monaco";
@@ -22,7 +22,7 @@ import { visibleIf } from "@/utils/react";
 import { Language } from "@/utils/textmate";
 import { TextmateTheme, themeDisplayNames } from "@/utils/textmate/theme";
 import type { TModuleId } from "@/utils/types";
-import { bundle_tarball_filename, bundle_tarball_url } from "@sadan4/libsadancore";
+import { useQuery } from "@tanstack/react-query";
 import { createLink } from "@tanstack/react-router";
 import type { WebpackAstParser } from "@vencord-companion/webpack-ast-parser/WebpackAstParser";
 import { ReactFlow } from "@xyflow/react";
@@ -123,14 +123,37 @@ function pendingUri(str: string) {
 
 function ModuleViewer() {
     const moduleId = useModuleViewerStore(({ selectedModule }) => selectedModule);
-    const uri = useModuleViewerStore(({ selectedModule, getModuleModel }) => (selectedModule == null ? pendingUri("// Select a Module") : getModuleModel(selectedModule as TModuleId).uri));
+    const buildHash = useModuleViewerStore(({ buildHash }) => buildHash);
+
+    const { data, isPlaceholderData } = useQuery({
+        queryKey: ["ModuleViewerURI", buildHash, moduleId],
+        async queryFn() {
+            if (moduleId == null) {
+                return pendingUri("// Select a Module");
+            }
+
+            try {
+                const model = await ModuleViewerStore.getState().getModuleModel(moduleId as TModuleId);
+
+                return model.uri;
+            } catch (e) {
+                console.error("Error loading model for module", moduleId);
+                console.error(e);
+                throw e;
+            }
+        },
+        placeholderData() {
+            return pendingUri("// Select a Module");
+        },
+    });
+
     const { sl, sc, el, ec } = Route.useSearch();
     const [codeEditor, setCodeEditor] = useState<MonacoCodeEditor.Handle | null>(null);
     const editorTheme = useModuleViewerSettingsStore(({ editorTheme }) => editorTheme);
 
 
     useEffect(() => {
-        if (!codeEditor || !moduleId) {
+        if (!codeEditor || isPlaceholderData) {
             return;
         }
         if (sl == null || sc == null) {
@@ -156,14 +179,14 @@ function ModuleViewer() {
             codeEditor.editor.setSelection(range);
             codeEditor.editor.revealRangeInCenter(range);
         }
-    }, [moduleId, uri, sl, sc, el, ec, codeEditor]);
+    }, [isPlaceholderData, moduleId, sl, sc, el, ec, codeEditor]);
 
     return (
         <MonacoCodeEditor
             ref={setCodeEditor}
             language={Language.JAVASCRIPT}
             theme={editorTheme}
-            uri={uri}
+            uri={data}
         />
     );
 }
@@ -493,8 +516,8 @@ function ExplorerHeader() {
                     tooltipPosition={TooltipPosition.BOTTOM}
                     loadingAnimation
                     onClick={undefined}
-                    href={bundle_tarball_url(buildHash)}
-                    download={bundle_tarball_filename(buildHash)}
+                    href={BUNDLE_TARBALL_URL(buildHash)}
+                    download={BUNDLE_TARBALL_FILENAME(buildHash)}
                 >
                     <DownloadIcon />
                 </IconButton>
@@ -550,7 +573,15 @@ function ExplorerHeader() {
 function ExplorerSidebar() {
     const navigate = Route.useNavigate();
     const inputRef = useRef<HTMLInputElement>(null);
-    const moduleIds = useModuleViewerStore(({ getAllModuleIds }) => getAllModuleIds());
+    const buildService = useModuleViewerStore(({ _buildService }) => _buildService);
+    const buildHash = useModuleViewerStore(({ buildHash }) => buildHash);
+
+    const { data: moduleIds, status } = useQuery({
+        queryKey: ["allModuleIds", buildHash],
+        queryFn() {
+            return buildService.getAllModuleIds();
+        },
+    });
 
     const setSelectedModule = useCallback((moduleId: number) => {
         navigate({
@@ -570,7 +601,7 @@ function ExplorerSidebar() {
                     className="m-2"
                 />
                 <IconButton
-                    onClick={() => {
+                    onClick={async () => {
                         const v = inputRef.current?.value;
 
                         if (!v) {
@@ -584,7 +615,7 @@ function ExplorerSidebar() {
                             return null;
                         }
 
-                        if (hasId(inputModuleId)) {
+                        if (await hasId(inputModuleId)) {
                             setSelectedModule(inputModuleId);
 
                             return true;
@@ -601,10 +632,30 @@ function ExplorerSidebar() {
                 </IconButton>
             </div>
             <div className="min-h-0 grow">
-                <ModuleSelector
-                    modules={moduleIds}
-                    onSelectModule={setSelectedModule}
-                />
+                {status === "success" && (
+                    <ModuleSelector
+                        modules={moduleIds}
+                        onSelectModule={setSelectedModule}
+                    />
+                )}
+                {status === "pending" && (
+                    <Text
+                        size="lg"
+                        color="accent"
+                        center
+                    >
+                        Loading Modules...
+                    </Text>
+                )}
+                {status === "error" && (
+                    <Text
+                        size="lg"
+                        color="error"
+                        center
+                    >
+                        An error occurred while loading the module list.
+                    </Text>
+                )}
             </div>
         </div>
     );

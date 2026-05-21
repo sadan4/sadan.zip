@@ -1519,17 +1519,24 @@ name = "libsadancore"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "ast_parser",
  "console_error_panic_hook",
  "const_format",
+ "derive_more",
  "explorer_types",
  "js-sys",
+ "oxc",
+ "pretty_printer",
  "rmp-serde",
  "serde",
  "serde-wasm-bindgen",
+ "serde_json",
+ "smol_str",
  "thiserror 2.0.18",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
+ "webpack_ast_parser",
  "zstd",
 ]
 

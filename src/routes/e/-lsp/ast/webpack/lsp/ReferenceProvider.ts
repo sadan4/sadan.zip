@@ -1,12 +1,22 @@
-import { ModuleViewerStore, parseModuleURI } from "@/routes/e/-data";
+import type { RemoteBuildService } from "@/routes/e/-data/worker/api";
+import type { ModuleLocation } from "@/routes/e/-data/worker/sharedWorker";
 import { type Monaco, monaco } from "@/utils/monaco";
 import type { TModuleId } from "@/utils/types";
-import { isWebpackModule } from "@vencord-companion/webpack-ast-parser/util";
 
-import { toMonacoRange, toParserPosition } from "../../../util";
+import { ProviderBase } from "./ProviderBase";
 
-export class WebpackReferenceProvider implements Monaco.languages.ReferenceProvider {
-    private constructor() { }
+export class WebpackReferenceProvider extends ProviderBase implements Monaco.languages.ReferenceProvider {
+    private constructor() {
+        super();
+    }
+
+    protected override generateLocations(
+        buildService: RemoteBuildService,
+        moduleId: TModuleId,
+        position: Monaco.Position,
+    ): Promise<ModuleLocation[] | null> {
+        return buildService.generateReferences(moduleId, position);
+    }
 
     async provideReferences(
         model: Monaco.editor.ITextModel,
@@ -15,36 +25,11 @@ export class WebpackReferenceProvider implements Monaco.languages.ReferenceProvi
         _token: Monaco.CancellationToken,
     ): Promise<Monaco.languages.Location[] | null | undefined> {
         try {
-            const { buildHash, getModuleParser, getModuleModel } = ModuleViewerStore.getState();
-            const parsedUri = parseModuleURI(model.uri);
-            const text = model.getValue();
-
-            if (parsedUri?.buildHash !== buildHash) {
-                return;
-            }
-            if (!isWebpackModule(text)) {
-                return;
-            }
-
-            const parser = await getModuleParser(parsedUri.moduleId);
-            const refs = await parser.generateReferences(toParserPosition(position));
-            const monacoRefs: Monaco.languages.Location[] = [];
-
-            if (!refs) {
-                return;
-            }
-
-            for (const ref of refs) {
-                monacoRefs.push({
-                    range: toMonacoRange(ref.range),
-                    uri: (await getModuleModel(+ref.moduleId as TModuleId)).uri,
-                });
-            }
-
-            return monacoRefs;
+            return this.provide(model, position);
         } catch (e) {
             console.error(e);
         }
+        return Promise.resolve(undefined);
     }
 
     public static register() {

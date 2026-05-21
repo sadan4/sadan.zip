@@ -11,8 +11,10 @@ impl Command {
 	fn generate_libsadancore_types() -> Result<()> {
 		info!("Generating libsadancore types...");
 		let cmd = build::client::Command {
-			release: false,
+			debug: true,
 			local_server: true,
+			no_minify_ssr: false,
+			sub_target: None,
 		};
 		cmd.build_wasm()
 			.context("Failed to generate libsadancore types")?;

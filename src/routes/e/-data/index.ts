@@ -1,10 +1,9 @@
 import { makeLazy } from "@/utils/lazy";
 import { type Monaco, monaco } from "@/utils/monaco";
 import { TextmateTheme } from "@/utils/textmate/theme";
-import type { Fields, TBundleHash, TModuleId } from "@/utils/types";
-import { type Bundle, get_bundle } from "@sadan4/libsadancore";
-import type { ModuleDep } from "@vencord-companion/webpack-ast-parser/types";
-import { WebpackAstParser } from "@vencord-companion/webpack-ast-parser/WebpackAstParser";
+import type { Fields, TBundleHash, Thenable, TModuleId } from "@/utils/types";
+
+import { getBuildService, type RemoteBuildService } from "./worker/api";
 
 import "core-js/proposals/array-buffer-base64";
 import z from "zod";
@@ -13,10 +12,11 @@ import { persist } from "zustand/middleware";
 
 interface ModuleViewerStore {
     readonly buildHash: TBundleHash;
-    readonly _bundle: Bundle | null;
+    readonly _buildService: RemoteBuildService;
     readonly _moduleModelMap: Map<TModuleId, Monaco.editor.ITextModel>;
-    readonly _parserMap: Map<TModuleId, WebpackAstParser>;
-    readonly _idList: Uint32Array | null;
+    readonly _pendingModuleModelMap: Map<TModuleId, Promise<Monaco.editor.ITextModel>>;
+    // readonly _parserMap: Map<TModuleId, WebpackAstParser>;
+    // readonly _idList: Uint32Array | null;
     readonly selectedModule: number | null;
     readonly activePanel: ViewMode;
     readonly moduleSidebarOpen: boolean;
@@ -24,11 +24,11 @@ interface ModuleViewerStore {
     reset(): void;
     updateActivePanel(panel: ViewMode): void;
     updateModuleSidebarOpen(open: boolean): void;
-    getModuleModel(moduleId: TModuleId): Monaco.editor.ITextModel;
-    getModuleParser(moduleId: TModuleId): WebpackAstParser;
-    getDepsForModule(moduleId: TModuleId): ModuleDep;
-    getAllModuleIds(): Uint32Array;
-    hasId(moduleId: number): boolean;
+    getModuleModel(moduleId: TModuleId): Thenable<Monaco.editor.ITextModel>;
+    // getModuleParser(moduleId: TModuleId): WebpackAstParser;
+    // getDepsForModule(moduleId: TModuleId): ModuleDep;
+    // getAllModuleIds(): Uint32Array;
+    hasId(moduleId: number): Promise<boolean>;
 }
 
 export function getModuleURI(buildHash: TBundleHash, moduleId: TModuleId) {
@@ -44,10 +44,12 @@ export const enum ViewMode {
 function getValueDefaults(): Fields<ModuleViewerStore> {
     return {
         buildHash: "" as TBundleHash,
-        _bundle: null,
+        _buildService: null!,
         _moduleModelMap: new Map(),
-        _parserMap: new Map(),
-        _idList: null,
+        _pendingModuleModelMap: new Map(),
+        // _bundle: null,
+        // _parserMap: new Map(),
+        // _idList: null,
         selectedModule: null,
         activePanel: ViewMode.CODE,
         moduleSidebarOpen: true,
@@ -65,17 +67,15 @@ export const useModuleViewerStore = create<ModuleViewerStore>((set, get) => ({
                 buildHash: newBuildHash,
             });
 
-            const newBundle = await get_bundle(newBuildHash, true);
+            const _buildService = await getBuildService(newBuildHash);
 
             set({
-                _bundle: newBundle,
+                _buildService,
             });
         }
     },
     reset() {
-        const { _moduleModelMap, _bundle } = get();
-
-        _bundle?.free();
+        const { _moduleModelMap } = get();
 
         for (const [, model] of _moduleModelMap) {
             model.dispose();
@@ -90,65 +90,62 @@ export const useModuleViewerStore = create<ModuleViewerStore>((set, get) => ({
         set({ moduleSidebarOpen });
     },
     getModuleModel(moduleId) {
-        const { _moduleModelMap, getModuleParser, buildHash } = get();
+        const { buildHash, _moduleModelMap, _pendingModuleModelMap, _buildService } = get();
 
-        if (!_moduleModelMap.has(moduleId)) {
-            const { text } = getModuleParser(moduleId);
+        if (_moduleModelMap.has(moduleId)) {
+            return _moduleModelMap.get(moduleId)!;
+        }
+
+        if (_pendingModuleModelMap.has(moduleId)) {
+            return _pendingModuleModelMap.get(moduleId)!;
+        }
+
+        const modelPromise = async function (): Promise<Monaco.editor.ITextModel> {
+            const text = await _buildService.getFormattedSource(moduleId);
             const uri = getModuleURI(buildHash, moduleId);
             const model = monaco.editor.createModel(text, "javascript", uri);
 
             _moduleModelMap.set(moduleId, model);
-        }
-        return _moduleModelMap.get(moduleId)!;
+            _pendingModuleModelMap.delete(moduleId);
+
+            return model;
+        }();
+
+        _pendingModuleModelMap.set(moduleId, modelPromise);
+
+        return modelPromise;
     },
-    getModuleParser(moduleId) {
-        const { _parserMap, _bundle } = get();
+    // getDepsForModule(moduleId) {
+    //     const { _bundle } = get();
 
-        if (!_parserMap.has(moduleId)) {
-            const code = _bundle!.get_module_text(+moduleId);
+    //     const guh = _bundle!.get_module_deps(+moduleId) ?? {
+    //         syncUses: [],
+    //         lazyUses: [],
+    //     };
 
-            if (code == null) {
-                throw new Error(`module ${moduleId} not found in bundle`);
-            }
+    //     return {
+    //         syncUses: guh.syncUses.map(String),
+    //         lazyUses: guh.lazyUses.map(String),
+    //     };
+    // },
+    // getAllModuleIds() {
+    //     const { _idList, _bundle } = get();
 
-            const parser = WebpackAstParser.withFormattedModule(code, moduleId);
+    //     if (_idList == null) {
+    //         const idList = _bundle!.get_id_list();
 
-            _parserMap.set(moduleId, parser);
-        }
+    //         set({
+    //             _idList: idList,
+    //         });
+    //         return idList;
+    //     }
 
-        return _parserMap.get(moduleId)!;
-    },
-    getDepsForModule(moduleId) {
-        const { _bundle } = get();
-
-        const guh = _bundle!.get_module_deps(+moduleId) ?? {
-            syncUses: [],
-            lazyUses: [],
-        };
-
-        return {
-            syncUses: guh.syncUses.map(String),
-            lazyUses: guh.lazyUses.map(String),
-        };
-    },
-    getAllModuleIds() {
-        const { _idList, _bundle } = get();
-
-        if (_idList == null) {
-            const idList = _bundle!.get_id_list();
-
-            set({
-                _idList: idList,
-            });
-            return idList;
-        }
-
-        return _idList;
-    },
+    //     return _idList;
+    // },
     hasId(moduleId) {
-        const { _bundle } = get();
+        const { _buildService } = get();
 
-        return _bundle!.has_id(moduleId);
+        return _buildService.hasId(moduleId);
     },
 }));
 

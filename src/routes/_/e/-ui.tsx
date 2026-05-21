@@ -6,14 +6,59 @@ import { Text } from "@/components/Text";
 import { Tooltip } from "@/components/Tooltip";
 import { EM_DASH } from "@/utils/constants";
 import type { TBundleHash } from "@/utils/types";
-import { get_builds, Meta } from "@sadan4/libsadancore";
 import { useQuery } from "@tanstack/react-query";
 
+import type { GetBuildsFn, Meta } from "./-worker";
+
+import * as comlink from "comlink";
 import { ExternalLinkIcon } from "lucide-react";
+import prodWorkerUrl from "omt:./-worker";
 import { useMemo } from "react";
+
+let workerUrl: string;
+
+// OMT doesn't work in dev mode
+if (!import.meta.env.SSR && import.meta.env.DEV) {
+    ({ default: workerUrl } = await import("./-worker?sharedworker&url"));
+} else {
+    workerUrl = prodWorkerUrl;
+}
 
 interface BundleItemProps {
     bundleMeta: Meta;
+}
+
+declare global {
+    interface WorkerOptions {
+        /**
+         * ONLY FOR SHARED WORKERS
+         * 
+         * A boolean indicating whether the shared worker is allowed to remain alive for a short period after all pages using it have been navigated away from or closed.
+         *
+         * This is provided to allow work to be done after the user navigates away from the page, such as writing state information to storage, or sending analytics data back to servers. The exact time that the worker is kept alive depends on the browser, and could be anywhere between 10 seconds and 5 minutes (Chrome uses 30 seconds).
+         *
+         * For more information see {@link https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Using_web_workers#shared_worker_lifetime|Shared worker lifetime} in Using web workers.
+         */
+        extendedLifetime?: boolean;
+    }
+}
+
+let getBuildsFn: comlink.Remote<GetBuildsFn> | null = null;
+
+async function getBuilds() {
+    if (!getBuildsFn) {
+        const worker = new SharedWorker(workerUrl, {
+            type: "module",
+            name: "fetch-builds-worker",
+            extendedLifetime: !import.meta.env.DEV,
+        });
+
+        getBuildsFn = comlink.wrap<GetBuildsFn>(worker.port);
+    }
+
+    const ret = await getBuildsFn();
+
+    return ret;
 }
 
 const SEPARATOR = (
@@ -67,11 +112,19 @@ export function BundleSelector() {
     const { status, data } = useQuery({
         queryKey: ["getAvailableBundles"],
         queryFn() {
-            return get_builds();
+            return getBuilds();
         },
     });
 
-    const sortedBundles = useMemo(() => data?.toSorted(Meta.sort_newest_first), [data]);
+    const sortedBundles = useMemo(() => data?.toSorted(({ first_seen: fa }, { first_seen: fb }) => {
+        if (fa === fb) {
+            return 0;
+        }
+        if (fb > fa) {
+            return 1;
+        }
+        return -1;
+    }), [data]);
 
     return (
         <>
