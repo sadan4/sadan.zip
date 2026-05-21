@@ -44,6 +44,7 @@ export abstract class ProviderBase {
 
         for (const { id, range } of defs) {
             // await the model to ensure that it is loaded
+            // so monaco can show the inline preview
             const { uri } = await getModuleModel(id as TModuleId);
 
             monacoDefs.push({
