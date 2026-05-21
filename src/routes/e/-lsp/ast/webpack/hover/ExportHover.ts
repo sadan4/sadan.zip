@@ -19,12 +19,12 @@ export class WebpackExportHover implements Monaco.languages.HoverProvider {
             const { buildHash, moduleId } = parseModuleURI(model.uri) ?? {};
             const text = model.getValue();
 
-            if (buildHash !== currentBuildHash) {
-                error("Build hash mismatch");
-            }
-
             if (!isWebpackModule(text)) {
                 return;
+            }
+
+            if (buildHash !== currentBuildHash) {
+                error("Build hash mismatch");
             }
 
             const { range, content } = await _buildService!.generateHover(moduleId!, position) ?? {};

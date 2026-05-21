@@ -72,7 +72,6 @@ struct BundleInner {
 	dep_info: RcDepInfo,
 	#[expect(dead_code)]
 	module_sources: ModuleSources,
-	// FIXME: use formatted sources
 	unformatted_modules: HashMap<ModuleId, String>,
 	format_alloc: RefCell<Allocator>,
 	#[expect(clippy::box_collection)]
@@ -127,6 +126,12 @@ pub struct MonacoPosition {
 	pub column: u32,
 }
 
+impl Default for MonacoPosition {
+	fn default() -> Self {
+		Self { line: 1, column: 1 }
+	}
+}
+
 #[wasm_bindgen]
 impl MonacoPosition {
 	/// Create a new [`MonacoPosition`]
@@ -153,7 +158,7 @@ impl MonacoPosition {
 
 /// 1-based
 #[wasm_bindgen]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Default)]
 pub struct MonacoRange {
 	/// 1-based
 	#[wasm_bindgen(readonly)]
@@ -271,7 +276,8 @@ impl BundleInner {
 
 fn is_webpack_module(src: &str) -> bool {
 	src.starts_with("// Webpack Module")
-		|| src[0..src.len().min(100)].contains("//OPEN FULL MODULE:")
+		|| src[0..src.ceil_char_boundary(src.len().min(100))]
+			.contains("//OPEN FULL MODULE:")
 }
 
 fn format_module_header(src: &mut String, m_id: ModuleId, is_find: bool) {
@@ -347,12 +353,13 @@ impl Bundle {
 		let ret = locs
 			.into_iter()
 			.map(|loc| {
-				let range = MonacoRange::from_span(
-					loc.range,
-					self.inner
-						.get_formatted_module(loc.module_id)
-						.unwrap_or_default(),
-				);
+				let range = match self
+					.inner
+					.get_formatted_module(loc.module_id)
+				{
+					Ok(src) => MonacoRange::from_span(loc.range, src),
+					Err(_) => MonacoRange::default(),
+				};
 				ModuleLocation {
 					id: *loc.module_id,
 					range,

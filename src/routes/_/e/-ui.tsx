@@ -43,15 +43,19 @@ declare global {
     }
 }
 
-async function getBuilds() {
-    // this is flakey when used as a shared worker
-    const worker = new SharedWorker(workerUrl, {
-        type: "module",
-        name: "fetch-builds-worker",
-        extendedLifetime: !import.meta.env.DEV,
-    });
+let getBuildsFn: comlink.Remote<GetBuildsFn> | null = null;
 
-    const getBuildsFn = comlink.wrap<GetBuildsFn>(worker.port);
+async function getBuilds() {
+    if (!getBuildsFn) {
+        const worker = new SharedWorker(workerUrl, {
+            type: "module",
+            name: "fetch-builds-worker",
+            extendedLifetime: !import.meta.env.DEV,
+        });
+
+        getBuildsFn = comlink.wrap<GetBuildsFn>(worker.port);
+    }
+
     const ret = await getBuildsFn();
 
     return ret;

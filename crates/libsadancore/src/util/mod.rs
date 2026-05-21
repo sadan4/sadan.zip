@@ -3,11 +3,11 @@ use crate::{
 	err::{BadCast, Error, Result},
 	util::fut::JsPromiseExt,
 };
-use js_sys::{ArrayBuffer, Object, Promise, Uint8Array, global};
+use js_sys::{ArrayBuffer, Uint8Array, global};
 use serde::de::DeserializeOwned;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::JsFuture;
-use web_sys::{Response, Window, WorkerGlobalScope, window};
+use web_sys::{Response, Window, WorkerGlobalScope};
 
 // #[wasm_bindgen]
 // extern "C" {

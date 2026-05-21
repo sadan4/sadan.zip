@@ -181,7 +181,7 @@ function ModuleViewer() {
             codeEditor.editor.setSelection(range);
             codeEditor.editor.revealRangeInCenter(range);
         }
-    }, [isPlaceholderData, sl, sc, el, ec, codeEditor]);
+    }, [isPlaceholderData, moduleId, sl, sc, el, ec, codeEditor]);
 
     return (
         <MonacoCodeEditor
@@ -593,8 +593,6 @@ function ExplorerSidebar() {
             },
         });
     }, [navigate]);
-
-    console.log(moduleIds?.length);
 
     return (
         <div className="flex shrink-0 flex-col">

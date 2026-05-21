@@ -76,8 +76,8 @@ export const Route = createFileRoute("/e/view/{-$buildHash}/{-$moduleId}")({
 
             const lsp = await import("./-lsp");
 
-            lsp.registerLSPHandlers();
             await data.ModuleViewerStore.getState().init(buildHash);
+            lsp.registerLSPHandlers();
         }
     },
     validateSearch: zodValidator(searchParamsSchema),
