@@ -247,3 +247,6 @@ export type Booleanish = boolean | string | number | null | undefined;
 export type Fields<T extends object> = {
     [K in keyof T as T[K] extends (...args: any[]) => any ? never : K]: T[K];
 };
+
+export function TAssert<T>(_val: any): asserts _val is T {
+}

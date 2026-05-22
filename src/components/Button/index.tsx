@@ -1,7 +1,6 @@
 import { useDebouncedFn } from "@/hooks/debouncedFn";
 import { cn, type textSize } from "@/utils/cn";
-import type { Thenable } from "@/utils/types";
-import { TAssert } from "@vencord-companion/webpack-ast-parser/util";
+import { TAssert, type Thenable } from "@/utils/types";
 
 import { colors, colorTypes } from "./colors";
 import * as styles from "./styles.module.scss";

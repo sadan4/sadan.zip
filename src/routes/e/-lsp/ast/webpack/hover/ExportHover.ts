@@ -4,7 +4,8 @@ import { GITHUB_REPO_CREATE_ISSUE_URL } from "@/utils/constants";
 import { tryMapIntlKey } from "@/utils/discordI18n";
 import { error } from "@/utils/error";
 import { type Monaco, monaco } from "@/utils/monaco";
-import { isWebpackModule } from "@vencord-companion/webpack-ast-parser/util";
+
+import { isWebpackModule } from "../../../util";
 
 interface CopyHoverDataArgs {
     hashedKey: string;
