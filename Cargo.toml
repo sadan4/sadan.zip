@@ -43,9 +43,9 @@ xxhash-rust = { version = "0.8.15", features = ["xxh64"] }
 oxc = { version = "0.125.0", default-features = false, features = [
     "ast_visit",
     "semantic",
-    "minifier",  # we use some traits from it
+    "minifier",           # we use some traits from it
     "serialize",
-    "codegen",   # for tests
+    "codegen",            # for tests
     "regular_expression",
 ] }
 oxc_traverse = "0.125.0"
@@ -85,10 +85,14 @@ vencord_ast_parser = { path = "crates/vencord_ast_parser" }
 webpack_ast_parser = { path = "crates/webpack_ast_parser" }
 webpack_chunk_parser = { path = "crates/webpack_chunk_parser" }
 pretty_printer = { path = "crates/pretty_printer" }
+dagre = { path = "crates/dagre" }
+dagre_graphlib = { path = "crates/dagre_graphlib" }
 notify = "8.2.0"
 rustc-hash = "2.1.2"
 clearscreen = "4.0.6"
 bitcode = { version = "0.6.9", features = ["serde"] }
+petgraph = { version = "0.8.3" }
+derive-getters = "0.5.0"
 
 [profile.release]
 codegen-units = 1
@@ -154,6 +158,8 @@ cast_sign_loss = "allow"
 cast_ptr_alignment = "allow"
 # only good to browse
 must_use_candidate = "allow"
+# bad
+items_after_statements = "allow"
 
 # Nursery
 clear_with_drain = "warn"

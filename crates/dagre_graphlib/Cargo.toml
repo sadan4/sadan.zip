@@ -1,0 +1,12 @@
+[package]
+name = "dagre_graphlib"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+serde.workspace = true
+derive-getters.workspace = true
+derive_more.workspace = true
+
+[lints]
+workspace = true

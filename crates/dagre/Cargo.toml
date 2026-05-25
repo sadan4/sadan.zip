@@ -1,0 +1,11 @@
+[package]
+name = "dagre"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+derive_more.workspace = true
+dagre_graphlib.workspace = true
+
+[lints]
+workspace = true
