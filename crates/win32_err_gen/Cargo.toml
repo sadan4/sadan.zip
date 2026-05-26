@@ -1,0 +1,18 @@
+[package]
+name = "win32_err_gen"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+markdown.workspace = true
+anyhow.workspace = true
+reqwest.workspace = true
+itertools.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+[lints]
+workspace = true

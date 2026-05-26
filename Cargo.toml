@@ -21,7 +21,7 @@ napi = { version = "3.8.4", default-features = false, features = [
 ] }
 napi-derive = "3.5.3"
 napi-build = "2.3.1"
-tokio = "1.49.0"
+tokio = { version = "1.49.0", features = ["macros", "rt-multi-thread"] }
 tokio-stream = { version = "0.1.18", default-features = false }
 tokio-util = { version = "0.7.18", default-features = false }
 reqwest = "0.13.2"
@@ -43,9 +43,9 @@ xxhash-rust = { version = "0.8.15", features = ["xxh64"] }
 oxc = { version = "0.125.0", default-features = false, features = [
     "ast_visit",
     "semantic",
-    "minifier",  # we use some traits from it
+    "minifier",           # we use some traits from it
     "serialize",
-    "codegen",   # for tests
+    "codegen",            # for tests
     "regular_expression",
 ] }
 oxc_traverse = "0.125.0"
@@ -89,6 +89,7 @@ notify = "8.2.0"
 rustc-hash = "2.1.2"
 clearscreen = "4.0.6"
 bitcode = { version = "0.6.9", features = ["serde"] }
+markdown = { version = "1.0.0", features = [] }
 
 [profile.release]
 codegen-units = 1
