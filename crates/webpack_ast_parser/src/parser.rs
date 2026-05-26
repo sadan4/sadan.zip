@@ -845,7 +845,6 @@ impl<'ast> WebpackAstParser<'ast> {
 						} else {
 							error!("Empty export range");
 						}
-						break;
 					}
 					map = new_map;
 				}

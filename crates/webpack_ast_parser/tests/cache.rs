@@ -708,7 +708,7 @@ mod definitions {
 					        id: ModuleId(
 					            333333,
 					        ),
-					        range: "[21:8->21:18)",
+					        range: "[22:24->22:30)",
 					    },
 					]
 					"#);
@@ -758,7 +758,7 @@ mod definitions {
 					        id: ModuleId(
 					            333333,
 					        ),
-					        range: "[26:8->26:18)",
+					        range: "[28:19->28:20)",
 					    },
 					]
 					"#);
@@ -775,7 +775,6 @@ mod stores {
 	fn definition_location_of_store_getter(b: &Bundle) {
 		let parser = b.parse(111111);
 		let defs = b.dbg_defs(&parser, 16, 27).unwrap();
-		// FIXME: this is the correct data; the logic is wrong
 		assert_debug_snapshot!(defs, @r#"
 		[
 		    DefinitionDumper {
@@ -811,13 +810,13 @@ mod hover_text {
 		let hov = dbg_hover(&parser, 15, 23)
 			.unwrap()
 			.unwrap();
-		let hov2 = dbg_hover(&parser, 31, 23)
+		let hov2 = dbg_hover(&parser, 32, 23)
 			.unwrap()
 			.unwrap();
 		assert_debug_snapshot!(hov2, @r#"
 		(
 		    "MyTestingStore",
-		    "[31:23->31:25)",
+		    "[32:23->32:25)",
 		)
 		"#);
 		assert_debug_snapshot!(hov, @r#"

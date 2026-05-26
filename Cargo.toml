@@ -21,7 +21,7 @@ napi = { version = "3.8.4", default-features = false, features = [
 ] }
 napi-derive = "3.5.3"
 napi-build = "2.3.1"
-tokio = "1.49.0"
+tokio = { version = "1.49.0", features = ["macros", "rt-multi-thread"] }
 tokio-stream = { version = "0.1.18", default-features = false }
 tokio-util = { version = "0.7.18", default-features = false }
 reqwest = "0.13.2"
@@ -87,12 +87,16 @@ webpack_chunk_parser = { path = "crates/webpack_chunk_parser" }
 pretty_printer = { path = "crates/pretty_printer" }
 dagre = { path = "crates/dagre" }
 dagre_graphlib = { path = "crates/dagre_graphlib" }
+dagre_slop = { path = "crates/dagre_slop" }
 notify = "8.2.0"
 rustc-hash = "2.1.2"
 clearscreen = "4.0.6"
 bitcode = { version = "0.6.9", features = ["serde"] }
 petgraph = { version = "0.8.3" }
 derive-getters = "0.5.0"
+markdown = { version = "1.0.0", features = [] }
+criterion = { version = "0.5", features = ["html_reports"] }
+
 
 [profile.release]
 codegen-units = 1
