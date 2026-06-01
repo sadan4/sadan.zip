@@ -234,26 +234,6 @@ function ModuleGraph2({ graph: { nodes, edges } }: ModuleGraph2Props) {
     );
 }
 
-function ModuleGraphTodo() {
-    return (
-        <div>
-            <Text
-                center
-                size="3xl"
-                color="primary"
-            >
-                Module Graph
-            </Text>
-            <Text
-                center
-                size="2xl"
-            >
-                TODO
-            </Text>
-        </div>
-    );
-}
-
 const IconButtonInternalLink = createLink(IconButton);
 
 function ModuleGraphWrapper() {
