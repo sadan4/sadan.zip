@@ -1,276 +1,330 @@
-use std::{
-	collections::HashMap,
-	iter,
-	sync::atomic::{AtomicU32, Ordering},
-};
+//! Utility helpers — port of `lib/util.ts`.
 
-use dagre_graphlib::{Graph, GraphOptions};
-
+use crate::graph::{Edge, Graph, GraphOpts};
 use crate::types::{Dummy, EdgeLabel, GraphLabel, NodeLabel, Point};
+use std::collections::HashMap;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
-/// Adds a dummy node to the graph and return v.
-pub fn add_dummy_node(
-	g: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>,
-	type_: Dummy,
-	mut attrs: NodeLabel,
-	name: String,
-) -> String {
-	let mut v: String = name.clone();
-	let mut i = 0;
-	while g.has_node(v.clone()) {
-		v = unique_id(&name);
-	}
-	attrs.dummy = Some(type_);
-	g.set_node(v.clone(), attrs);
-	v
+static ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
+
+pub fn unique_id(prefix: &str) -> String {
+    let id = ID_COUNTER.fetch_add(1, Ordering::SeqCst) + 1;
+    format!("{}{}", prefix, id)
 }
 
-/// Returns a new graph with only simple edges. Handles aggregation of data
-/// associated with multi-edges.
+/// Reset the global id counter — useful in tests for determinism. Not
+/// thread-safe across parallel tests; tests that need it run single-threaded.
+#[cfg(test)]
+pub fn reset_unique_id() {
+    ID_COUNTER.store(0, Ordering::SeqCst);
+}
+
+pub fn add_dummy_node(
+    g: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>,
+    dummy_type: Dummy,
+    mut attrs: NodeLabel,
+    name: &str,
+) -> String {
+    let mut v = name.to_string();
+    while g.has_node(&v) {
+        v = unique_id(name);
+    }
+    attrs.dummy = Some(dummy_type);
+    g.set_node(v.clone(), attrs);
+    v
+}
+
+/// Returns a new graph with only simple edges (no multi-edges). Weights are
+/// summed; minlen takes the max. Aggregates correspond to the JS `simplify`.
 pub fn simplify(
-	g: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
+    graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
 ) -> Graph<GraphLabel, NodeLabel, EdgeLabel> {
-	let mut simplified = Graph::new(GraphOptions::default());
-	if let Some(graph) = g.graph().cloned() {
-		simplified.set_graph(graph);
-	}
-	for v in g.nodes() {
-		let val = g.node(v.clone());
-		simplified.set_node(v, val);
-	}
-	for e in g.edges() {
-		let simple_label = simplified
-			.edge(e.v.clone(), e.w.clone(), None)
-			.unwrap_or_else(|| EdgeLabel {
-				weight: Some(0),
-				minlen: Some(1),
-				..Default::default()
-			});
-		let label = g.edge_from_obj(e.clone()).unwrap();
-		simplified.set_edge(
-			e.v,
-			e.w,
-			EdgeLabel {
-				weight: Some(
-					simple_label.weight.unwrap() + label.weight.unwrap(),
-				),
-				minlen: Some(
-					simple_label
-						.minlen
-						.unwrap()
-						.max(label.minlen.unwrap()),
-				),
-				..Default::default()
-			},
-			None,
-		);
-	}
-	simplified
+    let mut s: Graph<GraphLabel, NodeLabel, EdgeLabel> = Graph::new();
+    if let Some(g) = graph.graph() {
+        s.set_graph(g.clone());
+    }
+    for v in graph.nodes() {
+        if let Some(n) = graph.node(&v) {
+            s.set_node(v, n.clone());
+        }
+    }
+    for e in graph.edges() {
+        let label = graph.edge_obj(&e).cloned().unwrap_or_default();
+        let prev = s.edge(&e.v, &e.w).cloned().unwrap_or(EdgeLabel {
+            weight: 0.0,
+            minlen: 1,
+            ..Default::default()
+        });
+        s.set_edge(
+            e.v.clone(),
+            e.w.clone(),
+            EdgeLabel {
+                weight: prev.weight + label.weight,
+                minlen: prev.minlen.max(label.minlen),
+                ..Default::default()
+            },
+        );
+    }
+    s
 }
 
 pub fn as_non_compound_graph(
-	g: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
+    graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
 ) -> Graph<GraphLabel, NodeLabel, EdgeLabel> {
-	let mut simplified = Graph::new(GraphOptions {
-		multigraph: g.is_multigraph(),
-		..GraphOptions::default()
-	});
-	if let Some(graph) = g.graph().cloned() {
-		simplified.set_graph(graph);
-	}
-	for v in g.nodes() {
-		if g.children(v.clone()).is_empty() {
-			let node = g.node(v.clone());
-			simplified.set_node(v, node);
-		}
-	}
-	for e in g.edges() {
-		let edge = g.edge_from_obj(e.clone());
-		simplified.set_edge_from_obj(e, edge);
-	}
-	simplified
+    let mut s: Graph<GraphLabel, NodeLabel, EdgeLabel> = Graph::with_opts(GraphOpts {
+        directed: true,
+        multigraph: graph.is_multigraph(),
+        compound: false,
+    });
+    if let Some(g) = graph.graph() {
+        s.set_graph(g.clone());
+    }
+    for v in graph.nodes() {
+        if graph.children(Some(&v)).is_empty() {
+            if let Some(n) = graph.node(&v) {
+                s.set_node(v, n.clone());
+            }
+        }
+    }
+    for e in graph.edges() {
+        let l = graph.edge_obj(&e).cloned().unwrap_or_default();
+        s.set_edge_named(e.v.clone(), e.w.clone(), l, e.name.clone());
+    }
+    s
 }
 
 pub fn successor_weights(
-	g: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
-) -> HashMap<String, HashMap<String, i32>> {
-	let weight_map = g.nodes().into_iter().map(|v| {
-		let mut successors: HashMap<String, i32> = HashMap::new();
-		let out_edges = g.out_edges(v, None);
-		if let Some(out_edges) = out_edges {
-			for e in out_edges {
-				let weight = successors
-					.get(&e.w)
-					.copied()
-					.unwrap_or_default();
-				let edge_weight = g
-					.edge_from_obj(e.clone())
-					.unwrap()
-					.weight
-					.unwrap();
-				successors.insert(e.w.clone(), weight + edge_weight);
-			}
-		}
-		successors
-	});
-	iter::zip(g.nodes(), weight_map).collect()
+    graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
+) -> HashMap<String, HashMap<String, f64>> {
+    let mut out = HashMap::new();
+    for v in graph.nodes() {
+        let mut sucs: HashMap<String, f64> = HashMap::new();
+        if let Some(es) = graph.out_edges(&v) {
+            for e in es {
+                let w = graph.edge_obj(&e).map(|l| l.weight).unwrap_or(0.0);
+                *sucs.entry(e.w.clone()).or_insert(0.0) += w;
+            }
+        }
+        out.insert(v, sucs);
+    }
+    out
 }
 
 pub fn predecessor_weights(
-	g: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
-) -> HashMap<String, HashMap<String, i32>> {
-	let weight_map = g.nodes().into_iter().map(|v| {
-		let mut preds = HashMap::new();
-		let in_edges = g.in_edges(v, None);
-		if let Some(in_edges) = in_edges {
-			for e in in_edges {
-				let weight = preds
-					.get(&e.v)
-					.copied()
-					.unwrap_or_default();
-				let edge_weight = g
-					.edge_from_obj(e.clone())
-					.unwrap()
-					.weight
-					.unwrap();
-				preds.insert(e.v.clone(), weight + edge_weight);
-			}
-		}
-		preds
-	});
-	iter::zip(g.nodes(), weight_map).collect()
+    graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
+) -> HashMap<String, HashMap<String, f64>> {
+    let mut out = HashMap::new();
+    for v in graph.nodes() {
+        let mut preds: HashMap<String, f64> = HashMap::new();
+        if let Some(es) = graph.in_edges(&v) {
+            for e in es {
+                let w = graph.edge_obj(&e).map(|l| l.weight).unwrap_or(0.0);
+                *preds.entry(e.v.clone()).or_insert(0.0) += w;
+            }
+        }
+        out.insert(v, preds);
+    }
+    out
 }
 
-/// Finds where a line starting at point ({x, y}) would intersect a rectangle
-/// ({x, y, width, height}) if it were pointing at the rectangle's center.
 pub fn intersect_rect(rect: &NodeLabel, point: Point) -> Point {
-	let x = rect.x.unwrap();
-	let y = rect.y.unwrap();
-
-	// Rectangle intersection algorithm from:
-	// http://math.stackexchange.com/questions/108113/find-edge-between-two-boxes
-	let dx = point.x - x;
-	let dy = point.y - y;
-	let mut w = rect.width as i32 / 2;
-	let mut h = rect.height as i32 / 2;
-	if dx == 0 && dy == 0 {
-		panic!("Not possible to find intersection inside of the rectangle");
-	}
-	let sy;
-	let sx;
-	if dy.abs() * w > dx.abs() * h {
-		// Intersection is top or bottom of rect.
-		if dy < 0 {
-			h = -h;
-		}
-		sx = h * dx / dy;
-		sy = h;
-	} else {
-		// Intersection is left or right of rect
-		if dx < 0 {
-			w = -w;
-		}
-		sx = w;
-		sy = w * dy / dx;
-	}
-	Point {
-		x: x + sx,
-		y: y + sy,
-	}
+    let x = rect.x.unwrap_or(0.0);
+    let y = rect.y.unwrap_or(0.0);
+    let dx = point.x - x;
+    let dy = point.y - y;
+    let mut w = rect.width / 2.0;
+    let mut h = rect.height / 2.0;
+    if dx == 0.0 && dy == 0.0 {
+        panic!("Not possible to find intersection inside of the rectangle");
+    }
+    let (sx, sy);
+    if dy.abs() * w > dx.abs() * h {
+        if dy < 0.0 {
+            h = -h;
+        }
+        sx = h * dx / dy;
+        sy = h;
+    } else {
+        if dx < 0.0 {
+            w = -w;
+        }
+        sx = w;
+        sy = w * dy / dx;
+    }
+    Point {
+        x: x + sx,
+        y: y + sy,
+    }
 }
 
-/// Given a DAG with each node assigned "rank" and "order" properties, this
-/// function will produce a matrix with the ids of each node.
-pub fn build_layer_matrix(
-	g: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
-) -> Vec<Vec<String>> {
-	let mut layering = Vec::new();
-	layering.resize(max_rank(g).min(0) as usize, Vec::new());
-	for v in g.nodes() {
-		let node = g.node(v.clone()).unwrap();
-		if let Some(rank) = node.rank
-			&& rank > 0
-		{
-			let rank = rank as usize;
-			if layering.get(rank).is_none() {
-				layering.resize(rank + 1, Vec::new());
-			}
-			let order = node.order.unwrap() as usize;
-			if layering[rank].get(order).is_none() {
-				layering[rank].resize(order + 1, String::new());
-			}
-			layering[rank][order] = v;
-		}
-	}
-	layering
+pub fn build_layer_matrix(graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>) -> Vec<Vec<String>> {
+    let mx = max_rank(graph);
+    let mut layers: Vec<Vec<String>> = (0..=mx.max(0)).map(|_| Vec::new()).collect();
+    if mx < 0 {
+        return Vec::new();
+    }
+    for v in graph.nodes() {
+        if let Some(n) = graph.node(&v) {
+            if let Some(rank) = n.rank {
+                if rank >= 0 {
+                    let r = rank as usize;
+                    while layers.len() <= r {
+                        layers.push(Vec::new());
+                    }
+                    let order = n.order.unwrap_or(0);
+                    if layers[r].len() <= order {
+                        layers[r].resize(order + 1, String::new());
+                    }
+                    layers[r][order] = v.clone();
+                }
+            }
+        }
+    }
+    layers
 }
 
-pub fn normalize_ranks(g: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>) {
-	let nodes = g.nodes();
-	if nodes.is_empty() {
-		return;
-	}
-	let min = g
-		.nodes()
-		.into_iter()
-		.map(|v| {
-			g.node(v)
-				.unwrap()
-				.rank
-				.unwrap_or(i32::MAX)
-		})
-		.min()
-		.unwrap();
-	for v in g.nodes() {
-		let node = g.node_mut(v).unwrap();
-		if let Some(rank) = &mut node.rank {
-			*rank -= min;
-		}
-	}
+pub fn max_rank(graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>) -> i32 {
+    let mut mx = i32::MIN;
+    let mut seen = false;
+    for v in graph.nodes() {
+        if let Some(n) = graph.node(&v) {
+            if let Some(r) = n.rank {
+                seen = true;
+                if r > mx {
+                    mx = r;
+                }
+            }
+        }
+    }
+    if seen {
+        mx
+    } else {
+        -1
+    }
 }
 
-fn remove_empty_ranks(g: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>) {
-	let node_ranks = g
-		.nodes()
-		.into_iter()
-		.filter_map(|v| g.node(v).unwrap().rank);
-	let offset = node_ranks.min().unwrap_or(i32::MAX);
-	todo!()
+pub fn normalize_ranks(graph: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>) {
+    let mut min = i32::MAX;
+    for v in graph.nodes() {
+        if let Some(n) = graph.node(&v) {
+            if let Some(r) = n.rank {
+                if r < min {
+                    min = r;
+                }
+            }
+        }
+    }
+    if min == i32::MAX {
+        return;
+    }
+    for v in graph.nodes() {
+        if let Some(n) = graph.node_mut(&v) {
+            if let Some(r) = n.rank {
+                n.rank = Some(r - min);
+            }
+        }
+    }
 }
 
-fn add_border_node(
-	g: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>,
-	prefix: String,
-	rank: impl Into<Option<i32>>,
-	order: impl Into<Option<u32>>,
+pub fn remove_empty_ranks(graph: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>) {
+    let ranks: Vec<i32> = graph
+        .nodes()
+        .iter()
+        .filter_map(|v| graph.node(v).and_then(|n| n.rank))
+        .collect();
+    if ranks.is_empty() {
+        return;
+    }
+    let offset = *ranks.iter().min().unwrap();
+    let mut layers: Vec<Option<Vec<String>>> = Vec::new();
+    for v in graph.nodes() {
+        if let Some(n) = graph.node(&v) {
+            if let Some(r) = n.rank {
+                let idx = (r - offset) as usize;
+                while layers.len() <= idx {
+                    layers.push(None);
+                }
+                layers[idx].get_or_insert_with(Vec::new).push(v.clone());
+            }
+        }
+    }
+    let factor = graph
+        .graph()
+        .and_then(|g| g.node_rank_factor)
+        .unwrap_or(0.0) as i32;
+    let mut delta = 0i32;
+    for (i, vs) in layers.iter().enumerate() {
+        match vs {
+            None if factor != 0 && (i as i32) % factor != 0 => {
+                delta -= 1;
+            }
+            Some(vs) if delta != 0 => {
+                for v in vs {
+                    if let Some(n) = graph.node_mut(v) {
+                        if let Some(r) = n.rank {
+                            n.rank = Some(r + delta);
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+pub fn add_border_node(
+    graph: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>,
+    prefix: &str,
+    rank: Option<i32>,
+    order: Option<usize>,
 ) -> String {
-	let rank = rank.into();
-	let order = order.into();
-	let mut node = NodeLabel {
-		width: 0,
-		height: 0,
-		..NodeLabel::default()
-	};
-	if let (Some(rank), Some(order)) = (rank, order) {
-		node.rank = Some(rank);
-		node.order = Some(order);
-	}
-	add_dummy_node(g, Dummy::Border, node, prefix)
+    let node = NodeLabel {
+        width: 0.0,
+        height: 0.0,
+        rank,
+        order,
+        ..Default::default()
+    };
+    add_dummy_node(graph, Dummy::Border, node, prefix)
 }
 
-fn max_rank(g: &Graph<GraphLabel, NodeLabel, EdgeLabel>) -> i32 {
-	g.nodes()
-		.into_iter()
-		.map(|v| {
-			let rank = g.node(v).unwrap().rank;
-			rank.unwrap_or(i32::MIN)
-		})
-		.max()
-		.unwrap_or(0)
+pub fn range(start: i32, limit: i32, step: i32) -> Vec<i32> {
+    let mut r = Vec::new();
+    if step > 0 {
+        let mut i = start;
+        while i < limit {
+            r.push(i);
+            i += step;
+        }
+    } else if step < 0 {
+        let mut i = start;
+        while i > limit {
+            r.push(i);
+            i += step;
+        }
+    }
+    r
 }
 
-pub fn unique_id(prefix: &str) -> String {
-	static ID_COUNTER: AtomicU32 = AtomicU32::new(1);
-	let id = ID_COUNTER.fetch_add(1, Ordering::SeqCst);
-	format!("{prefix}{id}")
+pub fn range0(limit: i32) -> Vec<i32> {
+    range(0, limit, 1)
+}
+
+pub fn partition<T, F: Fn(&T) -> bool>(items: Vec<T>, pred: F) -> (Vec<T>, Vec<T>) {
+    let mut lhs = Vec::new();
+    let mut rhs = Vec::new();
+    for v in items {
+        if pred(&v) {
+            lhs.push(v);
+        } else {
+            rhs.push(v);
+        }
+    }
+    (lhs, rhs)
+}
+
+/// Aggregate the weight of an edge — used by greedy-fas. Picks the `weight`
+/// field, defaulting to 1 when an explicit weight function isn't provided.
+pub fn edge_weight(graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>, e: &Edge) -> f64 {
+    graph.edge_obj(e).map(|l| l.weight).unwrap_or(1.0)
 }

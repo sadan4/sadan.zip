@@ -1,9 +1,11 @@
 /// <reference lib="webworker" />
 
+import type { GeneratedGraph } from "@/hooks/moduleGraph2";
 import { assert } from "@/utils/error";
 import type { Monaco } from "@/utils/monaco";
 import type { TBundleHash, TModuleId } from "@/utils/types";
-import { Bundle, default as initWasm, get_bundle, HoverInfo as RawHoverInfo, ModuleLocation as RawModuleLocation, MonacoPosition, MonacoRange } from "@sadan4/libsadancore";
+import { Bundle, default as initWasm, get_bundle, HoverInfo as RawHoverInfo, LaidOutGraph, ModuleLocation as RawModuleLocation, MonacoPosition, MonacoRange } from "@sadan4/libsadancore";
+import type { Edge, Node } from "@xyflow/react";
 
 import * as comlink from "comlink";
 
@@ -25,6 +27,7 @@ export interface IBuildService {
     generateReferences(moduleId: TModuleId, position: Monaco.IPosition): ModuleLocation[];
     generateHover(moduleId: TModuleId, position: Monaco.IPosition): HoverInfo | undefined;
     getAllModuleIds(): Uint32Array;
+    generateModuleGraph(moduleId: TModuleId): GeneratedGraph;
 }
 
 const self = globalThis as any as SharedWorkerGlobalScope;
@@ -61,6 +64,33 @@ function convertHoverInfo({ content, range, i18n_key: i18nKey }: RawHoverInfo): 
         i18nKey,
     };
 }
+
+function convertGraph(raw: LaidOutGraph): GeneratedGraph {
+    const nodes: Node[] = raw.nodes.map(({ id, width, height, x, y }) => ({
+        id: `${id}`,
+        data: {
+            label: `${id}`,
+        },
+        position: {
+            x,
+            y,
+        },
+        width,
+        height,
+    }));
+
+    const edges: Edge[] = raw.edges.map(({ from, to }) => ({
+        id: `${from}->${to}`,
+        source: `${from}`,
+        target: `${to}`,
+    }));
+
+    return {
+        nodes,
+        edges,
+    };
+}
+
 class BuildService implements IBuildService {
     #bundleHash!: TBundleHash;
     #bundle!: Bundle;
@@ -113,6 +143,12 @@ class BuildService implements IBuildService {
         const ids = this.#bundle.get_id_list();
 
         return comlink.transfer(ids, [ids.buffer]);
+    }
+
+    public generateModuleGraph(moduleId: TModuleId): GeneratedGraph {
+        const graph = this.#bundle.gen_graph(moduleId, 3);
+
+        return convertGraph(graph);
     }
 }
 

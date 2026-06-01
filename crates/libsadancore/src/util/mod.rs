@@ -5,21 +5,21 @@ use crate::{
 };
 use js_sys::{ArrayBuffer, Uint8Array, global};
 use serde::de::DeserializeOwned;
-use wasm_bindgen::JsCast;
+use wasm_bindgen::{JsCast, prelude::wasm_bindgen};
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{Response, Window, WorkerGlobalScope};
 
-// #[wasm_bindgen]
-// extern "C" {
-//     #[wasm_bindgen(js_namespace = console)]
-//     pub(crate) fn log(s: &str);
-// }
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_namespace = console)]
+    pub(crate) fn log(s: &str);
+}
 
-// macro_rules! console_log {
-//     ($($t:tt)*) => ($crate::util::log(&format_args!($($t)*).to_string()));
-// }
+macro_rules! console_log {
+    ($($t:tt)*) => ($crate::util::log(&format_args!($($t)*).to_string()));
+}
 
-// pub(crate) use console_log;
+pub(crate) use console_log;
 
 pub async fn fetch(url: &str) -> Result<Response> {
 	let global_this = global();

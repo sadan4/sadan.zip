@@ -1,3 +1,5 @@
+mod graph;
+
 use std::{
 	cell::RefCell,
 	collections::HashMap,
@@ -15,7 +17,7 @@ use crate::{
 	explorer::meta::Meta,
 	util::fetch_struct,
 };
-use anyhow::Context;
+use anyhow::{Context, anyhow};
 use ast_parser::{get_line_and_column, get_offset_from_line_and_column};
 use explorer_types::{
 	DepInfo,
@@ -193,7 +195,9 @@ impl HoverInfo {
 
 	#[wasm_bindgen(getter)]
 	pub fn i18n_key(&self) -> Option<String> {
-		self.i18n_key.as_ref().map(|s| s.to_string())
+		self.i18n_key
+			.as_ref()
+			.map(ToString::to_string)
 	}
 }
 
@@ -266,7 +270,7 @@ impl BundleInner {
 		let unformatted = self
 			.unformatted_modules
 			.get(&id)
-			.context("Module source not found")?
+			.with_context(|| anyhow!("Module source not found for {id}"))?
 			.as_str();
 		let FormattedContent {
 			mut code,
@@ -415,7 +419,7 @@ impl Bundle {
 		let parser = self.inner.get_or_make_parser(m_id)?;
 		let pos = m_pos.to_offset(fmt_src);
 
-		if let Some(hover) = self.provide_i18n_hover(fmt_src, &parser, pos) {
+		if let Some(hover) = provide_i18n_hover(fmt_src, &parser, pos) {
 			return Ok(Some(hover));
 		}
 
@@ -432,21 +436,20 @@ impl Bundle {
 
 		Ok(ret)
 	}
+}
 
-	fn provide_i18n_hover(
-		&self,
-		fmt_src: &str,
-		parser: &WebpackAstParser,
-		pos: u32,
-	) -> Option<HoverInfo> {
-		let (span, hashed_key) = parser.get_i18n_key_at(pos)?;
+fn provide_i18n_hover(
+	fmt_src: &str,
+	parser: &WebpackAstParser,
+	pos: u32,
+) -> Option<HoverInfo> {
+	let (span, hashed_key) = parser.get_i18n_key_at(pos)?;
 
-		Some(HoverInfo {
-			range: MonacoRange::from_span(span, fmt_src),
-			content: SmolStr::default(),
-			i18n_key: Some(hashed_key),
-		})
-	}
+	Some(HoverInfo {
+		range: MonacoRange::from_span(span, fmt_src),
+		content: SmolStr::default(),
+		i18n_key: Some(hashed_key),
+	})
 }
 
 #[wasm_bindgen(typescript_custom_section)]

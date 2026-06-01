@@ -6,13 +6,13 @@ import { Input } from "@/components/Input";
 import { Box } from "@/components/layout/Box";
 import { BufferedScroller } from "@/components/layout/BufferedScroller";
 import { HorizontalLine } from "@/components/Lines";
-import { TextLink } from "@/components/Links";
 import { Modal, ModalContext } from "@/components/modal";
 import { Select, type SelectOption } from "@/components/Select";
 import { LabeledSwitch } from "@/components/Switch/index";
 import { Text } from "@/components/Text";
 import { ToggleButtonGroup } from "@/components/ToggleButtonGroup";
 import { TooltipPosition } from "@/components/Tooltip/constants";
+import { type GeneratedGraph, useModuleGraph2 } from "@/hooks/moduleGraph2";
 import cn from "@/utils/cn";
 import { BUNDLE_TARBALL_FILENAME, BUNDLE_TARBALL_URL, GITHUB_REPO_URL, NBSP } from "@/utils/constants";
 import { debug_assert } from "@/utils/error";
@@ -24,8 +24,7 @@ import { TextmateTheme, themeDisplayNames } from "@/utils/textmate/theme";
 import type { TModuleId } from "@/utils/types";
 import { useQuery } from "@tanstack/react-query";
 import { createLink } from "@tanstack/react-router";
-import type { WebpackAstParser } from "@vencord-companion/webpack-ast-parser/WebpackAstParser";
-import { ReactFlow } from "@xyflow/react";
+import { Background, Controls, MiniMap, ReactFlow, ReactFlowProvider } from "@xyflow/react";
 
 import {
     ModuleViewerSettingsStore,
@@ -53,7 +52,7 @@ import {
     Undo2Icon,
     XIcon,
 } from "lucide-react";
-import { Activity, type PropsWithChildren, use, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Activity, type PropsWithChildren, use, useCallback, useEffect, useRef, useState } from "react";
 
 
 interface ModuleListItemProps {
@@ -191,112 +190,49 @@ function ModuleViewer() {
     );
 }
 
-interface ModuleGraphProps {
-    parser: WebpackAstParser;
+interface ModuleGraph2Props {
+    graph: GeneratedGraph;
 }
 
-// @ts-expect-error
-// eslint-disable-next-line unused-imports/no-unused-vars
-function ModuleGraph({ parser }: ModuleGraphProps) {
-    const buildHash = useModuleViewerStore(({ buildHash }) => buildHash);
-    const outgoingModules = useMemo(() => parser.getModulesThatThisModuleRequires(), [parser]);
+function ModuleGraph2({ graph: { nodes, edges } }: ModuleGraph2Props) {
+    const navigate = Route.useNavigate();
 
     return (
-        <div className="flex h-full justify-evenly">
-            <ReactFlow />
-            <div className="flex flex-col items-center gap-2">
-                <Text
-                    size="md"
-                    color="secondary"
-                >
-                    Modules that this module requires
-                </Text>
-                <Text size="lg">
-                    Sync:
-                </Text>
-                {!outgoingModules && (
-                    <Text
-                        color="error"
-                    >
-                        This module does not require any other modules
-                    </Text>
-                )}
-                {outgoingModules?.sync.map((moduleId) => {
-                    return (
-                        <TextLink
-                            key={moduleId}
-                            to="/e/view/{-$buildHash}/{-$moduleId}"
-                            params={{
-                                buildHash,
-                                moduleId: +moduleId,
-                            }}
-                        >
-                            {moduleId}
-                        </TextLink>
-                    );
-                })}
-            </div>
-            <div className="flex flex-col items-center gap-2">
-                <Text
-                    size="md"
-                    color="secondary"
-                >
-                    Module that require this module
-                </Text>
-                <Text
-                    size="2xl"
-                    color="error"
-                >
-                    TODO
-                </Text>
-            </div>
+        <div className="size-full bg-black">
+            <ReactFlow
+                nodes={nodes}
+                edges={edges}
+                colorMode="dark"
+                nodesDraggable
+                onlyRenderVisibleElements
+                nodesConnectable={false}
+                minZoom={0}
+                onNodeClick={(_e, node) => {
+                    const moduleId = +node.id;
+                    const { selectedModule } = ModuleViewerStore.getState();
+
+                    if (moduleId === selectedModule) {
+                        return;
+                    }
+
+                    navigate({
+                        to: "/e/view/{-$buildHash}/{-$moduleId}",
+                        params: {
+                            moduleId,
+                        },
+                    });
+                }}
+            >
+                <Controls />
+                <Background />
+                <MiniMap
+                    pannable
+                    zoomable
+                />
+            </ReactFlow>
         </div>
     );
 }
-
-// interface ModuleGraph2Props {
-//     graph: GeneratedGraph;
-// }
-//
-// function ModuleGraph2({ graph: { nodes, edges } }: ModuleGraph2Props) {
-//     const navigate = Route.useNavigate();
-
-//     return (
-//         <div className="size-full bg-black">
-//             <ReactFlow
-//                 nodes={nodes}
-//                 edges={edges}
-//                 colorMode="dark"
-//                 nodesDraggable
-//                 onlyRenderVisibleElements
-//                 nodesConnectable={false}
-//                 minZoom={0}
-//                 onNodeClick={(_e, node) => {
-//                     const moduleId = +node.id;
-//                     const { selectedModule } = ModuleViewerStore.getState();
-
-//                     if (moduleId === selectedModule) {
-//                         return;
-//                     }
-
-//                     navigate({
-//                         to: "/e/view/{-$buildHash}/{-$moduleId}",
-//                         params: {
-//                             moduleId,
-//                         },
-//                     });
-//                 }}
-//             >
-//                 <Controls />
-//                 <Background />
-//                 <MiniMap
-//                     pannable
-//                     zoomable
-//                 />
-//             </ReactFlow>
-//         </div>
-//     );
-// }
 
 function ModuleGraphTodo() {
     return (
@@ -320,28 +256,28 @@ function ModuleGraphTodo() {
 
 const IconButtonInternalLink = createLink(IconButton);
 
-// function ModuleGraphWrapper() {
-//     const moduleId = useModuleViewerStore(({ selectedModule }) => selectedModule);
-//     const graph = useModuleGraph();
+function ModuleGraphWrapper() {
+    const moduleId = useModuleViewerStore(({ selectedModule }) => selectedModule);
+    const graph = useModuleGraph2();
 
-//     if (!moduleId || !graph) {
-//         return (
-//             <Text
-//                 size="3xl"
-//                 weight="bold"
-//                 center
-//             >
-//                 {moduleId ? "Loading Module Graph..." : "Select a Module"}
-//             </Text>
-//         );
-//     }
+    if (!moduleId || !graph) {
+        return (
+            <Text
+                size="3xl"
+                weight="bold"
+                center
+            >
+                {moduleId ? "Loading Module Graph..." : "Select a Module"}
+            </Text>
+        );
+    }
 
-//     return (
-//         <ReactFlowProvider>
-//             <ModuleGraph2 graph={graph} />
-//         </ReactFlowProvider>
-//     );
-// }
+    return (
+        <ReactFlowProvider>
+            <ModuleGraph2 graph={graph} />
+        </ReactFlowProvider>
+    );
+}
 
 interface ExperimentalSettingProps extends PropsWithChildren {
 }
@@ -690,7 +626,7 @@ export function Explorer() {
                             </div>
                         </Activity>
                         <Activity mode={visibleIf(activePanel === ViewMode.MODULE_GRAPH)}>
-                            <ModuleGraphTodo />
+                            <ModuleGraphWrapper />
                         </Activity>
                     </div>
                 </div>

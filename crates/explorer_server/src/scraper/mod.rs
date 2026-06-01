@@ -3,17 +3,20 @@ pub mod html_parser;
 
 use std::{
 	collections::HashMap,
+	fs,
 	sync::{Arc, LazyLock, Mutex},
 	thread,
 	time::{SystemTime, UNIX_EPOCH},
 };
 
-use anyhow::{Context as _, Result};
+use anyhow::{Context as _, Result, bail};
 use explorer_server_core::{Channel, asset_url};
 use explorer_types::{BundleMetadata, FullBundle, ModuleId};
+use http::StatusCode;
 use itertools::Itertools as _;
 use memchr::memmem::Finder;
 use oxc_allocator::AllocatorPool;
+use regress::Regex;
 use reqwest::Response;
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
 use reqwest_retry::{RetryTransientMiddleware, policies::ExponentialBackoff};
@@ -61,6 +64,7 @@ pub async fn scrape_build(
 	let ParsedHtml {
 		global_env_text: env_var_text,
 		web_js_url,
+		extra_chunks,
 	} = parse_html(&html).context("Failed to parse index HTML")?;
 	let pending_limit = Arc::new(Semaphore::const_new(MAX_PENDING_REQUESTS));
 	let client = make_reqwest_client()?;
@@ -90,12 +94,13 @@ pub async fn scrape_build(
 		let chunks = main_parser
 			.get_js_chunk_hashes()
 			.context("Failed to get JS chunk hashes")?;
-		num_chunks = chunks.len();
-		debug!("Found {} chunks", chunks.len());
+		num_chunks = chunks.len() + extra_chunks.len();
+		debug!("Found {} chunks", num_chunks);
 		chunk_futures = chunks
 			.into_iter()
+			.chain(extra_chunks)
 			.map(|entry| {
-				let hash = entry.hash;
+				let hash = entry.hash.clone(); // O(1) clone
 				let client = client.clone();
 				let pending_limit = pending_limit.clone();
 				let pool = pool.clone();
@@ -104,13 +109,18 @@ pub async fn scrape_build(
 					let permit = pending_limit.acquire().await.unwrap();
 					let chunk_name = format!("{hash}.js");
 					let chunk_url = asset_url(channel, &chunk_name);
-					let chunk_bts = client
-						.get(chunk_url)
+					let response = client
+						.get(&chunk_url)
 						.send()
-						.await?
+						.await?;
+					if response.status() == StatusCode::NOT_FOUND {
+						bail!("Chunk not found: {chunk_url}");
+					}
+					let chunk_bts = response
 						.bytes()
 						.await?;
 					drop(permit);
+					let chunk_name_2 = chunk_name.clone();
 					let chunk_modules =
 						task::spawn_blocking(move || -> Result<_> {
 							if WORKER_FINDER.find(&chunk_bts).is_some() {
@@ -123,7 +133,12 @@ pub async fn scrape_build(
 								.context("Response is not valid UTF8")?;
 							let chunk_parser = WebpackLazyChunkParser::try_new(
 								alloc, chunk_str,
-							)?;
+							)
+							.with_context(|| {
+								format!(
+									"failed to create chunk parser for {entry:?} chunk_url={chunk_url} chunk_name={chunk_name_2} hash={hash}",
+								)
+							})?;
 							let mut modules = chunk_parser
 								.get_defined_modules()
 								.context("Failed to get modules from chunk")?;
