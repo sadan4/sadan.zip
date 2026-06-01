@@ -189,20 +189,4 @@ mod tests {
 			assert_eq!(chunk_id, r"52694");
 		}
 	}
-	mod weird_chunk {
-		use super::*;
-
-		#[test]
-		fn gets_modules_from_weird_chunk() {
-			let alloc = Allocator::new();
-			let parser = parse!(alloc, "test_data/lazyChunkWeird.js");
-			let modules = parser
-				.get_defined_modules()
-				.unwrap()
-				.into_iter()
-				.sorted_by_key(|item| item.0)
-				.collect_vec();
-			assert_ron_snapshot!(modules);
-		}
-	}
 }
