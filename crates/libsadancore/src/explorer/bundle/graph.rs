@@ -155,18 +155,21 @@ impl Bundle {
 		}
 		console_log!("adding edges");
 		for (m_id, dep_info) in &self.inner.dep_info.module_deps {
-			let sync_uses = &dep_info.sync;
-			for use_ in sync_uses {
-				if !included_nodes.contains(use_) {
+			if !included_nodes.contains(m_id) {
+				continue;
+			}
+			for dependent in iter::chain(&dep_info.sync, &dep_info.lazy) {
+				if !included_nodes.contains(dependent) {
 					continue;
 				}
-
+				// dependent -> m_id (dependent requires this module)
 				graph.set_edge(
+					format!("{dependent}"),
 					format!("{m_id}"),
-					format!("{use_}"),
 					EdgeLabel::default(),
 				);
 			}
+		}
 		}
 		console_log!("added {} edges", graph.edge_count());
 		console_log!("laying out graph");
