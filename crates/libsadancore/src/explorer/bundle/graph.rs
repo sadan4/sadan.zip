@@ -1,3 +1,4 @@
+use anyhow::Context;
 use dagre::{EdgeLabel, GraphLabel, NodeLabel, RankDir, layout};
 use explorer_types::ModuleId;
 use std::{collections::HashSet, iter, mem};
@@ -102,7 +103,10 @@ impl Bundle {
 				let parser = self
 					.inner
 					.get_or_make_parser(m_id)
-					.expect("Failed to get parser");
+					.with_context(|| {
+						format!("Failed to get parser for {m_id:?}")
+					})
+					.unwrap();
 				let deps = parser
 					.get_modules_that_this_module_requires()
 					.unwrap_or_default();
