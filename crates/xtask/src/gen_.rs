@@ -3,14 +3,14 @@ use clap::{Args, Subcommand};
 
 use crate::Runnable;
 
+mod client;
 mod client_grammars;
 mod indent_cache;
-mod syntax;
-mod monaco_themes;
-mod types;
-mod ts_api;
-mod client;
 mod monaco_editor;
+mod monaco_themes;
+mod syntax;
+mod ts_api;
+mod types;
 
 #[derive(Args)]
 pub struct Command {

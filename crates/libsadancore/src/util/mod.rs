@@ -11,8 +11,8 @@ use web_sys::{Response, Window, WorkerGlobalScope};
 
 #[wasm_bindgen]
 extern "C" {
-    #[wasm_bindgen(js_namespace = console)]
-    pub(crate) fn log(s: &str);
+	#[wasm_bindgen(js_namespace = console)]
+	pub(crate) fn log(s: &str);
 }
 
 #[cfg(debug_assertions)]
@@ -22,7 +22,7 @@ macro_rules! console_log {
 
 #[cfg(not(debug_assertions))]
 macro_rules! console_log {
-    ($($t:tt)*) => {};
+	($($t:tt)*) => {};
 }
 
 pub(crate) use console_log;

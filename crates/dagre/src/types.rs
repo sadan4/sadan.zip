@@ -7,200 +7,200 @@ use crate::graph::Edge;
 
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct Point {
-    pub x: f64,
-    pub y: f64,
+	pub x: f64,
+	pub y: f64,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Dummy {
-    Edge,
-    Border,
-    EdgeLabel,
-    EdgeProxy,
-    SelfEdge,
-    Root,
+	Edge,
+	Border,
+	EdgeLabel,
+	EdgeProxy,
+	SelfEdge,
+	Root,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BorderType {
-    BorderLeft,
-    BorderRight,
+	BorderLeft,
+	BorderRight,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LabelPos {
-    L,
-    C,
-    R,
+	L,
+	C,
+	R,
 }
 
 impl LabelPos {
-    pub fn from_str(s: &str) -> Option<Self> {
-        match s.to_lowercase().as_str() {
-            "l" => Some(Self::L),
-            "c" => Some(Self::C),
-            "r" => Some(Self::R),
-            _ => None,
-        }
-    }
+	pub fn from_str(s: &str) -> Option<Self> {
+		match s.to_lowercase().as_str() {
+			"l" => Some(Self::L),
+			"c" => Some(Self::C),
+			"r" => Some(Self::R),
+			_ => None,
+		}
+	}
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RankDir {
-    TB,
-    BT,
-    LR,
-    RL,
+	TB,
+	BT,
+	LR,
+	RL,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Align {
-    UL,
-    UR,
-    DL,
-    DR,
+	UL,
+	UR,
+	DL,
+	DR,
 }
 
 impl Align {
-    pub fn to_str(&self) -> &'static str {
-        match self {
-            Align::UL => "ul",
-            Align::UR => "ur",
-            Align::DL => "dl",
-            Align::DR => "dr",
-        }
-    }
+	pub fn to_str(&self) -> &'static str {
+		match self {
+			Align::UL => "ul",
+			Align::UR => "ur",
+			Align::DL => "dl",
+			Align::DR => "dr",
+		}
+	}
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RankAlign {
-    Top,
-    Center,
-    Bottom,
+	Top,
+	Center,
+	Bottom,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Ranker {
-    NetworkSimplex,
-    TightTree,
-    LongestPath,
-    None,
+	NetworkSimplex,
+	TightTree,
+	LongestPath,
+	None,
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct NodeLabel {
-    pub width: f64,
-    pub height: f64,
-    pub x: Option<f64>,
-    pub y: Option<f64>,
-    pub rank: Option<i32>,
-    pub order: Option<usize>,
+	pub width: f64,
+	pub height: f64,
+	pub x: Option<f64>,
+	pub y: Option<f64>,
+	pub rank: Option<i32>,
+	pub order: Option<usize>,
 
-    pub dummy: Option<Dummy>,
-    pub border_type: Option<BorderType>,
-    pub border_top: Option<String>,
-    pub border_bottom: Option<String>,
-    pub border_left: Option<Vec<String>>,
-    pub border_right: Option<Vec<String>>,
-    pub min_rank: Option<i32>,
-    pub max_rank: Option<i32>,
+	pub dummy: Option<Dummy>,
+	pub border_type: Option<BorderType>,
+	pub border_top: Option<String>,
+	pub border_bottom: Option<String>,
+	pub border_left: Option<Vec<String>>,
+	pub border_right: Option<Vec<String>>,
+	pub min_rank: Option<i32>,
+	pub max_rank: Option<i32>,
 
-    pub labelpos: Option<LabelPos>,
+	pub labelpos: Option<LabelPos>,
 
-    /// Set for "edge" dummy nodes: original edge object.
-    pub edge_obj: Option<Edge>,
-    /// Set for "edge" dummy nodes: original edge label (small, so we box).
-    pub edge_label: Option<Box<EdgeLabel>>,
+	/// Set for "edge" dummy nodes: original edge object.
+	pub edge_obj: Option<Edge>,
+	/// Set for "edge" dummy nodes: original edge label (small, so we box).
+	pub edge_label: Option<Box<EdgeLabel>>,
 
-    /// Internal: self-edges stashed off a node while ranking/ordering.
-    pub self_edges: Option<Vec<SelfEdgeStash>>,
+	/// Internal: self-edges stashed off a node while ranking/ordering.
+	pub self_edges: Option<Vec<SelfEdgeStash>>,
 
-    /// Used internally by greedy-fas / order to attach algorithm-specific
-    /// numeric state to a node when its label type is fixed.
-    pub e: Option<f64>,
+	/// Used internally by greedy-fas / order to attach algorithm-specific
+	/// numeric state to a node when its label type is fixed.
+	pub e: Option<f64>,
 }
 
 #[derive(Debug, Clone)]
 pub struct SelfEdgeStash {
-    pub e: Edge,
-    pub label: EdgeLabel,
+	pub e: Edge,
+	pub label: EdgeLabel,
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct EdgeLabel {
-    pub points: Option<Vec<Point>>,
-    pub width: f64,
-    pub height: f64,
-    pub minlen: i32,
-    pub weight: f64,
-    pub labelpos: Option<LabelPos>,
-    pub labeloffset: f64,
-    pub label_rank: Option<i32>,
-    pub x: Option<f64>,
-    pub y: Option<f64>,
+	pub points: Option<Vec<Point>>,
+	pub width: f64,
+	pub height: f64,
+	pub minlen: i32,
+	pub weight: f64,
+	pub labelpos: Option<LabelPos>,
+	pub labeloffset: f64,
+	pub label_rank: Option<i32>,
+	pub x: Option<f64>,
+	pub y: Option<f64>,
 
-    pub reversed: bool,
-    pub forward_name: Option<String>,
-    pub self_edge: bool,
-    pub nesting_edge: bool,
+	pub reversed: bool,
+	pub forward_name: Option<String>,
+	pub self_edge: bool,
+	pub nesting_edge: bool,
 
-    /// Network-simplex tree-edge state.
-    pub cutvalue: Option<f64>,
-    pub lim: Option<i32>,
-    pub low: Option<i32>,
-    pub parent: Option<String>,
+	/// Network-simplex tree-edge state.
+	pub cutvalue: Option<f64>,
+	pub lim: Option<i32>,
+	pub low: Option<i32>,
+	pub parent: Option<String>,
 }
 
 impl EdgeLabel {
-    pub fn default_layout() -> Self {
-        EdgeLabel {
-            minlen: 1,
-            weight: 1.0,
-            width: 0.0,
-            height: 0.0,
-            labeloffset: 10.0,
-            labelpos: Some(LabelPos::R),
-            ..Default::default()
-        }
-    }
+	pub fn default_layout() -> Self {
+		EdgeLabel {
+			minlen: 1,
+			weight: 1.0,
+			width: 0.0,
+			height: 0.0,
+			labeloffset: 10.0,
+			labelpos: Some(LabelPos::R),
+			..Default::default()
+		}
+	}
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct GraphLabel {
-    pub width: Option<f64>,
-    pub height: Option<f64>,
-    pub compound: bool,
+	pub width: Option<f64>,
+	pub height: Option<f64>,
+	pub compound: bool,
 
-    pub rankdir: Option<RankDir>,
-    pub align: Option<Align>,
-    pub nodesep: Option<f64>,
-    pub edgesep: Option<f64>,
-    pub ranksep: Option<f64>,
-    pub marginx: Option<f64>,
-    pub marginy: Option<f64>,
+	pub rankdir: Option<RankDir>,
+	pub align: Option<Align>,
+	pub nodesep: Option<f64>,
+	pub edgesep: Option<f64>,
+	pub ranksep: Option<f64>,
+	pub marginx: Option<f64>,
+	pub marginy: Option<f64>,
 
-    pub acyclicer: Option<String>,
-    pub ranker: Option<Ranker>,
-    pub rank_align: Option<RankAlign>,
+	pub acyclicer: Option<String>,
+	pub ranker: Option<Ranker>,
+	pub rank_align: Option<RankAlign>,
 
-    pub nesting_root: Option<String>,
-    pub node_rank_factor: Option<f64>,
-    pub dummy_chains: Option<Vec<String>>,
+	pub nesting_root: Option<String>,
+	pub node_rank_factor: Option<f64>,
+	pub dummy_chains: Option<Vec<String>>,
 
-    pub max_rank: Option<i32>,
+	pub max_rank: Option<i32>,
 }
 
 impl GraphLabel {
-    pub fn defaults() -> Self {
-        GraphLabel {
-            ranksep: Some(50.0),
-            edgesep: Some(20.0),
-            nodesep: Some(50.0),
-            rankdir: Some(RankDir::TB),
-            rank_align: Some(RankAlign::Center),
-            ..Default::default()
-        }
-    }
+	pub fn defaults() -> Self {
+		GraphLabel {
+			ranksep: Some(50.0),
+			edgesep: Some(20.0),
+			nodesep: Some(50.0),
+			rankdir: Some(RankDir::TB),
+			rank_align: Some(RankAlign::Center),
+			..Default::default()
+		}
+	}
 }
 
 /// Type alias for the standard layout graph.

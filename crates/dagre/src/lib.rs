@@ -21,6 +21,15 @@ pub mod layout;
 pub use graph::{Edge, Graph, GraphOpts};
 pub use layout::layout;
 pub use types::{
-    Align, Dummy, EdgeLabel, GraphLabel, LabelPos, LayoutGraph, NodeLabel, Point, RankAlign,
-    RankDir, Ranker,
+	Align,
+	Dummy,
+	EdgeLabel,
+	GraphLabel,
+	LabelPos,
+	LayoutGraph,
+	NodeLabel,
+	Point,
+	RankAlign,
+	RankDir,
+	Ranker,
 };

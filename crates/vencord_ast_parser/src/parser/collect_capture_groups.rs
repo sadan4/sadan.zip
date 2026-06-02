@@ -15,7 +15,6 @@ use oxc::{
 	span::{GetSpan, Span},
 };
 
-
 #[derive(Debug, Clone, Copy)]
 pub enum GroupReference<'ast> {
 	Indexed(&'ast IndexedReference),

@@ -145,7 +145,8 @@ impl<'ast> VencordAstParser<'ast> {
 					msg: "Regex pattern could not be parsed".into(),
 					labels: vec![(
 						r.span,
-						"Skipping regex-specific lint checks for this find.".into(),
+						"Skipping regex-specific lint checks for this find."
+							.into(),
 					)],
 					severity: miette::Severity::Warning,
 					..Default::default()

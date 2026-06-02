@@ -14,42 +14,45 @@ use std::collections::VecDeque;
 
 #[derive(Debug, Clone)]
 pub struct FasEntry {
-    pub v: String,
-    pub in_w: f64,
-    pub out_w: f64,
+	pub v: String,
+	pub in_w: f64,
+	pub out_w: f64,
 }
 
 #[derive(Debug, Default)]
 pub struct List {
-    items: VecDeque<FasEntry>,
+	items: VecDeque<FasEntry>,
 }
 
 impl List {
-    pub fn new() -> Self {
-        Self {
-            items: VecDeque::new(),
-        }
-    }
+	pub fn new() -> Self {
+		Self {
+			items: VecDeque::new(),
+		}
+	}
 
-    /// Push to the front. Matches `enqueue` in the JS list, where new entries
-    /// are inserted right after the sentinel.
-    pub fn enqueue(&mut self, e: FasEntry) {
-        self.items.push_front(e);
-    }
+	/// Push to the front. Matches `enqueue` in the JS list, where new entries
+	/// are inserted right after the sentinel.
+	pub fn enqueue(&mut self, e: FasEntry) {
+		self.items.push_front(e);
+	}
 
-    /// Pop from the back (sentinel._prev side in JS).
-    pub fn dequeue(&mut self) -> Option<FasEntry> {
-        self.items.pop_back()
-    }
+	/// Pop from the back (sentinel._prev side in JS).
+	pub fn dequeue(&mut self) -> Option<FasEntry> {
+		self.items.pop_back()
+	}
 
-    pub fn is_empty(&self) -> bool {
-        self.items.is_empty()
-    }
+	pub fn is_empty(&self) -> bool {
+		self.items.is_empty()
+	}
 
-    /// Remove the entry with the given `v` if present (used when reassigning
-    /// bucket membership after weights change).
-    pub fn remove(&mut self, v: &str) -> Option<FasEntry> {
-        let pos = self.items.iter().position(|e| e.v == v)?;
-        self.items.remove(pos)
-    }
+	/// Remove the entry with the given `v` if present (used when reassigning
+	/// bucket membership after weights change).
+	pub fn remove(&mut self, v: &str) -> Option<FasEntry> {
+		let pos = self
+			.items
+			.iter()
+			.position(|e| e.v == v)?;
+		self.items.remove(pos)
+	}
 }
