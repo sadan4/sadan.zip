@@ -617,8 +617,7 @@ fn expressions_in_template_literals() {
 	assert_snapshot!(out, @"
 	`${function() {
 	  let a
-	}
-	}`
+	}}`
 	");
 }
 
@@ -636,7 +635,6 @@ mod custom_tests {
 	use super::{test, *};
 
 	/// <https://issues.chromium.org/442209349>
-	/// TODO: fix this output or maintain byte-for-byte output with original formatter
 	#[test]
 	fn keywords_in_template_literals() {
 		let source = r"function _() {
@@ -649,13 +647,10 @@ _()";
 		let out = format2(source).unwrap();
 		assert_snapshot!(out, @"
 		function _() {
-		  bar = function() {}
-		  ;
-		  `${fooinstanceof bar}`;
-		  `${asyncfunction() {}
-		  }`;
-		  `${asyncfunction*() {}
-		  }`;
+		  bar = function() {};
+		  `${foo instanceof bar}`;
+		  `${async function() {}}`;
+		  `${async function*() {}}`;
 		}
 		_()
 		");

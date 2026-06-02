@@ -62,11 +62,17 @@ impl<'a> FormattedContentBuilder<'a> {
 			&& self.hard_spaces == 0
 			&& !self.soft_space
 		{
-			//
+			// Only the first char of the new token matters here — that is
+			// the boundary where token merging would actually happen.
+			// Using `.any` would spuriously space tokens like `} width=${`
+			// (template middle) when they trail an identifier.
 			if let Some(last_char_of_last_token) =
 				self.formatted_content.last_char()
 				&& is_valid_ident_char(last_char_of_last_token)
-				&& token.chars().any(is_valid_ident_char)
+				&& token
+					.chars()
+					.next()
+					.is_some_and(is_valid_ident_char)
 			{
 				self.add_soft_space();
 			}

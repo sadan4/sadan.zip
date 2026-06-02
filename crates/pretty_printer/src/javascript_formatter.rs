@@ -714,13 +714,16 @@ impl<'a> JavaScriptFormatter<'a> {
 						r#type: FunctionType::FunctionExpression,
 						..
 					})
-				) && matches!(
-					grand_parent,
-					N::ObjectProperty(_)
-						| N::VariableDeclarator(_)
-						| N::CallExpression(_)
 				) {
-					return &[];
+					// Function expressions only need a trailing newline when
+					// they are the value of a class method definition (so the
+					// next class member starts on its own line). Anywhere else
+					// (call args, var initializers, object properties,
+					// assignment RHS, template literal expressions, ...) the
+					// surrounding expression continues on the same line.
+					if !matches!(grand_parent, N::MethodDefinition(_)) {
+						return &[];
+					}
 				}
 				if let N::DoWhileStatement(_) = parent {
 					return &[];
@@ -808,7 +811,13 @@ impl<'a> Visit<'a> for JavaScriptFormatter<'a> {
 		// instead of visiting in source order
 		self.visit_template_element(quasis.next().unwrap());
 		for (expr, quasi) in it.expressions.iter().zip(&it.quasis) {
+			// Expressions inside ${...} are real JavaScript and need normal
+			// inter-word spacing (e.g. `foo instanceof bar`, `async function`).
+			self.builder
+				.set_enforce_space_between_words(true);
 			self.visit_expression(expr);
+			self.builder
+				.set_enforce_space_between_words(false);
 			self.visit_template_element(quasi);
 		}
 		self.leave_node(AstKind::TemplateLiteral(it));
