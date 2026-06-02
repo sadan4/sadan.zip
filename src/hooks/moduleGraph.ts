@@ -9,11 +9,6 @@
 // import ELK, { type ElkNode } from "elkjs";
 // import { useEffect, useState } from "react";
 
-// export interface GeneratedGraph {
-//     nodes: GraphNode[];
-//     edges: GraphEdge[];
-// }
-
 // interface OurNode extends ElkNode {
 //     data: {
 //         label: string;

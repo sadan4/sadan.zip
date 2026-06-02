@@ -1,10 +1,15 @@
+use std::sync::LazyLock;
+
 use anyhow::{Context, Result, bail};
 use const_format::formatc;
 use html_parser::{Dom, Node};
+use regress::Regex;
+use webpack_chunk_parser::JsHashEntry;
 
 pub struct ParsedHtml {
 	pub global_env_text: String,
 	pub web_js_url: String,
+	pub extra_chunks: Vec<JsHashEntry>,
 }
 
 #[derive(Debug)]
@@ -17,6 +22,9 @@ const GLOBAL_ENV_NEEDLE: &str = "window.GLOBAL_ENV =";
 const SRC_PREFIX: &str = "/assets/";
 const WEB_JS_PREFIX: &str = "web.";
 const WEB_JS_FULL_PREFIX: &str = formatc!("{SRC_PREFIX}{WEB_JS_PREFIX}");
+static CHUNK_SCRIPT_HREF_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+	Regex::new(r"/assets/((\d{1,6})\.[a-fA-F\d]+?)\.js").expect("invalid regex")
+});
 
 pub fn parse_html(html: &str) -> Result<ParsedHtml> {
 	let dom = Dom::parse(html)?;
@@ -44,9 +52,22 @@ pub fn parse_html(html: &str) -> Result<ParsedHtml> {
 		})
 		.map(str::to_owned)
 		.context("Could not find web.js entrypoint")?;
+	let extra_chunks = scripts
+		.into_iter()
+		.filter_map(|s| {
+			let src = s.src?;
+			CHUNK_SCRIPT_HREF_REGEX
+				.find(src)
+				.map(|m| JsHashEntry {
+					chunk_id: src[m.group(2).unwrap()].into(),
+					hash: src[m.group(1).unwrap()].into(),
+				})
+		})
+		.collect();
 	Ok(ParsedHtml {
 		global_env_text,
 		web_js_url,
+		extra_chunks,
 	})
 }
 

@@ -44,9 +44,6 @@
 								msgpack-tools
 								mold
 								clang_21
-								(writeShellScriptBin "build-reporter-cli-static" ''
-										nix-shell -p musl --command "export CC=musl-clang; cargo build -p reporter --release --target-dir target/musl --target x86_64-unknown-linux-musl"
-									'')
 							];
 							hardeningDisable = ["all"];
 							shellHook = ''

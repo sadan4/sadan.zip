@@ -85,11 +85,18 @@ vencord_ast_parser = { path = "crates/vencord_ast_parser" }
 webpack_ast_parser = { path = "crates/webpack_ast_parser" }
 webpack_chunk_parser = { path = "crates/webpack_chunk_parser" }
 pretty_printer = { path = "crates/pretty_printer" }
+dagre = { path = "crates/dagre" }
+# dagre_graphlib = { path = "crates/dagre_graphlib" }
+# dagre_slop = { path = "crates/dagre_slop" }
 notify = "8.2.0"
 rustc-hash = "2.1.2"
 clearscreen = "4.0.6"
 bitcode = { version = "0.6.9", features = ["serde"] }
+petgraph = { version = "0.8.3" }
+derive-getters = "0.5.0"
 markdown = { version = "1.0.0", features = [] }
+criterion = { version = "0.5", features = ["html_reports"] }
+
 
 [profile.release]
 codegen-units = 1
@@ -155,6 +162,8 @@ cast_sign_loss = "allow"
 cast_ptr_alignment = "allow"
 # only good to browse
 must_use_candidate = "allow"
+# bad
+items_after_statements = "allow"
 
 # Nursery
 clear_with_drain = "warn"
