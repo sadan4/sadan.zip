@@ -15,8 +15,14 @@ extern "C" {
     pub(crate) fn log(s: &str);
 }
 
+#[cfg(debug_assertions)]
 macro_rules! console_log {
     ($($t:tt)*) => ($crate::util::log(&format_args!($($t)*).to_string()));
+}
+
+#[cfg(not(debug_assertions))]
+macro_rules! console_log {
+    ($($t:tt)*) => {};
 }
 
 pub(crate) use console_log;

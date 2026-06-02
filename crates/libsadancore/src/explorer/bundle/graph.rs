@@ -1,7 +1,5 @@
-use anyhow::anyhow;
 use dagre::{EdgeLabel, GraphLabel, NodeLabel, RankDir, layout};
 use explorer_types::ModuleId;
-use itertools::Itertools as _;
 use std::{collections::HashSet, iter, mem};
 use wasm_bindgen::prelude::wasm_bindgen;
 
