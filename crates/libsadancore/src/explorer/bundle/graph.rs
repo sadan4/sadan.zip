@@ -168,7 +168,6 @@ impl Bundle {
 				);
 			}
 		}
-		}
 		console_log!("added {} edges", graph.edge_count());
 		console_log!("laying out graph");
 		layout(&mut graph);
