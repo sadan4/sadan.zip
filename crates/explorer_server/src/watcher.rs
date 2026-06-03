@@ -1,5 +1,6 @@
 // mod spawn;
 use anyhow::Result;
+use discord_scraper::{NoProgress, make_reqwest_client, scrape_full_bundle};
 use explorer_server_core::{
 	Channel,
 	get_build_path,
@@ -7,11 +8,9 @@ use explorer_server_core::{
 	write_full_bundle,
 };
 use reqwest::Response;
-use std::{fs, time::Duration};
+use std::{fs, sync::Arc, time::Duration};
 use tokio::time;
 use tracing::{error, info, instrument, trace};
-
-use crate::scraper::scrape_build;
 
 const fn get_app_url(c: Channel) -> &'static str {
 	match c {
@@ -98,7 +97,20 @@ async fn handle_build(c: Channel) -> Result<()> {
 		// FIXME: handle run_js_handler errs
 		tokio::spawn(async move {
 			let start = time::Instant::now();
-			match scrape_build(build.response, c, build.build_hash).await {
+			let result = async {
+				let client = make_reqwest_client()?;
+				let html = build.response.text().await?;
+				scrape_full_bundle(
+					&html,
+					c,
+					build.build_hash,
+					client,
+					Arc::new(NoProgress),
+				)
+				.await
+			}
+			.await;
+			match result {
 				Ok(build) => {
 					if let Err(e) = write_full_bundle(&build) {
 						error!("Failed to write full bundle: {e:?}");

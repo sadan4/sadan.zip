@@ -10,6 +10,7 @@ tokio = { workspace = true, features = [
     "fs",
     "process",
 ] }
+discord_scraper.workspace = true
 explorer_types.workspace = true
 explorer_server_core.workspace = true
 vencord_ast_parser.workspace = true
@@ -33,14 +34,9 @@ unicode-width.workspace = true
 textwrap.workspace = true
 terminal_size.workspace = true
 syntect = { workspace = true, features = ["regex-onig", "parsing"] }
-memchr.workspace = true
-const_format.workspace = true
 bytes.workspace = true
 oxc_allocator.workspace = true
 reqwest-middleware.workspace = true
-reqwest-retry.workspace = true
-webpack_chunk_parser.workspace = true
-html_parser.workspace = true
 notify.workspace = true
 rustc-hash.workspace = true
 clearscreen.workspace = true

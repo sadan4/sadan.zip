@@ -12,15 +12,13 @@ pub fn run(graph: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>) {
 	let use_greedy = graph
 		.graph()
 		.and_then(|g| g.acyclicer.as_deref())
-		.map(|s| s == "greedy")
-		.unwrap_or(false);
+		.is_some_and(|s| s == "greedy");
 
 	let fas: Vec<Edge> = if use_greedy {
 		greedy_fas::greedy_fas(graph, |e| {
 			graph
 				.edge_obj(e)
-				.map(|l| l.weight)
-				.unwrap_or(1.0)
+				.map_or(1.0, |l| l.weight)
 		})
 	} else {
 		dfs_fas(graph)
@@ -32,7 +30,7 @@ pub fn run(graph: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>) {
 			None => continue,
 		};
 		graph.remove_edge_obj(&e);
-		label.forward_name = e.name.clone();
+		label.forward_name.clone_from(&e.name);
 		label.reversed = true;
 		let name = unique_id("rev");
 		graph.set_edge_named(e.w.clone(), e.v.clone(), label, Some(name));

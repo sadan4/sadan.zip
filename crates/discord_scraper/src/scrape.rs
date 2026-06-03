@@ -1,6 +1,3 @@
-mod bundle_parser;
-pub mod html_parser;
-
 use std::{
 	collections::HashMap,
 	sync::{Arc, LazyLock, Mutex},
@@ -15,9 +12,7 @@ use http::StatusCode;
 use itertools::Itertools as _;
 use memchr::memmem::Finder;
 use oxc_allocator::AllocatorPool;
-use reqwest::Response;
-use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
-use reqwest_retry::{RetryTransientMiddleware, policies::ExponentialBackoff};
+use reqwest_middleware::ClientWithMiddleware;
 use tokio::{sync::Semaphore, task};
 use tracing::{debug, info, trace};
 use webpack_chunk_parser::{
@@ -26,9 +21,10 @@ use webpack_chunk_parser::{
 	base::WebpackChunkParser,
 };
 
-use crate::scraper::{
+use crate::{
 	bundle_parser::parse_bundle,
 	html_parser::{ParsedHtml, parse_html},
+	progress::ScrapeProgress,
 };
 
 const MAX_PENDING_REQUESTS: usize = 1024;
@@ -36,38 +32,30 @@ const MAX_PENDING_REQUESTS: usize = 1024;
 static WORKER_FINDER: LazyLock<Finder<'static>> =
 	LazyLock::new(|| Finder::new(br#".ruid=""#));
 
-static USER_AGENT: &str =
-	concat![env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION")];
-
-fn make_reqwest_client() -> Result<Arc<ClientWithMiddleware>> {
-	let retry_policy = ExponentialBackoff::builder().build_with_max_retries(3);
-	let retry_middleware =
-		RetryTransientMiddleware::new_with_policy(retry_policy);
-	let client = reqwest::Client::builder()
-		.user_agent(USER_AGENT)
-		.build()?;
-	let client = ClientBuilder::new(client)
-		.with(retry_middleware)
-		.build();
-	Ok(Arc::new(client))
+pub struct ScrapedModules {
+	pub modules: HashMap<ModuleId, String>,
+	pub module_sources: HashMap<String, Vec<ModuleId>>,
+	pub global_env_text: String,
+	pub web_js_url: String,
+	pub build_number: u32,
+	pub entry_point: Option<ModuleId>,
 }
 
-// TODO: Refactor
 #[expect(clippy::too_many_lines)]
-pub async fn scrape_build(
-	res: Response,
+pub async fn scrape_modules(
+	html: &str,
 	channel: Channel,
-	build_hash: String,
-) -> Result<FullBundle> {
-	// Parse the index html file to get the urls we need
-	let html = res.text().await?;
+	client: Arc<ClientWithMiddleware>,
+	progress: Arc<dyn ScrapeProgress>,
+) -> Result<ScrapedModules> {
+	progress.set_stage("Parsing index HTML");
 	let ParsedHtml {
-		global_env_text: env_var_text,
+		global_env_text,
 		web_js_url,
 		extra_chunks,
-	} = parse_html(&html).context("Failed to parse index HTML")?;
+	} = parse_html(html).context("Failed to parse index HTML")?;
 	let pending_limit = Arc::new(Semaphore::const_new(MAX_PENDING_REQUESTS));
-	let client = make_reqwest_client()?;
+	progress.set_stage("Fetching main JS chunk");
 	let web_js_bytes = client
 		.get(asset_url(channel, &web_js_url))
 		.send()
@@ -88,6 +76,7 @@ pub async fn scrape_build(
 	{
 		let alloc_guard = pool.get();
 		let alloc = &*alloc_guard;
+		progress.set_stage("Parsing main JS chunk");
 		let main_parser = task::block_in_place(|| {
 			WebpackMainChunkParser::try_new(alloc, web_js_txt)
 		})?;
@@ -96,6 +85,7 @@ pub async fn scrape_build(
 			.context("Failed to get JS chunk hashes")?;
 		num_chunks = chunks.len() + extra_chunks.len();
 		debug!("Found {} chunks", num_chunks);
+		progress.set_chunk_total(num_chunks);
 		chunk_futures = chunks
 			.into_iter()
 			.chain(extra_chunks)
@@ -105,6 +95,7 @@ pub async fn scrape_build(
 				let pending_limit = pending_limit.clone();
 				let pool = pool.clone();
 				let module_sources = module_sources.clone();
+				let progress = progress.clone();
 				task::spawn(async move {
 					let permit = pending_limit.acquire().await.unwrap();
 					let chunk_name = format!("{hash}.js");
@@ -139,12 +130,9 @@ pub async fn scrape_build(
 									"failed to create chunk parser for {entry:?} chunk_url={chunk_url} chunk_name={chunk_name_2} hash={hash}",
 								)
 							})?;
-							let mut modules = chunk_parser
+							let modules = chunk_parser
 								.get_defined_modules()
 								.context("Failed to get modules from chunk")?;
-							for code in modules.values_mut() {
-								code.insert_str(0, "0,");
-							}
 
 							Result::Ok(modules)
 						})
@@ -157,6 +145,7 @@ pub async fn scrape_build(
 						.lock()
 						.unwrap()
 						.insert(chunk_name, keys);
+					progress.chunk_finished();
 
 					Result::Ok(chunk_modules)
 				})
@@ -168,13 +157,9 @@ pub async fn scrape_build(
 			.parse()
 			.unwrap_or_default();
 		entry_point = main_parser.get_entrypoint_id();
-		let mut tmp_modules = main_parser
+		modules = main_parser
 			.get_defined_modules()
 			.context("Failed to get modules from main chunk")?;
-		for code in tmp_modules.values_mut() {
-			code.insert_str(0, "0,");
-		}
-		modules = tmp_modules;
 	};
 
 	for fut in chunk_futures {
@@ -183,16 +168,47 @@ pub async fn scrape_build(
 
 	info!("collected {} chunks. {} modules", num_chunks, modules.len());
 	drop(pool);
+
+	let module_sources = Arc::into_inner(module_sources)
+		.expect("module_sources has outstanding references")
+		.into_inner()
+		.unwrap();
+
+	Ok(ScrapedModules {
+		modules,
+		module_sources,
+		global_env_text,
+		web_js_url,
+		build_number,
+		entry_point,
+	})
+}
+
+pub async fn scrape_full_bundle(
+	html: &str,
+	channel: Channel,
+	build_hash: String,
+	client: Arc<ClientWithMiddleware>,
+	progress: Arc<dyn ScrapeProgress>,
+) -> Result<FullBundle> {
+	let ScrapedModules {
+		mut modules,
+		module_sources,
+		global_env_text,
+		web_js_url: _,
+		build_number,
+		entry_point,
+	} = scrape_modules(html, channel, client, progress).await?;
+
+	// parse_bundle requires modules to be prefixed with "0," so the AST parser
+	// sees them as the second element of a sequence expression.
+	for code in modules.values_mut() {
+		code.insert_str(0, "0,");
+	}
 	let dep_info = parse_bundle(&modules)?;
-	// We prepended `0,` to each module so that we can parse them, but we have to remove them now before we store them
 	for code in modules.values_mut() {
 		code.drain(0..2);
 	}
-
-	let module_sources = Arc::into_inner(module_sources)
-		.expect("how")
-		.into_inner()
-		.unwrap();
 
 	let current_time = SystemTime::now()
 		.duration_since(UNIX_EPOCH)
@@ -201,18 +217,16 @@ pub async fn scrape_build(
 	debug_assert!(u64::try_from(current_time).is_ok());
 	let first_seen = current_time as u64;
 
-	let ret = FullBundle {
+	Ok(FullBundle {
 		metadata: BundleMetadata {
 			build_hash,
 			build_number,
 			first_seen,
 			entry_point,
-			env_var_text,
+			env_var_text: global_env_text,
 		},
 		dep_info,
 		module_sources,
 		modules,
-	};
-
-	Ok(ret)
+	})
 }

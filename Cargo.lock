@@ -753,6 +753,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "discord_scraper"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "const_format",
+ "explorer_server_core",
+ "explorer_types",
+ "html_parser",
+ "http",
+ "itertools 0.14.0",
+ "memchr",
+ "oxc_allocator",
+ "regress",
+ "reqwest",
+ "reqwest-middleware",
+ "reqwest-retry",
+ "tokio",
+ "tracing",
+ "webpack_ast_parser",
+ "webpack_chunk_parser",
+]
+
+[[package]]
 name = "displaydoc"
 version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -838,17 +861,11 @@ dependencies = [
  "axum",
  "clap",
  "const_format",
+ "discord_scraper",
  "explorer_server_core",
  "explorer_types",
- "html_parser",
  "http",
- "itertools 0.14.0",
- "memchr",
- "oxc_allocator",
- "regress",
  "reqwest",
- "reqwest-middleware",
- "reqwest-retry",
  "rmp-serde",
  "serde",
  "serde_json",
@@ -859,8 +876,6 @@ dependencies = [
  "tower-http",
  "tracing",
  "tracing-subscriber",
- "webpack_ast_parser",
- "webpack_chunk_parser",
  "zstd",
 ]
 
@@ -2863,14 +2878,12 @@ dependencies = [
  "clap",
  "clap_complete",
  "clearscreen",
- "const_format",
  "derive_more",
+ "discord_scraper",
  "explorer_server_core",
  "explorer_types",
- "html_parser",
  "indicatif",
  "itertools 0.14.0",
- "memchr",
  "notify",
  "owo-colors",
  "oxc",
@@ -2880,7 +2893,6 @@ dependencies = [
  "regress",
  "reqwest",
  "reqwest-middleware",
- "reqwest-retry",
  "rustc-hash",
  "serde",
  "syntect",
@@ -2892,7 +2904,6 @@ dependencies = [
  "tracing-subscriber",
  "unicode-width",
  "vencord_ast_parser",
- "webpack_chunk_parser",
  "zstd",
 ]
 

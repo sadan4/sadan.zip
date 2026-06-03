@@ -1,5 +1,4 @@
 mod migrations;
-mod scraper;
 mod server;
 mod watcher;
 

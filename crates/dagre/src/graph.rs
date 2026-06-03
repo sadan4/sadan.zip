@@ -12,14 +12,14 @@
 //! Edge identity is the triple `(v, w, name)`. For non-multigraphs the name is
 //! always the empty string.
 
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::collections::{self, BTreeMap, BTreeSet, HashMap, HashSet};
 
 pub use smol_str::SmolStr;
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-/// Identifier type for nodes and edges. SmolStr inlines strings up to 23 bytes;
+/// Identifier type for nodes and edges. [`SmolStr`] inlines strings up to 23 bytes;
 /// dagre node/edge ids in practice (numeric module ids, "a"/"b", "rev1", "_d24")
 /// are well under that, so the vast majority never heap-allocate.
 pub type NodeId = SmolStr;
@@ -256,8 +256,10 @@ impl<G, N, E> Graph<G, N, E> {
 
 	pub fn set_node(&mut self, v: impl Into<NodeId>, label: N) -> &mut Self {
 		let v = v.into();
-		if self.node_labels.contains_key(&v) {
-			self.node_labels.insert(v, label);
+		if let collections::hash_map::Entry::Occupied(mut e) =
+			self.node_labels.entry(v.clone())
+		{
+			e.insert(label);
 			return self;
 		}
 		self.node_labels
@@ -281,7 +283,7 @@ impl<G, N, E> Graph<G, N, E> {
 				.or_default()
 				.insert(v.clone());
 			self.children
-				.insert(v.clone(), BTreeSet::new());
+				.insert(v, BTreeSet::new());
 		}
 		self
 	}
@@ -445,8 +447,6 @@ impl<G, N, E> Graph<G, N, E> {
 				.unwrap_or_default()
 		} else if v.is_none() {
 			self.nodes()
-		} else if self.has_node(v.unwrap()) {
-			vec![]
 		} else {
 			vec![]
 		}
@@ -823,9 +823,9 @@ impl<G, N, E> Graph<G, N, E> {
 }
 
 impl<G, N, E> Default for Graph<G, N, E> {
-    fn default() -> Self {
-        Self::new()
-    }
+	fn default() -> Self {
+		Self::new()
+	}
 }
 
 // ---- graph algorithms used by network-simplex --------------------------
@@ -843,7 +843,7 @@ pub mod alg {
 		let mut result: Vec<NodeId> = Vec::new();
 		for s in starts {
 			if !g.has_node(s) {
-				panic!("postorder: node {} not in graph", s);
+				panic!("postorder: node {s} not in graph");
 			}
 			dfs(g, s, &mut visited, &mut result, true);
 		}
@@ -917,12 +917,12 @@ pub mod alg {
 		tarjan(g)
 			.into_iter()
 			.filter(|comp| {
-				if comp.len() > 1 {
-					true
-				} else if comp.len() == 1 {
-					g.has_edge(&comp[0], &comp[0])
+				let len = comp.len();
+				if len == 1 {
+					let v = &comp[0];
+					g.has_edge(v, v)
 				} else {
-					false
+					len > 1
 				}
 			})
 			.collect()
@@ -937,7 +937,7 @@ pub mod alg {
 		let mut result: Vec<NodeId> = Vec::new();
 		for s in starts {
 			if !g.has_node(s) {
-				panic!("preorder: node {} not in graph", s);
+				panic!("preorder: node {s} not in graph");
 			}
 			dfs(g, s, &mut visited, &mut result, false);
 		}

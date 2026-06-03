@@ -52,9 +52,6 @@ impl Stage {
 	pub fn step(&self) {
 		self.0.inc(1);
 	}
-	pub const fn step_guard(&self) -> StageStepGuard<'_> {
-		StageStepGuard(self)
-	}
 	pub fn msg(&self, msg: impl Into<Cow<'static, str>>) {
 		self.0.set_message(msg);
 	}
@@ -82,20 +79,6 @@ impl MultiProgressWrapper {
 	}
 	pub fn suspend<R>(&self, f: impl FnOnce() -> R) -> R {
 		self.inner.suspend(f)
-	}
-}
-
-pub struct StageStepGuard<'a>(&'a Stage);
-
-impl StageStepGuard<'_> {
-	pub const fn forget(self) {
-		mem::forget(self);
-	}
-}
-
-impl Drop for StageStepGuard<'_> {
-	fn drop(&mut self) {
-		self.0.step();
 	}
 }
 

@@ -91,8 +91,7 @@ fn remove_node(
 		let w = state
 			.g
 			.edge_obj(&e)
-			.map(|l| l.weight)
-			.unwrap_or(0.0);
+			.map_or(0.0, |l| l.weight);
 		if collect_predecessors {
 			results.push(Edge::new(e.v.clone(), e.w.clone()));
 		}
@@ -115,8 +114,7 @@ fn remove_node(
 		let w = state
 			.g
 			.edge_obj(&e)
-			.map(|l| l.weight)
-			.unwrap_or(0.0);
+			.map_or(0.0, |l| l.weight);
 		if let Some(w_node) = state.g.node_mut(&e.w) {
 			w_node.in_w -= w;
 		}
@@ -177,8 +175,7 @@ where
 	for e in graph.edges() {
 		let prev = g
 			.edge(&e.v, &e.w)
-			.map(|l| l.weight)
-			.unwrap_or(0.0);
+			.map_or(0.0, |l| l.weight);
 		let w = weight_fn(&e);
 		let combined = prev + w;
 		g.set_edge(e.v.clone(), e.w.clone(), FasEdge { weight: combined });

@@ -1,19 +1,27 @@
-mod scraper;
-
 use anyhow::{Context as _, Result};
 use clap::Args;
+use discord_scraper::{
+	ScrapeProgress,
+	ScrapedModules,
+	make_reqwest_client,
+	scrape_modules,
+};
 use explorer_server_core::Channel;
+use explorer_types::ModuleId;
 use reqwest_middleware::ClientWithMiddleware;
+use std::{
+	collections::HashMap,
+	sync::{Arc, Mutex, OnceLock},
+};
 use tokio::task;
 use tracing::{info, warn};
 
 use crate::{
 	Branch,
-	fetcher::scraper::make_reqwest_client,
 	util::{ByteStr, MultiProgressWrapper, Stage},
 };
 
-pub use scraper::ScrapedOutput;
+pub type ScrapedOutput = HashMap<ModuleId, String>;
 
 #[derive(Args, Debug, Clone)]
 pub struct FetchOpts {
@@ -67,24 +75,29 @@ pub async fn fetch_build(
 
 async fn fetch_for_channel(
 	channel: Channel,
-	bars: &MultiProgressWrapper,
+	bars: &'static MultiProgressWrapper,
 ) -> Result<ScrapedOutput> {
 	info!("Fetching build from {channel:?} channel");
-	let bar = Stage::new(format!("[{channel:?}]: Scraping build data: "), None)
+	let pre_bar = Stage::new(format!("[{channel:?}]: Scraping build data: "), None)
 		.and_attach(bars);
-	bar.msg("Fetching index HTML");
+	pre_bar.msg("Fetching index HTML");
 	let client =
 		make_reqwest_client().context("Failed to create HTTP client")?;
 	let index_response = fetch_index(&client, channel).await?;
-	let scraped = scraper::scrape_build(
+	let progress = Arc::new(ReporterProgress {
+		bars,
+		channel,
+		pre_bar: Mutex::new(Some(pre_bar)),
+		chunk_bar: OnceLock::new(),
+	});
+	let ScrapedModules { modules, .. } = scrape_modules(
 		index_response.as_ref(),
 		channel,
-		bar,
-		bars,
 		client,
+		progress,
 	)
 	.await?;
-	Ok(scraped)
+	Ok(modules)
 }
 
 #[allow(clippy::cognitive_complexity, reason = "clippy bug: macros count")]
@@ -107,4 +120,35 @@ async fn fetch_index(
 	let bytes = res.bytes().await?;
 	let b_str = ByteStr::try_from(bytes).context("Invalid response body")?;
 	Ok(b_str)
+}
+
+struct ReporterProgress {
+	bars: &'static MultiProgressWrapper,
+	channel: Channel,
+	pre_bar: Mutex<Option<Stage>>,
+	chunk_bar: OnceLock<Stage>,
+}
+
+impl ScrapeProgress for ReporterProgress {
+	fn set_stage(&self, msg: &'static str) {
+		if let Some(b) = self.pre_bar.lock().unwrap().as_ref() {
+			b.msg(msg);
+		}
+	}
+
+	fn set_chunk_total(&self, total: usize) {
+		let _ = self.pre_bar.lock().unwrap().take();
+		let bar = Stage::new(
+			format!("[{:?}]: Parsing Lazy Chunks: ", self.channel),
+			Some(total),
+		)
+		.and_attach(self.bars);
+		let _ = self.chunk_bar.set(bar);
+	}
+
+	fn chunk_finished(&self) {
+		if let Some(b) = self.chunk_bar.get() {
+			b.step();
+		}
+	}
 }
