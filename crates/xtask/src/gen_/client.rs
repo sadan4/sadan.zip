@@ -1,11 +1,10 @@
 use crate::{
 	Runnable,
 	gen_::{Target, client_grammars, monaco_editor, monaco_themes, ts_api},
-	util::cmd::CommandExt,
 };
 use anyhow::{Context, Result, anyhow};
 use clap::Args;
-use std::{path, process, thread, time::Instant};
+use std::{thread, time::Instant};
 use tracing::{info, instrument};
 
 #[derive(Args, Clone, Debug)]

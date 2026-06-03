@@ -242,7 +242,7 @@ fn init_low_lim_assigns_low_lim_parent() {
 	let lim_e = g.node("e").unwrap().lim.unwrap();
 
 	let mut all = vec![lim_a, lim_b, lim_c, lim_d, lim_e];
-	all.sort();
+	all.sort_unstable();
 	assert_eq!(all, vec![1, 2, 3, 4, 5]);
 
 	assert_eq!(g.node("a").unwrap().low, Some(1));
@@ -343,10 +343,10 @@ fn calc_cut_value_setup(
 	}
 	let mut t = mk_t();
 	for (v, w, cv) in t_edges {
-		if !t.has_node(*v) {
+		if !t.has_node(v) {
 			t.set_node(v.to_string(), TreeNode::default());
 		}
-		if !t.has_node(*w) {
+		if !t.has_node(w) {
 			t.set_node(w.to_string(), TreeNode::default());
 		}
 		t.set_edge(v.to_string(), w.to_string(), TreeEdge { cutvalue: *cv });

@@ -42,6 +42,7 @@ pub enum LabelPos {
 }
 
 impl LabelPos {
+	#[expect(clippy::should_implement_trait)]
 	pub fn from_str(s: &str) -> Option<Self> {
 		match s.to_lowercase().as_str() {
 			"l" => Some(Self::L),
@@ -71,12 +72,12 @@ pub enum Align {
 }
 
 impl Align {
-	pub fn to_str(&self) -> &'static str {
+	pub const fn to_str(&self) -> &'static str {
 		match self {
-			Align::UL => "ul",
-			Align::UR => "ur",
-			Align::DL => "dl",
-			Align::DR => "dr",
+			Self::UL => "ul",
+			Self::UR => "ur",
+			Self::DL => "dl",
+			Self::DR => "dr",
 		}
 	}
 }
@@ -167,7 +168,7 @@ pub struct EdgeLabel {
 
 impl EdgeLabel {
 	pub fn default_layout() -> Self {
-		EdgeLabel {
+		Self {
 			minlen: 1,
 			weight: 1.0,
 			width: 0.0,
@@ -207,7 +208,7 @@ pub struct GraphLabel {
 
 impl GraphLabel {
 	pub fn defaults() -> Self {
-		GraphLabel {
+		Self {
 			ranksep: Some(50.0),
 			edgesep: Some(20.0),
 			nodesep: Some(50.0),

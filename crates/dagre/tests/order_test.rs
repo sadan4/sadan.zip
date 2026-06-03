@@ -3,7 +3,7 @@
 
 use dagre::{
 	graph::Graph,
-	order::{cross_count, order, OrderOptions},
+	order::{OrderOptions, cross_count, order},
 	types::{EdgeLabel, GraphLabel, NodeLabel},
 	util::build_layer_matrix,
 };
@@ -85,7 +85,7 @@ fn minimizes_crossings_on_4_layer_graph() {
 	order(&mut g, &OrderOptions::default());
 	let layering = build_layer_matrix(&g);
 	let cc = cross_count(&g, &layering);
-	assert!(cc <= 1, "expected <= 1 crossing, got {}", cc);
+	assert!(cc <= 1, "expected <= 1 crossing, got {cc}");
 }
 
 #[test]
@@ -121,7 +121,6 @@ fn skip_optimal_ordering() {
 	let cc = cross_count(&g, &layering);
 	assert!(
 		cc <= 1,
-		"expected cc <= 1 when skipping heuristic, got {}",
-		cc
+		"expected cc <= 1 when skipping heuristic, got {cc}"
 	);
 }

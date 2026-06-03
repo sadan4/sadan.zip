@@ -1,7 +1,7 @@
 //! Port of test/greedy-fas-test.ts.
 
 use dagre::{
-	graph::{alg, Edge, Graph, GraphOpts},
+	graph::{Edge, Graph, GraphOpts, alg},
 	greedy_fas::greedy_fas,
 	types::{EdgeLabel, GraphLabel, NodeLabel},
 };
@@ -27,7 +27,7 @@ fn mk_mg() -> Graph<GraphLabel, NodeLabel, EdgeLabel> {
 	g
 }
 
-fn default_weight_fn(_e: &Edge) -> f64 {
+const fn default_weight_fn(_e: &Edge) -> f64 {
 	1.0
 }
 
@@ -39,7 +39,7 @@ fn check_fas(graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>, fas: &[Edge]) {
 		g.remove_edge_obj(e);
 	}
 	let cycles = alg::find_cycles(&g);
-	assert!(cycles.is_empty(), "still cyclic: {:?}", cycles);
+	assert!(cycles.is_empty(), "still cyclic: {cycles:?}");
 	let bound = (m / 2) - (n / 6);
 	assert!(
 		fas.len() as i64 <= bound,
@@ -158,8 +158,7 @@ fn works_with_weighted_edges() {
 	let wf = |e: &Edge| {
 		g1_ref
 			.edge_obj(e)
-			.map(|l| l.weight)
-			.unwrap_or(1.0)
+			.map_or(1.0, |l| l.weight)
 	};
 	let fas = greedy_fas(&g1, wf);
 	assert_eq!(fas.len(), 1);
@@ -188,8 +187,7 @@ fn works_with_weighted_edges() {
 	let wf2 = |e: &Edge| {
 		g2_ref
 			.edge_obj(e)
-			.map(|l| l.weight)
-			.unwrap_or(1.0)
+			.map_or(1.0, |l| l.weight)
 	};
 	let fas2 = greedy_fas(&g2, wf2);
 	assert_eq!(fas2.len(), 1);
@@ -230,8 +228,7 @@ fn works_for_multigraphs() {
 	let wf = |e: &Edge| {
 		g_ref
 			.edge_obj(e)
-			.map(|l| l.weight)
-			.unwrap_or(1.0)
+			.map_or(1.0, |l| l.weight)
 	};
 	let mut fas = greedy_fas(&g, wf);
 	fas.sort_by(|a, b| a.name.cmp(&b.name));

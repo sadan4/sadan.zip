@@ -1,5 +1,7 @@
 //! Port of test/order/resolve-conflicts-test.ts.
 
+use std::string::ToString;
+
 use dagre::{
 	graph::Graph,
 	order::{resolve_conflicts, BarycenterEntry, ResolvedEntry},
@@ -15,7 +17,7 @@ fn bc(v: &str, b: Option<f64>, w: Option<f64>) -> BarycenterEntry {
 
 fn vs(s: &[&str]) -> Vec<String> {
 	s.iter()
-		.map(|x| x.to_string())
+		.map(ToString::to_string)
 		.collect()
 }
 
@@ -29,7 +31,7 @@ fn no_constraints_returns_unchanged() {
 	let cg: Graph<(), (), ()> = Graph::new();
 	let input =
 		vec![bc("a", Some(2.0), Some(3.0)), bc("b", Some(1.0), Some(2.0))];
-	let r = sort_by_first(resolve_conflicts(input, &cg));
+	let r = sort_by_first(resolve_conflicts(&input, &cg));
 	assert_eq!(r.len(), 2);
 	assert_eq!(r[0].vs, vs(&["a"]));
 	assert_eq!(r[0].barycenter, Some(2.0));
@@ -45,7 +47,7 @@ fn no_conflicts_returns_unchanged() {
 	cg.set_edge("b", "a", ());
 	let input =
 		vec![bc("a", Some(2.0), Some(3.0)), bc("b", Some(1.0), Some(2.0))];
-	let r = sort_by_first(resolve_conflicts(input, &cg));
+	let r = sort_by_first(resolve_conflicts(&input, &cg));
 	assert_eq!(r.len(), 2);
 }
 
@@ -55,7 +57,7 @@ fn coalesces_on_conflict() {
 	cg.set_edge("a", "b", ());
 	let input =
 		vec![bc("a", Some(2.0), Some(3.0)), bc("b", Some(1.0), Some(2.0))];
-	let r = resolve_conflicts(input, &cg);
+	let r = resolve_conflicts(&input, &cg);
 	assert_eq!(r.len(), 1);
 	let res = &r[0];
 	assert_eq!(res.vs, vs(&["a", "b"]));
@@ -74,7 +76,7 @@ fn coalesces_on_path_constraint() {
 		bc("c", Some(2.0), Some(1.0)),
 		bc("d", Some(1.0), Some(1.0)),
 	];
-	let r = resolve_conflicts(input, &cg);
+	let r = resolve_conflicts(&input, &cg);
 	assert_eq!(r.len(), 1);
 	let res = &r[0];
 	assert_eq!(res.vs, vs(&["a", "b", "c", "d"]));
@@ -87,7 +89,7 @@ fn coalesces_on_path_constraint() {
 fn does_nothing_when_no_barycenter_or_constraint() {
 	let cg: Graph<(), (), ()> = Graph::new();
 	let input = vec![bc("a", None, None), bc("b", Some(1.0), Some(2.0))];
-	let r = sort_by_first(resolve_conflicts(input, &cg));
+	let r = sort_by_first(resolve_conflicts(&input, &cg));
 	assert_eq!(r.len(), 2);
 	assert_eq!(r[0].vs, vs(&["a"]));
 	assert_eq!(r[0].barycenter, None);
@@ -101,6 +103,6 @@ fn ignores_edges_unrelated_to_entries() {
 	cg.set_edge("c", "d", ());
 	let input =
 		vec![bc("a", Some(2.0), Some(3.0)), bc("b", Some(1.0), Some(2.0))];
-	let r = sort_by_first(resolve_conflicts(input, &cg));
+	let r = sort_by_first(resolve_conflicts(&input, &cg));
 	assert_eq!(r.len(), 2);
 }

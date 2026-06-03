@@ -37,7 +37,7 @@ impl<'s> Rope<'s> {
 		for s in &self.strs {
 			result.push_str(s);
 		}
-		debug_assert!(result.len() == self.total_len);
+		debug_assert_eq!(result.len(), self.total_len);
 		result
 	}
 

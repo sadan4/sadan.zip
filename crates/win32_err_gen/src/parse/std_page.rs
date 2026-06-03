@@ -1,5 +1,4 @@
 use anyhow::{Context as _, Result, anyhow, bail};
-use itertools::Itertools;
 use markdown::mdast::{self, Node, Paragraph, Text};
 use tracing::warn;
 

@@ -9,6 +9,7 @@ use crate::{
 	types::{
 		Align,
 		BorderType,
+		Dummy,
 		EdgeLabel,
 		GraphLabel,
 		LabelPos,
@@ -17,6 +18,7 @@ use crate::{
 	},
 	util,
 };
+use ::std::hash::BuildHasher;
 use std::collections::{HashMap, HashSet};
 
 pub fn position(graph: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>) {
@@ -26,15 +28,15 @@ pub fn position(graph: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>) {
 	let xs = position_x(&g);
 	// Copy y from non-compound back, x from xs.
 	for v in g.nodes() {
-		if let Some(yn) = g.node(&v).and_then(|n| n.y) {
-			if let Some(target) = graph.node_mut(&v) {
-				target.y = Some(yn);
-			}
+		if let Some(yn) = g.node(&v).and_then(|n| n.y)
+			&& let Some(target) = graph.node_mut(&v)
+		{
+			target.y = Some(yn);
 		}
-		if let Some(&x) = xs.get(&v) {
-			if let Some(target) = graph.node_mut(&v) {
-				target.x = Some(x);
-			}
+		if let Some(&x) = xs.get(&v)
+			&& let Some(target) = graph.node_mut(&v)
+		{
+			target.x = Some(x);
 		}
 	}
 }
@@ -56,18 +58,10 @@ fn position_y(graph: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>) {
 	for layer in layering {
 		let max_h = layer
 			.iter()
-			.map(|v| {
-				graph
-					.node(v)
-					.map(|n| n.height)
-					.unwrap_or(0.0)
-			})
+			.map(|v| graph.node(v).map_or(0., |n| n.height))
 			.fold(0.0f64, f64::max);
 		for v in &layer {
-			let h = graph
-				.node(v)
-				.map(|n| n.height)
-				.unwrap_or(0.0);
+			let h = graph.node(v).map_or(0., |n| n.height);
 			if let Some(n) = graph.node_mut(v) {
 				n.y = Some(match rank_align {
 					RankAlign::Top => prev_y + h / 2.0,
@@ -89,6 +83,9 @@ pub type AlignmentResult = (HashMap<String, String>, HashMap<String, String>);
 /// Public BK API for unit tests. Re-exports of the internal helpers.
 pub mod bk {
 	pub use super::{
+		AlignmentResult,
+		Conflicts,
+		PositionMap,
 		add_conflict,
 		align_coordinates,
 		balance,
@@ -99,9 +96,6 @@ pub mod bk {
 		horizontal_compaction,
 		position_x,
 		vertical_alignment,
-		AlignmentResult,
-		Conflicts,
-		PositionMap,
 	};
 }
 
@@ -114,9 +108,7 @@ pub fn add_conflict(c: &mut Conflicts, v: &str, w: &str) {
 
 pub fn has_conflict(c: &Conflicts, v: &str, w: &str) -> bool {
 	let (a, b) = if v > w { (w, v) } else { (v, w) };
-	c.get(a)
-		.map(|s| s.contains(b))
-		.unwrap_or(false)
+	c.get(a).is_some_and(|s| s.contains(b))
 }
 
 pub fn find_type1_conflicts(
@@ -157,8 +149,7 @@ pub fn find_type1_conflicts(
 							let u_pos = u_label.order.unwrap_or(0);
 							let scan_dummy = graph
 								.node(scan_node)
-								.map(|n| n.dummy.is_some())
-								.unwrap_or(false);
+								.is_some_and(|n| n.dummy.is_some());
 							let u_dummy = u_label.dummy.is_some();
 							if (u_pos < k0 || k1 < u_pos)
 								&& !(u_dummy && scan_dummy)
@@ -196,27 +187,21 @@ pub fn find_type2_conflicts(
 		next_north_border: i64,
 	) {
 		for i in south_pos..south_end {
-			let v = match south.get(i) {
-				Some(v) => v,
-				None => continue,
-			};
+			let Some(v) = south.get(i) else { continue };
 			if graph
 				.node(v)
-				.map(|n| n.dummy.is_some())
-				.unwrap_or(false)
+				.is_some_and(|n| n.dummy.is_some())
+				&& let Some(preds) = graph.predecessors(v)
 			{
-				if let Some(preds) = graph.predecessors(v) {
-					for u in preds {
-						let u_node = graph
-							.node(&u)
-							.cloned()
-							.unwrap_or_default();
-						if u_node.dummy.is_some() {
-							let uo = u_node.order.unwrap_or(0) as i64;
-							if uo < prev_north_border || uo > next_north_border
-							{
-								add_conflict(conflicts, &u, v);
-							}
+				for u in preds {
+					let u_node = graph
+						.node(&u)
+						.cloned()
+						.unwrap_or_default();
+					if u_node.dummy.is_some() {
+						let uo = u_node.order.unwrap_or(0) as i64;
+						if uo < prev_north_border || uo > next_north_border {
+							add_conflict(conflicts, &u, v);
 						}
 					}
 				}
@@ -234,8 +219,7 @@ pub fn find_type2_conflicts(
 				if graph
 					.node(v)
 					.and_then(|n| n.dummy)
-					.map(|d| d == crate::types::Dummy::Border)
-					.unwrap_or(false)
+					.is_some_and(|d| d == Dummy::Border)
 				{
 					let predecessors = graph
 						.predecessors(v)
@@ -281,17 +265,14 @@ fn find_other_inner_segment_node(
 ) -> Option<String> {
 	if graph
 		.node(v)
-		.map(|n| n.dummy.is_some())
-		.unwrap_or(false)
+		.is_some_and(|n| n.dummy.is_some())
+		&& let Some(preds) = graph.predecessors(v)
 	{
-		if let Some(preds) = graph.predecessors(v) {
-			return preds.into_iter().find(|u| {
-				graph
-					.node(u)
-					.map(|n| n.dummy.is_some())
-					.unwrap_or(false)
-			});
-		}
+		return preds.into_iter().find(|u| {
+			graph
+				.node(u)
+				.is_some_and(|n| n.dummy.is_some())
+		});
 	}
 	None
 }
@@ -352,11 +333,11 @@ where
 	(root, align)
 }
 
-pub fn horizontal_compaction(
+pub fn horizontal_compaction<S: BuildHasher, S2: BuildHasher>(
 	graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
 	layering: &[Vec<String>],
-	root: &HashMap<String, String>,
-	align: &HashMap<String, String>,
+	root: &HashMap<String, String, S>,
+	align: &HashMap<String, String, S2>,
 	reverse_sep: bool,
 ) -> PositionMap {
 	let mut xs: PositionMap = HashMap::new();
@@ -389,7 +370,11 @@ pub fn horizontal_compaction(
 			HashMap::with_capacity(nodes.len());
 		let mut stack: Vec<String> = nodes;
 		while let Some(elem) = stack.pop() {
-			match state.get(&elem).copied().unwrap_or(WHITE) {
+			match state
+				.get(&elem)
+				.copied()
+				.unwrap_or(WHITE)
+			{
 				WHITE => {
 					state.insert(elem.clone(), GRAY);
 					stack.push(elem.clone());
@@ -442,7 +427,7 @@ pub fn horizontal_compaction(
 			}
 		};
 		iterate(block_g_ref, &mut pass1, preds);
-	}
+	};
 
 	// Pass 2: greatest coordinates (uses outEdges).
 	{
@@ -475,24 +460,24 @@ pub fn horizontal_compaction(
 			}
 		};
 		iterate(block_g_ref, &mut pass2, succs);
-	}
+	};
 
 	// Propagate root x to all aligned nodes.
 	let xs_root: HashMap<String, f64> = xs.clone();
 	for v in align.keys() {
-		if let Some(rv) = root.get(v) {
-			if let Some(&x) = xs_root.get(rv) {
-				xs.insert(v.clone(), x);
-			}
+		if let Some(rv) = root.get(v)
+			&& let Some(&x) = xs_root.get(rv)
+		{
+			xs.insert(v.clone(), x);
 		}
 	}
 	xs
 }
 
-fn build_block_graph(
+fn build_block_graph<S: BuildHasher>(
 	graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
 	layering: &[Vec<String>],
-	root: &HashMap<String, String>,
+	root: &HashMap<String, String, S>,
 	reverse_sep: bool,
 ) -> Graph<(), (), f64> {
 	let mut block_graph: Graph<(), (), f64> = Graph::with_opts(GraphOpts {
@@ -521,19 +506,19 @@ fn build_block_graph(
 			if !block_graph.has_node(&v_root) {
 				block_graph.set_node(v_root.clone(), ());
 			}
-			if let Some(uu) = &u {
-				if let Some(u_root) = root.get(uu) {
-					let prev_max = block_graph
-						.edge(u_root, &v_root)
-						.copied()
-						.unwrap_or(0.0);
-					let s = sep_fn(graph, v, uu);
-					block_graph.set_edge(
-						u_root.clone(),
-						v_root.clone(),
-						s.max(prev_max),
-					);
-				}
+			if let Some(uu) = &u
+				&& let Some(u_root) = root.get(uu)
+			{
+				let prev_max = block_graph
+					.edge(u_root, &v_root)
+					.copied()
+					.unwrap_or(0.0);
+				let s = sep_fn(graph, v, uu);
+				block_graph.set_edge(
+					u_root.clone(),
+					v_root.clone(),
+					s.max(prev_max),
+				);
 			}
 			u = Some(v.clone());
 		}
@@ -554,12 +539,12 @@ fn sep(
 	// inside). Read fields by reference instead.
 	let v_label = g.node(v);
 	let w_label = g.node(w);
-	let v_width = v_label.map(|n| n.width).unwrap_or(0.0);
-	let w_width = w_label.map(|n| n.width).unwrap_or(0.0);
+	let v_width = v_label.map_or(0., |n| n.width);
+	let w_width = w_label.map_or(0., |n| n.width);
 	let v_labelpos = v_label.and_then(|n| n.labelpos);
 	let w_labelpos = w_label.and_then(|n| n.labelpos);
-	let v_is_dummy = v_label.map(|n| n.dummy.is_some()).unwrap_or(false);
-	let w_is_dummy = w_label.map(|n| n.dummy.is_some()).unwrap_or(false);
+	let v_is_dummy = v_label.is_some_and(|n| n.dummy.is_some());
+	let w_is_dummy = w_label.is_some_and(|n| n.dummy.is_some());
 
 	let mut sum = 0.0;
 	let mut delta: Option<f64> = None;
@@ -569,7 +554,7 @@ fn sep(
 		delta = match lp {
 			LabelPos::L => Some(-v_width / 2.0),
 			LabelPos::R => Some(v_width / 2.0),
-			_ => None,
+			LabelPos::C => None,
 		};
 	}
 	if let Some(d) = delta {
@@ -583,7 +568,7 @@ fn sep(
 		delta = match lp {
 			LabelPos::L => Some(w_width / 2.0),
 			LabelPos::R => Some(-w_width / 2.0),
-			_ => None,
+			LabelPos::C => None,
 		};
 	}
 	if let Some(d) = delta {
@@ -619,7 +604,7 @@ pub fn position_x(
 		}
 		for horiz in ["l", "r"] {
 			if horiz == "r" {
-				for inner in adjusted.iter_mut() {
+				for inner in &mut adjusted {
 					inner.reverse();
 				}
 			}
@@ -658,11 +643,11 @@ pub fn position_x(
 					*v = -*v;
 				}
 				// Undo reversal of adjusted for next iter.
-				for inner in adjusted.iter_mut() {
+				for inner in &mut adjusted {
 					inner.reverse();
 				}
 			}
-			xss.insert(format!("{}{}", vert, horiz), xs);
+			xss.insert(format!("{vert}{horiz}"), xs);
 		}
 	}
 
@@ -679,20 +664,16 @@ pub fn position_x(
 	balance(&xss, graph.graph().and_then(|g| g.align))
 }
 
-pub fn find_smallest_width_alignment(
+pub fn find_smallest_width_alignment<S: BuildHasher>(
 	graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
-	xss: &HashMap<String, PositionMap>,
+	xss: &HashMap<String, PositionMap, S>,
 ) -> PositionMap {
 	let mut best: (f64, Option<PositionMap>) = (f64::INFINITY, None);
 	for xs in xss.values() {
 		let mut min = f64::INFINITY;
 		let mut max = f64::NEG_INFINITY;
 		for (v, x) in xs {
-			let hw = graph
-				.node(v)
-				.map(|n| n.width)
-				.unwrap_or(0.0)
-				/ 2.0;
+			let hw = graph.node(v).map_or(0.0, |n| n.width) / 2.0;
 			max = max.max(x + hw);
 			min = min.min(x - hw);
 		}
@@ -704,8 +685,8 @@ pub fn find_smallest_width_alignment(
 	best.1.unwrap_or_default()
 }
 
-pub fn align_coordinates(
-	xss: &mut HashMap<String, PositionMap>,
+pub fn align_coordinates<S: BuildHasher>(
+	xss: &mut HashMap<String, PositionMap, S>,
 	align_to: &PositionMap,
 ) {
 	let align_to_min = align_to
@@ -718,7 +699,7 @@ pub fn align_coordinates(
 		.fold(f64::NEG_INFINITY, f64::max);
 	for vert in ["u", "d"] {
 		for horiz in ["l", "r"] {
-			let key = format!("{}{}", vert, horiz);
+			let key = format!("{vert}{horiz}");
 			let xs = match xss.get(&key) {
 				Some(m) => m.clone(),
 				None => continue,
@@ -755,23 +736,21 @@ pub fn align_coordinates(
 	}
 }
 
-pub fn balance(
-	xss: &HashMap<String, PositionMap>,
+pub fn balance<S: BuildHasher>(
+	xss: &HashMap<String, PositionMap, S>,
 	align: Option<Align>,
 ) -> PositionMap {
-	let ul = match xss.get("ul") {
-		Some(m) => m,
-		None => return HashMap::new(),
+	let Some(ul) = xss.get("ul") else {
+		return HashMap::new();
 	};
 	let mut out = HashMap::new();
 	for v in ul.keys() {
-		if let Some(a) = align {
-			if let Some(m) = xss.get(a.to_str()) {
-				if let Some(&x) = m.get(v) {
-					out.insert(v.clone(), x);
-					continue;
-				}
-			}
+		if let Some(a) = align
+			&& let Some(m) = xss.get(a.to_str())
+			&& let Some(&x) = m.get(v)
+		{
+			out.insert(v.clone(), x);
+			continue;
 		}
 		let mut xs: Vec<f64> = xss
 			.values()
@@ -783,7 +762,7 @@ pub fn balance(
 		});
 		let a = xs.get(1).copied().unwrap_or(0.0);
 		let b = xs.get(2).copied().unwrap_or(0.0);
-		out.insert(v.clone(), (a + b) / 2.0);
+		out.insert(v.clone(), f64::midpoint(a, b));
 	}
 	out
 }

@@ -7,6 +7,8 @@
 use dagre::{
 	graph::Graph,
 	position::bk::{
+		Conflicts,
+		PositionMap,
 		add_conflict,
 		align_coordinates,
 		balance,
@@ -17,8 +19,6 @@ use dagre::{
 		horizontal_compaction,
 		position_x,
 		vertical_alignment,
-		Conflicts,
-		PositionMap,
 	},
 	types::{Dummy, EdgeLabel, GraphLabel, LabelPos, NodeLabel},
 	util::build_layer_matrix,
@@ -136,20 +136,20 @@ fn type1_marks_conflict_with_three_dummies() {
 	for v in ["a", "b", "c", "d"] {
 		let mut g = t1_base();
 		for w in ["a", "b", "c", "d"] {
-			if w != v {
-				if let Some(n) = g.node_mut(w) {
-					n.dummy = Some(Dummy::Edge);
-				}
+			if w != v
+				&& let Some(n) = g.node_mut(w)
+			{
+				n.dummy = Some(Dummy::Edge);
 			}
 		}
 		let layering = build_layer_matrix(&g);
 		let c = find_type1_conflicts(&g, &layering);
 		if v == "a" || v == "d" {
-			assert!(has_conflict(&c, "a", "d"), "v={}", v);
-			assert!(!has_conflict(&c, "b", "c"), "v={}", v);
+			assert!(has_conflict(&c, "a", "d"), "v={v}");
+			assert!(!has_conflict(&c, "b", "c"), "v={v}");
 		} else {
-			assert!(!has_conflict(&c, "a", "d"), "v={}", v);
-			assert!(has_conflict(&c, "b", "c"), "v={}", v);
+			assert!(!has_conflict(&c, "a", "d"), "v={v}");
+			assert!(has_conflict(&c, "b", "c"), "v={v}");
 		}
 	}
 }
@@ -429,8 +429,8 @@ fn hc_handles_labelpos_l() {
 	let xb = xs["b"];
 	let xc = xs["c"];
 	assert_eq!(xa, 0.0);
-	assert!((xb - (xa + 50.0 + 50.0 + 200.0)).abs() < 1e-9, "b={}", xb);
-	assert!((xc - (xb + 0.0 + 50.0 + 150.0)).abs() < 1e-9, "c={}", xc);
+	assert!((xb - (xa + 50.0 + 50.0 + 200.0)).abs() < 1e-9, "b={xb}");
+	assert!((xc - (xb + 0.0 + 50.0 + 150.0)).abs() < 1e-9, "c={xc}");
 }
 
 // ---------- alignCoordinates --------------------------------------------

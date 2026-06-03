@@ -3,7 +3,6 @@ pub mod html_parser;
 
 use std::{
 	collections::HashMap,
-	fs,
 	sync::{Arc, LazyLock, Mutex},
 	thread,
 	time::{SystemTime, UNIX_EPOCH},
@@ -16,7 +15,6 @@ use http::StatusCode;
 use itertools::Itertools as _;
 use memchr::memmem::Finder;
 use oxc_allocator::AllocatorPool;
-use regress::Regex;
 use reqwest::Response;
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
 use reqwest_retry::{RetryTransientMiddleware, policies::ExponentialBackoff};
@@ -54,6 +52,8 @@ fn make_reqwest_client() -> Result<Arc<ClientWithMiddleware>> {
 	Ok(Arc::new(client))
 }
 
+// TODO: Refactor
+#[expect(clippy::too_many_lines)]
 pub async fn scrape_build(
 	res: Response,
 	channel: Channel,

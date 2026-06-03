@@ -5,9 +5,7 @@
 
 use criterion::{criterion_group, criterion_main, Criterion};
 use dagre::{
-	graph::{Graph, GraphOpts},
-	rank,
-	types::{EdgeLabel, GraphLabel, NodeLabel, Ranker},
+	LayoutGraph, graph::{Graph, GraphOpts}, rank, types::{EdgeLabel, GraphLabel, NodeLabel, Ranker}
 };
 
 fn make_graph() -> Graph<GraphLabel, NodeLabel, EdgeLabel> {
@@ -43,8 +41,8 @@ fn small_graph() -> Graph<GraphLabel, NodeLabel, EdgeLabel> {
 /// Larger graph (~675 nodes) with intra-group backbone + branches and
 /// cross-group connections. We use a deterministic LCG-like counter to
 /// match the JS bench's intent of "randomized" cross-edges while keeping
-/// the benchmark reproducible (true Math.random() in JS doesn't seed).
-fn large_graph() -> Graph<GraphLabel, NodeLabel, EdgeLabel> {
+/// the benchmark reproducible (true `Math.random()` in JS doesn't seed).
+fn large_graph() -> LayoutGraph {
 	let mut g = make_graph();
 	let num_groups: usize = 25;
 	let nodes_per_group: usize = 27;
@@ -52,7 +50,7 @@ fn large_graph() -> Graph<GraphLabel, NodeLabel, EdgeLabel> {
 	for group in 0..num_groups {
 		let mut group_nodes: Vec<String> = Vec::with_capacity(nodes_per_group);
 		for node in 0..nodes_per_group {
-			let id = format!("g{}_n{}", group, node);
+			let id = format!("g{group}_n{node}");
 			g.set_node(
 				id.clone(),
 				NodeLabel {
@@ -131,7 +129,7 @@ fn large_graph() -> Graph<GraphLabel, NodeLabel, EdgeLabel> {
 			}
 		}
 		if group + 2 < num_groups {
-			let from = format!("g{}_n10", group);
+			let from = format!("g{group}_n10");
 			let to = format!("g{}_n3", group + 2);
 			if g.has_node(&from) && g.has_node(&to) {
 				g.set_edge(
@@ -149,11 +147,11 @@ fn large_graph() -> Graph<GraphLabel, NodeLabel, EdgeLabel> {
 
 	// Deterministic pseudo-random cross-edges (a simple LCG so reruns are
 	// comparable).
-	let mut state: u64 = 0xdeadbeef;
+	let mut state: u64 = 0xdead_beef;
 	let next = |s: &mut u64| -> u64 {
 		*s = s
-			.wrapping_mul(6364136223846793005)
-			.wrapping_add(1442695040888963407);
+			.wrapping_mul(6_364_136_223_846_793_005)
+			.wrapping_add(1_442_695_040_888_963_407);
 		*s >> 33
 	};
 	for _ in 0..(num_groups * 2) {
@@ -162,8 +160,8 @@ fn large_graph() -> Graph<GraphLabel, NodeLabel, EdgeLabel> {
 		let to_group = (from_group + span).min(num_groups - 1);
 		let from_node = (next(&mut state) as usize) % nodes_per_group;
 		let to_node = (next(&mut state) as usize) % nodes_per_group;
-		let from = format!("g{}_n{}", from_group, from_node);
-		let to = format!("g{}_n{}", to_group, to_node);
+		let from = format!("g{from_group}_n{from_node}");
+		let to = format!("g{to_group}_n{to_node}");
 		if g.has_node(&from) && g.has_node(&to) && !g.has_edge(&from, &to) {
 			g.set_edge(
 				from,

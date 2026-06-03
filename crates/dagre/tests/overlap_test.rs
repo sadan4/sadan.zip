@@ -1,28 +1,39 @@
-use dagre::{layout, LayoutGraph};
+use std::collections::BTreeMap;
+
+use dagre::{LayoutGraph, layout};
 
 #[test]
 fn panic1_no_overlapping_nodes() {
-	let json =
-		include_str!("data/panic1.json");
+	type Row = (String, f64, f64, f64, f64, Option<i32>, Option<usize>);
+	let json = include_str!("data/panic1.json");
 	let mut g: LayoutGraph =
 		serde_json::from_str(json).expect("deserialize panic1.json");
 	layout(&mut g);
 
-	let mut rows: Vec<(String, f64, f64, f64, f64, Option<i32>, Option<usize>)> = Vec::new();
+	let mut rows: Vec<Row> = Vec::new();
 	for v in g.nodes() {
 		if let Some(n) = g.node(&v) {
 			if n.dummy.is_some() {
 				continue;
 			}
 			if let (Some(x), Some(y)) = (n.x, n.y) {
-				rows.push((v.clone(), x, y, n.width, n.height, n.rank, n.order));
+				rows.push((
+					v.clone(),
+					x,
+					y,
+					n.width,
+					n.height,
+					n.rank,
+					n.order,
+				));
 			}
 		}
 	}
-	let mut by_y: std::collections::BTreeMap<i64, Vec<&(String, f64, f64, f64, f64, Option<i32>, Option<usize>)>> =
-		std::collections::BTreeMap::new();
+	let mut by_y: BTreeMap<i64, Vec<&Row>> = BTreeMap::new();
 	for r in &rows {
-		by_y.entry(r.2.round() as i64).or_default().push(r);
+		by_y.entry(r.2.round() as i64)
+			.or_default()
+			.push(r);
 	}
 	let mut overlaps = 0;
 	let mut samples = Vec::new();

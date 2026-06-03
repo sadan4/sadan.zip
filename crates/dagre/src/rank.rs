@@ -7,7 +7,7 @@ use crate::{
 };
 
 pub mod util_rank {
-	use super::*;
+	use super::{Edge, EdgeLabel, Graph, GraphLabel, NodeLabel};
 
 	/// Initializes ranks using longest-path DFS from sources.
 	pub fn longest_path(graph: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>) {
@@ -35,8 +35,7 @@ pub mod util_rank {
 				let r = dfs(graph, &target, visited);
 				let minlen = graph
 					.edge_obj(&e)
-					.map(|l| l.minlen)
-					.unwrap_or(1);
+					.map_or(1, |l| l.minlen);
 				let candidate = r - minlen;
 				if candidate < min_rank {
 					min_rank = candidate;
@@ -70,14 +69,13 @@ pub mod util_rank {
 			.unwrap_or(0);
 		let minlen = graph
 			.edge_obj(e)
-			.map(|l| l.minlen)
-			.unwrap_or(1);
+			.map_or(1, |l| l.minlen);
 		w_rank - v_rank - minlen
 	}
 }
 
 pub mod feasible_tree {
-	use super::*;
+	use super::{Edge, EdgeLabel, Graph, GraphLabel, NodeLabel};
 	use crate::graph::GraphOpts;
 
 	#[derive(Debug, Clone, Default)]
@@ -109,9 +107,8 @@ pub mod feasible_tree {
 		tree.set_node(start, TreeNode::default());
 
 		while tight_tree(&mut tree, graph) < size {
-			let edge = match find_min_slack_edge(&tree, graph) {
-				Some(e) => e,
-				None => break,
+			let Some(edge) = find_min_slack_edge(&tree, graph) else {
+				break;
 			};
 			let delta = if tree.has_node(&edge.v) {
 				super::util_rank::slack(graph, &edge)
@@ -119,10 +116,10 @@ pub mod feasible_tree {
 				-super::util_rank::slack(graph, &edge)
 			};
 			for v in tree.nodes() {
-				if let Some(n) = graph.node_mut(&v) {
-					if let Some(r) = n.rank {
-						n.rank = Some(r + delta);
-					}
+				if let Some(n) = graph.node_mut(&v)
+					&& let Some(r) = n.rank
+				{
+					n.rank = Some(r + delta);
 				}
 			}
 		}
@@ -169,8 +166,7 @@ pub mod feasible_tree {
 				let s = super::util_rank::slack(graph, &e);
 				if best
 					.as_ref()
-					.map(|(b, _)| s < *b)
-					.unwrap_or(true)
+					.is_none_or(|(b, _)| s < *b)
 				{
 					best = Some((s, e));
 				}
@@ -182,12 +178,17 @@ pub mod feasible_tree {
 
 pub mod network_simplex {
 	use super::{
+		Edge,
+		EdgeLabel,
+		Graph,
+		GraphLabel,
+		NodeLabel,
 		feasible_tree::{Tree, TreeEdge, TreeNode},
+		simplify,
 		util_rank::{longest_path, slack},
-		*,
 	};
 	use crate::graph::alg::{postorder, preorder};
-	use std::collections::HashSet;
+	use std::{collections::HashSet, string::ToString};
 
 	pub fn run(graph: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>) {
 		let mut simplified = simplify(graph);
@@ -204,10 +205,10 @@ pub mod network_simplex {
 		// Copy ranks back to original graph (which may be multigraph).
 		let nodes = graph.nodes();
 		for v in nodes {
-			if let Some(r) = simplified.node(&v).and_then(|n| n.rank) {
-				if let Some(n) = graph.node_mut(&v) {
-					n.rank = Some(r);
-				}
+			if let Some(r) = simplified.node(&v).and_then(|n| n.rank)
+				&& let Some(n) = graph.node_mut(&v)
+			{
+				n.rank = Some(r);
 			}
 		}
 	}
@@ -231,12 +232,11 @@ pub mod network_simplex {
 		graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
 		child: &str,
 	) {
-		let parent = match tree
+		let Some(parent) = tree
 			.node(child)
 			.and_then(|n| n.parent.clone())
-		{
-			Some(p) => p,
-			None => return,
+		else {
+			return;
 		};
 		let cv = calc_cut_value(tree, graph, child, &parent);
 		if let Some(e) = tree.edge_mut(child, &parent) {
@@ -268,20 +268,15 @@ pub mod network_simplex {
 					let points_to_head = is_out == child_is_tail;
 					let other_w = graph
 						.edge_obj(&e)
-						.map(|l| l.weight)
-						.unwrap_or(0.0);
+						.map_or(0.0, |l| l.weight);
 					cut += if points_to_head { other_w } else { -other_w };
-					if tree.has_edge(child, &other) {
-						if let Some(other_cv) = tree
+					if tree.has_edge(child, &other)
+						&& let Some(other_cv) = tree
 							.edge(child, &other)
 							.and_then(|e| e.cutvalue)
-						{
-							cut += if points_to_head {
-								-other_cv
-							} else {
-								other_cv
-							};
-						}
+					{
+						cut +=
+							if points_to_head { -other_cv } else { other_cv };
 					}
 				}
 			}
@@ -313,7 +308,7 @@ pub mod network_simplex {
 		if let Some(n) = tree.node_mut(v) {
 			n.low = Some(low);
 			n.lim = Some(next_lim);
-			n.parent = parent.map(|s| s.to_string());
+			n.parent = parent.map(ToString::to_string);
 		}
 		next_lim + 1
 	}
@@ -408,36 +403,29 @@ pub mod network_simplex {
 	) {
 		let root = tree.nodes().into_iter().find(|v| {
 			tree.node(v)
-				.map(|n| n.parent.is_none())
-				.unwrap_or(false)
+				.is_some_and(|n| n.parent.is_none())
 		});
-		let root = match root {
-			Some(r) => r,
-			None => return,
-		};
+		let Some(root) = root else { return };
 		let pre = preorder(tree, &[root]);
 		for v in pre.into_iter().skip(1) {
-			let parent = match tree
+			let Some(parent) = tree
 				.node(&v)
 				.and_then(|n| n.parent.clone())
-			{
-				Some(p) => p,
-				None => continue,
+			else {
+				continue;
 			};
 			let (minlen, flipped) = if graph.has_edge(&v, &parent) {
 				(
 					graph
 						.edge(&v, &parent)
-						.map(|l| l.minlen)
-						.unwrap_or(1),
+						.map_or(1, |l| l.minlen),
 					false,
 				)
 			} else {
 				(
 					graph
 						.edge(&parent, &v)
-						.map(|l| l.minlen)
-						.unwrap_or(1),
+						.map_or(1, |l| l.minlen),
 					true,
 				)
 			};

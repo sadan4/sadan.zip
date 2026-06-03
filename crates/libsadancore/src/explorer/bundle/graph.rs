@@ -74,8 +74,10 @@ impl LaidOutGraph {
 #[wasm_bindgen]
 #[expect(clippy::multiple_inherent_impl)]
 impl Bundle {
+	// TODO: Refactor
 	/// Depth defaults to 1.
 	#[wasm_bindgen]
+	#[expect(clippy::too_many_lines)]
 	pub fn gen_graph(&self, module_id: u32, depth: Option<u8>) -> LaidOutGraph {
 		let init_depth = depth.unwrap_or(1);
 		let mut depth = init_depth;

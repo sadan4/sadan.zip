@@ -1,10 +1,8 @@
-use std::path::Component::ParentDir;
-
 use anyhow::Context;
 use itertools::Itertools;
 use tracing::error;
 use tracing_subscriber::EnvFilter;
-use win32_err_gen::{dump_ast, parse_doc_page, std_page, tbl_page};
+use win32_err_gen::{parse_doc_page, std_page, tbl_page};
 
 #[tokio::main]
 async fn main() {

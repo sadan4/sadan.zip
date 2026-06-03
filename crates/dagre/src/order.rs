@@ -87,8 +87,7 @@ pub fn barycenter(
 				for e in in_es {
 					let edge_w = graph
 						.edge_obj(&e)
-						.map(|l| l.weight)
-						.unwrap_or(0.0);
+						.map_or(0., |l| l.weight);
 					let order = graph
 						.node(&e.v)
 						.and_then(|n| n.order)
@@ -113,7 +112,7 @@ pub fn barycenter(
 /// Public resolve-conflicts: takes a list of barycenter entries and a
 /// constraint graph, returns coalesced entries respecting the constraints.
 pub fn resolve_conflicts(
-	entries: Vec<BarycenterEntry>,
+	entries: &[BarycenterEntry],
 	constraint_graph: &Graph<(), (), ()>,
 ) -> Vec<ResolvedEntry> {
 	resolve_conflicts_impl(entries, constraint_graph)
@@ -135,26 +134,25 @@ pub fn add_subgraph_constraints(
 	let mut prev: HashMap<String, String> = HashMap::new();
 	let mut root_prev: Option<String> = None;
 	for v in vs {
-		let mut child = graph.parent(v).map(|s| s.to_string());
+		let mut child = graph.parent(v).map(ToString::to_string);
 		while let Some(c) = child.clone() {
-			let parent = graph.parent(&c).map(|s| s.to_string());
-			let prev_child = match &parent {
-				Some(p) => {
-					let pc = prev.get(p).cloned();
-					prev.insert(p.clone(), c.clone());
-					pc
-				}
-				None => {
-					let pc = root_prev.clone();
-					root_prev = Some(c.clone());
-					pc
-				}
+			let parent = graph
+				.parent(&c)
+				.map(ToString::to_string);
+			let prev_child = if let Some(p) = &parent {
+				let pc = prev.get(p).cloned();
+				prev.insert(p.clone(), c.clone());
+				pc
+			} else {
+				let pc = root_prev;
+				root_prev = Some(c.clone());
+				pc
 			};
-			if let Some(pc) = prev_child {
-				if pc != c {
-					constraint_graph.set_edge(pc, c, ());
-					break;
-				}
+			if let Some(pc) = prev_child
+				&& pc != c
+			{
+				constraint_graph.set_edge(pc, c, ());
+				break;
 			}
 			child = parent;
 		}
@@ -293,7 +291,7 @@ fn build_layer_graphs(
 				graph,
 				*r,
 				relationship,
-				nodes_by_rank
+				&nodes_by_rank
 					.get(r)
 					.cloned()
 					.unwrap_or_default(),
@@ -306,7 +304,7 @@ fn build_layer_graph(
 	graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
 	rank: i32,
 	relationship: Relationship,
-	nodes_with_rank: Vec<String>,
+	nodes_with_rank: &[String],
 ) -> LayerGraph {
 	let root = create_root_node(graph);
 	let mut result: LayerGraph = Graph::with_opts(GraphOpts {
@@ -318,7 +316,7 @@ fn build_layer_graph(
 	// root node
 	result.set_node(root.clone(), LayerNode::default());
 
-	for v in &nodes_with_rank {
+	for v in nodes_with_rank {
 		// Read only the fields we need by reference. Cloning the whole
 		// NodeLabel here was ~1s across the two pre-loop build_layer_graphs
 		// calls because NodeLabel contains Option<Vec<String>> and
@@ -348,8 +346,7 @@ fn build_layer_graph(
 		}
 		let parent = graph
 			.parent(v)
-			.map(|s| s.to_string())
-			.unwrap_or(root.clone());
+			.map_or_else(|| root.clone(), ToString::to_string);
 		result.set_node(
 			v.clone(),
 			LayerNode {
@@ -374,12 +371,10 @@ fn build_layer_graph(
 			}
 			let prev = result
 				.edge(&u, v)
-				.map(|l| l.weight)
-				.unwrap_or(0.0);
+				.map_or(0., |l| l.weight);
 			let w = graph
 				.edge_obj(&e)
-				.map(|l| l.weight)
-				.unwrap_or(0.0);
+				.map_or(0., |l| l.weight);
 			result.set_edge(
 				u.clone(),
 				v.clone(),
@@ -387,11 +382,11 @@ fn build_layer_graph(
 			);
 		}
 
-		if let Some((bl, br)) = border {
-			if let Some(n) = result.node_mut(v) {
-				n.border_left = Some(bl);
-				n.border_right = Some(br);
-			}
+		if let Some((bl, br)) = border
+			&& let Some(n) = result.node_mut(v)
+		{
+			n.border_left = Some(bl);
+			n.border_right = Some(br);
 		}
 	}
 	result
@@ -442,16 +437,15 @@ pub fn init_order(
 			return;
 		}
 		visited.insert(v.to_string());
-		if let Some(n) = graph.node(v) {
-			if let Some(r) = n.rank {
-				if r >= 0 {
-					let ri = r as usize;
-					while layers.len() <= ri {
-						layers.push(Vec::new());
-					}
-					layers[ri].push(v.to_string());
-				}
+		if let Some(n) = graph.node(v)
+			&& let Some(r) = n.rank
+			&& r >= 0
+		{
+			let ri = r as usize;
+			while layers.len() <= ri {
+				layers.push(Vec::new());
 			}
+			layers[ri].push(v.to_string());
 		}
 		let succ = graph.successors(v).unwrap_or_default();
 		for s in succ {
@@ -459,7 +453,7 @@ pub fn init_order(
 		}
 	}
 
-	let mut ordered = simple_nodes.clone();
+	let mut ordered = simple_nodes;
 	ordered.sort_by_key(|v| {
 		graph
 			.node(v)
@@ -520,8 +514,7 @@ fn two_layer_cross_count(
 				if let Some(&pos) = south_pos.get(e.w.as_str()) {
 					let weight = graph
 						.edge_obj(e)
-						.map(|l| l.weight)
-						.unwrap_or(0.0);
+						.map_or(0., |l| l.weight);
 					local.push((pos, weight));
 				}
 			}
@@ -571,8 +564,7 @@ fn barycenter_impl(
 					any = true;
 					let edge_w = graph
 						.edge_obj(e)
-						.map(|l| l.weight)
-						.unwrap_or(0.0);
+						.map_or(0., |l| l.weight);
 					let order = graph
 						.node(&e.v)
 						.and_then(|n| n.order)
@@ -605,7 +597,7 @@ fn barycenter_impl(
 // ---------- resolve conflicts --------------------------------------------
 
 fn resolve_conflicts_impl(
-	entries: Vec<BarycenterEntry>,
+	entries: &[BarycenterEntry],
 	constraint_graph: &Graph<(), (), ()>,
 ) -> Vec<ResolvedEntry> {
 	#[derive(Debug)]
@@ -655,17 +647,17 @@ fn resolve_conflicts_impl(
 	fn merge_entries(m: &mut [Mapped], target: usize, source: usize) {
 		let mut sum = 0.0;
 		let mut weight = 0.0;
-		if let (Some(b), Some(w)) = (m[target].barycenter, m[target].weight) {
-			if w != 0.0 {
-				sum += b * w;
-				weight += w;
-			}
+		if let (Some(b), Some(w)) = (m[target].barycenter, m[target].weight)
+			&& w != 0.0
+		{
+			sum += b * w;
+			weight += w;
 		}
-		if let (Some(b), Some(w)) = (m[source].barycenter, m[source].weight) {
-			if w != 0.0 {
-				sum += b * w;
-				weight += w;
-			}
+		if let (Some(b), Some(w)) = (m[source].barycenter, m[source].weight)
+			&& w != 0.0
+		{
+			sum += b * w;
+			weight += w;
 		}
 		let source_vs = std::mem::take(&mut m[source].vs);
 		let new_vs = {
@@ -801,28 +793,27 @@ fn sort_impl(entries: Vec<ResolvedEntry>, bias_right: bool) -> SortResult {
 fn sort_subgraph(
 	graph: &LayerGraph,
 	v: &str,
-	constraint_graph: &mut Graph<(), (), ()>,
+	constraint_graph: &Graph<(), (), ()>,
 	bias_right: bool,
 ) -> SortResult {
 	let children = graph.children(Some(v));
 	let movable: Vec<String> = children;
 
 	let barycenters = barycenter_impl(graph, &movable);
-	let mut entries = barycenters;
+	let entries = barycenters;
 	let subgraphs: HashMap<String, SortResult> = HashMap::new();
 	// Layer graphs from build_layer_graph are flat (compound-but-rooted), no
 	// nested subgraphs beyond the root level in our scope. So skip subgraph
 	// recursion here. (Compound dagre input is out of scope per user choice.)
 	let _ = subgraphs;
 
-	let resolved =
-		resolve_conflicts_impl(entries.drain(..).collect(), constraint_graph);
+	let resolved = resolve_conflicts_impl(&entries, constraint_graph);
 	sort_impl(resolved, bias_right)
 }
 
 // ---------- add subgraph constraints (no-op in our scope) -----------------
 
-fn add_subgraph_constraints_layer(
+const fn add_subgraph_constraints_layer(
 	_layer: &LayerGraph,
 	_cg: &mut Graph<(), (), ()>,
 	_vs: &[String],
@@ -833,17 +824,17 @@ fn add_subgraph_constraints_layer(
 // ---------- sweep --------------------------------------------------------
 
 fn sweep_layer_graphs(
-	layer_graphs: &mut Vec<LayerGraph>,
+	layer_graphs: &mut [LayerGraph],
 	bias_right: bool,
 	graph: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>,
 ) {
 	let mut cg: Graph<(), (), ()> = Graph::new();
-	for lg in layer_graphs.iter_mut() {
+	for lg in layer_graphs {
 		let root = lg
 			.graph()
 			.map(|g| g.root.clone())
 			.unwrap_or_default();
-		let sorted = sort_subgraph(&lg, &root, &mut cg, bias_right);
+		let sorted = sort_subgraph(lg, &root, &cg, bias_right);
 		for (i, v) in sorted.vs.iter().enumerate() {
 			if let Some(n) = lg.node_mut(v) {
 				n.order = Some(i);

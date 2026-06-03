@@ -670,7 +670,6 @@ impl<'a> JavaScriptFormatter<'a> {
 		}
 	}
 
-	#[expect(clippy::too_many_lines, reason = "TODO: refactor?")]
 	fn finish_node(&self, node: AstKind<'a>) -> &'static [FormatDirective] {
 		use AstKind as N;
 		use FormatDirective as F;

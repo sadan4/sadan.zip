@@ -59,17 +59,17 @@ fn do_greedy_fas(state: &mut State) -> Vec<Edge> {
 	while state.g.node_count() > 0 {
 		// Drain sinks (bucket 0).
 		while let Some(entry) = state.buckets[0].dequeue() {
-			remove_node(state, entry, false, &mut results);
+			remove_node(state, &entry, false, &mut results);
 		}
 		// Drain sources (bucket last).
 		let last = state.buckets.len() - 1;
 		while let Some(entry) = state.buckets[last].dequeue() {
-			remove_node(state, entry, false, &mut results);
+			remove_node(state, &entry, false, &mut results);
 		}
 		if state.g.node_count() > 0 {
 			for i in (1..state.buckets.len() - 1).rev() {
 				if let Some(entry) = state.buckets[i].dequeue() {
-					remove_node(state, entry, true, &mut results);
+					remove_node(state, &entry, true, &mut results);
 					break;
 				}
 			}
@@ -80,7 +80,7 @@ fn do_greedy_fas(state: &mut State) -> Vec<Edge> {
 
 fn remove_node(
 	state: &mut State,
-	entry: FasEntry,
+	entry: &FasEntry,
 	collect_predecessors: bool,
 	results: &mut Vec<Edge>,
 ) {

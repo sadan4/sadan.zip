@@ -164,6 +164,11 @@ cast_ptr_alignment = "allow"
 must_use_candidate = "allow"
 # bad
 items_after_statements = "allow"
+# bad and errors sometimes
+option_if_let_else = "allow"
+# panic has a different error message / connotation compared to assert
+manual_assert = "allow"
+
 
 # Nursery
 clear_with_drain = "warn"
@@ -184,7 +189,6 @@ needless_pass_by_ref_mut = "warn"
 needless_type_cast = "warn"
 non_send_fields_in_send_ty = "warn"
 nonstandard_macro_braces = "warn"
-option_if_let_else = "warn"
 or_fun_call = "warn"
 path_buf_push_overwrite = "warn"
 read_zero_byte_vec = "warn"

@@ -75,7 +75,11 @@ impl Profile {
 			last: std::time::Instant::now(),
 		}
 	}
-	fn tick(&mut self, phase: &str, g: &Graph<GraphLabel, NodeLabel, EdgeLabel>) {
+	fn tick(
+		&mut self,
+		phase: &str,
+		g: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
+	) {
 		let now = std::time::Instant::now();
 		let dt = now.duration_since(self.last);
 		eprintln!(
@@ -95,11 +99,11 @@ struct Profile;
 #[cfg(not(feature = "profile"))]
 impl Profile {
 	#[inline(always)]
-	fn new() -> Self {
+	const fn new() -> Self {
 		Self
 	}
 	#[inline(always)]
-	fn tick(
+	const fn tick(
 		&mut self,
 		_phase: &str,
 		_g: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
@@ -109,10 +113,10 @@ impl Profile {
 
 /// Halves ranksep + doubles minlen, matching the JS makeSpaceForEdgeLabels.
 fn make_space_for_edge_labels(g: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>) {
-	if let Some(gl) = g.graph_mut() {
-		if let Some(r) = gl.ranksep.as_mut() {
-			*r /= 2.0;
-		}
+	if let Some(gl) = g.graph_mut()
+		&& let Some(r) = gl.ranksep.as_mut()
+	{
+		*r /= 2.0;
 	}
 	let edges = g.edges();
 	for e in edges {
@@ -134,13 +138,13 @@ fn translate_graph(g: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>) {
 	};
 
 	for v in g.nodes() {
-		if let Some(n) = g.node(&v) {
-			if let (Some(x), Some(y)) = (n.x, n.y) {
-				min_x = min_x.min(x - n.width / 2.0);
-				max_x = max_x.max(x + n.width / 2.0);
-				min_y = min_y.min(y - n.height / 2.0);
-				max_y = max_y.max(y + n.height / 2.0);
-			}
+		if let Some(n) = g.node(&v)
+			&& let (Some(x), Some(y)) = (n.x, n.y)
+		{
+			min_x = min_x.min(x - n.width / 2.0);
+			max_x = max_x.max(x + n.width / 2.0);
+			min_y = min_y.min(y - n.height / 2.0);
+			max_y = max_y.max(y + n.height / 2.0);
 		}
 	}
 	if !min_x.is_finite() {

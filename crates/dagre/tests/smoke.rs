@@ -3,10 +3,10 @@
 //! consistent ranks/orders/coords, and produces a sensible bounding box.
 
 use dagre::{
-	graph::GraphOpts,
-	types::{EdgeLabel, GraphLabel, NodeLabel},
 	Graph,
 	Ranker,
+	graph::GraphOpts,
+	types::{EdgeLabel, GraphLabel, NodeLabel},
 };
 
 fn make_node(width: f64, height: f64) -> NodeLabel {
@@ -64,20 +64,14 @@ fn three_node_chain_assigns_increasing_ranks_and_ys() {
 	let ya = g.node("a").unwrap().y.unwrap();
 	let yb = g.node("b").unwrap().y.unwrap();
 	let yc = g.node("c").unwrap().y.unwrap();
-	assert!(ya < yb, "a.y ({}) should be < b.y ({})", ya, yb);
-	assert!(yb < yc, "b.y ({}) should be < c.y ({})", yb, yc);
+	assert!(ya < yb, "a.y ({ya}) should be < b.y ({yb})");
+	assert!(yb < yc, "b.y ({yb}) should be < c.y ({yc})");
 
 	let ra = g.node("a").unwrap().rank.unwrap();
 	let rb = g.node("b").unwrap().rank.unwrap();
 	let rc = g.node("c").unwrap().rank.unwrap();
 	// Ranks are doubled by makeSpaceForEdgeLabels — only require monotonic.
-	assert!(
-		rb > ra && rc > rb,
-		"ranks must increase: {} {} {}",
-		ra,
-		rb,
-		rc
-	);
+	assert!(rb > ra && rc > rb, "ranks must increase: {ra} {rb} {rc}");
 }
 
 #[test]
@@ -105,9 +99,7 @@ fn diamond_has_both_branches_at_same_rank() {
 	let xc = g.node("c").unwrap().x.unwrap();
 	assert!(
 		(xb - xc).abs() > 1.0,
-		"b and c should be horizontally separated, got xb={} xc={}",
-		xb,
-		xc
+		"b and c should be horizontally separated, got xb={xb} xc={xc}"
 	);
 }
 
@@ -135,7 +127,7 @@ fn cycle_is_broken_and_restored() {
 	// After undo, no edge should be marked reversed.
 	for e in g.edges() {
 		let l = g.edge_obj(&e).unwrap();
-		assert!(!l.reversed, "edge {:?} still marked reversed after undo", e);
+		assert!(!l.reversed, "edge {e:?} still marked reversed after undo");
 	}
 }
 
@@ -156,8 +148,6 @@ fn bounding_box_is_set() {
 	let h = gl.height.unwrap();
 	assert!(
 		w > 0.0 && h > 0.0,
-		"graph should have positive bounding box, got {}x{}",
-		w,
-		h
+		"graph should have positive bounding box, got {w}x{h}"
 	);
 }

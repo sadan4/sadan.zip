@@ -1,5 +1,7 @@
 //! Port of test/acyclic-test.ts.
 
+use std::string::ToString;
+
 use dagre::{
 	acyclic,
 	graph::{alg, Edge, Graph, GraphOpts},
@@ -17,7 +19,7 @@ fn mk_graph(
 		..Default::default()
 	});
 	g.set_graph(GraphLabel {
-		acyclicer: acyclicer.map(|s| s.to_string()),
+		acyclicer: acyclicer.map(ToString::to_string),
 		..Default::default()
 	});
 	g
@@ -27,7 +29,7 @@ fn strip(e: &Edge) -> (String, String) {
 	(e.v.clone(), e.w.clone())
 }
 
-fn sort_edges(edges: &mut Vec<Edge>) {
+fn sort_edges(edges: &mut [Edge]) {
 	edges.sort_by(|a, b| match (&a.name, &b.name) {
 		(Some(an), Some(bn)) => an.cmp(bn),
 		_ => match a.v.cmp(&b.v) {
@@ -62,7 +64,7 @@ fn run_does_not_change_an_already_acyclic_graph() {
 			("b".into(), "d".into()),
 			("c".into(), "d".into()),
 		];
-		assert_eq!(pairs, expected, "acyclicer={:?}", ac);
+		assert_eq!(pairs, expected, "acyclicer={ac:?}");
 	});
 }
 
@@ -73,7 +75,7 @@ fn run_breaks_cycles_in_the_input_graph() {
 		g.set_path(&["a", "b", "c", "d", "a"]);
 		acyclic::run(&mut g);
 		let cycles = alg::find_cycles(&g);
-		assert!(cycles.is_empty(), "still cyclic ({:?}): {:?}", ac, cycles);
+		assert!(cycles.is_empty(), "still cyclic ({ac:?}): {cycles:?}");
 	});
 }
 
@@ -84,7 +86,7 @@ fn run_creates_multi_edge_where_necessary() {
 		g.set_path(&["a", "b", "a"]);
 		acyclic::run(&mut g);
 		let cycles = alg::find_cycles(&g);
-		assert!(cycles.is_empty(), "still cyclic ({:?})", ac);
+		assert!(cycles.is_empty(), "still cyclic ({ac:?})");
 		assert_eq!(g.edge_count(), 2);
 		let ab = g
 			.out_edges_to("a", "b")

@@ -25,7 +25,7 @@ pub struct List {
 }
 
 impl List {
-	pub fn new() -> Self {
+	pub const fn new() -> Self {
 		Self {
 			items: VecDeque::new(),
 		}

@@ -538,8 +538,9 @@ impl<'ast> WebpackAstParser<'ast> {
 			.is_some()
 		{
 			// how???
-			debug_assert!(
-				self.does_re_export_whole_module() == Some(module_id)
+			debug_assert_eq!(
+				self.does_re_export_whole_module(),
+				Some(module_id)
 			);
 			return Some(export_name);
 		}

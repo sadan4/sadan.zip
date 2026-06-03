@@ -1,5 +1,7 @@
 //! Port of test/order/add-subgraph-constraints-test.ts.
 
+use std::string::ToString;
+
 use dagre::{
 	graph::{Edge, Graph, GraphOpts},
 	order::add_subgraph_constraints,
@@ -12,7 +14,7 @@ fn mk() -> Graph<GraphLabel, NodeLabel, EdgeLabel> {
 
 fn vs(s: &[&str]) -> Vec<String> {
 	s.iter()
-		.map(|x| x.to_string())
+		.map(ToString::to_string)
 		.collect()
 }
 

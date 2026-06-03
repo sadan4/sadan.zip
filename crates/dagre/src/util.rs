@@ -13,7 +13,7 @@ static ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 pub fn unique_id(prefix: &str) -> String {
 	let id = ID_COUNTER.fetch_add(1, Ordering::SeqCst) + 1;
-	format!("{}{}", prefix, id)
+	format!("{prefix}{id}")
 }
 
 /// Reset the global id counter — useful in tests for determinism. Not
@@ -60,7 +60,7 @@ pub fn simplify(
 		let prev = s
 			.edge(&e.v, &e.w)
 			.cloned()
-			.unwrap_or(EdgeLabel {
+			.unwrap_or_else(|| EdgeLabel {
 				weight: 0.0,
 				minlen: 1,
 				..Default::default()
@@ -91,10 +91,10 @@ pub fn as_non_compound_graph(
 		s.set_graph(g.clone());
 	}
 	for v in graph.nodes() {
-		if graph.children(Some(&v)).is_empty() {
-			if let Some(n) = graph.node(&v) {
-				s.set_node(v, n.clone());
-			}
+		if graph.children(Some(&v)).is_empty()
+			&& let Some(n) = graph.node(&v)
+		{
+			s.set_node(v, n.clone());
 		}
 	}
 	for e in graph.edges() {
@@ -117,8 +117,7 @@ pub fn successor_weights(
 			for e in es {
 				let w = graph
 					.edge_obj(&e)
-					.map(|l| l.weight)
-					.unwrap_or(0.0);
+					.map_or(0.0, |l| l.weight);
 				*sucs.entry(e.w.clone()).or_insert(0.0) += w;
 			}
 		}
@@ -137,8 +136,7 @@ pub fn predecessor_weights(
 			for e in es {
 				let w = graph
 					.edge_obj(&e)
-					.map(|l| l.weight)
-					.unwrap_or(0.0);
+					.map_or(0.0, |l| l.weight);
 				*preds.entry(e.v.clone()).or_insert(0.0) += w;
 			}
 		}
@@ -194,16 +192,15 @@ pub fn build_layer_matrix(
 		.map(|_| Vec::new())
 		.collect();
 	for v in graph.nodes_iter() {
-		if let Some(n) = graph.node(v) {
-			if let Some(rank) = n.rank {
-				if rank >= 0 {
-					let r = rank as usize;
-					if r >= layers.len() {
-						layers.resize_with(r + 1, Vec::new);
-					}
-					layers[r].push((n.order.unwrap_or(0), v.to_string()));
-				}
+		if let Some(n) = graph.node(v)
+			&& let Some(rank) = n.rank
+			&& rank >= 0
+		{
+			let r = rank as usize;
+			if r >= layers.len() {
+				layers.resize_with(r + 1, Vec::new);
 			}
+			layers[r].push((n.order.unwrap_or(0), v.to_string()));
 		}
 	}
 	layers
@@ -222,41 +219,36 @@ pub fn max_rank(graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>) -> i32 {
 	let mut mx = i32::MIN;
 	let mut seen = false;
 	for v in graph.nodes_iter() {
-		if let Some(n) = graph.node(v) {
-			if let Some(r) = n.rank {
-				seen = true;
-				if r > mx {
-					mx = r;
-				}
+		if let Some(n) = graph.node(v)
+			&& let Some(r) = n.rank
+		{
+			seen = true;
+			if r > mx {
+				mx = r;
 			}
 		}
 	}
-	if seen {
-		mx
-	} else {
-		-1
-	}
+	if seen { mx } else { -1 }
 }
 
 pub fn normalize_ranks(graph: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>) {
 	let mut min = i32::MAX;
 	for v in graph.nodes() {
-		if let Some(n) = graph.node(&v) {
-			if let Some(r) = n.rank {
-				if r < min {
-					min = r;
-				}
-			}
+		if let Some(n) = graph.node(&v)
+			&& let Some(r) = n.rank
+			&& r < min
+		{
+			min = r;
 		}
 	}
 	if min == i32::MAX {
 		return;
 	}
 	for v in graph.nodes() {
-		if let Some(n) = graph.node_mut(&v) {
-			if let Some(r) = n.rank {
-				n.rank = Some(r - min);
-			}
+		if let Some(n) = graph.node_mut(&v)
+			&& let Some(r) = n.rank
+		{
+			n.rank = Some(r - min);
 		}
 	}
 }
@@ -273,16 +265,16 @@ pub fn remove_empty_ranks(graph: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>) {
 	let offset = *ranks.iter().min().unwrap();
 	let mut layers: Vec<Option<Vec<String>>> = Vec::new();
 	for v in graph.nodes() {
-		if let Some(n) = graph.node(&v) {
-			if let Some(r) = n.rank {
-				let idx = (r - offset) as usize;
-				while layers.len() <= idx {
-					layers.push(None);
-				}
-				layers[idx]
-					.get_or_insert_with(Vec::new)
-					.push(v.clone());
+		if let Some(n) = graph.node(&v)
+			&& let Some(r) = n.rank
+		{
+			let idx = (r - offset) as usize;
+			while layers.len() <= idx {
+				layers.push(None);
 			}
+			layers[idx]
+				.get_or_insert_with(Vec::new)
+				.push(v.clone());
 		}
 	}
 	let factor = graph
@@ -292,15 +284,15 @@ pub fn remove_empty_ranks(graph: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>) {
 	let mut delta = 0i32;
 	for (i, vs) in layers.iter().enumerate() {
 		match vs {
-			None if factor != 0 && (i as i32) % factor != 0 => {
+			None if factor != 0 && i as i32 % factor != 0 => {
 				delta -= 1;
 			}
 			Some(vs) if delta != 0 => {
 				for v in vs {
-					if let Some(n) = graph.node_mut(v) {
-						if let Some(r) = n.rank {
-							n.rank = Some(r + delta);
-						}
+					if let Some(n) = graph.node_mut(v)
+						&& let Some(r) = n.rank
+					{
+						n.rank = Some(r + delta);
 					}
 				}
 			}
@@ -371,6 +363,5 @@ pub fn edge_weight(
 ) -> f64 {
 	graph
 		.edge_obj(e)
-		.map(|l| l.weight)
-		.unwrap_or(1.0)
+		.map_or(1.0, |l| l.weight)
 }

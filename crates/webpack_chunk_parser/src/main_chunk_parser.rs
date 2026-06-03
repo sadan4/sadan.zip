@@ -232,7 +232,6 @@ impl<'ast> WebpackMainChunkParser<'ast> {
 	}
 
 	fn process_wreq_u_map_expr(
-		&self,
 		expr: &'ast Expression<'ast>,
 	) -> Option<Vec<JsHashEntry>> {
 		let expr = expr.as_binary_expression()?;
@@ -314,7 +313,7 @@ impl<'ast> WebpackMainChunkParser<'ast> {
 			ret.push(entry);
 			cur = &expr.alternate;
 		}
-		let from_map_expr = self.process_wreq_u_map_expr(cur)?;
+		let from_map_expr = Self::process_wreq_u_map_expr(cur)?;
 		ret.extend(from_map_expr);
 		Some(ret)
 	}

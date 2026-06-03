@@ -27,20 +27,21 @@ pub struct Edge {
 }
 
 impl Edge {
+	#[must_use]
 	pub fn new(v: impl Into<String>, w: impl Into<String>) -> Self {
-		Edge {
+		Self {
 			v: v.into(),
 			w: w.into(),
 			name: None,
 		}
 	}
-
+	#[must_use]
 	pub fn with_name(
 		v: impl Into<String>,
 		w: impl Into<String>,
 		name: impl Into<String>,
 	) -> Self {
-		Edge {
+		Self {
 			v: v.into(),
 			w: w.into(),
 			name: Some(name.into()),
@@ -59,7 +60,7 @@ pub struct GraphOpts {
 
 impl Default for GraphOpts {
 	fn default() -> Self {
-		GraphOpts {
+		Self {
 			directed: true,
 			multigraph: false,
 			compound: false,
@@ -68,25 +69,32 @@ impl Default for GraphOpts {
 }
 
 impl GraphOpts {
+	#[must_use]
 	pub fn directed() -> Self {
-		GraphOpts::default()
+		Self::default()
 	}
-	pub fn undirected() -> Self {
-		GraphOpts {
+	#[must_use]
+	pub const fn undirected() -> Self {
+		Self {
 			directed: false,
 			multigraph: false,
 			compound: false,
 		}
 	}
-	pub fn multigraph(mut self) -> Self {
+	#[must_use]
+	pub const fn multigraph(mut self) -> Self {
 		self.multigraph = true;
 		self
 	}
-	pub fn compound(mut self) -> Self {
+	#[must_use]
+	pub const fn compound(mut self) -> Self {
 		self.compound = true;
 		self
 	}
 }
+
+type NodeLabelFactory<N> = Box<dyn Fn(&str) -> N>;
+type EdgeLabelFactory<E> = Box<dyn Fn(&Edge) -> E>;
 
 /// The graph itself. `G`, `N`, `E` are the label types.
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -106,9 +114,9 @@ pub struct Graph<G, N, E> {
 
 	// Default label factory used by `setNode(v)` (without label).
 	#[cfg_attr(feature = "serde", serde(skip))]
-	default_node_label: Option<Box<dyn Fn(&str) -> N>>,
+	default_node_label: Option<NodeLabelFactory<N>>,
 	#[cfg_attr(feature = "serde", serde(skip))]
-	default_edge_label: Option<Box<dyn Fn(&Edge) -> E>>,
+	default_edge_label: Option<EdgeLabelFactory<E>>,
 
 	/// Insertion-ordered node ids.
 	node_order: Vec<String>,
@@ -120,9 +128,9 @@ pub struct Graph<G, N, E> {
 	/// Children of each parent ("\x00" key = root children, matching JS impl).
 	children: HashMap<String, BTreeSet<String>>,
 
-	/// out[v] -> { edge_id -> Edge }
+	/// out[v] -> { `edge_id` -> Edge }
 	out_edges: HashMap<String, BTreeMap<String, Edge>>,
-	/// in[v] -> { edge_id -> Edge }
+	/// in[v] -> { `edge_id` -> Edge }
 	in_edges: HashMap<String, BTreeMap<String, Edge>>,
 	/// predecessor count: preds[v][u] = number of u->v edges
 	preds: HashMap<String, HashMap<String, usize>>,
@@ -131,9 +139,9 @@ pub struct Graph<G, N, E> {
 	/// Insertion-ordered edge ids -> Edge.
 	edge_order: Vec<String>,
 	edge_index: HashMap<String, usize>,
-	/// Edge label, keyed by edge_id.
+	/// Edge label, keyed by `edge_id`.
 	edge_labels: HashMap<String, E>,
-	/// Edge object, keyed by edge_id.
+	/// Edge object, keyed by `edge_id`.
 	edge_objs: HashMap<String, Edge>,
 }
 
@@ -146,7 +154,7 @@ impl<G, N, E> Graph<G, N, E> {
 
 	pub fn with_opts(opts: GraphOpts) -> Self {
 		let is_directed = opts.directed;
-		let mut g = Graph {
+		let mut g = Self {
 			is_directed,
 			is_multigraph: opts.multigraph,
 			is_compound: opts.compound,
@@ -174,10 +182,10 @@ impl<G, N, E> Graph<G, N, E> {
 		g
 	}
 
-	pub fn is_directed(&self) -> bool {
+	pub const fn is_directed(&self) -> bool {
 		self.is_directed
 	}
-	pub fn is_multigraph(&self) -> bool {
+	pub const fn is_multigraph(&self) -> bool {
 		self.is_multigraph
 	}
 	/// Promote a simple graph to a multigraph in place. Existing edges keep
@@ -185,10 +193,10 @@ impl<G, N, E> Graph<G, N, E> {
 	/// canonical id for the multigraph version of the same edge), so no edges
 	/// move or merge. Used by layout to satisfy its internal requirement that
 	/// named dummy / reversed edges can be inserted.
-	pub fn set_multigraph(&mut self, multigraph: bool) {
+	pub const fn set_multigraph(&mut self, multigraph: bool) {
 		self.is_multigraph = multigraph;
 	}
-	pub fn is_compound(&self) -> bool {
+	pub const fn is_compound(&self) -> bool {
 		self.is_compound
 	}
 
@@ -198,10 +206,10 @@ impl<G, N, E> Graph<G, N, E> {
 		self.label = Some(label);
 		self
 	}
-	pub fn graph(&self) -> Option<&G> {
+	pub const fn graph(&self) -> Option<&G> {
 		self.label.as_ref()
 	}
-	pub fn graph_mut(&mut self) -> Option<&mut G> {
+	pub const fn graph_mut(&mut self) -> Option<&mut G> {
 		self.label.as_mut()
 	}
 
@@ -222,7 +230,7 @@ impl<G, N, E> Graph<G, N, E> {
 
 	// ---- nodes ----------------------------------------------------------
 
-	pub fn node_count(&self) -> usize {
+	pub const fn node_count(&self) -> usize {
 		self.node_order.len()
 	}
 	pub fn nodes(&self) -> Vec<String> {
@@ -308,10 +316,10 @@ impl<G, N, E> Graph<G, N, E> {
 				.map(|s| s.iter().cloned().collect())
 				.unwrap_or_default();
 			// Remove this v from its parent's child set.
-			if let Some(p) = self.parent.remove(v) {
-				if let Some(set) = self.children.get_mut(&p) {
-					set.remove(v);
-				}
+			if let Some(p) = self.parent.remove(v)
+				&& let Some(set) = self.children.get_mut(&p)
+			{
+				set.remove(v);
 			}
 			for c in &cs {
 				// children become root-level.
@@ -336,10 +344,7 @@ impl<G, N, E> Graph<G, N, E> {
 			.get(v)
 			.map(|m| m.values().cloned().collect())
 			.unwrap_or_default();
-		for e in in_es
-			.into_iter()
-			.chain(out_es.into_iter())
-		{
+		for e in in_es.into_iter().chain(out_es) {
 			self.remove_edge_obj(&e);
 		}
 
@@ -383,8 +388,7 @@ impl<G, N, E> Graph<G, N, E> {
 			while let Some(a) = ancestor {
 				if a == v {
 					panic!(
-						"Setting {} as parent of {} would create a cycle",
-						new_parent, v
+						"Setting {new_parent} as parent of {v} would create a cycle",
 					);
 				}
 				ancestor = self.parent.get(&a).cloned();
@@ -393,14 +397,16 @@ impl<G, N, E> Graph<G, N, E> {
 				}
 			}
 		}
-		if parent.is_some() && !self.has_node(parent.unwrap()) {
-			self.set_node_default(parent.unwrap().to_string());
+		if let Some(parent) = parent
+			&& !self.has_node(parent)
+		{
+			self.set_node_default(parent.to_string());
 		}
 		// Detach from previous parent.
-		if let Some(prev) = self.parent.get(v).cloned() {
-			if let Some(set) = self.children.get_mut(&prev) {
-				set.remove(v);
-			}
+		if let Some(prev) = self.parent.get(v).cloned()
+			&& let Some(set) = self.children.get_mut(&prev)
+		{
+			set.remove(v);
 		}
 		self.parent
 			.insert(v.to_string(), new_parent.clone());
@@ -441,7 +447,7 @@ impl<G, N, E> Graph<G, N, E> {
 
 	// ---- edges ----------------------------------------------------------
 
-	pub fn edge_count(&self) -> usize {
+	pub const fn edge_count(&self) -> usize {
 		self.edge_order.len()
 	}
 
@@ -553,16 +559,15 @@ impl<G, N, E> Graph<G, N, E> {
 
 		if self.edge_index.contains_key(&id) {
 			if let Some(label) = label {
-				self.edge_labels
-					.insert(id.clone(), label);
+				self.edge_labels.insert(id, label);
 			} else if let Some(f) = &self.default_edge_label {
 				let e = Edge {
 					v: v.clone(),
 					w: w.clone(),
-					name: name.clone(),
+					name,
 				};
 				let l = f(&e);
-				self.edge_labels.insert(id.clone(), l);
+				self.edge_labels.insert(id, l);
 			}
 			return;
 		}
@@ -579,7 +584,7 @@ impl<G, N, E> Graph<G, N, E> {
 		let edge = Edge {
 			v: v.clone(),
 			w: w.clone(),
-			name: name.clone(),
+			name,
 		};
 		let label = match label {
 			Some(l) => l,
@@ -604,7 +609,7 @@ impl<G, N, E> Graph<G, N, E> {
 		self.in_edges
 			.get_mut(&w)
 			.unwrap()
-			.insert(id.clone(), edge);
+			.insert(id, edge);
 		*self
 			.sucs
 			.get_mut(&v)
@@ -656,7 +661,7 @@ impl<G, N, E> Graph<G, N, E> {
 	pub fn remove_edge_named(&mut self, v: &str, w: &str, name: Option<&str>) {
 		let id = self.edge_id(v, w, name);
 		if let Some(e) = self.edge_objs.get(&id).cloned() {
-			let (vv, ww) = (e.v.clone(), e.w.clone());
+			let (vv, ww) = (e.v.clone(), e.w);
 			self.edge_labels.remove(&id);
 			self.edge_objs.remove(&id);
 			// See remove_node: O(1) swap_remove instead of order-preserving
@@ -676,20 +681,20 @@ impl<G, N, E> Graph<G, N, E> {
 			if let Some(m) = self.in_edges.get_mut(&ww) {
 				m.remove(&id);
 			}
-			if let Some(m) = self.sucs.get_mut(&vv) {
-				if let Some(cnt) = m.get_mut(&ww) {
-					*cnt -= 1;
-					if *cnt == 0 {
-						m.remove(&ww);
-					}
+			if let Some(m) = self.sucs.get_mut(&vv)
+				&& let Some(cnt) = m.get_mut(&ww)
+			{
+				*cnt -= 1;
+				if *cnt == 0 {
+					m.remove(&ww);
 				}
 			}
-			if let Some(m) = self.preds.get_mut(&ww) {
-				if let Some(cnt) = m.get_mut(&vv) {
-					*cnt -= 1;
-					if *cnt == 0 {
-						m.remove(&vv);
-					}
+			if let Some(m) = self.preds.get_mut(&ww)
+				&& let Some(cnt) = m.get_mut(&vv)
+			{
+				*cnt -= 1;
+				if *cnt == 0 {
+					m.remove(&vv);
 				}
 			}
 		}
@@ -770,8 +775,7 @@ impl<G, N, E> Graph<G, N, E> {
 			.filter(|v| {
 				self.preds
 					.get(*v)
-					.map(|m| m.is_empty())
-					.unwrap_or(true)
+					.is_none_or(HashMap::is_empty)
 			})
 			.cloned()
 			.collect()
@@ -803,12 +807,17 @@ impl<G, N, E> Graph<G, N, E> {
 			.filter(|v| {
 				self.sucs
 					.get(*v)
-					.map(|m| m.is_empty())
-					.unwrap_or(true)
+					.is_none_or(HashMap::is_empty)
 			})
 			.cloned()
 			.collect()
 	}
+}
+
+impl<G, N, E> Default for Graph<G, N, E> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 // ---- graph algorithms used by network-simplex --------------------------

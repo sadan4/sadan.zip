@@ -74,12 +74,12 @@ fn normalize_edge(
 			},
 			name.clone(),
 		);
-		if i == 0 {
-			if let Some(gl) = graph.graph_mut() {
-				gl.dummy_chains
-					.get_or_insert_with(Vec::new)
-					.push(dummy.clone());
-			}
+		if i == 0
+			&& let Some(gl) = graph.graph_mut()
+		{
+			gl.dummy_chains
+				.get_or_insert_with(Vec::new)
+				.push(dummy.clone());
 		}
 		v = dummy;
 		i += 1;
@@ -120,21 +120,17 @@ pub fn undo(graph: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>) {
 			orig_obj.name.clone(),
 		);
 
-		loop {
-			let node = match graph.node(&v) {
-				Some(n) => n.clone(),
-				None => break,
-			};
+		while let Some(node) = graph.node(&v) {
 			if node.dummy.is_none() {
 				break;
 			}
-			let w = match graph
+			let Some(w) = graph
 				.successors(&v)
 				.and_then(|s| s.into_iter().next())
-			{
-				Some(w) => w,
-				None => break,
+			else {
+				break;
 			};
+			let node = node.clone();
 			graph.remove_node(&v);
 			orig_label
 				.points

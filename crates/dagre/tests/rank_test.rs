@@ -61,6 +61,6 @@ fn ranks_single_node_graph_for_each_ranker() {
 		});
 		g.set_node("a", NodeLabel::default());
 		rank::rank(&mut g);
-		assert_eq!(g.node("a").unwrap().rank, Some(0), "ranker={:?}", ranker);
+		assert_eq!(g.node("a").unwrap().rank, Some(0), "ranker={ranker:?}");
 	}
 }
