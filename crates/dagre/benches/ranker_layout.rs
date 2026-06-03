@@ -239,6 +239,18 @@ fn clone_graph(
 	out
 }
 
+fn panic1_benches(c: &mut Criterion) {
+	let json = include_str!("../tests/data/panic1.json");
+	let g: LayoutGraph =
+		serde_json::from_str(json).expect("deserialize panic1.json");
+	eprintln!(
+		"panic1 graph: {} nodes, {} edges",
+		g.node_count(),
+		g.edge_count()
+	);
+	bench_layout(c, "layout (panic1)", &g);
+}
+
 fn small_benches(c: &mut Criterion) {
 	let g = small_graph();
 	bench_ranker(c, "longest-path ranker (small)", &g, Ranker::LongestPath);
@@ -270,5 +282,5 @@ fn large_benches(c: &mut Criterion) {
 	bench_layout(c, "layout (large)", &g);
 }
 
-criterion_group!(benches, small_benches, large_benches);
+criterion_group!(benches, small_benches, large_benches, panic1_benches);
 criterion_main!(benches);
