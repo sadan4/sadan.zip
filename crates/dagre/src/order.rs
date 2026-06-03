@@ -30,9 +30,9 @@ struct LayerEdge {
 	weight: f64,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 struct LayerGraphLabel {
-	root: String,
+	movable: Vec<String>,
 }
 
 type LayerGraph = Graph<LayerGraphLabel, LayerNode, LayerEdge>;
@@ -172,13 +172,32 @@ pub fn order(
 	let down_ranks = util::range(1, max_rank + 1, 1);
 	let up_ranks = util::range(max_rank - 1, -1, -1);
 
+	#[cfg(feature = "profile")]
+	let t_blg = std::time::Instant::now();
+	let by_rank = nodes_by_rank(graph);
+	#[cfg(feature = "profile")]
+	let dt_bucket = t_blg.elapsed();
 	let mut down_layer_graphs =
-		build_layer_graphs(graph, &down_ranks, Relationship::InEdges);
+		build_layer_graphs(graph, &down_ranks, Relationship::InEdges, &by_rank);
 	let mut up_layer_graphs =
-		build_layer_graphs(graph, &up_ranks, Relationship::OutEdges);
-
+		build_layer_graphs(graph, &up_ranks, Relationship::OutEdges, &by_rank);
+	#[cfg(feature = "profile")]
+	let dt_blg = t_blg.elapsed();
+	#[cfg(feature = "profile")]
+	eprintln!(
+		"[dagre]   order::pre nodes_by_rank={:.1}ms build_layer_graphs(x2)={:.1}ms",
+		dt_bucket.as_secs_f64() * 1000.0,
+		(dt_blg - dt_bucket).as_secs_f64() * 1000.0,
+	);
+	#[cfg(feature = "profile")]
+	let t_init = std::time::Instant::now();
 	let mut layering = init_order(graph);
 	assign_order(graph, &layering);
+	#[cfg(feature = "profile")]
+	eprintln!(
+		"[dagre]   order::pre init_order+assign={:.1}ms",
+		t_init.elapsed().as_secs_f64() * 1000.0,
+	);
 
 	if opts.disable_optimal_order_heuristic {
 		return;
@@ -258,19 +277,17 @@ enum Relationship {
 	OutEdges,
 }
 
-fn build_layer_graphs(
+fn nodes_by_rank(
 	graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
-	ranks: &[i32],
-	relationship: Relationship,
-) -> Vec<LayerGraph> {
+) -> HashMap<i32, Vec<String>> {
 	let mut nodes_by_rank: HashMap<i32, Vec<String>> = HashMap::new();
-	for v in graph.nodes() {
-		if let Some(n) = graph.node(&v) {
+	for v in graph.nodes_iter() {
+		if let Some(n) = graph.node(v) {
 			if let Some(r) = n.rank {
 				nodes_by_rank
 					.entry(r)
 					.or_default()
-					.push(v.clone());
+					.push(v.to_string());
 			}
 			if let (Some(min), Some(max)) = (n.min_rank, n.max_rank) {
 				for r in min..=max {
@@ -278,12 +295,22 @@ fn build_layer_graphs(
 						nodes_by_rank
 							.entry(r)
 							.or_default()
-							.push(v.clone());
+							.push(v.to_string());
 					}
 				}
 			}
 		}
 	}
+	nodes_by_rank
+}
+
+fn build_layer_graphs(
+	graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
+	ranks: &[i32],
+	relationship: Relationship,
+	nodes_by_rank: &HashMap<i32, Vec<String>>,
+) -> Vec<LayerGraph> {
+	let empty: Vec<String> = Vec::new();
 	ranks
 		.iter()
 		.map(|r| {
@@ -291,10 +318,7 @@ fn build_layer_graphs(
 				graph,
 				*r,
 				relationship,
-				&nodes_by_rank
-					.get(r)
-					.cloned()
-					.unwrap_or_default(),
+				nodes_by_rank.get(r).unwrap_or(&empty),
 			)
 		})
 		.collect()
@@ -306,15 +330,12 @@ fn build_layer_graph(
 	relationship: Relationship,
 	nodes_with_rank: &[String],
 ) -> LayerGraph {
-	let root = create_root_node(graph);
 	let mut result: LayerGraph = Graph::with_opts(GraphOpts {
 		directed: true,
 		multigraph: false,
-		compound: true,
+		compound: false,
 	});
-	result.set_graph(LayerGraphLabel { root: root.clone() });
-	// root node
-	result.set_node(root.clone(), LayerNode::default());
+	let mut movable: Vec<String> = Vec::with_capacity(nodes_with_rank.len());
 
 	for v in nodes_with_rank {
 		// Read only the fields we need by reference. Cloning the whole
@@ -344,9 +365,6 @@ fn build_layer_graph(
 		if !in_range {
 			continue;
 		}
-		let parent = graph
-			.parent(v)
-			.map_or_else(|| root.clone(), ToString::to_string);
 		result.set_node(
 			v.clone(),
 			LayerNode {
@@ -357,7 +375,7 @@ fn build_layer_graph(
 				..Default::default()
 			},
 		);
-		result.set_parent(v, Some(&parent));
+		movable.push(v.clone());
 
 		let es = match relationship {
 			Relationship::InEdges => graph.in_edges(v).unwrap_or_default(),
@@ -367,7 +385,6 @@ fn build_layer_graph(
 			let u = if e.v == *v { e.w.clone() } else { e.v.clone() };
 			if !result.has_node(&u) {
 				result.set_node(u.clone(), LayerNode::default());
-				result.set_parent(&u, Some(&root));
 			}
 			let prev = result
 				.edge(&u, v)
@@ -389,16 +406,8 @@ fn build_layer_graph(
 			n.border_right = Some(br);
 		}
 	}
+	result.set_graph(LayerGraphLabel { movable });
 	result
-}
-
-fn create_root_node(graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>) -> String {
-	loop {
-		let v = util::unique_id("_root");
-		if !graph.has_node(&v) {
-			return v;
-		}
-	}
 }
 
 // ---------- init order ---------------------------------------------------
@@ -792,14 +801,11 @@ fn sort_impl(entries: Vec<ResolvedEntry>, bias_right: bool) -> SortResult {
 
 fn sort_subgraph(
 	graph: &LayerGraph,
-	v: &str,
+	movable: &[String],
 	constraint_graph: &Graph<(), (), ()>,
 	bias_right: bool,
 ) -> SortResult {
-	let children = graph.children(Some(v));
-	let movable: Vec<String> = children;
-
-	let barycenters = barycenter_impl(graph, &movable);
+	let barycenters = barycenter_impl(graph, movable);
 	let entries = barycenters;
 	let subgraphs: HashMap<String, SortResult> = HashMap::new();
 	// Layer graphs from build_layer_graph are flat (compound-but-rooted), no
@@ -830,11 +836,11 @@ fn sweep_layer_graphs(
 ) {
 	let mut cg: Graph<(), (), ()> = Graph::new();
 	for lg in layer_graphs {
-		let root = lg
+		let movable = lg
 			.graph()
-			.map(|g| g.root.clone())
+			.map(|g| g.movable.clone())
 			.unwrap_or_default();
-		let sorted = sort_subgraph(lg, &root, &cg, bias_right);
+		let sorted = sort_subgraph(lg, &movable, &cg, bias_right);
 		for (i, v) in sorted.vs.iter().enumerate() {
 			if let Some(n) = lg.node_mut(v) {
 				n.order = Some(i);
