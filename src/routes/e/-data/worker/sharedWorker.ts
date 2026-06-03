@@ -27,7 +27,7 @@ export interface IBuildService {
     generateReferences(moduleId: TModuleId, position: Monaco.IPosition): ModuleLocation[];
     generateHover(moduleId: TModuleId, position: Monaco.IPosition): HoverInfo | undefined;
     getAllModuleIds(): Uint32Array;
-    generateModuleGraph(moduleId: TModuleId): GeneratedGraph;
+    generateModuleGraph(moduleId: TModuleId, depth: number): GeneratedGraph;
 }
 
 const self = globalThis as any as SharedWorkerGlobalScope;
@@ -145,8 +145,8 @@ class BuildService implements IBuildService {
         return comlink.transfer(ids, [ids.buffer]);
     }
 
-    public generateModuleGraph(moduleId: TModuleId): GeneratedGraph {
-        const graph = this.#bundle.gen_graph(moduleId, 3);
+    public generateModuleGraph(moduleId: TModuleId, depth: number): GeneratedGraph {
+        const graph = this.#bundle.gen_graph(moduleId, depth);
 
         return convertGraph(graph);
     }

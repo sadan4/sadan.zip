@@ -193,6 +193,7 @@ export function parseModuleURI(uri: Monaco.Uri): ParsedModuleURI | undefined {
 const IModuleViewerSettings = z.object({
     openModulesInNewTab: z.boolean().catch(false),
     editorTheme: z.enum(TextmateTheme).catch(TextmateTheme.TOKYO_NIGHT),
+    graphDepth: z.number().catch(1),
 });
 
 export type IModuleViewerSettings = z.infer<typeof IModuleViewerSettings>;
@@ -200,6 +201,7 @@ export type IModuleViewerSettings = z.infer<typeof IModuleViewerSettings>;
 export const useModuleViewerSettingsStore = create<IModuleViewerSettings>()(persist(() => ({
     openModulesInNewTab: false,
     editorTheme: TextmateTheme.TOKYO_NIGHT,
+    graphDepth: 1,
 } satisfies IModuleViewerSettings as IModuleViewerSettings), {
     name: "module-viewer-settings",
     version: 1,

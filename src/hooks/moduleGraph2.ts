@@ -1,4 +1,4 @@
-import { ModuleViewerStore, useModuleViewerStore } from "@/routes/e/-data";
+import { ModuleViewerStore, useModuleViewerSettingsStore, useModuleViewerStore } from "@/routes/e/-data";
 import type { TModuleId } from "@/utils/types";
 import type { Edge, Node } from "@xyflow/react";
 
@@ -11,18 +11,29 @@ export interface GeneratedGraph {
 
 export function useModuleGraph2() {
     const moduleId = useModuleViewerStore(({ selectedModule }) => selectedModule);
+    const graphDepth = useModuleViewerSettingsStore(({ graphDepth }) => graphDepth);
     const [graph, setGraph] = useState<GeneratedGraph | null>(null);
 
     useEffect(() => {
+        let cancelled = false;
+
         !async function () {
             if (!moduleId)
                 return;
 
             const { _buildService: buildService } = ModuleViewerStore.getState();
-            const graph = await buildService.generateModuleGraph(moduleId as TModuleId);
+            const graph = await buildService.generateModuleGraph(moduleId as TModuleId, graphDepth);
+
+            if (cancelled) {
+                return;
+            }
 
             setGraph(graph);
         }();
-    }, [moduleId]);
+
+        return () => {
+            cancelled = true;
+        };
+    }, [moduleId, graphDepth]);
     return graph;
 }

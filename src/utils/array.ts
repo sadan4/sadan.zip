@@ -110,6 +110,9 @@ export function single<T>(arr: ArrayLike<T>): T {
     return arr[0];
 }
 
+/**
+ * @param end inclusive
+ */
 export function makeRange(start: number, end: number, step = 1): number[] {
     const ret: number[] = [];
 

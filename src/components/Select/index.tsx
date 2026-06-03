@@ -54,12 +54,7 @@ function SelectItem<T>({ item: { label, value, disabled }, isSelected, onChange 
             ref={ref}
             className={cn("flex items-center p-2", disabled ? "brightness-50" : "hover:bg-bg-200")}
             onClick={() => {
-                console.log("clicked", {
-                    value,
-                    label,
-                    isSelected,
-                });
-                return onChange(value);
+                onChange(value);
             }}
         >
             <div

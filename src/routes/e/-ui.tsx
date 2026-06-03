@@ -8,11 +8,13 @@ import { BufferedScroller } from "@/components/layout/BufferedScroller";
 import { HorizontalLine } from "@/components/Lines";
 import { Modal, ModalContext } from "@/components/modal";
 import { Select, type SelectOption } from "@/components/Select";
+import { Slider } from "@/components/Slider";
 import { LabeledSwitch } from "@/components/Switch/index";
 import { Text } from "@/components/Text";
 import { ToggleButtonGroup } from "@/components/ToggleButtonGroup";
 import { TooltipPosition } from "@/components/Tooltip/constants";
 import { type GeneratedGraph, useModuleGraph2 } from "@/hooks/moduleGraph2";
+import { makeRange } from "@/utils/array";
 import cn from "@/utils/cn";
 import { BUNDLE_TARBALL_FILENAME, BUNDLE_TARBALL_URL, GITHUB_REPO_URL, NBSP } from "@/utils/constants";
 import { debug_assert } from "@/utils/error";
@@ -259,26 +261,39 @@ function ModuleGraphWrapper() {
     );
 }
 
-interface ExperimentalSettingProps extends PropsWithChildren {
+interface SettingWithWarningProps extends PropsWithChildren {
+    warning: string;
 }
 
-function ExperimentalSetting({ children }: ExperimentalSettingProps) {
+function SettingWithWarning({ warning, children }: SettingWithWarningProps) {
     return (
         <div className="flex w-full flex-col rounded-md border-2 border-warning-300/50 p-2">
             <Text
                 color="warning"
                 className="mb-2 flex items-center gap-2"
             >
-                <TriangleAlertIcon className="inline" />This Setting is Experimental. Expect and report any bugs!
+                <TriangleAlertIcon className="inline" />{warning}
             </Text>
             {children}
         </div>
     );
 }
 
+interface ExperimentalSettingProps extends PropsWithChildren {
+}
+
+function ExperimentalSetting({ children }: ExperimentalSettingProps) {
+    return (
+        <SettingWithWarning warning="This Setting is Experimental. Expect and report any bugs!">
+            {children}
+        </SettingWithWarning>
+    );
+}
+
 function SettingsModal() {
     const openModulesInNewTab = useModuleViewerSettingsStore(({ openModulesInNewTab }) => openModulesInNewTab);
     const selectedTheme = useModuleViewerSettingsStore(({ editorTheme }) => editorTheme);
+    const graphDepth = useModuleViewerSettingsStore(({ graphDepth }) => graphDepth);
     const ctx = use(ModalContext)!;
 
     return (
@@ -368,6 +383,33 @@ function SettingsModal() {
                             <BadgeInfoIcon className="mr-1 inline size-4" />You must reload the page for the theme to take effect.
                         </Text>
                     </div>
+                    <SettingWithWarning warning="High values (>1) can result in massive lag/hanging.">
+                        <Text size="md">
+                            Graph Depth
+                        </Text>
+                        <Text
+                            size="sm"
+                            color="white-600"
+                            className="py-2"
+                        >
+                            The depth of the module graph.
+                        </Text>
+                        <Slider
+                            min={0}
+                            max={10}
+                            markers={makeRange(0, 10)}
+                            value={graphDepth}
+                            onChange={(value) => {
+                                // don't update the graph depth if we're currently viewing the graph
+                                // as it would cause heavy CPU usage while the user is changing the setting
+                                if (ModuleViewerStore.getState().activePanel === ViewMode.MODULE_GRAPH) {
+                                    ModuleViewerStore.setState({ activePanel: ViewMode.CODE });
+                                }
+                                ModuleViewerSettingsStore.setState({ graphDepth: value });
+                            }}
+                            stickToMarkers
+                        />
+                    </SettingWithWarning>
                 </div>
             </Box>
         </div>
