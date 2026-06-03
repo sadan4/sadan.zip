@@ -191,15 +191,38 @@ pub fn order(
 
 	let mut last_best = 0;
 	let mut i = 0;
+	#[cfg(feature = "profile")]
+	let (mut t_sweep, mut t_layer, mut t_cc, mut t_clone) =
+		(0u128, 0u128, 0u128, 0u128);
 	while last_best < 4 {
 		let lgs = if i % 2 == 1 {
 			&mut down_layer_graphs
 		} else {
 			&mut up_layer_graphs
 		};
+		#[cfg(feature = "profile")]
+		let t0 = std::time::Instant::now();
 		sweep_layer_graphs(lgs, i % 4 >= 2, graph);
+		#[cfg(feature = "profile")]
+		{
+			t_sweep += t0.elapsed().as_nanos();
+		}
+		#[cfg(feature = "profile")]
+		let t1 = std::time::Instant::now();
 		layering = util::build_layer_matrix(graph);
+		#[cfg(feature = "profile")]
+		{
+			t_layer += t1.elapsed().as_nanos();
+		}
+		#[cfg(feature = "profile")]
+		let t2 = std::time::Instant::now();
 		let cc = cross_count(graph, &layering) as f64;
+		#[cfg(feature = "profile")]
+		{
+			t_cc += t2.elapsed().as_nanos();
+		}
+		#[cfg(feature = "profile")]
+		let t3 = std::time::Instant::now();
 		if cc < best_cc {
 			last_best = 0;
 			best = Some(layering.clone());
@@ -210,8 +233,21 @@ pub fn order(
 		} else {
 			last_best += 1;
 		}
+		#[cfg(feature = "profile")]
+		{
+			t_clone += t3.elapsed().as_nanos();
+		}
 		i += 1;
 	}
+	#[cfg(feature = "profile")]
+	eprintln!(
+		"[dagre]   order iters={} sweep={:.1}ms layer={:.1}ms cc={:.1}ms clone={:.1}ms",
+		i,
+		t_sweep as f64 / 1e6,
+		t_layer as f64 / 1e6,
+		t_cc as f64 / 1e6,
+		t_clone as f64 / 1e6,
+	);
 
 	if let Some(b) = best {
 		assign_order(graph, &b);
@@ -283,15 +319,30 @@ fn build_layer_graph(
 	result.set_node(root.clone(), LayerNode::default());
 
 	for v in &nodes_with_rank {
-		let node = match graph.node(v) {
-			Some(n) => n.clone(),
+		// Read only the fields we need by reference. Cloning the whole
+		// NodeLabel here was ~1s across the two pre-loop build_layer_graphs
+		// calls because NodeLabel contains Option<Vec<String>> and
+		// Option<Box<EdgeLabel>>.
+		let (n_rank, n_min_rank, n_max_rank, n_order, border) = match graph
+			.node(v)
+		{
+			Some(n) => {
+				let ri = rank as usize;
+				let bord = match (&n.border_left, &n.border_right) {
+					(Some(bl), Some(br)) if ri < bl.len() && ri < br.len() => {
+						Some((bl[ri].clone(), br[ri].clone()))
+					}
+					_ => None,
+				};
+				(n.rank, n.min_rank, n.max_rank, n.order, bord)
+			}
 			None => continue,
 		};
-		let in_range = node.rank == Some(rank)
-			|| (node.min_rank.is_some()
-				&& node.max_rank.is_some()
-				&& node.min_rank.unwrap() <= rank
-				&& rank <= node.max_rank.unwrap());
+		let in_range = n_rank == Some(rank)
+			|| (n_min_rank.is_some()
+				&& n_max_rank.is_some()
+				&& n_min_rank.unwrap() <= rank
+				&& rank <= n_max_rank.unwrap());
 		if !in_range {
 			continue;
 		}
@@ -302,10 +353,10 @@ fn build_layer_graph(
 		result.set_node(
 			v.clone(),
 			LayerNode {
-				rank: node.rank,
-				min_rank: node.min_rank,
-				max_rank: node.max_rank,
-				order: node.order,
+				rank: n_rank,
+				min_rank: n_min_rank,
+				max_rank: n_max_rank,
+				order: n_order,
 				..Default::default()
 			},
 		);
@@ -317,7 +368,6 @@ fn build_layer_graph(
 		};
 		for e in es {
 			let u = if e.v == *v { e.w.clone() } else { e.v.clone() };
-			// Make sure u exists in result before fetching edge.
 			if !result.has_node(&u) {
 				result.set_node(u.clone(), LayerNode::default());
 				result.set_parent(&u, Some(&root));
@@ -337,13 +387,10 @@ fn build_layer_graph(
 			);
 		}
 
-		if let (Some(bl), Some(br)) = (&node.border_left, &node.border_right) {
-			let ri = rank as usize;
-			if ri < bl.len() && ri < br.len() {
-				if let Some(n) = result.node_mut(v) {
-					n.border_left = Some(bl[ri].clone());
-					n.border_right = Some(br[ri].clone());
-				}
+		if let Some((bl, br)) = border {
+			if let Some(n) = result.node_mut(v) {
+				n.border_left = Some(bl);
+				n.border_right = Some(br);
 			}
 		}
 	}
@@ -465,20 +512,22 @@ fn two_layer_cross_count(
 		.map(|(i, v)| (v.as_str(), i))
 		.collect();
 	let mut south_entries: Vec<(usize, f64)> = Vec::new();
+	let mut local: Vec<(usize, f64)> = Vec::new();
 	for v in north {
-		let es = graph.out_edges(v).unwrap_or_default();
-		let mut local: Vec<(usize, f64)> = Vec::new();
-		for e in es {
-			if let Some(&pos) = south_pos.get(e.w.as_str()) {
-				let weight = graph
-					.edge_obj(&e)
-					.map(|l| l.weight)
-					.unwrap_or(0.0);
-				local.push((pos, weight));
+		local.clear();
+		if let Some(it) = graph.out_edges_iter(v) {
+			for e in it {
+				if let Some(&pos) = south_pos.get(e.w.as_str()) {
+					let weight = graph
+						.edge_obj(e)
+						.map(|l| l.weight)
+						.unwrap_or(0.0);
+					local.push((pos, weight));
+				}
 			}
 		}
 		local.sort_by_key(|x| x.0);
-		south_entries.extend(local);
+		south_entries.extend(local.iter().copied());
 	}
 
 	let mut first_index = 1usize;
@@ -514,19 +563,14 @@ fn barycenter_impl(
 	movable
 		.iter()
 		.map(|v| {
-			let in_es = graph.in_edges(v).unwrap_or_default();
-			if in_es.is_empty() {
-				BarycenterEntry {
-					v: v.clone(),
-					barycenter: None,
-					weight: None,
-				}
-			} else {
-				let mut sum = 0.0;
-				let mut weight = 0.0;
-				for e in in_es {
+			let mut sum = 0.0;
+			let mut weight = 0.0;
+			let mut any = false;
+			if let Some(it) = graph.in_edges_iter(v) {
+				for e in it {
+					any = true;
 					let edge_w = graph
-						.edge_obj(&e)
+						.edge_obj(e)
 						.map(|l| l.weight)
 						.unwrap_or(0.0);
 					let order = graph
@@ -536,6 +580,8 @@ fn barycenter_impl(
 					sum += edge_w * order;
 					weight += edge_w;
 				}
+			}
+			if any {
 				BarycenterEntry {
 					v: v.clone(),
 					barycenter: Some(if weight > 0.0 {
@@ -544,6 +590,12 @@ fn barycenter_impl(
 						0.0
 					}),
 					weight: Some(weight),
+				}
+			} else {
+				BarycenterEntry {
+					v: v.clone(),
+					barycenter: None,
+					weight: None,
 				}
 			}
 		})

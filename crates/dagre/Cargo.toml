@@ -13,6 +13,7 @@ serde = { workspace = true, optional = true }
 [features]
 default = ["serde"]
 serde = ["dep:serde"]
+profile = []
 
 [dev-dependencies]
 criterion.workspace = true

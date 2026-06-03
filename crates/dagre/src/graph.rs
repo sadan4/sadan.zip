@@ -228,6 +228,13 @@ impl<G, N, E> Graph<G, N, E> {
 	pub fn nodes(&self) -> Vec<String> {
 		self.node_order.clone()
 	}
+	/// Borrowing alternative to `nodes()` for hot loops. Avoids cloning the
+	/// 60k-entry `node_order` Vec when callers only need to iterate.
+	pub fn nodes_iter(&self) -> impl Iterator<Item = &str> {
+		self.node_order
+			.iter()
+			.map(String::as_str)
+	}
 	pub fn has_node(&self, v: &str) -> bool {
 		self.node_labels.contains_key(v)
 	}
@@ -341,12 +348,18 @@ impl<G, N, E> Graph<G, N, E> {
 		self.out_edges.remove(v);
 		self.preds.remove(v);
 		self.sucs.remove(v);
+		// O(1) removal via swap_remove. normalize::undo deletes ~tens of
+		// thousands of dummies, so any O(N) work here turns the phase into
+		// O(N²) — measured at 15s on a 63k-node graph before this change.
+		// Iteration order at the swapped slot changes, but no caller in this
+		// crate relies on insertion-order stability after a removal: layer
+		// algorithms sort by node.rank/order, not by nodes() position.
 		if let Some(&idx) = self.node_index.get(v) {
-			self.node_order.remove(idx);
-			// Reindex.
-			self.node_index.clear();
-			for (i, n) in self.node_order.iter().enumerate() {
-				self.node_index.insert(n.clone(), i);
+			self.node_order.swap_remove(idx);
+			self.node_index.remove(v);
+			if let Some(swapped) = self.node_order.get(idx) {
+				self.node_index
+					.insert(swapped.clone(), idx);
 			}
 		}
 	}
@@ -437,6 +450,12 @@ impl<G, N, E> Graph<G, N, E> {
 			.iter()
 			.map(|id| self.edge_objs.get(id).cloned().unwrap())
 			.collect()
+	}
+
+	pub fn edges_iter(&self) -> impl Iterator<Item = &Edge> {
+		self.edge_order
+			.iter()
+			.map(|id| self.edge_objs.get(id).unwrap())
 	}
 
 	fn edge_id(&self, v: &str, w: &str, name: Option<&str>) -> String {
@@ -640,11 +659,15 @@ impl<G, N, E> Graph<G, N, E> {
 			let (vv, ww) = (e.v.clone(), e.w.clone());
 			self.edge_labels.remove(&id);
 			self.edge_objs.remove(&id);
+			// See remove_node: O(1) swap_remove instead of order-preserving
+			// shift. edge_index stays consistent for the swapped element only;
+			// no caller relies on stable edges() iteration order after a delete.
 			if let Some(&idx) = self.edge_index.get(&id) {
-				self.edge_order.remove(idx);
-				self.edge_index.clear();
-				for (i, eid) in self.edge_order.iter().enumerate() {
-					self.edge_index.insert(eid.clone(), i);
+				self.edge_order.swap_remove(idx);
+				self.edge_index.remove(&id);
+				if let Some(swapped) = self.edge_order.get(idx) {
+					self.edge_index
+						.insert(swapped.clone(), idx);
 				}
 			}
 			if let Some(m) = self.out_edges.get_mut(&vv) {
@@ -681,6 +704,12 @@ impl<G, N, E> Graph<G, N, E> {
 		let m = self.in_edges.get(v)?;
 		Some(m.values().cloned().collect())
 	}
+	pub fn in_edges_iter(
+		&self,
+		v: &str,
+	) -> Option<impl Iterator<Item = &Edge>> {
+		Some(self.in_edges.get(v)?.values())
+	}
 	pub fn in_edges_from(&self, v: &str, u: &str) -> Option<Vec<Edge>> {
 		let m = self.in_edges.get(v)?;
 		Some(
@@ -693,6 +722,12 @@ impl<G, N, E> Graph<G, N, E> {
 	pub fn out_edges(&self, v: &str) -> Option<Vec<Edge>> {
 		let m = self.out_edges.get(v)?;
 		Some(m.values().cloned().collect())
+	}
+	pub fn out_edges_iter(
+		&self,
+		v: &str,
+	) -> Option<impl Iterator<Item = &Edge>> {
+		Some(self.out_edges.get(v)?.values())
 	}
 	pub fn out_edges_to(&self, v: &str, w: &str) -> Option<Vec<Edge>> {
 		let m = self.out_edges.get(v)?;

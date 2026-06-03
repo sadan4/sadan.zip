@@ -86,8 +86,16 @@ impl Bundle {
 			height: 45.,
 			..NodeLabel::default()
 		});
+		// Real module graphs have many cross-rank edges (≈50 dummy nodes per
+		// real node on dense bundles), and each dummy contributes `edgesep` to
+		// every layer it sits in. Defaults (nodesep=50, edgesep=20) bloat the
+		// bbox to tens of thousands of px; tighten both for a more legible
+		// readout. Dummies disappear before render so this only affects the
+		// invisible routing slack.
 		graph.set_graph(GraphLabel {
 			rankdir: Some(RankDir::TB),
+			nodesep: Some(20.0),
+			edgesep: Some(5.0),
 			..GraphLabel::default()
 		});
 
@@ -173,15 +181,13 @@ impl Bundle {
 			}
 		}
 		console_log!("added {} edges", graph.edge_count());
-		console_log!("{}", serde_json::to_string(&graph).unwrap());
 		console_log!("laying out graph");
 		layout(&mut graph);
 		console_log!("done laying out graph");
 		let nodes = graph
-			.nodes()
-			.into_iter()
+			.nodes_iter()
 			.map(|id| {
-				let label = graph.node(&id).unwrap();
+				let label = graph.node(id).unwrap();
 				(id, label)
 			})
 			.map(|(id, label)| JSNode {
@@ -193,8 +199,7 @@ impl Bundle {
 			})
 			.collect();
 		let edges = graph
-			.edges()
-			.into_iter()
+			.edges_iter()
 			.map(|edge| JSEdge {
 				from: ModuleId(edge.v.parse().unwrap()),
 				to: ModuleId(edge.w.parse().unwrap()),

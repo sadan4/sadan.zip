@@ -36,10 +36,15 @@ pub fn layout_with(
 	// flipping the flag never collides with what they already inserted.
 	g.set_multigraph(true);
 	make_space_for_edge_labels(g);
+	let mut p = Profile::new();
 	acyclic::run(g);
+	p.tick("acyclic", g);
 	rank::rank(g);
+	p.tick("rank", g);
 	util::normalize_ranks(g);
+	p.tick("normalize_ranks", g);
 	normalize::run(g);
+	p.tick("normalize", g);
 	order::order(
 		g,
 		&order::OrderOptions {
@@ -47,10 +52,59 @@ pub fn layout_with(
 				.disable_optimal_order_heuristic,
 		},
 	);
+	p.tick("order", g);
 	position::position(g);
+	p.tick("position", g);
 	normalize::undo(g);
+	p.tick("normalize::undo", g);
 	translate_graph(g);
+	p.tick("translate", g);
 	acyclic::undo(g);
+	p.tick("acyclic::undo", g);
+}
+
+#[cfg(feature = "profile")]
+struct Profile {
+	last: std::time::Instant,
+}
+
+#[cfg(feature = "profile")]
+impl Profile {
+	fn new() -> Self {
+		Self {
+			last: std::time::Instant::now(),
+		}
+	}
+	fn tick(&mut self, phase: &str, g: &Graph<GraphLabel, NodeLabel, EdgeLabel>) {
+		let now = std::time::Instant::now();
+		let dt = now.duration_since(self.last);
+		eprintln!(
+			"[dagre] phase={:<16} ms={:>8.2} nodes={} edges={}",
+			phase,
+			dt.as_secs_f64() * 1000.0,
+			g.node_count(),
+			g.edge_count(),
+		);
+		self.last = now;
+	}
+}
+
+#[cfg(not(feature = "profile"))]
+struct Profile;
+
+#[cfg(not(feature = "profile"))]
+impl Profile {
+	#[inline(always)]
+	fn new() -> Self {
+		Self
+	}
+	#[inline(always)]
+	fn tick(
+		&mut self,
+		_phase: &str,
+		_g: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
+	) {
+	}
 }
 
 /// Halves ranksep + doubles minlen, matching the JS makeSpaceForEdgeLabels.

@@ -375,17 +375,35 @@ pub fn horizontal_compaction(
 		F1: FnMut(&str),
 		F2: Fn(&str) -> Vec<String>,
 	{
-		let mut stack: Vec<String> = block_g.nodes();
-		let mut visited: HashSet<String> = HashSet::new();
+		// Tri-state iterative post-order DFS: WHITE → GRAY → BLACK. The
+		// original JS dagre uses a two-state visited set, but that re-runs
+		// set_xs every time a finalised node is popped from another path —
+		// quadratic for the long dummy chains normalise produces. Tracking
+		// BLACK explicitly keeps each node's set_xs to exactly one call while
+		// preserving the post-order in which dependencies are computed first.
+		const WHITE: u8 = 0;
+		const GRAY: u8 = 1;
+		const BLACK: u8 = 2;
+		let nodes = block_g.nodes();
+		let mut state: HashMap<String, u8> =
+			HashMap::with_capacity(nodes.len());
+		let mut stack: Vec<String> = nodes;
 		while let Some(elem) = stack.pop() {
-			if visited.contains(&elem) {
-				set_xs(&elem);
-			} else {
-				visited.insert(elem.clone());
-				stack.push(elem.clone());
-				for n in next_nodes(&elem) {
-					stack.push(n);
+			match state.get(&elem).copied().unwrap_or(WHITE) {
+				WHITE => {
+					state.insert(elem.clone(), GRAY);
+					stack.push(elem.clone());
+					for n in next_nodes(&elem) {
+						if state.get(&n).copied().unwrap_or(WHITE) == WHITE {
+							stack.push(n);
+						}
+					}
 				}
+				GRAY => {
+					set_xs(&elem);
+					state.insert(elem, BLACK);
+				}
+				_ => {}
 			}
 		}
 	}
@@ -401,17 +419,14 @@ pub fn horizontal_compaction(
 				.unwrap_or_default()
 		};
 		let mut pass1 = |elem: &str| {
-			let in_es = block_g_ref
-				.in_edges(elem)
-				.unwrap_or_default();
-			if in_es.is_empty() {
-				xs_ref.insert(elem.to_string(), 0.0);
-			} else {
-				let mut max = 0.0_f64;
-				for e in in_es {
+			let mut max = 0.0_f64;
+			let mut any = false;
+			if let Some(it) = block_g_ref.in_edges_iter(elem) {
+				for e in it {
+					any = true;
 					let xv = xs_ref.get(&e.v).copied().unwrap_or(0.0);
 					let w = block_g_ref
-						.edge_obj(&e)
+						.edge_obj(e)
 						.copied()
 						.unwrap_or(0.0);
 					let cand = xv + w;
@@ -419,7 +434,11 @@ pub fn horizontal_compaction(
 						max = cand;
 					}
 				}
+			}
+			if any {
 				xs_ref.insert(elem.to_string(), max);
+			} else {
+				xs_ref.insert(elem.to_string(), 0.0);
 			}
 		};
 		iterate(block_g_ref, &mut pass1, preds);
@@ -433,19 +452,18 @@ pub fn horizontal_compaction(
 				.unwrap_or_default()
 		};
 		let mut pass2 = |elem: &str| {
-			let out_es = block_g_ref
-				.out_edges(elem)
-				.unwrap_or_default();
 			let mut min = f64::INFINITY;
-			for e in out_es {
-				let xw = xs_ref.get(&e.w).copied().unwrap_or(0.0);
-				let w = block_g_ref
-					.edge_obj(&e)
-					.copied()
-					.unwrap_or(0.0);
-				let cand = xw - w;
-				if cand < min {
-					min = cand;
+			if let Some(it) = block_g_ref.out_edges_iter(elem) {
+				for e in it {
+					let xw = xs_ref.get(&e.w).copied().unwrap_or(0.0);
+					let w = block_g_ref
+						.edge_obj(e)
+						.copied()
+						.unwrap_or(0.0);
+					let cand = xw - w;
+					if cand < min {
+						min = cand;
+					}
 				}
 			}
 			let bt = graph
@@ -531,16 +549,26 @@ fn sep(
 	v: &str,
 	w: &str,
 ) -> f64 {
-	let v_label = g.node(v).cloned().unwrap_or_default();
-	let w_label = g.node(w).cloned().unwrap_or_default();
+	// Called O(N) times per orientation × 4 orientations × 2 passes — cloning
+	// NodeLabel here was a measurable cost (Option<Vec<String>> + Option<Box>
+	// inside). Read fields by reference instead.
+	let v_label = g.node(v);
+	let w_label = g.node(w);
+	let v_width = v_label.map(|n| n.width).unwrap_or(0.0);
+	let w_width = w_label.map(|n| n.width).unwrap_or(0.0);
+	let v_labelpos = v_label.and_then(|n| n.labelpos);
+	let w_labelpos = w_label.and_then(|n| n.labelpos);
+	let v_is_dummy = v_label.map(|n| n.dummy.is_some()).unwrap_or(false);
+	let w_is_dummy = w_label.map(|n| n.dummy.is_some()).unwrap_or(false);
+
 	let mut sum = 0.0;
 	let mut delta: Option<f64> = None;
 
-	sum += v_label.width / 2.0;
-	if let Some(lp) = v_label.labelpos {
+	sum += v_width / 2.0;
+	if let Some(lp) = v_labelpos {
 		delta = match lp {
-			LabelPos::L => Some(-v_label.width / 2.0),
-			LabelPos::R => Some(v_label.width / 2.0),
+			LabelPos::L => Some(-v_width / 2.0),
+			LabelPos::R => Some(v_width / 2.0),
 			_ => None,
 		};
 	}
@@ -548,21 +576,13 @@ fn sep(
 		sum += if reverse_sep { d } else { -d };
 	}
 	delta = None;
-	sum += if v_label.dummy.is_some() {
-		edge_sep
-	} else {
-		node_sep
-	} / 2.0;
-	sum += if w_label.dummy.is_some() {
-		edge_sep
-	} else {
-		node_sep
-	} / 2.0;
-	sum += w_label.width / 2.0;
-	if let Some(lp) = w_label.labelpos {
+	sum += if v_is_dummy { edge_sep } else { node_sep } / 2.0;
+	sum += if w_is_dummy { edge_sep } else { node_sep } / 2.0;
+	sum += w_width / 2.0;
+	if let Some(lp) = w_labelpos {
 		delta = match lp {
-			LabelPos::L => Some(w_label.width / 2.0),
-			LabelPos::R => Some(-w_label.width / 2.0),
+			LabelPos::L => Some(w_width / 2.0),
+			LabelPos::R => Some(-w_width / 2.0),
 			_ => None,
 		};
 	}
@@ -575,12 +595,22 @@ fn sep(
 pub fn position_x(
 	graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
 ) -> PositionMap {
+	#[cfg(feature = "profile")]
+	let t0 = std::time::Instant::now();
 	let layering = util::build_layer_matrix(graph);
+	#[cfg(feature = "profile")]
+	let dt_layer = t0.elapsed();
+	#[cfg(feature = "profile")]
+	let t1 = std::time::Instant::now();
 	let mut conflicts = find_type1_conflicts(graph, &layering);
+	#[cfg(feature = "profile")]
+	let dt_conf = t1.elapsed();
 	// findType2Conflicts is mainly relevant for the nesting/border case we
 	// skip; we leave it out to keep the port small.
 	let _ = &mut conflicts;
 
+	#[cfg(feature = "profile")]
+	let (mut t_va, mut t_hc) = (0u128, 0u128);
 	let mut xss: HashMap<String, PositionMap> = HashMap::new();
 	for vert in ["u", "d"] {
 		let mut adjusted: Vec<Vec<String>> = layering.clone();
@@ -602,8 +632,16 @@ pub fn position_x(
 					graph.successors(v).unwrap_or_default()
 				}
 			};
+			#[cfg(feature = "profile")]
+			let tx = std::time::Instant::now();
 			let (root, align) =
 				vertical_alignment(&adjusted, &conflicts, neighbor_fn);
+			#[cfg(feature = "profile")]
+			{
+				t_va += tx.elapsed().as_nanos();
+			}
+			#[cfg(feature = "profile")]
+			let ty = std::time::Instant::now();
 			let mut xs = horizontal_compaction(
 				graph,
 				&adjusted,
@@ -611,6 +649,10 @@ pub fn position_x(
 				&align,
 				horiz == "r",
 			);
+			#[cfg(feature = "profile")]
+			{
+				t_hc += ty.elapsed().as_nanos();
+			}
 			if horiz == "r" {
 				for v in xs.values_mut() {
 					*v = -*v;
@@ -624,6 +666,14 @@ pub fn position_x(
 		}
 	}
 
+	#[cfg(feature = "profile")]
+	eprintln!(
+		"[dagre]   position_x layer={:.1}ms conflicts={:.1}ms vertical_align={:.1}ms horiz_compact={:.1}ms",
+		dt_layer.as_secs_f64() * 1000.0,
+		dt_conf.as_secs_f64() * 1000.0,
+		t_va as f64 / 1e6,
+		t_hc as f64 / 1e6,
+	);
 	let smallest = find_smallest_width_alignment(graph, &xss);
 	align_coordinates(&mut xss, &smallest);
 	balance(&xss, graph.graph().and_then(|g| g.align))

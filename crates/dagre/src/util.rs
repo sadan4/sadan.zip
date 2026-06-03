@@ -181,37 +181,48 @@ pub fn build_layer_matrix(
 	graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
 ) -> Vec<Vec<String>> {
 	let mx = max_rank(graph);
-	let mut layers: Vec<Vec<String>> = (0..=mx.max(0))
-		.map(|_| Vec::new())
-		.collect();
 	if mx < 0 {
 		return Vec::new();
 	}
-	for v in graph.nodes() {
-		if let Some(n) = graph.node(&v) {
+	// Bucket each node into its rank, then sort each bucket by `order`. The
+	// previous implementation indexed `layers[rank][order] = v` directly and
+	// padded missing slots with `String::new()` — but `order` is sparse (gaps
+	// from dummy removal etc.) and downstream code (`vertical_alignment`,
+	// `build_block_graph`) treats those empty strings as real nodes, which
+	// silently corrupts root/pos maps and causes nodes to share x positions.
+	let mut layers: Vec<Vec<(usize, String)>> = (0..=mx as usize)
+		.map(|_| Vec::new())
+		.collect();
+	for v in graph.nodes_iter() {
+		if let Some(n) = graph.node(v) {
 			if let Some(rank) = n.rank {
 				if rank >= 0 {
 					let r = rank as usize;
-					while layers.len() <= r {
-						layers.push(Vec::new());
+					if r >= layers.len() {
+						layers.resize_with(r + 1, Vec::new);
 					}
-					let order = n.order.unwrap_or(0);
-					if layers[r].len() <= order {
-						layers[r].resize(order + 1, String::new());
-					}
-					layers[r][order] = v.clone();
+					layers[r].push((n.order.unwrap_or(0), v.to_string()));
 				}
 			}
 		}
 	}
 	layers
+		.into_iter()
+		.map(|mut bucket| {
+			bucket.sort_by_key(|(o, _)| *o);
+			bucket
+				.into_iter()
+				.map(|(_, v)| v)
+				.collect()
+		})
+		.collect()
 }
 
 pub fn max_rank(graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>) -> i32 {
 	let mut mx = i32::MIN;
 	let mut seen = false;
-	for v in graph.nodes() {
-		if let Some(n) = graph.node(&v) {
+	for v in graph.nodes_iter() {
+		if let Some(n) = graph.node(v) {
 			if let Some(r) = n.rank {
 				seen = true;
 				if r > mx {
