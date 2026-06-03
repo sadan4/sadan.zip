@@ -42,7 +42,6 @@ import { Route } from "./view.{-$buildHash}.{-$moduleId}";
 import "@xyflow/react/dist/style.css";
 import {
     ArrowBigRight,
-    BadgeInfoIcon,
     ChevronFirstIcon,
     ChevronLastIcon,
     DownloadIcon,
@@ -374,13 +373,6 @@ function SettingsModal() {
                         >
                             The color theme for the code editor.
                             This does not change the theme of the rest of the app. Sorry :(
-                        </Text>
-                        <Text
-                            color="info"
-                            size="sm"
-                            // FIXME: don't require a reload, this is a bug
-                        >
-                            <BadgeInfoIcon className="mr-1 inline size-4" />You must reload the page for the theme to take effect.
                         </Text>
                     </div>
                     <SettingWithWarning warning="High values (>1) can result in massive lag/hanging.">

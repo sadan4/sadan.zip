@@ -147,7 +147,15 @@ function MonacoCodeEditorInner({
         }
         handleEditorDidMount();
 
-        return () => clearTimeout(timeout);
+        const createdEditor = editorRef.current;
+
+        return () => {
+            clearTimeout(timeout);
+            createdEditor.dispose();
+            if (editorRef.current === createdEditor) {
+                editorRef.current = null;
+            }
+        };
         // TODO: look into what deps are needed here
         // eslint-disable-next-line @eslint-react/exhaustive-deps
     }, [ref]);
@@ -187,10 +195,6 @@ function MonacoCodeEditorInner({
     useResizeObserver(ref, () => {
         editorRef.current?.layout();
     });
-
-    useEffect(() => () => {
-        editorRef.current?.dispose();
-    }, []);
 
     useEffect(() => {
         const model = editorRef.current?.getModel();
