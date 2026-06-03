@@ -173,6 +173,7 @@ impl Bundle {
 			}
 		}
 		console_log!("added {} edges", graph.edge_count());
+		console_log!("{}", serde_json::to_string(&graph).unwrap());
 		console_log!("laying out graph");
 		layout(&mut graph);
 		console_log!("done laying out graph");

@@ -31,6 +31,10 @@ pub fn layout_with(
 	g: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>,
 	opts: &LayoutOptions,
 ) {
+	// acyclic reversal and normalize insert named edges, so the graph must
+	// be a multigraph internally. Existing user edges have no name, so
+	// flipping the flag never collides with what they already inserted.
+	g.set_multigraph(true);
 	make_space_for_edge_labels(g);
 	acyclic::run(g);
 	rank::rank(g);

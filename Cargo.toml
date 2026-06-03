@@ -85,7 +85,7 @@ vencord_ast_parser = { path = "crates/vencord_ast_parser" }
 webpack_ast_parser = { path = "crates/webpack_ast_parser" }
 webpack_chunk_parser = { path = "crates/webpack_chunk_parser" }
 pretty_printer = { path = "crates/pretty_printer" }
-dagre = { path = "crates/dagre" }
+dagre = { path = "crates/dagre", features = ["serde"] }
 # dagre_graphlib = { path = "crates/dagre_graphlib" }
 # dagre_slop = { path = "crates/dagre_slop" }
 notify = "8.2.0"

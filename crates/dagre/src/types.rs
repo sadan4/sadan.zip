@@ -5,13 +5,18 @@
 
 use crate::graph::Edge;
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Point {
 	pub x: f64,
 	pub y: f64,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Dummy {
 	Edge,
 	Border,
@@ -22,12 +27,14 @@ pub enum Dummy {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum BorderType {
 	BorderLeft,
 	BorderRight,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum LabelPos {
 	L,
 	C,
@@ -46,6 +53,7 @@ impl LabelPos {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum RankDir {
 	TB,
 	BT,
@@ -54,6 +62,7 @@ pub enum RankDir {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Align {
 	UL,
 	UR,
@@ -73,6 +82,7 @@ impl Align {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum RankAlign {
 	Top,
 	Center,
@@ -80,6 +90,7 @@ pub enum RankAlign {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Ranker {
 	NetworkSimplex,
 	TightTree,
@@ -88,6 +99,7 @@ pub enum Ranker {
 }
 
 #[derive(Debug, Clone, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct NodeLabel {
 	pub width: f64,
 	pub height: f64,
@@ -121,12 +133,14 @@ pub struct NodeLabel {
 }
 
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct SelfEdgeStash {
 	pub e: Edge,
 	pub label: EdgeLabel,
 }
 
 #[derive(Debug, Clone, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct EdgeLabel {
 	pub points: Option<Vec<Point>>,
 	pub width: f64,
@@ -166,6 +180,7 @@ impl EdgeLabel {
 }
 
 #[derive(Debug, Clone, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct GraphLabel {
 	pub width: Option<f64>,
 	pub height: Option<f64>,

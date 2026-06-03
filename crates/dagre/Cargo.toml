@@ -8,9 +8,15 @@ license = "MIT"
 [lib]
 
 [dependencies]
+serde = { workspace = true, optional = true }
+
+[features]
+default = ["serde"]
+serde = ["dep:serde"]
 
 [dev-dependencies]
 criterion.workspace = true
+serde_json.workspace = true
 
 [[bench]]
 name = "ranker_layout"

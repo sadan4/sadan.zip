@@ -14,8 +14,12 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
 /// Identifies an edge by its endpoints and (for multigraphs) a name.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Edge {
 	pub v: String,
 	pub w: String,
@@ -46,6 +50,7 @@ impl Edge {
 
 /// Graph configuration. Default is a directed simple graph (matches graphlib).
 #[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct GraphOpts {
 	pub directed: bool,
 	pub multigraph: bool,
@@ -84,6 +89,14 @@ impl GraphOpts {
 }
 
 /// The graph itself. `G`, `N`, `E` are the label types.
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(
+	feature = "serde",
+	serde(bound(
+		serialize = "G: Serialize, N: Serialize, E: Serialize",
+		deserialize = "G: Deserialize<'de>, N: Deserialize<'de>, E: Deserialize<'de>"
+	))
+)]
 pub struct Graph<G, N, E> {
 	is_directed: bool,
 	is_multigraph: bool,
@@ -92,7 +105,9 @@ pub struct Graph<G, N, E> {
 	label: Option<G>,
 
 	// Default label factory used by `setNode(v)` (without label).
+	#[cfg_attr(feature = "serde", serde(skip))]
 	default_node_label: Option<Box<dyn Fn(&str) -> N>>,
+	#[cfg_attr(feature = "serde", serde(skip))]
 	default_edge_label: Option<Box<dyn Fn(&Edge) -> E>>,
 
 	/// Insertion-ordered node ids.
@@ -164,6 +179,14 @@ impl<G, N, E> Graph<G, N, E> {
 	}
 	pub fn is_multigraph(&self) -> bool {
 		self.is_multigraph
+	}
+	/// Promote a simple graph to a multigraph in place. Existing edges keep
+	/// their identity (their `name` field is already `None`, which is also the
+	/// canonical id for the multigraph version of the same edge), so no edges
+	/// move or merge. Used by layout to satisfy its internal requirement that
+	/// named dummy / reversed edges can be inserted.
+	pub fn set_multigraph(&mut self, multigraph: bool) {
+		self.is_multigraph = multigraph;
 	}
 	pub fn is_compound(&self) -> bool {
 		self.is_compound
@@ -938,6 +961,23 @@ mod tests {
 		g.set_edge_named("a", "b", 1, Some("e1".into()));
 		g.set_edge_named("a", "b", 2, Some("e2".into()));
 		assert_eq!(g.edge_count(), 2);
+	}
+
+	#[cfg(feature = "serde")]
+	#[test]
+	fn serde_roundtrip() {
+		let mut g: Graph<String, i32, i32> = Graph::new();
+		g.set_graph("hello".to_string());
+		g.set_node("a", 1);
+		g.set_node("b", 2);
+		g.set_edge("a", "b", 10);
+		let json = serde_json::to_string(&g).unwrap();
+		let g2: Graph<String, i32, i32> = serde_json::from_str(&json).unwrap();
+		assert_eq!(g2.graph(), Some(&"hello".to_string()));
+		assert_eq!(g2.node_count(), 2);
+		assert_eq!(g2.edge_count(), 1);
+		assert_eq!(g2.edge("a", "b"), Some(&10));
+		assert_eq!(g2.successors("a").unwrap(), vec!["b".to_string()]);
 	}
 
 	#[test]
