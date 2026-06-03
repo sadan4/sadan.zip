@@ -2,7 +2,7 @@
 //! becomes acyclic, then undo the reversal at the end of layout.
 
 use crate::{
-	graph::{Edge, Graph},
+	graph::{Edge, Graph, NodeId},
 	greedy_fas,
 	types::{EdgeLabel, GraphLabel, NodeLabel},
 	util::unique_id,
@@ -41,23 +41,23 @@ pub fn run(graph: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>) {
 
 fn dfs_fas(graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>) -> Vec<Edge> {
 	let mut fas: Vec<Edge> = Vec::new();
-	let mut stack: std::collections::HashSet<String> =
+	let mut stack: std::collections::HashSet<NodeId> =
 		std::collections::HashSet::new();
-	let mut visited: std::collections::HashSet<String> =
+	let mut visited: std::collections::HashSet<NodeId> =
 		std::collections::HashSet::new();
 
 	fn dfs(
 		graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
 		v: &str,
-		stack: &mut std::collections::HashSet<String>,
-		visited: &mut std::collections::HashSet<String>,
+		stack: &mut std::collections::HashSet<NodeId>,
+		visited: &mut std::collections::HashSet<NodeId>,
 		fas: &mut Vec<Edge>,
 	) {
 		if visited.contains(v) {
 			return;
 		}
-		visited.insert(v.to_string());
-		stack.insert(v.to_string());
+		visited.insert(v.into());
+		stack.insert(v.into());
 		if let Some(es) = graph.out_edges(v) {
 			for e in es {
 				if stack.contains(&e.w) {

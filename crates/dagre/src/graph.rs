@@ -14,21 +14,28 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
+pub use smol_str::SmolStr;
+
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
+
+/// Identifier type for nodes and edges. SmolStr inlines strings up to 23 bytes;
+/// dagre node/edge ids in practice (numeric module ids, "a"/"b", "rev1", "_d24")
+/// are well under that, so the vast majority never heap-allocate.
+pub type NodeId = SmolStr;
 
 /// Identifies an edge by its endpoints and (for multigraphs) a name.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Edge {
-	pub v: String,
-	pub w: String,
-	pub name: Option<String>,
+	pub v: NodeId,
+	pub w: NodeId,
+	pub name: Option<NodeId>,
 }
 
 impl Edge {
 	#[must_use]
-	pub fn new(v: impl Into<String>, w: impl Into<String>) -> Self {
+	pub fn new(v: impl Into<NodeId>, w: impl Into<NodeId>) -> Self {
 		Self {
 			v: v.into(),
 			w: w.into(),
@@ -37,9 +44,9 @@ impl Edge {
 	}
 	#[must_use]
 	pub fn with_name(
-		v: impl Into<String>,
-		w: impl Into<String>,
-		name: impl Into<String>,
+		v: impl Into<NodeId>,
+		w: impl Into<NodeId>,
+		name: impl Into<NodeId>,
 	) -> Self {
 		Self {
 			v: v.into(),
@@ -119,30 +126,30 @@ pub struct Graph<G, N, E> {
 	default_edge_label: Option<EdgeLabelFactory<E>>,
 
 	/// Insertion-ordered node ids.
-	node_order: Vec<String>,
-	node_index: HashMap<String, usize>,
-	node_labels: HashMap<String, N>,
+	node_order: Vec<NodeId>,
+	node_index: HashMap<NodeId, usize>,
+	node_labels: HashMap<NodeId, N>,
 
 	/// Compound graph: parent of each node.
-	parent: HashMap<String, String>,
+	parent: HashMap<NodeId, NodeId>,
 	/// Children of each parent ("\x00" key = root children, matching JS impl).
-	children: HashMap<String, BTreeSet<String>>,
+	children: HashMap<NodeId, BTreeSet<NodeId>>,
 
 	/// out[v] -> { `edge_id` -> Edge }
-	out_edges: HashMap<String, BTreeMap<String, Edge>>,
+	out_edges: HashMap<NodeId, BTreeMap<NodeId, Edge>>,
 	/// in[v] -> { `edge_id` -> Edge }
-	in_edges: HashMap<String, BTreeMap<String, Edge>>,
+	in_edges: HashMap<NodeId, BTreeMap<NodeId, Edge>>,
 	/// predecessor count: preds[v][u] = number of u->v edges
-	preds: HashMap<String, HashMap<String, usize>>,
-	sucs: HashMap<String, HashMap<String, usize>>,
+	preds: HashMap<NodeId, HashMap<NodeId, usize>>,
+	sucs: HashMap<NodeId, HashMap<NodeId, usize>>,
 
 	/// Insertion-ordered edge ids -> Edge.
-	edge_order: Vec<String>,
-	edge_index: HashMap<String, usize>,
+	edge_order: Vec<NodeId>,
+	edge_index: HashMap<NodeId, usize>,
 	/// Edge label, keyed by `edge_id`.
-	edge_labels: HashMap<String, E>,
+	edge_labels: HashMap<NodeId, E>,
 	/// Edge object, keyed by `edge_id`.
-	edge_objs: HashMap<String, Edge>,
+	edge_objs: HashMap<NodeId, Edge>,
 }
 
 const GRAPH_NODE: &str = "\x00";
@@ -177,7 +184,7 @@ impl<G, N, E> Graph<G, N, E> {
 		};
 		if g.is_compound {
 			g.children
-				.insert(GRAPH_NODE.to_string(), BTreeSet::new());
+				.insert(GRAPH_NODE.into(), BTreeSet::new());
 		}
 		g
 	}
@@ -233,7 +240,7 @@ impl<G, N, E> Graph<G, N, E> {
 	pub const fn node_count(&self) -> usize {
 		self.node_order.len()
 	}
-	pub fn nodes(&self) -> Vec<String> {
+	pub fn nodes(&self) -> Vec<NodeId> {
 		self.node_order.clone()
 	}
 	/// Borrowing alternative to `nodes()` for hot loops. Avoids cloning the
@@ -241,13 +248,13 @@ impl<G, N, E> Graph<G, N, E> {
 	pub fn nodes_iter(&self) -> impl Iterator<Item = &str> {
 		self.node_order
 			.iter()
-			.map(String::as_str)
+			.map(SmolStr::as_str)
 	}
 	pub fn has_node(&self, v: &str) -> bool {
 		self.node_labels.contains_key(v)
 	}
 
-	pub fn set_node(&mut self, v: impl Into<String>, label: N) -> &mut Self {
+	pub fn set_node(&mut self, v: impl Into<NodeId>, label: N) -> &mut Self {
 		let v = v.into();
 		if self.node_labels.contains_key(&v) {
 			self.node_labels.insert(v, label);
@@ -268,9 +275,9 @@ impl<G, N, E> Graph<G, N, E> {
 			.insert(v.clone(), HashMap::new());
 		if self.is_compound {
 			self.parent
-				.insert(v.clone(), GRAPH_NODE.to_string());
+				.insert(v.clone(), GRAPH_NODE.into());
 			self.children
-				.entry(GRAPH_NODE.to_string())
+				.entry(GRAPH_NODE.into())
 				.or_default()
 				.insert(v.clone());
 			self.children
@@ -281,7 +288,7 @@ impl<G, N, E> Graph<G, N, E> {
 
 	/// Like `setNode(v)` in JS with no label: uses default label factory if
 	/// one was registered, else falls back to `N::default()`.
-	pub fn set_node_default(&mut self, v: impl Into<String>) -> &mut Self
+	pub fn set_node_default(&mut self, v: impl Into<NodeId>) -> &mut Self
 	where
 		N: Default,
 	{
@@ -310,7 +317,7 @@ impl<G, N, E> Graph<G, N, E> {
 		// Remove from compound parent/children
 		if self.is_compound {
 			// Detach children up to root.
-			let cs: Vec<String> = self
+			let cs: Vec<NodeId> = self
 				.children
 				.get(v)
 				.map(|s| s.iter().cloned().collect())
@@ -324,9 +331,9 @@ impl<G, N, E> Graph<G, N, E> {
 			for c in &cs {
 				// children become root-level.
 				self.parent
-					.insert(c.clone(), GRAPH_NODE.to_string());
+					.insert(c.clone(), GRAPH_NODE.into());
 				self.children
-					.entry(GRAPH_NODE.to_string())
+					.entry(GRAPH_NODE.into())
 					.or_default()
 					.insert(c.clone());
 			}
@@ -381,7 +388,7 @@ impl<G, N, E> Graph<G, N, E> {
 		if !self.has_node(v) {
 			self.set_node_default(v.to_string());
 		}
-		let new_parent = parent.unwrap_or(GRAPH_NODE).to_string();
+		let new_parent: NodeId = parent.unwrap_or(GRAPH_NODE).into();
 		// Disallow cycles.
 		if parent.is_some() {
 			let mut ancestor = Some(new_parent.clone());
@@ -409,11 +416,11 @@ impl<G, N, E> Graph<G, N, E> {
 			set.remove(v);
 		}
 		self.parent
-			.insert(v.to_string(), new_parent.clone());
+			.insert(v.into(), new_parent.clone());
 		self.children
 			.entry(new_parent)
 			.or_default()
-			.insert(v.to_string());
+			.insert(v.into());
 	}
 
 	pub fn parent(&self, v: &str) -> Option<&str> {
@@ -429,7 +436,7 @@ impl<G, N, E> Graph<G, N, E> {
 	}
 
 	/// Returns children of `v`, or root-level nodes if `v` is None.
-	pub fn children(&self, v: Option<&str>) -> Vec<String> {
+	pub fn children(&self, v: Option<&str>) -> Vec<NodeId> {
 		let key = v.unwrap_or(GRAPH_NODE);
 		if self.is_compound {
 			self.children
@@ -464,12 +471,13 @@ impl<G, N, E> Graph<G, N, E> {
 			.map(|id| self.edge_objs.get(id).unwrap())
 	}
 
-	fn edge_id(&self, v: &str, w: &str, name: Option<&str>) -> String {
-		if !self.is_directed && v > w {
+	fn edge_id(&self, v: &str, w: &str, name: Option<&str>) -> NodeId {
+		let s = if !self.is_directed && v > w {
 			format!("{}\x01{}\x01{}", w, v, name.unwrap_or(""))
 		} else {
 			format!("{}\x01{}\x01{}", v, w, name.unwrap_or(""))
-		}
+		};
+		s.into()
 	}
 
 	pub fn has_edge(&self, v: &str, w: &str) -> bool {
@@ -485,8 +493,8 @@ impl<G, N, E> Graph<G, N, E> {
 
 	pub fn set_edge(
 		&mut self,
-		v: impl Into<String>,
-		w: impl Into<String>,
+		v: impl Into<NodeId>,
+		w: impl Into<NodeId>,
 		label: E,
 	) where
 		N: Default,
@@ -497,10 +505,10 @@ impl<G, N, E> Graph<G, N, E> {
 
 	pub fn set_edge_named(
 		&mut self,
-		v: impl Into<String>,
-		w: impl Into<String>,
+		v: impl Into<NodeId>,
+		w: impl Into<NodeId>,
 		label: E,
-		name: Option<String>,
+		name: Option<NodeId>,
 	) where
 		N: Default,
 		E: Default,
@@ -511,8 +519,8 @@ impl<G, N, E> Graph<G, N, E> {
 	/// Equivalent to setEdge(v, w) with no label — applies default factory.
 	pub fn set_edge_default(
 		&mut self,
-		v: impl Into<String>,
-		w: impl Into<String>,
+		v: impl Into<NodeId>,
+		w: impl Into<NodeId>,
 	) where
 		N: Default,
 		E: Default,
@@ -542,9 +550,9 @@ impl<G, N, E> Graph<G, N, E> {
 
 	fn set_edge_full(
 		&mut self,
-		v: impl Into<String>,
-		w: impl Into<String>,
-		name: Option<String>,
+		v: impl Into<NodeId>,
+		w: impl Into<NodeId>,
+		name: Option<NodeId>,
 		label: Option<E>,
 	) where
 		N: Default,
@@ -749,18 +757,18 @@ impl<G, N, E> Graph<G, N, E> {
 		out.extend(inv);
 		Some(out)
 	}
-	pub fn predecessors(&self, v: &str) -> Option<Vec<String>> {
+	pub fn predecessors(&self, v: &str) -> Option<Vec<NodeId>> {
 		let m = self.preds.get(v)?;
 		Some(m.keys().cloned().collect())
 	}
-	pub fn successors(&self, v: &str) -> Option<Vec<String>> {
+	pub fn successors(&self, v: &str) -> Option<Vec<NodeId>> {
 		let m = self.sucs.get(v)?;
 		Some(m.keys().cloned().collect())
 	}
-	pub fn neighbors(&self, v: &str) -> Option<Vec<String>> {
-		let mut s: Vec<String> = self.predecessors(v)?;
+	pub fn neighbors(&self, v: &str) -> Option<Vec<NodeId>> {
+		let mut s: Vec<NodeId> = self.predecessors(v)?;
 		let succ = self.successors(v)?;
-		let set: HashSet<String> = s.iter().cloned().collect();
+		let set: HashSet<NodeId> = s.iter().cloned().collect();
 		for n in succ {
 			if !set.contains(&n) {
 				s.push(n);
@@ -769,7 +777,7 @@ impl<G, N, E> Graph<G, N, E> {
 		Some(s)
 	}
 
-	pub fn sources(&self) -> Vec<String> {
+	pub fn sources(&self) -> Vec<NodeId> {
 		self.node_order
 			.iter()
 			.filter(|v| {
@@ -793,15 +801,15 @@ impl<G, N, E> Graph<G, N, E> {
 			// E::default(). This matches graphlib's setPath semantics where
 			// edges inherit the default label.
 			self.set_edge_full(
-				path[i - 1].to_string(),
-				path[i].to_string(),
+				NodeId::from(path[i - 1]),
+				NodeId::from(path[i]),
 				None,
 				None,
 			);
 		}
 	}
 
-	pub fn sinks(&self) -> Vec<String> {
+	pub fn sinks(&self) -> Vec<NodeId> {
 		self.node_order
 			.iter()
 			.filter(|v| {
@@ -823,16 +831,16 @@ impl<G, N, E> Default for Graph<G, N, E> {
 // ---- graph algorithms used by network-simplex --------------------------
 
 pub mod alg {
-	use super::Graph;
+	use super::{Graph, NodeId};
 	use std::collections::HashSet;
 
 	/// Postorder DFS traversal — used by network-simplex.
 	pub fn postorder<G, N, E>(
 		g: &Graph<G, N, E>,
-		starts: &[String],
-	) -> Vec<String> {
-		let mut visited: HashSet<String> = HashSet::new();
-		let mut result: Vec<String> = Vec::new();
+		starts: &[NodeId],
+	) -> Vec<NodeId> {
+		let mut visited: HashSet<NodeId> = HashSet::new();
+		let mut result: Vec<NodeId> = Vec::new();
 		for s in starts {
 			if !g.has_node(s) {
 				panic!("postorder: node {} not in graph", s);
@@ -845,35 +853,32 @@ pub mod alg {
 	/// Tarjan-style strongly connected components on a directed graph; used
 	/// by `find_cycles`. Only the SCCs with > 1 node (or self-loops) form
 	/// cycles.
-	pub fn tarjan<G, N, E>(g: &Graph<G, N, E>) -> Vec<Vec<String>> {
+	pub fn tarjan<G, N, E>(g: &Graph<G, N, E>) -> Vec<Vec<NodeId>> {
 		struct State<'a, G: 'a, N: 'a, E: 'a> {
 			g: &'a Graph<G, N, E>,
 			index: usize,
-			stack: Vec<String>,
-			on_stack: std::collections::HashSet<String>,
-			indices: std::collections::HashMap<String, usize>,
-			lowlinks: std::collections::HashMap<String, usize>,
-			results: Vec<Vec<String>>,
+			stack: Vec<NodeId>,
+			on_stack: std::collections::HashSet<NodeId>,
+			indices: std::collections::HashMap<NodeId, usize>,
+			lowlinks: std::collections::HashMap<NodeId, usize>,
+			results: Vec<Vec<NodeId>>,
 		}
 		fn strong_connect<G, N, E>(s: &mut State<G, N, E>, v: &str) {
-			s.indices.insert(v.to_string(), s.index);
-			s.lowlinks
-				.insert(v.to_string(), s.index);
+			s.indices.insert(v.into(), s.index);
+			s.lowlinks.insert(v.into(), s.index);
 			s.index += 1;
-			s.stack.push(v.to_string());
-			s.on_stack.insert(v.to_string());
+			s.stack.push(v.into());
+			s.on_stack.insert(v.into());
 			for w in s.g.successors(v).unwrap_or_default() {
 				if !s.indices.contains_key(&w) {
 					strong_connect(s, &w);
 					let lw = *s.lowlinks.get(&w).unwrap();
 					let lv = *s.lowlinks.get(v).unwrap();
-					s.lowlinks
-						.insert(v.to_string(), lv.min(lw));
+					s.lowlinks.insert(v.into(), lv.min(lw));
 				} else if s.on_stack.contains(&w) {
 					let iw = *s.indices.get(&w).unwrap();
 					let lv = *s.lowlinks.get(v).unwrap();
-					s.lowlinks
-						.insert(v.to_string(), lv.min(iw));
+					s.lowlinks.insert(v.into(), lv.min(iw));
 				}
 			}
 			if s.lowlinks.get(v) == s.indices.get(v) {
@@ -908,7 +913,7 @@ pub mod alg {
 
 	/// Returns the cycles in the graph: SCCs with more than one node, plus
 	/// any self-loop (which are SCCs of size 1 with an edge to themselves).
-	pub fn find_cycles<G, N, E>(g: &Graph<G, N, E>) -> Vec<Vec<String>> {
+	pub fn find_cycles<G, N, E>(g: &Graph<G, N, E>) -> Vec<Vec<NodeId>> {
 		tarjan(g)
 			.into_iter()
 			.filter(|comp| {
@@ -926,10 +931,10 @@ pub mod alg {
 	/// Preorder DFS traversal.
 	pub fn preorder<G, N, E>(
 		g: &Graph<G, N, E>,
-		starts: &[String],
-	) -> Vec<String> {
-		let mut visited: HashSet<String> = HashSet::new();
-		let mut result: Vec<String> = Vec::new();
+		starts: &[NodeId],
+	) -> Vec<NodeId> {
+		let mut visited: HashSet<NodeId> = HashSet::new();
+		let mut result: Vec<NodeId> = Vec::new();
 		for s in starts {
 			if !g.has_node(s) {
 				panic!("preorder: node {} not in graph", s);
@@ -942,16 +947,16 @@ pub mod alg {
 	fn dfs<G, N, E>(
 		g: &Graph<G, N, E>,
 		v: &str,
-		visited: &mut HashSet<String>,
-		result: &mut Vec<String>,
+		visited: &mut HashSet<NodeId>,
+		result: &mut Vec<NodeId>,
 		postorder: bool,
 	) {
 		if visited.contains(v) {
 			return;
 		}
-		visited.insert(v.to_string());
+		visited.insert(v.into());
 		if !postorder {
-			result.push(v.to_string());
+			result.push(v.into());
 		}
 		// For undirected graphs, neighbors; for directed, successors.
 		let next = if g.is_directed() {
@@ -963,7 +968,7 @@ pub mod alg {
 			dfs(g, &w, visited, result, postorder);
 		}
 		if postorder {
-			result.push(v.to_string());
+			result.push(v.into());
 		}
 	}
 }
@@ -981,8 +986,8 @@ mod tests {
 		assert_eq!(g.node_count(), 2);
 		assert_eq!(g.edge_count(), 1);
 		assert_eq!(g.edge("a", "b"), Some(&10));
-		assert_eq!(g.successors("a").unwrap(), vec!["b".to_string()]);
-		assert_eq!(g.predecessors("b").unwrap(), vec!["a".to_string()]);
+		assert_eq!(g.successors("a").unwrap(), vec![NodeId::from("b")]);
+		assert_eq!(g.predecessors("b").unwrap(), vec![NodeId::from("a")]);
 	}
 
 	#[test]
@@ -1021,7 +1026,7 @@ mod tests {
 		assert_eq!(g2.node_count(), 2);
 		assert_eq!(g2.edge_count(), 1);
 		assert_eq!(g2.edge("a", "b"), Some(&10));
-		assert_eq!(g2.successors("a").unwrap(), vec!["b".to_string()]);
+		assert_eq!(g2.successors("a").unwrap(), vec![NodeId::from("b")]);
 	}
 
 	#[test]
@@ -1032,6 +1037,6 @@ mod tests {
 		g.set_node("c", 1);
 		g.set_parent("c", Some("p"));
 		assert_eq!(g.parent("c"), Some("p"));
-		assert_eq!(g.children(Some("p")), vec!["c".to_string()]);
+		assert_eq!(g.children(Some("p")), vec![NodeId::from("c")]);
 	}
 }

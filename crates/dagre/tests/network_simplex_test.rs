@@ -1,7 +1,7 @@
 //! Port of test/rank/network-simplex-test.ts.
 
 use dagre::{
-	graph::{Edge, Graph, GraphOpts},
+	graph::{Edge, Graph, GraphOpts, NodeId},
 	rank::{
 		feasible_tree::{Tree, TreeEdge, TreeNode},
 		network_simplex,
@@ -64,7 +64,7 @@ fn gansner_tree() -> Tree {
 	t
 }
 
-fn undir(e: &Edge) -> (String, String) {
+fn undir(e: &Edge) -> (NodeId, NodeId) {
 	if e.v < e.w {
 		(e.v.clone(), e.w.clone())
 	} else {
@@ -216,7 +216,7 @@ fn leave_edge_returns_negative_cutvalue_edge() {
 		},
 	);
 	let e = network_simplex::leave_edge(&t).unwrap();
-	assert_eq!(undir(&e), ("b".to_string(), "c".to_string()));
+	assert_eq!(undir(&e), (NodeId::from("b"), NodeId::from("c")));
 }
 
 // ---------- initLowLimValues --------------------------------------------

@@ -1,8 +1,9 @@
 //! Port of test/order/sort-test.ts.
 
-use std::string::ToString;
-
-use dagre::order::{sort, ResolvedEntry};
+use dagre::{
+	graph::NodeId,
+	order::{sort, ResolvedEntry},
+};
 
 fn entry(
 	vs: &[&str],
@@ -13,7 +14,7 @@ fn entry(
 	ResolvedEntry {
 		vs: vs
 			.iter()
-			.map(ToString::to_string)
+			.map(|x| NodeId::from(*x))
 			.collect(),
 		i,
 		barycenter: b,
@@ -21,9 +22,9 @@ fn entry(
 	}
 }
 
-fn vs(s: &[&str]) -> Vec<String> {
+fn vs(s: &[&str]) -> Vec<NodeId> {
 	s.iter()
-		.map(ToString::to_string)
+		.map(|x| NodeId::from(*x))
 		.collect()
 }
 

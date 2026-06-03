@@ -1,7 +1,7 @@
 //! Port of test/order/cross-count-test.ts.
 
 use dagre::{
-	graph::Graph,
+	graph::{Graph, NodeId},
 	order::cross_count,
 	types::{EdgeLabel, GraphLabel, NodeLabel},
 };
@@ -15,7 +15,7 @@ fn mk() -> Graph<GraphLabel, NodeLabel, EdgeLabel> {
 	g
 }
 
-fn vs(s: &[&str]) -> Vec<String> {
+fn vs(s: &[&str]) -> Vec<NodeId> {
 	s.iter().map(|x| (*x).into()).collect()
 }
 

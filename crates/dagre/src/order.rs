@@ -1,7 +1,7 @@
 //! Crossing-minimization order pipeline — port of `lib/order/*.ts`.
 
 use crate::{
-	graph::{Graph, GraphOpts},
+	graph::{Graph, GraphOpts, NodeId},
 	types::{EdgeLabel, GraphLabel, NodeLabel},
 	util,
 };
@@ -21,8 +21,8 @@ struct LayerNode {
 	min_rank: Option<i32>,
 	max_rank: Option<i32>,
 	order: Option<usize>,
-	border_left: Option<String>,
-	border_right: Option<String>,
+	border_left: Option<NodeId>,
+	border_right: Option<NodeId>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -32,21 +32,21 @@ struct LayerEdge {
 
 #[derive(Debug, Default, Clone)]
 struct LayerGraphLabel {
-	movable: Vec<String>,
+	movable: Vec<NodeId>,
 }
 
 type LayerGraph = Graph<LayerGraphLabel, LayerNode, LayerEdge>;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct BarycenterEntry {
-	pub v: String,
+	pub v: NodeId,
 	pub barycenter: Option<f64>,
 	pub weight: Option<f64>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ResolvedEntry {
-	pub vs: Vec<String>,
+	pub vs: Vec<NodeId>,
 	pub i: usize,
 	pub barycenter: Option<f64>,
 	pub weight: Option<f64>,
@@ -54,7 +54,7 @@ pub struct ResolvedEntry {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SortResult {
-	pub vs: Vec<String>,
+	pub vs: Vec<NodeId>,
 	pub barycenter: Option<f64>,
 	pub weight: Option<f64>,
 }
@@ -69,7 +69,7 @@ pub struct SortResult {
 /// `order` from node labels and `weight` from edge labels.
 pub fn barycenter(
 	graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
-	movable: &[String],
+	movable: &[NodeId],
 ) -> Vec<BarycenterEntry> {
 	movable
 		.iter()
@@ -129,16 +129,16 @@ pub fn sort(entries: Vec<ResolvedEntry>, bias_right: bool) -> SortResult {
 pub fn add_subgraph_constraints(
 	graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
 	constraint_graph: &mut Graph<(), (), ()>,
-	vs: &[String],
+	vs: &[NodeId],
 ) {
-	let mut prev: HashMap<String, String> = HashMap::new();
-	let mut root_prev: Option<String> = None;
+	let mut prev: HashMap<NodeId, NodeId> = HashMap::new();
+	let mut root_prev: Option<NodeId> = None;
 	for v in vs {
-		let mut child = graph.parent(v).map(ToString::to_string);
+		let mut child = graph.parent(v).map(NodeId::from);
 		while let Some(c) = child.clone() {
 			let parent = graph
 				.parent(&c)
-				.map(ToString::to_string);
+				.map(NodeId::from);
 			let prev_child = if let Some(p) = &parent {
 				let pc = prev.get(p).cloned();
 				prev.insert(p.clone(), c.clone());
@@ -204,7 +204,7 @@ pub fn order(
 	}
 
 	let mut best_cc = f64::INFINITY;
-	let mut best: Option<Vec<Vec<String>>> = None;
+	let mut best: Option<Vec<Vec<NodeId>>> = None;
 
 	let mut last_best = 0;
 	let mut i = 0;
@@ -279,15 +279,15 @@ enum Relationship {
 
 fn nodes_by_rank(
 	graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
-) -> HashMap<i32, Vec<String>> {
-	let mut nodes_by_rank: HashMap<i32, Vec<String>> = HashMap::new();
+) -> HashMap<i32, Vec<NodeId>> {
+	let mut nodes_by_rank: HashMap<i32, Vec<NodeId>> = HashMap::new();
 	for v in graph.nodes_iter() {
 		if let Some(n) = graph.node(v) {
 			if let Some(r) = n.rank {
 				nodes_by_rank
 					.entry(r)
 					.or_default()
-					.push(v.to_string());
+					.push(v.into());
 			}
 			if let (Some(min), Some(max)) = (n.min_rank, n.max_rank) {
 				for r in min..=max {
@@ -295,7 +295,7 @@ fn nodes_by_rank(
 						nodes_by_rank
 							.entry(r)
 							.or_default()
-							.push(v.to_string());
+							.push(v.into());
 					}
 				}
 			}
@@ -308,9 +308,9 @@ fn build_layer_graphs(
 	graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
 	ranks: &[i32],
 	relationship: Relationship,
-	nodes_by_rank: &HashMap<i32, Vec<String>>,
+	nodes_by_rank: &HashMap<i32, Vec<NodeId>>,
 ) -> Vec<LayerGraph> {
-	let empty: Vec<String> = Vec::new();
+	let empty: Vec<NodeId> = Vec::new();
 	ranks
 		.iter()
 		.map(|r| {
@@ -328,14 +328,14 @@ fn build_layer_graph(
 	graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
 	rank: i32,
 	relationship: Relationship,
-	nodes_with_rank: &[String],
+	nodes_with_rank: &[NodeId],
 ) -> LayerGraph {
 	let mut result: LayerGraph = Graph::with_opts(GraphOpts {
 		directed: true,
 		multigraph: false,
 		compound: false,
 	});
-	let mut movable: Vec<String> = Vec::with_capacity(nodes_with_rank.len());
+	let mut movable: Vec<NodeId> = Vec::with_capacity(nodes_with_rank.len());
 
 	for v in nodes_with_rank {
 		// Read only the fields we need by reference. Cloning the whole
@@ -416,10 +416,10 @@ fn build_layer_graph(
 /// leftmost rank node, assigning visit order to each non-subgraph node.
 pub fn init_order(
 	graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
-) -> Vec<Vec<String>> {
-	let mut visited: std::collections::HashSet<String> =
+) -> Vec<Vec<NodeId>> {
+	let mut visited: std::collections::HashSet<NodeId> =
 		std::collections::HashSet::new();
-	let simple_nodes: Vec<String> = graph
+	let simple_nodes: Vec<NodeId> = graph
 		.nodes()
 		.into_iter()
 		.filter(|v| graph.children(Some(v)).is_empty())
@@ -429,7 +429,7 @@ pub fn init_order(
 		.filter_map(|v| graph.node(v).and_then(|n| n.rank))
 		.max()
 		.unwrap_or(0);
-	let mut layers: Vec<Vec<String>> = (0..=max_rank.max(0))
+	let mut layers: Vec<Vec<NodeId>> = (0..=max_rank.max(0))
 		.map(|_| Vec::new())
 		.collect();
 	if max_rank < 0 {
@@ -439,13 +439,13 @@ pub fn init_order(
 	fn dfs(
 		graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
 		v: &str,
-		visited: &mut std::collections::HashSet<String>,
-		layers: &mut Vec<Vec<String>>,
+		visited: &mut std::collections::HashSet<NodeId>,
+		layers: &mut Vec<Vec<NodeId>>,
 	) {
 		if visited.contains(v) {
 			return;
 		}
-		visited.insert(v.to_string());
+		visited.insert(v.into());
 		if let Some(n) = graph.node(v)
 			&& let Some(r) = n.rank
 			&& r >= 0
@@ -454,7 +454,7 @@ pub fn init_order(
 			while layers.len() <= ri {
 				layers.push(Vec::new());
 			}
-			layers[ri].push(v.to_string());
+			layers[ri].push(v.into());
 		}
 		let succ = graph.successors(v).unwrap_or_default();
 		for s in succ {
@@ -477,7 +477,7 @@ pub fn init_order(
 
 fn assign_order(
 	graph: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>,
-	layering: &[Vec<String>],
+	layering: &[Vec<NodeId>],
 ) {
 	for layer in layering {
 		for (i, v) in layer.iter().enumerate() {
@@ -492,7 +492,7 @@ fn assign_order(
 
 pub fn cross_count(
 	graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
-	layering: &[Vec<String>],
+	layering: &[Vec<NodeId>],
 ) -> u64 {
 	let mut cc = 0u64;
 	for i in 1..layering.len() {
@@ -503,8 +503,8 @@ pub fn cross_count(
 
 fn two_layer_cross_count(
 	graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
-	north: &[String],
-	south: &[String],
+	north: &[NodeId],
+	south: &[NodeId],
 ) -> u64 {
 	if south.is_empty() {
 		return 0;
@@ -560,7 +560,7 @@ fn two_layer_cross_count(
 
 fn barycenter_impl(
 	graph: &LayerGraph,
-	movable: &[String],
+	movable: &[NodeId],
 ) -> Vec<BarycenterEntry> {
 	movable
 		.iter()
@@ -614,7 +614,7 @@ fn resolve_conflicts_impl(
 		indegree: usize,
 		ins: Vec<usize>,
 		outs: Vec<usize>,
-		vs: Vec<String>,
+		vs: Vec<NodeId>,
 		i: usize,
 		barycenter: Option<f64>,
 		weight: Option<f64>,
@@ -622,7 +622,7 @@ fn resolve_conflicts_impl(
 	}
 
 	let mut mapped: Vec<Mapped> = Vec::with_capacity(entries.len());
-	let mut v_to_idx: HashMap<String, usize> = HashMap::new();
+	let mut v_to_idx: HashMap<NodeId, usize> = HashMap::new();
 	for (i, e) in entries.iter().enumerate() {
 		v_to_idx.insert(e.v.clone(), i);
 		mapped.push(Mapped {
@@ -751,12 +751,12 @@ fn sort_impl(entries: Vec<ResolvedEntry>, bias_right: bool) -> SortResult {
 		}
 	});
 
-	let mut vs: Vec<Vec<String>> = Vec::new();
+	let mut vs: Vec<Vec<NodeId>> = Vec::new();
 	let mut sum = 0.0;
 	let mut weight = 0.0;
 	let mut vs_index = 0usize;
 
-	let consume_unsortable = |vs: &mut Vec<Vec<String>>,
+	let consume_unsortable = |vs: &mut Vec<Vec<NodeId>>,
 	                          unsortable: &mut Vec<ResolvedEntry>,
 	                          mut index: usize|
 	 -> usize {
@@ -785,7 +785,7 @@ fn sort_impl(entries: Vec<ResolvedEntry>, bias_right: bool) -> SortResult {
 		vs_index = consume_unsortable(&mut vs, &mut unsortable, vs_index);
 	}
 
-	let flat: Vec<String> = vs.into_iter().flatten().collect();
+	let flat: Vec<NodeId> = vs.into_iter().flatten().collect();
 	SortResult {
 		vs: flat,
 		barycenter: if weight > 0.0 {
@@ -801,13 +801,13 @@ fn sort_impl(entries: Vec<ResolvedEntry>, bias_right: bool) -> SortResult {
 
 fn sort_subgraph(
 	graph: &LayerGraph,
-	movable: &[String],
+	movable: &[NodeId],
 	constraint_graph: &Graph<(), (), ()>,
 	bias_right: bool,
 ) -> SortResult {
 	let barycenters = barycenter_impl(graph, movable);
 	let entries = barycenters;
-	let subgraphs: HashMap<String, SortResult> = HashMap::new();
+	let subgraphs: HashMap<NodeId, SortResult> = HashMap::new();
 	// Layer graphs from build_layer_graph are flat (compound-but-rooted), no
 	// nested subgraphs beyond the root level in our scope. So skip subgraph
 	// recursion here. (Compound dagre input is out of scope per user choice.)
@@ -822,7 +822,7 @@ fn sort_subgraph(
 const fn add_subgraph_constraints_layer(
 	_layer: &LayerGraph,
 	_cg: &mut Graph<(), (), ()>,
-	_vs: &[String],
+	_vs: &[NodeId],
 ) {
 	// No compound subgraphs to add constraints for in our scope.
 }

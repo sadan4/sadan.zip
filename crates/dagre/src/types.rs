@@ -3,7 +3,7 @@
 //! In the JS code labels are plain objects with many optional fields. We
 //! mirror that with Rust structs where every situational field is `Option`.
 
-use crate::graph::Edge;
+use crate::graph::{Edge, NodeId};
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -111,10 +111,10 @@ pub struct NodeLabel {
 
 	pub dummy: Option<Dummy>,
 	pub border_type: Option<BorderType>,
-	pub border_top: Option<String>,
-	pub border_bottom: Option<String>,
-	pub border_left: Option<Vec<String>>,
-	pub border_right: Option<Vec<String>>,
+	pub border_top: Option<NodeId>,
+	pub border_bottom: Option<NodeId>,
+	pub border_left: Option<Vec<NodeId>>,
+	pub border_right: Option<Vec<NodeId>>,
 	pub min_rank: Option<i32>,
 	pub max_rank: Option<i32>,
 
@@ -155,7 +155,7 @@ pub struct EdgeLabel {
 	pub y: Option<f64>,
 
 	pub reversed: bool,
-	pub forward_name: Option<String>,
+	pub forward_name: Option<NodeId>,
 	pub self_edge: bool,
 	pub nesting_edge: bool,
 
@@ -163,7 +163,7 @@ pub struct EdgeLabel {
 	pub cutvalue: Option<f64>,
 	pub lim: Option<i32>,
 	pub low: Option<i32>,
-	pub parent: Option<String>,
+	pub parent: Option<NodeId>,
 }
 
 impl EdgeLabel {
@@ -199,9 +199,9 @@ pub struct GraphLabel {
 	pub ranker: Option<Ranker>,
 	pub rank_align: Option<RankAlign>,
 
-	pub nesting_root: Option<String>,
+	pub nesting_root: Option<NodeId>,
 	pub node_rank_factor: Option<f64>,
-	pub dummy_chains: Option<Vec<String>>,
+	pub dummy_chains: Option<Vec<NodeId>>,
 
 	pub max_rank: Option<i32>,
 }

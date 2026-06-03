@@ -5,7 +5,7 @@
 //! checks are `Option<Dummy>::is_some()`.
 
 use dagre::{
-	graph::Graph,
+	graph::{Graph, NodeId},
 	position::bk::{
 		Conflicts,
 		PositionMap,
@@ -52,14 +52,14 @@ fn n_w(rank: i32, order: usize, width: f64) -> NodeLabel {
 fn pmap(pairs: &[(&str, f64)]) -> PositionMap {
 	pairs
 		.iter()
-		.map(|(k, v)| (k.to_string(), *v))
+		.map(|(k, v)| (NodeId::from(*k), *v))
 		.collect()
 }
 
-fn smap(pairs: &[(&str, &str)]) -> HashMap<String, String> {
+fn smap(pairs: &[(&str, &str)]) -> HashMap<NodeId, NodeId> {
 	pairs
 		.iter()
-		.map(|(k, v)| (k.to_string(), v.to_string()))
+		.map(|(k, v)| (NodeId::from(*k), NodeId::from(*v)))
 		.collect()
 }
 

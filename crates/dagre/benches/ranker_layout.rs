@@ -5,7 +5,7 @@
 
 use criterion::{criterion_group, criterion_main, Criterion};
 use dagre::{
-	LayoutGraph, graph::{Graph, GraphOpts}, rank, types::{EdgeLabel, GraphLabel, NodeLabel, Ranker}
+	LayoutGraph, graph::{Graph, GraphOpts, NodeId}, rank, types::{EdgeLabel, GraphLabel, NodeLabel, Ranker}
 };
 
 fn make_graph() -> Graph<GraphLabel, NodeLabel, EdgeLabel> {
@@ -48,9 +48,9 @@ fn large_graph() -> LayoutGraph {
 	let nodes_per_group: usize = 27;
 
 	for group in 0..num_groups {
-		let mut group_nodes: Vec<String> = Vec::with_capacity(nodes_per_group);
+		let mut group_nodes: Vec<NodeId> = Vec::with_capacity(nodes_per_group);
 		for node in 0..nodes_per_group {
-			let id = format!("g{group}_n{node}");
+			let id: NodeId = format!("g{group}_n{node}").into();
 			g.set_node(
 				id.clone(),
 				NodeLabel {

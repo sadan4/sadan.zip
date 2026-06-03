@@ -716,6 +716,7 @@ dependencies = [
  "mimalloc",
  "serde",
  "serde_json",
+ "smol_str",
 ]
 
 [[package]]

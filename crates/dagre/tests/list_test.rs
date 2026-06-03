@@ -9,7 +9,7 @@ use dagre::list::{FasEntry, List};
 
 fn entry(v: &str) -> FasEntry {
 	FasEntry {
-		v: v.to_string(),
+		v: v.into(),
 		in_w: 0.0,
 		out_w: 0.0,
 	}

@@ -3,7 +3,7 @@
 //! reconstruct points/labels.
 
 use crate::{
-	graph::{Edge, Graph},
+	graph::{Edge, Graph, NodeId},
 	types::{Dummy, EdgeLabel, GraphLabel, NodeLabel, Point},
 	util::add_dummy_node,
 };
@@ -97,7 +97,7 @@ fn normalize_edge(
 }
 
 pub fn undo(graph: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>) {
-	let chains: Vec<String> = graph
+	let chains: Vec<NodeId> = graph
 		.graph()
 		.and_then(|g| g.dummy_chains.clone())
 		.unwrap_or_default();

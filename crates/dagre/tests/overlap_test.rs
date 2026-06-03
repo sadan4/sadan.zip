@@ -4,7 +4,7 @@ use dagre::{LayoutGraph, layout};
 
 #[test]
 fn panic1_no_overlapping_nodes() {
-	type Row = (String, f64, f64, f64, f64, Option<i32>, Option<usize>);
+	type Row = (dagre::graph::NodeId, f64, f64, f64, f64, Option<i32>, Option<usize>);
 	let json = include_str!("data/panic1.json");
 	let mut g: LayoutGraph =
 		serde_json::from_str(json).expect("deserialize panic1.json");

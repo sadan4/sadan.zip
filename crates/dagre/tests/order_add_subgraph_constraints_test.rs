@@ -1,9 +1,7 @@
 //! Port of test/order/add-subgraph-constraints-test.ts.
 
-use std::string::ToString;
-
 use dagre::{
-	graph::{Edge, Graph, GraphOpts},
+	graph::{Edge, Graph, GraphOpts, NodeId},
 	order::add_subgraph_constraints,
 	types::{EdgeLabel, GraphLabel, NodeLabel},
 };
@@ -12,9 +10,9 @@ fn mk() -> Graph<GraphLabel, NodeLabel, EdgeLabel> {
 	Graph::with_opts(GraphOpts::directed().compound())
 }
 
-fn vs(s: &[&str]) -> Vec<String> {
+fn vs(s: &[&str]) -> Vec<NodeId> {
 	s.iter()
-		.map(ToString::to_string)
+		.map(|x| NodeId::from(*x))
 		.collect()
 }
 
@@ -76,12 +74,15 @@ fn works_for_multiple_levels() {
 	let mut edges: Vec<Edge> = cg.edges();
 	edges.sort_by(|a, b| a.v.cmp(&b.v));
 	assert_eq!(edges.len(), 2);
-	let pairs: Vec<(String, String)> = edges
+	let pairs: Vec<(NodeId, NodeId)> = edges
 		.into_iter()
 		.map(|e| (e.v, e.w))
 		.collect();
 	assert_eq!(
 		pairs,
-		vec![("sg1".into(), "sg4".into()), ("sg2".into(), "sg3".into())]
+		vec![
+			(NodeId::from("sg1"), NodeId::from("sg4")),
+			(NodeId::from("sg2"), NodeId::from("sg3"))
+		]
 	);
 }

@@ -4,7 +4,7 @@ use std::string::ToString;
 
 use dagre::{
 	acyclic,
-	graph::{alg, Edge, Graph, GraphOpts},
+	graph::{alg, Edge, Graph, GraphOpts, NodeId},
 	types::{EdgeLabel, GraphLabel, NodeLabel},
 };
 
@@ -25,7 +25,7 @@ fn mk_graph(
 	g
 }
 
-fn strip(e: &Edge) -> (String, String) {
+fn strip(e: &Edge) -> (NodeId, NodeId) {
 	(e.v.clone(), e.w.clone())
 }
 
@@ -57,8 +57,8 @@ fn run_does_not_change_an_already_acyclic_graph() {
 		acyclic::run(&mut g);
 		let mut edges: Vec<Edge> = g.edges();
 		sort_edges(&mut edges);
-		let pairs: Vec<(String, String)> = edges.iter().map(strip).collect();
-		let expected: Vec<(String, String)> = vec![
+		let pairs: Vec<(NodeId, NodeId)> = edges.iter().map(strip).collect();
+		let expected: Vec<(NodeId, NodeId)> = vec![
 			("a".into(), "b".into()),
 			("a".into(), "c".into()),
 			("b".into(), "d".into()),

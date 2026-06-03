@@ -5,14 +5,14 @@
 //! is the aggregated weight.
 
 use crate::{
-	graph::{Edge, Graph, GraphOpts},
+	graph::{Edge, Graph, GraphOpts, NodeId},
 	list::{FasEntry, List},
 	types::{EdgeLabel, GraphLabel, NodeLabel},
 };
 
 #[derive(Debug, Default, Clone)]
 struct FasNode {
-	v: String,
+	v: NodeId,
 	in_w: f64,
 	out_w: f64,
 }
@@ -205,7 +205,7 @@ where
 		buckets,
 		zero_idx,
 	};
-	let nodes: Vec<String> = state.g.nodes();
+	let nodes: Vec<NodeId> = state.g.nodes();
 	for v in nodes {
 		let node = state.g.node(&v).cloned().unwrap();
 		assign_bucket(&mut state.buckets, state.zero_idx, &node);

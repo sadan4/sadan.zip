@@ -1,7 +1,7 @@
 //! Utility helpers — port of `lib/util.ts`.
 
 use crate::{
-	graph::{Edge, Graph, GraphOpts},
+	graph::{Edge, Graph, GraphOpts, NodeId},
 	types::{Dummy, EdgeLabel, GraphLabel, NodeLabel, Point},
 };
 use std::{
@@ -11,9 +11,9 @@ use std::{
 
 static ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
-pub fn unique_id(prefix: &str) -> String {
+pub fn unique_id(prefix: &str) -> NodeId {
 	let id = ID_COUNTER.fetch_add(1, Ordering::SeqCst) + 1;
-	format!("{prefix}{id}")
+	format!("{prefix}{id}").into()
 }
 
 /// Reset the global id counter — useful in tests for determinism. Not
@@ -28,8 +28,8 @@ pub fn add_dummy_node(
 	dummy_type: Dummy,
 	mut attrs: NodeLabel,
 	name: &str,
-) -> String {
-	let mut v = name.to_string();
+) -> NodeId {
+	let mut v: NodeId = name.into();
 	while g.has_node(&v) {
 		v = unique_id(name);
 	}
@@ -109,10 +109,10 @@ pub fn as_non_compound_graph(
 
 pub fn successor_weights(
 	graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
-) -> HashMap<String, HashMap<String, f64>> {
+) -> HashMap<NodeId, HashMap<NodeId, f64>> {
 	let mut out = HashMap::new();
 	for v in graph.nodes() {
-		let mut sucs: HashMap<String, f64> = HashMap::new();
+		let mut sucs: HashMap<NodeId, f64> = HashMap::new();
 		if let Some(es) = graph.out_edges(&v) {
 			for e in es {
 				let w = graph
@@ -128,10 +128,10 @@ pub fn successor_weights(
 
 pub fn predecessor_weights(
 	graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
-) -> HashMap<String, HashMap<String, f64>> {
+) -> HashMap<NodeId, HashMap<NodeId, f64>> {
 	let mut out = HashMap::new();
 	for v in graph.nodes() {
-		let mut preds: HashMap<String, f64> = HashMap::new();
+		let mut preds: HashMap<NodeId, f64> = HashMap::new();
 		if let Some(es) = graph.in_edges(&v) {
 			for e in es {
 				let w = graph
@@ -177,7 +177,7 @@ pub fn intersect_rect(rect: &NodeLabel, point: Point) -> Point {
 
 pub fn build_layer_matrix(
 	graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
-) -> Vec<Vec<String>> {
+) -> Vec<Vec<NodeId>> {
 	let mx = max_rank(graph);
 	if mx < 0 {
 		return Vec::new();
@@ -188,7 +188,7 @@ pub fn build_layer_matrix(
 	// from dummy removal etc.) and downstream code (`vertical_alignment`,
 	// `build_block_graph`) treats those empty strings as real nodes, which
 	// silently corrupts root/pos maps and causes nodes to share x positions.
-	let mut layers: Vec<Vec<(usize, String)>> = (0..=mx as usize)
+	let mut layers: Vec<Vec<(usize, NodeId)>> = (0..=mx as usize)
 		.map(|_| Vec::new())
 		.collect();
 	for v in graph.nodes_iter() {
@@ -200,7 +200,7 @@ pub fn build_layer_matrix(
 			if r >= layers.len() {
 				layers.resize_with(r + 1, Vec::new);
 			}
-			layers[r].push((n.order.unwrap_or(0), v.to_string()));
+			layers[r].push((n.order.unwrap_or(0), v.into()));
 		}
 	}
 	layers
@@ -263,7 +263,7 @@ pub fn remove_empty_ranks(graph: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>) {
 		return;
 	}
 	let offset = *ranks.iter().min().unwrap();
-	let mut layers: Vec<Option<Vec<String>>> = Vec::new();
+	let mut layers: Vec<Option<Vec<NodeId>>> = Vec::new();
 	for v in graph.nodes() {
 		if let Some(n) = graph.node(&v)
 			&& let Some(r) = n.rank
@@ -306,7 +306,7 @@ pub fn add_border_node(
 	prefix: &str,
 	rank: Option<i32>,
 	order: Option<usize>,
-) -> String {
+) -> NodeId {
 	let node = NodeLabel {
 		width: 0.0,
 		height: 0.0,

@@ -1,23 +1,23 @@
 //! Rank assignment — port of `lib/rank/*.ts`.
 
 use crate::{
-	graph::{Edge, Graph},
+	graph::{Edge, Graph, NodeId},
 	types::{EdgeLabel, GraphLabel, NodeLabel, Ranker},
 	util::simplify,
 };
 
 pub mod util_rank {
-	use super::{Edge, EdgeLabel, Graph, GraphLabel, NodeLabel};
+	use super::{Edge, EdgeLabel, Graph, GraphLabel, NodeId, NodeLabel};
 
 	/// Initializes ranks using longest-path DFS from sources.
 	pub fn longest_path(graph: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>) {
-		let mut visited: std::collections::HashSet<String> =
+		let mut visited: std::collections::HashSet<NodeId> =
 			std::collections::HashSet::new();
 
 		fn dfs(
 			graph: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>,
 			v: &str,
-			visited: &mut std::collections::HashSet<String>,
+			visited: &mut std::collections::HashSet<NodeId>,
 		) -> i32 {
 			if visited.contains(v) {
 				return graph
@@ -25,7 +25,7 @@ pub mod util_rank {
 					.and_then(|n| n.rank)
 					.unwrap_or(0);
 			}
-			visited.insert(v.to_string());
+			visited.insert(v.into());
 
 			let out = graph.out_edges(v).unwrap_or_default();
 			let mut min_rank = i32::MAX;
@@ -78,11 +78,12 @@ pub mod feasible_tree {
 	use super::{Edge, EdgeLabel, Graph, GraphLabel, NodeLabel};
 	use crate::graph::GraphOpts;
 
+
 	#[derive(Debug, Clone, Default)]
 	pub struct TreeNode {
 		pub low: Option<i32>,
 		pub lim: Option<i32>,
-		pub parent: Option<String>,
+		pub parent: Option<crate::graph::NodeId>,
 	}
 
 	#[derive(Debug, Clone, Default)]
@@ -182,13 +183,14 @@ pub mod network_simplex {
 		EdgeLabel,
 		Graph,
 		GraphLabel,
+		NodeId,
 		NodeLabel,
 		feasible_tree::{Tree, TreeEdge, TreeNode},
 		simplify,
 		util_rank::{longest_path, slack},
 	};
 	use crate::graph::alg::{postorder, preorder};
-	use std::{collections::HashSet, string::ToString};
+	use std::collections::HashSet;
 
 	pub fn run(graph: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>) {
 		let mut simplified = simplify(graph);
@@ -284,7 +286,7 @@ pub mod network_simplex {
 		cut
 	}
 
-	pub fn init_low_lim(tree: &mut Tree, root: Option<String>) {
+	pub fn init_low_lim(tree: &mut Tree, root: Option<NodeId>) {
 		let root = root.unwrap_or_else(|| tree.nodes()[0].clone());
 		let mut visited = HashSet::new();
 		dfs_low_lim(tree, &mut visited, 1, &root, None);
@@ -292,13 +294,13 @@ pub mod network_simplex {
 
 	fn dfs_low_lim(
 		tree: &mut Tree,
-		visited: &mut HashSet<String>,
+		visited: &mut HashSet<NodeId>,
 		mut next_lim: i32,
 		v: &str,
 		parent: Option<&str>,
 	) -> i32 {
 		let low = next_lim;
-		visited.insert(v.to_string());
+		visited.insert(v.into());
 		let neighbors = tree.neighbors(v).unwrap_or_default();
 		for w in neighbors {
 			if !visited.contains(&w) {
@@ -308,7 +310,7 @@ pub mod network_simplex {
 		if let Some(n) = tree.node_mut(v) {
 			n.low = Some(low);
 			n.lim = Some(next_lim);
-			n.parent = parent.map(ToString::to_string);
+			n.parent = parent.map(NodeId::from);
 		}
 		next_lim + 1
 	}

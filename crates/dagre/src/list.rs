@@ -10,11 +10,12 @@
 //! from `entry.in / entry.out` each time, we don't need stable references
 //! into the list — we just need an efficient queue.
 
+use crate::graph::NodeId;
 use std::collections::VecDeque;
 
 #[derive(Debug, Clone)]
 pub struct FasEntry {
-	pub v: String,
+	pub v: NodeId,
 	pub in_w: f64,
 	pub out_w: f64,
 }
@@ -52,7 +53,7 @@ impl List {
 		let pos = self
 			.items
 			.iter()
-			.position(|e| e.v == v)?;
+			.position(|e| e.v.as_str() == v)?;
 		self.items.remove(pos)
 	}
 }

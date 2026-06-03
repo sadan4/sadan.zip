@@ -5,7 +5,7 @@
 //! alignments (up/down × left/right) and balances among them.
 
 use crate::{
-	graph::{Graph, GraphOpts},
+	graph::{Graph, GraphOpts, NodeId},
 	types::{
 		Align,
 		BorderType,
@@ -76,9 +76,9 @@ fn position_y(graph: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>) {
 
 // ---------- Brandes-Köpf -------------------------------------------------
 
-pub type Conflicts = HashMap<String, HashSet<String>>;
-pub type PositionMap = HashMap<String, f64>;
-pub type AlignmentResult = (HashMap<String, String>, HashMap<String, String>);
+pub type Conflicts = HashMap<NodeId, HashSet<NodeId>>;
+pub type PositionMap = HashMap<NodeId, f64>;
+pub type AlignmentResult = (HashMap<NodeId, NodeId>, HashMap<NodeId, NodeId>);
 
 /// Public BK API for unit tests. Re-exports of the internal helpers.
 pub mod bk {
@@ -101,9 +101,9 @@ pub mod bk {
 
 pub fn add_conflict(c: &mut Conflicts, v: &str, w: &str) {
 	let (a, b) = if v > w { (w, v) } else { (v, w) };
-	c.entry(a.to_string())
+	c.entry(a.into())
 		.or_default()
-		.insert(b.to_string());
+		.insert(b.into());
 }
 
 pub fn has_conflict(c: &Conflicts, v: &str, w: &str) -> bool {
@@ -113,13 +113,13 @@ pub fn has_conflict(c: &Conflicts, v: &str, w: &str) -> bool {
 
 pub fn find_type1_conflicts(
 	graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
-	layering: &[Vec<String>],
+	layering: &[Vec<NodeId>],
 ) -> Conflicts {
 	let mut conflicts: Conflicts = HashMap::new();
 	if layering.is_empty() {
 		return conflicts;
 	}
-	let mut prev: Option<&Vec<String>> = None;
+	let mut prev: Option<&Vec<NodeId>> = None;
 	for layer in layering {
 		if let Some(prev_layer) = prev {
 			let mut k0 = 0usize;
@@ -170,7 +170,7 @@ pub fn find_type1_conflicts(
 
 pub fn find_type2_conflicts(
 	graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
-	layering: &[Vec<String>],
+	layering: &[Vec<NodeId>],
 ) -> Conflicts {
 	let mut conflicts: Conflicts = HashMap::new();
 	if layering.is_empty() {
@@ -180,7 +180,7 @@ pub fn find_type2_conflicts(
 	fn scan(
 		graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
 		conflicts: &mut Conflicts,
-		south: &[String],
+		south: &[NodeId],
 		south_pos: usize,
 		south_end: usize,
 		prev_north_border: i64,
@@ -209,7 +209,7 @@ pub fn find_type2_conflicts(
 		}
 	}
 
-	let mut prev: Option<&Vec<String>> = None;
+	let mut prev: Option<&Vec<NodeId>> = None;
 	for south in layering {
 		if let Some(_north) = prev {
 			let mut prev_north_pos: i64 = -1;
@@ -262,7 +262,7 @@ pub fn find_type2_conflicts(
 fn find_other_inner_segment_node(
 	graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
 	v: &str,
-) -> Option<String> {
+) -> Option<NodeId> {
 	if graph
 		.node(v)
 		.is_some_and(|n| n.dummy.is_some())
@@ -278,16 +278,16 @@ fn find_other_inner_segment_node(
 }
 
 pub fn vertical_alignment<F>(
-	layering: &[Vec<String>],
+	layering: &[Vec<NodeId>],
 	conflicts: &Conflicts,
 	neighbor_fn: F,
-) -> (HashMap<String, String>, HashMap<String, String>)
+) -> (HashMap<NodeId, NodeId>, HashMap<NodeId, NodeId>)
 where
-	F: Fn(&str) -> Vec<String>,
+	F: Fn(&str) -> Vec<NodeId>,
 {
-	let mut root: HashMap<String, String> = HashMap::new();
-	let mut align: HashMap<String, String> = HashMap::new();
-	let mut pos: HashMap<String, usize> = HashMap::new();
+	let mut root: HashMap<NodeId, NodeId> = HashMap::new();
+	let mut align: HashMap<NodeId, NodeId> = HashMap::new();
+	let mut pos: HashMap<NodeId, usize> = HashMap::new();
 
 	for layer in layering {
 		for (order, v) in layer.iter().enumerate() {
@@ -335,9 +335,9 @@ where
 
 pub fn horizontal_compaction<S: BuildHasher, S2: BuildHasher>(
 	graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
-	layering: &[Vec<String>],
-	root: &HashMap<String, String, S>,
-	align: &HashMap<String, String, S2>,
+	layering: &[Vec<NodeId>],
+	root: &HashMap<NodeId, NodeId, S>,
+	align: &HashMap<NodeId, NodeId, S2>,
 	reverse_sep: bool,
 ) -> PositionMap {
 	let mut xs: PositionMap = HashMap::new();
@@ -354,7 +354,7 @@ pub fn horizontal_compaction<S: BuildHasher, S2: BuildHasher>(
 		next_nodes: F2,
 	) where
 		F1: FnMut(&str),
-		F2: Fn(&str) -> Vec<String>,
+		F2: Fn(&str) -> Vec<NodeId>,
 	{
 		// Tri-state iterative post-order DFS: WHITE → GRAY → BLACK. The
 		// original JS dagre uses a two-state visited set, but that re-runs
@@ -366,9 +366,9 @@ pub fn horizontal_compaction<S: BuildHasher, S2: BuildHasher>(
 		const GRAY: u8 = 1;
 		const BLACK: u8 = 2;
 		let nodes = block_g.nodes();
-		let mut state: HashMap<String, u8> =
+		let mut state: HashMap<NodeId, u8> =
 			HashMap::with_capacity(nodes.len());
-		let mut stack: Vec<String> = nodes;
+		let mut stack: Vec<NodeId> = nodes;
 		while let Some(elem) = stack.pop() {
 			match state
 				.get(&elem)
@@ -421,9 +421,9 @@ pub fn horizontal_compaction<S: BuildHasher, S2: BuildHasher>(
 				}
 			}
 			if any {
-				xs_ref.insert(elem.to_string(), max);
+				xs_ref.insert(elem.into(), max);
 			} else {
-				xs_ref.insert(elem.to_string(), 0.0);
+				xs_ref.insert(elem.into(), 0.0);
 			}
 		};
 		iterate(block_g_ref, &mut pass1, preds);
@@ -456,14 +456,14 @@ pub fn horizontal_compaction<S: BuildHasher, S2: BuildHasher>(
 				.and_then(|n| n.border_type);
 			if min.is_finite() && bt != Some(border_type) {
 				let cur = xs_ref.get(elem).copied().unwrap_or(0.0);
-				xs_ref.insert(elem.to_string(), cur.max(min));
+				xs_ref.insert(elem.into(), cur.max(min));
 			}
 		};
 		iterate(block_g_ref, &mut pass2, succs);
 	};
 
 	// Propagate root x to all aligned nodes.
-	let xs_root: HashMap<String, f64> = xs.clone();
+	let xs_root: HashMap<NodeId, f64> = xs.clone();
 	for v in align.keys() {
 		if let Some(rv) = root.get(v)
 			&& let Some(&x) = xs_root.get(rv)
@@ -476,8 +476,8 @@ pub fn horizontal_compaction<S: BuildHasher, S2: BuildHasher>(
 
 fn build_block_graph<S: BuildHasher>(
 	graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
-	layering: &[Vec<String>],
-	root: &HashMap<String, String, S>,
+	layering: &[Vec<NodeId>],
+	root: &HashMap<NodeId, NodeId, S>,
 	reverse_sep: bool,
 ) -> Graph<(), (), f64> {
 	let mut block_graph: Graph<(), (), f64> = Graph::with_opts(GraphOpts {
@@ -497,7 +497,7 @@ fn build_block_graph<S: BuildHasher>(
 		      u: &str|
 		      -> f64 { sep(node_sep, edge_sep, reverse_sep, g, v, u) };
 	for layer in layering {
-		let mut u: Option<String> = None;
+		let mut u: Option<NodeId> = None;
 		for v in layer {
 			let v_root = match root.get(v) {
 				Some(r) => r.clone(),
@@ -598,7 +598,7 @@ pub fn position_x(
 	let (mut t_va, mut t_hc) = (0u128, 0u128);
 	let mut xss: HashMap<String, PositionMap> = HashMap::new();
 	for vert in ["u", "d"] {
-		let mut adjusted: Vec<Vec<String>> = layering.clone();
+		let mut adjusted: Vec<Vec<NodeId>> = layering.clone();
 		if vert == "d" {
 			adjusted.reverse();
 		}
@@ -608,7 +608,7 @@ pub fn position_x(
 					inner.reverse();
 				}
 			}
-			let neighbor_fn = |v: &str| -> Vec<String> {
+			let neighbor_fn = |v: &str| -> Vec<NodeId> {
 				if vert == "u" {
 					graph
 						.predecessors(v)
