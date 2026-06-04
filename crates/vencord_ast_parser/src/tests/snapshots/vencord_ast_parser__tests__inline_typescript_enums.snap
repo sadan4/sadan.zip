@@ -20,7 +20,7 @@ expression: patches
       Replacement(
         match_: MatchLike(
           v: Regex(MatchRegex(
-            pattern: "(?<=\\.USE_EXTERNAL_EMOJIS.+?;)(?<=intention:((?:[A-Za-z_$][\\w]*)).+?)",
+            pattern: "(?<=\\.USE_EXTERNAL_EMOJIS.+?;)(?<=intention:((?:[A-Za-z_$][\\w$]*)).+?)",
             flags: RegExpFlagsDef(
               bits: 0,
             ),
@@ -50,7 +50,7 @@ expression: patches
       Replacement(
         match_: MatchLike(
           v: Regex(MatchRegex(
-            pattern: "&&!(?:[A-Za-z_$][\\w]*)&&!(?:[A-Za-z_$][\\w]*)(?=\\)return (?:[A-Za-z_$][\\w]*)\\.(?:[A-Za-z_$][\\w]*)\\.DISALLOW_EXTERNAL;)",
+            pattern: "&&!(?:[A-Za-z_$][\\w$]*)&&!(?:[A-Za-z_$][\\w$]*)(?=\\)return (?:[A-Za-z_$][\\w$]*)\\.(?:[A-Za-z_$][\\w$]*)\\.DISALLOW_EXTERNAL;)",
             flags: RegExpFlagsDef(
               bits: 0,
             ),
@@ -80,7 +80,7 @@ expression: patches
       Replacement(
         match_: MatchLike(
           v: Regex(MatchRegex(
-            pattern: "!(?:[A-Za-z_$][\\w]*)\\.available(?=\\)return (?:[A-Za-z_$][\\w]*)\\.(?:[A-Za-z_$][\\w]*)\\.GUILD_SUBSCRIPTION_UNAVAILABLE;)",
+            pattern: "!(?:[A-Za-z_$][\\w$]*)\\.available(?=\\)return (?:[A-Za-z_$][\\w$]*)\\.(?:[A-Za-z_$][\\w$]*)\\.GUILD_SUBSCRIPTION_UNAVAILABLE;)",
             flags: RegExpFlagsDef(
               bits: 0,
             ),
@@ -110,7 +110,7 @@ expression: patches
       Replacement(
         match_: MatchLike(
           v: Regex(MatchRegex(
-            pattern: "!((?:[A-Za-z_$][\\w]*)\\.(?:[A-Za-z_$][\\w]*)\\.canUseEmojisEverywhere\\((?:[A-Za-z_$][\\w]*)\\))",
+            pattern: "!((?:[A-Za-z_$][\\w$]*)\\.(?:[A-Za-z_$][\\w$]*)\\.canUseEmojisEverywhere\\((?:[A-Za-z_$][\\w$]*)\\))",
             flags: RegExpFlagsDef(
               bits: 0,
             ),
@@ -140,7 +140,7 @@ expression: patches
       Replacement(
         match_: MatchLike(
           v: Regex(MatchRegex(
-            pattern: "(?<=\\|\\|)(?:[A-Za-z_$][\\w]*)\\.(?:[A-Za-z_$][\\w]*)\\.canUseAnimatedEmojis\\((?:[A-Za-z_$][\\w]*)\\)",
+            pattern: "(?<=\\|\\|)(?:[A-Za-z_$][\\w$]*)\\.(?:[A-Za-z_$][\\w$]*)\\.canUseAnimatedEmojis\\((?:[A-Za-z_$][\\w$]*)\\)",
             flags: RegExpFlagsDef(
               bits: 0,
             ),
@@ -186,7 +186,7 @@ expression: patches
       Replacement(
         match_: MatchLike(
           v: Regex(MatchRegex(
-            pattern: "(let (?:[A-Za-z_$][\\w]*),{sticker:(?:[A-Za-z_$][\\w]*),channel:(?:[A-Za-z_$][\\w]*),closePopout:(?:[A-Za-z_$][\\w]*).+?}=((?:[A-Za-z_$][\\w]*)).+?;)(.+?description:)((?:[A-Za-z_$][\\w]*))(?=,sticker:(?:[A-Za-z_$][\\w]*))",
+            pattern: "(let (?:[A-Za-z_$][\\w$]*),{sticker:(?:[A-Za-z_$][\\w$]*),channel:(?:[A-Za-z_$][\\w$]*),closePopout:(?:[A-Za-z_$][\\w$]*).+?}=((?:[A-Za-z_$][\\w$]*)).+?;)(.+?description:)((?:[A-Za-z_$][\\w$]*))(?=,sticker:(?:[A-Za-z_$][\\w$]*))",
             flags: RegExpFlagsDef(
               bits: 0,
             ),
@@ -238,7 +238,7 @@ expression: patches
       Replacement(
         match_: MatchLike(
           v: Regex(MatchRegex(
-            pattern: "(?<=emojiDescription:)((?:[A-Za-z_$][\\w]*))(?<=\\1=(?:[A-Za-z_$][\\w]*)\\(((?:[A-Za-z_$][\\w]*))\\).+?)",
+            pattern: "(?<=emojiDescription:)((?:[A-Za-z_$][\\w$]*))(?<=\\1=(?:[A-Za-z_$][\\w$]*)\\(((?:[A-Za-z_$][\\w$]*))\\).+?)",
             flags: RegExpFlagsDef(
               bits: 0,
             ),

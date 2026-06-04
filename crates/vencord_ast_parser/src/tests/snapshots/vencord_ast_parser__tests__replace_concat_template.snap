@@ -20,7 +20,7 @@ expression: patches
       Replacement(
         match_: MatchLike(
           v: Regex(MatchRegex(
-            pattern: "(?<=folderNode:((?:[A-Za-z_$][\\w]*)),expanded:)(?:[A-Za-z_$][\\w]*)(?=,)",
+            pattern: "(?<=folderNode:((?:[A-Za-z_$][\\w$]*)),expanded:)(?:[A-Za-z_$][\\w$]*)(?=,)",
             flags: RegExpFlagsDef(
               bits: 0,
             ),

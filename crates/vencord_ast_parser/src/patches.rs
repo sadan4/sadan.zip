@@ -174,7 +174,7 @@ pub fn canonicalize_regex_ident(s: &str) -> Cow<'_, str> {
 		let g_esc = m.group(1).unwrap();
 		if g_esc.len() & 1 == 0 {
 			ret.push_str(&s[g_esc]);
-			ret.push_str(r"(?:[A-Za-z_$][\w]*)");
+			ret.push_str(r"(?:[A-Za-z_$][\w$]*)");
 			last_end = m.end();
 		} else {
 			last_end = m.start() + 1;

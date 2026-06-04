@@ -20,7 +20,7 @@ expression: patches
       Replacement(
         match_: MatchLike(
           v: Regex(MatchRegex(
-            pattern: ",((?:[A-Za-z_$][\\w]*))\\.execute\\(((?:[A-Za-z_$][\\w]*)),((?:[A-Za-z_$][\\w]*))\\)",
+            pattern: ",((?:[A-Za-z_$][\\w$]*))\\.execute\\(((?:[A-Za-z_$][\\w$]*)),((?:[A-Za-z_$][\\w$]*))\\)",
             flags: RegExpFlagsDef(
               bits: 0,
             ),

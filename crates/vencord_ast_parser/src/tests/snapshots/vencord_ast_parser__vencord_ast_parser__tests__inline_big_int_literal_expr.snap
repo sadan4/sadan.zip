@@ -21,7 +21,7 @@ expression: patches
       Replacement(
         match_: MatchLike(
           v: Regex(MatchRegex(
-            pattern: "permissionOverwrites\\[.+?(?:[A-Za-z_$][\\w]*)=(?<=context:((?:[A-Za-z_$][\\w]*))}.+?)(?=(.+?)VIEW_CHANNEL)",
+            pattern: "permissionOverwrites\\[.+?(?:[A-Za-z_$][\\w$]*)=(?<=context:((?:[A-Za-z_$][\\w$]*))}.+?)(?=(.+?)VIEW_CHANNEL)",
             flags: RegExpFlagsDef(
               bits: 0,
             ),
