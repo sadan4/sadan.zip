@@ -72,6 +72,7 @@ use oxc::{
 		AstKind,
 		ast::{
 			ArrowFunctionExpression,
+			BindingIdentifier,
 			CallExpression,
 			Class,
 			ClassElement,
@@ -85,11 +86,12 @@ use oxc::{
 			ObjectProperty,
 			ObjectPropertyKind,
 			Program,
+			StaticMemberExpression,
 			Str,
 			VariableDeclarator,
 		},
 	},
-	semantic::{Reference, Semantic, SymbolId},
+	semantic::{NodeId, ReferenceId, Semantic, SymbolId},
 	span::{GetSpan, SourceType, Span},
 };
 use smol_str::{SmolStr, ToSmolStr as _};
@@ -179,9 +181,6 @@ impl<'ast> WebpackAstParser<'ast> {
 			Self::raw_export_map_to_range_export_map(raw)
 		})
 	}
-	// FIXME: this is just a direct port from js
-	// It should probably be rewritten
-	#[expect(clippy::too_many_lines, reason = "TODO")]
 	pub fn get_uses_of_import(
 		&self,
 		m_id: ModuleId,
@@ -193,184 +192,61 @@ impl<'ast> WebpackAstParser<'ast> {
 
 		let mut uses = Vec::new();
 
-		let iter = self
-			.sema
-			.symbol_references(wreq)
-			.map(Reference::node_id);
-
-		for use_id in iter {
-			let Some(p_call) = self.p(use_id).as_call_expression() else {
+		for wreq_ref in self.refs(wreq) {
+			let Some(require_call) =
+				self.match_wreq_require_call(wreq_ref, m_id)
+			else {
 				continue;
 			};
-			let p_call_args = &p_call.arguments;
-			if p_call_args.len() != 1 {
-				continue;
-			}
-			// continue if the module id does not match
-			if p_call_args[0]
-				.as_numeric_literal()
-				.and_then(NumericLiteral::as_u32)
-				.map(ModuleId::from)
-				.is_none_or(|id| id != m_id)
-			{
-				continue;
-			}
 
-			match self.p(p_call.node_id()) {
-				AstKind::VariableDeclarator(p_call_p_decl) => {
-					let Some(name) = p_call_p_decl.id.as_binding_identifier()
-					else {
+			match self.p(require_call.node_id()) {
+				// `var foo = wreq(m_id);` - chase uses of `foo`
+				AstKind::VariableDeclarator(decl) => {
+					let Some(name) = decl.id.as_binding_identifier() else {
 						continue;
 					};
-					let name_sym_id = name.symbol_id();
-					let refs = self
+					let binding_refs = self
 						.sema
 						.scoping()
-						.get_resolved_reference_ids(name_sym_id);
-					// handle things like `var foo = wreq(1), bar = wreq.n(foo);`
-					'nmd: {
-						if refs.len() == 1 {
-							// loc is always a identifier reference because it's a reference to an identifier
-							let loc = self
-								.n(self
-									.sema
-									.scoping()
-									.get_reference(refs[0])
-									.node_id())
-								.kind()
-								.as_identifier_reference()
-								.unwrap();
-							let Some(call) = self
-								.p(loc.node_id())
-								.as_call_expression()
-							else {
-								break 'nmd;
-							};
-							if call.arguments.len() != 1 {
-								break 'nmd;
-							}
-							debug_assert!(
-								call.arguments[0].address()
-									== loc.unstable_address(),
-								"how"
-							);
-							// ensure that the call is `wreq.n(...)`
-							let func_expr = &call.callee;
-							let Some(func_expr) =
-								func_expr.as_static_member_expression()
-							else {
-								break 'nmd;
-							};
-							if func_expr.property.name != "n"
-								|| func_expr
-									.object
-									.as_identifier()
-									.is_none_or(|wreq_use| {
-										!self.cmp_sym(wreq_use, &wreq)
-									}) {
-								break 'nmd;
-							}
-							let Some(decl) = self
-								.find_parent(
-									func_expr.node_id(),
-									AstKind::as_variable_declarator,
-								)
-								.unwrap()
-								.id
-								.as_binding_identifier()
-							else {
-								break 'nmd;
-							};
-							for usage2 in self.refs(decl.symbol_id()) {
-								let Some(called_use) =
-									self.p(usage2).as_call_expression()
-								else {
-									continue;
-								};
-								if export_names.first()
-									== Some(&ExportMapKey::Default)
-								{
-									// a()()
-									if self
-										.p(called_use.node_id())
-										.as_call_expression()
-										.is_none()
-									{
-										continue;
-									}
-									uses.push(called_use.span());
-								} else {
-									let Some(called_use_p_access) = self
-										.p(called_use.node_id())
-										.as_static_member_expression()
-									else {
-										continue;
-									};
-									let outer_prop_expr = self.last_parent(
-										called_use_p_access.node_id(),
-										AstKind::as_static_member_expression,
-									).unwrap();
-									let full_usage_chain =
-										flatten_property_access_expression(
-											outer_prop_expr,
-										);
-									let Some(last_match) = match_export_chain(
-										&full_usage_chain,
-										export_names,
-									) else {
-										continue;
-									};
-									uses.push(last_match.span());
-								}
-							}
-						}
-					};
-					let refs = refs.iter().copied().map(|ref_id| {
-						self.sema
-							.scoping()
-							.get_reference(ref_id)
-							.node_id()
-					});
-					for loc in refs {
-						let Some(loc_p_access) = self
-							.p(loc)
-							.as_static_member_expression()
-						else {
-							continue;
-						};
-						let outer_prop_expr = self
-							.last_parent(
-								loc_p_access.node_id(),
-								AstKind::as_static_member_expression,
-							)
-							.unwrap();
-						let full_usage_chain =
-							flatten_property_access_expression(outer_prop_expr);
-						let Some(last_match) =
-							match_export_chain(&full_usage_chain, export_names)
-						else {
-							continue;
-						};
+						.get_resolved_reference_ids(name.symbol_id());
 
-						uses.push(last_match.span());
+					// `var foo = wreq(m), bar = wreq.n(foo);`
+					// also chase uses through `bar`
+					if let Some(n_alias) =
+						self.try_resolve_wreq_n_alias(binding_refs, wreq)
+					{
+						self.collect_uses_via_wreq_n_alias(
+							n_alias,
+							export_names,
+							&mut uses,
+						);
+					}
+
+					for ref_id in binding_refs {
+						let ref_node = self
+							.sema
+							.scoping()
+							.get_reference(*ref_id)
+							.node_id();
+						let Some(access) =
+							self.p(ref_node).as_static_member_expression()
+						else {
+							continue;
+						};
+						if let Some(span) =
+							self.match_outer_access_chain(access, export_names)
+						{
+							uses.push(span);
+						}
 					}
 				}
-				AstKind::StaticMemberExpression(p_call_p_access) => {
-					// TODO: fix signature of last_parent so that this .unwrap is not needed
-					let outer_prop_expr = self
-						.last_parent(
-							p_call_p_access.node_id(),
-							AstKind::as_static_member_expression,
-						)
-						.unwrap();
-					let full_usage_chain =
-						flatten_property_access_expression(outer_prop_expr);
-					let Some(last_match) =
-						match_export_chain(&full_usage_chain, export_names)
-					else {
-						continue;
-					};
-					uses.push(last_match.span());
+				// `wreq(m_id).foo.bar` - used inline
+				AstKind::StaticMemberExpression(access) => {
+					if let Some(span) =
+						self.match_outer_access_chain(access, export_names)
+					{
+						uses.push(span);
+					}
 				}
 				_ => {}
 			}
@@ -715,6 +591,117 @@ impl<'ast> WebpackAstParser<'ast> {
 /// Private API
 #[allow(clippy::multiple_inherent_impl)]
 impl<'ast> WebpackAstParser<'ast> {
+	/// Given a reference to `wreq`, returns the `wreq(m_id)` call expression the
+	/// reference is the callee of — or `None` if it isn't being used to require `m_id`.
+	fn match_wreq_require_call(
+		&self,
+		wreq_ref: NodeId,
+		m_id: ModuleId,
+	) -> Option<&'ast CallExpression<'ast>> {
+		let call = self.p(wreq_ref).as_call_expression()?;
+		if call.arguments.len() != 1 {
+			return None;
+		}
+		let arg_id = call.arguments[0]
+			.as_numeric_literal()
+			.and_then(NumericLiteral::as_u32)
+			.map(ModuleId::from)?;
+		(arg_id == m_id).then_some(call)
+	}
+
+	/// Detect the `var foo = wreq(m), bar = wreq.n(foo);` pattern.
+	///
+	/// Given the references to `foo`, if its only reference is the argument to a
+	/// `wreq.n(...)` call whose result is bound to a variable, return the symbol of
+	/// that variable (`bar`).
+	fn try_resolve_wreq_n_alias(
+		&self,
+		binding_refs: &[ReferenceId],
+		wreq: SymbolId,
+	) -> Option<SymbolId> {
+		let [ref_id] = binding_refs else {
+			return None;
+		};
+		// always an identifier reference because it's a reference to an identifier
+		let loc = self
+			.n(self.sema.scoping().get_reference(*ref_id).node_id())
+			.kind()
+			.as_identifier_reference()
+			.unwrap();
+		let call = self.p(loc.node_id()).as_call_expression()?;
+		if call.arguments.len() != 1 {
+			return None;
+		}
+		debug_assert!(
+			call.arguments[0].address() == loc.unstable_address(),
+			"how"
+		);
+		// ensure that the call is `wreq.n(...)`
+		let callee = call.callee.as_static_member_expression()?;
+		if callee.property.name != "n" {
+			return None;
+		}
+		if !self.cmp_sym(callee.object.as_identifier()?, &wreq) {
+			return None;
+		}
+		self.find_parent(callee.node_id(), AstKind::as_variable_declarator)
+			.unwrap()
+			.id
+			.as_binding_identifier()
+			.map(BindingIdentifier::symbol_id)
+	}
+
+	/// Collect uses through the `bar` variable in `var bar = wreq.n(foo);`.
+	///
+	/// `wreq.n` returns a getter, so:
+	/// - For the default export, usages look like `bar()()`.
+	/// - Otherwise, treat `bar.x.y...` as a normal member-access chain.
+	fn collect_uses_via_wreq_n_alias(
+		&self,
+		alias: SymbolId,
+		export_names: &[ExportMapKey],
+		uses: &mut Vec<Span>,
+	) {
+		let want_default =
+			export_names.first() == Some(&ExportMapKey::Default);
+		for usage in self.refs(alias) {
+			let Some(call) = self.p(usage).as_call_expression() else {
+				continue;
+			};
+			if want_default {
+				// `bar()()`
+				if self.p(call.node_id()).as_call_expression().is_some() {
+					uses.push(call.span());
+				}
+			} else if let Some(access) =
+				self.p(call.node_id()).as_static_member_expression()
+				&& let Some(span) =
+					self.match_outer_access_chain(access, export_names)
+			{
+				uses.push(span);
+			}
+		}
+	}
+
+	/// Walks outward through any chained static member accesses starting at
+	/// `inner_access`, then matches the resulting chain against `export_names`,
+	/// returning the span of the final matching segment.
+	fn match_outer_access_chain(
+		&self,
+		inner_access: &'ast StaticMemberExpression<'ast>,
+		export_names: &[ExportMapKey],
+	) -> Option<Span> {
+		// inner_access itself satisfies the predicate, so last_parent never returns None
+		let outer = self
+			.last_parent(
+				inner_access.node_id(),
+				AstKind::as_static_member_expression,
+			)
+			.unwrap();
+		let chain = flatten_property_access_expression(outer);
+		match_export_chain(&chain, export_names).map(GetSpan::span)
+	}
+
 	fn does_re_export_from_export(
 		&self,
 		export_name: &[ExportMapKey],
