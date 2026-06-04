@@ -1,3 +1,0 @@
-<component name="DependencyValidationManager">
-  <scope name="Rust Files" pattern="file[sadan.zip]:crates//*.rs" />
-</component>
