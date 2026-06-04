@@ -1272,3 +1272,73 @@ mod import_parsing {
 		"#);
 	}
 }
+
+mod direct_module_definition {
+	use super::*;
+	use macros::test;
+	use std::collections::HashMap;
+
+	struct TestModuleCache {
+		paths: HashMap<ModuleId, SmolStr>,
+	}
+
+	impl<'ast> IModuleCache<'ast> for TestModuleCache {
+		fn get_module_filepath(&self, id: ModuleId) -> Option<SmolStr> {
+			self.paths.get(&id).cloned()
+		}
+		fn get_module_parser(
+			&self,
+			_requestor: &WebpackAstParser<'ast>,
+			_id: ModuleId,
+			_latest: Option<bool>,
+		) -> Result<Rc<WebpackAstParser<'ast>>> {
+			bail!("test cache does not provide parsers")
+		}
+	}
+
+	#[test]
+	fn returns_definition_for_wreq_call_arg() {
+		let alloc = Allocator::new();
+		let source = include_str!("test_data/wp/module.js");
+		let cache = TestModuleCache {
+			paths: HashMap::from([(
+				ModuleId(200651),
+				SmolStr::new_static("modules/200651.js"),
+			)]),
+		};
+		let mut p = WebpackAstParser::try_new(&alloc, source).unwrap();
+		p.set_module_cache(&cache);
+		// pos 188 lies inside `200651` of `n(200651)` on line 11
+		let defs = p.generate_definitions(188).unwrap();
+		assert_debug_snapshot!(defs, @r#"
+		[
+		    Definition {
+		        location: Path(
+		            "modules/200651.js",
+		        ),
+		        module_id: ModuleId(
+		            200651,
+		        ),
+		        range: Span {
+		            start: 0,
+		            end: 0,
+		        },
+		    },
+		]
+		"#);
+	}
+
+	#[test]
+	fn errors_when_module_cache_has_no_filepath() {
+		let alloc = Allocator::new();
+		let p = parse!(alloc, "test_data/wp/module.js");
+		let _ = p.generate_definitions(188).unwrap_err();
+	}
+
+	#[test]
+	fn errors_when_numeric_literal_parent_is_not_a_call() {
+		let alloc = Allocator::new();
+		let p = parse!(alloc, "test_data/wp/module.js");
+		let _ = p.generate_definitions(38).unwrap_err();
+	}
+}
