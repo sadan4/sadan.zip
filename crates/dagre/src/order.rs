@@ -1,5 +1,7 @@
 //! Crossing-minimization order pipeline — port of `lib/order/*.ts`.
 
+use smol_str::SmolStr;
+
 use crate::{
 	graph::{Graph, GraphOpts, NodeId},
 	types::{EdgeLabel, GraphLabel, NodeLabel},
@@ -21,8 +23,8 @@ struct LayerNode {
 	min_rank: Option<i32>,
 	max_rank: Option<i32>,
 	order: Option<usize>,
-	border_left: Option<NodeId>,
-	border_right: Option<NodeId>,
+	border_left: Option<SmolStr>,
+	border_right: Option<SmolStr>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -136,9 +138,7 @@ pub fn add_subgraph_constraints(
 	for v in vs {
 		let mut child = graph.parent(v).map(NodeId::from);
 		while let Some(c) = child.clone() {
-			let parent = graph
-				.parent(&c)
-				.map(NodeId::from);
+			let parent = graph.parent(&c).map(NodeId::from);
 			let prev_child = if let Some(p) = &parent {
 				let pc = prev.get(p).cloned();
 				prev.insert(p.clone(), c.clone());

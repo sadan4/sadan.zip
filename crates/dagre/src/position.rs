@@ -136,8 +136,7 @@ pub fn find_type1_conflicts(
 					None => prev_len,
 				};
 				if w_opt.is_some() || last_node.as_ref() == Some(v) {
-					for j in scan_pos..=i {
-						let scan_node = &layer[j];
+					for scan_node in layer.iter().take(i + 1).skip(scan_pos) {
 						let preds = graph
 							.predecessors(scan_node)
 							.unwrap_or_default();

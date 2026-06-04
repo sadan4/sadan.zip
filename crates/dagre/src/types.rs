@@ -7,6 +7,7 @@ use crate::graph::{Edge, NodeId};
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
+use smol_str::SmolStr;
 
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -102,22 +103,37 @@ pub enum Ranker {
 #[derive(Debug, Clone, Default)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct NodeLabel {
+	/// Input width of the node, used for spacing during layout.
 	pub width: f64,
+	/// Input height of the node, used for spacing during layout.
 	pub height: f64,
+	/// Output x-coordinate of the node center, set by the position phase.
 	pub x: Option<f64>,
+	/// Output y-coordinate of the node center, set by the position phase.
 	pub y: Option<f64>,
+	/// Layer index assigned by the ranking phase; lower ranks are closer to the source.
 	pub rank: Option<i32>,
+	/// Position within the rank, set by the ordering phase to minimize edge crossings.
 	pub order: Option<usize>,
 
+	/// Marks synthetic nodes inserted by the layout (edge splits, borders, etc.).
 	pub dummy: Option<Dummy>,
+	/// For border dummy nodes, distinguishes left vs right border segments.
 	pub border_type: Option<BorderType>,
-	pub border_top: Option<NodeId>,
-	pub border_bottom: Option<NodeId>,
-	pub border_left: Option<Vec<NodeId>>,
-	pub border_right: Option<Vec<NodeId>>,
+	/// Compound graphs: node ID of the top border anchor.
+	pub border_top: Option<SmolStr>,
+	/// Compound graphs: node ID of the bottom border anchor.
+	pub border_bottom: Option<SmolStr>,
+	/// Compound graphs: left border node IDs, indexed by rank.
+	pub border_left: Option<Vec<SmolStr>>,
+	/// Compound graphs: right border node IDs, indexed by rank.
+	pub border_right: Option<Vec<SmolStr>>,
+	/// Compound graphs: smallest rank a cluster subgraph may occupy.
 	pub min_rank: Option<i32>,
+	/// Compound graphs: largest rank a cluster subgraph may occupy.
 	pub max_rank: Option<i32>,
 
+	/// Where the node's label sits relative to the node (L/C/R).
 	pub labelpos: Option<LabelPos>,
 
 	/// Set for "edge" dummy nodes: original edge object.
@@ -143,26 +159,43 @@ pub struct SelfEdgeStash {
 #[derive(Debug, Clone, Default)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct EdgeLabel {
+	/// Computed spline waypoints for the edge, populated by the position phase.
 	pub points: Option<Vec<Point>>,
+	/// Width of the edge's label box, used to reserve space along the edge.
 	pub width: f64,
+	/// Height of the edge's label box, used to reserve space along the edge.
 	pub height: f64,
+	/// Minimum number of ranks the edge must span; enforced by ranking.
 	pub minlen: i32,
+	/// Importance weight; higher weights bias ranking and crossing-minimization.
 	pub weight: f64,
+	/// Where the label sits along the edge (L/C/R).
 	pub labelpos: Option<LabelPos>,
+	/// Distance to offset the label from the edge path.
 	pub labeloffset: f64,
+	/// Rank at which to place the edge-label dummy node, for long labelled edges.
 	pub label_rank: Option<i32>,
+	/// Output x-coordinate of the edge label, set by the position phase.
 	pub x: Option<f64>,
+	/// Output y-coordinate of the edge label, set by the position phase.
 	pub y: Option<f64>,
 
+	/// True if the edge was reversed by the acyclic phase to break a cycle.
 	pub reversed: bool,
+	/// Original edge name preserved when reversed, so the acyclic phase can undo the flip.
 	pub forward_name: Option<NodeId>,
+	/// True if the edge is a self-loop.
 	pub self_edge: bool,
+	/// True if the edge was inserted to enforce compound-graph nesting.
 	pub nesting_edge: bool,
 
-	/// Network-simplex tree-edge state.
+	/// Network-simplex tree-edge state: cut value; negatives mark edges that should leave the tree.
 	pub cutvalue: Option<f64>,
+	/// Network-simplex tree state: DFS post-order index ("lim") of the head node.
 	pub lim: Option<i32>,
+	/// Network-simplex tree state: lowest DFS index in the subtree rooted at the head node.
 	pub low: Option<i32>,
+	/// Network-simplex tree state: parent node in the spanning tree.
 	pub parent: Option<NodeId>,
 }
 
@@ -183,26 +216,43 @@ impl EdgeLabel {
 #[derive(Debug, Clone, Default)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct GraphLabel {
+	/// Output total width of the laid-out graph.
 	pub width: Option<f64>,
+	/// Output total height of the laid-out graph.
 	pub height: Option<f64>,
+	/// True when the graph contains nested subgraphs (clusters).
 	pub compound: bool,
 
+	/// Direction of rank flow: TB, BT, LR, or RL.
 	pub rankdir: Option<RankDir>,
+	/// Alignment of nodes within a rank (UL/UR/DL/DR).
 	pub align: Option<Align>,
+	/// Minimum separation between adjacent nodes within a rank.
 	pub nodesep: Option<f64>,
+	/// Minimum separation between adjacent edges.
 	pub edgesep: Option<f64>,
+	/// Separation between adjacent ranks.
 	pub ranksep: Option<f64>,
+	/// Horizontal margin around the entire laid-out graph.
 	pub marginx: Option<f64>,
+	/// Vertical margin around the entire laid-out graph.
 	pub marginy: Option<f64>,
 
+	/// Cycle-breaking strategy; "greedy" selects greedy-FAS, otherwise a DFS-based pass is used.
 	pub acyclicer: Option<String>,
+	/// Ranking algorithm to use.
 	pub ranker: Option<Ranker>,
+	/// How ranks are aligned vertically within their layer (Top/Center/Bottom).
 	pub rank_align: Option<RankAlign>,
 
+	/// Compound graphs: root node ID of the nesting hierarchy.
 	pub nesting_root: Option<NodeId>,
+	/// Compound graphs: divisor controlling rank spacing across nesting levels.
 	pub node_rank_factor: Option<f64>,
+	/// Starting nodes of dummy chains inserted by normalize, used to undo normalization.
 	pub dummy_chains: Option<Vec<NodeId>>,
 
+	/// Largest rank index in the graph after ranking; computed by the ranking phase.
 	pub max_rank: Option<i32>,
 }
 
