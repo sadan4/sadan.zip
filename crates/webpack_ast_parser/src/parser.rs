@@ -122,6 +122,7 @@ struct Cache<'ast> {
 	exports_arg: CacheValue<Option<SymbolId>>,
 	module_id: CacheValue<Option<ModuleId>>,
 	does_re_export_whole_module: CacheValue<Option<ModuleId>>,
+	modules_that_this_module_requires: CacheRef<Option<OutgoingModuleDeps>>,
 }
 
 impl<'ast> AstParser<'ast> for WebpackAstParser<'ast> {
@@ -487,8 +488,15 @@ impl<'ast> WebpackAstParser<'ast> {
 
 		Ok(locs)
 	}
-	// TODO: cache
 	pub fn get_modules_that_this_module_requires(
+		&self,
+	) -> Option<&OutgoingModuleDeps> {
+		self.c
+			.modules_that_this_module_requires
+			.get(|| self.get_modules_that_this_module_requires_impl())
+			.as_ref()
+	}
+	fn get_modules_that_this_module_requires_impl(
 		&self,
 	) -> Option<OutgoingModuleDeps> {
 		let wreq = self.wreq()?;

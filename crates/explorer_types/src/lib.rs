@@ -104,3 +104,21 @@ pub struct OutgoingModuleDeps {
 	/// the module that this module requires lazily (dynamic import)
 	pub lazy: Vec<ModuleId>,
 }
+
+impl OutgoingModuleDeps {
+	pub const fn new() -> Self {
+		Self {
+			sync: Vec::new(),
+			lazy: Vec::new(),
+		}
+	}
+}
+
+impl IncomingModuleDeps {
+	pub const fn new() -> Self {
+		Self {
+			sync: Vec::new(),
+			lazy: Vec::new(),
+		}
+	}
+}
