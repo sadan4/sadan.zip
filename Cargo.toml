@@ -87,8 +87,14 @@ webpack_chunk_parser = { path = "crates/webpack_chunk_parser" }
 pretty_printer = { path = "crates/pretty_printer" }
 dagre = { path = "crates/dagre", features = ["serde"] }
 discord_scraper = { path = "crates/discord_scraper" }
+companion_lsp = { path = "crates/companion_lsp" }
 # dagre_graphlib = { path = "crates/dagre_graphlib" }
 # dagre_slop = { path = "crates/dagre_slop" }
+tower-lsp = "0.20.0"
+tokio-tungstenite = "0.24.0"
+futures-util = "0.3.31"
+dashmap = "6.1.0"
+tempfile = "3.13.0"
 notify = "8.2.0"
 rustc-hash = "2.1.2"
 clearscreen = "4.0.6"

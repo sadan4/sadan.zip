@@ -1,3 +1,5 @@
+pub mod find;
+
 use anyhow::Result;
 use derive_more::{Eq, PartialEq};
 use itertools::Itertools;
@@ -7,6 +9,16 @@ use regress::{Flags, Regex};
 use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
 
+/// Surface-level info about a plugin's `definePlugin({...})` declaration —
+/// just enough for the LSP to anchor a code lens and ship a command
+/// payload, without exposing the full AST.
+#[derive(Debug, Clone, Copy)]
+pub struct PluginInfo<'ast> {
+	pub name: &'ast str,
+	/// Source span covering the `definePlugin` object literal.
+	pub span: Span,
+}
+
 #[derive(Debug, PartialEq, Eq, Hash, Serialize)]
 pub struct Patch {
 	pub plugin_id: Option<u16>,
@@ -14,6 +26,9 @@ pub struct Patch {
 	pub no_warn: bool,
 	pub find: MatchLike,
 	pub replacement: Vec<Replacement>,
+	/// Source span covering the patch object literal (or the spread array
+	/// element it was synthesized from). Suitable for UI anchoring.
+	pub span: Span,
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Serialize)]

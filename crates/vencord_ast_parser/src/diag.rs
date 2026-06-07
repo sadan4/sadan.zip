@@ -4,6 +4,8 @@ use derive_more::Debug;
 use oxc::span::{GetSpan, Span};
 use thiserror::Error;
 
+pub use miette::Severity;
+
 #[derive(Error, Debug, Clone, Default)]
 #[error("VencordAstParser: {msg}")]
 pub struct ParserDiagnostic {
@@ -25,6 +27,18 @@ impl ParserDiagnostic {
 		debug_assert!(self.cause.is_none(), "should only set cause once");
 		self.cause = Some(Arc::from(cause.into()));
 		self
+	}
+
+	pub fn message(&self) -> &str {
+		&self.msg
+	}
+
+	pub fn labels_raw(&self) -> &[(Span, Cow<'static, str>)] {
+		&self.labels
+	}
+
+	pub fn severity_raw(&self) -> miette::Severity {
+		self.severity
 	}
 }
 

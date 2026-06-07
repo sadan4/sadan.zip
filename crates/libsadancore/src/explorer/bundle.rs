@@ -282,15 +282,9 @@ impl BundleInner {
 	}
 }
 
-fn is_webpack_module(src: &str) -> bool {
-	src.starts_with("// Webpack Module")
-		|| src[0..src.ceil_char_boundary(src.len().min(100))]
-			.contains("//OPEN FULL MODULE:")
-}
-
 fn format_module_header(src: &mut String, m_id: ModuleId, is_find: bool) {
 	const BUF_LEN: usize = 128;
-	if is_webpack_module(src) {
+	if WebpackAstParser::is_webpack_module(src) {
 		return;
 	}
 	let mut buf = String::with_capacity(BUF_LEN);

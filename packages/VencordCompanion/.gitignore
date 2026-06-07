@@ -1,0 +1,9 @@
+dist
+*.tgz
+node_modules
+.vscode-test/
+*.vsix
+.direnv
+.eslintcache
+*.cpuprofile
+bin/

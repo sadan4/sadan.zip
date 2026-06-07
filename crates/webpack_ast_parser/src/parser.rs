@@ -12,7 +12,6 @@ use crate::{
 		IModuleCache,
 		IModuleDepProvider,
 	},
-	cache::{CacheRef, CacheValue},
 	parser::{
 		enum_iife::EnumIIFEState1_2,
 		export_map::{
@@ -49,6 +48,7 @@ use anyhow::{Context, Result, anyhow, bail};
 use ast_parser::{
 	AstParser,
 	ast_kind::IntoAstKind,
+	cache,
 	exts::{
 		BindingPatternExt,
 		ExpressionExt,
@@ -115,16 +115,16 @@ pub struct WebpackAstParser<'ast> {
 
 #[derive(Default)]
 struct Cache<'ast> {
-	wreq: CacheValue<Option<SymbolId>>,
-	t: CacheValue<Option<SymbolId>>,
-	raw_export_map: CacheRef<RawExportMap<'ast>>,
-	range_export_map: CacheRef<RangeExportMap>,
-	wreq_d: CacheValue<Option<WreqD<'ast>>>,
-	mod_arg: CacheValue<Option<SymbolId>>,
-	exports_arg: CacheValue<Option<SymbolId>>,
-	module_id: CacheValue<Option<ModuleId>>,
-	does_re_export_whole_module: CacheValue<Option<ModuleId>>,
-	modules_that_this_module_requires: CacheRef<Option<OutgoingModuleDeps>>,
+	wreq: cache::Value<Option<SymbolId>>,
+	t: cache::Value<Option<SymbolId>>,
+	raw_export_map: cache::Ref<RawExportMap<'ast>>,
+	range_export_map: cache::Ref<RangeExportMap>,
+	wreq_d: cache::Value<Option<WreqD<'ast>>>,
+	mod_arg: cache::Value<Option<SymbolId>>,
+	exports_arg: cache::Value<Option<SymbolId>>,
+	module_id: cache::Value<Option<ModuleId>>,
+	does_re_export_whole_module: cache::Value<Option<ModuleId>>,
+	modules_that_this_module_requires: cache::Ref<Option<OutgoingModuleDeps>>,
 }
 
 impl<'ast> AstParser<'ast> for WebpackAstParser<'ast> {
@@ -150,6 +150,14 @@ impl<'ast> WebpackAstParser<'ast> {
 			module_dep_provider: &DefaultModuleDepProvider,
 			c: Cache::default(),
 		})
+	}
+
+	/// takes the module text `src` and returns if the
+	/// module text is a webpack module or an extracted find
+	pub fn is_webpack_module(src: &str) -> bool {
+		src.starts_with("// Webpack Module")
+			|| src[0..src.ceil_char_boundary(src.len().min(100))]
+				.contains("//OPEN FULL MODULE:")
 	}
 
 	pub const fn get_source(&self) -> &'ast str {
@@ -228,8 +236,9 @@ impl<'ast> WebpackAstParser<'ast> {
 							.scoping()
 							.get_reference(*ref_id)
 							.node_id();
-						let Some(access) =
-							self.p(ref_node).as_static_member_expression()
+						let Some(access) = self
+							.p(ref_node)
+							.as_static_member_expression()
 						else {
 							continue;
 						};
@@ -624,11 +633,17 @@ impl<'ast> WebpackAstParser<'ast> {
 		};
 		// always an identifier reference because it's a reference to an identifier
 		let loc = self
-			.n(self.sema.scoping().get_reference(*ref_id).node_id())
+			.n(self
+				.sema
+				.scoping()
+				.get_reference(*ref_id)
+				.node_id())
 			.kind()
 			.as_identifier_reference()
 			.unwrap();
-		let call = self.p(loc.node_id()).as_call_expression()?;
+		let call = self
+			.p(loc.node_id())
+			.as_call_expression()?;
 		if call.arguments.len() != 1 {
 			return None;
 		}
@@ -637,7 +652,9 @@ impl<'ast> WebpackAstParser<'ast> {
 			"how"
 		);
 		// ensure that the call is `wreq.n(...)`
-		let callee = call.callee.as_static_member_expression()?;
+		let callee = call
+			.callee
+			.as_static_member_expression()?;
 		if callee.property.name != "n" {
 			return None;
 		}
@@ -662,19 +679,23 @@ impl<'ast> WebpackAstParser<'ast> {
 		export_names: &[ExportMapKey],
 		uses: &mut Vec<Span>,
 	) {
-		let want_default =
-			export_names.first() == Some(&ExportMapKey::Default);
+		let want_default = export_names.first() == Some(&ExportMapKey::Default);
 		for usage in self.refs(alias) {
 			let Some(call) = self.p(usage).as_call_expression() else {
 				continue;
 			};
 			if want_default {
 				// `bar()()`
-				if self.p(call.node_id()).as_call_expression().is_some() {
+				if self
+					.p(call.node_id())
+					.as_call_expression()
+					.is_some()
+				{
 					uses.push(call.span());
 				}
-			} else if let Some(access) =
-				self.p(call.node_id()).as_static_member_expression()
+			} else if let Some(access) = self
+				.p(call.node_id())
+				.as_static_member_expression()
 				&& let Some(span) =
 					self.match_outer_access_chain(access, export_names)
 			{

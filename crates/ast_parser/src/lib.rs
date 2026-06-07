@@ -4,6 +4,7 @@ pub mod ast_kind;
 mod ast_parser;
 pub mod exts;
 pub mod sym_id;
+pub mod cache;
 
 pub use ast_parser::{
 	AstParser,

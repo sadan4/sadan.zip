@@ -168,6 +168,10 @@ expression: patches
         no_warn: false,
       ),
     ],
+    span: {
+      "start": 575,
+      "end": 2106,
+    },
   ),
   Patch(
     plugin_id: None,
@@ -220,6 +224,10 @@ expression: patches
         no_warn: false,
       ),
     ],
+    span: {
+      "start": 2124,
+      "end": 2695,
+    },
   ),
   Patch(
     plugin_id: None,
@@ -268,5 +276,9 @@ expression: patches
         no_warn: false,
       ),
     ],
+    span: {
+      "start": 2706,
+      "end": 3108,
+    },
   ),
 ]

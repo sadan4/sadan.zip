@@ -30,6 +30,11 @@ pub struct RawPatch<'ast> {
 	pub predicate: PatchPredicate<'ast>,
 	pub find: RawMatchLike<'ast>,
 	pub replacement: OxcVec<'ast, RawReplacement<'ast>>,
+	/// Source span covering the patch object literal (or, in the spread
+	/// `[a, b].map(v => ({ find: v, ... }))` case, the array element the
+	/// patch was synthesized from). Used by editors to anchor patch-level
+	/// UI like code lenses.
+	pub span: Span,
 	// I don't think Vencord uses these at all
 	// from_build: Option<u32>,
 	// to_build: Option<u32>,
@@ -239,7 +244,19 @@ pub fn canonicalize_replace_for_regress(s: &mut str) {
 
 // TODO: Helper for COW regex
 
-pub fn canonicalize_match_like(raw: &RawMatchLike<'_>) -> PResult<MatchLike> {
+/// Convert a parsed `find:` / `match:` value into its canonical form.
+///
+/// `apply_regress_canon` controls regress-specific rewrites — currently the
+/// `\i` → `(?:[A-Za-z_$][\w$]*)` expansion via `canonicalize_regex_ident`.
+/// Pass `true` when the result will be evaluated by the `regress` crate
+/// (e.g. the offline reporter); pass `false` when shipping over the wire to
+/// a JS runtime, which understands either form but doesn't need the
+/// expansion. The Vencord `#{intl::...}` macro is always expanded regardless,
+/// because both sides need the hashed form.
+pub fn canonicalize_match_like(
+	raw: &RawMatchLike<'_>,
+	apply_regress_canon: bool,
+) -> PResult<MatchLike> {
 	let ret = match raw {
 		RawMatchLike::String(StringLiteral { value, span, .. })
 		| RawMatchLike::ComputedString(value, span) => {
@@ -254,7 +271,11 @@ pub fn canonicalize_match_like(raw: &RawMatchLike<'_>) -> PResult<MatchLike> {
 			let span = pat.span;
 			let pat = pat.regex.pattern.text.as_str();
 			let pat = canonicalize_intl(pat, true, span)?;
-			let pat = canonicalize_regex_ident(&pat);
+			let pat = if apply_regress_canon {
+				canonicalize_regex_ident(&pat)
+			} else {
+				pat
+			};
 			MatchLike {
 				v: Match::Regex(MatchRegex {
 					pattern: pat.into_owned(),

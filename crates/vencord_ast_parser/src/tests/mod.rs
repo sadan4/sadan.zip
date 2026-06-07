@@ -11,7 +11,7 @@ macro_rules! dump_patches {
 			let code = dump_ast(&parser.prog);
 			eprintln!("{code}");
 		}
-		parser.patches().unwrap()
+		parser.patches(true).unwrap()
 	}};
 	($path:literal) => {
 		dump_patches!($path, false)
