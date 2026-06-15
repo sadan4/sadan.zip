@@ -100,7 +100,7 @@ async fn run_validation(
 	let mut diags = parser_lints;
 
 	if state.discord.is_connected().await {
-		for (span, wire) in parsed {
+		for (span, wire) in parsed.into_iter().flatten() {
 			if let Err(e) = state.discord.test_patch(wire).await {
 				let range = span_to_range(&source, span);
 				diags.push(Diagnostic {
@@ -171,11 +171,17 @@ fn severity_to_lsp(sev: Severity) -> DiagnosticSeverity {
 
 /// Walks the source via `VencordAstParser`, converting each parser `Patch`
 /// into a wire-format `PatchData` paired with the patch's source `Span` for
-/// diagnostic placement. Skips patches whose replacements include template
-/// functions for now — those need a separate serializer path.
+/// diagnostic placement. Patches that can't be expressed on the wire (e.g.
+/// non-string/regex finds or matches) come back as `None` so the returned
+/// `Vec`'s indices line up 1:1 with `VencordAstParser::patches()` — callers
+/// (code lenses, the `testPatch` resolver) rely on that alignment.
+///
+/// Function replacements ship as `ReplaceNode::Function` carrying the raw JS
+/// source of the arrow function, which the Discord-side handler `eval`s back
+/// into a callable — same protocol as the original TS extension.
 pub(crate) fn extract_patches(
 	source: &str,
-) -> anyhow::Result<Vec<(Span, PatchData)>> {
+) -> anyhow::Result<Vec<Option<(Span, PatchData)>>> {
 	use oxc::allocator::Allocator;
 	use vencord_ast_parser::Replacer;
 
@@ -190,9 +196,10 @@ pub(crate) fn extract_patches(
 		return Ok(Vec::new());
 	};
 
-	let mut out = Vec::new();
+	let mut out = Vec::with_capacity(patches.len());
 	for patch in patches {
 		let Some((find_type, find)) = match_to_wire(&patch.find.v) else {
+			out.push(None);
 			continue;
 		};
 
@@ -205,16 +212,26 @@ pub(crate) fn extract_patches(
 			};
 			let replace = match &r.replace.v {
 				Replacer::Str(s) => ReplaceNode::String { value: s.clone() },
-				// Template replacements would need their JS source
-				// reconstructed; defer to a follow-up.
+				// The parser keeps the original arrow function's span on the
+				// `ReplaceLike` wrapper — slice the source and ship that
+				// verbatim as a `function` node.
 				Replacer::Template(_) => {
-					skip_patch = true;
-					break;
+					let span = r.replace.s;
+					let Some(text) =
+						source.get(span.start as usize..span.end as usize)
+					else {
+						skip_patch = true;
+						break;
+					};
+					ReplaceNode::Function {
+						value: text.to_owned(),
+					}
 				}
 			};
 			replacements.push(Replacement { match_: m, replace });
 		}
 		if skip_patch {
+			out.push(None);
 			continue;
 		}
 
@@ -223,7 +240,7 @@ pub(crate) fn extract_patches(
 			find,
 			replacement: replacements,
 		};
-		out.push((patch.find.s, data));
+		out.push(Some((patch.find.s, data)));
 	}
 
 	Ok(out)
@@ -323,7 +340,11 @@ export default definePlugin({
 
 	#[test]
 	fn extracts_string_patch_to_wire() {
-		let patches = extract_patches(PLUGIN).unwrap();
+		let patches: Vec<_> = extract_patches(PLUGIN)
+			.unwrap()
+			.into_iter()
+			.flatten()
+			.collect();
 		assert!(!patches.is_empty(), "expected at least one wire patch");
 		let (_, data) = &patches[0];
 		match data.find_type {
@@ -344,7 +365,11 @@ export default definePlugin({
 
 	#[test]
 	fn extracts_regex_patch_to_wire_with_flags() {
-		let patches = extract_patches(PLUGIN).unwrap();
+		let patches: Vec<_> = extract_patches(PLUGIN)
+			.unwrap()
+			.into_iter()
+			.flatten()
+			.collect();
 		let regex_patch = patches
 			.iter()
 			.find(|(_, d)| matches!(d.find_type, FindType::Regex));
@@ -375,7 +400,11 @@ export default definePlugin({
     }],
 });
 "#;
-		let patches = extract_patches(SRC).unwrap();
+		let patches: Vec<_> = extract_patches(SRC)
+			.unwrap()
+			.into_iter()
+			.flatten()
+			.collect();
 		let (_, data) = patches
 			.first()
 			.expect("expected wire patch");
@@ -389,6 +418,45 @@ export default definePlugin({
 				);
 			}
 			_ => panic!("expected string replace"),
+		}
+	}
+
+	#[test]
+	fn function_replacement_ships_as_function_node() {
+		// Discord-side `eval`s the `function`-node value back into a callable,
+		// so we ship the arrow function's raw JS source verbatim.
+		const SRC: &str = r#"import definePlugin from "@utils/types";
+export default definePlugin({
+    name: "P",
+    patches: [{
+        find: "abc",
+        replacement: {
+            match: /(useCallback\(\()(\)=>\{)/,
+            replace: (_, a, b) => `${a}arg${b}`
+        }
+    }],
+});
+"#;
+		let patches: Vec<_> = extract_patches(SRC)
+			.unwrap()
+			.into_iter()
+			.flatten()
+			.collect();
+		let (_, data) = patches
+			.first()
+			.expect("expected wire patch");
+		match &data.replacement[0].replace {
+			ReplaceNode::Function { value } => {
+				assert!(
+					value.starts_with("(_, a, b)"),
+					"expected raw arrow source, got {value:?}"
+				);
+				assert!(
+					value.contains("`${a}arg${b}`"),
+					"expected template body preserved, got {value:?}"
+				);
+			}
+			_ => panic!("expected function replace"),
 		}
 	}
 

@@ -553,12 +553,9 @@ dependencies = [
  "anyhow",
  "ast_parser",
  "dashmap 6.2.1",
- "discord_scraper",
  "explorer_types",
  "futures-util",
- "itertools 0.14.0",
  "oxc",
- "oxc_allocator",
  "pretty_printer",
  "regex",
  "regress",
@@ -566,7 +563,6 @@ dependencies = [
  "serde_json",
  "smol_str",
  "tempfile",
- "thiserror 2.0.18",
  "tokio",
  "tokio-tungstenite",
  "tower-lsp",
@@ -574,8 +570,6 @@ dependencies = [
  "tracing-subscriber",
  "vencord_ast_parser",
  "webpack_ast_parser",
- "webpack_chunk_parser",
- "xxhash-rust",
 ]
 
 [[package]]
@@ -762,7 +756,6 @@ name = "dagre"
 version = "0.1.0"
 dependencies = [
  "criterion",
- "mimalloc",
  "serde",
  "serde_json",
  "smol_str",
@@ -942,7 +935,6 @@ dependencies = [
  "anyhow",
  "axum",
  "clap",
- "const_format",
  "discord_scraper",
  "explorer_server_core",
  "explorer_types",
@@ -1761,15 +1753,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "52ff2c0fe9bc6cb6b14a0592c2ff4fa9ceb83eea9db979b0487cd054946a2b8f"
 
 [[package]]
-name = "libmimalloc-sys"
-version = "0.1.49"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a45a52f43e1c16f667ccfe4dd8c85b7f7c204fd5e3bf46c5b0db9a5c3c0b8e9"
-dependencies = [
- "cc",
-]
-
-[[package]]
 name = "libredox"
 version = "0.1.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1790,16 +1773,13 @@ dependencies = [
  "console_error_panic_hook",
  "const_format",
  "dagre",
- "derive_more",
  "explorer_types",
- "itertools 0.14.0",
  "js-sys",
  "oxc",
  "pretty_printer",
  "rmp-serde",
  "serde",
  "serde-wasm-bindgen",
- "serde_json",
  "smol_str",
  "thiserror 2.0.18",
  "wasm-bindgen",
@@ -1899,15 +1879,6 @@ name = "memchr"
 version = "2.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8ca58f447f06ed17d5fc4043ce1b10dd205e060fb3ce5b979b8ed8e59ff3f79"
-
-[[package]]
-name = "mimalloc"
-version = "0.1.52"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2d4139bb28d14ad1facf21d5eb8825051b326e172d216b39f6d31df53cc97862"
-dependencies = [
- "libmimalloc-sys",
-]
 
 [[package]]
 name = "mime"
@@ -3027,7 +2998,6 @@ dependencies = [
  "oxc_allocator",
  "pretty_printer",
  "regress",
- "reqwest",
  "reqwest-middleware",
  "rustc-hash",
  "serde",

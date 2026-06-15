@@ -22,7 +22,7 @@ use super::messages::{IncomingFrame, OutgoingFrame, OutgoingKind};
 /// Default timeout for a single RPC. Matches `VencordCompanion`'s legacy 5s.
 pub const DEFAULT_TIMEOUT: Duration = Duration::from_millis(5_000);
 /// Longer timeout used only for the initial version handshake.
-pub const VERSION_TIMEOUT: Duration = Duration::from_millis(30_000);
+pub const VERSION_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// Handle handed to active connections so they can register outgoing requests
 /// and receive matched responses. Cheap to clone (`Arc`-shaped internally).
@@ -105,7 +105,7 @@ impl RpcSender {
 		}
 	}
 
-	pub fn is_connected(&self) -> bool {
+	pub const fn is_connected(&self) -> bool {
 		self.outbound.is_some()
 	}
 

@@ -230,6 +230,20 @@ mod tests {
 	}
 
 	#[test]
+	fn locates_webpack_intl_in_patch_helper_module() {
+		// Patch Helper renders the patched module with a `// Webpack Module N`
+		// header and a `0,` prefix (so the anonymous module function parses as
+		// an expression). Hover must resolve `i.t.HASH` inside that content.
+		let src = "// Webpack Module 123\n0,\nfunction(e,t,i){return i.t.AbCdEf}";
+		let d = doc("javascript", src);
+		// Cursor inside `AbCdEf` on the third line.
+		let pos = Position { line: 2, character: 30 };
+		let t = locate_intl_token(&d, pos).unwrap();
+		assert_eq!(t.hashed, "AbCdEf");
+		assert!(t.source.is_none());
+	}
+
+	#[test]
 	fn ast_rejects_non_member_six_char_identifiers() {
 		// `AbCdEf` here is a top-level binding, not a member access — the
 		// old regex would have matched, the AST path correctly does not.

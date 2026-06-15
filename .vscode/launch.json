@@ -19,7 +19,7 @@
             // it incorrectly monkey-patches standard APIs (only patching some console methods and leaving the rest undefined, ...), and randomly errors
             "args": [
                 "--extensionDevelopmentPath=${workspaceFolder}/packages/VencordCompanion",
-                "--disable-extension=asvetliakov.vscode-neovim"
+                // "--disable-extension=asvetliakov.vscode-neovim"
             ],
             "outFiles": [
                 "${workspaceFolder}/packages/VencordCompanion/dist/**/*.js"
@@ -39,7 +39,7 @@
             // it incorrectly monkey-patches standard APIs (only patching some console methods and leaving the rest undefined, ...), and randomly errors
             "args": [
                 "--extensionDevelopmentPath=${workspaceFolder}/packages/VencordCompanion",
-                "--disable-extension=asvetliakov.vscode-neovim",
+                // "--disable-extension=asvetliakov.vscode-neovim",
                 "--inspect-brk-extensions=9229"
             ],
             "outFiles": [

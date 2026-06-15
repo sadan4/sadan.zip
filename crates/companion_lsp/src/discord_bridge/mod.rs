@@ -288,6 +288,7 @@ async fn dispatch_text(state: &SharedState, pending: &PendingMap, text: &str) {
 	}
 }
 
+#[allow(clippy::result_large_err)]
 fn origin_check(
 	req: &Request,
 	response: Response,

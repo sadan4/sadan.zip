@@ -29,7 +29,6 @@ axum.workspace = true
 http.workspace = true
 tower-http.workspace = true
 tar.workspace = true
-const_format.workspace = true
 
 [lints]
 workspace = true

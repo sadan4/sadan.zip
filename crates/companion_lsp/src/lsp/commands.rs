@@ -88,8 +88,8 @@ pub async fn execute_command(
 	}
 }
 
-/// Custom server method: client returns the user's QuickPick selection.
-pub async fn on_quick_pick_response(
+/// Custom server method: client returns the user's `QuickPick` selection.
+pub fn on_quick_pick_response(
 	backend: &Backend,
 	params: Value,
 ) -> LspResult<Value> {
@@ -162,7 +162,14 @@ fn resolve_patch_data(backend: &Backend, args: &[Value]) -> Result<PatchData> {
 				wire.len(),
 			);
 		}
-		return Ok(wire.swap_remove(lens.patch_index).1);
+		return wire
+			.get_mut(lens.patch_index)
+			.and_then(Option::take)
+			.map(|(_, data)| data)
+			.context(
+				"this patch can't be tested over the wire yet (function \
+				 replacements aren't supported)",
+			);
 	}
 
 	serde_json::from_value(first.clone())

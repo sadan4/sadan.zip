@@ -479,79 +479,108 @@ const fn find_type_kind(t: FindType) -> &'static str {
 /// Apply every replacement in `patch` to `module` and return the formatted
 /// post-patch text.
 ///
-/// Strategy mirrors `ReporterState::format_syntax_error`: format the
-/// **unpatched** module first (it always parses) and remember the
-/// original→formatted position map. Then compute each replacement's match
-/// span against the original module, map those spans to the formatted code,
-/// and splice the replacement text in (in reverse order so earlier splices
-/// don't shift later ones). This way the output is always cleanly formatted
-/// even when the replacement text itself produces invalid JS.
+/// Happy path: splice the replacements straight into the original module
+/// (spans are in original coordinates) and format the result. When the patch
+/// yields valid JS — the common case — this formats the whole module,
+/// replacement text included.
+///
+/// Fallback (mirrors `ReporterState::format_syntax_error`): if the patched
+/// module doesn't parse — because the replacement text itself produces invalid
+/// JS — format the **unpatched** module instead (it always parses), map each
+/// replacement's span into the formatted code, and splice the raw replacement
+/// text in. The replacement text stays unformatted, but the surrounding module
+/// is still cleanly formatted.
 ///
 /// As with the reporter, replacements are computed against the **original**
-/// module rather than cumulatively against each other's output — this is the
-/// trade-off that buys us mapped formatting.
+/// module rather than cumulatively against each other's output.
 fn apply_patch_to_module(
 	module: &str,
 	patch: &Patch,
 	plugin_name: &str,
 ) -> Result<String> {
-	let alloc = Allocator::default();
-	let (mut code, mappings) = match pretty_printer::format_with_alloc(module, &alloc, 4) {
-		Ok(c) => (c.code, Some(c.mappings)),
-		// Module didn't parse on its own — extremely unusual for a Discord
-		// webpack module, but fall back to the raw text so the rest of the
-		// helper still works.
-		Err(_) => (module.to_owned(), None),
-	};
-
 	let mut ranges: Vec<(usize, usize, String)> = Vec::new();
 	for (i, repl) in patch.replacement.iter().enumerate() {
 		collect_replacement_ranges(module, repl, plugin_name, &mut ranges)
 			.with_context(|| format!("replacement {} failed", i + 1))?;
 	}
 
-	if let Some(mappings) = mappings {
-		for (start, end, _) in ranges.iter_mut() {
-			let (ns, ne) = map_span(&mappings, *start as u32, *end as u32);
-			*start = ns as usize;
-			*end = ne as usize;
-		}
+	// Splice into the original module first. Offsets are already in original
+	// coordinates, so no mapping is needed and the result is logically exact.
+	let patched = splice_ranges(module, ranges.clone());
+	let alloc = Allocator::default();
+	if let Ok(formatted) = pretty_printer::format_with_alloc(&patched, &alloc, 4) {
+		return Ok(formatted.code);
 	}
 
-	// Splice in reverse order so each replacement's range stays valid.
+	// Patched module won't parse — fall back to formatting the unpatched
+	// module and splicing the raw replacement text at mapped positions.
+	let alloc = Allocator::default();
+	let Ok(pretty_printer::FormattedContent { code, mappings }) =
+		pretty_printer::format_with_alloc(module, &alloc, 4)
+	else {
+		// Module didn't parse on its own either — extremely unusual for a
+		// Discord webpack module. Return the raw patched text so the rest of
+		// the helper still works.
+		return Ok(patched);
+	};
+
+	let mapped = ranges
+		.into_iter()
+		.map(|(start, end, txt)| {
+			let (ns, ne) = map_span(&mappings, start as u32, end as u32);
+			(ns as usize, ne as usize, txt)
+		})
+		.collect();
+	Ok(splice_ranges(&code, mapped))
+}
+
+/// Apply `(start, end, replacement_text)` byte-span splices to `code`.
+/// Splices run back-to-front so earlier offsets stay valid as later ones are
+/// removed; out-of-bounds spans are clamped.
+fn splice_ranges(code: &str, mut ranges: Vec<(usize, usize, String)>) -> String {
+	let mut out = code.to_owned();
 	ranges.sort_by_key(|(start, _, _)| *start);
 	while let Some((start, end, txt)) = ranges.pop() {
-		let end = end.min(code.len()).max(start);
-		code.replace_range(start..end, &txt);
+		let start = start.min(out.len());
+		let end = end.min(out.len()).max(start);
+		out.replace_range(start..end, &txt);
 	}
-
-	Ok(code)
+	out
 }
 
 /// Push `(start, end, replacement_text)` tuples for `repl`'s matches in
 /// `original` onto `ranges`. Spans are byte offsets into `original`.
-/// Returns an error if the replacement matches nothing — mirrors the old
-/// "had no effect" check.
+///
+/// A replacement that matches nothing is treated as a no-op (no ranges
+/// pushed), not an error: the patch helper is a live preview that re-renders
+/// on every keystroke, so a transiently non-matching replacement must not
+/// stop the module from opening. Genuine failures (bad regex, non-utf8 find,
+/// unsupported replacer shape) still propagate.
 fn collect_replacement_ranges(
 	original: &str,
 	repl: &vencord_ast_parser::Replacement,
 	plugin_name: &str,
 	ranges: &mut Vec<(usize, usize, String)>,
 ) -> Result<()> {
-	let replace_template = match &repl.replace.v {
-		Replacer::Str(s) => substitute_self(s, plugin_name),
-		Replacer::Template(_) => {
-			bail!("template replace not supported in Patch Helper yet");
-		}
-	};
 	match &repl.match_.v {
 		Match::Str(finder) => {
 			let needle = std::str::from_utf8(finder.needle())
 				.context("non-utf8 find string")?;
 			let Some(start) = original.find(needle) else {
-				bail!("had no effect");
+				tracing::debug!(needle, "patch helper: replacement had no effect");
+				return Ok(());
 			};
-			ranges.push((start, start + needle.len(), replace_template));
+			// A string match exposes no capture groups, so there's nothing for
+			// a template's interpolations to bind to. Only literal string
+			// replacements make sense here.
+			let Replacer::Str(s) = &repl.replace.v else {
+				bail!("template replace requires a regex match");
+			};
+			ranges.push((
+				start,
+				start + needle.len(),
+				substitute_self(s, plugin_name),
+			));
 			Ok(())
 		}
 		Match::Regex(mr) => {
@@ -568,22 +597,53 @@ fn collect_replacement_ranges(
 				},
 			)
 			.map_err(|e| anyhow!("compile match regex: {e}"))?;
-			let replacer = Replacer::Str(replace_template);
 			let matches: Vec<regress::Match> = if flags.contains(RegExpFlags::G) {
 				regex.find_iter(original).collect()
 			} else {
 				regex.find(original).into_iter().collect()
 			};
 			if matches.is_empty() {
-				bail!("had no effect");
+				tracing::debug!(
+					pattern = %mr.pattern,
+					"patch helper: replacement had no effect",
+				);
+				return Ok(());
 			}
-			for m in matches {
-				let txt = replacer.do_replace(original, &m);
+			for m in &matches {
+				let txt = render_replacement(&repl.replace.v, original, m, plugin_name)?;
 				ranges.push((m.start(), m.end(), txt));
 			}
 			Ok(())
 		}
 	}
+}
+
+/// Evaluate one replacement against regex match `m` and resolve `$self`.
+///
+/// Both string (`"$1.foo"`) and template (`` (_, a) => `${a}.foo` ``)
+/// replacements are evaluated by the parser's [`Replacer::do_replace`], which
+/// handles `$n`/`$<name>` group interpolation for strings and parameter→group
+/// binding for templates. We then resolve `$self` over the result, so the
+/// token works in either form (e.g. the `$self.setShift(...)` literal inside a
+/// template arrow function).
+///
+/// `do_replace` panics if a template interpolates a capture group the match
+/// regex doesn't define — the parser doesn't validate template captures the
+/// way it does string `$n` refs — so we guard it and surface the failure as a
+/// normal error rather than tearing down the helper task.
+fn render_replacement(
+	replacer: &Replacer,
+	original: &str,
+	m: &regress::Match,
+	plugin_name: &str,
+) -> Result<String> {
+	let raw = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+		replacer.do_replace(original, m)
+	}))
+	.map_err(|_| {
+		anyhow!("replacement references a capture group the match does not define")
+	})?;
+	Ok(substitute_self(&raw, plugin_name))
 }
 
 /// Translate an `[original_start, original_end)` byte span into the
@@ -841,6 +901,116 @@ export default definePlugin({
 	fn changed_line_range_returns_none_for_identical_or_empty() {
 		assert!(changed_line_range("", "anything").is_none());
 		assert!(changed_line_range("same", "same").is_none());
+	}
+
+	#[test]
+	fn apply_patch_evaluates_template_replacement() {
+		// Arrow-function replace returning a template literal: groups are bound
+		// by parameter position and `$self` appears inside a literal segment.
+		const SRC: &str = r#"import definePlugin from "@utils/types";
+export default definePlugin({
+    name: "P",
+    patches: [{
+        find: "x",
+        replacement: { match: /(a)(b)/, replace: (_, first, second) => `${first}$self.go(${second})` }
+    }],
+});
+"#;
+		let e = extract_patch(SRC, 0).unwrap();
+		assert!(matches!(e.patch.replacement[0].replace.v, Replacer::Template(_)));
+		let result =
+			apply_patch_to_module("var z = ab;", &e.patch, "P").unwrap();
+		assert!(
+			result.contains("aVencord.Plugins.plugins[\"P\"].go(b)"),
+			"template not evaluated: {result}",
+		);
+	}
+
+	#[test]
+	fn apply_patch_rejects_template_with_string_match() {
+		const SRC: &str = r#"import definePlugin from "@utils/types";
+export default definePlugin({
+    name: "P",
+    patches: [{
+        find: "x",
+        replacement: { match: "ab", replace: (m) => `${m}!` }
+    }],
+});
+"#;
+		let e = extract_patch(SRC, 0).unwrap();
+		let err = apply_patch_to_module("var z = ab;", &e.patch, "P")
+			.unwrap_err();
+		assert!(
+			err.to_string().contains("requires a regex match")
+				|| format!("{err:#}").contains("requires a regex match"),
+			"unexpected error: {err:#}",
+		);
+	}
+
+	#[test]
+	fn apply_patch_formats_replacement_text_when_valid() {
+		// When the patched module is valid JS, the spliced-in replacement text
+		// must be formatted too — not left in its raw, unformatted shape.
+		const SRC: &str = r#"import definePlugin from "@utils/types";
+export default definePlugin({
+    name: "P",
+    patches: [{
+        find: "x",
+        replacement: { match: /return 1;/, replace: "if(y){return 2;}" }
+    }],
+});
+"#;
+		let e = extract_patch(SRC, 0).unwrap();
+		let result =
+			apply_patch_to_module("function a(){return 1;}", &e.patch, "P")
+				.unwrap();
+		// Formatter normalizes the raw `if(y)` into `if (y)`.
+		assert!(
+			result.contains("if (y)"),
+			"replacement text not formatted:\n{result}",
+		);
+	}
+
+	#[test]
+	fn apply_patch_skips_replacement_with_no_effect() {
+		// The match never appears in the module — the helper must still render
+		// (returning the formatted module) instead of failing to open.
+		const SRC: &str = r#"import definePlugin from "@utils/types";
+export default definePlugin({
+    name: "P",
+    patches: [{
+        find: "x",
+        replacement: { match: /never-matches-anything/, replace: "boom" }
+    }],
+});
+"#;
+		let e = extract_patch(SRC, 0).unwrap();
+		let result =
+			apply_patch_to_module("var x = 1;", &e.patch, "P").unwrap();
+		assert!(result.contains("var x = 1;"), "got: {result}");
+		assert!(!result.contains("boom"), "got: {result}");
+	}
+
+	#[test]
+	fn apply_patch_applies_matching_replacements_around_a_no_op() {
+		// One replacement matches, one doesn't. The matching one still lands.
+		const SRC: &str = r#"import definePlugin from "@utils/types";
+export default definePlugin({
+    name: "P",
+    patches: [{
+        find: "x",
+        replacement: [
+            { match: /nope/, replace: "boom" },
+            { match: /(foo)/, replace: "$1.baz" }
+        ]
+    }],
+});
+"#;
+		let e = extract_patch(SRC, 0).unwrap();
+		let result =
+			apply_patch_to_module("var foo = 1;", &e.patch, "P").unwrap();
+		assert!(result.contains("foo.baz"), "got: {result}");
+		assert!(!result.contains("boom"), "got: {result}");
 	}
 
 	#[test]

@@ -65,6 +65,9 @@ export async function activate(context: ExtensionContext): Promise<void> {
             { scheme: "file", language: "typescriptreact" },
             { scheme: "file", language: "javascript" },
             { scheme: "file", language: "javascriptreact" },
+            // Patch Helper virtual documents (vencord-patchhelper:/session/*.js)
+            // so intl hover works on the patched webpack module shown there.
+            { scheme: "vencord-patchhelper", language: "javascript" },
         ],
         synchronize: {
             fileEvents: workspace.createFileSystemWatcher("**/*.{ts,tsx,js,jsx}"),

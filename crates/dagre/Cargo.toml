@@ -5,8 +5,6 @@ edition.workspace = true
 description = "Rust port of dagre: directed graph layout"
 license = "MIT"
 
-[lib]
-
 [dependencies]
 serde = { workspace = true, optional = true }
 smol_str.workspace = true
@@ -19,7 +17,6 @@ profile = []
 [dev-dependencies]
 criterion.workspace = true
 serde_json.workspace = true
-mimalloc.workspace = true
 
 [[bench]]
 name = "ranker_layout"

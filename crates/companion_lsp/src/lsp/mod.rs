@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{future, sync::Arc};
 
 use tower_lsp::{
 	Client,
@@ -61,11 +61,11 @@ impl Backend {
 
 	/// Custom server method: editor delivers a `QuickPick` selection back to a
 	/// pending server-initiated request. Implementation lives in `commands`.
-	pub async fn on_quick_pick_response(
+	pub fn on_quick_pick_response(
 		&self,
 		params: serde_json::Value,
-	) -> LspResult<serde_json::Value> {
-		commands::on_quick_pick_response(self, params).await
+	) -> impl Future<Output = LspResult<serde_json::Value>> {
+		future::ready(commands::on_quick_pick_response(self, params))
 	}
 }
 
@@ -149,10 +149,7 @@ impl LanguageServer for Backend {
 		document::on_did_close(self, params);
 	}
 
-	async fn hover(
-		&self,
-		params: HoverParams,
-	) -> LspResult<Option<Hover>> {
+	async fn hover(&self, params: HoverParams) -> LspResult<Option<Hover>> {
 		hover::hover(self, params).await
 	}
 

@@ -37,7 +37,7 @@ use crate::{state::SharedState, vencord_ext};
 /// Wait at most this long for the editor to respond to a custom request.
 const CLIENT_REQUEST_TIMEOUT: Duration = Duration::from_mins(1);
 
-/// Ask the editor to pop a QuickPick. Returns whatever the user selected, or
+/// Ask the editor to pop a `QuickPick`. Returns whatever the user selected, or
 /// `None` if they dismissed it.
 pub async fn request_quick_pick(
 	client: &Client,

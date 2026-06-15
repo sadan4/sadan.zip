@@ -55,6 +55,13 @@ fn patch_code_lenses(
 			tracing::debug!(?e, "patches() failed; skipping patch lenses");
 			Vec::new()
 		});
+	// `extract_patches` returns one slot per parser patch — `None` for patches
+	// that can't be expressed on the wire (e.g. function replacements). We
+	// only emit lenses for `Some` slots so users don't click a button that
+	// errors out, but we use the slot's index as `patchIndex` so it lines up
+	// with what `cmd_test_patch` looks up.
+	let wire = crate::lsp::diagnostics::extract_patches(source)
+		.unwrap_or_default();
 	let plugin = parser.plugin_info();
 
 	let uri_str = uri.to_string();
@@ -62,6 +69,9 @@ fn patch_code_lenses(
 		patches.len() * 2 + if plugin.is_some() { 2 } else { 0 },
 	);
 	for (index, patch) in patches.iter().enumerate() {
+		if !matches!(wire.get(index), Some(Some(_))) {
+			continue;
+		}
 		let range = span_to_range(source, patch.span);
 		out.push(make_patch_lens(
 			range,
@@ -318,6 +328,50 @@ export default definePlugin({
 		assert_eq!(lenses[0].range, lenses[1].range);
 		// The range should span multiple lines (the patch literal is multi-line).
 		assert!(lenses[0].range.end.line > lenses[0].range.start.line);
+	}
+
+	#[test]
+	fn function_replacement_still_gets_lenses() {
+		// Regression for "patch index 1 out of range": the second patch uses
+		// an arrow-function `replace`. We ship the function's JS source as a
+		// `function` wire node (Discord-side `eval`s it), so the lens should
+		// be emitted and its `patchIndex` should match the parser's order.
+		let src = r##"import definePlugin from "@utils/types";
+export default definePlugin({
+    name: "P",
+    patches: [
+        {
+            find: ".ToastType.FORWARD",
+            replacement: [{ match: /a/, replace: "b" }]
+        },
+        {
+            find: "#{intl::MESSAGE_FORWARD_MESSAGE_PLACEHOLDER}",
+            replacement: {
+                match: /(useCallback\(\()(\)=>\{)(\i\.\i\.clearDraft)/,
+                replace: (_, a, b, c) => `${a}arg${b}${c}`
+            }
+        }
+    ],
+});
+"##;
+		let uri = Url::parse("file:///x.ts").unwrap();
+		let lenses = patch_code_lenses(src, &uri).unwrap_or_default();
+		let indices: Vec<_> = lenses
+			.iter()
+			.filter(|l| l.command.as_ref().unwrap().title == "Test Patch")
+			.map(|l| {
+				l.command.as_ref().unwrap().arguments.as_ref().unwrap()[0]
+					["patchIndex"]
+					.as_u64()
+					.unwrap()
+			})
+			.collect();
+		assert_eq!(
+			indices,
+			vec![0, 1],
+			"both patches should get a Test Patch lens with indices matching \
+			 the parser's source order"
+		);
 	}
 
 	#[test]

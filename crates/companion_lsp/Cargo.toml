@@ -7,7 +7,6 @@ edition.workspace = true
 anyhow.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-thiserror.workspace = true
 tokio = { workspace = true, features = [
 	"rt-multi-thread",
 	"macros",
@@ -26,19 +25,14 @@ tracing.workspace = true
 tracing-subscriber.workspace = true
 tower-lsp.workspace = true
 oxc.workspace = true
-oxc_allocator.workspace = true
 ast_parser.workspace = true
 vencord_ast_parser.workspace = true
 webpack_ast_parser.workspace = true
-webpack_chunk_parser.workspace = true
 pretty_printer.workspace = true
-discord_scraper.workspace = true
 explorer_types.workspace = true
 smol_str.workspace = true
-xxhash-rust.workspace = true
 regex.workspace = true
 regress.workspace = true
-itertools.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

@@ -32,7 +32,7 @@
     "publisher": "sadan",
     "main": "./dist/extension.js",
     "scripts": {
-        "build": "node --experimental-transform-types ./scripts/build.mts",
+        "build": "node ./scripts/build.mts",
         "lint": "conc pnpm:eslint pnpm:typecheck",
         "prepackage": "conc pnpm:build pnpm:lint",
         "package": "vsce pack",

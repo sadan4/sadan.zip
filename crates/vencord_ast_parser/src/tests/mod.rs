@@ -69,3 +69,9 @@ fn test_inline_typescript_enums() {
 	let patches = dump_patches!("data/plugin8.tsx");
 	assert_ron_snapshot!(patches);
 }
+
+#[test]
+fn test_plugin_9() {
+	let patches = dump_patches!("data/plugin9.tsx");
+	assert_ron_snapshot!(patches);
+}

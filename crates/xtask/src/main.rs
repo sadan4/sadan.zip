@@ -7,6 +7,7 @@ mod build;
 mod clean;
 mod deps;
 mod gen_;
+mod package;
 mod run;
 mod util;
 
@@ -48,6 +49,7 @@ enum Command {
 	Clean(clean::Command),
 	Run(run::Command),
 	Gen(gen_::Command),
+	Package(package::Command),
 }
 
 impl Runnable for Command {
@@ -57,6 +59,7 @@ impl Runnable for Command {
 			Self::Clean(cmd) => cmd.run(),
 			Self::Run(cmd) => cmd.run(),
 			Self::Gen(cmd) => cmd.run(),
+			Self::Package(cmd) => cmd.run(),
 		}
 	}
 }
