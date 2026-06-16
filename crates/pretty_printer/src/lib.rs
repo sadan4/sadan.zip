@@ -1,3 +1,4 @@
+#![feature(likely_unlikely)]
 use anyhow::Result;
 use oxc::allocator::Allocator;
 

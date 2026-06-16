@@ -1,5 +1,7 @@
 mod rope;
 
+use std::hint::likely;
+
 use derive_more::Debug;
 use oxc::allocator::Allocator;
 
@@ -137,12 +139,25 @@ impl<'a> FormattedContentBuilder<'a> {
 			for _ in 0..self.new_lines {
 				self.add_text("\n");
 			}
-			if let Some(str) = INDENT_CACHE
-				.get(self.indent_size as usize)
-				.and_then(|arr| arr.get(self.nesting_level as usize))
-			{
-				self.add_text(str);
-			} else {
+			'done: {
+				if (self.indent_size as usize) < INDENT_CACHE.len()
+				{
+					// SAFETY: we just checked that self.indent_size is a valid index
+					let indent_cache = unsafe {
+						INDENT_CACHE.get_unchecked(self.indent_size as usize)
+					};
+					if likely(
+						(self.nesting_level as usize) < indent_cache.len(),
+					) {
+						// SAFETY: we just checked that it's a valid index
+						let str = unsafe {
+							indent_cache
+								.get_unchecked(self.nesting_level as usize)
+						};
+						self.add_text(str);
+						break 'done;
+					}
+				}
 				for _ in 0..self.nesting_level {
 					if self.indent_size == 0 {
 						self.add_text("\t");

@@ -48,7 +48,9 @@ use crate::{
 };
 
 mod token_stream {
-	use derive_more::{From, IsVariant};
+	use std::hint::likely;
+
+use derive_more::{From, IsVariant};
 
 	use super::{Comment, GetSpan, Kind, OxcVec, Token};
 	pub struct TokenStream<'a> {
@@ -119,7 +121,8 @@ mod token_stream {
 						comment.span.start,
 						"Tokens and comments must not have the same start position"
 					);
-					if token.span().start < comment.span.start {
+					// most programs will have more tokens than comments
+					if likely(token.span().start < comment.span.start) {
 						// SAFETY: we just checked that self.tokens.last() is Some
 						Some(
 							unsafe { self.tokens.pop().unwrap_unchecked() }

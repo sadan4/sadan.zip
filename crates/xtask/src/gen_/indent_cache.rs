@@ -9,7 +9,7 @@ pub struct Command;
 
 impl Command {}
 
-const MAX_CACHED_INDENT_LEVEL: u8 = 16;
+const MAX_CACHED_INDENT_LEVEL: u8 = 20;
 
 fn make_indent_cache(indent_size: u8) -> String {
 	let mut out = String::new();
