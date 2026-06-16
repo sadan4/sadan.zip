@@ -313,12 +313,14 @@ class PatchHelperProvider implements TextDocumentContentProvider {
 }
 
 let patchHelperProvider: PatchHelperProvider | undefined;
-// sourceUri (string) → patchId. Lets the tab-close listener find the
-// patched view to close when the user shuts the plugin source tab — VSCode
+// sourceUri (string) → set of patchIds. Lets the tab-close listener find the
+// patched views to close when the user shuts the plugin source tab — VSCode
 // often holds the underlying TextDocument in memory after the tab is gone,
 // so `workspace.onDidCloseTextDocument` (and the LSP `didClose` it relays)
-// fires too late to be the only signal we react to.
-const sourceUriToPatchId = new Map<string, string>();
+// fires too late to be the only signal we react to. A single source can drive
+// several helpers at once (one per patch, even when two patches resolve to the
+// same webpack module), so each source maps to a *set* of patchIds.
+const sourceUriToPatchIds = new Map<string, Set<string>>();
 
 function registerPatchHelper(context: ExtensionContext): void {
     patchHelperProvider = new PatchHelperProvider();
@@ -333,7 +335,12 @@ function registerPatchHelper(context: ExtensionContext): void {
 
 async function handlePatchHelperOpen(req: PatchHelperOpen): Promise<void> {
     if (!patchHelperProvider) return;
-    sourceUriToPatchId.set(req.sourceUri, req.patchId);
+    let ids = sourceUriToPatchIds.get(req.sourceUri);
+    if (!ids) {
+        ids = new Set();
+        sourceUriToPatchIds.set(req.sourceUri, ids);
+    }
+    ids.add(req.patchId);
     const uri = patchHelperProvider.open(req.patchId, req.moduleContent);
     const doc = await workspace.openTextDocument(uri);
     // Beside, not preview — matches the legacy PatchHelper behaviour so the
@@ -367,8 +374,17 @@ function handlePatchHelperUpdate(req: PatchHelperUpdate): void {
 }
 
 async function handlePatchHelperClose(req: PatchHelperClose): Promise<void> {
-    sourceUriToPatchId.delete(req.sourceUri);
+    forgetPatchId(req.sourceUri, req.patchId);
     await closePatchHelperByPatchId(req.patchId);
+}
+
+// Drop a single patchId from a source's set, cleaning up the source key once
+// its last helper is gone.
+function forgetPatchId(sourceUri: string, patchId: string): void {
+    const ids = sourceUriToPatchIds.get(sourceUri);
+    if (!ids) return;
+    ids.delete(patchId);
+    if (ids.size === 0) sourceUriToPatchIds.delete(sourceUri);
 }
 
 async function closePatchHelperByPatchId(patchId: string): Promise<void> {
@@ -394,22 +410,26 @@ async function onTabsChanged(e: { closed: readonly { input: unknown }[] }): Prom
         if (!(tab.input instanceof TabInputText)) continue;
         const closedUri = tab.input.uri.toString();
 
-        // Source tab closed: close the linked patch helper tab.
-        const patchId = sourceUriToPatchId.get(closedUri);
-        if (patchId !== undefined) {
-            sourceUriToPatchId.delete(closedUri);
-            await closePatchHelperByPatchId(patchId);
+        // Source tab closed: close every patch helper tab linked to it.
+        const patchIds = sourceUriToPatchIds.get(closedUri);
+        if (patchIds !== undefined) {
+            sourceUriToPatchIds.delete(closedUri);
+            for (const pid of patchIds) {
+                await closePatchHelperByPatchId(pid);
+            }
             continue;
         }
 
         // Patch helper tab closed by the user: drop our cache and the
-        // sourceUri → patchId mapping for it.
+        // sourceUri → patchIds mapping for it.
         if (tab.input.uri.scheme === "vencord-patchhelper") {
             const id = patchIdFromHelperUri(tab.input.uri);
             if (id !== undefined) {
                 patchHelperProvider?.drop(id);
-                for (const [src, pid] of sourceUriToPatchId) {
-                    if (pid === id) sourceUriToPatchId.delete(src);
+                for (const [src, ids] of sourceUriToPatchIds) {
+                    if (ids.delete(id) && ids.size === 0) {
+                        sourceUriToPatchIds.delete(src);
+                    }
                 }
             }
         }

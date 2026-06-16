@@ -44,14 +44,18 @@ use crate::{
 
 #[derive(Debug)]
 struct HelperEntry {
-	id: String,
 	plugin_name: String,
 	/// Find expression as a single canonical string — string finds verbatim,
 	/// regex finds kept as their pattern. Used as a fingerprint when
 	/// relocating the patch after source edits.
 	last_find: String,
 	last_find_type: FindType,
-	last_replacement_count: usize,
+	/// Which patch sharing this find this helper tracks: 0 = the first patch
+	/// in source order whose find matches `last_find`, 1 = the second, and so
+	/// on. Two patches that resolve to the same webpack module have identical
+	/// finds, so the find alone can't tell them apart — the occurrence index
+	/// keeps each helper pinned to its own patch.
+	occurrence: usize,
 	/// Module Discord handed us. Cached so reapplies don't pay another
 	/// extract round-trip if the source change didn't actually shift the
 	/// find.
@@ -63,10 +67,37 @@ struct HelperEntry {
 	last_rendered: String,
 }
 
+impl HelperEntry {
+	fn placeholder() -> Self {
+		Self {
+			plugin_name: "MyPlugin".to_owned(),
+			last_find: String::new(),
+			last_find_type: FindType::String,
+			occurrence: 0,
+			module_source: String::new(),
+			module_number: 0,
+			last_rendered: String::new(),
+		}
+	}
+}
+
+/// A single live patch-helper session. The `id` lives outside the async
+/// `Mutex` so the registry can match and remove handles without awaiting a
+/// lock.
+#[derive(Clone)]
+struct HelperHandle {
+	id: String,
+	entry: Arc<Mutex<HelperEntry>>,
+}
+
 #[derive(Default)]
 pub struct Registry {
 	counter: AtomicU64,
-	by_source: DashMap<Url, Arc<Mutex<HelperEntry>>>,
+	/// Every helper open for a given plugin source. A source can drive several
+	/// helpers at once (one per patch), so this is a list, not a single slot —
+	/// keying by source alone would make opening a second patch clobber the
+	/// first.
+	by_source: DashMap<Url, Vec<HelperHandle>>,
 }
 
 impl Registry {
@@ -74,14 +105,41 @@ impl Registry {
 		format!("ph-{:x}", self.counter.fetch_add(1, Ordering::Relaxed))
 	}
 
-	fn get(&self, src: &Url) -> Option<Arc<Mutex<HelperEntry>>> {
+	fn get_all(&self, src: &Url) -> Vec<HelperHandle> {
 		self.by_source
 			.get(src)
 			.map(|e| e.value().clone())
+			.unwrap_or_default()
 	}
 
-	fn close(&self, src: &Url) {
-		self.by_source.remove(src);
+	fn push(&self, src: &Url, handle: HelperHandle) {
+		self.by_source
+			.entry(src.clone())
+			.or_default()
+			.push(handle);
+	}
+
+	/// Drop one helper by id, removing the source key entirely once its last
+	/// helper is gone.
+	fn remove_entry(&self, src: &Url, id: &str) {
+		let mut now_empty = false;
+		if let Some(mut e) = self.by_source.get_mut(src) {
+			e.value_mut().retain(|h| h.id != id);
+			now_empty = e.value().is_empty();
+		}
+		// The get_mut guard is dropped above before remove() so we don't
+		// re-lock the same shard.
+		if now_empty {
+			self.by_source.remove(src);
+		}
+	}
+
+	/// Remove and return every helper for a source (used on source close).
+	fn take_all(&self, src: &Url) -> Vec<HelperHandle> {
+		self.by_source
+			.remove(src)
+			.map(|(_, v)| v)
+			.unwrap_or_default()
 	}
 }
 
@@ -107,21 +165,68 @@ pub async fn open(backend: &Backend, args: Vec<Value>) -> Result<Value> {
 		.get_document(&url)
 		.with_context(|| format!("no open document for {url}"))?;
 
-	let entry = get_or_insert(&backend.state, &url);
+	// Resolve the patch up front (cheap, no Discord round-trip) so we can key
+	// the helper by the patch's identity — find + occurrence — rather than by
+	// the source URI alone.
+	let text = doc.text.clone();
+	let extracted = tokio::task::spawn_blocking(move || {
+		extract_patch(&text, arg.patch_index)
+	})
+	.await
+	.context("patch extraction task panicked")??;
 
-	let result =
-		resolve_and_render(&backend.state, &doc, arg.patch_index, &entry).await;
-	let (patch_id, module_content) = match result {
+	// Re-invoking the lens on a patch that already has a helper open should
+	// refocus that helper, not spawn a duplicate. Anything else — including a
+	// different patch that resolves to the *same* webpack module — gets its
+	// own helper.
+	let (handle, freshly_created) = if let Some(h) =
+		find_existing(&backend.state, &url, &extracted).await
+	{
+		(h, false)
+	} else {
+		let h = HelperHandle {
+			id: backend.state.patch_helpers.next_id(),
+			entry: Arc::new(Mutex::new(HelperEntry::placeholder())),
+		};
+		backend.state.patch_helpers.push(&url, h.clone());
+		(h, true)
+	};
+
+	let module_content = match render_into(&backend.state, extracted, &handle).await {
 		Ok(v) => v,
 		Err(e) => {
-			// Don't leak a half-initialised entry if extract failed.
-			backend.state.patch_helpers.close(&url);
+			// Don't leak a half-initialised entry if extract/fetch failed —
+			// but leave an already-working helper alone if a re-open hit a
+			// transient error (e.g. Discord briefly disconnected).
+			if freshly_created {
+				backend.state.patch_helpers.remove_entry(&url, &handle.id);
+			}
 			return Err(e);
 		}
 	};
 
-	send_open(&backend.client, &url, &patch_id, &module_content).await?;
-	Ok(json!({ "patchId": patch_id }))
+	send_open(&backend.client, &url, &handle.id, &module_content).await?;
+	Ok(json!({ "patchId": handle.id }))
+}
+
+/// Find a helper already tracking this exact patch (same find + occurrence),
+/// so a repeat "Open in Patch Helper" refocuses instead of duplicating.
+async fn find_existing(
+	state: &SharedState,
+	url: &Url,
+	extracted: &ExtractedPatch,
+) -> Option<HelperHandle> {
+	for h in state.patch_helpers.get_all(url) {
+		let g = h.entry.lock().await;
+		if same_find_type(g.last_find_type, extracted.find_type)
+			&& g.last_find == extracted.find_string
+			&& g.occurrence == extracted.occurrence
+		{
+			drop(g);
+			return Some(h);
+		}
+	}
+	None
 }
 
 /// Called from `document::on_did_change` after the buffer has been updated.
@@ -133,75 +238,50 @@ pub async fn on_source_change(
 	state: SharedState,
 	source_uri: Url,
 ) {
-	let Some(entry) = state.patch_helpers.get(&source_uri) else {
+	let handles = state.patch_helpers.get_all(&source_uri);
+	if handles.is_empty() {
 		return;
-	};
+	}
 	let Some(doc) = state.get_document(&source_uri) else {
 		return;
 	};
 
-	if let Err(e) = relocate_and_push(&state, &client, &doc, &source_uri, &entry).await {
-		tracing::debug!(?e, %source_uri, "patch helper update failed");
-		client
-			.show_message(MessageType::WARNING, format!("PatchHelper: {e}"))
-			.await;
-		// Capture the id before we drop the registry entry so the editor
-		// can close the matching virtual document.
-		let patch_id = entry.lock().await.id.clone();
-		state.patch_helpers.close(&source_uri);
-		send_close(&client, &source_uri.to_string(), &patch_id).await;
+	// Each helper relocates its own patch independently, so two helpers
+	// tracking patches with the same find (i.e. the same webpack module) stay
+	// pinned to their respective occurrences.
+	for handle in handles {
+		if let Err(e) =
+			relocate_and_push(&state, &client, &doc, &source_uri, &handle).await
+		{
+			tracing::debug!(?e, %source_uri, id = %handle.id, "patch helper update failed");
+			client
+				.show_message(MessageType::WARNING, format!("PatchHelper: {e}"))
+				.await;
+			state.patch_helpers.remove_entry(&source_uri, &handle.id);
+			send_close(&client, &source_uri.to_string(), &handle.id).await;
+		}
 	}
 }
 
 pub async fn on_source_close(client: &Client, state: &SharedState, source_uri: &Url) {
-	// Grab the patch id before dropping the entry so the client knows
-	// which virtual document to close.
-	let patch_id = match state.patch_helpers.get(source_uri) {
-		Some(arc) => arc.lock().await.id.clone(),
-		None => return,
-	};
-	state.patch_helpers.close(source_uri);
-	send_close(client, &source_uri.to_string(), &patch_id).await;
+	// Drop every helper tracking this source and tell the editor to close each
+	// matching virtual document.
+	for handle in state.patch_helpers.take_all(source_uri) {
+		send_close(client, &source_uri.to_string(), &handle.id).await;
+	}
 }
 
 // ---------- internals ----------------------------------------------------
 
-fn get_or_insert(state: &SharedState, url: &Url) -> Arc<Mutex<HelperEntry>> {
-	if let Some(e) = state.patch_helpers.get(url) {
-		return e;
-	}
-	let id = state.patch_helpers.next_id();
-	let placeholder = HelperEntry {
-		id,
-		plugin_name: "MyPlugin".to_owned(),
-		last_find: String::new(),
-		last_find_type: FindType::String,
-		last_replacement_count: 0,
-		module_source: String::new(),
-		module_number: 0,
-		last_rendered: String::new(),
-	};
-	let arc = Arc::new(Mutex::new(placeholder));
-	state
-		.patch_helpers
-		.by_source
-		.insert(url.clone(), arc.clone());
-	arc
-}
-
-async fn resolve_and_render(
+/// Fetch the patch's module from Discord, apply the patch, render, and store
+/// the result into `handle`. Returns the rendered module text. Shared by the
+/// open path (which then sends `open`) — the source-change path goes through
+/// `relocate_and_push` instead, which additionally computes the reveal range.
+async fn render_into(
 	state: &SharedState,
-	doc: &Document,
-	patch_index: usize,
-	entry: &Arc<Mutex<HelperEntry>>,
-) -> Result<(String, String)> {
-	let text = doc.text.clone();
-	let extracted = tokio::task::spawn_blocking(move || {
-		extract_patch(&text, patch_index)
-	})
-	.await
-	.context("patch extraction task panicked")??;
-
+	extracted: ExtractedPatch,
+	handle: &HelperHandle,
+) -> Result<String> {
 	if !state.discord.is_connected().await {
 		bail!("No Discord client connected.");
 	}
@@ -216,15 +296,15 @@ async fn resolve_and_render(
 	.context("apply patch")?;
 	let rendered = render_module(&patched, module.module_number);
 
-	let mut guard = entry.lock().await;
+	let mut guard = handle.entry.lock().await;
 	guard.plugin_name = extracted.plugin_name;
 	guard.last_find = extracted.find_string;
 	guard.last_find_type = extracted.find_type;
-	guard.last_replacement_count = extracted.patch.replacement.len();
+	guard.occurrence = extracted.occurrence;
 	guard.module_source = module.module;
 	guard.module_number = module.module_number;
 	guard.last_rendered = rendered.clone();
-	Ok((guard.id.clone(), rendered))
+	Ok(rendered)
 }
 
 async fn relocate_and_push(
@@ -232,20 +312,16 @@ async fn relocate_and_push(
 	client: &Client,
 	doc: &Document,
 	source_uri: &Url,
-	entry: &Arc<Mutex<HelperEntry>>,
+	handle: &HelperHandle,
 ) -> Result<()> {
-	let (last_find, find_type, last_rcount) = {
-		let g = entry.lock().await;
-		(
-			g.last_find.clone(),
-			g.last_find_type,
-			g.last_replacement_count,
-		)
+	let (last_find, find_type, occurrence) = {
+		let g = handle.entry.lock().await;
+		(g.last_find.clone(), g.last_find_type, g.occurrence)
 	};
 
 	let text = doc.text.clone();
 	let extracted = tokio::task::spawn_blocking(move || {
-		relocate_patch(&text, &last_find, find_type, last_rcount)
+		relocate_patch(&text, &last_find, find_type, occurrence)
 	})
 	.await
 	.context("patch relocate task panicked")??;
@@ -253,7 +329,7 @@ async fn relocate_and_push(
 	// If the find moved, re-extract the module against the new find;
 	// otherwise reuse the cached source.
 	let need_reextract = {
-		let g = entry.lock().await;
+		let g = handle.entry.lock().await;
 		extracted.find_string != g.last_find || g.module_source.is_empty()
 	};
 	let (module_source, module_number) = if need_reextract {
@@ -263,7 +339,7 @@ async fn relocate_and_push(
 		let m = fetch_module_for_patch(state, &extracted).await?;
 		(m.module, m.module_number)
 	} else {
-		let g = entry.lock().await;
+		let g = handle.entry.lock().await;
 		(g.module_source.clone(), g.module_number)
 	};
 
@@ -274,20 +350,20 @@ async fn relocate_and_push(
 	)?;
 	let rendered = render_module(&patched, module_number);
 
-	let (patch_id, source_uri_str, reveal) = {
-		let mut g = entry.lock().await;
+	let (source_uri_str, reveal) = {
+		let mut g = handle.entry.lock().await;
 		let reveal = changed_line_range(&g.last_rendered, &rendered);
 		g.plugin_name = extracted.plugin_name;
 		g.last_find = extracted.find_string;
 		g.last_find_type = extracted.find_type;
-		g.last_replacement_count = extracted.patch.replacement.len();
+		g.occurrence = extracted.occurrence;
 		g.module_source = module_source;
 		g.module_number = module_number;
 		g.last_rendered = rendered.clone();
-		(g.id.clone(), source_uri.to_string(), reveal)
+		(source_uri.to_string(), reveal)
 	};
 
-	send_update(client, &source_uri_str, &patch_id, &rendered, reveal).await;
+	send_update(client, &source_uri_str, &handle.id, &rendered, reveal).await;
 	Ok(())
 }
 
@@ -346,6 +422,17 @@ struct ExtractedPatch {
 	plugin_name: String,
 	find_string: String,
 	find_type: FindType,
+	/// Position of this patch among all patches that share its find — see
+	/// [`HelperEntry::occurrence`].
+	occurrence: usize,
+}
+
+/// Two `FindType`s describe the same kind of find (string vs regex).
+fn same_find_type(a: FindType, b: FindType) -> bool {
+	matches!(
+		(a, b),
+		(FindType::String, FindType::String) | (FindType::Regex, FindType::Regex),
+	)
 }
 
 fn extract_patch(source: &str, patch_index: usize) -> Result<ExtractedPatch> {
@@ -366,13 +453,23 @@ fn extract_patch(source: &str, patch_index: usize) -> Result<ExtractedPatch> {
 			patches.len(),
 		);
 	}
+	let (find_type, find_string) = find_signature(&patches[patch_index]);
+	// Count earlier patches sharing this find so two patches that resolve to
+	// the same module remain distinguishable by their order in the source.
+	let occurrence = patches[..patch_index]
+		.iter()
+		.filter(|p| {
+			let (t, s) = find_signature(p);
+			same_find_type(t, find_type) && s == find_string
+		})
+		.count();
 	let patch = patches.swap_remove(patch_index);
-	let (find_type, find_string) = find_signature(&patch);
 	Ok(ExtractedPatch {
 		patch,
 		plugin_name,
 		find_string,
 		find_type,
+		occurrence,
 	})
 }
 
@@ -380,7 +477,7 @@ fn relocate_patch(
 	source: &str,
 	target_find: &str,
 	target_find_type: FindType,
-	target_rcount: usize,
+	target_occurrence: usize,
 ) -> Result<ExtractedPatch> {
 	let alloc = Allocator::default();
 	let parser = VencordAstParser::try_new(&alloc, source, None)
@@ -394,36 +491,43 @@ fn relocate_patch(
 		.patches(true)
 		.map_err(|e| anyhow!("canonicalize patches: {e}"))?;
 
-	let mut best: Option<Patch> = None;
-	let mut close: Option<Patch> = None;
+	// Walk the patches that share this find in source order and pick the one
+	// at the tracked occurrence. If the source changed so that occurrence no
+	// longer exists (e.g. one of two identical-find patches was deleted),
+	// clamp to the last patch that still matches rather than dropping the
+	// helper entirely.
+	let mut seen = 0usize;
+	let mut chosen: Option<Patch> = None;
+	let mut last_match: Option<Patch> = None;
 	for p in patches {
 		let (t, s) = find_signature(&p);
-		let same_type = matches!(
-			(t, target_find_type),
-			(FindType::String, FindType::String)
-				| (FindType::Regex, FindType::Regex),
-		);
-		if !same_type || s != target_find {
+		if !same_find_type(t, target_find_type) || s != target_find {
 			continue;
 		}
-		if p.replacement.len() == target_rcount {
-			best = Some(p);
+		if seen == target_occurrence {
+			chosen = Some(p);
 			break;
 		}
-		if close.is_none() && p.replacement.len().abs_diff(target_rcount) < 2 {
-			close = Some(p);
-		}
+		seen += 1;
+		last_match = Some(p);
 	}
 
-	let patch = best.or(close).context(
-		"lost patch — find no longer matches any patch in the source",
-	)?;
+	let (patch, occurrence) = match chosen {
+		Some(p) => (p, target_occurrence),
+		None => {
+			let p = last_match.context(
+				"lost patch — find no longer matches any patch in the source",
+			)?;
+			(p, seen.saturating_sub(1))
+		}
+	};
 	let (find_type, find_string) = find_signature(&patch);
 	Ok(ExtractedPatch {
 		patch,
 		plugin_name,
 		find_string,
 		find_type,
+		occurrence,
 	})
 }
 
@@ -809,20 +913,10 @@ export default definePlugin({
 	}
 
 	#[test]
-	fn relocate_finds_renamed_replacement_count() {
-		const ORIG: &str = r#"import definePlugin from "@utils/types";
-export default definePlugin({
-    name: "P",
-    patches: [{
-        find: "stable",
-        replacement: [
-            { match: /a/, replace: "b" },
-            { match: /c/, replace: "d" }
-        ]
-    }],
-});
-"#;
-		// Same find, one replacement (delta of 1 -> close match accepted).
+	fn relocate_follows_patch_across_replacement_edits() {
+		// The user edits the patch's replacements between renders. Same find,
+		// same (sole) occurrence -> the helper stays on it regardless of how
+		// many replacements it now has.
 		const CHANGED: &str = r#"import definePlugin from "@utils/types";
 export default definePlugin({
     name: "P",
@@ -832,11 +926,67 @@ export default definePlugin({
     }],
 });
 "#;
-		let _orig = extract_patch(ORIG, 0).unwrap();
 		let relocated =
-			relocate_patch(CHANGED, "stable", FindType::String, 2).unwrap();
+			relocate_patch(CHANGED, "stable", FindType::String, 0).unwrap();
 		assert_eq!(relocated.find_string, "stable");
+		assert_eq!(relocated.occurrence, 0);
 		assert_eq!(relocated.patch.replacement.len(), 1);
+	}
+
+	// Two patches with the same find resolve to the same webpack module; the
+	// occurrence index is what keeps them distinct.
+	const DUP_FIND: &str = r#"import definePlugin from "@utils/types";
+export default definePlugin({
+    name: "P",
+    patches: [
+        { find: "shared", replacement: { match: /a/, replace: "first" } },
+        { find: "shared", replacement: { match: /b/, replace: "second" } }
+    ],
+});
+"#;
+
+	#[test]
+	fn extract_numbers_occurrences_of_a_shared_find() {
+		let first = extract_patch(DUP_FIND, 0).unwrap();
+		let second = extract_patch(DUP_FIND, 1).unwrap();
+		assert_eq!(first.find_string, "shared");
+		assert_eq!(second.find_string, "shared");
+		// Same find, but distinct occurrences -> distinct identities.
+		assert_eq!(first.occurrence, 0);
+		assert_eq!(second.occurrence, 1);
+		assert_eq!(first.patch.replacement[0].replace.v, Replacer::Str("first".into()));
+		assert_eq!(second.patch.replacement[0].replace.v, Replacer::Str("second".into()));
+	}
+
+	#[test]
+	fn relocate_keeps_each_occurrence_on_its_own_patch() {
+		let first =
+			relocate_patch(DUP_FIND, "shared", FindType::String, 0).unwrap();
+		let second =
+			relocate_patch(DUP_FIND, "shared", FindType::String, 1).unwrap();
+		assert_eq!(first.occurrence, 0);
+		assert_eq!(second.occurrence, 1);
+		// The two helpers land on different patches, not the same one.
+		assert_eq!(first.patch.replacement[0].replace.v, Replacer::Str("first".into()));
+		assert_eq!(second.patch.replacement[0].replace.v, Replacer::Str("second".into()));
+	}
+
+	#[test]
+	fn relocate_clamps_when_occurrence_disappears() {
+		// Started tracking the 2nd "shared" patch, but the source now has only
+		// one. Clamp to the survivor instead of tearing the helper down.
+		const ONE_LEFT: &str = r#"import definePlugin from "@utils/types";
+export default definePlugin({
+    name: "P",
+    patches: [
+        { find: "shared", replacement: { match: /a/, replace: "first" } }
+    ],
+});
+"#;
+		let relocated =
+			relocate_patch(ONE_LEFT, "shared", FindType::String, 1).unwrap();
+		assert_eq!(relocated.occurrence, 0);
+		assert_eq!(relocated.patch.replacement[0].replace.v, Replacer::Str("first".into()));
 	}
 
 	#[test]
