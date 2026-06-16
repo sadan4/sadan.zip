@@ -640,7 +640,6 @@ impl<'a> JavaScriptFormatter<'a> {
 		token: Option<&TokenOrComment>,
 		format: &[FormatDirective],
 	) {
-		let _guh = format!("{token:#?}");
 		for inst in format {
 			match inst {
 				FormatDirective::Space => self.builder.add_soft_space(),

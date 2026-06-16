@@ -108,6 +108,16 @@ opt-level = 0
 incremental = true
 debug = true
 
+[profile.bench]
+codegen-units = 1
+incremental = true
+lto = "thin"
+opt-level = 3
+debug = true
+split-debuginfo = "off"
+strip = false
+panic = "abort"
+
 [profile.dev.package.regex]
 opt-level = 3
 

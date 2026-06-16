@@ -2745,6 +2745,7 @@ name = "pretty_printer"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "criterion",
  "derive_more",
  "insta",
  "macros",

@@ -47,6 +47,6 @@ impl<'s> Rope<'s> {
 	}
 
 	pub fn reserve(&mut self, additional: usize) {
-		self.strs.reserve(additional);
+		self.strs.reserve((additional as f64 * 1.75) as usize);
 	}
 }
