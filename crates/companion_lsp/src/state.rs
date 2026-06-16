@@ -9,7 +9,10 @@ use tower_lsp::lsp_types::Url;
 
 use crate::{
 	discord_bridge::DiscordBridge,
-	lsp::{cross_module::CrossModuleData, patch_helper::Registry as PatchHelperRegistry},
+	lsp::{
+		cross_module::CrossModuleData,
+		patch_helper::Registry as PatchHelperRegistry,
+	},
 	module_cache::ModuleCache,
 };
 
@@ -24,7 +27,9 @@ pub struct QuickPickPending {
 
 impl QuickPickPending {
 	pub fn register(&self) -> (u64, oneshot::Receiver<Option<String>>) {
-		let nonce = self.counter.fetch_add(1, Ordering::Relaxed);
+		let nonce = self
+			.counter
+			.fetch_add(1, Ordering::Relaxed);
 		let (tx, rx) = oneshot::channel();
 		self.pending.insert(nonce, tx);
 		(nonce, rx)
@@ -77,7 +82,9 @@ impl SessionState {
 	}
 
 	pub fn get_document(&self, uri: &Url) -> Option<Document> {
-		self.documents.get(uri).map(|entry| entry.value().clone())
+		self.documents
+			.get(uri)
+			.map(|entry| entry.value().clone())
 	}
 }
 

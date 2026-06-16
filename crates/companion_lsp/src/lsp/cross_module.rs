@@ -102,8 +102,8 @@ const CACHE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[derive(serde::Serialize, serde::Deserialize)]
 struct CacheFile {
-	version:       String,
-	module_ids:    Vec<u32>,
+	version: String,
+	module_ids: Vec<u32>,
 	inverse_deps: HashMap<u32, IncomingModuleDeps>,
 }
 
@@ -143,7 +143,7 @@ fn write_cache(
 	module_ids.sort_unstable();
 
 	let payload = CacheFile {
-		version:      CACHE_VERSION.to_owned(),
+		version: CACHE_VERSION.to_owned(),
 		module_ids,
 		inverse_deps: inverse_deps
 			.iter()
@@ -279,12 +279,8 @@ impl Inner {
 
 impl IModuleCache<'static> for Inner {
 	fn get_module_filepath(&self, id: ModuleId) -> Option<SmolStr> {
-		let uri = Url::from_file_path(
-			self.data
-				.root
-				.join(format!("{id}.js")),
-		)
-		.ok()?;
+		let uri = Url::from_file_path(self.data.root.join(format!("{id}.js")))
+			.ok()?;
 		Some(uri.to_string().into())
 	}
 
@@ -435,8 +431,8 @@ mod tests {
 		// reads the cache will surface the sentinel, proving the warm path
 		// hit instead of re-running `build_inverse_deps`.
 		let payload = CacheFile {
-			version:      CACHE_VERSION.to_owned(),
-			module_ids:   vec![1, 2],
+			version: CACHE_VERSION.to_owned(),
+			module_ids: vec![1, 2],
 			inverse_deps: HashMap::from([(
 				2u32,
 				IncomingModuleDeps {
@@ -473,8 +469,8 @@ mod tests {
 
 		// Cache file claims a module set that doesn't match disk.
 		let payload = CacheFile {
-			version:      CACHE_VERSION.to_owned(),
-			module_ids:   vec![1, 2, 42],
+			version: CACHE_VERSION.to_owned(),
+			module_ids: vec![1, 2, 42],
 			inverse_deps: HashMap::from([(
 				2u32,
 				IncomingModuleDeps {
@@ -508,9 +504,8 @@ mod tests {
 			7,
 			"// Webpack Module 7\n0,function(e,t,n){}\n",
 		);
-		let data = Arc::new(
-			CrossModuleData::build(tmp.path().to_owned()).unwrap(),
-		);
+		let data =
+			Arc::new(CrossModuleData::build(tmp.path().to_owned()).unwrap());
 		let ctx = CrossModuleCtx::from_data(data);
 		let p1 = ctx
 			.inner

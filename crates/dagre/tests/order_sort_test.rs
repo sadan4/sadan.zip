@@ -2,7 +2,7 @@
 
 use dagre::{
 	graph::NodeId,
-	order::{sort, ResolvedEntry},
+	order::{ResolvedEntry, sort},
 };
 
 fn entry(

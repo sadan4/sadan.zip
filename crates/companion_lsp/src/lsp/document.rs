@@ -10,10 +10,7 @@ use crate::{
 	state::Document,
 };
 
-pub fn on_did_open(
-	backend: &Backend,
-	params: DidOpenTextDocumentParams,
-) {
+pub fn on_did_open(backend: &Backend, params: DidOpenTextDocumentParams) {
 	let td = params.text_document;
 	let doc = Document {
 		uri: td.uri.clone(),
@@ -21,14 +18,18 @@ pub fn on_did_open(
 		language_id: td.language_id,
 		text: td.text,
 	};
-	backend.state.documents.insert(td.uri.clone(), doc);
-	diagnostics::schedule(backend.state.clone(), backend.client.clone(), td.uri);
+	backend
+		.state
+		.documents
+		.insert(td.uri.clone(), doc);
+	diagnostics::schedule(
+		backend.state.clone(),
+		backend.client.clone(),
+		td.uri,
+	);
 }
 
-pub fn on_did_change(
-	backend: &Backend,
-	params: DidChangeTextDocumentParams,
-) {
+pub fn on_did_change(backend: &Backend, params: DidChangeTextDocumentParams) {
 	let uri = params.text_document.uri.clone();
 	let version = params.text_document.version;
 	let Some(mut entry) = backend.state.documents.get_mut(&uri) else {
@@ -38,11 +39,9 @@ pub fn on_did_change(
 
 	for change in params.content_changes {
 		match change.range {
-			Some(range) => apply_range_change(
-				&mut entry.text,
-				range,
-				&change.text,
-			),
+			Some(range) => {
+				apply_range_change(&mut entry.text, range, &change.text)
+			}
 			None => entry.text = change.text,
 		}
 	}
@@ -65,10 +64,7 @@ pub fn on_did_change(
 	});
 }
 
-pub fn on_did_close(
-	backend: &Backend,
-	params: DidCloseTextDocumentParams,
-) {
+pub fn on_did_close(backend: &Backend, params: DidCloseTextDocumentParams) {
 	let uri = params.text_document.uri;
 	backend.state.documents.remove(&uri);
 

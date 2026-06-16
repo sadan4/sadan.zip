@@ -2,9 +2,9 @@
 // #![warn(missing_docs)]
 pub mod ast_kind;
 mod ast_parser;
+pub mod cache;
 pub mod exts;
 pub mod sym_id;
-pub mod cache;
 
 pub use ast_parser::{
 	AstParser,

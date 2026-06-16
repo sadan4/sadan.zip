@@ -41,7 +41,9 @@ pub async fn goto_definition(
 		.text_document
 		.uri
 		.clone();
-	let pos = params.text_document_position_params.position;
+	let pos = params
+		.text_document_position_params
+		.position;
 	let Some(doc) = get_doc(&backend.state, &uri) else {
 		return Ok(None);
 	};
@@ -67,8 +69,7 @@ pub async fn goto_definition(
 		return Ok(None);
 	};
 
-	let Some(data) = get_or_build_data(&backend.state, cache_root).await
-	else {
+	let Some(data) = get_or_build_data(&backend.state, cache_root).await else {
 		return Ok(None);
 	};
 
@@ -153,11 +154,11 @@ fn span_to_range(source: &str, span: Span) -> Range {
 	let ((sl, sc), (el, ec)) = ast_parser::span_line_and_column(source, span);
 	Range {
 		start: Position {
-			line:      sl,
+			line: sl,
 			character: sc,
 		},
-		end:   Position {
-			line:      el,
+		end: Position {
+			line: el,
 			character: ec,
 		},
 	}
@@ -182,9 +183,8 @@ mod tests {
 		)
 		.unwrap();
 
-		let data = Arc::new(
-			CrossModuleData::build(tmp.path().to_owned()).unwrap(),
-		);
+		let data =
+			Arc::new(CrossModuleData::build(tmp.path().to_owned()).unwrap());
 		let pos = position_of(SRC, "42");
 		let locs = resolve_definitions(data, SRC, pos)
 			.expect("expected at least one definition");
@@ -203,9 +203,8 @@ mod tests {
 			"// Webpack Module 42\n0,function(e,t,n){}\n",
 		)
 		.unwrap();
-		let data = Arc::new(
-			CrossModuleData::build(tmp.path().to_owned()).unwrap(),
-		);
+		let data =
+			Arc::new(CrossModuleData::build(tmp.path().to_owned()).unwrap());
 		// Cursor on the `var` keyword — not a member-access target.
 		let pos = position_of(SRC, "var");
 		assert!(resolve_definitions(data, SRC, pos).is_none());

@@ -320,9 +320,9 @@ impl<'ast, State> Traverse<'ast, State> for FoldBinaryExpressionsPass {
 			return;
 		}
 		if (left.is_template_literal() || right.is_template_literal())
-			&& let Some(new_expr) = fold_template_literals(
-				left, right, node.span, &ctx,
-			) {
+			&& let Some(new_expr) =
+				fold_template_literals(left, right, node.span, &ctx)
+		{
 			*expr_node = new_expr;
 		}
 	}

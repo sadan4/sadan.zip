@@ -57,17 +57,15 @@ impl Command {
 		let src = self.cargo_bin_path();
 		let dst = Self::extension_bin_path();
 		info!("Staging {} -> {}", src.display(), dst.display());
-		let bin_dir = dst.parent().expect("bin path has a parent");
+		let bin_dir = dst
+			.parent()
+			.expect("bin path has a parent");
 		fs::create_dir_all(bin_dir).with_context(|| {
 			format!("Failed to create {}", bin_dir.display())
 		})?;
 		fs::rm_if_exists(&dst)?;
 		fs::copy(&src, &dst).with_context(|| {
-			format!(
-				"Failed to copy {} -> {}",
-				src.display(),
-				dst.display(),
-			)
+			format!("Failed to copy {} -> {}", src.display(), dst.display(),)
 		})?;
 		Ok(())
 	}

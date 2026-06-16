@@ -8,7 +8,12 @@ use tower_lsp::{
 use vencord_ast_parser::{FindArg, FindUse, VencordAstParser};
 
 use crate::{
-	discord_bridge::messages::{DisablePluginData, FindData, FindNode, RegexValue},
+	discord_bridge::messages::{
+		DisablePluginData,
+		FindData,
+		FindNode,
+		RegexValue,
+	},
 	lsp::{self, Backend, get_doc},
 	vencord_ext,
 };
@@ -219,10 +224,7 @@ fn make_find_lens(
 		)
 	} else {
 		// `{ type, args }` — the wire `FindData` shape `cmd_test_find` parses.
-		(
-			vencord_ext::CMD_TEST_FIND,
-			to_arg(FindData { kind, args }),
-		)
+		(vencord_ext::CMD_TEST_FIND, to_arg(FindData { kind, args }))
 	};
 	CodeLens {
 		range,
@@ -387,8 +389,12 @@ export default definePlugin({
 			.iter()
 			.filter(|l| l.command.as_ref().unwrap().title == "Test Patch")
 			.map(|l| {
-				l.command.as_ref().unwrap().arguments.as_ref().unwrap()[0]
-					["patchIndex"]
+				l.command
+					.as_ref()
+					.unwrap()
+					.arguments
+					.as_ref()
+					.unwrap()[0]["patchIndex"]
 					.as_u64()
 					.unwrap()
 			})

@@ -483,7 +483,10 @@ async fn cmd_download_module_cache(backend: &Backend) -> Result<Value> {
 					.await = None;
 			}
 			Err(e) => {
-				tracing::debug!(?e, "post-download cross-module build panicked");
+				tracing::debug!(
+					?e,
+					"post-download cross-module build panicked"
+				);
 				*backend
 					.state
 					.cross_module_data

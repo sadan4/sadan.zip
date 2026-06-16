@@ -58,7 +58,6 @@ impl<'ast> PassManager<'ast> {
 	}
 }
 
-
 #[cfg(test)]
 pub use test_util::dump_ast;
 

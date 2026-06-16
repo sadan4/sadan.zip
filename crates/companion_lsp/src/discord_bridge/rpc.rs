@@ -92,16 +92,16 @@ impl NonceCounter {
 #[derive(Clone)]
 pub struct RpcSender {
 	pub outbound: Option<mpsc::UnboundedSender<String>>,
-	pub pending:  PendingMap,
-	pub nonces:   Arc<NonceCounter>,
+	pub pending: PendingMap,
+	pub nonces: Arc<NonceCounter>,
 }
 
 impl RpcSender {
 	pub fn disconnected() -> Self {
 		Self {
 			outbound: None,
-			pending:  PendingMap::new(),
-			nonces:   Arc::new(NonceCounter::default()),
+			pending: PendingMap::new(),
+			nonces: Arc::new(NonceCounter::default()),
 		}
 	}
 
@@ -115,13 +115,12 @@ impl RpcSender {
 		kind: OutgoingKind,
 		timeout: Duration,
 	) -> Result<IncomingFrame> {
-		let tx = self
-			.outbound
-			.as_ref()
-			.ok_or_else(|| anyhow!(
+		let tx = self.outbound.as_ref().ok_or_else(|| {
+			anyhow!(
 				"No Discord client connected. Make sure Discord is open with \
 				 the vc-userDevTools plugin enabled."
-			))?;
+			)
+		})?;
 
 		let nonce = self.nonces.next();
 		let frame = OutgoingFrame { kind, nonce };
@@ -129,11 +128,10 @@ impl RpcSender {
 			.context("failed to encode outgoing frame")?;
 
 		let rx = self.pending.register(nonce);
-		tx.send(json)
-			.map_err(|_| {
-				self.pending.drop_pending(nonce);
-				anyhow!("Discord connection closed before send")
-			})?;
+		tx.send(json).map_err(|_| {
+			self.pending.drop_pending(nonce);
+			anyhow!("Discord connection closed before send")
+		})?;
 
 		match tokio::time::timeout(timeout, rx).await {
 			Ok(Ok(frame)) if frame.ok => Ok(frame),
@@ -155,19 +153,19 @@ mod tests {
 	use crate::discord_bridge::messages::{
 		FindData,
 		FindNode,
-		PatchData,
 		FindType,
 		MatchNode,
+		PatchData,
 		ReplaceNode,
 		Replacement,
 	};
 
 	fn dummy_patch() -> PatchData {
 		PatchData {
-			find_type:   FindType::String,
-			find:        "x".into(),
+			find_type: FindType::String,
+			find: "x".into(),
 			replacement: vec![Replacement {
-				match_:  MatchNode::String { value: "a".into() },
+				match_: MatchNode::String { value: "a".into() },
 				replace: ReplaceNode::String { value: "b".into() },
 			}],
 		}
@@ -178,7 +176,9 @@ mod tests {
 		let sender = RpcSender::disconnected();
 		let res = sender
 			.request(
-				OutgoingKind::TestPatch { data: dummy_patch() },
+				OutgoingKind::TestPatch {
+					data: dummy_patch(),
+				},
 				Duration::from_millis(50),
 			)
 			.await;
@@ -224,8 +224,8 @@ mod tests {
 		let (tx, mut rx) = mpsc::unbounded_channel::<String>();
 		let sender = RpcSender {
 			outbound: Some(tx),
-			pending:  PendingMap::new(),
-			nonces:   Arc::new(NonceCounter::default()),
+			pending: PendingMap::new(),
+			nonces: Arc::new(NonceCounter::default()),
 		};
 
 		let send_task = tokio::spawn({
@@ -236,7 +236,9 @@ mod tests {
 						OutgoingKind::TestFind {
 							data: FindData {
 								kind: "findByProps".into(),
-								args: vec![FindNode::String { value: "x".into() }],
+								args: vec![FindNode::String {
+									value: "x".into(),
+								}],
 							},
 						},
 						Duration::from_millis(40),
@@ -250,7 +252,12 @@ mod tests {
 
 		let result = send_task.await.unwrap();
 		assert!(result.is_err());
-		assert!(result.unwrap_err().to_string().contains("timed out"));
+		assert!(
+			result
+				.unwrap_err()
+				.to_string()
+				.contains("timed out")
+		);
 		assert!(sender.pending.is_empty(), "pending entry should be cleared");
 	}
 
@@ -259,8 +266,8 @@ mod tests {
 		let (tx, mut outbound_rx) = mpsc::unbounded_channel::<String>();
 		let sender = RpcSender {
 			outbound: Some(tx),
-			pending:  PendingMap::new(),
-			nonces:   Arc::new(NonceCounter::default()),
+			pending: PendingMap::new(),
+			nonces: Arc::new(NonceCounter::default()),
 		};
 
 		let send = tokio::spawn({
@@ -268,7 +275,9 @@ mod tests {
 			async move {
 				sender
 					.request(
-						OutgoingKind::TestPatch { data: dummy_patch() },
+						OutgoingKind::TestPatch {
+							data: dummy_patch(),
+						},
 						Duration::from_millis(500),
 					)
 					.await

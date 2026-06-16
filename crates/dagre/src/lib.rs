@@ -35,7 +35,7 @@ pub use types::{
 };
 #[cfg(test)]
 mod tests {
-	use crate::{layout, LayoutGraph};
+	use crate::{LayoutGraph, layout};
 
 	#[test]
 	fn panic1_lays_out_without_panic() {

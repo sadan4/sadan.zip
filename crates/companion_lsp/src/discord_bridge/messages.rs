@@ -287,7 +287,10 @@ mod tests {
 		assert_eq!(frame.error.as_deref(), Some("match did not apply"));
 		let err = frame.into_error();
 		let s = err.to_string();
-		assert_eq!(s, "match did not apply", "expected bare upstream error, got {s:?}");
+		assert_eq!(
+			s, "match did not apply",
+			"expected bare upstream error, got {s:?}"
+		);
 	}
 
 	#[test]

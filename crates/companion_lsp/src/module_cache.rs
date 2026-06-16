@@ -20,7 +20,7 @@ const CACHE_DIR_NAME: &str = ".modules";
 pub struct ModuleCache {
 	/// Resolved cache directory once a workspace is known. `None` before
 	/// `initialize` or when the editor opens with no workspace.
-	root:  Option<PathBuf>,
+	root: Option<PathBuf>,
 	/// Set of module IDs already on disk. Lazily populated when the cache
 	/// directory is scanned.
 	known: HashSet<String>,
@@ -36,7 +36,7 @@ impl ModuleCache {
 	pub fn set_workspace_root(&mut self, workspace: &Path) {
 		let root = workspace.join(CACHE_DIR_NAME);
 		if self.root.as_deref() != Some(&root) {
-			self.root  = Some(root);
+			self.root = Some(root);
 			self.known.clear();
 		}
 	}
@@ -49,7 +49,7 @@ impl ModuleCache {
 	pub async fn has_cache(&self) -> bool {
 		match &self.root {
 			Some(p) => fs::try_exists(p).await.unwrap_or(false),
-			None    => false,
+			None => false,
 		}
 	}
 
@@ -79,22 +79,33 @@ impl ModuleCache {
 	}
 
 	pub async fn read_module(&self, id: &str) -> Result<Option<String>> {
-		let Some(root) = &self.root else { return Ok(None) };
+		let Some(root) = &self.root else {
+			return Ok(None);
+		};
 		let path = root.join(format!("{id}.js"));
 		match fs::read_to_string(&path).await {
 			Ok(s) => Ok(Some(s)),
 			Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
-			Err(e) => Err(e).with_context(|| format!("read {}", path.display())),
+			Err(e) => {
+				Err(e).with_context(|| format!("read {}", path.display()))
+			}
 		}
 	}
 
 	pub fn module_path(&self, id: &str) -> Option<PathBuf> {
-		self.root.as_ref().map(|r| r.join(format!("{id}.js")))
+		self.root
+			.as_ref()
+			.map(|r| r.join(format!("{id}.js")))
 	}
 
 	pub async fn purge(&mut self) -> Result<()> {
-		let Some(root) = &self.root else { return Ok(()) };
-		if fs::try_exists(root).await.unwrap_or(false) {
+		let Some(root) = &self.root else {
+			return Ok(());
+		};
+		if fs::try_exists(root)
+			.await
+			.unwrap_or(false)
+		{
 			fs::remove_dir_all(root)
 				.await
 				.with_context(|| {
@@ -108,8 +119,13 @@ impl ModuleCache {
 	/// Walk `.modules/` and refresh the in-memory id index.
 	pub async fn rescan(&mut self) -> Result<()> {
 		self.known.clear();
-		let Some(root) = self.root.clone() else { return Ok(()) };
-		if !fs::try_exists(&root).await.unwrap_or(false) {
+		let Some(root) = self.root.clone() else {
+			return Ok(());
+		};
+		if !fs::try_exists(&root)
+			.await
+			.unwrap_or(false)
+		{
 			return Ok(());
 		}
 		let mut entries = fs::read_dir(&root).await?;
@@ -147,9 +163,16 @@ mod tests {
 	#[tokio::test]
 	async fn write_then_read_round_trips() {
 		let (_dir, mut cache) = tmp_cache();
-		cache.write_module("123", "function a(){}").await.unwrap();
+		cache
+			.write_module("123", "function a(){}")
+			.await
+			.unwrap();
 		assert_eq!(
-			cache.read_module("123").await.unwrap().as_deref(),
+			cache
+				.read_module("123")
+				.await
+				.unwrap()
+				.as_deref(),
 			Some("function a(){}"),
 		);
 		assert_eq!(cache.module_count(), 1);
@@ -158,13 +181,22 @@ mod tests {
 	#[tokio::test]
 	async fn read_missing_module_is_none() {
 		let (_dir, cache) = tmp_cache();
-		assert!(cache.read_module("999").await.unwrap().is_none());
+		assert!(
+			cache
+				.read_module("999")
+				.await
+				.unwrap()
+				.is_none()
+		);
 	}
 
 	#[tokio::test]
 	async fn purge_clears_disk_and_index() {
 		let (_dir, mut cache) = tmp_cache();
-		cache.write_module("1", "x").await.unwrap();
+		cache
+			.write_module("1", "x")
+			.await
+			.unwrap();
 		assert!(cache.has_cache().await);
 		cache.purge().await.unwrap();
 		assert!(!cache.has_cache().await);
@@ -174,7 +206,10 @@ mod tests {
 	#[tokio::test]
 	async fn rescan_picks_up_existing_files() {
 		let (_dir, mut cache) = tmp_cache();
-		cache.write_module("42", "y").await.unwrap();
+		cache
+			.write_module("42", "y")
+			.await
+			.unwrap();
 		// Drop the in-memory state and re-scan.
 		let known_before = cache.module_count();
 		let mut fresh = ModuleCache::new();
