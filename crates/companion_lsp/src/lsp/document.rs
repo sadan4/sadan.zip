@@ -40,7 +40,7 @@ pub fn on_did_change(backend: &Backend, params: DidChangeTextDocumentParams) {
 	for change in params.content_changes {
 		match change.range {
 			Some(range) => {
-				apply_range_change(&mut entry.text, range, &change.text)
+				apply_range_change(&mut entry.text, range, &change.text);
 			}
 			None => entry.text = change.text,
 		}

@@ -65,7 +65,7 @@ impl Command {
 		})?;
 		fs::rm_if_exists(&dst)?;
 		fs::copy(&src, &dst).with_context(|| {
-			format!("Failed to copy {} -> {}", src.display(), dst.display(),)
+			format!("Failed to copy {} -> {}", src.display(), dst.display())
 		})?;
 		Ok(())
 	}

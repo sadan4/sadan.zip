@@ -344,17 +344,17 @@ export default definePlugin({
 		let (_, data) = &patches[0];
 		match data.find_type {
 			FindType::String => {}
-			_ => panic!("expected string find"),
+			FindType::Regex => panic!("expected string find"),
 		}
 		assert_eq!(data.find, "foo.bar");
 		assert_eq!(data.replacement.len(), 1);
 		match &data.replacement[0].match_ {
 			MatchNode::String { value } => assert_eq!(value, "a"),
-			_ => panic!("expected string match"),
+			MatchNode::Regex { .. } => panic!("expected string match"),
 		}
 		match &data.replacement[0].replace {
 			ReplaceNode::String { value } => assert_eq!(value, "b"),
-			_ => panic!("expected string replace"),
+			ReplaceNode::Function { .. } => panic!("expected string replace"),
 		}
 	}
 
@@ -374,7 +374,7 @@ export default definePlugin({
 				assert_eq!(value.pattern, "x");
 				assert_eq!(value.flags, "i");
 			}
-			_ => panic!("expected regex match"),
+			MatchNode::String { .. } => panic!("expected regex match"),
 		}
 	}
 
@@ -410,7 +410,7 @@ export default definePlugin({
 					"should not ship regress form"
 				);
 			}
-			_ => panic!("expected string replace"),
+			ReplaceNode::Function { .. } => panic!("expected string replace"),
 		}
 	}
 
@@ -448,7 +448,7 @@ export default definePlugin({
 					"expected template body preserved, got {value:?}"
 				);
 			}
-			_ => panic!("expected function replace"),
+			ReplaceNode::String { .. } => panic!("expected function replace"),
 		}
 	}
 
