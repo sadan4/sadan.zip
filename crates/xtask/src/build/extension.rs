@@ -34,7 +34,7 @@ impl Command {
 			.join(BIN_NAME)
 	}
 
-	fn extension_bin_path(&self) -> PathBuf {
+	fn extension_bin_path() -> PathBuf {
 		PathBuf::from("packages")
 			.join("VencordCompanion")
 			.join("bin")
@@ -55,7 +55,7 @@ impl Command {
 	#[instrument(skip(self))]
 	fn stage_lsp_binary(&self) -> Result<()> {
 		let src = self.cargo_bin_path();
-		let dst = self.extension_bin_path();
+		let dst = Self::extension_bin_path();
 		info!("Staging {} -> {}", src.display(), dst.display());
 		let bin_dir = dst.parent().expect("bin path has a parent");
 		fs::create_dir_all(bin_dir).with_context(|| {

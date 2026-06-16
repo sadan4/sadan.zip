@@ -33,6 +33,7 @@ explorer_types.workspace = true
 smol_str.workspace = true
 regex.workspace = true
 regress.workspace = true
+bytecount.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

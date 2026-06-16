@@ -90,6 +90,7 @@ clearscreen = "4.0.6"
 bitcode = { version = "0.6.9", features = ["serde"] }
 markdown = { version = "1.0.0", features = [] }
 criterion = { version = "0.5", features = ["html_reports"] }
+bytecount = { version = "0.6.9" }
 
 
 [profile.release]

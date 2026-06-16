@@ -22,6 +22,6 @@ impl Runnable for Command {
 
 #[derive(Subcommand)]
 enum Target {
-	/// Package the VencordCompanion VSCode extension as a .vsix
+	/// Package the `VencordCompanion` `VSCode` extension as a .vsix
 	Extension(extension::Command),
 }

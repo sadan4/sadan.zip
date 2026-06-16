@@ -63,7 +63,7 @@ pub struct SessionState {
 	pub cross_module_data: RwLock<Option<Arc<CrossModuleData>>>,
 	/// hashedKey -> localized string. Populated lazily by i18n hover.
 	pub i18n_cache: DashMap<String, String>,
-	/// Outstanding QuickPick round-trips waiting on the editor.
+	/// Outstanding `QuickPick` round-trips waiting on the editor.
 	pub quick_picks: QuickPickPending,
 	/// Active Patch Helper sessions, indexed by the URI of the plugin
 	/// source they're tracking. Populated when `vencord.openPatchHelper`

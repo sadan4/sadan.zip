@@ -1,5 +1,5 @@
 //! Custom JSON-RPC surface that lives *next to* standard LSP. Editors that
-//! want the full VencordCompanion feature set implement a small shim that
+//! want the full `VencordCompanion` feature set implement a small shim that
 //! handles these requests/notifications. Editors that don't get only standard
 //! LSP features (hover/definition/references/diagnostics/code lenses).
 
@@ -39,6 +39,6 @@ pub const PATCH_HELPER_CLOSE_METHOD: &str = "vencord/patchHelper/close";
 
 // ---- Client -> Server requests (custom methods) ---------------------------
 
-/// Used by the editor shim to deliver the user's QuickPick selection back to
+/// Used by the editor shim to deliver the user's `QuickPick` selection back to
 /// the server (nonce-correlated with the original `vencord/quickPick` request).
 pub const QUICK_PICK_RESPONSE_METHOD: &str = "vencord/quickPick/response";

@@ -9,7 +9,7 @@ use vencord_ast_parser::{FindArg, FindUse, VencordAstParser};
 
 use crate::{
 	discord_bridge::messages::{DisablePluginData, FindData, FindNode, RegexValue},
-	lsp::{Backend, get_doc},
+	lsp::{self, Backend, get_doc},
 	vencord_ext,
 };
 
@@ -62,8 +62,7 @@ fn patch_code_lenses(
 	// only emit lenses for `Some` slots so users don't click a button that
 	// errors out, but we use the slot's index as `patchIndex` so it lines up
 	// with what `cmd_test_patch` looks up.
-	let wire = crate::lsp::diagnostics::extract_patches(source)
-		.unwrap_or_default();
+	let wire = lsp::diagnostics::extract_patches(source);
 	let plugin = parser.plugin_info();
 
 	let uri_str = uri.to_string();

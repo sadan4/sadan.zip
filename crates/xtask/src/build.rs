@@ -30,6 +30,6 @@ enum Target {
 	Server(server::Command),
 	/// Build the client site
 	Client(client::Command),
-	/// Build the VencordCompanion VSCode extension
+	/// Build the `VencordCompanion` `VSCode` extension
 	Extension(extension::Command),
 }

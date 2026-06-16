@@ -84,12 +84,10 @@ async fn run_validation(
 	let text_for_lints = doc.text.clone();
 	let source = doc.text.clone();
 
-	let parsed = tokio::task::spawn_blocking(move || {
-		extract_patches(&text_for_patches)
-	})
-	.await
-	.unwrap_or_else(|_| Ok(vec![]))
-	.unwrap_or_default();
+	let parsed =
+		tokio::task::spawn_blocking(move || extract_patches(&text_for_patches))
+			.await
+			.unwrap_or(Vec::new());
 
 	let parser_lints = tokio::task::spawn_blocking(move || {
 		collect_parser_diagnostics(&text_for_lints)
@@ -161,7 +159,7 @@ fn parser_diagnostic_to_lsp(
 	})
 }
 
-fn severity_to_lsp(sev: Severity) -> DiagnosticSeverity {
+const fn severity_to_lsp(sev: Severity) -> DiagnosticSeverity {
 	match sev {
 		Severity::Error => DiagnosticSeverity::ERROR,
 		Severity::Warning => DiagnosticSeverity::WARNING,
@@ -179,21 +177,19 @@ fn severity_to_lsp(sev: Severity) -> DiagnosticSeverity {
 /// Function replacements ship as `ReplaceNode::Function` carrying the raw JS
 /// source of the arrow function, which the Discord-side handler `eval`s back
 /// into a callable — same protocol as the original TS extension.
-pub(crate) fn extract_patches(
-	source: &str,
-) -> anyhow::Result<Vec<Option<(Span, PatchData)>>> {
+pub(crate) fn extract_patches(source: &str) -> Vec<Option<(Span, PatchData)>> {
 	use oxc::allocator::Allocator;
 	use vencord_ast_parser::Replacer;
 
 	let alloc = Allocator::default();
 	let Ok(parser) = VencordAstParser::try_new(&alloc, source, None) else {
-		return Ok(Vec::new());
+		return Vec::new();
 	};
 	// Pass `false`: the wire payload goes to Discord's JS runtime, which
 	// uses JS regex / replacement semantics — applying regress-specific
 	// rewrites here would corrupt the patch.
 	let Ok(patches) = parser.patches(false) else {
-		return Ok(Vec::new());
+		return Vec::new();
 	};
 
 	let mut out = Vec::with_capacity(patches.len());
@@ -243,7 +239,7 @@ pub(crate) fn extract_patches(
 		out.push(Some((patch.find.s, data)));
 	}
 
-	Ok(out)
+	out
 }
 
 fn match_to_wire(m: &vencord_ast_parser::Match) -> Option<(FindType, String)> {
@@ -341,7 +337,6 @@ export default definePlugin({
 	#[test]
 	fn extracts_string_patch_to_wire() {
 		let patches: Vec<_> = extract_patches(PLUGIN)
-			.unwrap()
 			.into_iter()
 			.flatten()
 			.collect();
@@ -366,7 +361,6 @@ export default definePlugin({
 	#[test]
 	fn extracts_regex_patch_to_wire_with_flags() {
 		let patches: Vec<_> = extract_patches(PLUGIN)
-			.unwrap()
 			.into_iter()
 			.flatten()
 			.collect();
@@ -401,7 +395,6 @@ export default definePlugin({
 });
 "#;
 		let patches: Vec<_> = extract_patches(SRC)
-			.unwrap()
 			.into_iter()
 			.flatten()
 			.collect();
@@ -438,7 +431,6 @@ export default definePlugin({
 });
 "#;
 		let patches: Vec<_> = extract_patches(SRC)
-			.unwrap()
 			.into_iter()
 			.flatten()
 			.collect();
@@ -506,7 +498,8 @@ export default definePlugin({
 			diags
 				.iter()
 				.any(|d| d.severity == Some(DiagnosticSeverity::ERROR)
-					&& d.message.contains("non-existent capture group")),
+					&& d.message
+						.contains("non-existent capture group")),
 			"expected non-existent-capture-group error, got {diags:#?}"
 		);
 	}

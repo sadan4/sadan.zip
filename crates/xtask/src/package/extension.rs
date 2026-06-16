@@ -19,8 +19,8 @@ pub struct Command {
 }
 
 impl Command {
-	#[instrument(skip(self))]
-	fn vsce_package(&self) -> Result<()> {
+	#[instrument]
+	fn vsce_package() -> Result<()> {
 		info!("Packaging extension into a .vsix with vsce");
 		let pnpm = resolve_program_in_path("pnpm")
 			.context("Failed to find pnpm in PATH")?;
@@ -43,7 +43,7 @@ impl Runnable for Command {
 		// Build the LSP binary and bundle the client before packaging so the
 		// staged bin/ and dist/ are up to date in the resulting .vsix.
 		build::extension::Command { dev: self.dev }.run()?;
-		self.vsce_package()?;
+		Self::vsce_package()?;
 		info!("Done");
 		Ok(())
 	}

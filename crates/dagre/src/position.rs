@@ -210,7 +210,7 @@ pub fn find_type2_conflicts(
 
 	let mut prev: Option<&Vec<NodeId>> = None;
 	for south in layering {
-		if let Some(_north) = prev {
+		if let Some(north) = prev {
 			let mut prev_north_pos: i64 = -1;
 			let mut next_north_pos: i64 = -1;
 			let mut south_pos = 0usize;
@@ -249,7 +249,7 @@ pub fn find_type2_conflicts(
 					south_pos,
 					south.len(),
 					next_north_pos,
-					_north.len() as i64,
+					north.len() as i64,
 				);
 			}
 		}

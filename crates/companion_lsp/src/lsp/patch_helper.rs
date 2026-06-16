@@ -28,7 +28,12 @@ use serde_json::Value;
 use tokio::sync::Mutex;
 use tower_lsp::{
 	Client,
-	lsp_types::{MessageType, Url, notification::Notification, request::Request},
+	lsp_types::{
+		MessageType,
+		Url,
+		notification::Notification,
+		request::Request,
+	},
 };
 use vencord_ast_parser::{Match, Patch, Replacer, VencordAstParser};
 
@@ -102,7 +107,11 @@ pub struct Registry {
 
 impl Registry {
 	fn next_id(&self) -> String {
-		format!("ph-{:x}", self.counter.fetch_add(1, Ordering::Relaxed))
+		format!(
+			"ph-{:x}",
+			self.counter
+				.fetch_add(1, Ordering::Relaxed)
+		)
 	}
 
 	fn get_all(&self, src: &Url) -> Vec<HelperHandle> {
@@ -122,11 +131,12 @@ impl Registry {
 	/// Drop one helper by id, removing the source key entirely once its last
 	/// helper is gone.
 	fn remove_entry(&self, src: &Url, id: &str) {
-		let mut now_empty = false;
-		if let Some(mut e) = self.by_source.get_mut(src) {
+		let now_empty = if let Some(mut e) = self.by_source.get_mut(src) {
 			e.value_mut().retain(|h| h.id != id);
-			now_empty = e.value().is_empty();
-		}
+			e.value().is_empty()
+		} else {
+			false
+		};
 		// The get_mut guard is dropped above before remove() so we don't
 		// re-lock the same shard.
 		if now_empty {
@@ -188,22 +198,29 @@ pub async fn open(backend: &Backend, args: Vec<Value>) -> Result<Value> {
 			id: backend.state.patch_helpers.next_id(),
 			entry: Arc::new(Mutex::new(HelperEntry::placeholder())),
 		};
-		backend.state.patch_helpers.push(&url, h.clone());
+		backend
+			.state
+			.patch_helpers
+			.push(&url, h.clone());
 		(h, true)
 	};
 
-	let module_content = match render_into(&backend.state, extracted, &handle).await {
-		Ok(v) => v,
-		Err(e) => {
-			// Don't leak a half-initialised entry if extract/fetch failed —
-			// but leave an already-working helper alone if a re-open hit a
-			// transient error (e.g. Discord briefly disconnected).
-			if freshly_created {
-				backend.state.patch_helpers.remove_entry(&url, &handle.id);
+	let module_content =
+		match render_into(&backend.state, extracted, &handle).await {
+			Ok(v) => v,
+			Err(e) => {
+				// Don't leak a half-initialised entry if extract/fetch failed —
+				// but leave an already-working helper alone if a re-open hit a
+				// transient error (e.g. Discord briefly disconnected).
+				if freshly_created {
+					backend
+						.state
+						.patch_helpers
+						.remove_entry(&url, &handle.id);
+				}
+				return Err(e);
 			}
-			return Err(e);
-		}
-	};
+		};
 
 	send_open(&backend.client, &url, &handle.id, &module_content).await?;
 	Ok(serde_json::to_value(PatchIdResponse {
@@ -266,17 +283,23 @@ pub async fn on_source_change(
 			client
 				.show_message(MessageType::WARNING, format!("PatchHelper: {e}"))
 				.await;
-			state.patch_helpers.remove_entry(&source_uri, &handle.id);
-			send_close(&client, &source_uri.to_string(), &handle.id).await;
+			state
+				.patch_helpers
+				.remove_entry(&source_uri, &handle.id);
+			send_close(&client, source_uri.as_ref(), &handle.id).await;
 		}
 	}
 }
 
-pub async fn on_source_close(client: &Client, state: &SharedState, source_uri: &Url) {
+pub async fn on_source_close(
+	client: &Client,
+	state: &SharedState,
+	source_uri: &Url,
+) {
 	// Drop every helper tracking this source and tell the editor to close each
 	// matching virtual document.
 	for handle in state.patch_helpers.take_all(source_uri) {
-		send_close(client, &source_uri.to_string(), &handle.id).await;
+		send_close(client, source_uri.as_ref(), &handle.id).await;
 	}
 }
 
@@ -312,7 +335,9 @@ async fn render_into(
 	guard.occurrence = extracted.occurrence;
 	guard.module_source = module.module;
 	guard.module_number = module.module_number;
-	guard.last_rendered = rendered.clone();
+	guard
+		.last_rendered
+		.clone_from(&rendered);
 	Ok(rendered)
 }
 
@@ -368,7 +393,7 @@ async fn relocate_and_push(
 		g.occurrence = extracted.occurrence;
 		g.module_source = module_source;
 		g.module_number = module_number;
-		g.last_rendered = rendered.clone();
+		g.last_rendered.clone_from(&rendered);
 		(source_uri.to_string(), reveal)
 	};
 
@@ -411,7 +436,10 @@ fn changed_line_range(old: &str, new: &str) -> Option<(u32, u32)> {
 	}
 
 	let start = prefix;
-	let end = new_b.len().saturating_sub(suffix).max(start);
+	let end = new_b
+		.len()
+		.saturating_sub(suffix)
+		.max(start);
 	let start_line = byte_to_line(new, start);
 	let end_line = byte_to_line(new, end);
 	Some((start_line, end_line))
@@ -419,10 +447,7 @@ fn changed_line_range(old: &str, new: &str) -> Option<(u32, u32)> {
 
 fn byte_to_line(s: &str, byte: usize) -> u32 {
 	let cap = byte.min(s.len());
-	s.as_bytes()[..cap]
-		.iter()
-		.filter(|&&b| b == b'\n')
-		.count() as u32
+	bytecount::count(&s.as_bytes()[..cap], b'\n') as u32
 }
 
 #[derive(Debug)]
@@ -437,10 +462,11 @@ struct ExtractedPatch {
 }
 
 /// Two `FindType`s describe the same kind of find (string vs regex).
-fn same_find_type(a: FindType, b: FindType) -> bool {
+const fn same_find_type(a: FindType, b: FindType) -> bool {
 	matches!(
 		(a, b),
-		(FindType::String, FindType::String) | (FindType::Regex, FindType::Regex),
+		(FindType::String, FindType::String)
+			| (FindType::Regex, FindType::Regex),
 	)
 }
 
@@ -521,14 +547,13 @@ fn relocate_patch(
 		last_match = Some(p);
 	}
 
-	let (patch, occurrence) = match chosen {
-		Some(p) => (p, target_occurrence),
-		None => {
-			let p = last_match.context(
-				"lost patch — find no longer matches any patch in the source",
-			)?;
-			(p, seen.saturating_sub(1))
-		}
+	let (patch, occurrence) = if let Some(p) = chosen {
+		(p, target_occurrence)
+	} else {
+		let p = last_match.context(
+			"lost patch — find no longer matches any patch in the source",
+		)?;
+		(p, seen.saturating_sub(1))
 	};
 	let (find_type, find_string) = find_signature(&patch);
 	Ok(ExtractedPatch {
@@ -632,7 +657,9 @@ fn apply_patch_to_module(
 	// coordinates, so no mapping is needed and the result is logically exact.
 	let patched = splice_ranges(module, ranges.clone());
 	let alloc = Allocator::default();
-	if let Ok(formatted) = pretty_printer::format_with_alloc(&patched, &alloc, 4) {
+	if let Ok(formatted) =
+		pretty_printer::format_with_alloc(&patched, &alloc, 4)
+	{
 		return Ok(formatted.code);
 	}
 
@@ -661,7 +688,10 @@ fn apply_patch_to_module(
 /// Apply `(start, end, replacement_text)` byte-span splices to `code`.
 /// Splices run back-to-front so earlier offsets stay valid as later ones are
 /// removed; out-of-bounds spans are clamped.
-fn splice_ranges(code: &str, mut ranges: Vec<(usize, usize, String)>) -> String {
+fn splice_ranges(
+	code: &str,
+	mut ranges: Vec<(usize, usize, String)>,
+) -> String {
 	let mut out = code.to_owned();
 	ranges.sort_by_key(|(start, _, _)| *start);
 	while let Some((start, end, txt)) = ranges.pop() {
@@ -691,7 +721,10 @@ fn collect_replacement_ranges(
 			let needle = std::str::from_utf8(finder.needle())
 				.context("non-utf8 find string")?;
 			let Some(start) = original.find(needle) else {
-				tracing::debug!(needle, "patch helper: replacement had no effect");
+				tracing::debug!(
+					needle,
+					"patch helper: replacement had no effect"
+				);
 				return Ok(());
 			};
 			// A string match exposes no capture groups, so there's nothing for
@@ -721,10 +754,14 @@ fn collect_replacement_ranges(
 				},
 			)
 			.map_err(|e| anyhow!("compile match regex: {e}"))?;
-			let matches: Vec<regress::Match> = if flags.contains(RegExpFlags::G) {
+			let matches: Vec<regress::Match> = if flags.contains(RegExpFlags::G)
+			{
 				regex.find_iter(original).collect()
 			} else {
-				regex.find(original).into_iter().collect()
+				regex
+					.find(original)
+					.into_iter()
+					.collect()
 			};
 			if matches.is_empty() {
 				tracing::debug!(
@@ -734,7 +771,12 @@ fn collect_replacement_ranges(
 				return Ok(());
 			}
 			for m in &matches {
-				let txt = render_replacement(&repl.replace.v, original, m, plugin_name)?;
+				let txt = render_replacement(
+					&repl.replace.v,
+					original,
+					m,
+					plugin_name,
+				)?;
 				ranges.push((m.start(), m.end(), txt));
 			}
 			Ok(())
@@ -765,7 +807,9 @@ fn render_replacement(
 		replacer.do_replace(original, m)
 	}))
 	.map_err(|_| {
-		anyhow!("replacement references a capture group the match does not define")
+		anyhow!(
+			"replacement references a capture group the match does not define"
+		)
 	})?;
 	Ok(substitute_self(&raw, plugin_name))
 }
@@ -963,7 +1007,8 @@ export default definePlugin({
 "#;
 		let e = extract_patch(SRC, 0).unwrap();
 		let result =
-			apply_patch_to_module("var x = 1; x;", &e.patch, "MyPlugin").unwrap();
+			apply_patch_to_module("var x = 1; x;", &e.patch, "MyPlugin")
+				.unwrap();
 		assert!(
 			result.contains("Vencord.Plugins.plugins[\"MyPlugin\"].go()"),
 			"got: {result}",
@@ -1012,8 +1057,14 @@ export default definePlugin({
 		// Same find, but distinct occurrences -> distinct identities.
 		assert_eq!(first.occurrence, 0);
 		assert_eq!(second.occurrence, 1);
-		assert_eq!(first.patch.replacement[0].replace.v, Replacer::Str("first".into()));
-		assert_eq!(second.patch.replacement[0].replace.v, Replacer::Str("second".into()));
+		assert_eq!(
+			first.patch.replacement[0].replace.v,
+			Replacer::Str("first".into())
+		);
+		assert_eq!(
+			second.patch.replacement[0].replace.v,
+			Replacer::Str("second".into())
+		);
 	}
 
 	#[test]
@@ -1025,8 +1076,14 @@ export default definePlugin({
 		assert_eq!(first.occurrence, 0);
 		assert_eq!(second.occurrence, 1);
 		// The two helpers land on different patches, not the same one.
-		assert_eq!(first.patch.replacement[0].replace.v, Replacer::Str("first".into()));
-		assert_eq!(second.patch.replacement[0].replace.v, Replacer::Str("second".into()));
+		assert_eq!(
+			first.patch.replacement[0].replace.v,
+			Replacer::Str("first".into())
+		);
+		assert_eq!(
+			second.patch.replacement[0].replace.v,
+			Replacer::Str("second".into())
+		);
 	}
 
 	#[test]
@@ -1044,7 +1101,10 @@ export default definePlugin({
 		let relocated =
 			relocate_patch(ONE_LEFT, "shared", FindType::String, 1).unwrap();
 		assert_eq!(relocated.occurrence, 0);
-		assert_eq!(relocated.patch.replacement[0].replace.v, Replacer::Str("first".into()));
+		assert_eq!(
+			relocated.patch.replacement[0].replace.v,
+			Replacer::Str("first".into())
+		);
 	}
 
 	#[test]
@@ -1068,8 +1128,7 @@ export default definePlugin({
 "#;
 		let e = extract_patch(SRC, 0).unwrap();
 		let module = "function a(){var x = 1;var y = 2;}";
-		let result =
-			apply_patch_to_module(module, &e.patch, "P").unwrap();
+		let result = apply_patch_to_module(module, &e.patch, "P").unwrap();
 		// Replacement landed.
 		assert!(
 			result.contains("var x ="),
@@ -1125,7 +1184,10 @@ export default definePlugin({
 });
 "#;
 		let e = extract_patch(SRC, 0).unwrap();
-		assert!(matches!(e.patch.replacement[0].replace.v, Replacer::Template(_)));
+		assert!(matches!(
+			e.patch.replacement[0].replace.v,
+			Replacer::Template(_)
+		));
 		let result =
 			apply_patch_to_module("var z = ab;", &e.patch, "P").unwrap();
 		assert!(
@@ -1146,10 +1208,11 @@ export default definePlugin({
 });
 "#;
 		let e = extract_patch(SRC, 0).unwrap();
-		let err = apply_patch_to_module("var z = ab;", &e.patch, "P")
-			.unwrap_err();
+		let err =
+			apply_patch_to_module("var z = ab;", &e.patch, "P").unwrap_err();
 		assert!(
-			err.to_string().contains("requires a regex match")
+			err.to_string()
+				.contains("requires a regex match")
 				|| format!("{err:#}").contains("requires a regex match"),
 			"unexpected error: {err:#}",
 		);
@@ -1226,7 +1289,9 @@ export default definePlugin({
 		let src = "// Webpack Module 9\n0,\nvar x = 1;\n";
 		let rendered = render_module(src, 9);
 		assert_eq!(
-			rendered.matches("// Webpack Module").count(),
+			rendered
+				.matches("// Webpack Module")
+				.count(),
 			1,
 			"should not double-emit the header",
 		);

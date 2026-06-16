@@ -1,4 +1,4 @@
-use std::sync::LazyLock;
+use std::{fmt::Write as _, sync::LazyLock};
 
 use oxc::allocator::Allocator;
 use regex::Regex;
@@ -24,9 +24,8 @@ use crate::{
 
 /// `#{intl::SOME_KEY}` and `#{intl::SOME_KEY::raw}` patterns inside string
 /// literals in Vencord plugin sources. Matches independently of language.
-static VENCORD_INTL_RE: LazyLock<Regex> = LazyLock::new(|| {
-	Regex::new(r"#\{intl::([\w$+/]+)(?:::(\w+))?\}").unwrap()
-});
+static VENCORD_INTL_RE: LazyLock<Regex> =
+	LazyLock::new(|| Regex::new(r"#\{intl::([\w$+/]+)(?:::(\w+))?\}").unwrap());
 
 /// Result of locating an i18n token under the cursor.
 struct IntlToken {
@@ -35,15 +34,21 @@ struct IntlToken {
 	/// Source key when we have one (Vencord pattern); `None` for the webpack
 	/// path where the identifier IS the hash.
 	source: Option<String>,
-	range:  Range,
+	range: Range,
 }
 
 pub async fn hover(
 	backend: &Backend,
 	params: HoverParams,
 ) -> LspResult<Option<Hover>> {
-	let uri = params.text_document_position_params.text_document.uri.clone();
-	let pos = params.text_document_position_params.position;
+	let uri = params
+		.text_document_position_params
+		.text_document
+		.uri
+		.clone();
+	let pos = params
+		.text_document_position_params
+		.position;
 	let Some(doc) = get_doc(&backend.state, &uri) else {
 		return Ok(None);
 	};
@@ -55,10 +60,24 @@ pub async fn hover(
 		return Ok(None);
 	};
 
-	let value = match backend.state.i18n_cache.get(&token.hashed) {
+	let value = match backend
+		.state
+		.i18n_cache
+		.get(&token.hashed)
+	{
 		Some(v) => Some(v.value().clone()),
-		None if backend.state.discord.is_connected().await => {
-			match backend.state.discord.i18n_lookup(&token.hashed).await {
+		None if backend
+			.state
+			.discord
+			.is_connected()
+			.await =>
+		{
+			match backend
+				.state
+				.discord
+				.i18n_lookup(&token.hashed)
+				.await
+			{
 				Ok(v) => {
 					backend
 						.state
@@ -86,10 +105,10 @@ fn locate_intl_token(doc: &Document, pos: Position) -> Option<IntlToken> {
 
 	// 2. Webpack-side i.t.HASH — AST-driven; only meaningful in extracted
 	//    `.js` module files (matches the legacy provider's language filter).
-	if doc.language_id == "javascript" {
-		if let Some(t) = locate_webpack_intl(&doc.text, pos) {
-			return Some(t);
-		}
+	if doc.language_id == "javascript"
+		&& let Some(t) = locate_webpack_intl(&doc.text, pos)
+	{
+		return Some(t);
 	}
 
 	None
@@ -107,18 +126,20 @@ fn locate_vencord_intl(text: &str, pos: Position) -> Option<IntlToken> {
 		.find(|m| range_contains(m.start(), m.end(), offset))?;
 	let caps = VENCORD_INTL_RE.captures_at(text, m.start())?;
 	let source_key = caps.get(1)?.as_str();
-	let modifier   = caps.get(2).map(|c| c.as_str());
+	let modifier = caps.get(2).map(|c| c.as_str());
 
 	let hashed = if modifier == Some("raw") {
 		source_key.to_owned()
 	} else {
-		hash_message_key(source_key).iter().collect::<String>()
+		hash_message_key(source_key)
+			.iter()
+			.collect::<String>()
 	};
 
 	Some(IntlToken {
 		hashed,
 		source: Some(source_key.to_owned()),
-		range:  byte_range_to_lsp(text, m.start(), m.end()),
+		range: byte_range_to_lsp(text, m.start(), m.end()),
 	})
 }
 
@@ -134,18 +155,18 @@ fn locate_webpack_intl(text: &str, pos: Position) -> Option<IntlToken> {
 		pos.character,
 	);
 
-	let alloc  = Allocator::default();
+	let alloc = Allocator::default();
 	let parser = WebpackAstParser::try_new(&alloc, text).ok()?;
 	let (span, key) = parser.get_i18n_key_at(offset)?;
 
 	Some(IntlToken {
 		hashed: key.to_string(),
 		source: None,
-		range:  byte_range_to_lsp(text, span.start as usize, span.end as usize),
+		range: byte_range_to_lsp(text, span.start as usize, span.end as usize),
 	})
 }
 
-fn range_contains(start: usize, end: usize, point: usize) -> bool {
+const fn range_contains(start: usize, end: usize, point: usize) -> bool {
 	point >= start && point <= end
 }
 
@@ -153,26 +174,34 @@ fn byte_range_to_lsp(text: &str, start: usize, end: usize) -> Range {
 	let (sl, sc) = ast_parser::get_line_and_column(text, start as u32);
 	let (el, ec) = ast_parser::get_line_and_column(text, end as u32);
 	Range {
-		start: Position { line: sl, character: sc },
-		end:   Position { line: el, character: ec },
+		start: Position {
+			line: sl,
+			character: sc,
+		},
+		end: Position {
+			line: el,
+			character: ec,
+		},
 	}
 }
 
 fn make_hover(token: &IntlToken, value: Option<&str>) -> Hover {
 	let mut md = String::new();
 	if let Some(src) = &token.source {
-		md.push_str(&format!("**Intl key:** `{src}`  \n"));
+		_ = writeln!(md, "**Intl key:** `{src}`  ");
 	}
-	md.push_str(&format!("**Hashed:** `{}`  \n", token.hashed));
+	_ = writeln!(md, "**Hashed:** `{}`  ", token.hashed);
 	match value {
-		Some(v) => md.push_str(&format!("\n```\n{v}\n```")),
+		Some(v) => {
+			_ = write!(md, "\n```\n{v}\n```");
+		},
 		None => md.push_str(
 			"\n*Connect Discord with `vc-userDevTools` to resolve the localized string.*",
 		),
 	}
 	Hover {
 		contents: HoverContents::Markup(MarkupContent {
-			kind:  MarkupKind::Markdown,
+			kind: MarkupKind::Markdown,
 			value: md,
 		}),
 		range: Some(token.range),
@@ -196,7 +225,10 @@ mod tests {
 	#[test]
 	fn locates_vencord_intl_pattern_and_hashes_key() {
 		let d = doc("typescript", r##"const x = "#{intl::APP_TAG}";"##);
-		let pos = Position { line: 0, character: 22 };
+		let pos = Position {
+			line: 0,
+			character: 22,
+		};
 		let t = locate_intl_token(&d, pos).unwrap();
 		assert_eq!(t.source.as_deref(), Some("APP_TAG"));
 		assert_eq!(t.hashed, "9RNkeF");
@@ -205,7 +237,10 @@ mod tests {
 	#[test]
 	fn raw_modifier_skips_hashing() {
 		let d = doc("typescript", r##""#{intl::abcDEF::raw}""##);
-		let pos = Position { line: 0, character: 12 };
+		let pos = Position {
+			line: 0,
+			character: 12,
+		};
 		let t = locate_intl_token(&d, pos).unwrap();
 		assert_eq!(t.source.as_deref(), Some("abcDEF"));
 		assert_eq!(t.hashed, "abcDEF");
@@ -215,7 +250,10 @@ mod tests {
 	fn webpack_intl_lookup_uses_ast_for_member_access() {
 		// `i.t.AbCdEf` — identifier as member of `t`.
 		let d = doc("javascript", "function _(i){return i.t.AbCdEf}");
-		let pos = Position { line: 0, character: 27 }; // inside AbCdEf
+		let pos = Position {
+			line: 0,
+			character: 27,
+		}; // inside AbCdEf
 		let t = locate_intl_token(&d, pos).unwrap();
 		assert_eq!(t.hashed, "AbCdEf");
 		assert!(t.source.is_none());
@@ -224,7 +262,10 @@ mod tests {
 	#[test]
 	fn webpack_intl_lookup_handles_bracket_form() {
 		let d = doc("javascript", r#"function _(i){return i.t["XyZ012"]}"#);
-		let pos = Position { line: 0, character: 28 };
+		let pos = Position {
+			line: 0,
+			character: 28,
+		};
 		let t = locate_intl_token(&d, pos).unwrap();
 		assert_eq!(t.hashed, "XyZ012");
 	}
@@ -234,10 +275,14 @@ mod tests {
 		// Patch Helper renders the patched module with a `// Webpack Module N`
 		// header and a `0,` prefix (so the anonymous module function parses as
 		// an expression). Hover must resolve `i.t.HASH` inside that content.
-		let src = "// Webpack Module 123\n0,\nfunction(e,t,i){return i.t.AbCdEf}";
+		let src =
+			"// Webpack Module 123\n0,\nfunction(e,t,i){return i.t.AbCdEf}";
 		let d = doc("javascript", src);
 		// Cursor inside `AbCdEf` on the third line.
-		let pos = Position { line: 2, character: 30 };
+		let pos = Position {
+			line: 2,
+			character: 30,
+		};
 		let t = locate_intl_token(&d, pos).unwrap();
 		assert_eq!(t.hashed, "AbCdEf");
 		assert!(t.source.is_none());
@@ -248,7 +293,10 @@ mod tests {
 		// `AbCdEf` here is a top-level binding, not a member access — the
 		// old regex would have matched, the AST path correctly does not.
 		let d = doc("javascript", "var AbCdEf=1;");
-		let pos = Position { line: 0, character: 7 };
+		let pos = Position {
+			line: 0,
+			character: 7,
+		};
 		assert!(locate_intl_token(&d, pos).is_none());
 	}
 
@@ -258,14 +306,20 @@ mod tests {
 		// without the language gate this would still match `i.t.AbCdEf`,
 		// but the AST path is JS-only.
 		let d = doc("typescript", "function _(i){return i.t.AbCdEf}");
-		let pos = Position { line: 0, character: 27 };
+		let pos = Position {
+			line: 0,
+			character: 27,
+		};
 		assert!(locate_intl_token(&d, pos).is_none());
 	}
 
 	#[test]
 	fn returns_none_outside_any_pattern() {
 		let d = doc("typescript", r#"const x = "hello";"#);
-		let pos = Position { line: 0, character: 12 };
+		let pos = Position {
+			line: 0,
+			character: 12,
+		};
 		assert!(locate_intl_token(&d, pos).is_none());
 	}
 }

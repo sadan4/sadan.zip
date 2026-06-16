@@ -238,7 +238,7 @@ fn resolve_patch_data(backend: &Backend, args: &[Value]) -> Result<PatchData> {
 			.state
 			.get_document(&url)
 			.with_context(|| format!("no open document for {url}"))?;
-		let mut wire = crate::lsp::diagnostics::extract_patches(&doc.text)?;
+		let mut wire = crate::lsp::diagnostics::extract_patches(&doc.text);
 		if lens.patch_index >= wire.len() {
 			anyhow::bail!(
 				"patch index {} out of range (parser saw {} patches)",

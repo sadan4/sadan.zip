@@ -37,7 +37,7 @@ impl ParserDiagnostic {
 		&self.labels
 	}
 
-	pub fn severity_raw(&self) -> miette::Severity {
+	pub const fn severity_raw(&self) -> miette::Severity {
 		self.severity
 	}
 }
