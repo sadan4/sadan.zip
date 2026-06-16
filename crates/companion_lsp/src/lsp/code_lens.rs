@@ -1,5 +1,6 @@
 use oxc::{allocator::Allocator, span::Span};
-use serde_json::json;
+use serde::Serialize;
+use serde_json::Value;
 use tower_lsp::{
 	jsonrpc::Result as LspResult,
 	lsp_types::{CodeLens, CodeLensParams, Command, Position, Range},
@@ -7,6 +8,7 @@ use tower_lsp::{
 use vencord_ast_parser::{FindArg, FindUse, VencordAstParser};
 
 use crate::{
+	discord_bridge::messages::{DisablePluginData, FindData, FindNode, RegexValue},
 	lsp::{Backend, get_doc},
 	vencord_ext,
 };
@@ -132,6 +134,32 @@ fn span_to_range(source: &str, span: Span) -> Range {
 	}
 }
 
+/// Serialize a code-lens command argument into the `Value` that LSP's
+/// `Command.arguments` array holds. These are plain data structs, so the
+/// conversion can't fail in practice.
+fn to_arg<T: Serialize>(value: T) -> Value {
+	serde_json::to_value(value).expect("code-lens argument serializes to JSON")
+}
+
+/// `{ uri, patchIndex }` — the shape `cmd_test_patch` / `patch_helper::open`
+/// deserialize back when the lens is clicked.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PatchLensArg<'a> {
+	uri: &'a str,
+	patch_index: usize,
+}
+
+/// Legacy `vencord.extractFind` payload: `{ extractType: "find", findType,
+/// findArgs }`.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ExtractFindArgs {
+	extract_type: &'static str,
+	find_type: String,
+	find_args: Vec<FindNode>,
+}
+
 fn make_patch_lens(
 	range: Range,
 	title: &str,
@@ -144,23 +172,22 @@ fn make_patch_lens(
 		command: Some(Command {
 			title: title.to_owned(),
 			command: command_id.to_owned(),
-			arguments: Some(vec![json!({
-				"uri": uri,
-				"patchIndex": patch_index,
-			})]),
+			arguments: Some(vec![to_arg(PatchLensArg { uri, patch_index })]),
 		}),
 		data: None,
 	}
 }
 
-fn find_arg_to_json(arg: &FindArg) -> serde_json::Value {
+fn find_arg_to_node(arg: &FindArg) -> FindNode {
 	match arg {
-		FindArg::String(s) => json!({ "type": "string", "value": s }),
-		FindArg::Regex { pattern, flags } => json!({
-			"type":  "regex",
-			"value": { "pattern": pattern, "flags": flags },
-		}),
-		FindArg::Function(s) => json!({ "type": "function", "value": s }),
+		FindArg::String(s) => FindNode::String { value: s.clone() },
+		FindArg::Regex { pattern, flags } => FindNode::Regex {
+			value: RegexValue {
+				pattern: pattern.clone(),
+				flags: flags.clone(),
+			},
+		},
+		FindArg::Function(s) => FindNode::Function { value: s.clone() },
 	}
 }
 
@@ -176,25 +203,26 @@ fn make_find_lens(
 	find: &FindUse,
 ) -> CodeLens {
 	let kind = find.data.kind.to_string();
-	let args: Vec<_> = find
+	let args: Vec<FindNode> = find
 		.data
 		.args
 		.iter()
-		.map(find_arg_to_json)
+		.map(find_arg_to_node)
 		.collect();
-	let (command_id, payload) = if extract {
+	let (command_id, payload): (&str, Value) = if extract {
 		(
 			vencord_ext::CMD_EXTRACT_FIND,
-			json!({
-				"extractType": "find",
-				"findType":    kind,
-				"findArgs":    args,
+			to_arg(ExtractFindArgs {
+				extract_type: "find",
+				find_type: kind,
+				find_args: args,
 			}),
 		)
 	} else {
+		// `{ type, args }` — the wire `FindData` shape `cmd_test_find` parses.
 		(
 			vencord_ext::CMD_TEST_FIND,
-			json!({ "type": kind, "args": args }),
+			to_arg(FindData { kind, args }),
 		)
 	};
 	CodeLens {
@@ -219,10 +247,10 @@ fn make_plugin_lens(
 		command: Some(Command {
 			title: title.to_owned(),
 			command: vencord_ext::CMD_DISABLE_PLUGIN.to_owned(),
-			// camelCase to match `DisablePluginData` on the wire.
-			arguments: Some(vec![json!({
-				"pluginName": plugin_name,
-				"enabled":    enabled,
+			// The wire `DisablePluginData` shape `cmd_disable_plugin` parses.
+			arguments: Some(vec![to_arg(DisablePluginData {
+				enabled,
+				plugin_name: plugin_name.to_owned(),
 			})]),
 		}),
 		data: None,

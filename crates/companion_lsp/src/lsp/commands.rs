@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result, anyhow};
 use futures_util::{StreamExt, stream};
-use serde::Deserialize;
-use serde_json::{Value, json};
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use tokio::sync::mpsc;
 use tower_lsp::{
 	jsonrpc::{Error as LspError, Result as LspResult},
@@ -34,6 +34,90 @@ use crate::{
 		CMD_WEBPACK_I18N_HOVER_COPY,
 	},
 };
+
+// ---------------------------------------------------------------------------
+// Wire payloads (server -> Discord bridge) and command result shapes.
+//
+// `OutgoingKind::{Extract,Diff}` carry an untyped `serde_json::Value`, and the
+// editor expects an untyped result `Value` back from `executeCommand`. We model
+// both ends as structs here and serialize at the boundary so the shapes live in
+// one place instead of scattered `json!` literals.
+// ---------------------------------------------------------------------------
+
+/// Discriminant for the bridge's extract/diff requests. Only `id`-based lookups
+/// are issued from here; serializes to `"id"`.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+enum ExtractType {
+	Id,
+}
+
+/// `{ extractType: "id", idOrSearch: <n>, usePatched: null }`
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ExtractByIdRequest {
+	extract_type: ExtractType,
+	id_or_search: i64,
+	use_patched: Option<bool>,
+}
+
+impl ExtractByIdRequest {
+	const fn new(id: i64) -> Self {
+		Self {
+			extract_type: ExtractType::Id,
+			id_or_search: id,
+			use_patched: None,
+		}
+	}
+}
+
+/// `{ extractType: "id", idOrSearch: <n> }`
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DiffByIdRequest {
+	extract_type: ExtractType,
+	id_or_search: i64,
+}
+
+/// Generic `{ ok: true }` acknowledgement returned to the editor.
+#[derive(Serialize)]
+struct OkResponse {
+	ok: bool,
+}
+
+/// Result of `downloadModuleCache`.
+#[derive(Serialize)]
+struct DownloadResponse {
+	downloaded: usize,
+	failed: usize,
+	total: usize,
+}
+
+/// Result of `extractModule` / `diffModule`.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ModuleSummary {
+	module_number: i64,
+	patched_by: Vec<String>,
+}
+
+/// Result of `extractFind`.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ExtractFindResponse {
+	module_number: i64,
+	find: bool,
+}
+
+/// Serialize a command result struct into the untyped `Value` the editor wants.
+/// Serialization of these plain structs is infallible in practice.
+fn to_result<T: Serialize>(value: T) -> Result<Value> {
+	serde_json::to_value(value).map_err(Into::into)
+}
+
+fn ok_response() -> Result<Value> {
+	to_result(OkResponse { ok: true })
+}
 
 pub async fn execute_command(
 	backend: &Backend,
@@ -125,7 +209,7 @@ async fn cmd_test_patch(backend: &Backend, args: Vec<Value>) -> Result<Value> {
 		.client
 		.show_message(MessageType::INFO, "Patch applied successfully.")
 		.await;
-	Ok(json!({ "ok": true }))
+	ok_response()
 }
 
 /// Accepts either:
@@ -187,7 +271,7 @@ async fn cmd_test_find(backend: &Backend, args: Vec<Value>) -> Result<Value> {
 		.client
 		.show_message(MessageType::INFO, "Find resolved successfully.")
 		.await;
-	Ok(json!({ "ok": true }))
+	ok_response()
 }
 
 async fn cmd_disable_plugin(
@@ -202,7 +286,7 @@ async fn cmd_disable_plugin(
 			crate::discord_bridge::rpc::DEFAULT_TIMEOUT,
 		)
 		.await?;
-	Ok(json!({ "ok": true }))
+	ok_response()
 }
 
 // ---------------------------------------------------------------------------
@@ -228,7 +312,7 @@ async fn cmd_purge_module_cache(backend: &Backend) -> Result<Value> {
 		.client
 		.show_message(MessageType::INFO, "Module cache purged.")
 		.await;
-	Ok(json!({ "ok": true }))
+	ok_response()
 }
 
 async fn cmd_download_module_cache(backend: &Backend) -> Result<Value> {
@@ -415,7 +499,11 @@ async fn cmd_download_module_cache(backend: &Backend) -> Result<Value> {
 			.await = None;
 	}
 
-	Ok(json!({ "downloaded": ok, "failed": err, "total": total }))
+	to_result(DownloadResponse {
+		downloaded: ok,
+		failed: err,
+		total,
+	})
 }
 
 async fn fetch_module(
@@ -430,11 +518,7 @@ async fn fetch_module(
 	sender
 		.request(
 			crate::discord_bridge::messages::OutgoingKind::Extract {
-				data: json!({
-					"extractType": "id",
-					"idOrSearch": id_num,
-					"usePatched": null,
-				}),
+				data: serde_json::to_value(ExtractByIdRequest::new(id_num))?,
 			},
 			crate::discord_bridge::rpc::DEFAULT_TIMEOUT,
 		)
@@ -479,10 +563,10 @@ async fn cmd_extract_module(
 	client_ext::request_show_document(&backend.client, uri, true)
 		.await
 		.map_err(|e| anyhow::anyhow!("showDocument: {e:?}"))?;
-	Ok(json!({
-		"moduleNumber": payload.module_number,
-		"patchedBy":    payload.patched_by,
-	}))
+	to_result(ModuleSummary {
+		module_number: payload.module_number,
+		patched_by: payload.patched_by,
+	})
 }
 
 async fn cmd_extract_find(
@@ -509,10 +593,10 @@ async fn cmd_extract_find(
 	client_ext::request_show_document(&backend.client, uri, true)
 		.await
 		.map_err(|e| anyhow::anyhow!("showDocument: {e:?}"))?;
-	Ok(json!({
-		"moduleNumber": payload.module_number,
-		"find":         payload.find.unwrap_or(false),
-	}))
+	to_result(ExtractFindResponse {
+		module_number: payload.module_number,
+		find: payload.find.unwrap_or(false),
+	})
 }
 
 async fn cmd_diff_module(backend: &Backend, args: Vec<Value>) -> Result<Value> {
@@ -521,10 +605,10 @@ async fn cmd_diff_module(backend: &Backend, args: Vec<Value>) -> Result<Value> {
 	let frame = sender
 		.request(
 			OutgoingKind::Diff {
-				data: json!({
-					"extractType": "id",
-					"idOrSearch":  id,
-				}),
+				data: serde_json::to_value(DiffByIdRequest {
+					extract_type: ExtractType::Id,
+					id_or_search: id,
+				})?,
 			},
 			crate::discord_bridge::rpc::DEFAULT_TIMEOUT,
 		)
@@ -565,10 +649,10 @@ async fn cmd_diff_module(backend: &Backend, args: Vec<Value>) -> Result<Value> {
 	)
 	.await?;
 
-	Ok(json!({
-		"moduleNumber": payload.module_number,
-		"patchedBy":    payload.patched_by,
-	}))
+	to_result(ModuleSummary {
+		module_number: payload.module_number,
+		patched_by: payload.patched_by,
+	})
 }
 
 async fn resolve_module_id(
@@ -620,11 +704,7 @@ async fn bridge_extract_by_id(
 	let frame = sender
 		.request(
 			OutgoingKind::Extract {
-				data: json!({
-					"extractType": "id",
-					"idOrSearch":  id,
-					"usePatched":  null,
-				}),
+				data: serde_json::to_value(ExtractByIdRequest::new(id))?,
 			},
 			crate::discord_bridge::rpc::DEFAULT_TIMEOUT,
 		)

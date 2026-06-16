@@ -12,7 +12,8 @@ use std::{
 };
 
 use anyhow::{Result, anyhow};
-use serde_json::{Value, json};
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use tower_lsp::{
 	Client,
 	jsonrpc::Result as LspResult,
@@ -37,6 +38,16 @@ use crate::{state::SharedState, vencord_ext};
 /// Wait at most this long for the editor to respond to a custom request.
 const CLIENT_REQUEST_TIMEOUT: Duration = Duration::from_mins(1);
 
+/// Parameters for the custom `vencord/quickPick` request.
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct QuickPickParams {
+	nonce: String,
+	items: Vec<String>,
+	placeholder: String,
+	allow_free_text: bool,
+}
+
 /// Ask the editor to pop a `QuickPick`. Returns whatever the user selected, or
 /// `None` if they dismissed it.
 pub async fn request_quick_pick(
@@ -50,17 +61,17 @@ pub async fn request_quick_pick(
 
 	struct QuickPick;
 	impl Request for QuickPick {
-		type Params = Value;
+		type Params = QuickPickParams;
 		type Result = Value;
 		const METHOD: &'static str = vencord_ext::QUICK_PICK_METHOD;
 	}
 
-	let send = client.send_request::<QuickPick>(json!({
-		"nonce":         nonce.to_string(),
-		"items":         items,
-		"placeholder":   placeholder,
-		"allowFreeText": allow_free_text,
-	}));
+	let send = client.send_request::<QuickPick>(QuickPickParams {
+		nonce: nonce.to_string(),
+		items,
+		placeholder: placeholder.to_owned(),
+		allow_free_text,
+	});
 
 	// The server-side handler in `commands::on_quick_pick_response` resolves
 	// the oneshot; if the editor doesn't implement the method we'll see an
@@ -107,6 +118,20 @@ pub async fn request_show_document(
 	Ok(())
 }
 
+/// A single side of a `vencord/showDiff` request: `{ uri }`.
+#[derive(Serialize, Deserialize)]
+struct DiffUri {
+	uri: String,
+}
+
+/// Parameters for the custom `vencord/showDiff` request.
+#[derive(Serialize, Deserialize)]
+struct ShowDiffParams {
+	left: DiffUri,
+	right: DiffUri,
+	title: String,
+}
+
 /// Custom `vencord/showDiff` request — asks the editor to open a side-by-side
 /// diff view of two URIs.
 pub async fn request_show_diff(
@@ -117,17 +142,21 @@ pub async fn request_show_diff(
 ) -> Result<()> {
 	struct ShowDiff;
 	impl Request for ShowDiff {
-		type Params = Value;
+		type Params = ShowDiffParams;
 		type Result = Value;
 		const METHOD: &'static str = vencord_ext::SHOW_DIFF_METHOD;
 	}
 
 	client
-		.send_request::<ShowDiff>(json!({
-			"left":  { "uri": left.to_string() },
-			"right": { "uri": right.to_string() },
-			"title": title,
-		}))
+		.send_request::<ShowDiff>(ShowDiffParams {
+			left: DiffUri {
+				uri: left.to_string(),
+			},
+			right: DiffUri {
+				uri: right.to_string(),
+			},
+			title: title.to_owned(),
+		})
 		.await
 		.map(drop)
 		.map_err(|e| anyhow!("editor does not support vencord/showDiff: {e}"))

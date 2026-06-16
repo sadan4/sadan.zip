@@ -23,8 +23,8 @@ use std::sync::{
 use anyhow::{Context, Result, anyhow, bail};
 use dashmap::DashMap;
 use oxc::{allocator::Allocator, ast::ast::RegExpFlags};
-use serde::Deserialize;
-use serde_json::{Value, json};
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use tokio::sync::Mutex;
 use tower_lsp::{
 	Client,
@@ -206,7 +206,16 @@ pub async fn open(backend: &Backend, args: Vec<Value>) -> Result<Value> {
 	};
 
 	send_open(&backend.client, &url, &handle.id, &module_content).await?;
-	Ok(json!({ "patchId": handle.id }))
+	Ok(serde_json::to_value(PatchIdResponse {
+		patch_id: handle.id,
+	})?)
+}
+
+/// `{ patchId }` — returned to the editor from `openPatchHelper`.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PatchIdResponse {
+	patch_id: String,
 }
 
 /// Find a helper already tracking this exact patch (same find + occurrence),
@@ -556,12 +565,12 @@ async fn fetch_module_for_patch(
 	let frame = sender
 		.request(
 			OutgoingKind::Extract {
-				data: json!({
-					"extractType": "search",
-					"findType":    find_type_kind(extracted.find_type),
-					"usePatched":  false,
-					"idOrSearch":  &extracted.find_string,
-				}),
+				data: serde_json::to_value(ExtractSearchRequest {
+					extract_type: "search",
+					find_type: find_type_kind(extracted.find_type),
+					use_patched: false,
+					id_or_search: &extracted.find_string,
+				})?,
 			},
 			DEFAULT_TIMEOUT,
 		)
@@ -571,6 +580,17 @@ async fn fetch_module_for_patch(
 		module: payload.module,
 		module_number: payload.module_number,
 	})
+}
+
+/// `{ extractType: "search", findType, usePatched, idOrSearch }` — asks the
+/// Discord bridge to find the module satisfying a patch's `find`.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ExtractSearchRequest<'a> {
+	extract_type: &'static str,
+	find_type: &'static str,
+	use_patched: bool,
+	id_or_search: &'a str,
 }
 
 const fn find_type_kind(t: FindType) -> &'static str {
@@ -792,6 +812,41 @@ fn render_module(code: &str, module_number: i64) -> String {
 
 // ---------- transport ----------------------------------------------------
 
+/// `{ startLine, endLine }` — the editor scrolls this range into view.
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RevealRange {
+	start_line: u32,
+	end_line: u32,
+}
+
+/// Params for the `vencord/patchHelper/open` request.
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PatchHelperOpenParams {
+	source_uri: String,
+	patch_id: String,
+	module_content: String,
+}
+
+/// Params for the `vencord/patchHelper/close` notification.
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PatchHelperCloseParams {
+	source_uri: String,
+	patch_id: String,
+}
+
+/// Params for the `vencord/patchHelper/update` notification.
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PatchHelperUpdateParams {
+	source_uri: String,
+	patch_id: String,
+	module_content: String,
+	reveal_range: Option<RevealRange>,
+}
+
 async fn send_open(
 	client: &Client,
 	source_uri: &Url,
@@ -800,16 +855,16 @@ async fn send_open(
 ) -> Result<()> {
 	struct PatchHelperOpen;
 	impl Request for PatchHelperOpen {
-		type Params = Value;
+		type Params = PatchHelperOpenParams;
 		type Result = Value;
 		const METHOD: &'static str = vencord_ext::PATCH_HELPER_OPEN_METHOD;
 	}
 	client
-		.send_request::<PatchHelperOpen>(json!({
-			"sourceUri":     source_uri.to_string(),
-			"patchId":       patch_id,
-			"moduleContent": module_content,
-		}))
+		.send_request::<PatchHelperOpen>(PatchHelperOpenParams {
+			source_uri: source_uri.to_string(),
+			patch_id: patch_id.to_owned(),
+			module_content: module_content.to_owned(),
+		})
 		.await
 		.map(drop)
 		.map_err(|e| {
@@ -820,14 +875,14 @@ async fn send_open(
 async fn send_close(client: &Client, source_uri: &str, patch_id: &str) {
 	struct PatchHelperClose;
 	impl Notification for PatchHelperClose {
-		type Params = Value;
+		type Params = PatchHelperCloseParams;
 		const METHOD: &'static str = vencord_ext::PATCH_HELPER_CLOSE_METHOD;
 	}
 	client
-		.send_notification::<PatchHelperClose>(json!({
-			"sourceUri": source_uri,
-			"patchId":   patch_id,
-		}))
+		.send_notification::<PatchHelperClose>(PatchHelperCloseParams {
+			source_uri: source_uri.to_owned(),
+			patch_id: patch_id.to_owned(),
+		})
 		.await;
 }
 
@@ -840,17 +895,20 @@ async fn send_update(
 ) {
 	struct PatchHelperUpdate;
 	impl Notification for PatchHelperUpdate {
-		type Params = Value;
+		type Params = PatchHelperUpdateParams;
 		const METHOD: &'static str = vencord_ext::PATCH_HELPER_UPDATE_METHOD;
 	}
-	let reveal_range = reveal.map(|(s, e)| json!({ "startLine": s, "endLine": e }));
+	let reveal_range = reveal.map(|(start_line, end_line)| RevealRange {
+		start_line,
+		end_line,
+	});
 	client
-		.send_notification::<PatchHelperUpdate>(json!({
-			"sourceUri":     source_uri,
-			"patchId":       patch_id,
-			"moduleContent": module_content,
-			"revealRange":   reveal_range,
-		}))
+		.send_notification::<PatchHelperUpdate>(PatchHelperUpdateParams {
+			source_uri: source_uri.to_owned(),
+			patch_id: patch_id.to_owned(),
+			module_content: module_content.to_owned(),
+			reveal_range,
+		})
 		.await;
 }
 
