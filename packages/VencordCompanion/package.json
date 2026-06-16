@@ -75,6 +75,19 @@
                     "default": "",
                     "description": "Override path to the companion_lsp binary. Defaults to the bundled binary if unset. The env var COMPANION_LSP_BIN takes precedence over this setting.",
                     "type": "string"
+                },
+                "vencord-user-companion.logLevel": {
+                    "default": "info",
+                    "description": "Log level for the companion_lsp server (sets COMPANION_LSP_LOG). Changing this restarts the server. Use the \"Vencord Companion: Set Log Level\" command for a quick picker.",
+                    "type": "string",
+                    "enum": [
+                        "trace",
+                        "debug",
+                        "info",
+                        "warn",
+                        "error",
+                        "off"
+                    ]
                 }
             }
         },
@@ -102,6 +115,10 @@
             {
                 "command": "vencord.purgeModuleCache",
                 "title": "Vencord Companion: Purge Module Cache"
+            },
+            {
+                "command": "vencord-companion.setLogLevel",
+                "title": "Vencord Companion: Set Log Level"
             }
         ],
         "snippets": [

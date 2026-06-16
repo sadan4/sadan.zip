@@ -1,5 +1,6 @@
 import {
     commands,
+    ConfigurationTarget,
     EventEmitter,
     ExtensionContext,
     Position,
@@ -51,12 +52,32 @@ const LEGACY_COMMAND_ALIASES: { vscode: string; server: string }[] = [
 ];
 
 let client: LanguageClient | undefined;
+// Stashed at activation so the "Set Log Level" command can rebuild the client
+// (the log level is baked into the server env at spawn time, so changing it
+// means restarting the process).
+let extensionContext: ExtensionContext | undefined;
 
-export async function activate(context: ExtensionContext): Promise<void> {
+// Mirrors the levels accepted by the server's EnvFilter (COMPANION_LSP_LOG),
+// set up in crates/companion_lsp/src/main.rs.
+const LOG_LEVELS = ["trace", "debug", "info", "warn", "error", "off"] as const;
+type LogLevel = typeof LOG_LEVELS[number];
+
+function getConfiguredLogLevel(): LogLevel {
+    const cfg = workspace.getConfiguration("vencord-user-companion").get<string>("logLevel");
+    return (LOG_LEVELS as readonly string[]).includes(cfg ?? "") ? cfg as LogLevel : "info";
+}
+
+function createClient(context: ExtensionContext): LanguageClient {
     const serverPath = resolveServerBinary(context);
+    const logLevel = getConfiguredLogLevel();
+    // For an Executable server, vscode-languageclient passes `options.env`
+    // straight to child_process.spawn, which REPLACES the environment rather
+    // than extending it. Spread process.env so the server keeps PATH/HOME/etc.
+    // (the discord bridge needs them) and only override the log level.
+    const env = { ...process.env, COMPANION_LSP_LOG: logLevel };
     const serverOptions: ServerOptions = {
-        run:   { command: serverPath, transport: TransportKind.stdio },
-        debug: { command: serverPath, transport: TransportKind.stdio, options: { env: { COMPANION_LSP_LOG: "debug" } } },
+        run:   { command: serverPath, transport: TransportKind.stdio, options: { env } },
+        debug: { command: serverPath, transport: TransportKind.stdio, options: { env } },
     };
 
     const clientOptions: LanguageClientOptions = {
@@ -74,15 +95,25 @@ export async function activate(context: ExtensionContext): Promise<void> {
         },
     };
 
-    client = new LanguageClient(
+    return new LanguageClient(
         "companionLsp",
         "Vencord Companion LSP",
         serverOptions,
         clientOptions,
     );
+}
 
+export async function activate(context: ExtensionContext): Promise<void> {
+    extensionContext = context;
+    client = createClient(context);
+
+    // Command forwarders and the patch helper reference the module-level
+    // `client`, so they survive a restart and only need registering once.
     registerCommandForwarders(context);
     registerPatchHelper(context);
+    context.subscriptions.push(
+        commands.registerCommand("vencord-companion.setLogLevel", setLogLevel),
+    );
 
     await client.start();
     registerCustomRequests();
@@ -92,6 +123,37 @@ export async function deactivate(): Promise<void> {
     if (client) {
         await client.stop();
     }
+}
+
+// ---------------------------------------------------------------------------
+// Log level: pick a level, persist it, restart the server with it applied
+// ---------------------------------------------------------------------------
+
+async function setLogLevel(): Promise<void> {
+    const current = getConfiguredLogLevel();
+    const picked = await window.showQuickPick(
+        LOG_LEVELS.map((level) => ({
+            label:       level,
+            description: level === current ? "(current)" : undefined,
+        })),
+        { placeHolder: "Select the companion_lsp log level" },
+    );
+    if (!picked || picked.label === current) return;
+
+    await workspace.getConfiguration("vencord-user-companion")
+        .update("logLevel", picked.label, ConfigurationTarget.Global);
+    await restartClient();
+    window.showInformationMessage(`Vencord Companion: log level set to "${picked.label}".`);
+}
+
+async function restartClient(): Promise<void> {
+    if (!extensionContext) return;
+    if (client) {
+        await client.stop();
+    }
+    client = createClient(extensionContext);
+    await client.start();
+    registerCustomRequests();
 }
 
 // ---------------------------------------------------------------------------
