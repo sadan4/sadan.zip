@@ -13,7 +13,7 @@ use ast_parser::{get_offset_from_line_and_column, span_line_and_column};
 use explorer_types::{IncomingModuleDeps, ModuleId};
 use insta::{assert_debug_snapshot, assert_snapshot};
 use itertools::Itertools;
-use macros::test;
+use macros::cache_test;
 use oxc::{allocator::Allocator, span::Span};
 use smol_str::SmolStr;
 use webpack_ast_parser::{
@@ -315,21 +315,7 @@ struct DefinitionDumper<'a> {
 	range: SpanDumper<'a>,
 }
 
-#[test]
-fn test() {
-	let alloc = Allocator::new();
-	let (b, parsers) = Bundle::try_new(&alloc).unwrap();
-	b.bind_plugins(parsers);
-	simple_export_in_single_file(&b);
-	simple_export_in_many_files(&b);
-	e_exports_default::run(&b);
-	react_class_component(&b);
-	enum_uses::run(&b);
-	definitions::run(&b);
-	stores::run(&b);
-	hover_text::run(&b);
-}
-
+#[cache_test]
 fn simple_export_in_single_file(b: &Bundle) {
 	let parser = b.parse(222222);
 	let locs = b.dbg_gen_refs(&parser, 6, 8).unwrap();
@@ -345,6 +331,7 @@ fn simple_export_in_single_file(b: &Bundle) {
 	"#);
 }
 
+#[cache_test]
 fn simple_export_in_many_files(b: &Bundle) {
 	let parser = b.parse(222222);
 	let locs = b.dbg_gen_refs(&parser, 5, 8);
@@ -378,11 +365,7 @@ fn simple_export_in_many_files(b: &Bundle) {
 /// are assigned to the default export first
 mod e_exports_default {
 	use super::*;
-	pub fn run(b: &Bundle) {
-		test1(b);
-		test2(b);
-		test3(b);
-	}
+	#[cache_test]
 	fn test1(b: &Bundle) {
 		let parser = b.parse(111113);
 		let deps = parser
@@ -429,6 +412,7 @@ mod e_exports_default {
 		]
 		"#);
 	}
+	#[cache_test]
 	fn test2(b: &Bundle) {
 		let parser = b.parse(111113);
 		let locs = b.dbg_gen_refs(&parser, 8, 8).unwrap();
@@ -443,6 +427,7 @@ mod e_exports_default {
 		]
 		"#);
 	}
+	#[cache_test]
 	fn test3(b: &Bundle) {
 		let parser = b.parse(111113);
 		let locs = b.dbg_gen_refs(&parser, 11, 8).unwrap();
@@ -459,6 +444,7 @@ mod e_exports_default {
 	}
 }
 
+#[cache_test]
 fn react_class_component(b: &Bundle) {
 	let parser = b.parse(555555);
 	let locs = b.dbg_gen_refs(&parser, 11, 10).unwrap();
@@ -478,16 +464,9 @@ fn react_class_component(b: &Bundle) {
 
 mod enum_uses {
 	use super::*;
-	pub fn run(b: &Bundle) {
-		style_1::run(b);
-		style_2::run(b);
-	}
 	mod style_1 {
 		use super::*;
-		pub fn run(b: &Bundle) {
-			uses_of_member(b);
-			uses_of_object(b);
-		}
+		#[cache_test]
 		fn uses_of_member(b: &Bundle) {
 			let parser = b.parse(333333);
 			let locs = b.dbg_gen_refs(&parser, 22, 27).unwrap();
@@ -508,6 +487,7 @@ mod enum_uses {
 			]
 			"#);
 		}
+		#[cache_test]
 		fn uses_of_object(b: &Bundle) {
 			let parser = b.parse(333333);
 			let locs = b.dbg_gen_refs(&parser, 21, 12).unwrap();
@@ -549,10 +529,7 @@ mod enum_uses {
 	}
 	mod style_2 {
 		use super::*;
-		pub fn run(b: &Bundle) {
-			uses_of_member(b);
-			uses_of_object(b);
-		}
+		#[cache_test]
 		fn uses_of_member(b: &Bundle) {
 			let parser = b.parse(333333);
 			let locs = b.dbg_gen_refs(&parser, 28, 14).unwrap();
@@ -573,6 +550,7 @@ mod enum_uses {
 			]
 			"#);
 		}
+		#[cache_test]
 		fn uses_of_object(b: &Bundle) {
 			let parser = b.parse(333333);
 			let locs = b.dbg_gen_refs(&parser, 26, 14).unwrap();
@@ -617,16 +595,9 @@ mod enum_uses {
 // FIXME: test with invalid positions (make sure no panics)
 mod definitions {
 	use super::*;
-	pub fn run(b: &Bundle) {
-		wreq_d::run(b);
-	}
 	mod wreq_d {
 		use super::*;
-		pub fn run(b: &Bundle) {
-			simple_import(b);
-			simple_import_2(b);
-			enums::run(b);
-		}
+		#[cache_test]
 		fn simple_import(b: &Bundle) {
 			let parser = b.parse(111111);
 			let defs = b.dbg_defs(&parser, 23, 29).unwrap();
@@ -641,6 +612,7 @@ mod definitions {
 			]
 			"#);
 		}
+		#[cache_test]
 		fn simple_import_2(b: &Bundle) {
 			let parser = b.parse(111111);
 			let defs = b.dbg_defs(&parser, 26, 34);
@@ -660,17 +632,9 @@ mod definitions {
 		mod enums {
 			use super::*;
 
-			pub fn run(b: &Bundle) {
-				style_1::run(b);
-				style_2::run(b);
-			}
 			mod style_1 {
 				use super::*;
-				pub fn run(b: &Bundle) {
-					obj_def_from_obj_use(b);
-					obj_def_from_computed_access(b);
-					member_def_from_normal_use(b);
-				}
+				#[cache_test]
 				fn obj_def_from_obj_use(b: &Bundle) {
 					let parser = b.parse(111111);
 					let defs = b.dbg_defs(&parser, 20, 23).unwrap();
@@ -685,6 +649,7 @@ mod definitions {
 					]
 					"#);
 				}
+				#[cache_test]
 				fn obj_def_from_computed_access(b: &Bundle) {
 					let parser = b.parse(222222);
 					let defs = b.dbg_defs(&parser, 20, 23).unwrap();
@@ -699,6 +664,7 @@ mod definitions {
 					]
 					"#);
 				}
+				#[cache_test]
 				fn member_def_from_normal_use(b: &Bundle) {
 					let parser = b.parse(111111);
 					let defs = b.dbg_defs(&parser, 20, 27).unwrap();
@@ -716,11 +682,7 @@ mod definitions {
 			}
 			mod style_2 {
 				use super::*;
-				pub fn run(b: &Bundle) {
-					obj_def_from_obj_use(b);
-					obj_def_from_computed_access(b);
-					member_def_from_normal_use(b);
-				}
+				#[cache_test]
 				fn obj_def_from_obj_use(b: &Bundle) {
 					let parser = b.parse(111111);
 					let defs = b.dbg_defs(&parser, 20, 34).unwrap();
@@ -735,6 +697,7 @@ mod definitions {
 					]
 					"#);
 				}
+				#[cache_test]
 				fn obj_def_from_computed_access(b: &Bundle) {
 					let parser = b.parse(222222);
 					let defs = b.dbg_defs(&parser, 20, 32).unwrap();
@@ -749,6 +712,7 @@ mod definitions {
 					]
 					"#);
 				}
+				#[cache_test]
 				fn member_def_from_normal_use(b: &Bundle) {
 					let parser = b.parse(111111);
 					let defs = b.dbg_defs(&parser, 20, 38).unwrap();
@@ -769,9 +733,7 @@ mod definitions {
 }
 mod stores {
 	use super::*;
-	pub fn run(b: &Bundle) {
-		definition_location_of_store_getter(b);
-	}
+	#[cache_test]
 	fn definition_location_of_store_getter(b: &Bundle) {
 		let parser = b.parse(111111);
 		let defs = b.dbg_defs(&parser, 16, 27).unwrap();
@@ -789,10 +751,7 @@ mod stores {
 }
 mod hover_text {
 	use super::*;
-	pub fn run(b: &Bundle) {
-		store_in_other_module(b);
-		store_in_other_module_2(b);
-	}
+	#[cache_test]
 	fn store_in_other_module(b: &Bundle) {
 		let parser = b.parse(555555);
 		let hov = dbg_hover(&parser, 38, 8)
@@ -805,6 +764,7 @@ mod hover_text {
 		)
 		"#);
 	}
+	#[cache_test]
 	fn store_in_other_module_2(b: &Bundle) {
 		let parser = b.parse(111111);
 		let hov = dbg_hover(&parser, 15, 23)
