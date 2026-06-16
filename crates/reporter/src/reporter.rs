@@ -21,6 +21,7 @@ use oxc::{
 use pretty_printer::{FormattedContent, format_with_alloc};
 use regress::Regex;
 use std::{
+	borrow::Cow,
 	collections::{HashMap, HashSet},
 	mem,
 	sync::Arc,
@@ -348,7 +349,7 @@ impl<'a> ReporterState<'a> {
 
 	fn format_syntax_error(
 		&self,
-		mut e: OxcDiagnostic,
+		mut e: Box<OxcDiagnostic>,
 		original_source: &str,
 		m_id: ModuleId,
 		pat: &Regex,
@@ -400,18 +401,14 @@ impl<'a> ReporterState<'a> {
 		}
 
 		// Map the error spans from the original diagnostic
-		if let Some(labels) = &mut e.labels {
-			for label in labels {
-				// miette is evil and doesn't let you mutate the offset or go into string
-				let label_span = Span::new(
-					label.offset() as u32,
-					(label.offset() + label.len()) as u32,
-				);
-				// i can't get Option.cloned() to work for some reason
-				let txt = label.label().map(String::from);
-				*label = Self::find_new_span(&mappings, label_span).into();
-				label.set_label(txt);
-			}
+		for label in e.labels.as_mut_slice() {
+			// miette is evil and doesn't let you mutate the offset or go into string
+			let label_span =
+				Span::new(label.offset(), label.offset() + label.len());
+			// i can't get Option.cloned() to work for some reason
+			let txt = label.label().map(String::from);
+			*label = Self::find_new_span(&mappings, label_span).into();
+			label.set_label(txt);
 		}
 
 		let src = NamedSource::new(format!("{m_id}.js"), formatted_source)
@@ -532,7 +529,7 @@ impl<'a> ReporterState<'a> {
 		&mut self,
 		new_src: &str,
 		m_id: ModuleId,
-	) -> Result<(), OxcDiagnostic> {
+	) -> Result<(), Box<OxcDiagnostic>> {
 		let result = {
 			let chk = check_syntax_errors(
 				&self.alloc,
@@ -581,11 +578,11 @@ fn check_syntax_errors(
 	alloc: &Allocator,
 	src: &str,
 	stats: Option<Stats>,
-) -> Result<Stats, OxcDiagnostic> {
+) -> Result<Stats, Box<OxcDiagnostic>> {
 	let mut p_ret = Parser::new(alloc, src, SourceType::unambiguous()).parse();
-	if !p_ret.errors.is_empty() {
-		let ret = p_ret.errors.swap_remove(0);
-		return Err(ret);
+	if !p_ret.diagnostics.is_empty() {
+		let ret = p_ret.diagnostics.swap_remove(0);
+		return Err(Box::new(ret));
 	}
 	let sema = SemanticBuilder::new()
 		.with_check_syntax_error(true)
@@ -596,20 +593,20 @@ fn check_syntax_errors(
 		sema
 	};
 	let mut sema = sema.build(&p_ret.program);
-	if sema.errors.is_empty() {
+	if sema.diagnostics.is_empty() {
 		Ok(sema.semantic.stats())
 	} else {
-		let ret = sema.errors.swap_remove(0);
-		Err(ret)
+		let ret = sema.diagnostics.swap_remove(0);
+		Err(Box::new(ret))
 	}
 }
 
 struct WrappedOxcDiagnostic {
-	diag: OxcDiagnostic,
+	diag: Box<OxcDiagnostic>,
 	src: Box<dyn SourceCode>,
 }
 impl WrappedOxcDiagnostic {
-	fn new(diag: OxcDiagnostic, src: NamedSource<String>) -> Self {
+	fn new(diag: Box<OxcDiagnostic>, src: NamedSource<String>) -> Self {
 		Self {
 			diag,
 			src: Box::new(src),
@@ -646,7 +643,7 @@ impl std::error::Error for WrappedOxcDiagnostic {
 }
 
 impl Diagnostic for WrappedOxcDiagnostic {
-	fn code<'a>(&'a self) -> Option<Box<dyn std::fmt::Display + 'a>> {
+	fn code(&self) -> Option<Cow<'_, str>> {
 		self.diag.code()
 	}
 
@@ -654,15 +651,15 @@ impl Diagnostic for WrappedOxcDiagnostic {
 		self.diag.severity()
 	}
 
-	fn help<'a>(&'a self) -> Option<Box<dyn std::fmt::Display + 'a>> {
+	fn help(&self) -> Option<Cow<'_, str>> {
 		self.diag.help()
 	}
 
-	fn note<'a>(&'a self) -> Option<Box<dyn std::fmt::Display + 'a>> {
+	fn note(&self) -> Option<Cow<'_, str>> {
 		self.diag.note()
 	}
 
-	fn url<'a>(&'a self) -> Option<Box<dyn std::fmt::Display + 'a>> {
+	fn url(&self) -> Option<Cow<'_, str>> {
 		self.diag.url()
 	}
 
@@ -670,15 +667,11 @@ impl Diagnostic for WrappedOxcDiagnostic {
 		Some(self.src.as_ref())
 	}
 
-	fn labels(
-		&self,
-	) -> Option<Box<dyn Iterator<Item = miette::LabeledSpan> + '_>> {
+	fn labels(&self) -> miette::Labels {
 		self.diag.labels()
 	}
 
-	fn related<'a>(
-		&'a self,
-	) -> Option<Box<dyn Iterator<Item = &'a dyn Diagnostic> + 'a>> {
+	fn related(&self) -> miette::Related<'_> {
 		self.diag.related()
 	}
 

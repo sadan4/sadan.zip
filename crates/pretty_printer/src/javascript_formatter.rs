@@ -35,6 +35,7 @@ use oxc::{
 		},
 	},
 	ast_visit::Visit,
+	diagnostics::Severity,
 	parser::{Kind, Parser, Token, config::TokensParserConfig},
 	semantic::{AstNodes, NodeId, SemanticBuilder},
 	span::{GetSpan, SourceType},
@@ -264,8 +265,10 @@ impl<'a> JavaScriptFormatter<'a> {
 			.parse();
 		if parsed.panicked {
 			let err = parsed
-				.errors
-				.swap_remove(0)
+				.diagnostics
+				.into_iter()
+				.find(|d| d.severity == Severity::Error)
+				.expect("parser panicked but provided no error")
 				.with_source_code(String::from(content));
 			bail!("Failed to parse JavaScript content: {err:?}");
 		}
@@ -278,6 +281,7 @@ impl<'a> JavaScriptFormatter<'a> {
 		builder.hint_num_tokens(comments.len() + tokens.len());
 		let tok_stream = TokenStream::new(tokens, comments);
 		let (_, nodes) = SemanticBuilder::new()
+			.with_build_nodes(true)
 			.build(&parsed.program)
 			.semantic
 			.into_scoping_and_nodes();

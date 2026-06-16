@@ -44,12 +44,15 @@ impl<'ast> PassManager<'ast> {
 		let prog = self.program;
 		let sema = SemanticBuilder::new()
 			.with_cfg(true)
+			// this was set to default buy not marked as a breaking change :(
+			// https://github.com/oxc-project/oxc/pull/23005
+			.with_build_nodes(true)
 			.with_check_syntax_error(true)
 			.build(prog);
 		assert!(
-			sema.errors.is_empty(),
+			sema.diagnostics.is_empty(),
 			"Passes created invalid AST: {:#?}",
-			sema.errors
+			sema.diagnostics
 		);
 		(prog, sema.semantic)
 	}

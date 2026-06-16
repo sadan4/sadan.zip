@@ -32,10 +32,10 @@ macro_rules! impl_parse {
 				..Default::default()
 			})
 			.parse();
-		if !parsed.errors.is_empty() {
+		if !parsed.diagnostics.is_empty() {
 			let dbg_src = Arc::new($source.to_string());
 			let err = parsed
-				.errors
+				.diagnostics
 				.swap_remove(0)
 				.with_source_code(dbg_src);
 			return Err(err);
@@ -43,13 +43,14 @@ macro_rules! impl_parse {
 		let $ast: &'ast mut Program<'ast> = $alloc.alloc(parsed.program);
 		let $sema = SemanticBuilder::new()
 			.with_cfg(true)
+			.with_build_nodes(true)
 			.with_check_syntax_error(true)
 			.build($ast);
-		if !$sema.errors.is_empty() {
+		if !$sema.diagnostics.is_empty() {
 			let mut sema = $sema;
 			let dbg_src = Arc::new($source.to_string());
 			let err = sema
-				.errors
+				.diagnostics
 				.swap_remove(0)
 				.with_source_code(dbg_src);
 			return Err(err);
@@ -72,10 +73,10 @@ pub fn parse_no_sema<'ast>(
 	source_type: SourceType,
 ) -> Result<Program<'ast>, miette::Error> {
 	let mut parsed = OxcParser::new(alloc, source, source_type).parse();
-	if !parsed.errors.is_empty() {
+	if !parsed.diagnostics.is_empty() {
 		let dbg_src = Arc::new(source.to_string());
 		let err = parsed
-			.errors
+			.diagnostics
 			.swap_remove(0)
 			.with_source_code(dbg_src);
 		return Err(err);

@@ -502,7 +502,7 @@ impl GraphicalReportHandler {
 				opts = opts.word_splitter(word_splitter);
 			}
 
-			writeln!(f, "{}", self.wrap(&help.to_string(), opts))?;
+			writeln!(f, "{}", self.wrap(help.as_ref(), opts))?;
 		}
 		Ok(())
 	}
@@ -515,7 +515,9 @@ impl GraphicalReportHandler {
 	) -> fmt::Result {
 		let src = diagnostic.source_code().or(parent_src);
 
-		if let Some(related) = diagnostic.related() {
+		let related = diagnostic.related();
+		if !related.is_empty() {
+			let related = related.as_slice();
 			let severity_style = match diagnostic.severity() {
 				Some(Severity::Error) | None => self.theme.styles.error,
 				Some(Severity::Warning) => self.theme.styles.warning,
@@ -527,7 +529,7 @@ impl GraphicalReportHandler {
 			inner_renderer.with_cause_chain = true;
 			if self.show_related_as_nested {
 				let width = self.termwidth.saturating_sub(2);
-				let mut related = related.peekable();
+				let mut related = related.iter().copied().peekable();
 				while let Some(rel) = related.next() {
 					let is_last = related.peek().is_none();
 					let char = if !is_last {
@@ -578,7 +580,7 @@ impl GraphicalReportHandler {
 					writeln!(f, "{}", self.wrap(inner, opts))?;
 				}
 			} else {
-				for rel in related {
+				for rel in related.iter().copied() {
 					writeln!(f)?;
 					match rel.severity() {
 						Some(Severity::Error) | None => write!(f, "Error: ")?,
@@ -603,16 +605,23 @@ impl GraphicalReportHandler {
 		diagnostic: &dyn Diagnostic,
 		opt_source: Option<&dyn SourceCode>,
 	) -> fmt::Result {
+		fn labels_to_vec(labels: miette::Labels) -> Vec<LabeledSpan> {
+			match labels {
+				miette::Labels::None => vec![],
+				miette::Labels::One([l]) => vec![l],
+				miette::Labels::Two([l, l2]) => vec![l, l2],
+				miette::Labels::Many(labeled_spans) => labeled_spans,
+			}
+		}
 		let source = match opt_source {
 			Some(source) => source,
 			None => return Ok(()),
 		};
-		let labels = match diagnostic.labels() {
-			Some(labels) => labels,
-			None => return Ok(()),
-		};
+		let mut labels = labels_to_vec(diagnostic.labels());
+		if labels.is_empty() {
+			return Ok(());
+		}
 
-		let mut labels = labels.collect::<Vec<_>>();
 		labels.sort_unstable_by_key(|l| l.inner().offset());
 
 		let mut contexts = Vec::with_capacity(labels.len());
@@ -765,9 +774,12 @@ impl GraphicalReportHandler {
 		// If there is a primary label, then use its span
 		// as the reference point for line/column information.
 		let primary_contents = match primary_label {
-			Some(label) => source
-				.read_span(label.inner(), 0, 0)
-				.map_err(|_| fmt::Error)?,
+			// FIXME: dont box here
+			Some(label) => Box::new(
+				source
+					.read_span(label.inner(), 0, 0)
+					.map_err(|_| fmt::Error)?,
+			),
 			None => contents,
 		};
 
@@ -1501,7 +1513,7 @@ impl GraphicalReportHandler {
 		let context = String::from_utf8_lossy(context_data.data());
 		let mut line = context_data.line();
 		let mut column = context_data.column();
-		let mut offset = context_data.span().offset();
+		let mut offset: usize = context_data.span().offset() as usize;
 		let mut line_offset = offset;
 		let mut line_str = String::with_capacity(context.len());
 		let mut lines = Vec::with_capacity(1);
@@ -1547,7 +1559,8 @@ impl GraphicalReportHandler {
 				line_offset = offset;
 			}
 		}
-		Ok((context_data, lines))
+		// TODO: dont box here
+		Ok((Box::new(context_data), lines))
 	}
 }
 
@@ -1698,11 +1711,11 @@ impl FancySpan {
 	}
 
 	fn offset(&self) -> usize {
-		self.span.offset()
+		self.span.offset() as usize
 	}
 
 	fn len(&self) -> usize {
-		self.span.len()
+		self.span.len() as usize
 	}
 }
 

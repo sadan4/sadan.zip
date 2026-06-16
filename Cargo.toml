@@ -32,7 +32,7 @@ clap = { version = "4.6.0", features = ["derive"] }
 clap_complete = "4.6.0"
 itertools = "0.14.0"
 xxhash-rust = { version = "0.8.15", features = ["xxh64"] }
-oxc = { version = "0.125.0", default-features = false, features = [
+oxc = { version = "0.136.0", default-features = false, features = [
     "ast_visit",
     "semantic",
     "minifier",           # we use some traits from it
@@ -40,12 +40,12 @@ oxc = { version = "0.125.0", default-features = false, features = [
     "codegen",            # for tests
     "regular_expression",
 ] }
-oxc_traverse = "0.125.0"
-oxc_ecmascript = "0.125.0"
-oxc_allocator = { version = "0.125.0", features = ["pool", "serialize"] }
+oxc_traverse = "0.136.0"
+oxc_ecmascript = "0.136.0"
+oxc_allocator = { version = "0.136.0", features = ["pool", "serialize"] }
 regress = "0.11.1"
 derive_more = { version = "2.1.1", features = ["full"] }
-oxc-miette = { version = "2.7.0", default-features = false }
+oxc-miette = { version = "3.0.0", default-features = false }
 indicatif = "0.18.4"
 insta = { version = "1.47.1", features = ["ron"] }
 bitflags = { version = "2.11.0", features = ["serde"] }

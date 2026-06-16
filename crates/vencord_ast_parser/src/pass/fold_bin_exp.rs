@@ -57,7 +57,6 @@ fn try_fold_bigint_shift<'ast>(
 }
 
 // TODO: refactor
-#[expect(clippy::too_many_lines)]
 fn fold_template_literals<'ast, State>(
 	left: &mut Expression<'ast>,
 	right: &mut Expression<'ast>,
@@ -89,7 +88,6 @@ fn fold_template_literals<'ast, State>(
 				cooked: Some(Str::from(new_q1_val)),
 			},
 			q1.tail,
-			false,
 		);
 		right.quasis[0] = new_q1;
 		right.span = span;
@@ -125,7 +123,6 @@ fn fold_template_literals<'ast, State>(
 				cooked: Some(Str::from(new_q_val)),
 			},
 			q.tail,
-			false,
 		);
 		left.quasis[last_idx] = new_q;
 		left.span = span;
@@ -141,7 +138,6 @@ fn fold_template_literals<'ast, State>(
 			Span::new(right.span.start, right.span.start),
 			empty_template_element_value(),
 			false,
-			false, // we are inserting an empty element, no need to escape
 		);
 		right
 			.expressions
@@ -160,7 +156,6 @@ fn fold_template_literals<'ast, State>(
 			Span::new(left.span.end, left.span.end),
 			empty_template_element_value(),
 			true,
-			false, // we are inserting an empty element, no need to escape
 		);
 		left.expressions
 			.push(Expression::Identifier(ctx.alloc(right)));
@@ -204,7 +199,6 @@ fn fold_template_literals<'ast, State>(
 				cooked: Some(Str::from(joiner_cooked)),
 			},
 			right_joiner.tail,
-			false,
 		);
 		*left_joiner = joiner;
 		left.quasis
