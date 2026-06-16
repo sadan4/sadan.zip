@@ -327,7 +327,7 @@ impl<'a> JavaScriptFormatter<'a> {
 		// 	node.debug_name()
 		// );
 
-		#[allow(clippy::match_same_arms)]
+		#[expect(clippy::match_same_arms)]
 		match node {
 			N::ContinueStatement(ContinueStatement { label, .. })
 			| N::BreakStatement(BreakStatement { label, .. }) => {

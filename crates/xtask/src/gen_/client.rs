@@ -24,7 +24,7 @@ impl Runnable for Command {
 	fn run(&self) -> Result<()> {
 		let start = Instant::now();
 		// bugged. SEE: https://github.com/rust-lang/rust-clippy/issues/16012
-		#[allow(clippy::redundant_iter_cloned)]
+		#[expect(clippy::redundant_iter_cloned)]
 		let threads = CLIENT_GEN_CMDS
 			.iter()
 			.copied()

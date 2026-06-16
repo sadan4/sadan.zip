@@ -80,7 +80,8 @@ fn test_plugin_9() {
 fn gets_plugin_name() {
 	let a = Allocator::new();
 	let code = include_str!("data/plugin1.tsx");
-	let parser = VencordAstParser::try_new(&a, code, Some("data/plugin1.tsx")).unwrap();
+	let parser =
+		VencordAstParser::try_new(&a, code, Some("data/plugin1.tsx")).unwrap();
 	let plugin_name = parser.plugin_info().unwrap().name;
 	assert_eq!(plugin_name, "Plugin1");
 }

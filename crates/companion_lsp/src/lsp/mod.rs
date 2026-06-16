@@ -79,7 +79,6 @@ impl LanguageServer for Backend {
 		// Prefer the modern `workspaceFolders` field;
 		// fall back to the deprecated `rootUri` so older clients keep
 		// working.
-		#[allow(deprecated)]
 		let workspace_root = params
 			.workspace_folders
 			.as_ref()
@@ -183,7 +182,6 @@ impl LanguageServer for Backend {
 }
 
 /// Helper used by hover/definition/etc. — fetches the document or returns None.
-#[allow(dead_code)] // used by phase 2+ handlers as they fill in
 pub fn get_doc(
 	state: &SharedState,
 	uri: &tower_lsp::lsp_types::Url,

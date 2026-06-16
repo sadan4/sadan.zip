@@ -33,7 +33,7 @@ impl Runnable for Command {
 		let mut out = String::new();
 		write!(out, "pub const INDENT_CACHE: &[&[&str]] = &[").unwrap();
 		for indent_size in 0..=8 {
-			#[allow(
+			#[expect(
 				clippy::write_with_newline,
 				reason = "we want to be explicit here"
 			)]

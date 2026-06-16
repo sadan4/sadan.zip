@@ -117,7 +117,7 @@ enum PatchStatus {
 	Error,
 }
 
-#[allow(clippy::multiple_inherent_impl)]
+#[expect(clippy::multiple_inherent_impl)]
 impl<'a> ReporterState<'a> {
 	fn run(mut self) {
 		self.prune_bad_finds();
@@ -464,7 +464,7 @@ impl<'a> ReporterState<'a> {
 		}
 	}
 
-	#[allow(clippy::too_many_arguments)]
+	#[expect(clippy::too_many_arguments)]
 	fn validate_match_occurrence(
 		pat: &regress::Regex,
 		src: &str,
@@ -632,12 +632,12 @@ impl std::error::Error for WrappedOxcDiagnostic {
 	}
 
 	fn description(&self) -> &str {
-		#[allow(deprecated)]
+		#[expect(deprecated)]
 		self.diag.description()
 	}
 
 	fn cause(&self) -> Option<&dyn std::error::Error> {
-		#[allow(deprecated)]
+		#[expect(deprecated)]
 		self.diag.cause()
 	}
 }

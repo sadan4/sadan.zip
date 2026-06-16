@@ -804,7 +804,6 @@ impl<'ast> VencordAstParser<'ast> {
 	}
 	// TODO: Cache this
 	// maybe noop the replace and just test that the find matches at least once
-	#[allow(clippy::cognitive_complexity)]
 	fn raw_patches<'a: 'ast>(
 		&'a self,
 	) -> PResult<OxcVec<'ast, RawPatch<'ast>>> {
@@ -1111,7 +1110,10 @@ impl<'ast> VencordAstParser<'ast> {
 					break 'l (n, *kind);
 				}
 			}
-			return Err(err(decl_source, format!("Unknown find type {}", decl_source.name())));
+			return Err(err(
+				decl_source,
+				format!("Unknown find type {}", decl_source.name()),
+			));
 		};
 		if !matches!(n.len(), 0 | 4) || (n.len() == 4 && n != "Lazy") {
 			return Err(err(

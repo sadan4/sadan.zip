@@ -100,7 +100,6 @@ async fn fetch_for_channel(
 	Ok(modules)
 }
 
-#[allow(clippy::cognitive_complexity, reason = "clippy bug: macros count")]
 async fn fetch_index(
 	client: &ClientWithMiddleware,
 	channel: Channel,

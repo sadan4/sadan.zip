@@ -288,7 +288,7 @@ async fn dispatch_text(state: &SharedState, pending: &PendingMap, text: &str) {
 	}
 }
 
-#[allow(clippy::result_large_err)]
+#[expect(clippy::result_large_err)]
 fn origin_check(
 	req: &Request,
 	response: Response,
@@ -355,11 +355,6 @@ fn is_outdated(actual: (u32, u32, u32), min: (u32, u32, u32)) -> bool {
 		},
 	}
 }
-
-// The unused-import marker for Duration disappears once timeout-driven helpers
-// land in Phase 4; suppress the noise for now.
-#[allow(dead_code)]
-const _: Duration = Duration::from_secs(0);
 
 #[cfg(test)]
 mod tests {

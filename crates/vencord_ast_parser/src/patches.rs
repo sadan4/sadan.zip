@@ -58,8 +58,6 @@ pub struct RawReplacement<'ast> {
 #[derive(Copy, Clone)]
 pub enum RawReplace<'ast> {
 	String(&'ast StringLiteral<'ast>),
-	// TODO: use or delete this
-	#[allow(dead_code)]
 	Func(&'ast ArrowFunctionExpression<'ast>),
 	Template(&'ast TemplateLiteral<'ast>),
 	ComputedString(Str<'ast>, Span),

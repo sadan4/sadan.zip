@@ -133,7 +133,7 @@ async fn handle_build(c: Channel) -> Result<()> {
 	Ok(())
 }
 
-#[allow(clippy::cognitive_complexity, reason = "broken and counts macros")]
+#[expect(clippy::cognitive_complexity, reason = "broken and counts macros")]
 pub async fn start_watcher() {
 	// info!("setting up parser worker");
 	// if let Err(e) = DefaultBuildParserWorker::setup()

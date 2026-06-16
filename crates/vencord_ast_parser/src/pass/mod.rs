@@ -58,8 +58,11 @@ impl<'ast> PassManager<'ast> {
 	}
 }
 
+
 #[cfg(test)]
-#[expect(clippy::items_after_test_module, reason = "export testing util macro")]
+pub use test_util::dump_ast;
+
+#[cfg(test)]
 mod test_util {
 	use super::*;
 	#[expect(dead_code)]
@@ -108,6 +111,3 @@ mod test_util {
 		LegalComment,
 	};
 }
-
-#[cfg(test)]
-pub use test_util::dump_ast;

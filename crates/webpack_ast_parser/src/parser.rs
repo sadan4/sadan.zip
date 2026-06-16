@@ -598,7 +598,7 @@ impl<'ast> WebpackAstParser<'ast> {
 }
 
 /// Private API
-#[allow(clippy::multiple_inherent_impl)]
+#[expect(clippy::multiple_inherent_impl)]
 impl<'ast> WebpackAstParser<'ast> {
 	/// Given a reference to `wreq`, returns the `wreq(m_id)` call expression the
 	/// reference is the callee of — or `None` if it isn't being used to require `m_id`.
@@ -1411,7 +1411,7 @@ impl<'ast> WebpackAstParser<'ast> {
 }
 
 /// functions to make the raw export map
-#[allow(clippy::multiple_inherent_impl)]
+#[expect(clippy::multiple_inherent_impl)]
 impl<'ast> WebpackAstParser<'ast> {
 	fn get_ast_kind_span_for_export_map(node: AstKind<'ast>) -> Span {
 		match node {
@@ -1813,7 +1813,7 @@ impl<'ast> WebpackAstParser<'ast> {
 	}
 
 	/// Try to make a raw export map for a discord store
-	#[allow(clippy::cognitive_complexity, reason = "clippy bug: macros count")]
+	#[expect(clippy::cognitive_complexity, reason = "clippy bug: macros count")]
 	fn raw_make_export_map_store(
 		&self,
 		init: &'ast NewExpression<'ast>,

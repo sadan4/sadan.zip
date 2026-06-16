@@ -1399,7 +1399,7 @@ impl GraphicalReportHandler {
 
 	// I know it's not good practice, but making this a function makes a lot of sense
 	// and making a struct for this does not...
-	#[allow(clippy::too_many_arguments)]
+	#[expect(clippy::too_many_arguments)]
 	fn write_label_text(
 		&self,
 		f: &mut impl fmt::Write,

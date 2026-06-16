@@ -56,21 +56,7 @@
     </cargoProject>
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="7b584492-e42b-47b1-a34d-2bb70715a8a1" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/sadan.zip.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/sadan.zip.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Cargo.lock" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.lock" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.toml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/crates/ast_parser/src/ast_parser.rs" beforeDir="false" afterPath="$PROJECT_DIR$/crates/ast_parser/src/ast_parser.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/crates/pretty_printer/src/javascript_formatter.rs" beforeDir="false" afterPath="$PROJECT_DIR$/crates/pretty_printer/src/javascript_formatter.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/crates/reporter/src/err/printer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/crates/reporter/src/err/printer.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/crates/reporter/src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/crates/reporter/src/main.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/crates/reporter/src/reporter.rs" beforeDir="false" afterPath="$PROJECT_DIR$/crates/reporter/src/reporter.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/crates/vencord_ast_parser/src/diag.rs" beforeDir="false" afterPath="$PROJECT_DIR$/crates/vencord_ast_parser/src/diag.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/crates/vencord_ast_parser/src/pass/fold_bin_exp.rs" beforeDir="false" afterPath="$PROJECT_DIR$/crates/vencord_ast_parser/src/pass/fold_bin_exp.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/crates/vencord_ast_parser/src/pass/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/crates/vencord_ast_parser/src/pass/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/crates/vencord_ast_parser/src/pass/string_raw.rs" beforeDir="false" afterPath="$PROJECT_DIR$/crates/vencord_ast_parser/src/pass/string_raw.rs" afterDir="false" />
-    </list>
+    <list default="true" id="7b584492-e42b-47b1-a34d-2bb70715a8a1" name="Changes" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -250,7 +236,7 @@
       <updated>1780536487750</updated>
       <workItem from="1780536488807" duration="340000" />
       <workItem from="1780536837980" duration="730000" />
-      <workItem from="1781591198797" duration="760000" />
+      <workItem from="1781591198797" duration="1389000" />
     </task>
     <servers />
   </component>

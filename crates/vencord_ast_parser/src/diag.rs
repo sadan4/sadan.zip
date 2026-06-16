@@ -172,12 +172,12 @@ impl std::error::Error for LocalSource<'_> {
 	}
 
 	fn description(&self) -> &str {
-		#[allow(deprecated)]
+		#[expect(deprecated)]
 		self.inner.description()
 	}
 
 	fn cause(&self) -> Option<&dyn std::error::Error> {
-		#[allow(deprecated)]
+		#[expect(deprecated)]
 		self.inner.cause()
 	}
 }
@@ -237,15 +237,11 @@ impl miette::Diagnostic for LocalSource<'_> {
 		Some(self)
 	}
 
-	fn labels(
-		&self,
-	) -> miette::Labels {
+	fn labels(&self) -> miette::Labels {
 		self.inner.labels()
 	}
 
-	fn related(
-		&self,
-	) -> miette::Related<'_> {
+	fn related(&self) -> miette::Related<'_> {
 		self.inner.related()
 	}
 
