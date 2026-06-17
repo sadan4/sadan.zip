@@ -266,6 +266,10 @@ pub async fn begin_work_progress(
 
 impl Drop for WorkProgress {
 	fn drop(&mut self) {
+		// prevent infinite loop after `this` is dropped in the async block below
+		if self.done.get().is_some() {
+			return;
+		}
 		let this = mem::replace(self, Self::dummy());
 		tokio::spawn(async move {
 			this.end(None).await;
