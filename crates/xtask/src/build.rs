@@ -4,6 +4,7 @@ use clap::{Args, Subcommand};
 use crate::Runnable;
 
 pub mod client;
+pub mod extension;
 pub mod server;
 
 #[derive(Args)]
@@ -18,6 +19,7 @@ impl Runnable for Command {
 		match &self.target {
 			Target::Server(c) => c.run(),
 			Target::Client(c) => c.run(),
+			Target::Extension(c) => c.run(),
 		}
 	}
 }
@@ -28,4 +30,6 @@ enum Target {
 	Server(server::Command),
 	/// Build the client site
 	Client(client::Command),
+	/// Build the `VencordCompanion` `VSCode` extension
+	Extension(extension::Command),
 }

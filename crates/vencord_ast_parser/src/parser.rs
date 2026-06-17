@@ -3,7 +3,13 @@ mod collect_capture_groups;
 use std::{sync::mpsc, vec};
 
 use crate::{
+	AnyFindType,
+	FindArg,
+	FindData,
+	FindType,
+	FindUse,
 	Patch,
+	PluginInfo,
 	ReplaceLike,
 	Replacement,
 	Replacer,
@@ -35,6 +41,7 @@ use crate::{
 use ast_parser::{
 	AstParser,
 	ESModuleParser,
+	cache,
 	exts::{
 		ArrayExpressionElementExt as _,
 		BindingPatternExt as _,
@@ -43,6 +50,7 @@ use ast_parser::{
 		ObjectExpressionExt as _,
 	},
 	parse_for_traverse,
+	sym_id::GetSymId,
 };
 use oxc::{
 	allocator::{Allocator, HashMap as OxcHashMap, Vec as OxcVec},
@@ -53,7 +61,9 @@ use oxc::{
 			Argument,
 			ArrayExpressionElement,
 			ArrowFunctionExpression,
+			CallExpression,
 			Expression,
+			ImportDeclarationSpecifier,
 			ObjectExpression,
 			Program,
 			RegExpFlags,
@@ -64,7 +74,7 @@ use oxc::{
 	},
 	minifier::PropertyReadSideEffects,
 	semantic::{Semantic, SymbolId},
-	span::{SourceType, Span},
+	span::{GetSpan, SourceType, Span},
 };
 use oxc_ecmascript::{
 	GlobalContext,
@@ -80,10 +90,17 @@ pub struct VencordAstParser<'ast> {
 	pub(crate) sema: Semantic<'ast>,
 	pub(crate) txt: &'ast str,
 	pub(crate) path: &'ast str,
+	cache: Cache,
 	pub diag_ch: Option<mpsc::Sender<ParserDiagnostic>>,
 }
 
+#[derive(Default)]
+struct Cache {
+	finds: cache::Ref<PResult<Vec<FindUse>>>,
+}
+
 const DEFINE_PLUGIN_IMPORT_SOURCE: &str = "@utils/types";
+const FIND_IMPORT_SOURCE: &str = "@webpack";
 
 // TODO: get webpack finds
 impl<'ast> VencordAstParser<'ast> {
@@ -111,24 +128,28 @@ impl<'ast> VencordAstParser<'ast> {
 			sema,
 			txt: source,
 			path: path.unwrap_or("file.tsx"),
+			cache: Cache::default(),
 			diag_ch: None,
 		})
 	}
 
 	fn unused_capture_group(capture: &Capture) -> ParserDiagnostic {
-		let extra_label = capture.group.name.map_or_else(|| {
-						let start_span = Span::new(
-							capture.group.span.start + 1,
-							capture.group.span.start + 1,
-						);
-							(start_span, "Consider inserting `?:` here to make this a non-capturing group".into())
-					}, |name| {
-						let group_syntax_span = Span::new(
-							capture.group.span.start + 1,
-							capture.group.span.start + 1 + 1 + name.len() as u32 + 1,
-						);
-							(group_syntax_span, "Consider replacing this with `?:` to make it a non-capturing group".into())
-					});
+		let extra_label = capture
+		.group
+		.name
+		.map_or_else(|| {
+			let start_span = Span::new(
+				capture.group.span.start + 1,
+				capture.group.span.start + 1,
+			);
+			(start_span, "Consider inserting `?:` here to make this a non-capturing group".into())
+		}, |name| {
+			let group_syntax_span = Span::new(
+				capture.group.span.start + 1,
+				capture.group.span.start + 1 + 1 + name.len() as u32 + 1,
+			);
+			(group_syntax_span, "Consider replacing this with `?:` to make it a non-capturing group".into())
+		});
 		ParserDiagnostic {
 			msg: "Unused capture group".into(),
 			labels: vec![extra_label],
@@ -505,6 +526,19 @@ impl<'ast> VencordAstParser<'ast> {
 		Ok(name_val)
 	}
 
+	/// The plugin's name and the source span of its `definePlugin({...})`
+	/// object literal. Returns `None` if the file doesn't look like a
+	/// vencord plugin (no `@utils/types` import, no `definePlugin` call,
+	/// or no `name` string property).
+	pub fn plugin_info<'a: 'ast>(&'a self) -> Option<PluginInfo<'ast>> {
+		let obj = self.define_plugin().ok()?;
+		let name = self.plugin_name().ok()?;
+		Some(PluginInfo {
+			name,
+			span: obj.span,
+		})
+	}
+
 	fn try_into_raw_match_like<'a: 'ast>(
 		&'a self,
 		value: &'ast Expression<'ast>,
@@ -639,6 +673,7 @@ impl<'ast> VencordAstParser<'ast> {
 			predicate,
 			find,
 			replacement,
+			span: obj.span,
 		};
 
 		Ok(ret)
@@ -737,9 +772,10 @@ impl<'ast> VencordAstParser<'ast> {
 			.ok()?;
 		ret.reserve(arr.elements.len());
 		for e in &arr.elements {
-			let find = e.as_expression()?;
+			let find_expr = e.as_expression()?;
+			let span = find_expr.span();
 			let find = self
-				.try_into_raw_match_like(find)
+				.try_into_raw_match_like(find_expr)
 				.ok()?;
 
 			ret.push(RawPatch {
@@ -751,6 +787,7 @@ impl<'ast> VencordAstParser<'ast> {
 					replacement.iter().cloned(),
 					self.alloc,
 				),
+				span,
 			});
 		}
 
@@ -767,7 +804,6 @@ impl<'ast> VencordAstParser<'ast> {
 	}
 	// TODO: Cache this
 	// maybe noop the replace and just test that the find matches at least once
-	#[allow(clippy::cognitive_complexity)]
 	fn raw_patches<'a: 'ast>(
 		&'a self,
 	) -> PResult<OxcVec<'ast, RawPatch<'ast>>> {
@@ -931,20 +967,34 @@ impl<'ast> VencordAstParser<'ast> {
 		Ok(ret)
 	}
 
-	pub fn canonicalize_patch(&self, raw: RawPatch<'_>) -> PResult<Patch> {
+	/// Convert a `RawPatch` into the canonical `Patch` form.
+	///
+	/// `apply_regress_canon`: when `true`, applies rewrites that make the
+	/// patch evaluable by the `regress` crate (`\i` → identifier class in the
+	/// regex, `$&` → `$0` / `$<name>` → `${name}` in string replacements). The
+	/// LSP sets this to `false` since it ships patches to a JS runtime and
+	/// never evaluates them locally; the offline reporter sets it to `true`.
+	pub fn canonicalize_patch(
+		&self,
+		raw: RawPatch<'_>,
+		apply_regress_canon: bool,
+	) -> PResult<Patch> {
 		let all = raw.all;
 		let no_warn = raw.no_warn;
-		let find = canonicalize_match_like(&raw.find)?;
+		let find = canonicalize_match_like(&raw.find, apply_regress_canon)?;
 		let mut replacement = Vec::with_capacity(raw.replacement.len());
 
 		for r in raw.replacement {
-			let match_ = canonicalize_match_like(&r.match_)?;
+			let match_ =
+				canonicalize_match_like(&r.match_, apply_regress_canon)?;
 			let no_warn = r.no_warn;
 			let replace = match &r.replace {
 				RawReplace::String(StringLiteral { value, span, .. })
 				| RawReplace::ComputedString(value, span) => {
 					let mut value = value.to_string();
-					canonicalize_replace_for_regress(&mut value);
+					if apply_regress_canon {
+						canonicalize_replace_for_regress(&mut value);
+					}
 					ReplaceLike {
 						v: Replacer::Str(value),
 						s: *span,
@@ -972,9 +1022,12 @@ impl<'ast> VencordAstParser<'ast> {
 			find,
 			replacement,
 			plugin_id: None,
+			span: raw.span,
 		})
 	}
-	pub fn patches(&self) -> PResult<Vec<Patch>> {
+	/// Walk all `definePlugin({ patches })` and return the canonical patches.
+	/// See [`Self::canonicalize_patch`] for the meaning of `apply_regress_canon`.
+	pub fn patches(&self, apply_regress_canon: bool) -> PResult<Vec<Patch>> {
 		let name = self
 			.plugin_name()
 			.unwrap_or("<unknown plugin>");
@@ -982,22 +1035,156 @@ impl<'ast> VencordAstParser<'ast> {
 			.raw_patches()
 			.map_err(|e| err_ns("Failed to parse raw patches").s(e))?
 			.into_iter()
-			.filter_map(|raw| match self.canonicalize_patch(raw) {
-				Ok(patch) => Some(patch),
-				Err(e) => {
-					let e = LocalSource {
-						name: self.path,
-						source: self.txt,
-						inner: miette::Report::from(e),
-					};
-					debug!(
-						"Failed to canonicalize patch for plugin {name}, skipping. Cause:\n{e:?}"
-					);
-					None
+			.filter_map(|raw| {
+				match self.canonicalize_patch(raw, apply_regress_canon) {
+					Ok(patch) => Some(patch),
+					Err(e) => {
+						let e = LocalSource {
+							name: self.path,
+							source: self.txt,
+							inner: miette::Report::from(e),
+						};
+						debug!(
+							"Failed to canonicalize patch for plugin {name}, skipping. Cause:\n{e:?}"
+						);
+						None
+					}
 				}
 			})
 			.collect();
 		Ok(ret)
+	}
+	pub fn get_finds(&self) -> &PResult<Vec<FindUse>> {
+		self.cache
+			.finds
+			.get(|| self.get_finds_())
+	}
+	fn get_finds_(&self) -> PResult<Vec<FindUse>> {
+		let mut ret = Vec::new();
+		for call in self.get_find_uses()? {
+			if call.arguments.is_empty() {
+				continue;
+			}
+			let mut args = Vec::with_capacity(call.arguments.len());
+			for arg in &call.arguments {
+				args.push(Self::parse_find_arg(arg)?);
+			}
+			let range = call.span;
+			ret.push(FindUse {
+				range,
+				data: FindData {
+					kind: self.parse_find_kind(
+						call.callee.as_identifier().unwrap(),
+					)?,
+					args,
+				},
+			});
+		}
+		Ok(ret)
+	}
+	fn parse_find_kind(&self, name: &impl GetSymId) -> PResult<AnyFindType> {
+		let name = self.sym_id_of(name).unwrap();
+		let decl_source = &self
+			.sema
+			.symbol_declaration(name)
+			.kind()
+			.as_import_specifier()
+			.unwrap()
+			.imported;
+		let n = decl_source.name().as_str();
+		let n = n.strip_prefix("find").ok_or_else(|| {
+			err(decl_source, "Expected find import to start with `find`")
+		})?;
+		const KINDS: &[(&str, FindType)] = &[
+			("Component", FindType::Component),
+			("ByProps", FindType::ByProps),
+			("Store", FindType::Store),
+			("ByCode", FindType::ByCode),
+			("ModuleId", FindType::ModuleId),
+			("ComponentByCode", FindType::ComponentByCode),
+			("CssClasses", FindType::CssClasses),
+		];
+		let (n, find_type) = 'l: {
+			for (prefix, kind) in KINDS {
+				if let Some(n) = n.strip_prefix(prefix) {
+					break 'l (n, *kind);
+				}
+			}
+			return Err(err(
+				decl_source,
+				format!("Unknown find type {}", decl_source.name()),
+			));
+		};
+		if !matches!(n.len(), 0 | 4) || (n.len() == 4 && n != "Lazy") {
+			return Err(err(
+				decl_source,
+				"Unexpected suffix on find import, expected either no suffix or `Lazy`",
+			));
+		}
+		let lazy = n.len() == 4;
+		Ok(AnyFindType { find_type, lazy })
+	}
+	fn parse_find_arg(arg: &'ast Argument<'ast>) -> PResult<FindArg> {
+		match arg {
+			Argument::RegExpLiteral(regex) => {
+				let pattern = regex.regex.pattern.text.to_string();
+				let flags = regex.regex.flags.to_string();
+				Ok(FindArg::Regex { flags, pattern })
+			}
+			Argument::StringLiteral(string_lit) => {
+				Ok(FindArg::String(string_lit.value.to_string()))
+			}
+			Argument::TemplateLiteral(template_lit)
+				if template_lit.is_no_substitution_template() =>
+			{
+				Ok(FindArg::String(
+					template_lit
+						.single_quasi()
+						.unwrap()
+						.to_string(),
+				))
+			}
+			Argument::ArrowFunctionExpression(fn_expr) => {
+				Err(err(fn_expr.as_ref(), "TODO: Support function exprs"))
+			}
+			Argument::FunctionExpression(fn_expr) => {
+				Err(err(fn_expr.as_ref(), "TODO: Support function exprs"))
+			}
+			_ => Err(err(arg, "Unsupported find argument type")),
+		}
+	}
+	fn get_find_uses(&self) -> PResult<Vec<&'ast CallExpression<'ast>>> {
+		let webpack_import = self
+			.find_import_by_name(FIND_IMPORT_SOURCE)
+			.ok_or_else(|| err_ns("Failed to find `@webpack` import"))?;
+		let default_var = OxcVec::new_in(self.alloc);
+		let import_syms = webpack_import
+			.specifiers
+			.as_ref()
+			.unwrap_or(&default_var)
+			.iter()
+			.filter_map(|import| {
+				if let ImportDeclarationSpecifier::ImportSpecifier(node) =
+					import
+				{
+					Some(node)
+				} else {
+					None
+				}
+			})
+			.filter(|i| i.imported.name().starts_with("find"))
+			.map(|i| i.local.symbol_id());
+		let mut calls = Vec::new();
+		for sym in import_syms {
+			for parent_id in self.refs(sym) {
+				let Some(parent_call) = self.p(parent_id).as_call_expression()
+				else {
+					continue;
+				};
+				calls.push(parent_call);
+			}
+		}
+		Ok(calls)
 	}
 }
 

@@ -1,16 +1,11 @@
-use crate::pass::util::{Ctx, empty_template_element_value};
+use crate::pass::util::Ctx;
 use ast_parser::exts::ExpressionExt as _;
-use oxc::{
-	ast::ast::{BinaryOperator, Expression, Str, TemplateElementValue},
-	span::Span,
-};
+use oxc::ast::ast::{BinaryOperator, Expression};
 use oxc_ecmascript::constant_evaluation::{
 	ConstantValue,
 	binary_operation_evaluate_value,
 };
 use oxc_traverse::Traverse;
-use std::mem;
-use tracing::warn;
 
 pub struct FoldBinaryExpressionsPass;
 
@@ -56,20 +51,32 @@ fn try_fold_bigint_shift<'ast>(
 	Some(ConstantValue::BigInt(result))
 }
 
-// TODO: refactor
-#[expect(clippy::too_many_lines)]
-fn fold_template_literals<'ast, State>(
-	left: &mut Expression<'ast>,
-	right: &mut Expression<'ast>,
-	span: Span,
-	ctx: &Ctx<'_, 'ast, State>,
-) -> Option<Expression<'ast>> {
-	if let Some(left) = left.as_string_literal() {
-		// prepare `left`
+mod fold_template {
+	use crate::pass::util::{Ctx, empty_template_element_value};
+	use ast_parser::exts::ExpressionExt as _;
+	use oxc::{
+		ast::ast::{
+			Expression,
+			IdentifierReference,
+			Str,
+			StringLiteral,
+			TemplateElementValue,
+			TemplateLiteral,
+		},
+		span::Span,
+	};
+	use std::mem;
+	use tracing::warn;
+
+	/// Fold `string + template` by prepending the string literal to the
+	/// template's first quasi.
+	fn string_template<'ast, State>(
+		left: &StringLiteral<'ast>,
+		right: &mut TemplateLiteral<'ast>,
+		span: Span,
+		ctx: &Ctx<'_, 'ast, State>,
+	) -> Expression<'ast> {
 		let left_val = left.value.as_str();
-		// we should only ever be here if left or right is a template literal
-		// and left is a string, so right must be a template literal
-		let right = right.as_template_literal_mut().unwrap();
 		let q1 = &mut right.quasis[0];
 		let new_q1_raw = ctx
 			.ast
@@ -89,18 +96,23 @@ fn fold_template_literals<'ast, State>(
 				cooked: Some(Str::from(new_q1_val)),
 			},
 			q1.tail,
-			false,
 		);
 		right.quasis[0] = new_q1;
 		right.span = span;
 		let ret = mem::replace(right, ctx.dummy());
 		let ret = ctx.alloc(ret);
-		let ret = Expression::TemplateLiteral(ret);
-		Some(ret)
-	} else if let Some(right) = right.as_string_literal() {
-		// prepare `right`
+		Expression::TemplateLiteral(ret)
+	}
+
+	/// Fold `template + string` by appending the string literal to the template's
+	/// last quasi.
+	fn template_string<'ast, State>(
+		left: &mut TemplateLiteral<'ast>,
+		right: &StringLiteral<'ast>,
+		span: Span,
+		ctx: &Ctx<'_, 'ast, State>,
+	) -> Expression<'ast> {
 		let right_val = right.value.as_str();
-		let left = left.as_template_literal_mut().unwrap();
 		let last_idx = left.quasis.len() - 1;
 		let q = &mut left.quasis[last_idx];
 		let new_q_raw = ctx
@@ -125,23 +137,28 @@ fn fold_template_literals<'ast, State>(
 				cooked: Some(Str::from(new_q_val)),
 			},
 			q.tail,
-			false,
 		);
 		left.quasis[last_idx] = new_q;
 		left.span = span;
 		let ret = mem::replace(left, ctx.dummy());
 		let ret = ctx.alloc(ret);
-		let ret = Expression::TemplateLiteral(ret);
-		Some(ret)
-	} else if let Some(left) = left.as_identifier_mut() {
-		let right = right.as_template_literal_mut().unwrap();
+		Expression::TemplateLiteral(ret)
+	}
+
+	/// Fold `ident + template` by inserting the identifier as the template's first
+	/// expression.
+	fn ident_template<'ast, State>(
+		left: &mut IdentifierReference<'ast>,
+		right: &mut TemplateLiteral<'ast>,
+		span: Span,
+		ctx: &Ctx<'_, 'ast, State>,
+	) -> Expression<'ast> {
 		let mut right = ctx.take(right);
 		let left = ctx.take(left);
 		let new_q = ctx.ast.template_element(
 			Span::new(right.span.start, right.span.start),
 			empty_template_element_value(),
 			false,
-			false, // we are inserting an empty element, no need to escape
 		);
 		right
 			.expressions
@@ -149,10 +166,17 @@ fn fold_template_literals<'ast, State>(
 		right.quasis.insert(0, new_q);
 		right.span = span;
 		let ret = ctx.alloc(right);
-		let ret = Expression::TemplateLiteral(ret);
-		Some(ret)
-	} else if let Some(right) = right.as_identifier_mut() {
-		let left = left.as_template_literal_mut().unwrap();
+		Expression::TemplateLiteral(ret)
+	}
+
+	/// Fold `template + ident` by pushing the identifier as the template's last
+	/// expression.
+	fn template_ident<'ast, State>(
+		left: &mut TemplateLiteral<'ast>,
+		right: &mut IdentifierReference<'ast>,
+		span: Span,
+		ctx: &Ctx<'_, 'ast, State>,
+	) -> Expression<'ast> {
 		let mut left = ctx.take(left);
 		let right = ctx.take(right);
 		left.quasis.last_mut().unwrap().tail = false;
@@ -160,18 +184,22 @@ fn fold_template_literals<'ast, State>(
 			Span::new(left.span.end, left.span.end),
 			empty_template_element_value(),
 			true,
-			false, // we are inserting an empty element, no need to escape
 		);
 		left.expressions
 			.push(Expression::Identifier(ctx.alloc(right)));
 		left.quasis.push(new_q);
 		left.span = span;
 		let ret = ctx.alloc(left);
-		let ret = Expression::TemplateLiteral(ret);
-		Some(ret)
-	} else if let Some(right) = right.as_template_literal_mut()
-		&& let Some(left) = left.as_template_literal_mut()
-	{
+		Expression::TemplateLiteral(ret)
+	}
+
+	/// Fold `template + template` by merging the two templates at the join point.
+	fn template_template<'ast, State>(
+		left: &mut TemplateLiteral<'ast>,
+		right: &mut TemplateLiteral<'ast>,
+		span: Span,
+		ctx: &Ctx<'_, 'ast, State>,
+	) -> Expression<'ast> {
 		let left_last_idx = left.quasis.len() - 1;
 		let left_joiner = &mut left.quasis[left_last_idx];
 		let right_joiner = &mut right.quasis[0];
@@ -204,7 +232,6 @@ fn fold_template_literals<'ast, State>(
 				cooked: Some(Str::from(joiner_cooked)),
 			},
 			right_joiner.tail,
-			false,
 		);
 		*left_joiner = joiner;
 		left.quasis
@@ -214,17 +241,52 @@ fn fold_template_literals<'ast, State>(
 		left.span = span;
 		let ret = mem::replace(left, ctx.dummy());
 		let ret = ctx.alloc(ret);
-		let ret = Expression::TemplateLiteral(ret);
-		Some(ret)
-	} else {
-		warn!(
-			"unhandled bin exp fold case: left:{}, right:{}",
-			left.dbg_name(),
-			right.dbg_name(),
-		);
-		None
+		Expression::TemplateLiteral(ret)
+	}
+
+	/// either left or right must be a template literal
+	pub(super) fn fold_template_literals<'ast, State>(
+		left: &mut Expression<'ast>,
+		right: &mut Expression<'ast>,
+		span: Span,
+		ctx: &Ctx<'_, 'ast, State>,
+	) -> Option<Expression<'ast>> {
+		if let Some(left_str) = left.as_string_literal() {
+			let right = right.as_template_literal_mut().expect(
+				"left is a string literal, so right must be a template literal",
+			);
+			Some(string_template(left_str, right, span, ctx))
+		} else if let Some(right_str) = right.as_string_literal() {
+			let left = left.as_template_literal_mut().expect(
+				"right is a string literal, so left must be a template literal",
+			);
+			Some(template_string(left, right_str, span, ctx))
+		} else if let Some(left_id) = left.as_identifier_mut() {
+			let right = right.as_template_literal_mut().expect(
+				"left is an identifier, so right must be a template literal",
+			);
+			Some(ident_template(left_id, right, span, ctx))
+		} else if let Some(right_id) = right.as_identifier_mut() {
+			let left = left.as_template_literal_mut().expect(
+				"right is an identifier, so left must be a template literal",
+			);
+			Some(template_ident(left, right_id, span, ctx))
+		} else if let Some(left) = left.as_template_literal_mut()
+			&& let Some(right) = right.as_template_literal_mut()
+		{
+			Some(template_template(left, right, span, ctx))
+		} else {
+			warn!(
+				"unhandled bin exp fold case: left:{}, right:{}",
+				left.dbg_name(),
+				right.dbg_name(),
+			);
+			None
+		}
 	}
 }
+
+use fold_template::fold_template_literals;
 
 impl<'ast, State> Traverse<'ast, State> for FoldBinaryExpressionsPass {
 	fn exit_expression(

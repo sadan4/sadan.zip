@@ -8,6 +8,9 @@
       <package file="$PROJECT_DIR$/crates/ast_parser">
         <feature name="default" enabled="true" />
       </package>
+      <package file="$PROJECT_DIR$/crates/companion_lsp">
+        <feature name="default" enabled="true" />
+      </package>
       <package file="$PROJECT_DIR$/crates/dagre">
         <feature name="default" enabled="true" />
       </package>
@@ -88,6 +91,7 @@
   "keyToString": {
     "Cargo.Install cargo-llvm-cov.executor": "Run",
     "Cargo.Test sadan.zip.executor": "Coverage",
+    "Cargo.Test tests::gets_plugin_name.executor": "Debug",
     "ModuleVcsDetector.initialDetectionPerformed": "true",
     "NIXITCH_NIXPKGS_CONFIG": "/etc/nix/nixpkgs-config.nix",
     "NIXITCH_NIX_CONF_DIR": "",
@@ -100,16 +104,17 @@
     "RunOnceActivity.git.unshallow": "true",
     "RunOnceActivity.typescript.service.memoryLimit.init": "true",
     "codeWithMe.voiceChat.enabledByDefault": "false",
-    "git-widget-placeholder": "web",
+    "git-widget-placeholder": "lsp-rust",
     "node.js.detected.package.eslint": "true",
     "node.js.selected.package.eslint": "(autodetect)",
     "nodejs_package_manager_path": "pnpm",
     "org.rust.cargo.project.model.PROJECT_DISCOVERY": "true",
+    "org.rust.cargo.project.model.impl.CargoExternalSystemProjectAware.subscribe.first.balloon": "",
     "org.rust.first.attach.projects": "true",
     "settings.editor.selected.configurable": "coverage"
   }
 }]]></component>
-  <component name="RunManager" selected="Cargo.Test sadan.zip">
+  <component name="RunManager" selected="Cargo.Test tests::gets_plugin_name">
     <configuration name="Run explorer_server" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
       <option name="command" value="run --package explorer_server --bin explorer_server" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$" />
@@ -196,6 +201,28 @@
         <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
       </method>
     </configuration>
+    <configuration name="Test tests::gets_plugin_name" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+      <option name="command" value="test --package vencord_ast_parser --lib -- tests::gets_plugin_name --exact" />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
+      <envs />
+      <option name="emulateTerminal" value="true" />
+      <option name="channel" value="DEFAULT" />
+      <option name="requiredFeatures" value="true" />
+      <option name="allFeatures" value="false" />
+      <option name="withSudo" value="false" />
+      <option name="buildTarget" value="REMOTE" />
+      <option name="backtrace" value="SHORT" />
+      <option name="isRedirectInput" value="false" />
+      <option name="redirectInputPath" value="" />
+      <method v="2">
+        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+      </method>
+    </configuration>
+    <recent_temporary>
+      <list>
+        <item itemvalue="Cargo.Test tests::gets_plugin_name" />
+      </list>
+    </recent_temporary>
   </component>
   <component name="RustProjectSettings">
     <option name="toolchainHomeDirectory" value="/etc/profiles/per-user/meyer/bin" />
@@ -209,11 +236,23 @@
       <updated>1780536487750</updated>
       <workItem from="1780536488807" duration="340000" />
       <workItem from="1780536837980" duration="730000" />
+      <workItem from="1781591198797" duration="1389000" />
     </task>
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$PROJECT_DIR$/crates/vencord_ast_parser/src/tests/mod.rs</url>
+          <line>80</line>
+          <option name="timeStamp" value="1" />
+        </line-breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/sadan_zip$Test_sadan_zip.info" NAME="Test sadan.zip Coverage Results" MODIFIED="1780537056083" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="RsCoverageRunner" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" CONTEXT_FILE_PATH="$PROJECT_DIR$" />

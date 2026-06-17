@@ -1,7 +1,7 @@
 use std::{path::Path, sync::LazyLock};
 
 // all syntect imports are explicitly qualified, but their paths are shortened for convenience
-#[allow(clippy::module_inception)]
+#[expect(clippy::module_inception)]
 mod syntect {
 	pub(super) use syntect::{
 		highlighting::{

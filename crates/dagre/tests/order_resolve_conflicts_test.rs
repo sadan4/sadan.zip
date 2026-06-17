@@ -4,7 +4,7 @@ use std::string::ToString;
 
 use dagre::{
 	graph::Graph,
-	order::{resolve_conflicts, BarycenterEntry, ResolvedEntry},
+	order::{BarycenterEntry, ResolvedEntry, resolve_conflicts},
 };
 
 fn bc(v: &str, b: Option<f64>, w: Option<f64>) -> BarycenterEntry {

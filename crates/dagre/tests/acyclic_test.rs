@@ -4,7 +4,7 @@ use std::string::ToString;
 
 use dagre::{
 	acyclic,
-	graph::{alg, Edge, Graph, GraphOpts, NodeId},
+	graph::{Edge, Graph, GraphOpts, NodeId, alg},
 	types::{EdgeLabel, GraphLabel, NodeLabel},
 };
 

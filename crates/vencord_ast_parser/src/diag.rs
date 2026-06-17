@@ -1,8 +1,11 @@
-use std::{borrow::Cow, sync::Arc};
+use std::{borrow::Cow, option::Option, sync::Arc};
 
 use derive_more::Debug;
+use miette::SpanContents;
 use oxc::span::{GetSpan, Span};
 use thiserror::Error;
+
+pub use miette::Severity;
 
 #[derive(Error, Debug, Clone, Default)]
 #[error("VencordAstParser: {msg}")]
@@ -26,10 +29,22 @@ impl ParserDiagnostic {
 		self.cause = Some(Arc::from(cause.into()));
 		self
 	}
+
+	pub fn message(&self) -> &str {
+		&self.msg
+	}
+
+	pub fn labels_raw(&self) -> &[(Span, Cow<'static, str>)] {
+		&self.labels
+	}
+
+	pub const fn severity_raw(&self) -> miette::Severity {
+		self.severity
+	}
 }
 
 impl miette::Diagnostic for ParserDiagnostic {
-	fn code<'a>(&'a self) -> Option<Box<dyn std::fmt::Display + 'a>> {
+	fn code(&self) -> Option<Cow<'_, str>> {
 		None
 	}
 
@@ -37,15 +52,15 @@ impl miette::Diagnostic for ParserDiagnostic {
 		Some(self.severity)
 	}
 
-	fn help<'a>(&'a self) -> Option<Box<dyn std::fmt::Display + 'a>> {
+	fn help(&self) -> Option<Cow<'_, str>> {
 		None
 	}
 
-	fn note<'a>(&'a self) -> Option<Box<dyn std::fmt::Display + 'a>> {
+	fn note(&self) -> Option<Cow<'_, str>> {
 		None
 	}
 
-	fn url<'a>(&'a self) -> Option<Box<dyn std::fmt::Display + 'a>> {
+	fn url(&self) -> Option<Cow<'_, str>> {
 		None
 	}
 
@@ -53,22 +68,21 @@ impl miette::Diagnostic for ParserDiagnostic {
 		self.txt.as_deref().map(|src| src as &_)
 	}
 
-	fn labels(
-		&self,
-	) -> Option<Box<dyn Iterator<Item = miette::LabeledSpan> + '_>> {
-		Some(Box::new(self.labels.iter().map(|(span, label)| {
-			if label.is_empty() {
-				(*span).into()
-			} else {
-				miette::LabeledSpan::at(*span, label.clone().into_owned())
-			}
-		})))
+	fn labels(&self) -> miette::Labels {
+		self.labels
+			.iter()
+			.map(|(span, label)| {
+				if label.is_empty() {
+					(*span).into()
+				} else {
+					miette::LabeledSpan::at(*span, label.clone().into_owned())
+				}
+			})
+			.collect()
 	}
 
-	fn related<'a>(
-		&'a self,
-	) -> Option<Box<dyn Iterator<Item = &'a dyn miette::Diagnostic> + 'a>> {
-		None
+	fn related(&self) -> miette::Related<'_> {
+		miette::Related::None
 	}
 
 	fn diagnostic_source(&self) -> Option<&dyn miette::Diagnostic> {
@@ -96,42 +110,42 @@ pub(crate) fn err_ns(msg: impl Into<Cow<'static, str>>) -> ParserDiagnostic {
 
 pub type PResult<T> = Result<T, ParserDiagnostic>;
 
-pub(crate) struct NamedSpanContents<'a> {
-	inner: Box<dyn miette::SpanContents<'a> + 'a>,
-	name: &'a str,
-}
+// pub(crate) struct NamedSpanContents<'a> {
+// 	inner: Box<dyn miette::SpanContents<'a> + 'a>,
+// 	name: &'a str,
+// }
 
-impl<'a> miette::SpanContents<'a> for NamedSpanContents<'a> {
-	fn data(&self) -> &'a [u8] {
-		self.inner.data()
-	}
+// impl<'a> miette::SpanContents<'a> for NamedSpanContents<'a> {
+// 	fn data(&self) -> &'a [u8] {
+// 		self.inner.data()
+// 	}
 
-	fn span(&self) -> &miette::SourceSpan {
-		self.inner.span()
-	}
+// 	fn span(&self) -> &miette::SourceSpan {
+// 		self.inner.span()
+// 	}
 
-	fn line(&self) -> usize {
-		self.inner.line()
-	}
+// 	fn line(&self) -> usize {
+// 		self.inner.line()
+// 	}
 
-	fn column(&self) -> usize {
-		self.inner.column()
-	}
+// 	fn column(&self) -> usize {
+// 		self.inner.column()
+// 	}
 
-	fn line_count(&self) -> usize {
-		self.inner.line_count()
-	}
+// 	fn line_count(&self) -> usize {
+// 		self.inner.line_count()
+// 	}
 
-	fn name(&self) -> Option<&str> {
-		Some(self.name)
-	}
+// 	fn name(&self) -> Option<&str> {
+// 		Some(self.name)
+// 	}
 
-	fn language(&self) -> Option<&str> {
-		self.inner
-			.language()
-			.or(Some("JavaScript"))
-	}
-}
+// 	fn language(&self) -> Option<&str> {
+// 		self.inner
+// 			.language()
+// 			.or(Some("JavaScript"))
+// 	}
+// }
 
 pub struct LocalSource<'a> {
 	pub name: &'a str,
@@ -158,12 +172,12 @@ impl std::error::Error for LocalSource<'_> {
 	}
 
 	fn description(&self) -> &str {
-		#[allow(deprecated)]
+		#[expect(deprecated)]
 		self.inner.description()
 	}
 
 	fn cause(&self) -> Option<&dyn std::error::Error> {
-		#[allow(deprecated)]
+		#[expect(deprecated)]
 		self.inner.cause()
 	}
 }
@@ -174,21 +188,23 @@ impl miette::SourceCode for LocalSource<'_> {
 		span: &miette::SourceSpan,
 		context_lines_before: usize,
 		context_lines_after: usize,
-	) -> std::result::Result<
-		Box<dyn miette::SpanContents<'a> + 'a>,
-		miette::MietteError,
-	> {
+	) -> std::result::Result<miette::MietteSpanContents<'a>, miette::MietteError>
+	{
 		let ret = <str as miette::SourceCode>::read_span(
 			self.source,
 			span,
 			context_lines_before,
 			context_lines_after,
+		)?;
+		let ret = miette::MietteSpanContents::new_named(
+			Cow::Borrowed(self.name),
+			ret.data(),
+			*ret.span(),
+			ret.line(),
+			ret.column(),
+			ret.line_count(),
 		);
-		let ret = NamedSpanContents {
-			inner: ret?,
-			name: self.name,
-		};
-		Ok(Box::new(ret))
+		Ok(ret)
 	}
 
 	fn name(&self) -> Option<&str> {
@@ -197,7 +213,7 @@ impl miette::SourceCode for LocalSource<'_> {
 }
 
 impl miette::Diagnostic for LocalSource<'_> {
-	fn code<'a>(&'a self) -> Option<Box<dyn std::fmt::Display + 'a>> {
+	fn code(&self) -> Option<Cow<'_, str>> {
 		self.inner.code()
 	}
 
@@ -205,15 +221,15 @@ impl miette::Diagnostic for LocalSource<'_> {
 		self.inner.severity()
 	}
 
-	fn help<'a>(&'a self) -> Option<Box<dyn std::fmt::Display + 'a>> {
+	fn help(&self) -> Option<Cow<'_, str>> {
 		self.inner.help()
 	}
 
-	fn note<'a>(&'a self) -> Option<Box<dyn std::fmt::Display + 'a>> {
+	fn note(&self) -> Option<Cow<'_, str>> {
 		self.inner.note()
 	}
 
-	fn url<'a>(&'a self) -> Option<Box<dyn std::fmt::Display + 'a>> {
+	fn url(&self) -> Option<Cow<'_, str>> {
 		self.inner.url()
 	}
 
@@ -221,15 +237,11 @@ impl miette::Diagnostic for LocalSource<'_> {
 		Some(self)
 	}
 
-	fn labels(
-		&self,
-	) -> Option<Box<dyn Iterator<Item = miette::LabeledSpan> + '_>> {
+	fn labels(&self) -> miette::Labels {
 		self.inner.labels()
 	}
 
-	fn related<'a>(
-		&'a self,
-	) -> Option<Box<dyn Iterator<Item = &'a dyn miette::Diagnostic> + 'a>> {
+	fn related(&self) -> miette::Related<'_> {
 		self.inner.related()
 	}
 

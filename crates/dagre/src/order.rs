@@ -15,7 +15,7 @@ pub struct OrderOptions {
 }
 
 #[derive(Debug, Default, Clone)]
-#[allow(dead_code)]
+#[expect(dead_code)]
 struct LayerNode {
 	// rank/min_rank/max_rank carried for parity with JS layer-graph node label;
 	// ordering only consults `order` and borders.

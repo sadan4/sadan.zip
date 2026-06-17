@@ -2,7 +2,7 @@
 
 use dagre::{
 	graph::Graph,
-	order::{barycenter, BarycenterEntry},
+	order::{BarycenterEntry, barycenter},
 	types::{EdgeLabel, GraphLabel, NodeLabel},
 };
 

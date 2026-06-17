@@ -5,7 +5,9 @@
             "label": "Watch",
             "type": "shell",
             "command": "pnpm",
-            "args": ["dev"],
+            "args": [
+                "dev"
+            ],
             "problemMatcher": [
                 "$tsc"
             ],
@@ -16,11 +18,36 @@
             "group": "build"
         },
         {
-			"type": "eslint",
-			"problemMatcher": [
-				"$eslint-stylish"
-			],
-			"label": "eslint: lint whole folder"
-		},
+            "type": "eslint",
+            "problemMatcher": [
+                "$eslint-stylish"
+            ],
+            "label": "eslint: lint whole folder"
+        },
+        {
+            "label": "build:vencord-companion",
+            "type": "shell",
+            "command": "cargo",
+            "args": [
+                "run",
+                "-p",
+                "xtask",
+                "--",
+                "build",
+                "extension",
+                "--dev"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "panel": "new",
+                "close": true,
+                "clear": true
+            }
+        }
     ]
 }

@@ -32,14 +32,13 @@ impl<'ast> Traverse<'ast, ()> for EvalStringRawPass {
 		let iter = raw_template.quasis.iter_mut();
 		for elem in iter {
 			let old_raw = elem.value.raw;
-			*elem = ctx.ast.template_element(
+			*elem = ctx.ast.template_element_escape_raw(
 				elem.span,
 				TemplateElementValue {
 					raw: old_raw,
 					cooked: Some(old_raw),
 				},
 				elem.tail,
-				true,
 			);
 		}
 		*node = Expression::TemplateLiteral(raw_template);

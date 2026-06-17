@@ -11,7 +11,7 @@ macro_rules! dump_patches {
 			let code = dump_ast(&parser.prog);
 			eprintln!("{code}");
 		}
-		parser.patches().unwrap()
+		parser.patches(true).unwrap()
 	}};
 	($path:literal) => {
 		dump_patches!($path, false)
@@ -68,4 +68,20 @@ fn test_inline_string_raw() {
 fn test_inline_typescript_enums() {
 	let patches = dump_patches!("data/plugin8.tsx");
 	assert_ron_snapshot!(patches);
+}
+
+#[test]
+fn test_plugin_9() {
+	let patches = dump_patches!("data/plugin9.tsx");
+	assert_ron_snapshot!(patches);
+}
+
+#[test]
+fn gets_plugin_name() {
+	let a = Allocator::new();
+	let code = include_str!("data/plugin1.tsx");
+	let parser =
+		VencordAstParser::try_new(&a, code, Some("data/plugin1.tsx")).unwrap();
+	let plugin_name = parser.plugin_info().unwrap().name;
+	assert_eq!(plugin_name, "Plugin1");
 }

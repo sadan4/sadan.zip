@@ -185,10 +185,8 @@ impl SourceCode for SourceWrapper {
 		span: &miette::SourceSpan,
 		context_lines_before: usize,
 		context_lines_after: usize,
-	) -> std::result::Result<
-		Box<dyn miette::SpanContents<'a> + 'a>,
-		miette::MietteError,
-	> {
+	) -> std::result::Result<miette::MietteSpanContents<'a>, miette::MietteError>
+	{
 		self.0[self.1 as usize]
 			.entry_source
 			.read_span(span, context_lines_before, context_lines_after)

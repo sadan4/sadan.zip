@@ -78,8 +78,9 @@ async fn fetch_for_channel(
 	bars: &'static MultiProgressWrapper,
 ) -> Result<ScrapedOutput> {
 	info!("Fetching build from {channel:?} channel");
-	let pre_bar = Stage::new(format!("[{channel:?}]: Scraping build data: "), None)
-		.and_attach(bars);
+	let pre_bar =
+		Stage::new(format!("[{channel:?}]: Scraping build data: "), None)
+			.and_attach(bars);
 	pre_bar.msg("Fetching index HTML");
 	let client =
 		make_reqwest_client().context("Failed to create HTTP client")?;
@@ -90,17 +91,12 @@ async fn fetch_for_channel(
 		pre_bar: Mutex::new(Some(pre_bar)),
 		chunk_bar: OnceLock::new(),
 	});
-	let ScrapedModules { modules, .. } = scrape_modules(
-		index_response.as_ref(),
-		channel,
-		client,
-		progress,
-	)
-	.await?;
+	let ScrapedModules { modules, .. } =
+		scrape_modules(index_response.as_ref(), channel, client, progress)
+			.await?;
 	Ok(modules)
 }
 
-#[allow(clippy::cognitive_complexity, reason = "clippy bug: macros count")]
 async fn fetch_index(
 	client: &ClientWithMiddleware,
 	channel: Channel,

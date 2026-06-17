@@ -90,7 +90,7 @@ fn do_collect_patches(
 		let parser =
 			VencordAstParser::try_new(&allocator, &p.entry_source, Some(&path))
 				.map_err(|e| anyhow!(e))?;
-		p.patches = parser.patches()?;
+		p.patches = parser.patches(true)?;
 		allocator.reset();
 	}
 
@@ -128,7 +128,7 @@ fn do_collect_plugins_from_paths(
 			Some(&path),
 		)
 		.map_err(|e| anyhow!(e))?;
-		plugin.patches = parser.patches()?;
+		plugin.patches = parser.patches(true)?;
 		allocator.reset();
 	}
 	drop(allocator);
@@ -230,7 +230,6 @@ fn default_vencord_dir() -> PathBuf {
 	env::current_dir().expect("Failed to get current directory")
 }
 
-#[allow(clippy::cognitive_complexity)]
 pub fn glob_plugins_for_dir(
 	dir: &Path,
 	plugins: &mut Vec<Plugin>,

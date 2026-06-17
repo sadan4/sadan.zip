@@ -3,9 +3,12 @@
 //! graph and a larger 25-group × 27-node synthetic graph that exercises
 //! cross-component complexity.
 
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 use dagre::{
-	LayoutGraph, graph::{Graph, GraphOpts, NodeId}, rank, types::{EdgeLabel, GraphLabel, NodeLabel, Ranker}
+	LayoutGraph,
+	graph::{Graph, GraphOpts, NodeId},
+	rank,
+	types::{EdgeLabel, GraphLabel, NodeLabel, Ranker},
 };
 
 fn make_graph() -> Graph<GraphLabel, NodeLabel, EdgeLabel> {

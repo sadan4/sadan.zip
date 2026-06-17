@@ -1,0 +1,162 @@
+{
+    "name": "vencord-user-companion",
+    "displayName": "Vencord Companion Extended",
+    "version": "2.0.0",
+    "description": "Vencord Companion is a vscode extension to test Vencord patches & webpack finds right from the comfort of your IDE",
+    "categories": [
+        "Other",
+        "Snippets",
+        "Testing"
+    ],
+    "keywords": [
+        "Discord",
+        "Vencord",
+        "Modding",
+        "Typescript"
+    ],
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/sadan4/VencordCompanion"
+    },
+    "license": "GPL-3.0",
+    "author": {
+        "name": "sadan",
+        "url": "https://sadan.zip"
+    },
+    "contributors": [
+        {
+            "name": "Vendicated",
+            "email": "vendicated+npm@riseup.net"
+        }
+    ],
+    "publisher": "sadan",
+    "main": "./dist/extension.js",
+    "scripts": {
+        "build": "node ./scripts/build.mts",
+        "lint": "conc pnpm:eslint pnpm:typecheck",
+        "prepackage": "conc pnpm:build pnpm:lint",
+        "package": "vsce pack",
+        "publishExtension": "pnpm prepackage && vsce publish --no-dependencies",
+        "publishOvsx": "pnpm prepackage && ovsx publish --no-dependencies",
+        "typecheck": "tsc --noEmit -p ./tsconfig.json"
+    },
+    "dependencies": {
+        "vscode-languageclient": "^9.0.1"
+    },
+    "devDependencies": {
+        "@stylistic/eslint-plugin": "^3.0.1",
+        "@stylistic/eslint-plugin-ts": "^4.2.0",
+        "@types/node": "^24.10.9",
+        "@types/vscode": "1.80.0",
+        "@typescript-eslint/eslint-plugin": "^8.23.0",
+        "@typescript-eslint/parser": "^8.23.0",
+        "@vscode/vsce": "^3.6.0",
+        "concurrently": "^9.2.1",
+        "esbuild": "^0.25.0",
+        "eslint": "^9.19.0",
+        "eslint-plugin-simple-import-sort": "^12.1.1",
+        "eslint-plugin-unicorn": "^61.0.2",
+        "eslint-plugin-unused-imports": "^4.1.4",
+        "jiti": "^2.4.2",
+        "ovsx": "^0.10.5",
+        "typescript-eslint": "^8.23.0"
+    },
+    "contributes": {
+        "configuration": {
+            "title": "Vencord Companion",
+            "properties": {
+                "vencord-user-companion.diagnosticRefreshTimeout": {
+                    "default": 1500,
+                    "description": "the delay in ms bewteen diagnostic refreshes.",
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "vencord-user-companion.lspPath": {
+                    "default": "",
+                    "description": "Override path to the companion_lsp binary. Defaults to the bundled binary if unset. The env var COMPANION_LSP_BIN takes precedence over this setting.",
+                    "type": "string"
+                },
+                "vencord-user-companion.logLevel": {
+                    "default": "info",
+                    "description": "Log level for the companion_lsp server (sets COMPANION_LSP_LOG). Changing this restarts the server. Use the \"Vencord Companion: Set Log Level\" command for a quick picker.",
+                    "type": "string",
+                    "enum": [
+                        "trace",
+                        "debug",
+                        "info",
+                        "warn",
+                        "error",
+                        "off"
+                    ]
+                }
+            }
+        },
+        "commands": [
+            {
+                "command": "vencord-companion.diffModuleSearch",
+                "title": "Vencord Companion: Diff Module Search"
+            },
+            {
+                "command": "vencord-companion.diffModule",
+                "title": "Vencord Companion: Diff Module"
+            },
+            {
+                "command": "vencord-companion.extract",
+                "title": "Vencord Companion: Extract"
+            },
+            {
+                "command": "vencord-companion.extractSearch",
+                "title": "Vencord Companion: Extract With Search"
+            },
+            {
+                "command": "vencord.downloadModuleCache",
+                "title": "Vencord Companion: Download Module Cache"
+            },
+            {
+                "command": "vencord.purgeModuleCache",
+                "title": "Vencord Companion: Purge Module Cache"
+            },
+            {
+                "command": "vencord-companion.setLogLevel",
+                "title": "Vencord Companion: Set Log Level"
+            }
+        ],
+        "snippets": [
+            {
+                "language": "typescript",
+                "path": "./snippets/ts.json"
+            },
+            {
+                "language": "typescriptreact",
+                "path": "./snippets/ts.json"
+            },
+            {
+                "language": "typescriptreact",
+                "path": "./snippets/tsx.json"
+            }
+        ]
+    },
+    "activationEvents": [
+        "onLanguage:typescript",
+        "onLanguage:javascript",
+        "onLanguage:typescriptreact"
+    ],
+    "engines": {
+        "vscode": "^1.80.0"
+    },
+    "icon": "icon.png",
+    "galleryBanner": {
+        "color": "#ed80a7",
+        "theme": "dark"
+    },
+    "extensionKind": [
+        "ui"
+    ],
+    "homepage": "https://github.com/sadan4/VencordCompanion",
+    "_vsce": "see https://github.com/microsoft/vscode-vsce/blob/main/src/main.ts for types",
+    "vsce": {
+        "dependencies": false,
+        "githubBranch": "main"
+    },
+    "packageManager": "pnpm@10.20.0+sha512.cf9998222162dd85864d0a8102e7892e7ba4ceadebbf5a31f9c2fce48dfce317a9c53b9f6464d1ef9042cba2e02ae02a9f7c143a2b438cd93c91840f0192b9dd"
+}

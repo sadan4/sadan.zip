@@ -30,7 +30,7 @@ impl<'s> Rope<'s> {
 		self.total_len
 	}
 
-	#[allow(clippy::inherent_to_string)]
+	#[expect(clippy::inherent_to_string)]
 	pub fn to_string(&self) -> String {
 		let mut result = String::new();
 		result.reserve_exact(self.total_len);
@@ -47,6 +47,6 @@ impl<'s> Rope<'s> {
 	}
 
 	pub fn reserve(&mut self, additional: usize) {
-		self.strs.reserve(additional);
+		self.strs.reserve((additional as f64 * 1.75) as usize);
 	}
 }

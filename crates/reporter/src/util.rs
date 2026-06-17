@@ -20,7 +20,7 @@ impl Drop for Stage {
 }
 
 impl Stage {
-	#[allow(clippy::literal_string_with_formatting_args)]
+	#[expect(clippy::literal_string_with_formatting_args)]
 	pub fn new(msg: impl Into<Cow<'static, str>>, n: Option<usize>) -> Self {
 		let bar = n.map_or_else(
             || {

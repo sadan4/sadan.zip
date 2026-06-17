@@ -10,6 +10,47 @@
             "type": "editor-browser",
             "url": "http://localhost:5173",
             "webRoot": "${workspaceFolder}"
+        },
+        {
+            "name": "Run VencordCompanion Extension",
+            "type": "extensionHost",
+            "request": "launch",
+            // vscode-neovim does NOT play well when debugging other extensions
+            // it incorrectly monkey-patches standard APIs (only patching some console methods and leaving the rest undefined, ...), and randomly errors
+            "args": [
+                "--extensionDevelopmentPath=${workspaceFolder}/packages/VencordCompanion",
+                // "--disable-extension=asvetliakov.vscode-neovim"
+            ],
+            "outFiles": [
+                "${workspaceFolder}/packages/VencordCompanion/dist/**/*.js"
+            ],
+            "preLaunchTask": "build:vencord-companion",
+            "pauseForSourceMap": true,
+            "resolveSourceMapLocations": [
+                "${workspaceFolder}/packages/VencordCompanion/**",
+                "!**/node_modules/**"
+            ]
+        },
+        {
+            "name": "Inspect-Brk VencordCompanion Extension Host",
+            "type": "extensionHost",
+            "request": "launch",
+            // vscode-neovim does NOT play well when debugging other extensions
+            // it incorrectly monkey-patches standard APIs (only patching some console methods and leaving the rest undefined, ...), and randomly errors
+            "args": [
+                "--extensionDevelopmentPath=${workspaceFolder}/packages/VencordCompanion",
+                // "--disable-extension=asvetliakov.vscode-neovim",
+                "--inspect-brk-extensions=9229"
+            ],
+            "outFiles": [
+                "${workspaceFolder}/packages/VencordCompanion/dist/**/*.js"
+            ],
+            "preLaunchTask": "build:vencord-companion",
+            "pauseForSourceMap": true,
+            "resolveSourceMapLocations": [
+                "${workspaceFolder}/packages/VencordCompanion/**",
+                "!**/node_modules/**"
+            ]
         }
     ]
 }

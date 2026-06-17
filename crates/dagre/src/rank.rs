@@ -78,7 +78,6 @@ pub mod feasible_tree {
 	use super::{Edge, EdgeLabel, Graph, GraphLabel, NodeLabel};
 	use crate::graph::GraphOpts;
 
-
 	#[derive(Debug, Clone, Default)]
 	pub struct TreeNode {
 		pub low: Option<i32>,

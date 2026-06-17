@@ -9,7 +9,7 @@ pub struct Command;
 
 impl Command {}
 
-const MAX_CACHED_INDENT_LEVEL: u8 = 16;
+const MAX_CACHED_INDENT_LEVEL: u8 = 20;
 
 fn make_indent_cache(indent_size: u8) -> String {
 	let mut out = String::new();
@@ -33,7 +33,7 @@ impl Runnable for Command {
 		let mut out = String::new();
 		write!(out, "pub const INDENT_CACHE: &[&[&str]] = &[").unwrap();
 		for indent_size in 0..=8 {
-			#[allow(
+			#[expect(
 				clippy::write_with_newline,
 				reason = "we want to be explicit here"
 			)]

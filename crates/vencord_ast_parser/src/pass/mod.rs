@@ -44,19 +44,24 @@ impl<'ast> PassManager<'ast> {
 		let prog = self.program;
 		let sema = SemanticBuilder::new()
 			.with_cfg(true)
+			// this was set to default buy not marked as a breaking change :(
+			// https://github.com/oxc-project/oxc/pull/23005
+			.with_build_nodes(true)
 			.with_check_syntax_error(true)
 			.build(prog);
 		assert!(
-			sema.errors.is_empty(),
+			sema.diagnostics.is_empty(),
 			"Passes created invalid AST: {:#?}",
-			sema.errors
+			sema.diagnostics
 		);
 		(prog, sema.semantic)
 	}
 }
 
 #[cfg(test)]
-#[expect(clippy::items_after_test_module, reason = "export testing util macro")]
+pub use test_util::dump_ast;
+
+#[cfg(test)]
 mod test_util {
 	use super::*;
 	#[expect(dead_code)]
@@ -105,6 +110,3 @@ mod test_util {
 		LegalComment,
 	};
 }
-
-#[cfg(test)]
-pub use test_util::dump_ast;

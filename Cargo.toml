@@ -13,14 +13,6 @@ web-sys = "0.3.4"
 js-sys = "0.3.91"
 zstd = "0.13.3"
 tar = "0.4.44"
-napi = { version = "3.8.4", default-features = false, features = [
-    "napi9",
-    "napi4",
-    "anyhow",
-    "tracing",
-] }
-napi-derive = "3.5.3"
-napi-build = "2.3.1"
 tokio = { version = "1.49.0", features = ["macros", "rt-multi-thread"] }
 tokio-stream = { version = "0.1.18", default-features = false }
 tokio-util = { version = "0.7.18", default-features = false }
@@ -40,7 +32,7 @@ clap = { version = "4.6.0", features = ["derive"] }
 clap_complete = "4.6.0"
 itertools = "0.14.0"
 xxhash-rust = { version = "0.8.15", features = ["xxh64"] }
-oxc = { version = "0.125.0", default-features = false, features = [
+oxc = { version = "0.136.0", default-features = false, features = [
     "ast_visit",
     "semantic",
     "minifier",           # we use some traits from it
@@ -48,12 +40,12 @@ oxc = { version = "0.125.0", default-features = false, features = [
     "codegen",            # for tests
     "regular_expression",
 ] }
-oxc_traverse = "0.125.0"
-oxc_ecmascript = "0.125.0"
-oxc_allocator = { version = "0.125.0", features = ["pool", "serialize"] }
+oxc_traverse = "0.136.0"
+oxc_ecmascript = "0.136.0"
+oxc_allocator = { version = "0.136.0", features = ["pool", "serialize"] }
 regress = "0.11.1"
 derive_more = { version = "2.1.1", features = ["full"] }
-oxc-miette = { version = "2.7.0", default-features = false }
+oxc-miette = { version = "3.0.0", default-features = false }
 indicatif = "0.18.4"
 insta = { version = "1.47.1", features = ["ron"] }
 bitflags = { version = "2.11.0", features = ["serde"] }
@@ -87,17 +79,18 @@ webpack_chunk_parser = { path = "crates/webpack_chunk_parser" }
 pretty_printer = { path = "crates/pretty_printer" }
 dagre = { path = "crates/dagre", features = ["serde"] }
 discord_scraper = { path = "crates/discord_scraper" }
-# dagre_graphlib = { path = "crates/dagre_graphlib" }
-# dagre_slop = { path = "crates/dagre_slop" }
+tower-lsp = "0.20.0"
+tokio-tungstenite = "0.24.0"
+futures-util = "0.3.31"
+dashmap = "6.1.0"
+tempfile = "3.13.0"
 notify = "8.2.0"
 rustc-hash = "2.1.2"
 clearscreen = "4.0.6"
 bitcode = { version = "0.6.9", features = ["serde"] }
-petgraph = { version = "0.8.3" }
-derive-getters = "0.5.0"
 markdown = { version = "1.0.0", features = [] }
 criterion = { version = "0.5", features = ["html_reports"] }
-mimalloc = "0.1.52"
+bytecount = { version = "0.6.9" }
 
 
 [profile.release]
@@ -114,6 +107,16 @@ panic = "abort"
 opt-level = 0
 incremental = true
 debug = true
+
+[profile.bench]
+codegen-units = 1
+incremental = true
+lto = "thin"
+opt-level = 3
+debug = true
+split-debuginfo = "off"
+strip = false
+panic = "abort"
 
 [profile.dev.package.regex]
 opt-level = 3

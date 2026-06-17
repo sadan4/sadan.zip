@@ -97,7 +97,7 @@ impl Profile {
 struct Profile;
 
 #[cfg(not(feature = "profile"))]
-#[allow(clippy::inline_always)]
+#[expect(clippy::inline_always)]
 impl Profile {
 	#[inline(always)]
 	const fn new() -> Self {

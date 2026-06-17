@@ -282,8 +282,7 @@ impl<G, N, E> Graph<G, N, E> {
 				.entry(GRAPH_NODE.into())
 				.or_default()
 				.insert(v.clone());
-			self.children
-				.insert(v, BTreeSet::new());
+			self.children.insert(v, BTreeSet::new());
 		}
 		self
 	}

@@ -6,7 +6,6 @@ use miette::Diagnostic;
 
 /// Iterator of a chain of cause errors.
 #[derive(Clone, Default)]
-#[allow(missing_debug_implementations)]
 pub(crate) struct DiagnosticChain<'a> {
 	state: Option<ErrorKind<'a>>,
 }

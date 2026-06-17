@@ -1,0 +1,102 @@
+---
+source: crates/vencord_ast_parser/src/tests/mod.rs
+expression: patches
+---
+[
+  Patch(
+    plugin_id: None,
+    all: false,
+    no_warn: false,
+    find: MatchLike(
+      v: Str(FinderDef(
+        needle: ".ToastType.FORWARD",
+      )),
+      s: {
+        "start": 397,
+        "end": 417,
+      },
+    ),
+    replacement: [
+      Replacement(
+        match_: MatchLike(
+          v: Regex(MatchRegex(
+            pattern: "(?<=transitionToDestination:)(1===(?:[A-Za-z_$][\\w$]*)\\.length)(?=,|\\})",
+            flags: RegExpFlagsDef(
+              bits: 0,
+            ),
+          )),
+          s: {
+            "start": 491,
+            "end": 546,
+          },
+        ),
+        replace: ReplaceLike(
+          v: Str("$self.shouldTransition($1)"),
+          s: {
+            "start": 577,
+            "end": 605,
+          },
+        ),
+        no_warn: false,
+      ),
+    ],
+    span: {
+      "start": 377,
+      "end": 647,
+    },
+  ),
+  Patch(
+    plugin_id: None,
+    all: false,
+    no_warn: false,
+    find: MatchLike(
+      v: Str(FinderDef(
+        needle: ".ZroO3G",
+      )),
+      s: {
+        "start": 759,
+        "end": 805,
+      },
+    ),
+    replacement: [
+      Replacement(
+        match_: MatchLike(
+          v: Regex(MatchRegex(
+            pattern: "(useCallback\\(\\()(\\)=>\\{)((?:[A-Za-z_$][\\w$]*)\\.(?:[A-Za-z_$][\\w$]*)\\.clearDraft)",
+            flags: RegExpFlagsDef(
+              bits: 0,
+            ),
+          )),
+          s: {
+            "start": 857,
+            "end": 904,
+          },
+        ),
+        replace: ReplaceLike(
+          v: Template(TemplateEvaluator(
+            lits: [
+              "",
+              "vencordArg1",
+              "$self.setShift(vencordArg1);",
+              "",
+            ],
+            captures: [
+              1,
+              2,
+              3,
+            ],
+          )),
+          s: {
+            "start": 931,
+            "end": 1044,
+          },
+        ),
+        no_warn: false,
+      ),
+    ],
+    span: {
+      "start": 657,
+      "end": 1068,
+    },
+  ),
+]

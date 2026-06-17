@@ -35,6 +35,7 @@ use oxc::{
 		},
 	},
 	ast_visit::Visit,
+	diagnostics::Severity,
 	parser::{Kind, Parser, Token, config::TokensParserConfig},
 	semantic::{AstNodes, NodeId, SemanticBuilder},
 	span::{GetSpan, SourceType},
@@ -47,7 +48,9 @@ use crate::{
 };
 
 mod token_stream {
-	use derive_more::{From, IsVariant};
+	use std::hint::likely;
+
+use derive_more::{From, IsVariant};
 
 	use super::{Comment, GetSpan, Kind, OxcVec, Token};
 	pub struct TokenStream<'a> {
@@ -118,7 +121,8 @@ mod token_stream {
 						comment.span.start,
 						"Tokens and comments must not have the same start position"
 					);
-					if token.span().start < comment.span.start {
+					// most programs will have more tokens than comments
+					if likely(token.span().start < comment.span.start) {
 						// SAFETY: we just checked that self.tokens.last() is Some
 						Some(
 							unsafe { self.tokens.pop().unwrap_unchecked() }
@@ -264,8 +268,10 @@ impl<'a> JavaScriptFormatter<'a> {
 			.parse();
 		if parsed.panicked {
 			let err = parsed
-				.errors
-				.swap_remove(0)
+				.diagnostics
+				.into_iter()
+				.find(|d| d.severity == Severity::Error)
+				.expect("parser panicked but provided no error")
 				.with_source_code(String::from(content));
 			bail!("Failed to parse JavaScript content: {err:?}");
 		}
@@ -278,6 +284,7 @@ impl<'a> JavaScriptFormatter<'a> {
 		builder.hint_num_tokens(comments.len() + tokens.len());
 		let tok_stream = TokenStream::new(tokens, comments);
 		let (_, nodes) = SemanticBuilder::new()
+			.with_build_nodes(true)
 			.build(&parsed.program)
 			.semantic
 			.into_scoping_and_nodes();
@@ -323,7 +330,7 @@ impl<'a> JavaScriptFormatter<'a> {
 		// 	node.debug_name()
 		// );
 
-		#[allow(clippy::match_same_arms)]
+		#[expect(clippy::match_same_arms)]
 		match node {
 			N::ContinueStatement(ContinueStatement { label, .. })
 			| N::BreakStatement(BreakStatement { label, .. }) => {
@@ -636,7 +643,6 @@ impl<'a> JavaScriptFormatter<'a> {
 		token: Option<&TokenOrComment>,
 		format: &[FormatDirective],
 	) {
-		let _guh = format!("{token:#?}");
 		for inst in format {
 			match inst {
 				FormatDirective::Space => self.builder.add_soft_space(),

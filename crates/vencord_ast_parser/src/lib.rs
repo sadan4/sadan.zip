@@ -1,8 +1,8 @@
 pub mod diag;
-mod hash;
+pub mod hash;
 pub mod parser;
 mod pass;
-mod patches;
+pub mod patches;
 mod types;
 
 pub use parser::VencordAstParser;
@@ -11,10 +11,12 @@ pub use types::{
 	MatchLike,
 	MatchRegex,
 	Patch,
+	PluginInfo,
 	ReplaceLike,
 	Replacement,
 	Replacer,
 	TemplateEvaluator,
+	find::{AnyFindType, FindArg, FindData, FindType, FindUse},
 };
 
 #[cfg(test)]
