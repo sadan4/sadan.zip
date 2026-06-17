@@ -42,5 +42,8 @@ clearscreen.workspace = true
 pretty_printer.workspace = true
 bitcode.workspace = true
 
+[dev-dependencies]
+rmp-serde.workspace = true
+
 [lints]
 workspace = true

@@ -19,7 +19,7 @@ pub struct PluginInfo<'ast> {
 	pub span: Span,
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Serialize)]
+#[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Patch {
 	pub plugin_id: Option<u16>,
 	pub all: bool,
@@ -28,48 +28,51 @@ pub struct Patch {
 	pub replacement: Vec<Replacement>,
 	/// Source span covering the patch object literal (or the spread array
 	/// element it was synthesized from). Suitable for UI anchoring.
+	#[serde(deserialize_with = "deserialize_span")]
 	pub span: Span,
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Serialize)]
+#[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Replacement {
 	pub match_: MatchLike,
 	pub replace: ReplaceLike,
 	pub no_warn: bool,
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Serialize)]
+#[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ReplaceLike {
 	pub v: Replacer,
+	#[serde(deserialize_with = "deserialize_span")]
 	pub s: Span,
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Serialize)]
+#[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Replacer {
 	Str(String),
 	Template(TemplateEvaluator),
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Serialize)]
+#[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct TemplateEvaluator {
 	pub(crate) lits: Vec<String>,
 	pub(crate) captures: Vec<u8>,
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Serialize)]
+#[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct MatchLike {
 	pub v: Match,
+	#[serde(deserialize_with = "deserialize_span")]
 	pub s: Span,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub enum Match {
 	#[serde(with = "FinderDef")]
 	Str(Finder<'static>),
 	Regex(MatchRegex),
 }
 
-#[derive(Debug, PartialEq, Eq, Serialize)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MatchRegex {
 	pub pattern: String,
 	#[serde(with = "RegExpFlagsDef")]
@@ -86,8 +89,8 @@ struct RegExpFlagsDef {
 	bits: <oxc::ast::ast::RegExpFlags as bitflags::Flags>::Bits,
 }
 
-#[derive(Serialize)]
-#[serde(remote = "Finder")]
+#[derive(Serialize, Deserialize)]
+#[serde(remote = "Finder<'static>")]
 struct FinderDef {
 	#[serde(getter = "finder_get_needle")]
 	needle: Box<str>,
@@ -287,8 +290,24 @@ impl PartialEq for Match {
 
 impl Eq for Match {}
 
+/// [`Span`] only implements [`Serialize`] (as a `{ start, end }` map), not
+/// [`Deserialize`], so we provide the inverse here.
+fn deserialize_span<'de, D>(deserializer: D) -> std::result::Result<Span, D::Error>
+where
+	D: serde::Deserializer<'de>,
+{
+	#[derive(Deserialize)]
+	struct SpanData {
+		start: u32,
+		end: u32,
+	}
+	let SpanData { start, end } = SpanData::deserialize(deserializer)?;
+	Ok(Span::new(start, end))
+}
+
 fn finder_get_needle(finder: &Finder<'_>) -> Box<str> {
 	str::from_utf8(finder.needle())
 		.expect("finder is not a utf8 string")
 		.into()
 }
+

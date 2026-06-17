@@ -8,7 +8,6 @@ use tokio::{sync::mpsc, time::Instant};
 use tracing::{error, info, warn};
 
 use crate::{
-	GLOBAL_BAR,
 	SourceWrapper,
 	fetcher::{ScrapedBranch, ScrapedOutput, fetch_build},
 	reporter::{Msg, report_broken_patches},
@@ -23,7 +22,7 @@ struct ChannelStatus {
 	channel: Channel,
 	plugins: Arc<Vec<Plugin>>,
 	rx: mpsc::Receiver<Msg>,
-	bars: &'static MultiProgressWrapper,
+	bars: MultiProgressWrapper,
 	/// [`crate::Cli::no_warnings`]
 	no_warnings: bool,
 	/// [`crate::Cli::dump_on_error`]
@@ -36,7 +35,7 @@ impl ChannelStatus {
 		channel: Channel,
 		build_data: Arc<ScrapedOutput>,
 		plugins: Arc<Vec<Plugin>>,
-		bars: &'static MultiProgressWrapper,
+		bars: MultiProgressWrapper,
 		no_warnings: bool,
 		dump_on_error: bool,
 	) -> Self {
@@ -60,7 +59,7 @@ impl ChannelStatus {
 		while let Some(msg) = self.rx.recv().await {
 			match msg {
 				Msg::RequestProgressBar(tx) => {
-					tx.send(self.bars).unwrap();
+					tx.send(self.bars.clone()).unwrap();
 				}
 				Msg::Done(res) => {
 					match res {
@@ -142,8 +141,8 @@ pub(super) struct FullReporterResult {
 
 pub async fn run_reporter(
 	cli: &crate::Cli,
+	bars: &MultiProgressWrapper,
 ) -> anyhow::Result<FullReporterResult> {
-	let bars = &*GLOBAL_BAR;
 	let patches_bar = Stage::new("Collecting Patches: ", None).and_attach(bars);
 	// FIXME: don't wrap in spawn
 	let vc_opts = cli.vc_opts.clone();
@@ -152,23 +151,24 @@ pub async fn run_reporter(
 			async move { collect_patches(vc_opts, patches_bar).await },
 		);
 	let fetch_opts = cli.fetch_opts.clone();
+	let bars2 = bars.clone();
 	let target_build_fut =
-		tokio::spawn(async move { fetch_build(fetch_opts, bars).await });
+		tokio::spawn(async move { fetch_build(fetch_opts, &bars2).await });
 	let (plugins, target_build) = tokio::join!(patches_fut, target_build_fut);
 	let plugins = Arc::new(plugins??);
 	let scraped_outputs = target_build??
 		.into_iter()
 		.map(|ScrapedBranch { channel, out }| (channel, Arc::new(out)))
 		.collect_vec();
-	run_with_data(scraped_outputs, plugins, cli).await
+	run_with_data(scraped_outputs, plugins, cli, bars).await
 }
 
 pub(super) async fn run_with_data(
 	scraped_outputs: Vec<(Channel, Arc<ScrapedOutput>)>,
 	plugins: Arc<Vec<Plugin>>,
 	cli: &crate::Cli,
+	bars: &MultiProgressWrapper,
 ) -> Result<FullReporterResult> {
-	let bars = &*GLOBAL_BAR;
 	let mut pending_checks = scraped_outputs
 		.into_iter()
 		.map(|(channel, modules)| {
@@ -176,7 +176,7 @@ pub(super) async fn run_with_data(
 				channel,
 				modules,
 				plugins.clone(),
-				bars,
+				bars.clone(),
 				cli.no_warnings,
 				cli.dump_on_error,
 			)
@@ -230,7 +230,7 @@ async fn stream_single_build(
 	while let Some(msg) = rx.recv().await {
 		match msg {
 			Msg::RequestProgressBar(tx) => {
-				tx.send(bars).unwrap();
+				tx.send(bars.clone()).unwrap();
 			}
 			Msg::Done(res) => {
 				match res {

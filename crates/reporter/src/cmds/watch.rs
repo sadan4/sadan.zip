@@ -16,10 +16,7 @@ use tokio::{fs, sync::mpsc};
 use tracing::{debug, info, trace, warn};
 
 use crate::{
-	GLOBAL_BAR,
-	cmds::run::{FullReporterResult, run_reporter, run_with_data},
-	fetcher::ScrapedOutput,
-	vc::{self, collect_plugins_from_paths},
+	cmds::run::{FullReporterResult, run_reporter, run_with_data}, fetcher::ScrapedOutput, util::MultiProgressWrapper, vc::{self, collect_plugins_from_paths}
 };
 
 type NotifyEvent = notify::Result<notify::Event>;
@@ -60,12 +57,12 @@ fn hash_contents(data: &[u8]) -> u64 {
 }
 
 // TODO: exit success on ctrl-c
-pub async fn run_watcher(cli: crate::Cli) -> Result<Infallible> {
+pub async fn run_watcher(cli: crate::Cli, global_bar: &MultiProgressWrapper) -> Result<Infallible> {
 	info!("Starting watcher");
 	let FullReporterResult {
 		plugins, modules, ..
-	} = run_reporter(&cli).await?;
-	GLOBAL_BAR.clear();
+	} = run_reporter(&cli, global_bar).await?;
+	global_bar.clear();
 	info!("Finished initial run. Watching for file changes...");
 	let mut watcher = FsWatcher::new()?;
 	for crate::vc::Plugin { entry_point, .. } in &*plugins {
@@ -140,11 +137,11 @@ pub async fn run_watcher(cli: crate::Cli) -> Result<Infallible> {
 			continue;
 		}
 		debug!("Changed paths: {changed_paths:?}");
-		GLOBAL_BAR.clear();
-		GLOBAL_BAR.suspend(|| clearscreen::clear().unwrap());
+		global_bar.clear();
+		global_bar.suspend(|| clearscreen::clear().unwrap());
 		info!("Plugins changed. Re-running reporter...");
 		let new_plugins = collect_plugins_from_paths(changed_contents).await?;
-		let _ = run_for_all_plugins(&cli, new_plugins, modules.clone()).await?;
+		let _ = run_for_all_plugins(&cli, new_plugins, modules.clone(), global_bar).await?;
 		info!("Finished re-run");
 	}
 	bail!("File watcher channel closed.");
@@ -154,6 +151,7 @@ async fn run_for_all_plugins(
 	cli: &crate::Cli,
 	new_plugins: Vec<vc::Plugin>,
 	builds: Vec<(Channel, Arc<ScrapedOutput>)>,
+	global_bar: &MultiProgressWrapper,
 ) -> Result<FullReporterResult> {
-	run_with_data(builds, Arc::new(new_plugins), cli).await
+	run_with_data(builds, Arc::new(new_plugins), cli, global_bar).await
 }

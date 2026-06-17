@@ -3,6 +3,7 @@ use clap::Args;
 use itertools::Itertools as _;
 use oxc::{allocator::Allocator, ast::ast::RegExpFlags};
 use regress::escape;
+use serde::{Deserialize, Serialize};
 use std::{
 	env,
 	fs,
@@ -28,7 +29,7 @@ pub struct VencordOpts {
 	pub plugin_dirs: Vec<PathBuf>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Plugin {
 	pub entry_point: PathBuf,
 	pub entry_source: String,
@@ -284,4 +285,10 @@ fn resolve_plugin_entry_point(plugin_dir: &Path) -> Option<PathBuf> {
 	}
 
 	None
+}
+
+pub fn is_likely_vencord_dir(path: &Path) -> bool {
+	["src/plugins/_core", "src/Vencord.ts"]
+		.iter()
+		.all(|p| path.join(p).exists())
 }

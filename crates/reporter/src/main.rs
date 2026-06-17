@@ -1,70 +1,17 @@
-mod cmds;
-mod diag;
-mod err;
-mod fetcher;
-mod reporter;
-mod util;
-mod vc;
 use anyhow::{Result, bail};
-use clap::{CommandFactory as _, Parser, ValueEnum};
-use clap_complete::Shell;
-use derive_more::{From, Into};
-use explorer_server_core::Channel;
+use clap::{CommandFactory as _, Parser as _};
+use derive_more::From;
 use indicatif::MultiProgress;
-use miette::SourceCode;
-use std::{
-	io,
-	path::Path,
-	process,
-	sync::{Arc, LazyLock},
+use reporter::{
+	Cli,
+	cmds,
+	err::printer::GraphicalReportHandler,
+	util::MultiProgressWrapper, vc,
 };
-use terminal_size::terminal_size;
+use std::{io, path::Path, process, sync::LazyLock};
+use terminal_size::{Width, terminal_size};
 use tracing::error;
 use tracing_subscriber::util::SubscriberInitExt;
-
-use crate::{
-	err::printer::GraphicalReportHandler,
-	fetcher::FetchOpts,
-	util::MultiProgressWrapper,
-	vc::{Plugin, VencordOpts},
-};
-
-#[derive(Parser, Clone)]
-#[command(version, about)]
-struct Cli {
-	#[command(flatten)]
-	vc_opts: VencordOpts,
-	#[command(flatten)]
-	fetch_opts: FetchOpts,
-	/// Dump the contents of any module involved in an error, before any transformations, to `$PWD/{Stable, Canary}/<module_id>.js`
-	#[arg(long, default_value_t = false)]
-	dump_on_error: bool,
-	/// Do not print reporter warnings, only print errors.
-	///
-	/// This is not the same thing as a patch being noWarn
-	#[arg(long, default_value_t = false)]
-	no_warnings: bool,
-	/// Generate shell completions
-	#[arg(long, value_enum)]
-	completions: Option<Shell>,
-	#[command(subcommand)]
-	cmd: cmds::Cmd,
-}
-
-#[derive(ValueEnum, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-enum Branch {
-	Stable,
-	Canary,
-}
-
-impl From<Branch> for Channel {
-	fn from(value: Branch) -> Self {
-		match value {
-			Branch::Stable => Self::Stable,
-			Branch::Canary => Self::Canary,
-		}
-	}
-}
 
 #[derive(From)]
 struct MultiProgressWriteWrapper(&'static MultiProgress);
@@ -123,7 +70,7 @@ fn main() {
 	miette::set_hook(Box::new(|_| {
 		Box::new(
 			GraphicalReportHandler::new()
-				.with_width(terminal_size().map_or(80, |s| s.0.0 as usize))
+				.with_width(terminal_size().map_or(80, |(Width(width), _)| width as usize))
 				.with_cause_chain(),
 		)
 	}))
@@ -156,7 +103,7 @@ async fn async_main() {
 }
 
 async fn run(mut cli: Cli) -> Result<i8> {
-	if !is_likely_vencord_dir(&cli.vc_opts.vencord_dir) {
+	if !vc::is_likely_vencord_dir(&cli.vc_opts.vencord_dir) {
 		Cli::command()
 			.print_long_help()
 			.expect("Failed to print help");
@@ -167,34 +114,5 @@ async fn run(mut cli: Cli) -> Result<i8> {
 	}
 	cli.fetch_opts.branches.dedup();
 	cli.fetch_opts.branches.sort();
-	cmds::run(cli).await
-}
-
-fn is_likely_vencord_dir(path: &Path) -> bool {
-	["src/plugins/_core", "src/Vencord.ts"]
-		.iter()
-		.all(|p| path.join(p).exists())
-}
-
-#[derive(From, Into)]
-struct SourceWrapper(Arc<Vec<Plugin>>, u16);
-
-impl SourceCode for SourceWrapper {
-	fn read_span<'a>(
-		&'a self,
-		span: &miette::SourceSpan,
-		context_lines_before: usize,
-		context_lines_after: usize,
-	) -> std::result::Result<miette::MietteSpanContents<'a>, miette::MietteError>
-	{
-		self.0[self.1 as usize]
-			.entry_source
-			.read_span(span, context_lines_before, context_lines_after)
-	}
-
-	fn name(&self) -> Option<&str> {
-		self.0[self.1 as usize]
-			.entry_point
-			.to_str()
-	}
+	cmds::run(cli, &GLOBAL_BAR).await
 }

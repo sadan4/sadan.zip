@@ -1,4 +1,4 @@
-use std::{borrow::Cow, mem, str::Utf8Error, time::Duration};
+use std::{borrow::Cow, mem, str::Utf8Error, sync::{Arc, Mutex}, time::Duration};
 
 use bytes::Bytes;
 use derive_more::{Debug, Deref, DerefMut, From};
@@ -45,6 +45,7 @@ impl Stage {
 		bar.enable_steady_tick(Duration::from_millis(1000 / 20));
 		Self(bar)
 	}
+	#[must_use]
 	pub fn and_attach(self, target: &MultiProgressWrapper) -> Self {
 		target.add(self.0.clone());
 		self
@@ -57,10 +58,10 @@ impl Stage {
 	}
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct MultiProgressWrapper {
 	inner: MultiProgress,
-	bars: std::sync::Mutex<Vec<ProgressBar>>,
+	bars: Arc<Mutex<Vec<ProgressBar>>>,
 }
 
 impl MultiProgressWrapper {

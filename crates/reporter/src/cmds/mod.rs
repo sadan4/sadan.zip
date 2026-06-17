@@ -4,6 +4,8 @@ mod watch;
 
 use clap::Subcommand;
 
+use crate::util::MultiProgressWrapper;
+
 #[derive(Subcommand, Default, Clone, Copy)]
 pub enum Cmd {
 	/// Run the reporter once and exit.
@@ -17,17 +19,17 @@ pub enum Cmd {
 	Lint,
 }
 
-pub async fn run(cli: super::Cli) -> anyhow::Result<i8> {
+pub async fn run(cli: super::Cli, global_bar: &MultiProgressWrapper) -> anyhow::Result<i8> {
 	match cli.cmd {
-		Cmd::Run => run::run_reporter(&cli)
+		Cmd::Run => run::run_reporter(&cli, global_bar)
 			.await
 			.map(|r| r.num_errs.try_into().unwrap_or(-1)),
 		Cmd::Watch => {
-			let _ = watch::run_watcher(cli).await?;
+			let _ = watch::run_watcher(cli, global_bar).await?;
 			unreachable!()
 		}
 		Cmd::Lint => {
-			lint::lint(cli)?;
+			lint::lint(cli, global_bar)?;
 			Ok(0)
 		}
 	}

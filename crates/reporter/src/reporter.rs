@@ -36,7 +36,7 @@ use vencord_ast_parser::{Match, Patch, Replacement, Replacer};
 
 #[derive(Debug)]
 pub enum Msg {
-	RequestProgressBar(oneshot::Sender<&'static MultiProgressWrapper>),
+	RequestProgressBar(oneshot::Sender<MultiProgressWrapper>),
 	Error(ReporterError),
 	Done(Result<Duration>),
 }
@@ -68,7 +68,7 @@ pub fn report_broken_patches(
 
 struct ReporterState<'a> {
 	tx: &'a mut mpsc::Sender<Msg>,
-	m_bar: &'static MultiProgressWrapper,
+	m_bar: MultiProgressWrapper,
 	patches: HashSet<&'a Patch>,
 	find_map: HashMap<&'a Patch, Vec<ModuleId>>,
 	alloc: Allocator,
@@ -129,7 +129,7 @@ impl<'a> ReporterState<'a> {
 	#[must_use = "RAII guard"]
 	fn stage(&self, msg: &'static str, n: Option<usize>) -> Stage {
 		Stage::new(format!("[{:?}]: {msg}", self.channel), n)
-			.and_attach(self.m_bar)
+			.and_attach(&self.m_bar)
 	}
 	fn prune_bad_finds(&mut self) {
 		let bar = self.stage("Pruning bad finds", Some(self.patches.len()));

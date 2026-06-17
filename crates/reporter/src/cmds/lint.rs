@@ -4,9 +4,9 @@ use std::{sync::mpsc, time::Instant};
 use tracing::{debug, info};
 use vencord_ast_parser::{VencordAstParser, diag::LocalSource};
 
-use crate::{GLOBAL_BAR, vc};
+use crate::{util::MultiProgressWrapper, vc};
 // TODO: exit success on ctrl-c
-pub fn lint(mut cli: crate::Cli) -> Result<()> {
+pub fn lint(mut cli: crate::Cli, global_bar: &MultiProgressWrapper) -> Result<()> {
 	info!("Starting linting");
 	let start_time = Instant::now();
 	let mut i = 0u32;
@@ -43,7 +43,7 @@ pub fn lint(mut cli: crate::Cli) -> Result<()> {
 			Ok(parser) => parser,
 			Err(e) => {
 				i += 1;
-				GLOBAL_BAR.suspend(|| {
+				global_bar.suspend(|| {
 					eprintln!("{e:?}");
 				});
 				continue;
@@ -59,7 +59,7 @@ pub fn lint(mut cli: crate::Cli) -> Result<()> {
 				name: &path,
 			};
 			i += 1;
-			GLOBAL_BAR.suspend(|| {
+			global_bar.suspend(|| {
 				eprintln!("{e:?}");
 			});
 		}

@@ -3009,6 +3009,7 @@ dependencies = [
  "pretty_printer",
  "regress",
  "reqwest-middleware",
+ "rmp-serde",
  "rustc-hash",
  "serde",
  "syntect",

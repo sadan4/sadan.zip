@@ -52,14 +52,15 @@ pub struct ScrapedBranch {
 
 pub async fn fetch_build(
 	opts: FetchOpts,
-	bars: &'static MultiProgressWrapper,
+	bars: &MultiProgressWrapper,
 ) -> Result<Vec<ScrapedBranch>> {
 	let mut futs: Vec<task::JoinHandle<Result<ScrapedBranch>>> =
 		Vec::with_capacity(2);
 	for &branch in &opts.branches {
 		let ch = branch.into();
+		let bars2 = bars.clone();
 		futs.push(tokio::spawn(async move {
-			let scraped = fetch_for_channel(ch, bars).await?;
+			let scraped = fetch_for_channel(ch, bars2).await?;
 			Ok(ScrapedBranch {
 				channel: ch,
 				out: scraped,
@@ -75,12 +76,12 @@ pub async fn fetch_build(
 
 async fn fetch_for_channel(
 	channel: Channel,
-	bars: &'static MultiProgressWrapper,
+	bars: MultiProgressWrapper,
 ) -> Result<ScrapedOutput> {
 	info!("Fetching build from {channel:?} channel");
 	let pre_bar =
 		Stage::new(format!("[{channel:?}]: Scraping build data: "), None)
-			.and_attach(bars);
+			.and_attach(&bars);
 	pre_bar.msg("Fetching index HTML");
 	let client =
 		make_reqwest_client().context("Failed to create HTTP client")?;
@@ -119,7 +120,7 @@ async fn fetch_index(
 }
 
 struct ReporterProgress {
-	bars: &'static MultiProgressWrapper,
+	bars: MultiProgressWrapper,
 	channel: Channel,
 	pre_bar: Mutex<Option<Stage>>,
 	chunk_bar: OnceLock<Stage>,
@@ -138,7 +139,7 @@ impl ScrapeProgress for ReporterProgress {
 			format!("[{:?}]: Parsing Lazy Chunks: ", self.channel),
 			Some(total),
 		)
-		.and_attach(self.bars);
+		.and_attach(&self.bars);
 		let _ = self.chunk_bar.set(bar);
 	}
 
