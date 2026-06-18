@@ -6,6 +6,7 @@ use std::{
 };
 
 use anyhow::{Context as _, Result, bail};
+use dashmap::DashMap;
 use explorer_server_core::{Channel, asset_url};
 use explorer_types::{BundleMetadata, FullBundle, ModuleId};
 use http::StatusCode;
@@ -13,7 +14,10 @@ use itertools::Itertools as _;
 use memchr::memmem::Finder;
 use oxc_allocator::AllocatorPool;
 use reqwest_middleware::ClientWithMiddleware;
-use tokio::{sync::Semaphore, task};
+use tokio::{
+	sync::Semaphore,
+	task::{self, JoinSet},
+};
 use tracing::{debug, info, trace};
 use webpack_chunk_parser::{
 	WebpackLazyChunkParser,
@@ -41,62 +45,32 @@ pub struct ScrapedModules {
 	pub entry_point: Option<ModuleId>,
 }
 
-#[expect(clippy::too_many_lines)]
-pub async fn scrape_modules(
-	html: &str,
-	channel: Channel,
+fn extend_dash_map<K, V>(
+	map: &DashMap<K, V>,
+	other: impl IntoIterator<Item = (K, V)>,
+) where
+	K: std::hash::Hash + Eq,
+{
+	for (k, v) in other {
+		map.insert(k, v);
+	}
+}
+
+#[expect(clippy::too_many_arguments)]
+fn spawn_scrape_task(
+	entry: webpack_chunk_parser::JsHashEntry,
 	client: Arc<ClientWithMiddleware>,
+	pending_limit: Arc<Semaphore>,
+	pool: Arc<AllocatorPool>,
+	module_sources: Arc<DashMap<String, Vec<ModuleId>>>,
 	progress: Arc<dyn ScrapeProgress>,
-) -> Result<ScrapedModules> {
-	progress.set_stage("Parsing index HTML");
-	let ParsedHtml {
-		global_env_text,
-		web_js_url,
-		extra_chunks,
-	} = parse_html(html).context("Failed to parse index HTML")?;
-	let pending_limit = Arc::new(Semaphore::const_new(MAX_PENDING_REQUESTS));
-	progress.set_stage("Fetching main JS chunk");
-	let web_js_bytes = client
-		.get(asset_url(channel, &web_js_url))
-		.send()
-		.await?
-		.bytes()
-		.await?;
-	let web_js_txt =
-		str::from_utf8(&web_js_bytes).context("Response is not valid UTF8")?;
-	let nproc = thread::available_parallelism().map_or(1, usize::from);
-	let pool = Arc::new(AllocatorPool::new(nproc));
-	let chunk_futures: Vec<task::JoinHandle<Result<_>>>;
-	let mut modules;
-	let num_chunks;
-	let module_sources: Arc<Mutex<HashMap<String, Vec<ModuleId>>>> =
-		Arc::new(Mutex::new(HashMap::new()));
-	let build_number;
-	let entry_point;
-	{
-		let alloc_guard = pool.get();
-		let alloc = &*alloc_guard;
-		progress.set_stage("Parsing main JS chunk");
-		let main_parser = task::block_in_place(|| {
-			WebpackMainChunkParser::try_new(alloc, web_js_txt)
-		})?;
-		let chunks = main_parser
-			.get_js_chunk_hashes()
-			.context("Failed to get JS chunk hashes")?;
-		num_chunks = chunks.len() + extra_chunks.len();
-		debug!("Found {} chunks", num_chunks);
-		progress.set_chunk_total(num_chunks);
-		chunk_futures = chunks
-			.into_iter()
-			.chain(extra_chunks)
-			.map(|entry| {
-				let hash = entry.hash.clone(); // O(1) clone
-				let client = client.clone();
-				let pending_limit = pending_limit.clone();
-				let pool = pool.clone();
-				let module_sources = module_sources.clone();
-				let progress = progress.clone();
-				task::spawn(async move {
+	modules: Arc<DashMap<ModuleId, String>>,
+	chunk_futures: &mut JoinSet<Result<()>>,
+	channel: Channel,
+) {
+	let hash = entry.hash.clone(); // O(1) clone
+	chunk_futures.spawn(
+				async move {
 					let permit = pending_limit.acquire().await.unwrap();
 					let chunk_name = format!("{hash}.js");
 					let chunk_url = asset_url(channel, &chunk_name);
@@ -142,41 +116,104 @@ pub async fn scrape_modules(
 						.copied()
 						.collect_vec();
 					module_sources
-						.lock()
-						.unwrap()
 						.insert(chunk_name, keys);
+					extend_dash_map(&modules, chunk_modules);
 					progress.chunk_finished();
 
-					Result::Ok(chunk_modules)
-				})
-			})
-			.collect_vec();
+					Ok(())
+				});
+}
+
+pub async fn scrape_modules(
+	html: &str,
+	channel: Channel,
+	client: Arc<ClientWithMiddleware>,
+	progress: Arc<dyn ScrapeProgress>,
+) -> Result<ScrapedModules> {
+	progress.set_stage("Parsing index HTML");
+	let ParsedHtml {
+		global_env_text,
+		web_js_url,
+		extra_chunks,
+	} = parse_html(html).context("Failed to parse index HTML")?;
+	let pending_limit = Arc::new(Semaphore::const_new(MAX_PENDING_REQUESTS));
+	progress.set_stage("Fetching main JS chunk");
+	let web_js_bytes = client
+		.get(asset_url(channel, &web_js_url))
+		.send()
+		.await?
+		.bytes()
+		.await?;
+	let web_js_txt =
+		str::from_utf8(&web_js_bytes).context("Response is not valid UTF8")?;
+	let nproc = thread::available_parallelism().map_or(1, usize::from);
+	let pool = Arc::new(AllocatorPool::new(nproc));
+	let mut chunk_futures = JoinSet::<Result<_>>::new();
+	// let chunk_futures: Vec<task::JoinHandle<Result<_>>>;
+	let modules = Arc::new(DashMap::new());
+	let num_chunks;
+	let module_sources: Arc<DashMap<String, Vec<ModuleId>>> =
+		Arc::new(DashMap::new());
+	let build_number;
+	let entry_point;
+	{
+		let alloc_guard = pool.get();
+		let alloc = &*alloc_guard;
+		progress.set_stage("Parsing main JS chunk");
+		// TODO: start spawning extra chunk tasks before we start parsing main chunk
+		// main chunk takes ~1s to parse
+		let main_parser = task::block_in_place(|| {
+			WebpackMainChunkParser::try_new(alloc, web_js_txt)
+		})?;
+		let chunks = main_parser
+			.get_js_chunk_hashes()
+			.context("Failed to get JS chunk hashes")?;
+		num_chunks = chunks.len() + extra_chunks.len();
+		debug!("Found {} chunks", num_chunks);
+		progress.set_chunk_total(num_chunks);
+		chunks
+			.into_iter()
+			.chain(extra_chunks)
+			.for_each(|entry| {
+				spawn_scrape_task(
+					entry,
+					client.clone(),
+					pending_limit.clone(),
+					pool.clone(),
+					module_sources.clone(),
+					progress.clone(),
+					modules.clone(),
+					&mut chunk_futures,
+					channel,
+				);
+			});
 		build_number = main_parser
 			.get_build_number()
 			.unwrap_or_default()
 			.parse()
 			.unwrap_or_default();
 		entry_point = main_parser.get_entrypoint_id();
-		modules = main_parser
-			.get_defined_modules()
-			.context("Failed to get modules from main chunk")?;
+		extend_dash_map(
+			&modules,
+			main_parser
+				.get_defined_modules()
+				.context("Failed to get modules from main chunk")?,
+		);
 	};
 
-	for fut in chunk_futures {
-		modules.extend(fut.await??);
-	}
+	chunk_futures.join_all().await;
 
 	info!("collected {} chunks. {} modules", num_chunks, modules.len());
 	drop(pool);
 
 	let module_sources = Arc::into_inner(module_sources)
-		.expect("module_sources has outstanding references")
-		.into_inner()
-		.unwrap();
+		.expect("module_sources has outstanding references");
+	let modules =
+		Arc::into_inner(modules).expect("modules has outstanding references");
 
 	Ok(ScrapedModules {
-		modules,
-		module_sources,
+		modules: HashMap::from_iter(modules),
+		module_sources: HashMap::from_iter(module_sources),
 		global_env_text,
 		web_js_url,
 		build_number,

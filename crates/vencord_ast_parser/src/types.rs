@@ -79,7 +79,7 @@ pub struct MatchRegex {
 	pub flags: RegExpFlags,
 	#[serde(skip)]
 	#[eq(skip)]
-	pub regex: Option<Result<Regex>>,
+	pub regex: Option<Result<Regex, regress::Error>>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -234,23 +234,20 @@ impl MatchRegex {
 			return;
 		}
 		let f = |f| self.flags.contains(f);
-		self.regex = Some(
-			Regex::with_flags(
-				&self.pattern,
-				Flags {
-					icase: f(RegExpFlags::I),
-					multiline: f(RegExpFlags::M),
-					dot_all: f(RegExpFlags::S),
-					unicode: f(RegExpFlags::U),
-					unicode_sets: f(RegExpFlags::V),
-					no_opt: false,
-				},
-			)
-			.map_err(Into::into),
-		);
+		self.regex = Some(Regex::with_flags(
+			&self.pattern,
+			Flags {
+				icase: f(RegExpFlags::I),
+				multiline: f(RegExpFlags::M),
+				dot_all: f(RegExpFlags::S),
+				unicode: f(RegExpFlags::U),
+				unicode_sets: f(RegExpFlags::V),
+				no_opt: false,
+			},
+		));
 	}
 
-	pub const fn regex(&self) -> &Result<Regex> {
+	pub const fn regex(&self) -> &Result<Regex, regress::Error> {
 		self.regex
 			.as_ref()
 			.expect("Regex not compiled")
@@ -292,7 +289,9 @@ impl Eq for Match {}
 
 /// [`Span`] only implements [`Serialize`] (as a `{ start, end }` map), not
 /// [`Deserialize`], so we provide the inverse here.
-fn deserialize_span<'de, D>(deserializer: D) -> std::result::Result<Span, D::Error>
+fn deserialize_span<'de, D>(
+	deserializer: D,
+) -> std::result::Result<Span, D::Error>
 where
 	D: serde::Deserializer<'de>,
 {
@@ -310,4 +309,3 @@ fn finder_get_needle(finder: &Finder<'_>) -> Box<str> {
 		.expect("finder is not a utf8 string")
 		.into()
 }
-

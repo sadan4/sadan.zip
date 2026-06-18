@@ -840,6 +840,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "const_format",
+ "dashmap 6.2.1",
  "explorer_server_core",
  "explorer_types",
  "html_parser",
@@ -2014,6 +2015,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "num_cpus"
+version = "1.17.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "91df4bbde75afed763b708b7eee1e8e7651e02d97f6d5dd763e89367e957b23b"
+dependencies = [
+ "hermit-abi",
+ "libc",
+]
+
+[[package]]
 name = "object"
 version = "0.37.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2124,6 +2135,7 @@ dependencies = [
  "cfg-if",
  "owo-colors",
  "oxc-miette-derive",
+ "serde",
  "supports-color",
  "supports-hyperlinks",
  "supports-unicode",
@@ -2995,18 +3007,22 @@ dependencies = [
  "clap",
  "clap_complete",
  "clearscreen",
+ "dashmap 6.2.1",
  "derive_more",
  "discord_scraper",
  "explorer_server_core",
  "explorer_types",
  "indicatif",
+ "insta",
  "itertools 0.14.0",
  "notify",
+ "num_cpus",
  "owo-colors",
  "oxc",
  "oxc-miette",
  "oxc_allocator",
  "pretty_printer",
+ "rayon",
  "regress",
  "reqwest-middleware",
  "rmp-serde",

@@ -8,7 +8,7 @@ use reporter::{
 	err::printer::GraphicalReportHandler,
 	util::MultiProgressWrapper, vc,
 };
-use std::{io, path::Path, process, sync::LazyLock};
+use std::{io, process, sync::LazyLock};
 use terminal_size::{Width, terminal_size};
 use tracing::error;
 use tracing_subscriber::util::SubscriberInitExt;

@@ -4,7 +4,8 @@ use crate::{
 	util::{MultiProgressWrapper, Stage},
 	vc::Plugin,
 };
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, Result};
+use dashmap::DashMap;
 use derive_more::IsVariant;
 use explorer_server_core::Channel;
 use explorer_types::ModuleId;
@@ -18,8 +19,15 @@ use oxc::{
 	semantic::{SemanticBuilder, Stats},
 	span::{SourceType, Span},
 };
+use oxc_allocator::AllocatorPool;
 use pretty_printer::{FormattedContent, format_with_alloc};
+use rayon::iter::{
+	IntoParallelIterator,
+	IntoParallelRefIterator,
+	ParallelIterator,
+};
 use regress::Regex;
+use serde::{Deserialize, Serialize};
 use std::{
 	borrow::Cow,
 	collections::{HashMap, HashSet},
@@ -31,7 +39,7 @@ use tokio::{
 	sync::{mpsc, oneshot},
 	task,
 };
-use tracing::error;
+use tracing::{debug, error, trace};
 use vencord_ast_parser::{Match, Patch, Replacement, Replacer};
 
 #[derive(Debug)]
@@ -71,9 +79,9 @@ struct ReporterState<'a> {
 	m_bar: MultiProgressWrapper,
 	patches: HashSet<&'a Patch>,
 	find_map: HashMap<&'a Patch, Vec<ModuleId>>,
-	alloc: Allocator,
+	alloc: AllocatorPool,
 	build: &'a ScrapedOutput,
-	stats: HashMap<ModuleId, Stats>,
+	stats: DashMap<ModuleId, Stats>,
 	channel: Channel,
 }
 
@@ -91,7 +99,7 @@ impl<'a> ReporterState<'a> {
 			.iter()
 			.flat_map(|p| p.patches.iter())
 			.collect();
-		let stats = HashMap::with_capacity(build.len());
+		let stats = DashMap::with_capacity(build.len());
 		let mut find_map: HashMap<_, _> = patches
 			.iter()
 			.map(|&p| (p, Vec::new()))
@@ -105,7 +113,7 @@ impl<'a> ReporterState<'a> {
 			patches,
 			stats,
 			find_map,
-			alloc: Allocator::new(),
+			alloc: AllocatorPool::new(num_cpus::get()),
 			channel,
 		}
 	}
@@ -120,11 +128,31 @@ enum PatchStatus {
 #[expect(clippy::multiple_inherent_impl)]
 impl<'a> ReporterState<'a> {
 	fn run(mut self) {
+		let start_time = Instant::now();
+		let mut last = start_time;
 		self.prune_bad_finds();
+		let prune_time = last.elapsed();
+		last = Instant::now();
 		self.collect_finds();
+		let collect_time = last.elapsed();
+		last = Instant::now();
 		self.report_empty_finds();
+		let report_empty_time = last.elapsed();
+		last = Instant::now();
 		self.resolve_ambiguous_finds();
+		let resolve_time = last.elapsed();
+		last = Instant::now();
 		self.test_patches();
+		let test_time = last.elapsed();
+		debug!(
+			"Reporter finished in {total:.2?} (prune: {prune:.2?}, collect: {collect:.2?}, report_empty: {report_empty:.2?}, resolve: {resolve:.2?}, test: {test:.2?})",
+			total = start_time.elapsed(),
+			prune = prune_time,
+			collect = collect_time,
+			report_empty = report_empty_time,
+			resolve = resolve_time,
+			test = test_time,
+		);
 	}
 	#[must_use = "RAII guard"]
 	fn stage(&self, msg: &'static str, n: Option<usize>) -> Stage {
@@ -142,7 +170,7 @@ impl<'a> ReporterState<'a> {
 					.blocking_send(
 						ReporterError::BadRegexSyntax {
 							plugin_id: p.plugin_id(),
-							source: anyhow!("{e:?}"),
+							source: e.clone(),
 							regex_span: p.find.s.into(),
 							expanded: format!("/{}/{}", r.pattern, r.flags),
 						}
@@ -157,19 +185,26 @@ impl<'a> ReporterState<'a> {
 	}
 	fn collect_finds(&mut self) {
 		let progress =
-			self.stage("Collecting find matches", Some(self.build.len()));
-		for (&m_id, m_txt) in self.build {
-			for patch in &self.patches {
-				if matches_module(m_txt, patch) {
-					// this should never error because we pre-fill all the keys with empty vectors in the ctor
-					self.find_map
-						.get_mut(patch)
-						.unwrap()
-						.push(m_id);
-				}
-			}
-			progress.step();
-		}
+			self.stage("Collecting find matches", Some(self.patches.len()));
+		self.find_map = self
+			.patches
+			.par_iter()
+			.map(|patch| {
+				let matches = self
+					.build
+					.par_iter()
+					.filter_map(|(m_id, m_txt)| {
+						if matches_module(m_txt, patch) {
+							Some(*m_id)
+						} else {
+							None
+						}
+					})
+					.collect();
+				progress.step();
+				(*patch, matches)
+			})
+			.collect();
 	}
 	fn report_empty_finds(&mut self) {
 		_ = self.stage("Reporting empty finds", None);
@@ -195,15 +230,15 @@ impl<'a> ReporterState<'a> {
 			.extract_if(|p, m| !p.all && m.len() > 1)
 			.collect_vec();
 		let bar = self.stage("Resolving ambiguous finds", Some(it.len()));
-		for (patch, matches) in it {
+		it.into_par_iter().for_each(|(patch, matches)| {
 			let mut failed = Vec::new();
 			let mut good = Vec::new();
-			for m_id in matches.iter().copied() {
+			matches.iter().copied().for_each(|m_id| {
 				match self.test_patch_against_module(patch, m_id, None) {
 					PatchStatus::Ok => good.push(m_id),
 					PatchStatus::Error => failed.push(m_id),
 				}
-			}
+			});
 			// TODO: suppress if patch is no_warn??
 			let err = if good.len() == 1 {
 				ReporterError::FindAmbiguousRecoverable {
@@ -238,28 +273,36 @@ impl<'a> ReporterState<'a> {
 				.blocking_send(err.into())
 				.unwrap();
 			bar.step();
-		}
+		});
 	}
 	fn test_patches(&mut self) {
 		// temporarily take the find_map so we don't have to deal with 2x &mut self
 		let found_patches = mem::take(&mut self.find_map);
 		let bar = self.stage("Testing patches", Some(found_patches.len()));
-		let mut errs = Vec::new();
-		for (patch, ids) in &found_patches {
-			for &m_id in ids {
-				self.test_patch_against_module(patch, m_id, Some(&mut errs));
-			}
-			for err in errs.drain(..) {
-				self.tx
-					.blocking_send(err.into())
-					.unwrap();
-			}
-			bar.step();
-		}
+		found_patches
+			.par_iter()
+			.for_each(|(patch, ids)| {
+				ids.into_par_iter()
+					.fold(Vec::new, |mut errs, &m_id| {
+						self.test_patch_against_module(
+							patch,
+							m_id,
+							Some(&mut errs),
+						);
+						errs
+					})
+					.flatten()
+					.for_each(|err| {
+						self.tx
+							.blocking_send(err.into())
+							.unwrap();
+					});
+				bar.step();
+			});
 		self.find_map = found_patches;
 	}
 	fn test_patch_against_module(
-		&mut self,
+		&self,
 		patch: &'a Patch,
 		m_id: ModuleId,
 		mut errs: Option<&mut Vec<ReporterError>>,
@@ -355,11 +398,12 @@ impl<'a> ReporterState<'a> {
 		pat: &Regex,
 		replacement: &Replacer,
 		is_global: bool,
-	) -> Result<Box<dyn Diagnostic + Send + Sync + 'static>> {
+	) -> Result<WrappedOxcDiagnostic> {
+		let alloc = self.alloc.get();
 		let FormattedContent {
 			code: mut formatted_source,
 			mappings,
-		} = format_with_alloc(original_source, &self.alloc, 2)
+		} = format_with_alloc(original_source, &alloc, 2)
 			.context("Failed to format valid module source")?;
 		// determine the ranges and contents of each replacement
 		let mut ranges = Vec::new();
@@ -410,10 +454,11 @@ impl<'a> ReporterState<'a> {
 			*label = Self::find_new_span(&mappings, label_span).into();
 			label.set_label(txt);
 		}
-
-		let src = NamedSource::new(format!("{m_id}.js"), formatted_source)
-			.with_language("JavaScript");
-		Ok(Box::new(WrappedOxcDiagnostic::new(e, src)))
+		Ok(WrappedOxcDiagnostic::new(
+			e,
+			format!("{m_id}.js"),
+			formatted_source,
+		))
 	}
 
 	fn find_new_span(mappings: &[(u32, u32)], original_span: Span) -> Span {
@@ -454,7 +499,7 @@ impl<'a> ReporterState<'a> {
 				Err(e) => {
 					report(ReporterError::BadRegexSyntax {
 						plugin_id,
-						source: anyhow!("{e:?}"),
+						source: e.clone(),
 						regex_span: replacement.match_.s.into(),
 						expanded: format!("/{}/{}", v.pattern, v.flags),
 					});
@@ -526,19 +571,16 @@ impl<'a> ReporterState<'a> {
 	}
 
 	fn check_and_update_syntax(
-		&mut self,
+		&self,
 		new_src: &str,
 		m_id: ModuleId,
 	) -> Result<(), Box<OxcDiagnostic>> {
-		let result = {
-			let chk = check_syntax_errors(
-				&self.alloc,
-				new_src,
-				self.stats.get(&m_id).copied(),
-			);
-			self.alloc.reset();
-			chk
-		};
+		let alloc = self.alloc.get();
+		let result = check_syntax_errors(
+			&alloc,
+			new_src,
+			self.stats.get(&m_id).map(|x| *x),
+		);
 
 		match result {
 			Ok(stats) => {
@@ -601,15 +643,23 @@ fn check_syntax_errors(
 	}
 }
 
-struct WrappedOxcDiagnostic {
+mod serde_oxc_diag;
+
+mod serde_named_source_string;
+
+#[derive(Serialize, Deserialize)]
+pub struct WrappedOxcDiagnostic {
+	#[serde(with = "serde_oxc_diag")]
 	diag: Box<OxcDiagnostic>,
-	src: Box<dyn SourceCode>,
+	#[serde(with = "serde_named_source_string")]
+	src: NamedSource<String>,
 }
+
 impl WrappedOxcDiagnostic {
-	fn new(diag: Box<OxcDiagnostic>, src: NamedSource<String>) -> Self {
+	fn new(diag: Box<OxcDiagnostic>, filename: String, src: String) -> Self {
 		Self {
 			diag,
-			src: Box::new(src),
+			src: NamedSource::new(filename, src).with_language("JavaScript"),
 		}
 	}
 }
@@ -664,7 +714,7 @@ impl Diagnostic for WrappedOxcDiagnostic {
 	}
 
 	fn source_code(&self) -> Option<&dyn SourceCode> {
-		Some(self.src.as_ref())
+		Some(&self.src)
 	}
 
 	fn labels(&self) -> miette::Labels {

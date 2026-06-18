@@ -41,9 +41,13 @@ rustc-hash.workspace = true
 clearscreen.workspace = true
 pretty_printer.workspace = true
 bitcode.workspace = true
+rayon.workspace = true
+num_cpus.workspace = true
+dashmap.workspace = true
 
 [dev-dependencies]
 rmp-serde.workspace = true
+insta.workspace = true
 
 [lints]
 workspace = true

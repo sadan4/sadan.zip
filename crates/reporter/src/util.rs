@@ -81,6 +81,14 @@ impl MultiProgressWrapper {
 	pub fn suspend<R>(&self, f: impl FnOnce() -> R) -> R {
 		self.inner.suspend(f)
 	}
+	/// Create a progress bar for testing.
+	/// will never print anything
+	pub fn test_bar() -> Self {
+		Self {
+			inner: MultiProgress::with_draw_target(ProgressDrawTarget::hidden()),
+			bars: Arc::new(Mutex::new(Vec::new())),
+		}
+	}
 }
 
 #[derive(Debug)]

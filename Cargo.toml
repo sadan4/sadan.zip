@@ -45,7 +45,9 @@ oxc_ecmascript = "0.136.0"
 oxc_allocator = { version = "0.136.0", features = ["pool", "serialize"] }
 regress = "0.11.1"
 derive_more = { version = "2.1.1", features = ["full"] }
-oxc-miette = { version = "3.0.0", default-features = false }
+oxc-miette = { version = "3.0.0", default-features = false, features = [
+    "serde",
+] }
 indicatif = "0.18.4"
 insta = { version = "1.47.1", features = ["ron"] }
 bitflags = { version = "2.11.0", features = ["serde"] }
@@ -91,6 +93,8 @@ bitcode = { version = "0.6.9", features = ["serde"] }
 markdown = { version = "1.0.0", features = [] }
 criterion = { version = "0.5", features = ["html_reports"] }
 bytecount = { version = "0.6.9" }
+rayon = "1.12.0"
+num_cpus = "1.17.0"
 
 
 [profile.release]

@@ -186,7 +186,7 @@ pub fn infer_plugin_dirs(vencord_dir: &Path) -> Result<Vec<PathBuf>> {
 	Ok(ret)
 }
 
-fn bind_plugin_ids(plugins: &mut [Plugin]) {
+pub fn bind_plugin_ids(plugins: &mut [Plugin]) {
 	for (id, plugin) in plugins.iter_mut().enumerate() {
 		for patch in &mut plugin.patches {
 			patch.plugin_id = Some(id as u16);
@@ -194,7 +194,7 @@ fn bind_plugin_ids(plugins: &mut [Plugin]) {
 	}
 }
 
-fn compile_plugin_regexes(plugins: &mut [Plugin]) {
+pub fn compile_plugin_regexes(plugins: &mut [Plugin]) {
 	for plugin in plugins {
 		for patch in &mut plugin.patches {
 			if let Match::Regex(r) = &mut patch.find.v {

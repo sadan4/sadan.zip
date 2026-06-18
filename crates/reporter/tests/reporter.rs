@@ -1,10 +1,16 @@
-use std::{fs::File, path::Path};
+use std::{fs::File, path::Path, sync::Arc};
 
 use anyhow::{Context, Result};
+use explorer_server_core::Channel;
 use explorer_types::FullBundle;
-use reporter::vc;
+use insta::assert_ron_snapshot;
+use reporter::{
+	reporter::report_broken_patches,
+	util::MultiProgressWrapper,
+	vc,
+};
 use serde::de::DeserializeOwned;
-use tokio::task::spawn_blocking;
+use tokio::task::{JoinHandle, spawn_blocking};
 
 #[tokio::test]
 async fn reporter() {
@@ -13,9 +19,13 @@ async fn reporter() {
 		.join("tests")
 		.join("data");
 	let patches_path = test_data_root.join("patches.mpk.zst");
-	let bundle_path = test_data_root.join("5f9036bea3bd644a3e7f9fed68a5e30573bd4732.mpk.zst");
-	let patches_fut = spawn_blocking(move || {
-		read_mpk_zst_file::<Vec<vc::Plugin>>(&patches_path)
+	let bundle_path =
+		test_data_root.join("5f9036bea3bd644a3e7f9fed68a5e30573bd4732.mpk.zst");
+	let patches_fut: JoinHandle<Result<_>> = spawn_blocking(move || {
+		let mut plugins = read_mpk_zst_file::<Vec<vc::Plugin>>(&patches_path)?;
+		vc::bind_plugin_ids(&mut plugins);
+		vc::compile_plugin_regexes(&mut plugins);
+		Result::Ok(plugins)
 	});
 	let bundle_fut =
 		spawn_blocking(move || read_mpk_zst_file::<FullBundle>(&bundle_path));
@@ -28,8 +38,30 @@ async fn reporter() {
 		.unwrap()
 		.context("Failed to read bundle")
 		.unwrap();
-	_ = plugins;
-	_ = bundle;
+	let modules = Arc::new(bundle.modules);
+	let plugins = Arc::new(plugins);
+	let mut rx = report_broken_patches(
+		Channel::Stable,
+		modules.clone(),
+		plugins.clone(),
+	);
+	let mut errs = Vec::new();
+	let bar = MultiProgressWrapper::test_bar();
+	while let Some(msg) = rx.recv().await {
+		match msg {
+			reporter::reporter::Msg::RequestProgressBar(sender) => {
+				sender.send(bar.clone()).unwrap();
+			}
+			reporter::reporter::Msg::Error(err) => {
+				errs.push(err);
+			}
+			reporter::reporter::Msg::Done(duration) => {
+				duration.expect("reporter failed");
+				break;
+			}
+		}
+	}
+	assert_ron_snapshot!(errs, @"");
 }
 
 fn read_mpk_zst_file<T: DeserializeOwned>(path: &Path) -> Result<T> {

@@ -21,6 +21,7 @@ webpack_chunk_parser.workspace = true
 webpack_ast_parser.workspace = true
 explorer_types.workspace = true
 explorer_server_core.workspace = true
+dashmap.workspace = true
 
 [lints]
 workspace = true

@@ -1,9 +1,14 @@
 use derive_more::IsVariant;
 use explorer_types::ModuleId;
 use miette::{Diagnostic, SourceSpan};
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-#[derive(Error, Debug, Diagnostic, IsVariant)]
+use crate::reporter::WrappedOxcDiagnostic;
+
+mod serde_regress_error;
+
+#[derive(Error, Debug, Diagnostic, IsVariant, Serialize, Deserialize)]
 pub enum ReporterError {
 	#[error("Bad Regex Syntax")]
 	#[diagnostic[
@@ -14,7 +19,8 @@ pub enum ReporterError {
 	BadRegexSyntax {
 		plugin_id: u16,
 		#[source]
-		source: anyhow::Error,
+		#[serde(with = "serde_regress_error")]
+		source: regress::Error,
 		#[label("From this regex")]
 		regex_span: SourceSpan,
 		expanded: String,
@@ -54,7 +60,7 @@ pub enum ReporterError {
 		replace_span: SourceSpan,
 		#[source]
 		#[diagnostic_source]
-		cause: Box<dyn Diagnostic + Send + Sync + 'static>,
+		cause: WrappedOxcDiagnostic,
 		module_id: ModuleId,
 		plugin_id: u16,
 	},
