@@ -1,6 +1,11 @@
 use std::{
 	collections::HashMap,
-	sync::{Arc, LazyLock, Mutex},
+	mem,
+	sync::{
+		Arc,
+		LazyLock,
+		atomic::{AtomicUsize, Ordering},
+	},
 	thread,
 	time::{SystemTime, UNIX_EPOCH},
 };
@@ -20,6 +25,7 @@ use tokio::{
 };
 use tracing::{debug, info, trace};
 use webpack_chunk_parser::{
+	JsHashEntry,
 	WebpackLazyChunkParser,
 	WebpackMainChunkParser,
 	base::WebpackChunkParser,
@@ -29,6 +35,7 @@ use crate::{
 	bundle_parser::parse_bundle,
 	html_parser::{ParsedHtml, parse_html},
 	progress::ScrapeProgress,
+	util::ByteStr,
 };
 
 const MAX_PENDING_REQUESTS: usize = 1024;
@@ -56,169 +63,246 @@ fn extend_dash_map<K, V>(
 	}
 }
 
-#[expect(clippy::too_many_arguments)]
-fn spawn_scrape_task(
-	entry: webpack_chunk_parser::JsHashEntry,
-	client: Arc<ClientWithMiddleware>,
-	pending_limit: Arc<Semaphore>,
-	pool: Arc<AllocatorPool>,
-	module_sources: Arc<DashMap<String, Vec<ModuleId>>>,
-	progress: Arc<dyn ScrapeProgress>,
-	modules: Arc<DashMap<ModuleId, String>>,
-	chunk_futures: &mut JoinSet<Result<()>>,
-	channel: Channel,
-) {
-	let hash = entry.hash.clone(); // O(1) clone
-	chunk_futures.spawn(
-				async move {
-					let permit = pending_limit.acquire().await.unwrap();
-					let chunk_name = format!("{hash}.js");
-					let chunk_url = asset_url(channel, &chunk_name);
-					let response = client
-						.get(&chunk_url)
-						.send()
-						.await?;
-					if response.status() == StatusCode::NOT_FOUND {
-						bail!("Chunk not found: {chunk_url}");
-					}
-					let chunk_bts = response
-						.bytes()
-						.await?;
-					drop(permit);
-					let chunk_name_2 = chunk_name.clone();
-					let chunk_modules =
-						task::spawn_blocking(move || -> Result<_> {
-							if WORKER_FINDER.find(&chunk_bts).is_some() {
-								trace!("Skipping worker chunk");
-								return Ok(HashMap::new());
-							}
-							let alloc_guard = pool.get();
-							let alloc = &*alloc_guard;
-							let chunk_str = str::from_utf8(&chunk_bts)
-								.context("Response is not valid UTF8")?;
-							let chunk_parser = WebpackLazyChunkParser::try_new(
-								alloc, chunk_str,
-							)
-							.with_context(|| {
-								format!(
-									"failed to create chunk parser for {entry:?} chunk_url={chunk_url} chunk_name={chunk_name_2} hash={hash}",
-								)
-							})?;
-							let modules = chunk_parser
-								.get_defined_modules()
-								.context("Failed to get modules from chunk")?;
-
-							Result::Ok(modules)
-						})
-						.await??;
-					let keys = chunk_modules
-						.keys()
-						.copied()
-						.collect_vec();
-					module_sources
-						.insert(chunk_name, keys);
-					extend_dash_map(&modules, chunk_modules);
-					progress.chunk_finished();
-
-					Ok(())
-				});
+pub struct JsScraper {
+	inner: Arc<JsScraperInner>,
+	chunk_futures: JoinSet<Result<()>>,
+	num_extra_chunks: usize,
+	global_env_text: String,
+	web_js_url: String,
+	extra_chunks: Vec<JsHashEntry>,
 }
 
-pub async fn scrape_modules(
-	html: &str,
-	channel: Channel,
+struct JsScraperInner {
+	/// TODO: should this be arc?
 	client: Arc<ClientWithMiddleware>,
+	pending_limit: Semaphore,
+	pool: AllocatorPool,
+	module_sources: DashMap<String, Vec<ModuleId>>,
+	/// TODO: should this be arc?
 	progress: Arc<dyn ScrapeProgress>,
-) -> Result<ScrapedModules> {
-	progress.set_stage("Parsing index HTML");
-	let ParsedHtml {
-		global_env_text,
-		web_js_url,
-		extra_chunks,
-	} = parse_html(html).context("Failed to parse index HTML")?;
-	let pending_limit = Arc::new(Semaphore::const_new(MAX_PENDING_REQUESTS));
-	progress.set_stage("Fetching main JS chunk");
-	let web_js_bytes = client
-		.get(asset_url(channel, &web_js_url))
-		.send()
-		.await?
-		.bytes()
-		.await?;
-	let web_js_txt =
-		str::from_utf8(&web_js_bytes).context("Response is not valid UTF8")?;
-	let nproc = thread::available_parallelism().map_or(1, usize::from);
-	let pool = Arc::new(AllocatorPool::new(nproc));
-	let mut chunk_futures = JoinSet::<Result<_>>::new();
-	// let chunk_futures: Vec<task::JoinHandle<Result<_>>>;
-	let modules = Arc::new(DashMap::new());
-	let num_chunks;
-	let module_sources: Arc<DashMap<String, Vec<ModuleId>>> =
-		Arc::new(DashMap::new());
-	let build_number;
-	let entry_point;
-	{
-		let alloc_guard = pool.get();
+	modules: DashMap<ModuleId, String>,
+	channel: Channel,
+	total_bytes: AtomicUsize,
+}
+
+struct MainChunkData {
+	build_number: u32,
+	entry_point: Option<ModuleId>,
+	num_chunks: usize,
+}
+
+impl JsScraper {
+	fn new(
+		html: &str,
+		channel: Channel,
+		client: Arc<ClientWithMiddleware>,
+		progress: Arc<dyn ScrapeProgress>,
+	) -> Result<Self> {
+		progress.set_stage("Parsing index HTML");
+		let ParsedHtml {
+			global_env_text,
+			web_js_url,
+			extra_chunks,
+		} = parse_html(html).context("Failed to parse index HTML")?;
+		let num_extra_chunks = extra_chunks.len();
+		let pending_limit = Semaphore::const_new(MAX_PENDING_REQUESTS);
+		let nproc = thread::available_parallelism().map_or(1, usize::from);
+		let pool = AllocatorPool::new(nproc);
+		let chunk_futures = JoinSet::<Result<_>>::new();
+		// let chunk_futures: Vec<task::JoinHandle<Result<_>>>;
+		let modules = DashMap::new();
+		let module_sources = DashMap::new();
+		Ok(Self {
+			inner: Arc::new(JsScraperInner {
+				client,
+				pending_limit,
+				pool,
+				module_sources,
+				progress,
+				modules,
+				channel,
+				total_bytes: AtomicUsize::new(0),
+			}),
+			chunk_futures,
+			num_extra_chunks,
+			global_env_text,
+			web_js_url,
+			extra_chunks,
+		})
+	}
+
+	fn spawn_extra_chunk_tasks(&mut self) {
+		for extra_chunk in mem::take(&mut self.extra_chunks) {
+			self.spawn_scrape_task(extra_chunk);
+		}
+	}
+
+	fn spawn_main_chunk_tasks(&mut self, tasks: Vec<JsHashEntry>) {
+		for entry in tasks {
+			self.spawn_scrape_task(entry);
+		}
+	}
+
+	fn spawn_scrape_task(&mut self, entry: JsHashEntry) {
+		let hash = entry.hash.clone(); // O(1) clone
+		let inner = self.inner.clone();
+		self.chunk_futures.spawn(async move {
+			let permit = inner.pending_limit.acquire().await.unwrap();
+			let chunk_name = format!("{hash}.js");
+			let chunk_url = asset_url(inner.channel, &chunk_name);
+			let response = inner.client
+				.get(&chunk_url)
+				.send()
+				.await?;
+			if response.status() == StatusCode::NOT_FOUND {
+				bail!("Chunk not found: {chunk_url}");
+			}
+			let chunk_bts = response
+				.bytes()
+				.await?;
+			drop(permit);
+			inner.total_bytes.fetch_add(chunk_bts.len(), Ordering::SeqCst);
+			let chunk_name_2 = chunk_name.clone();
+			let inner2 = inner.clone();
+			let chunk_modules = task::spawn_blocking(move || -> Result<_> {
+				if WORKER_FINDER.find(&chunk_bts).is_some() {
+					trace!("Skipping worker chunk");
+					return Ok(HashMap::new());
+				}
+				let alloc_guard = inner2.pool.get();
+				let alloc = &*alloc_guard;
+				let chunk_str = str::from_utf8(&chunk_bts)
+					.context("Response is not valid UTF8")?;
+				let chunk_parser = WebpackLazyChunkParser::try_new(
+					alloc, chunk_str,
+				)
+				.with_context(|| {
+					format!(
+						"failed to create chunk parser for {entry:?} chunk_url={chunk_url} chunk_name={chunk_name_2} hash={hash}",
+					)
+				})?;
+				let modules = chunk_parser
+					.get_defined_modules()
+					.context("Failed to get modules from chunk")?;
+
+				Result::Ok(modules)
+			}).await??;
+			let keys = chunk_modules
+				.keys()
+				.copied()
+				.collect_vec();
+			inner.module_sources
+				.insert(chunk_name, keys);
+			extend_dash_map(&inner.modules, chunk_modules);
+			inner.progress.chunk_finished();
+
+			Ok(())
+		});
+	}
+	async fn fetch_main_js_chunk(&self) -> Result<ByteStr> {
+		let web_js_bytes = self
+			.inner
+			.client
+			.get(asset_url(self.inner.channel, &self.web_js_url))
+			.send()
+			.await?
+			.bytes()
+			.await?;
+		let bstr = ByteStr::try_from(web_js_bytes)
+			.context("Response is not valid utf8")?;
+		Ok(bstr)
+	}
+	fn parse_main_js_chunk(
+		&mut self,
+		main_js_text: &ByteStr,
+	) -> Result<MainChunkData> {
+		self.inner
+			.total_bytes
+			.fetch_add(main_js_text.as_ref().len(), Ordering::SeqCst);
+		// weird lifetime issue with spawn_main_chunk_tasks later
+		let inner2 = self.inner.clone();
+		let alloc_guard = inner2.pool.get();
 		let alloc = &*alloc_guard;
-		progress.set_stage("Parsing main JS chunk");
-		// TODO: start spawning extra chunk tasks before we start parsing main chunk
-		// main chunk takes ~1s to parse
-		let main_parser = task::block_in_place(|| {
-			WebpackMainChunkParser::try_new(alloc, web_js_txt)
-		})?;
+		self.inner
+			.progress
+			.set_stage("Parsing main JS chunk");
+		let main_parser =
+			WebpackMainChunkParser::try_new(alloc, main_js_text.as_ref())
+				.context("Failed to parse main js chunk")?;
 		let chunks = main_parser
 			.get_js_chunk_hashes()
-			.context("Failed to get JS chunk hashes")?;
-		num_chunks = chunks.len() + extra_chunks.len();
-		debug!("Found {} chunks", num_chunks);
-		progress.set_chunk_total(num_chunks);
-		chunks
-			.into_iter()
-			.chain(extra_chunks)
-			.for_each(|entry| {
-				spawn_scrape_task(
-					entry,
-					client.clone(),
-					pending_limit.clone(),
-					pool.clone(),
-					module_sources.clone(),
-					progress.clone(),
-					modules.clone(),
-					&mut chunk_futures,
-					channel,
-				);
-			});
-		build_number = main_parser
+			.context("Failed to get js chunk hashes")?;
+		let num_chunks = chunks.len() + self.num_extra_chunks;
+		debug!("found {num_chunks} chunks");
+		self.inner
+			.progress
+			.set_chunk_total(chunks.len());
+		self.spawn_main_chunk_tasks(chunks);
+		let build_number = main_parser
 			.get_build_number()
 			.unwrap_or_default()
 			.parse()
 			.unwrap_or_default();
-		entry_point = main_parser.get_entrypoint_id();
+		let entry_point = main_parser.get_entrypoint_id();
 		extend_dash_map(
-			&modules,
+			&self.inner.modules,
 			main_parser
 				.get_defined_modules()
 				.context("Failed to get modules from main chunk")?,
 		);
-	};
+		Ok(MainChunkData {
+			build_number,
+			entry_point,
+			num_chunks,
+		})
+	}
+	pub async fn scrape(
+		html: &str,
+		channel: Channel,
+		client: Arc<ClientWithMiddleware>,
+		progress: Arc<dyn ScrapeProgress>,
+	) -> Result<ScrapedModules> {
+		let mut scraper = Self::new(html, channel, client, progress)
+			.context("Failed to create scraper")?;
+		scraper.spawn_extra_chunk_tasks();
 
-	chunk_futures.join_all().await;
+		scraper
+			.inner
+			.progress
+			.set_stage("Fetching main JS chunk");
+		let main_js_text = scraper
+			.fetch_main_js_chunk()
+			.await
+			.context("Failed to fetch main js chunk")?;
+		let MainChunkData {
+			build_number,
+			entry_point,
+			num_chunks,
+		} = scraper
+			.parse_main_js_chunk(&main_js_text)
+			.context("Failed to handle main js chunk")?;
+		scraper.chunk_futures.join_all().await;
 
-	info!("collected {} chunks. {} modules", num_chunks, modules.len());
-	drop(pool);
+		info!(
+			"collected {} chunks. {} modules. parsed {} bytes of js.",
+			num_chunks,
+			scraper.inner.modules.len(),
+			scraper.inner.total_bytes.load(Ordering::SeqCst),
+		);
+		let inner = Arc::into_inner(scraper.inner)
+			.expect("inner has outstanding references");
+		let module_sources = inner.module_sources;
+		let modules = inner.modules;
 
-	let module_sources = Arc::into_inner(module_sources)
-		.expect("module_sources has outstanding references");
-	let modules =
-		Arc::into_inner(modules).expect("modules has outstanding references");
-
-	Ok(ScrapedModules {
-		modules: HashMap::from_iter(modules),
-		module_sources: HashMap::from_iter(module_sources),
-		global_env_text,
-		web_js_url,
-		build_number,
-		entry_point,
-	})
+		Ok(ScrapedModules {
+			modules: HashMap::from_iter(modules),
+			module_sources: HashMap::from_iter(module_sources),
+			global_env_text: scraper.global_env_text,
+			web_js_url: scraper.web_js_url,
+			build_number,
+			entry_point,
+		})
+	}
 }
 
 pub async fn scrape_full_bundle(
@@ -235,7 +319,7 @@ pub async fn scrape_full_bundle(
 		web_js_url: _,
 		build_number,
 		entry_point,
-	} = scrape_modules(html, channel, client, progress).await?;
+	} = JsScraper::scrape(html, channel, client, progress).await?;
 
 	// parse_bundle requires modules to be prefixed with "0," so the AST parser
 	// sees them as the second element of a sequence expression.

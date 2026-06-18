@@ -1,10 +1,11 @@
 use anyhow::{Context as _, Result};
 use clap::Args;
 use discord_scraper::{
+	JsScraper,
 	ScrapeProgress,
 	ScrapedModules,
 	make_reqwest_client,
-	scrape_modules,
+	util::ByteStr,
 };
 use explorer_server_core::Channel;
 use explorer_types::ModuleId;
@@ -18,7 +19,7 @@ use tracing::{info, warn};
 
 use crate::{
 	Branch,
-	util::{ByteStr, MultiProgressWrapper, Stage},
+	util::{MultiProgressWrapper, Stage},
 };
 
 pub type ScrapedOutput = HashMap<ModuleId, String>;
@@ -91,9 +92,10 @@ async fn fetch_for_channel(
 		channel,
 		pre_bar: Mutex::new(Some(pre_bar)),
 		chunk_bar: OnceLock::new(),
+		pre_chunk_count: Mutex::new(0),
 	});
 	let ScrapedModules { modules, .. } =
-		scrape_modules(index_response.as_ref(), channel, client, progress)
+		JsScraper::scrape(index_response.as_ref(), channel, client, progress)
 			.await?;
 	Ok(modules)
 }
@@ -124,6 +126,7 @@ struct ReporterProgress {
 	channel: Channel,
 	pre_bar: Mutex<Option<Stage>>,
 	chunk_bar: OnceLock<Stage>,
+	pre_chunk_count: Mutex<usize>,
 }
 
 impl ScrapeProgress for ReporterProgress {
@@ -133,19 +136,27 @@ impl ScrapeProgress for ReporterProgress {
 		}
 	}
 
-	fn set_chunk_total(&self, total: usize) {
+	fn set_chunk_total(&self, mut total: usize) {
 		let _ = self.pre_bar.lock().unwrap().take();
+		let lock = self.pre_chunk_count.lock().unwrap();
+		let extra_total = *lock;
+		total += extra_total;
 		let bar = Stage::new(
 			format!("[{:?}]: Parsing Lazy Chunks: ", self.channel),
 			Some(total),
 		)
 		.and_attach(&self.bars);
-		let _ = self.chunk_bar.set(bar);
+		for _ in 0..extra_total {
+			bar.step();
+		}
+		self.chunk_bar.set(bar).expect("race");
 	}
 
 	fn chunk_finished(&self) {
 		if let Some(b) = self.chunk_bar.get() {
 			b.step();
+		} else {
+			*self.pre_chunk_count.lock().unwrap() += 1;
 		}
 	}
 }

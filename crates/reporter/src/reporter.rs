@@ -39,7 +39,7 @@ use tokio::{
 	sync::{mpsc, oneshot},
 	task,
 };
-use tracing::{debug, error, trace};
+use tracing::{debug, error};
 use vencord_ast_parser::{Match, Patch, Replacement, Replacer};
 
 #[derive(Debug)]

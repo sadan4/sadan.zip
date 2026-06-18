@@ -3,7 +3,8 @@ mod client;
 pub mod html_parser;
 pub mod progress;
 mod scrape;
+pub mod util;
 
 pub use client::make_reqwest_client;
 pub use progress::{NoProgress, ScrapeProgress};
-pub use scrape::{ScrapedModules, scrape_full_bundle, scrape_modules};
+pub use scrape::{ScrapedModules, scrape_full_bundle, JsScraper};

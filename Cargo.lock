@@ -839,6 +839,7 @@ name = "discord_scraper"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bytes",
  "const_format",
  "dashmap 6.2.1",
  "explorer_server_core",
