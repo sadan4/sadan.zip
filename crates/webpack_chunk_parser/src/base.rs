@@ -41,29 +41,25 @@ pub(crate) trait WebpackChunkParserImpl<'ast>: Sealed {
 }
 
 pub trait WebpackChunkParser<'ast> {
-	fn collect_defined_module_into(
+	fn collect_defined_modules(
 		&self,
-		target: &mut impl Extend<(ModuleId, String)>,
-	) -> Option<()>;
+	) -> Option<impl Iterator<Item = (ModuleId, String)>>;
 	fn get_defined_modules(&self) -> Option<HashMap<ModuleId, String>> {
-		let mut ret = HashMap::new();
-		self.collect_defined_module_into(&mut ret)?;
+		let ret = HashMap::from_iter(self.collect_defined_modules()?);
 		Some(ret)
 	}
 }
 
 impl<'ast, T: WebpackChunkParserImpl<'ast>> WebpackChunkParser<'ast> for T {
-	fn collect_defined_module_into(
+	fn collect_defined_modules(
 		&self,
-		target: &mut impl Extend<(ModuleId, String)>,
-	) -> Option<()> {
+	) -> Option<impl Iterator<Item = (ModuleId, String)>> {
 		let other = self
 			.get_module_object()?
 			.properties
 			.iter()
 			.filter_map(|entry| self.try_parse_chunk_entry(entry))
 			.map(Into::into);
-		target.extend(other);
-		Some(())
+		Some(other)
 	}
 }

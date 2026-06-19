@@ -44,9 +44,9 @@ bitcode.workspace = true
 rayon.workspace = true
 num_cpus.workspace = true
 dashmap.workspace = true
+rmp-serde.workspace = true
 
 [dev-dependencies]
-rmp-serde.workspace = true
 insta.workspace = true
 
 [lints]

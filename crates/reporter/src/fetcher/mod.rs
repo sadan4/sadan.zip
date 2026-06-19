@@ -1,4 +1,4 @@
-use anyhow::{Context as _, Result};
+use anyhow::{Context as _, Result, bail};
 use clap::Args;
 use discord_scraper::{
 	JsScraper,
@@ -15,10 +15,11 @@ use std::{
 	sync::{Arc, Mutex, OnceLock},
 };
 use tokio::task;
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 use crate::{
 	Branch,
+	cache,
 	util::{MultiProgressWrapper, Stage},
 };
 
@@ -86,7 +87,25 @@ async fn fetch_for_channel(
 	pre_bar.msg("Fetching index HTML");
 	let client =
 		make_reqwest_client().context("Failed to create HTTP client")?;
-	let index_response = fetch_index(&client, channel).await?;
+	let IndexResponse { text, build_hash } =
+		fetch_index(&client, channel).await?;
+	let build_hash = make_cache_key(build_hash);
+	pre_bar.msg("Reading cache");
+	match cache::read(&build_hash).await {
+		Ok(Some(data)) => {
+			info!("Cache hit on fetching build");
+			return Ok(data);
+		}
+		Ok(None) => {
+			debug!("Cache miss on fetching build");
+		}
+		Err(e) => {
+			warn!(
+				"Failed to read from cache, falling back to scraping via network. {e:?}"
+			);
+		}
+	}
+	pre_bar.msg("Fetching index HTML");
 	let progress = Arc::new(ReporterProgress {
 		bars,
 		channel,
@@ -95,30 +114,55 @@ async fn fetch_for_channel(
 		pre_chunk_count: Mutex::new(0),
 	});
 	let ScrapedModules { modules, .. } =
-		JsScraper::scrape(index_response.as_ref(), channel, client, progress)
-			.await?;
+		JsScraper::scrape(text.as_ref(), channel, client, progress).await?;
+	// we need to await this here so the task isn't dropped on process exit
+	match cache::write(&build_hash, &modules, None).await {
+		Ok(()) => {
+			info!("Wrote modules to cache");
+		}
+		Err(e) => {
+			warn!("Failed to write modules to cache. {e:?}");
+		}
+	}
 	Ok(modules)
+}
+
+fn make_cache_key(mut build_hash: String) -> String {
+	debug_assert!(!build_hash.is_empty(), "build hash should not be empty");
+	const SUFFIX: &str = ".cache";
+	if !build_hash.ends_with(SUFFIX) {
+		build_hash.push_str(SUFFIX);
+	}
+	build_hash
+}
+
+struct IndexResponse {
+	text: ByteStr,
+	build_hash: String,
 }
 
 async fn fetch_index(
 	client: &ClientWithMiddleware,
 	channel: Channel,
-) -> Result<ByteStr> {
+) -> Result<IndexResponse> {
 	let url = channel.app_base();
 	let res = client.get(url).send().await?;
-	if let Some(build_hash) = res.headers().get("x-build-id") {
+	let build_hash = if let Some(build_hash) = res.headers().get("x-build-id") {
 		match build_hash.to_str() {
-			Ok(s) => info!("{channel:?} build hash: {s}"),
+			Ok(s) => {
+				info!("{channel:?} build hash: {s}");
+				String::from(s)
+			}
 			Err(e) => {
-				warn!("Failed to read build hash from response header: {e:?}");
+				bail!("Failed to read build hash from response header: {e:?}");
 			}
 		}
 	} else {
-		warn!("Response did not include build hash header");
-	}
+		bail!("Response did not include build hash header");
+	};
 	let bytes = res.bytes().await?;
-	let b_str = ByteStr::try_from(bytes).context("Invalid response body")?;
-	Ok(b_str)
+	let text = ByteStr::try_from(bytes).context("Invalid response body")?;
+	Ok(IndexResponse { text, build_hash })
 }
 
 struct ReporterProgress {

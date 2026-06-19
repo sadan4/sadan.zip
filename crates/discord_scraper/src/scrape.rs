@@ -15,7 +15,6 @@ use dashmap::DashMap;
 use explorer_server_core::{Channel, asset_url};
 use explorer_types::{BundleMetadata, FullBundle, ModuleId};
 use http::StatusCode;
-use itertools::Itertools as _;
 use memchr::memmem::Finder;
 use oxc_allocator::AllocatorPool;
 use reqwest_middleware::ClientWithMiddleware;
@@ -50,17 +49,6 @@ pub struct ScrapedModules {
 	pub web_js_url: String,
 	pub build_number: u32,
 	pub entry_point: Option<ModuleId>,
-}
-
-fn extend_dash_map<K, V>(
-	map: &DashMap<K, V>,
-	other: impl IntoIterator<Item = (K, V)>,
-) where
-	K: std::hash::Hash + Eq,
-{
-	for (k, v) in other {
-		map.insert(k, v);
-	}
 }
 
 pub struct JsScraper {
@@ -162,14 +150,12 @@ impl JsScraper {
 				.await?;
 			drop(permit);
 			inner.total_bytes.fetch_add(chunk_bts.len(), Ordering::SeqCst);
-			let chunk_name_2 = chunk_name.clone();
-			let inner2 = inner.clone();
-			let chunk_modules = task::spawn_blocking(move || -> Result<_> {
+			task::spawn_blocking(move || -> Result<()> {
 				if WORKER_FINDER.find(&chunk_bts).is_some() {
 					trace!("Skipping worker chunk");
-					return Ok(HashMap::new());
+					return Ok(());
 				}
-				let alloc_guard = inner2.pool.get();
+				let alloc_guard = inner.pool.get();
 				let alloc = &*alloc_guard;
 				let chunk_str = str::from_utf8(&chunk_bts)
 					.context("Response is not valid UTF8")?;
@@ -178,24 +164,21 @@ impl JsScraper {
 				)
 				.with_context(|| {
 					format!(
-						"failed to create chunk parser for {entry:?} chunk_url={chunk_url} chunk_name={chunk_name_2} hash={hash}",
+						"failed to create chunk parser for {entry:?} chunk_url={chunk_url} chunk_name={chunk_name} hash={hash}",
 					)
 				})?;
 				let modules = chunk_parser
-					.get_defined_modules()
+					.collect_defined_modules()
 					.context("Failed to get modules from chunk")?;
-
-				Result::Ok(modules)
+				let mut keys = Vec::with_capacity(modules.size_hint().0);
+				for (m_id, src) in modules {
+					keys.push(m_id);
+					inner.modules.insert(m_id, src);
+				}
+				inner.module_sources.insert(chunk_name, keys);
+				inner.progress.chunk_finished();
+				Result::Ok(())
 			}).await??;
-			let keys = chunk_modules
-				.keys()
-				.copied()
-				.collect_vec();
-			inner.module_sources
-				.insert(chunk_name, keys);
-			extend_dash_map(&inner.modules, chunk_modules);
-			inner.progress.chunk_finished();
-
 			Ok(())
 		});
 	}
@@ -244,12 +227,12 @@ impl JsScraper {
 			.parse()
 			.unwrap_or_default();
 		let entry_point = main_parser.get_entrypoint_id();
-		extend_dash_map(
-			&self.inner.modules,
-			main_parser
-				.get_defined_modules()
-				.context("Failed to get modules from main chunk")?,
-		);
+		let main_modules = main_parser
+			.collect_defined_modules()
+			.context("Failed to get modules from main chunk")?;
+		for (m_id, src) in main_modules {
+			self.inner.modules.insert(m_id, src);
+		}
 		Ok(MainChunkData {
 			build_number,
 			entry_point,
@@ -287,7 +270,10 @@ impl JsScraper {
 			"collected {} chunks. {} modules. parsed {} bytes of js.",
 			num_chunks,
 			scraper.inner.modules.len(),
-			scraper.inner.total_bytes.load(Ordering::SeqCst),
+			scraper
+				.inner
+				.total_bytes
+				.load(Ordering::SeqCst),
 		);
 		let inner = Arc::into_inner(scraper.inner)
 			.expect("inner has outstanding references");

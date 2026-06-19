@@ -1,7 +1,5 @@
 use oxc::allocator::{Allocator, Vec as OxcVec};
 
-// TODO: would it be better to use a linked list over a vec
-// here since 99% of ops are appends?
 #[derive(Debug)]
 pub struct Rope<'s> {
 	strs: OxcVec<'s, &'s str>,
@@ -47,6 +45,7 @@ impl<'s> Rope<'s> {
 	}
 
 	pub fn reserve(&mut self, additional: usize) {
+		#[expect(clippy::cast_precision_loss, reason = "we just want a rough estimate here")]
 		self.strs.reserve((additional as f64 * 1.75) as usize);
 	}
 }

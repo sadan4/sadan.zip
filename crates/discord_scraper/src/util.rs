@@ -5,6 +5,14 @@ use bytes::Bytes;
 #[derive(Debug)]
 pub struct ByteStr(Bytes);
 
+impl ByteStr {
+	/// # Safety
+	/// bytes must be valid UTF-8
+	pub const unsafe fn from_bytes_unchecked(bytes: Bytes) -> Self {
+		Self(bytes)
+	}
+}
+
 impl TryFrom<Bytes> for ByteStr {
 	type Error = Utf8Error;
 
