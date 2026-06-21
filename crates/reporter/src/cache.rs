@@ -18,7 +18,7 @@ async fn get_cache_dir() -> Result<PathBuf> {
 	let mut cache_base =
 		if let Some(cache_dir) = env::var_os(REPORTER_CACHE_DIR_ENV) {
 			debug!("Using cache dir from env: {cache_dir:?}");
-			PathBuf::from(cache_dir)
+			return Ok(PathBuf::from(cache_dir));
 		} else if let Some(xdg_cache_dir) = env::var_os(XDG_CACHE_ENV) {
 			debug!("using cache dir from {XDG_CACHE_ENV}: {xdg_cache_dir:?}");
 			PathBuf::from(xdg_cache_dir)
