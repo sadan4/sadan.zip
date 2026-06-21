@@ -53,7 +53,7 @@ expression: errs
   ),
   ReplaceMatchAmbiguous(
     match_span: SourceSpan(
-      offset: SourceOffset(1267),
+      offset: SourceOffset(1263),
       length: 25,
     ),
     plugin_id: 177,
@@ -349,7 +349,7 @@ expression: errs
   ),
   ReplaceMatchAmbiguous(
     match_span: SourceSpan(
-      offset: SourceOffset(14027),
+      offset: SourceOffset(14023),
       length: 19,
     ),
     plugin_id: 289,
@@ -405,7 +405,7 @@ expression: errs
   ),
   ReplaceMatchAmbiguous(
     match_span: SourceSpan(
-      offset: SourceOffset(24048),
+      offset: SourceOffset(24040),
       length: 64,
     ),
     plugin_id: 289,

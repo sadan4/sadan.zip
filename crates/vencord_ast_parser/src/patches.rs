@@ -1,13 +1,9 @@
 use crate::{
-	Match,
-	MatchLike,
-	MatchRegex,
 	diag::{PResult, err},
 	hash::hash_message_key,
 };
 use ast_parser::exts::{ExpressionExt as _, TemplateLiteralExt as _};
 use itertools::Itertools;
-use memchr::memmem::Finder;
 use oxc::{
 	allocator::Vec as OxcVec,
 	ast::ast::{
@@ -195,104 +191,53 @@ pub fn canonicalize_replace_for_regress(s: &mut str) {
 	let bts = unsafe { s.as_bytes_mut() };
 	let mut it = (0..bts.len()).peekable();
 	while let Some(i) = it.next() {
-		if bts[i] == b'$' {
-			let Some(n) = it.peek().copied() else {
-				continue;
-			};
-			match bts[n] {
-				b'$' => {
-					it.next();
-				}
-				// regress does not support $& in replacement strings
-				// String.prototype.replace does not support $0
-				// regex101 supports $&
-				b'&' => {
-					bts[n] = b'0';
-					it.next();
-				}
-				// regress uses ${name} for named capture groups
-				// String.prototype.replace uses $<name> for named capture groups
-				// regex101 uses $<name>
-				b'<' => {
-					it.next();
-					let mut found_closing = false;
-					let mut end_idx = usize::MAX;
-					for i in it.by_ref() {
-						if bts[i] == b'>' {
-							found_closing = true;
-							end_idx = i;
-							break;
-						}
-					}
-					if found_closing {
-						debug_assert_eq!(bts[n], b'<');
-						debug_assert_eq!(bts[end_idx], b'>');
-						bts[n] = b'{';
-						bts[end_idx] = b'}';
-					} else {
-						// un-terminated, do nothing
-						return;
-					}
-				}
-				_ => {}
+		if bts[i] != b'$' {
+			continue;
+		}
+		let Some(n) = it.peek().copied() else {
+			continue;
+		};
+		match bts[n] {
+			b'$' => {
+				it.next();
 			}
+			// regress does not support $& in replacement strings
+			// String.prototype.replace does not support $0
+			// regex101 supports $&
+			b'&' => {
+				bts[n] = b'0';
+				it.next();
+			}
+			// regress uses ${name} for named capture groups
+			// String.prototype.replace uses $<name> for named capture groups
+			// regex101 uses $<name>
+			b'<' => {
+				it.next();
+				let mut found_closing = false;
+				let mut end_idx = usize::MAX;
+				for i in it.by_ref() {
+					if bts[i] == b'>' {
+						found_closing = true;
+						end_idx = i;
+						break;
+					}
+				}
+				if found_closing {
+					debug_assert_eq!(bts[n], b'<');
+					debug_assert_eq!(bts[end_idx], b'>');
+					bts[n] = b'{';
+					bts[end_idx] = b'}';
+				} else {
+					// un-terminated, do nothing
+					return;
+				}
+			}
+			_ => {}
 		}
 	}
 }
 
 // TODO: Helper for COW regex
-
-/// Convert a parsed `find:` / `match:` value into its canonical form.
-///
-/// `apply_regress_canon` controls regress-specific rewrites — currently the
-/// `\i` → `(?:[A-Za-z_$][\w$]*)` expansion via `canonicalize_regex_ident`.
-/// Pass `true` when the result will be evaluated by the `regress` crate
-/// (e.g. the offline reporter); pass `false` when shipping over the wire to
-/// a JS runtime, which understands either form but doesn't need the
-/// expansion. The Vencord `#{intl::...}` macro is always expanded regardless,
-/// because both sides need the hashed form.
-pub fn canonicalize_match_like(
-	raw: &RawMatchLike<'_>,
-	apply_regress_canon: bool,
-) -> PResult<MatchLike> {
-	let ret = match raw {
-		RawMatchLike::String(StringLiteral { value, span, .. })
-		| RawMatchLike::ComputedString(value, span) => {
-			let value = canonicalize_intl(value, false, *span)?;
-			MatchLike {
-				v: Match::Str(Finder::new(value.as_bytes()).into_owned()),
-				s: *span,
-			}
-		}
-		RawMatchLike::Regex(pat) => {
-			let flags = pat.regex.flags;
-			let span = pat.span;
-			let pat = pat.regex.pattern.text.as_str();
-			let pat = canonicalize_intl(pat, true, span)?;
-			let pat = if apply_regress_canon {
-				canonicalize_regex_ident(&pat)
-			} else {
-				pat
-			};
-			MatchLike {
-				v: Match::Regex(MatchRegex {
-					pattern: pat.into_owned(),
-					flags,
-					regex: None,
-				}),
-				s: span,
-			}
-		}
-		RawMatchLike::Template(TemplateLiteral { span, .. }) => {
-			return Err(err(
-				span,
-				"TODO: Support inlining template literals in match like",
-			));
-		}
-	};
-
-	Ok(ret)
-}
 
 impl<'ast> From<Option<&'ast Expression<'ast>>> for PatchPredicate<'ast> {
 	fn from(value: Option<&'ast Expression<'ast>>) -> Self {

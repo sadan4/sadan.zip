@@ -24,6 +24,12 @@ expression: patches
             flags: RegExpFlagsDef(
               bits: 0,
             ),
+            capture_spans: [
+              {
+                "start": 521,
+                "end": 537,
+              },
+            ],
           )),
           s: {
             "start": 491,
@@ -36,6 +42,15 @@ expression: patches
             "start": 577,
             "end": 605,
           },
+          used_replace_capture_spans: [
+            [],
+            [
+              {
+                "start": 601,
+                "end": 603,
+              },
+            ],
+          ],
         ),
         no_warn: false,
       ),
@@ -66,6 +81,20 @@ expression: patches
             flags: RegExpFlagsDef(
               bits: 0,
             ),
+            capture_spans: [
+              {
+                "start": 858,
+                "end": 875,
+              },
+              {
+                "start": 875,
+                "end": 883,
+              },
+              {
+                "start": 883,
+                "end": 903,
+              },
+            ],
           )),
           s: {
             "start": 857,
@@ -90,6 +119,44 @@ expression: patches
             "start": 931,
             "end": 1044,
           },
+          used_replace_capture_spans: [
+            [
+              {
+                "start": 932,
+                "end": 933,
+              },
+            ],
+            [
+              {
+                "start": 935,
+                "end": 946,
+              },
+              {
+                "start": 972,
+                "end": 983,
+              },
+            ],
+            [
+              {
+                "start": 948,
+                "end": 958,
+              },
+              {
+                "start": 997,
+                "end": 1007,
+              },
+            ],
+            [
+              {
+                "start": 960,
+                "end": 964,
+              },
+              {
+                "start": 1038,
+                "end": 1042,
+              },
+            ],
+          ],
         ),
         no_warn: false,
       ),

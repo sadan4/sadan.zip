@@ -24,6 +24,12 @@ expression: patches
             flags: RegExpFlagsDef(
               bits: 0,
             ),
+            capture_spans: [
+              {
+                "start": 851,
+                "end": 855,
+              },
+            ],
           )),
           s: {
             "start": 806,
@@ -44,6 +50,24 @@ expression: patches
             "start": 891,
             "end": 949,
           },
+          used_replace_capture_spans: [
+            [
+              {
+                "start": 892,
+                "end": 893,
+              },
+            ],
+            [
+              {
+                "start": 895,
+                "end": 904,
+              },
+              {
+                "start": 937,
+                "end": 946,
+              },
+            ],
+          ],
         ),
         no_warn: false,
       ),
@@ -54,6 +78,7 @@ expression: patches
             flags: RegExpFlagsDef(
               bits: 0,
             ),
+            capture_spans: [],
           )),
           s: {
             "start": 1103,
@@ -74,6 +99,18 @@ expression: patches
             "start": 1185,
             "end": 1226,
           },
+          used_replace_capture_spans: [
+            [
+              {
+                "start": 1185,
+                "end": 1186,
+              },
+              {
+                "start": 1193,
+                "end": 1194,
+              },
+            ],
+          ],
         ),
         no_warn: false,
       ),
@@ -84,6 +121,7 @@ expression: patches
             flags: RegExpFlagsDef(
               bits: 0,
             ),
+            capture_spans: [],
           )),
           s: {
             "start": 1383,
@@ -104,6 +142,18 @@ expression: patches
             "start": 1482,
             "end": 1523,
           },
+          used_replace_capture_spans: [
+            [
+              {
+                "start": 1482,
+                "end": 1483,
+              },
+              {
+                "start": 1490,
+                "end": 1491,
+              },
+            ],
+          ],
         ),
         no_warn: false,
       ),
@@ -114,6 +164,12 @@ expression: patches
             flags: RegExpFlagsDef(
               bits: 0,
             ),
+            capture_spans: [
+              {
+                "start": 1685,
+                "end": 1723,
+              },
+            ],
           )),
           s: {
             "start": 1683,
@@ -134,6 +190,18 @@ expression: patches
             "start": 1755,
             "end": 1798,
           },
+          used_replace_capture_spans: [
+            [
+              {
+                "start": 1755,
+                "end": 1756,
+              },
+              {
+                "start": 1764,
+                "end": 1765,
+              },
+            ],
+          ],
         ),
         no_warn: false,
       ),
@@ -144,6 +212,7 @@ expression: patches
             flags: RegExpFlagsDef(
               bits: 0,
             ),
+            capture_spans: [],
           )),
           s: {
             "start": 1946,
@@ -164,6 +233,18 @@ expression: patches
             "start": 2022,
             "end": 2064,
           },
+          used_replace_capture_spans: [
+            [
+              {
+                "start": 2022,
+                "end": 2023,
+              },
+              {
+                "start": 2031,
+                "end": 2032,
+              },
+            ],
+          ],
         ),
         no_warn: false,
       ),
@@ -194,6 +275,24 @@ expression: patches
             flags: RegExpFlagsDef(
               bits: 0,
             ),
+            capture_spans: [
+              {
+                "start": 2336,
+                "end": 2395,
+              },
+              {
+                "start": 2386,
+                "end": 2390,
+              },
+              {
+                "start": 2395,
+                "end": 2412,
+              },
+              {
+                "start": 2412,
+                "end": 2416,
+              },
+            ],
           )),
           s: {
             "start": 2335,
@@ -220,6 +319,54 @@ expression: patches
             "start": 2463,
             "end": 2653,
           },
+          used_replace_capture_spans: [
+            [
+              {
+                "start": 2464,
+                "end": 2465,
+              },
+            ],
+            [
+              {
+                "start": 2467,
+                "end": 2471,
+              },
+              {
+                "start": 2504,
+                "end": 2508,
+              },
+            ],
+            [
+              {
+                "start": 2473,
+                "end": 2478,
+              },
+              {
+                "start": 2543,
+                "end": 2548,
+              },
+            ],
+            [
+              {
+                "start": 2480,
+                "end": 2485,
+              },
+              {
+                "start": 2552,
+                "end": 2557,
+              },
+            ],
+            [
+              {
+                "start": 2487,
+                "end": 2496,
+              },
+              {
+                "start": 2606,
+                "end": 2615,
+              },
+            ],
+          ],
         ),
         no_warn: false,
       ),
@@ -250,6 +397,16 @@ expression: patches
             flags: RegExpFlagsDef(
               bits: 0,
             ),
+            capture_spans: [
+              {
+                "start": 2915,
+                "end": 2919,
+              },
+              {
+                "start": 2930,
+                "end": 2934,
+              },
+            ],
           )),
           s: {
             "start": 2892,
@@ -272,6 +429,34 @@ expression: patches
             "start": 2968,
             "end": 3084,
           },
+          used_replace_capture_spans: [
+            [
+              {
+                "start": 2969,
+                "end": 2970,
+              },
+            ],
+            [
+              {
+                "start": 2972,
+                "end": 2981,
+              },
+              {
+                "start": 3040,
+                "end": 3049,
+              },
+            ],
+            [
+              {
+                "start": 2983,
+                "end": 2988,
+              },
+              {
+                "start": 3055,
+                "end": 3060,
+              },
+            ],
+          ],
         ),
         no_warn: false,
       ),

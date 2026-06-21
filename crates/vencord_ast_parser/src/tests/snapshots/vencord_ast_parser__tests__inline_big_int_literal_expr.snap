@@ -24,6 +24,16 @@ expression: patches
             flags: RegExpFlagsDef(
               bits: 0,
             ),
+            capture_spans: [
+              {
+                "start": 419,
+                "end": 423,
+              },
+              {
+                "start": 431,
+                "end": 436,
+              },
+            ],
           )),
           s: {
             "start": 378,
@@ -48,6 +58,38 @@ expression: patches
             "start": 481,
             "end": 603,
           },
+          used_replace_capture_spans: [
+            [
+              {
+                "start": 482,
+                "end": 483,
+              },
+              {
+                "start": 511,
+                "end": 512,
+              },
+            ],
+            [
+              {
+                "start": 485,
+                "end": 492,
+              },
+              {
+                "start": 571,
+                "end": 578,
+              },
+            ],
+            [
+              {
+                "start": 494,
+                "end": 503,
+              },
+              {
+                "start": 583,
+                "end": 592,
+              },
+            ],
+          ],
         ),
         no_warn: false,
       ),

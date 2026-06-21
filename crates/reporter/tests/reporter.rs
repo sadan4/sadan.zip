@@ -18,6 +18,7 @@ async fn reporter() {
 	let test_data_root = Path::new(CRATE_ROOT)
 		.join("tests")
 		.join("data");
+	// generated from commit 760dce8c9ce665a1caea25d488c1619429595eb8
 	let patches_path = test_data_root.join("patches.mpk.zst");
 	let bundle_path =
 		test_data_root.join("5f9036bea3bd644a3e7f9fed68a5e30573bd4732.mpk.zst");
