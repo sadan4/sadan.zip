@@ -5,7 +5,7 @@ use explorer_server_core::Channel;
 use explorer_types::FullBundle;
 use insta::assert_ron_snapshot;
 use reporter::{
-	reporter::report_broken_patches,
+	reporter::{Msg, report_broken_patches},
 	util::MultiProgressWrapper,
 	vc,
 };
@@ -49,19 +49,21 @@ async fn reporter() {
 	let bar = MultiProgressWrapper::test_bar();
 	while let Some(msg) = rx.recv().await {
 		match msg {
-			reporter::reporter::Msg::RequestProgressBar(sender) => {
+			Msg::RequestProgressBar(sender) => {
 				sender.send(bar.clone()).unwrap();
 			}
-			reporter::reporter::Msg::Error(err) => {
+			Msg::Error(mut err) => {
+				err.sort_inner_data();
 				errs.push(err);
 			}
-			reporter::reporter::Msg::Done(duration) => {
+			Msg::Done(duration) => {
 				duration.expect("reporter failed");
 				break;
 			}
 		}
 	}
-	assert_ron_snapshot!(errs, @"");
+	errs.sort_unstable();
+	assert_ron_snapshot!(errs);
 }
 
 fn read_mpk_zst_file<T: DeserializeOwned>(path: &Path) -> Result<T> {

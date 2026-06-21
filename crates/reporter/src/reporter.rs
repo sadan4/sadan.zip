@@ -1,6 +1,7 @@
 use crate::{
 	diag::ReporterError,
 	fetcher::ScrapedOutput,
+	reporter::cmp_wrapped_oxc_diag::cmp_oxc_diag,
 	util::{MultiProgressWrapper, Stage},
 	vc::Plugin,
 };
@@ -30,6 +31,7 @@ use regress::Regex;
 use serde::{Deserialize, Serialize};
 use std::{
 	borrow::Cow,
+	cmp::Ordering,
 	collections::{HashMap, HashSet},
 	mem,
 	sync::Arc,
@@ -647,12 +649,27 @@ mod serde_oxc_diag;
 
 mod serde_named_source_string;
 
-#[derive(Serialize, Deserialize)]
+mod cmp_wrapped_oxc_diag;
+
+#[derive(Serialize, Deserialize, PartialEq, Eq)]
 pub struct WrappedOxcDiagnostic {
 	#[serde(with = "serde_oxc_diag")]
 	diag: Box<OxcDiagnostic>,
 	#[serde(with = "serde_named_source_string")]
 	src: NamedSource<String>,
+}
+
+impl PartialOrd for WrappedOxcDiagnostic {
+	fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+		Some(self.cmp(other))
+	}
+}
+
+impl Ord for WrappedOxcDiagnostic {
+	fn cmp(&self, other: &Self) -> Ordering {
+		cmp_oxc_diag(&self.diag, &other.diag)
+			.then_with(|| self.src.cmp(&other.src))
+	}
 }
 
 impl WrappedOxcDiagnostic {

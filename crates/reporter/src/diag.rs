@@ -8,7 +8,18 @@ use crate::reporter::WrappedOxcDiagnostic;
 
 mod serde_regress_error;
 
-#[derive(Error, Debug, Diagnostic, IsVariant, Serialize, Deserialize)]
+#[derive(
+	Error,
+	Debug,
+	Diagnostic,
+	IsVariant,
+	Serialize,
+	Deserialize,
+	PartialEq,
+	Eq,
+	PartialOrd,
+	Ord,
+)]
 pub enum ReporterError {
 	#[error("Bad Regex Syntax")]
 	#[diagnostic[
@@ -136,6 +147,28 @@ impl ReporterError {
 			}
 			| Self::ReplaceMatchNotFound { module_id, .. } => Some(*module_id),
 			Self::NoWarn(e) => e.module_id(),
+		}
+	}
+
+	pub fn sort_inner_data(&mut self) {
+		match self {
+			Self::FindAmbiguous {
+				ok_ids, err_ids, ..
+			} => {
+				ok_ids.sort_unstable();
+				err_ids.sort_unstable();
+			}
+			Self::FindAmbiguousRecoverable { err_ids, .. } => {
+				err_ids.sort_unstable();
+			}
+			Self::NoWarn(reporter_error) => {
+				reporter_error.sort_inner_data();
+			}
+			Self::BadRegexSyntax { .. }
+			| Self::ReplaceMatchNotFound { .. }
+			| Self::ReplaceMatchAmbiguous { .. }
+			| Self::ReplaceSyntaxError { .. }
+			| Self::FindNotFound { .. } => {}
 		}
 	}
 }
