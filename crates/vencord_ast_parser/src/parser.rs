@@ -1,4 +1,11 @@
 mod collect_capture_groups;
+pub(crate) use collect_capture_groups::{
+	Capture,
+	GroupInfo,
+	GroupReference,
+	collect_capture_groups,
+};
+use memchr::memmem::Finder;
 
 use std::{sync::mpsc, vec};
 
@@ -8,6 +15,9 @@ use crate::{
 	FindData,
 	FindType,
 	FindUse,
+	Match,
+	MatchLike,
+	MatchRegex,
 	Patch,
 	PluginInfo,
 	ReplaceLike,
@@ -15,12 +25,6 @@ use crate::{
 	Replacer,
 	TemplateEvaluator,
 	diag::{LocalSource, PResult, ParserDiagnostic, err, err_ns},
-	parser::collect_capture_groups::{
-		Capture,
-		GroupInfo,
-		GroupReference,
-		collect_capture_groups,
-	},
 	pass::{
 		EvalStringRawPass,
 		FlattenTemplatePass,
@@ -34,7 +38,8 @@ use crate::{
 		RawPatch,
 		RawReplace,
 		RawReplacement,
-		canonicalize_match_like,
+		canonicalize_intl,
+		canonicalize_regex_ident,
 		canonicalize_replace_for_regress,
 	},
 };
@@ -67,6 +72,7 @@ use oxc::{
 			ObjectExpression,
 			Program,
 			RegExpFlags,
+			RegExpLiteral,
 			SpreadElement,
 			StringLiteral,
 			TemplateLiteral,
@@ -893,6 +899,8 @@ impl<'ast> VencordAstParser<'ast> {
 				"replace function cannot have a rest parameter",
 			));
 		}
+		let mut used_replace_capture_spans =
+			vec![Vec::new(); f.params.items.len()];
 		for (i, param) in f.params.items.iter().enumerate() {
 			if let Some(e) = param.initializer.as_deref() {
 				return Err(err(e, "replace function has a default param"));
@@ -908,6 +916,7 @@ impl<'ast> VencordAstParser<'ast> {
 			debug_assert!(u8::try_from(i).is_ok(), "capture group overflow");
 			let insert_result =
 				parameter_map.insert(ident.symbol_id(), i as u8);
+			used_replace_capture_spans[i].push(ident.span());
 			debug_assert_eq!(
 				insert_result, None,
 				"should never have duplicate symbol ids"
@@ -951,6 +960,8 @@ impl<'ast> VencordAstParser<'ast> {
 						"template expr uses ident that is not a parameter",
 					)
 				})?;
+			used_replace_capture_spans[capture_idx as usize]
+				.push(ident_ref.span());
 			ret.captures.push(capture_idx);
 			ret.lits.push(lit);
 		}
@@ -962,9 +973,91 @@ impl<'ast> VencordAstParser<'ast> {
 		let ret = ReplaceLike {
 			v: Replacer::Template(ret),
 			s: f.span,
+			used_replace_capture_spans,
 		};
 
 		Ok(ret)
+	}
+
+	/// offset is added to the returned spans
+	///
+	/// TODO: named groups?
+	fn collect_replace_capture_spans(
+		value: &str,
+		offset: u32,
+	) -> Vec<Vec<Span>> {
+		let bts = value.as_bytes();
+		let mut it = (0..bts.len()).peekable();
+		let mut spans = Vec::new();
+		while let Some(i) = it.next() {
+			if bts[i] != b'$' {
+				continue;
+			}
+			let Some(n) = it.peek().copied() else {
+				continue;
+			};
+			match bts[n] {
+				// literal $ escape
+				b'$' => {
+					it.next();
+				}
+				b'&' => {
+					if spans.is_empty() {
+						spans.push(Vec::new());
+					}
+					spans[0].push(Span::new(
+						i as u32 + offset,
+						i as u32 + 2 + offset,
+					));
+					it.next();
+				}
+				b'1'..=b'9' => {
+					it.next();
+					let mut end_idx = n;
+					let mut group_num = usize::from(bts[n] - b'0');
+					while let Some(idx) = it.peek().copied() {
+						if !bts[idx].is_ascii_digit() {
+							break;
+						}
+						group_num *= 10;
+						group_num += usize::from(bts[idx] - b'0');
+						end_idx += 1;
+						it.next();
+					}
+					if group_num >= spans.len() {
+						spans.resize_with(group_num + 1, Vec::new);
+					}
+					spans[group_num].push(Span::new(
+						i as u32 + offset,
+						end_idx as u32 + 1 + offset,
+					));
+				}
+				// TODO: named capture groups?
+				// b'<' => {
+				// 	it.next();
+				// 	let mut found_closing = false;
+				// 	let mut end_idx = usize::MAX;
+				// 	for i in it.by_ref() {
+				// 		if bts[i] == b'>' {
+				// 			found_closing = true;
+				// 			end_idx = i;
+				// 			break;
+				// 		}
+				// 	}
+				// 	if found_closing {
+				// 		debug_assert_eq!(bts[n], b'<');
+				// 		debug_assert_eq!(bts[end_idx], b'>');
+				// 		bts[n] = b'{';
+				// 		bts[end_idx] = b'}';
+				// 	} else {
+				// 		// un-terminated, do nothing
+				// 		return;
+				// 	}
+				// }
+				_ => {}
+			}
+		}
+		spans
 	}
 
 	/// Convert a `RawPatch` into the canonical `Patch` form.
@@ -981,23 +1074,31 @@ impl<'ast> VencordAstParser<'ast> {
 	) -> PResult<Patch> {
 		let all = raw.all;
 		let no_warn = raw.no_warn;
-		let find = canonicalize_match_like(&raw.find, apply_regress_canon)?;
+		let find =
+			self.canonicalize_match_like(&raw.find, apply_regress_canon)?;
 		let mut replacement = Vec::with_capacity(raw.replacement.len());
 
 		for r in raw.replacement {
 			let match_ =
-				canonicalize_match_like(&r.match_, apply_regress_canon)?;
+				self.canonicalize_match_like(&r.match_, apply_regress_canon)?;
 			let no_warn = r.no_warn;
 			let replace = match &r.replace {
 				RawReplace::String(StringLiteral { value, span, .. })
 				| RawReplace::ComputedString(value, span) => {
 					let mut value = value.to_string();
+					// span.start is the `"` or `'` so we have to add one
+					let used_replace_capture_spans =
+						Self::collect_replace_capture_spans(
+							&value,
+							span.start + 1,
+						);
 					if apply_regress_canon {
 						canonicalize_replace_for_regress(&mut value);
 					}
 					ReplaceLike {
 						v: Replacer::Str(value),
 						s: *span,
+						used_replace_capture_spans,
 					}
 				}
 				RawReplace::Func(f) => self.canonicalize_replace_func(f)?,
@@ -1185,6 +1286,78 @@ impl<'ast> VencordAstParser<'ast> {
 			}
 		}
 		Ok(calls)
+	}
+
+	fn collect_capture_group_spans(&self, regex: &RegExpLiteral) -> Vec<Span> {
+		let groups = collect_capture_groups(
+			self,
+			regex
+				.regex
+				.pattern
+				.pattern
+				.as_ref()
+				.unwrap(),
+		);
+		let mut spans = Vec::with_capacity(groups.indexed_groups.len());
+		for cap in groups.indexed_groups {
+			spans.push(cap.group.span);
+		}
+		spans
+	}
+
+	/// Convert a parsed `find:` / `match:` value into its canonical form.
+	///
+	/// `apply_regress_canon` controls regress-specific rewrites — currently the
+	/// `\i` → `(?:[A-Za-z_$][\w$]*)` expansion via `canonicalize_regex_ident`.
+	/// Pass `true` when the result will be evaluated by the `regress` crate
+	/// (e.g. the offline reporter); pass `false` when shipping over the wire to
+	/// a JS runtime, which understands either form but doesn't need the
+	/// expansion. The Vencord `#{intl::...}` macro is always expanded regardless,
+	/// because both sides need the hashed form.
+	fn canonicalize_match_like(
+		&self,
+		raw: &RawMatchLike<'_>,
+		apply_regress_canon: bool,
+	) -> PResult<MatchLike> {
+		let ret = match raw {
+			RawMatchLike::String(StringLiteral { value, span, .. })
+			| RawMatchLike::ComputedString(value, span) => {
+				let value = canonicalize_intl(value, false, *span)?;
+				MatchLike {
+					v: Match::Str(Finder::new(value.as_bytes()).into_owned()),
+					s: *span,
+				}
+			}
+			RawMatchLike::Regex(pat) => {
+				let flags = pat.regex.flags;
+				let span = pat.span;
+				let capture_spans = self.collect_capture_group_spans(pat);
+				let pat = pat.regex.pattern.text.as_str();
+				let pat = canonicalize_intl(pat, true, span)?;
+				let pat = if apply_regress_canon {
+					canonicalize_regex_ident(&pat)
+				} else {
+					pat
+				};
+				MatchLike {
+					v: Match::Regex(MatchRegex {
+						pattern: pat.into_owned(),
+						flags,
+						regex: None,
+						capture_spans,
+					}),
+					s: span,
+				}
+			}
+			RawMatchLike::Template(TemplateLiteral { span, .. }) => {
+				return Err(err(
+					span,
+					"TODO: Support inlining template literals in match like",
+				));
+			}
+		};
+
+		Ok(ret)
 	}
 }
 

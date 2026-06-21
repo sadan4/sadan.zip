@@ -87,16 +87,6 @@ impl<'ast> VisitRegex<'ast> for CapturingGroups<'ast, '_> {
 				.any(|c| c.group.name == Some(name))
 		{
 			gr.flags |= CaptureFlags::DUPLICATE_NAMED;
-			// let diag = ParserDiagnostic {
-			// 	msg: "Duplicate named capturing group".into(),
-			// 	main_span: it.span,
-			// 	labels: vec![(
-			// 		orig_group.span,
-			// 		format!("Previous declaration of group `{name}`").into(),
-			// 	)],
-			// 	..Default::default()
-			// };
-			// diag_ch.send(diag).ok();
 		}
 		self.info.indexed_groups.push(gr);
 		walk_capturing_group(self, it);

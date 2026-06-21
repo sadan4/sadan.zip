@@ -209,6 +209,8 @@ pub fn compile_plugin_regexes(plugins: &mut [Plugin]) {
 						pattern: escape(str::from_utf8(s.needle()).unwrap()),
 						flags: RegExpFlags::empty(),
 						regex: None,
+						// this is from a plain string so it has no capture groups
+						capture_spans: Vec::new(),
 					};
 					replacement.match_.v = Match::Regex(regex);
 				}

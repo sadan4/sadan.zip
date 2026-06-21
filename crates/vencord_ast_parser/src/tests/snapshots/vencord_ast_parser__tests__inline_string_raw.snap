@@ -33,6 +33,14 @@ expression: patches
             "start": 362,
             "end": 370,
           },
+          used_replace_capture_spans: [
+            [
+              {
+                "start": 363,
+                "end": 365,
+              },
+            ],
+          ],
         ),
         no_warn: false,
       ),

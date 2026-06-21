@@ -44,6 +44,8 @@ pub struct ReplaceLike {
 	pub v: Replacer,
 	#[serde(deserialize_with = "deserialize_span")]
 	pub s: Span,
+	#[serde(deserialize_with = "deserialize_2d_spans")]
+	pub used_replace_capture_spans: Vec<Vec<Span>>,
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -80,6 +82,9 @@ pub struct MatchRegex {
 	#[serde(skip)]
 	#[eq(skip)]
 	pub regex: Option<Result<Regex, regress::Error>>,
+	/// capture group 1 will be at index 0
+	#[serde(deserialize_with = "deserialize_spans")]
+	pub capture_spans: Vec<Span>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -287,6 +292,19 @@ impl PartialEq for Match {
 
 impl Eq for Match {}
 
+/// Mirrors the `{ start, end }` map that [`Span`]'s [`Serialize`] impl emits.
+#[derive(Deserialize)]
+struct SpanData {
+	start: u32,
+	end: u32,
+}
+
+impl From<SpanData> for Span {
+	fn from(SpanData { start, end }: SpanData) -> Self {
+		Self::new(start, end)
+	}
+}
+
 /// [`Span`] only implements [`Serialize`] (as a `{ start, end }` map), not
 /// [`Deserialize`], so we provide the inverse here.
 fn deserialize_span<'de, D>(
@@ -295,13 +313,35 @@ fn deserialize_span<'de, D>(
 where
 	D: serde::Deserializer<'de>,
 {
-	#[derive(Deserialize)]
-	struct SpanData {
-		start: u32,
-		end: u32,
-	}
-	let SpanData { start, end } = SpanData::deserialize(deserializer)?;
-	Ok(Span::new(start, end))
+	Ok(SpanData::deserialize(deserializer)?.into())
+}
+
+/// As [`deserialize_span`], but for a sequence of spans (e.g. `used_replace_capture_spans`).
+fn deserialize_spans<'de, D>(deserializer: D) -> Result<Vec<Span>, D::Error>
+where
+	D: serde::Deserializer<'de>,
+{
+	Ok(Vec::<SpanData>::deserialize(deserializer)?
+		.into_iter()
+		.map(Into::into)
+		.collect())
+}
+
+/// As [`deserialize_span`], but for a sequence of spans (e.g. `capture_spans`).
+fn deserialize_2d_spans<'de, D>(
+	deserializer: D,
+) -> Result<Vec<Vec<Span>>, D::Error>
+where
+	D: serde::Deserializer<'de>,
+{
+	Ok(Vec::<Vec<SpanData>>::deserialize(deserializer)?
+		.into_iter()
+		.map(|vec| {
+			vec.into_iter()
+				.map(Into::into)
+				.collect()
+		})
+		.collect())
 }
 
 fn finder_get_needle(finder: &Finder<'_>) -> Box<str> {
