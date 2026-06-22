@@ -37,6 +37,7 @@ bytecount.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
+insta.workspace = true
 
 [lints]
 workspace = true

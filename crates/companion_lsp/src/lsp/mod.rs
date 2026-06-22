@@ -11,6 +11,8 @@ use tower_lsp::{
 		DidChangeTextDocumentParams,
 		DidCloseTextDocumentParams,
 		DidOpenTextDocumentParams,
+		DocumentHighlight,
+		DocumentHighlightParams,
 		ExecuteCommandOptions,
 		ExecuteCommandParams,
 		GotoDefinitionParams,
@@ -32,9 +34,11 @@ use tower_lsp::{
 		WorkDoneProgressOptions,
 	},
 };
+use oxc::allocator::Allocator;
+use vencord_ast_parser::{Patch, VencordAstParser};
 
 use crate::{
-	state::{Document, SharedState},
+	state::{CachedPatches, Document, SessionState, SharedState},
 	vencord_ext,
 };
 
@@ -45,6 +49,7 @@ pub mod cross_module;
 mod definition;
 pub mod diagnostics;
 mod document;
+mod hl;
 mod hover;
 pub mod patch_helper;
 mod references;
@@ -104,6 +109,7 @@ impl LanguageServer for Backend {
 			hover_provider: Some(HoverProviderCapability::Simple(true)),
 			definition_provider: Some(OneOf::Left(true)),
 			references_provider: Some(OneOf::Left(true)),
+			document_highlight_provider: Some(OneOf::Left(true)),
 			code_lens_provider: Some(CodeLensOptions {
 				resolve_provider: Some(false),
 			}),
@@ -148,10 +154,6 @@ impl LanguageServer for Backend {
 		document::on_did_close(self, params);
 	}
 
-	async fn hover(&self, params: HoverParams) -> LspResult<Option<Hover>> {
-		hover::hover(self, params).await
-	}
-
 	async fn goto_definition(
 		&self,
 		params: GotoDefinitionParams,
@@ -164,6 +166,17 @@ impl LanguageServer for Backend {
 		params: ReferenceParams,
 	) -> LspResult<Option<Vec<Location>>> {
 		references::references(self, params).await
+	}
+
+	async fn hover(&self, params: HoverParams) -> LspResult<Option<Hover>> {
+		hover::hover(self, params).await
+	}
+
+	async fn document_highlight(
+		&self,
+		params: DocumentHighlightParams,
+	) -> LspResult<Option<Vec<DocumentHighlight>>> {
+		hl::document_highlight(self, params).await
 	}
 
 	async fn code_lens(
@@ -187,6 +200,36 @@ pub fn get_doc(
 	uri: &tower_lsp::lsp_types::Url,
 ) -> Option<Document> {
 	state.get_document(uri)
+}
+
+/// Returns the canonical (LSP, non-regress) patches for `doc`, reusing the
+/// cached parse when the document version is unchanged.
+///
+/// Parsing is CPU-bound, so this is meant to be called from within a
+/// `spawn_blocking` task. Returns `None` if the document fails to parse or has
+/// no extractable patches (e.g. it is mid-edit / invalid); failures are not
+/// cached, so an actively-broken document re-parses until it becomes valid.
+pub fn get_patches(
+	state: &SessionState,
+	doc: &Document,
+) -> Option<Arc<Vec<Patch>>> {
+	if let Some(entry) = state.patch_cache.get(&doc.uri) {
+		if entry.version == doc.version {
+			return Some(Arc::clone(&entry.patches));
+		}
+	}
+
+	let alloc = Allocator::new();
+	let parser = VencordAstParser::try_new(&alloc, &doc.text, None).ok()?;
+	let patches = Arc::new(parser.patches(false).ok()?);
+	state.patch_cache.insert(
+		doc.uri.clone(),
+		CachedPatches {
+			version: doc.version,
+			patches: Arc::clone(&patches),
+		},
+	);
+	Some(patches)
 }
 
 const _: fn() = || {

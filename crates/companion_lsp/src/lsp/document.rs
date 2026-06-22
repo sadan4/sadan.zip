@@ -67,6 +67,10 @@ pub fn on_did_change(backend: &Backend, params: DidChangeTextDocumentParams) {
 pub fn on_did_close(backend: &Backend, params: DidCloseTextDocumentParams) {
 	let uri = params.text_document.uri;
 	backend.state.documents.remove(&uri);
+	backend
+		.state
+		.patch_cache
+		.remove(&uri);
 
 	// Fire-and-forget so the LSP sync path isn't blocked by the client
 	// notification round-trip.

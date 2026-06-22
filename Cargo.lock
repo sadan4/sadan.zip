@@ -562,6 +562,7 @@ dependencies = [
  "dashmap 6.2.1",
  "explorer_types",
  "futures-util",
+ "insta",
  "oxc",
  "pretty_printer",
  "regex",

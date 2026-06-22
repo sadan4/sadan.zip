@@ -6,6 +6,7 @@ use std::sync::{
 use dashmap::DashMap;
 use tokio::sync::{RwLock, oneshot};
 use tower_lsp::lsp_types::Url;
+use vencord_ast_parser::Patch;
 
 use crate::{
 	discord_bridge::DiscordBridge,
@@ -55,9 +56,24 @@ pub struct Document {
 	pub text: String,
 }
 
+/// A document's canonical (LSP, non-regress) patches, tagged with the document
+/// version they were parsed from so stale entries can be detected.
+pub struct CachedPatches {
+	pub version: i32,
+	/// `Patch` is owned (`'static`), so it outlives the arena it was parsed in;
+	/// the `Arc` lets readers share it without cloning the whole `Vec`.
+	pub patches: Arc<Vec<Patch>>,
+}
+
 #[derive(Default)]
 pub struct SessionState {
 	pub documents: DashMap<Url, Document>,
+	/// Per-document cache of parsed patches, keyed by URL.
+	/// `textDocument/documentHighlight` fires on every cursor movement, so
+	/// re-parsing the whole file each request is wasteful; entries are reused
+	/// while the document version is unchanged, overwritten on a version bump,
+	/// and removed on close. See [`crate::lsp::get_patches`].
+	pub patch_cache: DashMap<Url, CachedPatches>,
 	/// Bridge owns its own per-field locking; no outer `RwLock` here.
 	pub discord: DiscordBridge,
 	pub module_cache: RwLock<ModuleCache>,

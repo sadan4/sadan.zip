@@ -1,7 +1,7 @@
 pub mod find;
 
 use anyhow::Result;
-use derive_more::{Eq, PartialEq};
+use derive_more::{Eq, PartialEq, Unwrap};
 use itertools::Itertools;
 use memchr::memmem::Finder;
 use oxc::{ast::ast::RegExpFlags, span::Span};
@@ -67,7 +67,8 @@ pub struct MatchLike {
 	pub s: Span,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Unwrap)]
+#[unwrap(ref)]
 pub enum Match {
 	#[serde(with = "FinderDef")]
 	Str(Finder<'static>),
@@ -83,6 +84,9 @@ pub struct MatchRegex {
 	#[eq(skip)]
 	pub regex: Option<Result<Regex, regress::Error>>,
 	/// capture group 1 will be at index 0
+	/// 
+	/// TODO: add highlights for whole reference for when the regex has look(?:ahead|behind) assertions
+	/// TODO: make Vec<Vec<Span>> to also highlight backreferences
 	#[serde(deserialize_with = "deserialize_spans")]
 	pub capture_spans: Vec<Span>,
 }

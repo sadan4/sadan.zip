@@ -1,5 +1,6 @@
 use crate::{VencordAstParser, pass::dump_ast};
 use insta::assert_ron_snapshot;
+use itertools::Itertools as _;
 use oxc::allocator::Allocator;
 
 macro_rules! dump_patches {
@@ -84,4 +85,45 @@ fn gets_plugin_name() {
 		VencordAstParser::try_new(&a, code, Some("data/plugin1.tsx")).unwrap();
 	let plugin_name = parser.plugin_info().unwrap().name;
 	assert_eq!(plugin_name, "Plugin1");
+}
+
+#[test]
+fn gets_capture_group_ranges() {
+	let a = Allocator::new();
+	let code = include_str!("data/plugin10.tsx");
+	let parser =
+		VencordAstParser::try_new(&a, code, Some("data/plugin10.tsx")).unwrap();
+	let patches = parser.patches(true).unwrap();
+	let patch = &patches[0];
+	let capture_group_ranges = patch.replacement[0]
+		.match_
+		.v
+		.unwrap_regex_ref()
+		.capture_spans
+		.iter()
+		.map(|span| &code[*span])
+		.collect_vec();
+	let replace_ranges = patch.replacement[0]
+		.replace
+		.used_replace_capture_spans
+		.iter()
+		.flatten()
+		.map(|span| &code[*span])
+		.collect_vec();
+	assert_ron_snapshot!(capture_group_ranges, @r#"
+	[
+	  "(\\i)",
+	  "(.{1,500}\\i)",
+	  "(\\i)",
+	  "(Math\\.max\\(\\d+?,\\i(?:-\\i\\.length){2}\\))",
+	]
+	"#);
+	assert_ron_snapshot!(replace_ranges, @r#"
+	[
+	  "$2",
+	  "$3",
+	  "$3",
+	  "$4",
+	]
+	"#);
 }

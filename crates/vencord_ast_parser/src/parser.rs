@@ -91,18 +91,18 @@ use tracing::{debug, trace, warn};
 
 pub struct VencordAstParser<'ast> {
 	pub(crate) alloc: &'ast Allocator,
-	pub(crate) ast_builder: AstBuilder<'ast>,
 	pub(crate) prog: &'ast Program<'ast>,
 	pub(crate) sema: Semantic<'ast>,
 	pub(crate) txt: &'ast str,
 	pub(crate) path: &'ast str,
-	cache: Cache,
+	cache: Cache<'ast>,
 	pub diag_ch: Option<mpsc::Sender<ParserDiagnostic>>,
 }
 
 #[derive(Default)]
-struct Cache {
+struct Cache<'ast> {
 	finds: cache::Ref<PResult<Vec<FindUse>>>,
+	define_plugin: cache::Ref<PResult<&'ast ObjectExpression<'ast>>>,
 }
 
 const DEFINE_PLUGIN_IMPORT_SOURCE: &str = "@utils/types";
@@ -129,7 +129,6 @@ impl<'ast> VencordAstParser<'ast> {
 
 		Ok(Self {
 			alloc,
-			ast_builder: AstBuilder::new(alloc),
 			prog,
 			sema,
 			txt: source,
@@ -164,7 +163,7 @@ impl<'ast> VencordAstParser<'ast> {
 		}
 	}
 
-	fn check_find(&self, find: RawMatchLike<'_>) {
+	fn check_find(&self, find: RawMatchLike<'ast>) {
 		if let RawMatchLike::Regex(r) = find {
 			let ch = self.diag_ch.as_ref().unwrap();
 			let Some(pat) = r.regex.pattern.pattern.as_deref() else {
@@ -455,7 +454,7 @@ impl<'ast> VencordAstParser<'ast> {
 		}
 	}
 
-	pub fn collect_diagnostics(&self) {
+	pub fn collect_diagnostics<'a: 'ast>(&'a self) {
 		debug_assert!(
 			self.diag_ch.is_some(),
 			"diag_ch should be set before calling collect_diagnostics"
@@ -479,7 +478,7 @@ impl<'ast> VencordAstParser<'ast> {
 		}
 	}
 
-	fn define_plugin<'a: 'ast>(
+	fn define_plugin_impl<'a: 'ast>(
 		&'a self,
 	) -> PResult<&'ast ObjectExpression<'ast>> {
 		let utils_types_import = self
@@ -512,10 +511,23 @@ impl<'ast> VencordAstParser<'ast> {
 		Err(err_ns("Failed to find definePlugin call"))
 	}
 
+	fn define_plugin<'a: 'ast>(
+		&'a self,
+	) -> Result<&'ast ObjectExpression<'ast>, &'a ParserDiagnostic> {
+		match self
+			.cache
+			.define_plugin
+			.get(|| self.define_plugin_impl())
+		{
+			Ok(a) => Ok(*a),
+			Err(e) => Err(e),
+		}
+	}
+
 	fn plugin_name<'a: 'ast>(&'a self) -> PResult<&'ast str> {
 		let define_plugin = self
 			.define_plugin()
-			.map_err(|e| err_ns("Failed to find definePlugin").s(e))?;
+			.map_err(|e| err_ns("Failed to find definePlugin").s(e.clone()))?;
 		let name_prop = define_plugin
 			.get_property("name")
 			.ok_or_else(|| {
@@ -567,7 +579,7 @@ impl<'ast> VencordAstParser<'ast> {
 						)
 					})?;
 				Ok(RawMatchLike::ComputedString(
-					self.ast_builder.str_from_cow(&cow),
+					AstBuilder::new(self.alloc).str_from_cow(&cow),
 					b.span,
 				))
 			}
@@ -625,7 +637,7 @@ impl<'ast> VencordAstParser<'ast> {
 						err(s.as_ref(), "Invalid bin exp for replace")
 					})?;
 				Ok(RawReplace::ComputedString(
-					self.ast_builder.str_from_cow(&cow),
+					AstBuilder::new(self.alloc).str_from_cow(&cow),
 					s.span,
 				))
 			}
@@ -816,7 +828,7 @@ impl<'ast> VencordAstParser<'ast> {
 		let mut ret = OxcVec::new_in(self.alloc);
 		let define_plugin = self
 			.define_plugin()
-			.map_err(|e| err_ns("Failed to find definePlugin").s(e))?;
+			.map_err(|e| err_ns("Failed to find definePlugin").s(e.clone()))?;
 		let Some(patches) = define_plugin
 			.get_property("patches")
 			.map(|p| &p.value)
@@ -872,7 +884,7 @@ impl<'ast> VencordAstParser<'ast> {
 	}
 
 	pub fn canonicalize_replace_func<'a: 'ast>(
-		&self,
+		&'a self,
 		f: &'ast ArrowFunctionExpression<'ast>,
 	) -> PResult<ReplaceLike> {
 		let f_ret = self
@@ -1067,9 +1079,9 @@ impl<'ast> VencordAstParser<'ast> {
 	/// regex, `$&` → `$0` / `$<name>` → `${name}` in string replacements). The
 	/// LSP sets this to `false` since it ships patches to a JS runtime and
 	/// never evaluates them locally; the offline reporter sets it to `true`.
-	pub fn canonicalize_patch(
-		&self,
-		raw: RawPatch<'_>,
+	pub fn canonicalize_patch<'a: 'ast>(
+		&'a self,
+		raw: RawPatch<'ast>,
 		apply_regress_canon: bool,
 	) -> PResult<Patch> {
 		let all = raw.all;
@@ -1128,7 +1140,10 @@ impl<'ast> VencordAstParser<'ast> {
 	}
 	/// Walk all `definePlugin({ patches })` and return the canonical patches.
 	/// See [`Self::canonicalize_patch`] for the meaning of `apply_regress_canon`.
-	pub fn patches(&self, apply_regress_canon: bool) -> PResult<Vec<Patch>> {
+	pub fn patches<'a: 'ast>(
+		&'a self,
+		apply_regress_canon: bool,
+	) -> PResult<Vec<Patch>> {
 		let name = self
 			.plugin_name()
 			.unwrap_or("<unknown plugin>");
@@ -1155,12 +1170,12 @@ impl<'ast> VencordAstParser<'ast> {
 			.collect();
 		Ok(ret)
 	}
-	pub fn get_finds(&self) -> &PResult<Vec<FindUse>> {
+	pub fn get_finds<'a: 'ast>(&'a self) -> &'a PResult<Vec<FindUse>> {
 		self.cache
 			.finds
 			.get(|| self.get_finds_())
 	}
-	fn get_finds_(&self) -> PResult<Vec<FindUse>> {
+	fn get_finds_<'a: 'ast>(&'a self) -> PResult<Vec<FindUse>> {
 		let mut ret = Vec::new();
 		for call in self.get_find_uses()? {
 			if call.arguments.is_empty() {
@@ -1254,7 +1269,9 @@ impl<'ast> VencordAstParser<'ast> {
 			_ => Err(err(arg, "Unsupported find argument type")),
 		}
 	}
-	fn get_find_uses(&self) -> PResult<Vec<&'ast CallExpression<'ast>>> {
+	fn get_find_uses<'a: 'ast>(
+		&'a self,
+	) -> PResult<Vec<&'ast CallExpression<'ast>>> {
 		let webpack_import = self
 			.find_import_by_name(FIND_IMPORT_SOURCE)
 			.ok_or_else(|| err_ns("Failed to find `@webpack` import"))?;
@@ -1288,7 +1305,10 @@ impl<'ast> VencordAstParser<'ast> {
 		Ok(calls)
 	}
 
-	fn collect_capture_group_spans(&self, regex: &RegExpLiteral) -> Vec<Span> {
+	fn collect_capture_group_spans(
+		&self,
+		regex: &'ast RegExpLiteral,
+	) -> Vec<Span> {
 		let groups = collect_capture_groups(
 			self,
 			regex
@@ -1316,7 +1336,7 @@ impl<'ast> VencordAstParser<'ast> {
 	/// because both sides need the hashed form.
 	fn canonicalize_match_like(
 		&self,
-		raw: &RawMatchLike<'_>,
+		raw: &RawMatchLike<'ast>,
 		apply_regress_canon: bool,
 	) -> PResult<MatchLike> {
 		let ret = match raw {
@@ -1390,7 +1410,7 @@ impl MayHaveSideEffectsContext<'_> for VencordAstParser<'_> {
 
 impl<'ast> ConstantEvaluationCtx<'ast> for VencordAstParser<'ast> {
 	fn ast(&self) -> AstBuilder<'ast> {
-		self.ast_builder
+		AstBuilder::new(self.alloc)
 	}
 }
 
