@@ -13,7 +13,6 @@ http.workspace = true
 tracing.workspace = true
 html_parser.workspace = true
 regress.workspace = true
-itertools.workspace = true
 memchr.workspace = true
 oxc_allocator.workspace = true
 const_format.workspace = true

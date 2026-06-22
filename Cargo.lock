@@ -847,7 +847,6 @@ dependencies = [
  "explorer_types",
  "html_parser",
  "http",
- "itertools 0.14.0",
  "memchr",
  "oxc_allocator",
  "regress",
@@ -3005,7 +3004,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bitcode",
- "bytes",
  "clap",
  "clap_complete",
  "clearscreen",
