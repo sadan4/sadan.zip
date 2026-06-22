@@ -1,5 +1,6 @@
 use std::{future, sync::Arc};
 
+use oxc::allocator::Allocator;
 use tower_lsp::{
 	Client,
 	LanguageServer,
@@ -34,7 +35,6 @@ use tower_lsp::{
 		WorkDoneProgressOptions,
 	},
 };
-use oxc::allocator::Allocator;
 use vencord_ast_parser::{Patch, VencordAstParser};
 
 use crate::{

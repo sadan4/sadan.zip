@@ -19,7 +19,10 @@ pub enum Cmd {
 	Lint,
 }
 
-pub async fn run(cli: super::Cli, global_bar: &MultiProgressWrapper) -> anyhow::Result<i8> {
+pub async fn run(
+	cli: super::Cli,
+	global_bar: &MultiProgressWrapper,
+) -> anyhow::Result<i8> {
 	match cli.cmd {
 		Cmd::Run => run::run_reporter(&cli, global_bar)
 			.await

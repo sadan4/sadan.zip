@@ -140,8 +140,7 @@ impl<'a> FormattedContentBuilder<'a> {
 				self.add_text("\n");
 			}
 			'done: {
-				if (self.indent_size as usize) < INDENT_CACHE.len()
-				{
+				if (self.indent_size as usize) < INDENT_CACHE.len() {
 					// SAFETY: we just checked that self.indent_size is a valid index
 					let indent_cache = unsafe {
 						INDENT_CACHE.get_unchecked(self.indent_size as usize)

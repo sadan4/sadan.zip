@@ -45,7 +45,11 @@ impl<'s> Rope<'s> {
 	}
 
 	pub fn reserve(&mut self, additional: usize) {
-		#[expect(clippy::cast_precision_loss, reason = "we just want a rough estimate here")]
-		self.strs.reserve((additional as f64 * 1.75) as usize);
+		#[expect(
+			clippy::cast_precision_loss,
+			reason = "we just want a rough estimate here"
+		)]
+		self.strs
+			.reserve((additional as f64 * 1.75) as usize);
 	}
 }

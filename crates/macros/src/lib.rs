@@ -1,5 +1,5 @@
-mod test_log;
 mod cache_test;
+mod test_log;
 
 use proc_macro::TokenStream;
 

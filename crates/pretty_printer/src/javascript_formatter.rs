@@ -50,7 +50,7 @@ use crate::{
 mod token_stream {
 	use std::hint::likely;
 
-use derive_more::{From, IsVariant};
+	use derive_more::{From, IsVariant};
 
 	use super::{Comment, GetSpan, Kind, OxcVec, Token};
 	pub struct TokenStream<'a> {

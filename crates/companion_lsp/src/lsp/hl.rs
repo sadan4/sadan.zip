@@ -50,8 +50,7 @@ pub async fn document_highlight(
 }
 
 fn find_relevant_patch(patches: &[Patch], pos: u32) -> Option<&Patch> {
-	let pred =
-		|patch: &&Patch| pos >= patch.span.start && pos < patch.span.end;
+	let pred = |patch: &&Patch| pos >= patch.span.start && pos < patch.span.end;
 	if cfg!(debug_assertions) {
 		let mut found = patches.iter().filter(pred);
 		let first = found.next();

@@ -1,4 +1,9 @@
-use std::{borrow::Cow, mem, sync::{Arc, Mutex}, time::Duration};
+use std::{
+	borrow::Cow,
+	mem,
+	sync::{Arc, Mutex},
+	time::Duration,
+};
 
 use derive_more::{Debug, Deref, DerefMut, From};
 use indicatif::{

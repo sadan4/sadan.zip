@@ -16,7 +16,10 @@ use tokio::{fs, sync::mpsc};
 use tracing::{debug, info, trace, warn};
 
 use crate::{
-	cmds::run::{FullReporterResult, run_reporter, run_with_data}, fetcher::ScrapedOutput, util::MultiProgressWrapper, vc::{self, collect_plugins_from_paths}
+	cmds::run::{FullReporterResult, run_reporter, run_with_data},
+	fetcher::ScrapedOutput,
+	util::MultiProgressWrapper,
+	vc::{self, collect_plugins_from_paths},
 };
 
 type NotifyEvent = notify::Result<notify::Event>;
@@ -57,7 +60,10 @@ fn hash_contents(data: &[u8]) -> u64 {
 }
 
 // TODO: exit success on ctrl-c
-pub async fn run_watcher(cli: crate::Cli, global_bar: &MultiProgressWrapper) -> Result<Infallible> {
+pub async fn run_watcher(
+	cli: crate::Cli,
+	global_bar: &MultiProgressWrapper,
+) -> Result<Infallible> {
 	info!("Starting watcher");
 	let FullReporterResult {
 		plugins, modules, ..
@@ -141,7 +147,9 @@ pub async fn run_watcher(cli: crate::Cli, global_bar: &MultiProgressWrapper) -> 
 		global_bar.suspend(|| clearscreen::clear().unwrap());
 		info!("Plugins changed. Re-running reporter...");
 		let new_plugins = collect_plugins_from_paths(changed_contents).await?;
-		let _ = run_for_all_plugins(&cli, new_plugins, modules.clone(), global_bar).await?;
+		let _ =
+			run_for_all_plugins(&cli, new_plugins, modules.clone(), global_bar)
+				.await?;
 		info!("Finished re-run");
 	}
 	bail!("File watcher channel closed.");

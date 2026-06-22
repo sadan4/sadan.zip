@@ -6,7 +6,10 @@ use vencord_ast_parser::{VencordAstParser, diag::LocalSource};
 
 use crate::{util::MultiProgressWrapper, vc};
 // TODO: exit success on ctrl-c
-pub fn lint(mut cli: crate::Cli, global_bar: &MultiProgressWrapper) -> Result<()> {
+pub fn lint(
+	mut cli: crate::Cli,
+	global_bar: &MultiProgressWrapper,
+) -> Result<()> {
 	info!("Starting linting");
 	let start_time = Instant::now();
 	let mut i = 0u32;

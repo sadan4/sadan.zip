@@ -6,7 +6,8 @@ use reporter::{
 	Cli,
 	cmds,
 	err::printer::GraphicalReportHandler,
-	util::MultiProgressWrapper, vc,
+	util::MultiProgressWrapper,
+	vc,
 };
 use std::{io, process, sync::LazyLock};
 use terminal_size::{Width, terminal_size};
@@ -70,7 +71,10 @@ fn main() {
 	miette::set_hook(Box::new(|_| {
 		Box::new(
 			GraphicalReportHandler::new()
-				.with_width(terminal_size().map_or(80, |(Width(width), _)| width as usize))
+				.with_width(
+					terminal_size()
+						.map_or(80, |(Width(width), _)| width as usize),
+				)
 				.with_cause_chain(),
 		)
 	}))

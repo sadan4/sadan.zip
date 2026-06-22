@@ -1,3 +1,4 @@
+mod cache;
 pub mod cmds;
 pub mod diag;
 pub mod err;
@@ -5,7 +6,6 @@ pub mod fetcher;
 pub mod reporter;
 pub mod util;
 pub mod vc;
-mod cache;
 
 use std::sync::Arc;
 

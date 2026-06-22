@@ -89,7 +89,7 @@ where
 }
 
 /// write a value to cache
-/// 
+///
 /// it will be compressed with zstd at the given compression level (default 10)
 pub async fn write<T>(
 	key: &str,
