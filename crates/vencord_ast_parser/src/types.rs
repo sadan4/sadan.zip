@@ -16,9 +16,17 @@ use std::hash::{Hash, Hasher};
 	Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
 )]
 pub struct PluginInfo<'ast> {
+	/// the name of the plugin
 	pub name: &'ast str,
+	/// a description of the plugin
+	///
+	/// while this is required by definePlugin, we treat it as optional
 	pub description: Option<&'ast str>,
 	/// the authors of the plugin
+	///
+	/// [`None`] means that the property was not in the plugin definition, while `Some(vec![])` means that it was present but empty
+	///
+	/// while this is required by definePlugin, we treat it as optional
 	pub devs: Option<Vec<PluginDev<'ast>>>,
 	/// Source span covering the `definePlugin` object literal.
 	#[serde(deserialize_with = "deserialize_span")]
@@ -37,9 +45,14 @@ pub struct PluginInfo<'ast> {
 	Serialize,
 	Deserialize,
 )]
+/// A developer of a plugin, either an inline declaration or a reference to a known dev.
+///
+/// used in [`PluginInfo`]
 pub struct PluginDev<'a> {
 	#[serde(bound(deserialize = "'de: 'a"))]
+	/// the dev
 	pub dev: Dev<'a>,
+	/// the span of where the dev is listed within the plugin
 	#[serde(deserialize_with = "deserialize_span")]
 	pub span: Span,
 }
@@ -66,7 +79,21 @@ impl<'a> PluginDev<'a> {
 	Deserialize,
 )]
 pub enum Dev<'a> {
+	/// a reference to a dev
+	/// ## Example:
+	/// ```ts
+	/// Devs.sadan;
+	/// EquicordDevs.sadan;
+	/// ```
 	Reference { key: &'a str, obj: &'a str },
+	/// an inline dev
+	/// ## Example:
+	/// ```ts
+	/// let dev = {
+	///     name: "sadan",
+	///     id: 999999999999999999n,
+	/// };
+	/// ```
 	Inline { name: &'a str, id: u64 },
 }
 
