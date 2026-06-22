@@ -25,11 +25,16 @@ use tower_lsp::{
 };
 use webpack_ast_parser::{WebpackAstParser, bundle};
 
-use crate::lsp::{
-	Backend,
-	cross_module::{CrossModuleCtx, CrossModuleData},
-	get_doc,
-	references::get_or_build_data,
+use crate::{
+	lsp::{
+		self,
+		Backend,
+		cross_module::{CrossModuleCtx, CrossModuleData},
+		get_doc,
+		hl,
+		references::get_or_build_data,
+	},
+	state::Document,
 };
 
 pub async fn goto_definition(
@@ -39,14 +44,20 @@ pub async fn goto_definition(
 	let uri = params
 		.text_document_position_params
 		.text_document
-		.uri
-		.clone();
+		.uri;
 	let pos = params
 		.text_document_position_params
 		.position;
 	let Some(doc) = get_doc(&backend.state, &uri) else {
 		return Ok(None);
 	};
+
+	// Vencord plugin files: cursor on a capture-group use in a replacement
+	// (e.g. `$1`) jumps to that group's definition in the regex. Handled
+	// before the webpack path since the two operate on disjoint file kinds.
+	if let Some(loc) = capture_group_definition(backend, &doc, pos).await {
+		return Ok(Some(GotoDefinitionResponse::Scalar(loc)));
+	}
 
 	// `WebpackAstParser` expects extracted webpack module source. Skip
 	// vencord plugin files / non-JS, and bail before we hand the source
@@ -82,6 +93,35 @@ pub async fn goto_definition(
 	.flatten();
 
 	Ok(locs.map(GotoDefinitionResponse::Array))
+}
+
+/// Resolves a capture-group use under the cursor to its definition span in the
+/// regex. Operates on the cached vencord patch parse (reused across requests
+/// when the document version is unchanged), so it stays cheap to attempt on
+/// every `goto_definition` before falling through to the webpack path.
+async fn capture_group_definition(
+	backend: &Backend,
+	doc: &Document,
+	pos: Position,
+) -> Option<Location> {
+	let state = Arc::clone(&backend.state);
+	let doc = doc.clone();
+	tokio::task::spawn_blocking(move || {
+		let offset = ast_parser::get_offset_from_line_and_column(
+			&doc.text,
+			pos.line,
+			pos.character,
+		);
+		let patches = lsp::get_patches(&state, &doc)?;
+		let span = hl::capture_definition_span(&patches, offset)?;
+		Some(Location {
+			uri: doc.uri.clone(),
+			range: span_to_range(&doc.text, span),
+		})
+	})
+	.await
+	.ok()
+	.flatten()
 }
 
 fn resolve_definitions(

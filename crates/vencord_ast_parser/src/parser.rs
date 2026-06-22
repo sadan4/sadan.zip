@@ -1177,7 +1177,7 @@ impl<'ast> VencordAstParser<'ast> {
 	}
 	fn get_finds_<'a: 'ast>(&'a self) -> PResult<Vec<FindUse>> {
 		let mut ret = Vec::new();
-		for call in self.get_find_uses()? {
+		for call in self.get_find_uses() {
 			if call.arguments.is_empty() {
 				continue;
 			}
@@ -1271,10 +1271,11 @@ impl<'ast> VencordAstParser<'ast> {
 	}
 	fn get_find_uses<'a: 'ast>(
 		&'a self,
-	) -> PResult<Vec<&'ast CallExpression<'ast>>> {
-		let webpack_import = self
-			.find_import_by_name(FIND_IMPORT_SOURCE)
-			.ok_or_else(|| err_ns("Failed to find `@webpack` import"))?;
+	) -> Vec<&'ast CallExpression<'ast>> {
+		let Some(webpack_import) = self.find_import_by_name(FIND_IMPORT_SOURCE)
+		else {
+			return Vec::new();
+		};
 		let default_var = OxcVec::new_in(self.alloc);
 		let import_syms = webpack_import
 			.specifiers
@@ -1302,7 +1303,7 @@ impl<'ast> VencordAstParser<'ast> {
 				calls.push(parent_call);
 			}
 		}
-		Ok(calls)
+		calls
 	}
 
 	fn collect_capture_group_spans(

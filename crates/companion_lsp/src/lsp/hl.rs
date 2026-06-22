@@ -123,6 +123,46 @@ fn smallest_covering_span(pos: u32, spans: &[Span]) -> Option<u32> {
 	ret
 }
 
+/// If `pos` lands on a *use* of a capture group inside a replacement (e.g. the
+/// `$1` in `"$1.foo"`, or the `arg1` parameter reference in a replace
+/// function), returns the span of that group's *definition* — the capture
+/// group's parentheses in the regex pattern. Used for "go to definition".
+///
+/// Returns `None` when the cursor isn't on a capture-group use, or when the
+/// referenced group has no recorded definition span (e.g. the `$&` whole-match
+/// reference, or a `$N` that exceeds the regex's group count).
+pub fn capture_definition_span(patches: &[Patch], pos: u32) -> Option<Span> {
+	let patch = find_relevant_patch(patches, pos)?;
+	for replacement in &patch.replacement {
+		// Only regex matches have capture groups to navigate to.
+		let Match::Regex(MatchRegex { capture_spans, .. }) =
+			&replacement.match_.v
+		else {
+			continue;
+		};
+		// `used_replace_capture_spans[g]` holds the uses of group `g`; index 0
+		// is the whole-match reference (`$&`), which has no group definition.
+		for (g, uses) in replacement
+			.replace
+			.used_replace_capture_spans
+			.iter()
+			.enumerate()
+			.skip(1)
+		{
+			let on_use = uses
+				.iter()
+				.any(|span| pos >= span.start && pos < span.end);
+			if on_use {
+				// `capture_spans[i]` is group `i + 1`, so group `g` lives at
+				// index `g - 1`. `.get` guards against a `$N` that references
+				// more groups than the regex actually has.
+				return capture_spans.get(g - 1).copied();
+			}
+		}
+	}
+	None
+}
+
 fn highlights_from_patches(
 	patches: &[Patch],
 	src: &str,
@@ -220,5 +260,66 @@ mod tests {
 		  ),
 		]
 		");
+	}
+
+	#[test]
+	fn capture_use_resolves_to_group_definition() {
+		let src = include_str!(
+			"../../../vencord_ast_parser/src/tests/data/plugin10.tsx"
+		);
+		let alloc = Allocator::new();
+		let ast = VencordAstParser::try_new(&alloc, src, None).unwrap();
+		let patches = ast.patches(false).unwrap();
+
+		let replacement = &patches[0].replacement[0];
+		let capture_spans = &replacement
+			.match_
+			.v
+			.unwrap_regex_ref()
+			.capture_spans;
+
+		// For every recorded use of every capture group, the cursor anywhere
+		// inside that use should resolve to the group's definition span — i.e.
+		// `capture_spans[group - 1]`.
+		for (group, uses) in replacement
+			.replace
+			.used_replace_capture_spans
+			.iter()
+			.enumerate()
+			.skip(1)
+		{
+			let Some(&def) = capture_spans.get(group - 1) else {
+				continue;
+			};
+			for use_span in uses {
+				for pos in use_span.start..use_span.end {
+					assert_eq!(
+						capture_definition_span(&patches, pos),
+						Some(def),
+						"use of group {group} at {pos} should resolve to its \
+						 definition"
+					);
+				}
+			}
+		}
+	}
+
+	#[test]
+	fn cursor_outside_any_capture_use_resolves_to_nothing() {
+		let src = include_str!(
+			"../../../vencord_ast_parser/src/tests/data/plugin10.tsx"
+		);
+		let alloc = Allocator::new();
+		let ast = VencordAstParser::try_new(&alloc, src, None).unwrap();
+		let patches = ast.patches(false).unwrap();
+
+		// A capture-group *definition* span (in the regex) is not a *use*, so
+		// goto-definition from there yields nothing.
+		let def = patches[0].replacement[0]
+			.match_
+			.v
+			.unwrap_regex_ref()
+			.capture_spans[0];
+		assert_eq!(capture_definition_span(&patches, def.start), None);
 	}
 }
