@@ -127,3 +127,92 @@ fn gets_capture_group_ranges() {
 	]
 	"#);
 }
+
+#[test]
+fn gets_plugin_meta() {
+	let a = Allocator::new();
+	let plugin8 = include_str!("data/plugin8.tsx");
+	let plugin9 = include_str!("data/plugin9.tsx");
+	let plugin10 = include_str!("data/plugin10.tsx");
+	let mut plugin_infos = Vec::new();
+	for code in [plugin8, plugin9, plugin10] {
+		let parser =
+			VencordAstParser::try_new(&a, code, Some("data/pluginX.tsx"))
+				.unwrap();
+		let info = parser.plugin_info().unwrap();
+		plugin_infos.push(info);
+	}
+	assert_ron_snapshot!(plugin_infos, @r#"
+	[
+	  PluginInfo(
+	    name: "Plugin8",
+	    description: None,
+	    devs: None,
+	    span: {
+	      "start": 528,
+	      "end": 3118,
+	    },
+	  ),
+	  PluginInfo(
+	    name: "NoFollowForwards",
+	    description: Some("After forwarding a single message, don\'t jump to it. Hold shift to ignore this behavior"),
+	    devs: Some([
+	      PluginDev(
+	        dev: Reference(
+	          key: "Sqaaakoi",
+	          obj: "Devs",
+	        ),
+	        span: {
+	          "start": 325,
+	          "end": 338,
+	        },
+	      ),
+	      PluginDev(
+	        dev: Reference(
+	          key: "sadan",
+	          obj: "Devs",
+	        ),
+	        span: {
+	          "start": 340,
+	          "end": 350,
+	        },
+	      ),
+	    ]),
+	    span: {
+	      "start": 171,
+	      "end": 1270,
+	    },
+	  ),
+	  PluginInfo(
+	    name: "FavoriteEmojiFirst",
+	    description: Some("Puts your favorite emoji first in the emoji autocomplete."),
+	    devs: Some([
+	      PluginDev(
+	        dev: Reference(
+	          key: "Aria",
+	          obj: "Devs",
+	        ),
+	        span: {
+	          "start": 478,
+	          "end": 487,
+	        },
+	      ),
+	      PluginDev(
+	        dev: Reference(
+	          key: "Ven",
+	          obj: "Devs",
+	        ),
+	        span: {
+	          "start": 489,
+	          "end": 497,
+	        },
+	      ),
+	    ]),
+	    span: {
+	      "start": 430,
+	      "end": 2578,
+	    },
+	  ),
+	]
+	"#);
+}

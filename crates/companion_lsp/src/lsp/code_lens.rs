@@ -72,7 +72,7 @@ fn patch_code_lenses(
 
 	let uri_str = uri.to_string();
 	let mut out: Vec<CodeLens> = Vec::with_capacity(
-		patches.len() * 2 + if plugin.is_some() { 2 } else { 0 },
+		patches.len() * 2 + if plugin.is_ok() { 2 } else { 0 },
 	);
 	for (index, patch) in patches.iter().enumerate() {
 		if !matches!(wire.get(index), Some(Some(_))) {
@@ -94,15 +94,25 @@ fn patch_code_lenses(
 			index,
 		));
 	}
-	if let Some(plugin) = plugin {
-		let range = span_to_range(source, plugin.span);
-		out.push(make_plugin_lens(range, "Enable Plugin", plugin.name, true));
-		out.push(make_plugin_lens(
-			range,
-			"Disable Plugin",
-			plugin.name,
-			false,
-		));
+	match plugin {
+		Ok(plugin) => {
+			let range = span_to_range(source, plugin.span);
+			out.push(make_plugin_lens(
+				range,
+				"Enable Plugin",
+				plugin.name,
+				true,
+			));
+			out.push(make_plugin_lens(
+				range,
+				"Disable Plugin",
+				plugin.name,
+				false,
+			));
+		}
+		Err(e) => {
+			tracing::debug!(e =? e.with_local_source(source, &uri_str), "plugin_info() failed; skipping plugin lenses");
+		}
 	}
 
 	// Webpack `find*()` calls — independent of `definePlugin`. Errors here
@@ -117,7 +127,7 @@ fn patch_code_lenses(
 			}
 		}
 		Err(e) => {
-			tracing::debug!(?e, "get_finds() failed; skipping find lenses");
+			tracing::debug!(e =? e.clone().with_local_source(source, &uri_str), "get_finds() failed; skipping find lenses");
 		}
 	}
 	Some(out)

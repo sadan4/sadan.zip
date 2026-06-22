@@ -12,6 +12,7 @@ use oxc::{
 			ArrowFunctionExpression,
 			AssignmentExpression,
 			AssignmentTarget,
+			BigIntLiteral,
 			BinaryExpression,
 			BindingIdentifier,
 			BindingPattern,
@@ -605,6 +606,20 @@ pub trait ExpressionExt<'ast> {
 	fn as_numeric_literal_mut(&mut self) -> Option<&mut NumericLiteral<'ast>> {
 		match self.as_expr_mut_()? {
 			Expression::NumericLiteral(n) => Some(n),
+			_ => None,
+		}
+	}
+
+	fn as_big_int_literal(&self) -> Option<&BigIntLiteral<'ast>> {
+		match self.as_expr_()? {
+			Expression::BigIntLiteral(n) => Some(n),
+			_ => None,
+		}
+	}
+
+	fn as_big_int_literal_mut(&mut self) -> Option<&mut BigIntLiteral<'ast>> {
+		match self.as_expr_mut_()? {
+			Expression::BigIntLiteral(n) => Some(n),
 			_ => None,
 		}
 	}

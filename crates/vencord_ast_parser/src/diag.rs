@@ -41,6 +41,18 @@ impl ParserDiagnostic {
 	pub const fn severity_raw(&self) -> miette::Severity {
 		self.severity
 	}
+
+	pub fn with_local_source<'a>(
+		self,
+		source: &'a str,
+		name: &'a str,
+	) -> LocalSource<'a> {
+		LocalSource {
+			name,
+			source,
+			inner: self.into(),
+		}
+	}
 }
 
 impl miette::Diagnostic for ParserDiagnostic {

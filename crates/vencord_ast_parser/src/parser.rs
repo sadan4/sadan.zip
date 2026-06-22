@@ -42,6 +42,7 @@ use crate::{
 		canonicalize_regex_ident,
 		canonicalize_replace_for_regress,
 	},
+	types::{Dev, PluginDev},
 };
 use ast_parser::{
 	AstParser,
@@ -109,6 +110,7 @@ const DEFINE_PLUGIN_IMPORT_SOURCE: &str = "@utils/types";
 const FIND_IMPORT_SOURCE: &str = "@webpack";
 
 // TODO: get webpack finds
+/// Public API
 impl<'ast> VencordAstParser<'ast> {
 	pub fn try_new(
 		alloc: &'ast Allocator,
@@ -137,7 +139,87 @@ impl<'ast> VencordAstParser<'ast> {
 			diag_ch: None,
 		})
 	}
+	pub fn collect_diagnostics(&self) {
+		debug_assert!(
+			self.diag_ch.is_some(),
+			"diag_ch should be set before calling collect_diagnostics"
+		);
+		let patches = match self.raw_patches() {
+			Err(e) => {
+				self.diag_ch
+					.as_ref()
+					.unwrap()
+					.send(e)
+					.ok();
+				return;
+			}
+			Ok(e) => e,
+		};
+		for patch in patches {
+			self.check_find(patch.find);
+			for repl in &patch.replacement {
+				self.check_replacement(repl);
+			}
+		}
+	}
 
+	/// The plugin's name and the source span of its `definePlugin({...})`
+	/// object literal. Returns `Err(reason)` if the file doesn't look like a
+	/// vencord plugin (no `@utils/types` import, no `definePlugin` call,
+	/// or no `name` string property).
+	pub fn plugin_info(&self) -> PResult<PluginInfo<'ast>> {
+		let name = self.plugin_name()?;
+		// name requires define_plugin, so this should never error
+		let obj = self.define_plugin().unwrap();
+		let description = self.plugin_desc()?;
+		let devs = self.plugin_devs()?;
+		Ok(PluginInfo {
+			name,
+			span: obj.span,
+			description,
+			devs,
+		})
+	}
+
+	/// Walk all `definePlugin({ patches })` and return the canonical patches.
+	/// See [`Self::canonicalize_patch`] for the meaning of `apply_regress_canon`.
+	pub fn patches(&self, apply_regress_canon: bool) -> PResult<Vec<Patch>> {
+		let name = self
+			.plugin_name()
+			.unwrap_or("<unknown plugin>");
+		let ret = self
+			.raw_patches()
+			.map_err(|e| err_ns("Failed to parse raw patches").s(e))?
+			.into_iter()
+			.filter_map(|raw| {
+				match self.canonicalize_patch(raw, apply_regress_canon) {
+					Ok(patch) => Some(patch),
+					Err(e) => {
+						let e = LocalSource {
+							name: self.path,
+							source: self.txt,
+							inner: miette::Report::from(e),
+						};
+						debug!(
+							"Failed to canonicalize patch for plugin {name}, skipping. Cause:\n{e:?}"
+						);
+						None
+					}
+				}
+			})
+			.collect();
+		Ok(ret)
+	}
+
+	pub fn get_finds(&self) -> &PResult<Vec<FindUse>> {
+		self.cache
+			.finds
+			.get(|| self.get_finds_())
+	}
+}
+/// Diagnostics
+#[expect(clippy::multiple_inherent_impl)]
+impl<'ast> VencordAstParser<'ast> {
 	fn unused_capture_group(capture: &Capture) -> ParserDiagnostic {
 		let extra_label = capture
 		.group
@@ -453,34 +535,12 @@ impl<'ast> VencordAstParser<'ast> {
 				.ok();
 		}
 	}
+}
 
-	pub fn collect_diagnostics<'a: 'ast>(&'a self) {
-		debug_assert!(
-			self.diag_ch.is_some(),
-			"diag_ch should be set before calling collect_diagnostics"
-		);
-		let patches = match self.raw_patches() {
-			Err(e) => {
-				self.diag_ch
-					.as_ref()
-					.unwrap()
-					.send(e)
-					.ok();
-				return;
-			}
-			Ok(e) => e,
-		};
-		for patch in patches {
-			self.check_find(patch.find);
-			for repl in &patch.replacement {
-				self.check_replacement(repl);
-			}
-		}
-	}
-
-	fn define_plugin_impl<'a: 'ast>(
-		&'a self,
-	) -> PResult<&'ast ObjectExpression<'ast>> {
+#[expect(clippy::multiple_inherent_impl)]
+/// Private API
+impl<'ast> VencordAstParser<'ast> {
+	fn define_plugin_impl(&self) -> PResult<&'ast ObjectExpression<'ast>> {
 		let utils_types_import = self
 			.find_import_by_name(DEFINE_PLUGIN_IMPORT_SOURCE)
 			.ok_or_else(|| err_ns("Failed to find `@utils/types` import"))?;
@@ -511,9 +571,9 @@ impl<'ast> VencordAstParser<'ast> {
 		Err(err_ns("Failed to find definePlugin call"))
 	}
 
-	fn define_plugin<'a: 'ast>(
-		&'a self,
-	) -> Result<&'ast ObjectExpression<'ast>, &'a ParserDiagnostic> {
+	fn define_plugin(
+		&self,
+	) -> Result<&'ast ObjectExpression<'ast>, &ParserDiagnostic> {
 		match self
 			.cache
 			.define_plugin
@@ -524,7 +584,7 @@ impl<'ast> VencordAstParser<'ast> {
 		}
 	}
 
-	fn plugin_name<'a: 'ast>(&'a self) -> PResult<&'ast str> {
+	fn plugin_name(&self) -> PResult<&'ast str> {
 		let define_plugin = self
 			.define_plugin()
 			.map_err(|e| err_ns("Failed to find definePlugin").s(e.clone()))?;
@@ -544,21 +604,116 @@ impl<'ast> VencordAstParser<'ast> {
 		Ok(name_val)
 	}
 
-	/// The plugin's name and the source span of its `definePlugin({...})`
-	/// object literal. Returns `None` if the file doesn't look like a
-	/// vencord plugin (no `@utils/types` import, no `definePlugin` call,
-	/// or no `name` string property).
-	pub fn plugin_info<'a: 'ast>(&'a self) -> Option<PluginInfo<'ast>> {
-		let obj = self.define_plugin().ok()?;
-		let name = self.plugin_name().ok()?;
-		Some(PluginInfo {
-			name,
-			span: obj.span,
-		})
+	fn plugin_desc(&self) -> PResult<Option<&'ast str>> {
+		let define_plugin = self
+			.define_plugin()
+			.map_err(|e| err_ns("Failed to find definePlugin").s(e.clone()))?;
+		let Some(desc_prop) = define_plugin.get_property("description") else {
+			return Ok(None);
+		};
+		let desc_val = desc_prop
+			.value
+			.as_string_literal()
+			.ok_or_else(|| {
+				err(&desc_prop.value, "`description` is not a string literal")
+			})?
+			.value
+			.as_str();
+		Ok(Some(desc_val))
 	}
 
-	fn try_into_raw_match_like<'a: 'ast>(
-		&'a self,
+	fn parse_dev_el(
+		dev: &'ast ArrayExpressionElement<'ast>,
+	) -> PResult<PluginDev<'ast>> {
+		match dev {
+			ArrayExpressionElement::ObjectExpression(obj) => {
+				let obj = obj.as_ref();
+				let name_prop = obj
+					.get_property("name")
+					.ok_or_else(|| {
+						err(obj, "Plugin dev object missing `name` property")
+					})?;
+				let id_prop = obj.get_property("id").ok_or_else(|| {
+					err(obj, "Plugin dev object missing `id` property")
+				})?;
+				let name_val = name_prop
+					.value
+					.as_string_literal()
+					.ok_or_else(|| {
+						err(&name_prop.value, "`name` is not a string literal")
+					})?
+					.value
+					.as_str();
+				let id_val = id_prop
+					.value
+					.as_big_int_literal()
+					.ok_or_else(|| {
+						err(&id_prop.value, "`id` is not a big int literal")
+					})?
+					.value
+					.parse()
+					.map_err(|e| {
+						err(&id_prop.value, "`id` is not a valid u64")
+							.s(miette::Report::msg(e))
+					})?;
+				Ok(PluginDev {
+					dev: Dev::Inline {
+						name: name_val,
+						id: id_val,
+					},
+					span: obj.span,
+				})
+			}
+			ArrayExpressionElement::StaticMemberExpression(access) => {
+				let access = access.as_ref();
+				let key = access.property.name.as_str();
+				let obj = access
+					.object
+					.as_identifier()
+					.ok_or_else(|| {
+						err(
+							&access.object,
+							"Object in plugin dev static member expression is not an identifier",
+						)
+					})?
+					.name
+					.as_str();
+				Ok(PluginDev {
+					dev: Dev::Reference { key, obj },
+					span: access.span,
+				})
+			}
+			_ => Err(err(
+				dev,
+				"Invalid plugin dev element. Expected either an (object or static member) expression",
+			)),
+		}
+	}
+
+	fn plugin_devs(&self) -> PResult<Option<Vec<PluginDev<'ast>>>> {
+		let define_plugin = self
+			.define_plugin()
+			.map_err(|e| err_ns("Failed to find definePlugin").s(e.clone()))?;
+		let Some(devs_prop) = define_plugin.get_property("authors") else {
+			return Ok(None);
+		};
+		let devs_arr = devs_prop
+			.value
+			.as_array_expression()
+			.ok_or_else(|| {
+				err(&devs_prop.value, "`authors` is not an array literal")
+			})?;
+		let mut devs = Vec::with_capacity(devs_arr.elements.len());
+		for dev in &devs_arr.elements {
+			let dev = Self::parse_dev_el(dev)
+				.map_err(|e| err_ns("Failed to parse plugin dev").s(e))?;
+			devs.push(dev);
+		}
+		Ok(Some(devs))
+	}
+
+	fn try_into_raw_match_like(
+		&self,
 		value: &'ast Expression<'ast>,
 	) -> PResult<RawMatchLike<'ast>> {
 		match value {
@@ -587,8 +742,8 @@ impl<'ast> VencordAstParser<'ast> {
 		}
 	}
 
-	fn try_into_raw_replacement<'a: 'ast>(
-		&'a self,
+	fn try_into_raw_replacement(
+		&self,
 		obj: &'ast ObjectExpression<'ast>,
 	) -> PResult<RawReplacement<'ast>> {
 		let match_ = &obj
@@ -618,8 +773,8 @@ impl<'ast> VencordAstParser<'ast> {
 		})
 	}
 
-	fn try_into_raw_replace<'a: 'ast>(
-		&'a self,
+	fn try_into_raw_replace(
+		&self,
 		value: &'ast Expression<'ast>,
 	) -> PResult<RawReplace<'ast>> {
 		match value {
@@ -645,8 +800,8 @@ impl<'ast> VencordAstParser<'ast> {
 		}
 	}
 
-	fn parse_single_patch<'a: 'ast>(
-		&'a self,
+	fn parse_single_patch(
+		&self,
 		obj: &'ast ArrayExpressionElement<'ast>,
 	) -> PResult<RawPatch<'ast>> {
 		let obj = match obj {
@@ -697,8 +852,8 @@ impl<'ast> VencordAstParser<'ast> {
 		Ok(ret)
 	}
 
-	fn parse_replacement<'a: 'ast>(
-		&'a self,
+	fn parse_replacement(
+		&self,
 		prop: &'ast Expression<'ast>,
 	) -> PResult<OxcVec<'ast, RawReplacement<'ast>>> {
 		let ret = match prop {
@@ -730,8 +885,8 @@ impl<'ast> VencordAstParser<'ast> {
 	}
 
 	/// TODO: better error handling
-	fn parse_spread_patch<'a: 'ast>(
-		&'a self,
+	fn parse_spread_patch(
+		&self,
 		spread: &'ast SpreadElement<'ast>,
 		ret: &mut OxcVec<'ast, RawPatch<'ast>>,
 	) -> Option<()> {
@@ -812,8 +967,8 @@ impl<'ast> VencordAstParser<'ast> {
 		Some(())
 	}
 
-	fn get_arrow_single_return_value<'a: 'ast>(
-		&'a self,
+	fn get_arrow_single_return_value(
+		&self,
 		func: &'ast ArrowFunctionExpression<'ast>,
 	) -> Option<&'ast Expression<'ast>> {
 		_ = self;
@@ -822,9 +977,7 @@ impl<'ast> VencordAstParser<'ast> {
 	}
 	// TODO: Cache this
 	// maybe noop the replace and just test that the find matches at least once
-	fn raw_patches<'a: 'ast>(
-		&'a self,
-	) -> PResult<OxcVec<'ast, RawPatch<'ast>>> {
+	fn raw_patches(&self) -> PResult<OxcVec<'ast, RawPatch<'ast>>> {
 		let mut ret = OxcVec::new_in(self.alloc);
 		let define_plugin = self
 			.define_plugin()
@@ -883,8 +1036,8 @@ impl<'ast> VencordAstParser<'ast> {
 		Ok(ret)
 	}
 
-	pub fn canonicalize_replace_func<'a: 'ast>(
-		&'a self,
+	fn canonicalize_replace_func(
+		&self,
 		f: &'ast ArrowFunctionExpression<'ast>,
 	) -> PResult<ReplaceLike> {
 		let f_ret = self
@@ -1079,8 +1232,8 @@ impl<'ast> VencordAstParser<'ast> {
 	/// regex, `$&` → `$0` / `$<name>` → `${name}` in string replacements). The
 	/// LSP sets this to `false` since it ships patches to a JS runtime and
 	/// never evaluates them locally; the offline reporter sets it to `true`.
-	pub fn canonicalize_patch<'a: 'ast>(
-		&'a self,
+	fn canonicalize_patch(
+		&self,
 		raw: RawPatch<'ast>,
 		apply_regress_canon: bool,
 	) -> PResult<Patch> {
@@ -1138,44 +1291,7 @@ impl<'ast> VencordAstParser<'ast> {
 			span: raw.span,
 		})
 	}
-	/// Walk all `definePlugin({ patches })` and return the canonical patches.
-	/// See [`Self::canonicalize_patch`] for the meaning of `apply_regress_canon`.
-	pub fn patches<'a: 'ast>(
-		&'a self,
-		apply_regress_canon: bool,
-	) -> PResult<Vec<Patch>> {
-		let name = self
-			.plugin_name()
-			.unwrap_or("<unknown plugin>");
-		let ret = self
-			.raw_patches()
-			.map_err(|e| err_ns("Failed to parse raw patches").s(e))?
-			.into_iter()
-			.filter_map(|raw| {
-				match self.canonicalize_patch(raw, apply_regress_canon) {
-					Ok(patch) => Some(patch),
-					Err(e) => {
-						let e = LocalSource {
-							name: self.path,
-							source: self.txt,
-							inner: miette::Report::from(e),
-						};
-						debug!(
-							"Failed to canonicalize patch for plugin {name}, skipping. Cause:\n{e:?}"
-						);
-						None
-					}
-				}
-			})
-			.collect();
-		Ok(ret)
-	}
-	pub fn get_finds<'a: 'ast>(&'a self) -> &'a PResult<Vec<FindUse>> {
-		self.cache
-			.finds
-			.get(|| self.get_finds_())
-	}
-	fn get_finds_<'a: 'ast>(&'a self) -> PResult<Vec<FindUse>> {
+	fn get_finds_(&self) -> PResult<Vec<FindUse>> {
 		let mut ret = Vec::new();
 		for call in self.get_find_uses() {
 			if call.arguments.is_empty() {
@@ -1269,9 +1385,8 @@ impl<'ast> VencordAstParser<'ast> {
 			_ => Err(err(arg, "Unsupported find argument type")),
 		}
 	}
-	fn get_find_uses<'a: 'ast>(
-		&'a self,
-	) -> Vec<&'ast CallExpression<'ast>> {
+
+	fn get_find_uses(&self) -> Vec<&'ast CallExpression<'ast>> {
 		let Some(webpack_import) = self.find_import_by_name(FIND_IMPORT_SOURCE)
 		else {
 			return Vec::new();

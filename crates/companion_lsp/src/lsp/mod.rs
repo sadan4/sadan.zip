@@ -213,10 +213,10 @@ pub fn get_patches(
 	state: &SessionState,
 	doc: &Document,
 ) -> Option<Arc<Vec<Patch>>> {
-	if let Some(entry) = state.patch_cache.get(&doc.uri) {
-		if entry.version == doc.version {
-			return Some(Arc::clone(&entry.patches));
-		}
+	if let Some(entry) = state.patch_cache.get(&doc.uri)
+		&& entry.version == doc.version
+	{
+		return Some(Arc::clone(&entry.patches));
 	}
 
 	let alloc = Allocator::new();

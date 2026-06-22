@@ -564,6 +564,7 @@ dependencies = [
  "futures-util",
  "insta",
  "oxc",
+ "oxc-miette",
  "pretty_printer",
  "regex",
  "regress",

@@ -282,9 +282,10 @@ pub trait AstParser<'ast> {
 }
 
 pub trait ESModuleParser<'ast>: AstParser<'ast> {
-	fn import_statements<'a: 'ast>(
-		&'a self,
-	) -> impl Iterator<Item = &'ast ImportDeclaration<'ast>> {
+	fn import_statements(
+		&self,
+	) -> impl Iterator<Item = &'ast ImportDeclaration<'ast>> + use<'ast, Self>
+	{
 		self.prog()
 			.body
 			.iter()
@@ -294,9 +295,9 @@ pub trait ESModuleParser<'ast>: AstParser<'ast> {
 					.map(OxcBox::as_ref)
 			})
 	}
-	fn find_import_by_name<'a: 'ast, 'b>(
-		&'a self,
-		from: &'b str,
+	fn find_import_by_name(
+		&self,
+		from: &str,
 	) -> Option<&'ast ImportDeclaration<'ast>> {
 		let pred = |import: &&ImportDeclaration| import.source.value == from;
 		debug_assert!(

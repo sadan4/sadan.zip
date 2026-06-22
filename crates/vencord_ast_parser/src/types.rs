@@ -12,11 +12,62 @@ use std::hash::{Hash, Hasher};
 /// Surface-level info about a plugin's `definePlugin({...})` declaration —
 /// just enough for the LSP to anchor a code lens and ship a command
 /// payload, without exposing the full AST.
-#[derive(Debug, Clone, Copy)]
+#[derive(
+	Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
+)]
 pub struct PluginInfo<'ast> {
 	pub name: &'ast str,
+	pub description: Option<&'ast str>,
+	/// the authors of the plugin
+	pub devs: Option<Vec<PluginDev<'ast>>>,
 	/// Source span covering the `definePlugin` object literal.
+	#[serde(deserialize_with = "deserialize_span")]
 	pub span: Span,
+}
+
+#[derive(
+	Debug,
+	Clone,
+	Copy,
+	PartialEq,
+	Eq,
+	PartialOrd,
+	Ord,
+	Hash,
+	Serialize,
+	Deserialize,
+)]
+pub struct PluginDev<'a> {
+	#[serde(bound(deserialize = "'de: 'a"))]
+	pub dev: Dev<'a>,
+	#[serde(deserialize_with = "deserialize_span")]
+	pub span: Span,
+}
+
+impl<'a> PluginDev<'a> {
+	pub const fn inline(name: &'a str, id: u64, span: Span) -> Self {
+		Self {
+			dev: Dev::Inline { name, id },
+			span,
+		}
+	}
+}
+
+#[derive(
+	Debug,
+	Clone,
+	Copy,
+	PartialEq,
+	Eq,
+	PartialOrd,
+	Ord,
+	Hash,
+	Serialize,
+	Deserialize,
+)]
+pub enum Dev<'a> {
+	Reference { key: &'a str, obj: &'a str },
+	Inline { name: &'a str, id: u64 },
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]

@@ -34,6 +34,7 @@ smol_str.workspace = true
 regex.workspace = true
 regress.workspace = true
 bytecount.workspace = true
+oxc-miette.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
