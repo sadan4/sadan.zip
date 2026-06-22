@@ -1,3 +1,5 @@
+use std::mem;
+
 use crate::{VencordAstParser, pass::dump_ast};
 use insta::assert_ron_snapshot;
 use itertools::Itertools as _;
@@ -129,35 +131,102 @@ fn gets_capture_group_ranges() {
 }
 
 #[test]
+#[expect(clippy::too_many_lines)]
 fn gets_plugin_meta() {
 	let a = Allocator::new();
 	let plugin8 = include_str!("data/plugin8.tsx");
 	let plugin9 = include_str!("data/plugin9.tsx");
 	let plugin10 = include_str!("data/plugin10.tsx");
 	let mut plugin_infos = Vec::new();
+	// we need to have these in a separate vec so we can sort them
+	let mut tlpk = Vec::new();
 	for code in [plugin8, plugin9, plugin10] {
 		let parser =
 			VencordAstParser::try_new(&a, code, Some("data/pluginX.tsx"))
 				.unwrap();
-		let info = parser.plugin_info().unwrap();
+		let mut info = parser.plugin_info().unwrap();
+		tlpk.push(
+			mem::take(&mut info.top_level_plugin_keys)
+				.into_iter()
+				.sorted()
+				.collect_vec(),
+		);
+
 		plugin_infos.push(info);
 	}
+	assert_ron_snapshot!(tlpk, @r#"
+	[
+	  [
+	    ("name", {
+	      "start": 534,
+	      "end": 538,
+	    }),
+	    ("patches", {
+	      "start": 556,
+	      "end": 563,
+	    }),
+	  ],
+	  [
+	    ("authors", {
+	      "start": 315,
+	      "end": 322,
+	    }),
+	    ("description", {
+	      "start": 207,
+	      "end": 218,
+	    }),
+	    ("name", {
+	      "start": 177,
+	      "end": 181,
+	    }),
+	    ("patches", {
+	      "start": 358,
+	      "end": 365,
+	    }),
+	    ("setShift", {
+	      "start": 1182,
+	      "end": 1190,
+	    }),
+	    ("shouldTransition", {
+	      "start": 1081,
+	      "end": 1097,
+	    }),
+	  ],
+	  [
+	    ("authors", {
+	      "start": 468,
+	      "end": 475,
+	    }),
+	    ("description", {
+	      "start": 504,
+	      "end": 515,
+	    }),
+	    ("name", {
+	      "start": 436,
+	      "end": 440,
+	    }),
+	    ("patches", {
+	      "start": 621,
+	      "end": 628,
+	    }),
+	    ("sortEmojis", {
+	      "start": 1834,
+	      "end": 1844,
+	    }),
+	    ("tags", {
+	      "start": 582,
+	      "end": 586,
+	    }),
+	  ],
+	]
+	"#);
 	assert_ron_snapshot!(plugin_infos, @r#"
 	[
 	  PluginInfo(
 	    name: "Plugin8",
 	    description: None,
 	    devs: None,
-	    top_level_plugin_keys: {
-	      "name": {
-	        "start": 534,
-	        "end": 538,
-	      },
-	      "patches": {
-	        "start": 556,
-	        "end": 563,
-	      },
-	    },
+	    top_level_plugin_keys: {},
 	    span: {
 	      "start": 528,
 	      "end": 3118,
@@ -188,32 +257,7 @@ fn gets_plugin_meta() {
 	        },
 	      ),
 	    ]),
-	    top_level_plugin_keys: {
-	      "setShift": {
-	        "start": 1182,
-	        "end": 1190,
-	      },
-	      "description": {
-	        "start": 207,
-	        "end": 218,
-	      },
-	      "shouldTransition": {
-	        "start": 1081,
-	        "end": 1097,
-	      },
-	      "name": {
-	        "start": 177,
-	        "end": 181,
-	      },
-	      "authors": {
-	        "start": 315,
-	        "end": 322,
-	      },
-	      "patches": {
-	        "start": 358,
-	        "end": 365,
-	      },
-	    },
+	    top_level_plugin_keys: {},
 	    span: {
 	      "start": 171,
 	      "end": 1270,
@@ -244,32 +288,7 @@ fn gets_plugin_meta() {
 	        },
 	      ),
 	    ]),
-	    top_level_plugin_keys: {
-	      "patches": {
-	        "start": 621,
-	        "end": 628,
-	      },
-	      "description": {
-	        "start": 504,
-	        "end": 515,
-	      },
-	      "name": {
-	        "start": 436,
-	        "end": 440,
-	      },
-	      "authors": {
-	        "start": 468,
-	        "end": 475,
-	      },
-	      "tags": {
-	        "start": 582,
-	        "end": 586,
-	      },
-	      "sortEmojis": {
-	        "start": 1834,
-	        "end": 1844,
-	      },
-	    },
+	    top_level_plugin_keys: {},
 	    span: {
 	      "start": 430,
 	      "end": 2578,
