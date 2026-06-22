@@ -10,7 +10,7 @@
 //! Currently supported syntax highlighters and their feature flags:
 //! * `syntect-highlighter` - Enables [`syntect`](https://docs.rs/syntect/latest/syntect/) syntax highlighting support via the [`SyntectHighlighter`]
 
-use std::{ops::Deref, sync::Arc};
+use std::{env, fmt, io, ops::Deref, sync::Arc};
 
 use miette::SpanContents;
 use owo_colors::Styled;
@@ -75,11 +75,9 @@ impl MietteHighlighter {
 
 impl Default for MietteHighlighter {
 	fn default() -> Self {
-		use std::io::IsTerminal;
-		match std::env::var("NO_COLOR") {
-			_ if !std::io::stdout().is_terminal()
-				|| !std::io::stderr().is_terminal() =>
-			{
+		use io::IsTerminal as _;
+		match env::var("NO_COLOR") {
+			_ if !io::stdout().is_terminal() || !io::stderr().is_terminal() => {
 				//TODO: should use ANSI styling instead of 24-bit truecolor here
 				Self(Arc::new(SyntectHighlighter::default()))
 			}
@@ -95,8 +93,8 @@ impl<T: Highlighter + Send + Sync + 'static> From<T> for MietteHighlighter {
 	}
 }
 
-impl std::fmt::Debug for MietteHighlighter {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Debug for MietteHighlighter {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		write!(f, "MietteHighlighter(...)")
 	}
 }

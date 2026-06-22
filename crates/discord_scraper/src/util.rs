@@ -1,4 +1,4 @@
-use std::str::Utf8Error;
+use std::{fmt, str::Utf8Error};
 
 use bytes::Bytes;
 
@@ -16,7 +16,7 @@ impl ByteStr {
 impl TryFrom<Bytes> for ByteStr {
 	type Error = Utf8Error;
 
-	fn try_from(value: Bytes) -> std::result::Result<Self, Self::Error> {
+	fn try_from(value: Bytes) -> Result<Self, Self::Error> {
 		if let Err(e) = str::from_utf8(&value) {
 			Err(e)
 		} else {
@@ -32,8 +32,8 @@ impl AsRef<str> for ByteStr {
 	}
 }
 
-impl std::fmt::Display for ByteStr {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for ByteStr {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		self.as_ref().fmt(f)
 	}
 }

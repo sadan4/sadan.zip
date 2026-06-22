@@ -17,7 +17,11 @@ use oxc::{
 	span::Span,
 };
 use regress::Regex;
-use std::{borrow::Cow, fmt::Debug, sync::LazyLock};
+use std::{
+	borrow::Cow,
+	fmt::{self, Debug},
+	sync::LazyLock,
+};
 
 #[derive(Debug)]
 pub struct RawPatch<'ast> {
@@ -246,7 +250,7 @@ impl<'ast> From<Option<&'ast Expression<'ast>>> for PatchPredicate<'ast> {
 }
 
 impl Debug for PatchPredicate<'_> {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		f.debug_tuple("PatchPredicate")
 			.field(&self.0.map(Expression::dbg_name))
 			.finish()
@@ -254,7 +258,7 @@ impl Debug for PatchPredicate<'_> {
 }
 
 impl Debug for RawReplace<'_> {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		match self {
 			Self::String(s) => f
 				.debug_tuple("String")
@@ -277,7 +281,7 @@ impl Debug for RawReplace<'_> {
 }
 
 impl Debug for RawMatchLike<'_> {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		match self {
 			Self::String(s) => f
 				.debug_tuple("String")

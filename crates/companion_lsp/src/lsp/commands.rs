@@ -1,4 +1,7 @@
-use std::sync::Arc;
+use std::{
+	path::{Path, PathBuf},
+	sync::Arc,
+};
 
 use anyhow::{Context, Result, anyhow};
 use futures_util::{StreamExt, stream};
@@ -459,7 +462,7 @@ async fn cmd_download_module_cache(backend: &Backend) -> Result<Value> {
 		.read()
 		.await
 		.root()
-		.map(std::path::Path::to_owned);
+		.map(Path::to_owned);
 
 	if let Some(root) = cache_root {
 		match tokio::task::spawn_blocking(move || {
@@ -625,7 +628,7 @@ async fn cmd_diff_module(backend: &Backend, args: Vec<Value>) -> Result<Value> {
 		.read()
 		.await
 		.root()
-		.map(std::path::Path::to_owned)
+		.map(Path::to_owned)
 		.context("no module cache root configured")?;
 	let diff_dir = cache_root.join(".diff");
 	tokio::fs::create_dir_all(&diff_dir)
@@ -718,7 +721,7 @@ async fn bridge_extract_by_id(
 async fn save_to_cache(
 	backend: &Backend,
 	payload: &ExtractModuleData,
-) -> Result<std::path::PathBuf> {
+) -> Result<PathBuf> {
 	let formatted = pretty_printer::format_to_str(&payload.module, 4)
 		.unwrap_or_else(|_| payload.module.clone());
 	let id_str = payload.module_number.to_string();

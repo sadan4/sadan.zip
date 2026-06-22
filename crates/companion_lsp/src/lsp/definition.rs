@@ -166,6 +166,8 @@ fn span_to_range(source: &str, span: Span) -> Range {
 
 #[cfg(test)]
 mod tests {
+	use std::fs;
+
 	use super::*;
 	use tempfile::TempDir;
 	use tower_lsp::lsp_types::Url;
@@ -177,7 +179,7 @@ mod tests {
 		let tmp = TempDir::new().unwrap();
 		// The cross-module data scan only loads files whose stems parse
 		// as a u32 — keep `42.js` simple but parseable enough.
-		std::fs::write(
+		fs::write(
 			tmp.path().join("42.js"),
 			"// Webpack Module 42\n0,function(e,t,n){}\n",
 		)
@@ -198,7 +200,7 @@ mod tests {
 	fn returns_none_when_cursor_not_on_module_id() {
 		const SRC: &str = "0,function(e,t,n){var x=n(42)}";
 		let tmp = TempDir::new().unwrap();
-		std::fs::write(
+		fs::write(
 			tmp.path().join("42.js"),
 			"// Webpack Module 42\n0,function(e,t,n){}\n",
 		)

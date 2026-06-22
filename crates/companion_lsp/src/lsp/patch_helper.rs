@@ -15,9 +15,12 @@
 //!    `vencord/patchHelper/update` notification.
 //! 3. On source close, the helper drops its entry.
 
-use std::sync::{
-	Arc,
-	atomic::{AtomicU64, Ordering},
+use std::{
+	panic,
+	sync::{
+		Arc,
+		atomic::{AtomicU64, Ordering},
+	},
 };
 
 use anyhow::{Context, Result, anyhow, bail};
@@ -569,7 +572,7 @@ fn find_signature(patch: &Patch) -> (FindType, String) {
 	match &patch.find.v {
 		Match::Str(finder) => (
 			FindType::String,
-			std::str::from_utf8(finder.needle())
+			str::from_utf8(finder.needle())
 				.unwrap_or("")
 				.to_owned(),
 		),
@@ -718,7 +721,7 @@ fn collect_replacement_ranges(
 ) -> Result<()> {
 	match &repl.match_.v {
 		Match::Str(finder) => {
-			let needle = std::str::from_utf8(finder.needle())
+			let needle = str::from_utf8(finder.needle())
 				.context("non-utf8 find string")?;
 			let Some(start) = original.find(needle) else {
 				tracing::debug!(
@@ -803,7 +806,7 @@ fn render_replacement(
 	m: &regress::Match,
 	plugin_name: &str,
 ) -> Result<String> {
-	let raw = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+	let raw = panic::catch_unwind(panic::AssertUnwindSafe(|| {
 		replacer.do_replace(original, m)
 	}))
 	.map_err(|_| {

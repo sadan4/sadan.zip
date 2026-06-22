@@ -1,6 +1,6 @@
 //! Port of test/acyclic-test.ts.
 
-use std::string::ToString;
+use std::{cmp::Ordering, string::ToString};
 
 use dagre::{
 	acyclic,
@@ -33,7 +33,7 @@ fn sort_edges(edges: &mut [Edge]) {
 	edges.sort_by(|a, b| match (&a.name, &b.name) {
 		(Some(an), Some(bn)) => an.cmp(bn),
 		_ => match a.v.cmp(&b.v) {
-			std::cmp::Ordering::Equal => a.w.cmp(&b.w),
+			Ordering::Equal => a.w.cmp(&b.w),
 			o => o,
 		},
 	});

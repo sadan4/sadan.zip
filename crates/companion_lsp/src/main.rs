@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{io, sync::Arc};
 
 use companion_lsp::{Backend, SessionState, discord_bridge, vencord_ext};
 use tower_lsp::{LspService, Server};
@@ -39,7 +39,7 @@ fn init_tracing() {
 
 	let _ = fmt()
 		.with_env_filter(filter)
-		.with_writer(std::io::stderr)
+		.with_writer(io::stderr)
 		.with_ansi(false)
 		.try_init();
 }

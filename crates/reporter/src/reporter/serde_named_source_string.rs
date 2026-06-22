@@ -1,3 +1,5 @@
+use std::fmt;
+
 use miette::NamedSource;
 use serde::{Deserialize, Deserializer, Serializer, de, ser::SerializeStruct};
 
@@ -16,10 +18,7 @@ enum Fields {
 impl de::Visitor<'_> for FieldVisitor {
 	type Value = Fields;
 
-	fn expecting(
-		&self,
-		formatter: &mut std::fmt::Formatter,
-	) -> std::fmt::Result {
+	fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
 		formatter.write_str("`source`, `name`, or `language`")
 	}
 
@@ -47,10 +46,7 @@ impl<'de> Deserialize<'de> for Fields {
 
 impl<'de> de::Visitor<'de> for NamedSourceVisitor {
 	type Value = NamedSource<String>;
-	fn expecting(
-		&self,
-		formatter: &mut std::fmt::Formatter,
-	) -> std::fmt::Result {
+	fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
 		formatter.write_str("struct NamedSource<String>")
 	}
 

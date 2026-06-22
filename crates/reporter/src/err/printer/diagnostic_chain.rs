@@ -1,6 +1,6 @@
-/*!
-Iterate over error `.diagnostic_source()` chains.
-*/
+//! Iterate over error `.diagnostic_source()` chains.
+
+use std::fmt;
 
 use miette::Diagnostic;
 
@@ -75,8 +75,8 @@ impl<'a> ErrorKind<'a> {
 	}
 }
 
-impl std::fmt::Debug for ErrorKind<'_> {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Debug for ErrorKind<'_> {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		match self {
 			ErrorKind::Diagnostic(d) => d.fmt(f),
 			ErrorKind::StdError(e) => e.fmt(f),
@@ -84,8 +84,8 @@ impl std::fmt::Debug for ErrorKind<'_> {
 	}
 }
 
-impl std::fmt::Display for ErrorKind<'_> {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for ErrorKind<'_> {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		match self {
 			ErrorKind::Diagnostic(d) => d.fmt(f),
 			ErrorKind::StdError(e) => e.fmt(f),

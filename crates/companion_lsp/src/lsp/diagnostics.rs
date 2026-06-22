@@ -246,7 +246,7 @@ fn match_to_wire(m: &vencord_ast_parser::Match) -> Option<(FindType, String)> {
 	use vencord_ast_parser::Match;
 	match m {
 		Match::Str(finder) => {
-			let s = std::str::from_utf8(finder.needle()).ok()?;
+			let s = str::from_utf8(finder.needle()).ok()?;
 			Some((FindType::String, s.to_owned()))
 		}
 		Match::Regex(r) => {
@@ -259,7 +259,7 @@ fn match_to_wire_node(m: &vencord_ast_parser::Match) -> Option<MatchNode> {
 	use vencord_ast_parser::Match;
 	match m {
 		Match::Str(finder) => {
-			let s = std::str::from_utf8(finder.needle()).ok()?;
+			let s = str::from_utf8(finder.needle()).ok()?;
 			Some(MatchNode::String {
 				value: s.to_owned(),
 			})

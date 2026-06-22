@@ -1,4 +1,4 @@
-use std::{borrow::Cow, option::Option, sync::Arc};
+use std::{borrow::Cow, fmt, option::Option, sync::Arc};
 
 use derive_more::Debug;
 use miette::SpanContents;
@@ -153,14 +153,14 @@ pub struct LocalSource<'a> {
 	pub inner: miette::Report,
 }
 
-impl std::fmt::Display for LocalSource<'_> {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		<miette::Report as std::fmt::Display>::fmt(&self.inner, f)
+impl fmt::Display for LocalSource<'_> {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		<miette::Report as fmt::Display>::fmt(&self.inner, f)
 	}
 }
 
-impl std::fmt::Debug for LocalSource<'_> {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Debug for LocalSource<'_> {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		let handler = self.inner.handler();
 		handler.debug(self, f)
 	}
@@ -188,8 +188,7 @@ impl miette::SourceCode for LocalSource<'_> {
 		span: &miette::SourceSpan,
 		context_lines_before: usize,
 		context_lines_after: usize,
-	) -> std::result::Result<miette::MietteSpanContents<'a>, miette::MietteError>
-	{
+	) -> Result<miette::MietteSpanContents<'a>, miette::MietteError> {
 		let ret = <str as miette::SourceCode>::read_span(
 			self.source,
 			span,

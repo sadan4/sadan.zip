@@ -6,6 +6,7 @@
 
 use std::{
 	collections::HashSet,
+	io,
 	path::{Path, PathBuf},
 };
 
@@ -85,7 +86,7 @@ impl ModuleCache {
 		let path = root.join(format!("{id}.js"));
 		match fs::read_to_string(&path).await {
 			Ok(s) => Ok(Some(s)),
-			Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+			Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(None),
 			Err(e) => {
 				Err(e).with_context(|| format!("read {}", path.display()))
 			}

@@ -216,7 +216,7 @@ impl IModuleDepProvider for Bundle<'_> {
 pub struct SpanDumper<'a>(pub Span, pub &'a str);
 
 impl Debug for SpanDumper<'_> {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		let ((l1, c1), (l2, c2)) = span_line_and_column(self.1, self.0);
 		write!(f, r#""[{l1}:{c1}->{l2}:{c2})""#)
 	}
@@ -264,7 +264,7 @@ impl ExportMapDumper<'_> {
 }
 
 impl Debug for ExportMapDumper<'_> {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		let mut dbg_map = f.debug_map();
 		for (k, v) in self
 			.0

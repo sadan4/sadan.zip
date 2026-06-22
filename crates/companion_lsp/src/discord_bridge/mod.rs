@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, net::SocketAddr, sync::Arc, time::Duration};
+use std::{cmp::Ordering, net::SocketAddr, sync::Arc};
 
 use anyhow::{Context, Result};
 use futures_util::{SinkExt, StreamExt};
@@ -232,7 +232,7 @@ async fn handle_connection(
 				dispatch_text(&state, &pending, &text).await;
 			}
 			Ok(Message::Binary(bytes)) => {
-				if let Ok(text) = std::str::from_utf8(&bytes) {
+				if let Ok(text) = str::from_utf8(&bytes) {
 					dispatch_text(&state, &pending, text).await;
 				} else {
 					warn!("ignoring non-utf8 binary ws frame");
@@ -358,6 +358,8 @@ fn is_outdated(actual: (u32, u32, u32), min: (u32, u32, u32)) -> bool {
 
 #[cfg(test)]
 mod tests {
+	use std::time::Duration;
+
 	use super::*;
 	use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 

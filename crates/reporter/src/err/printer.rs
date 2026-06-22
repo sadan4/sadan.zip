@@ -665,7 +665,7 @@ impl GraphicalReportHandler {
 				// The snippets will overlap, so we create one Big Chunky Boi
 				let left_end = left.offset() + left.len();
 				let right_end = right.offset() + right.len();
-				let new_end = std::cmp::max(left_end, right_end);
+				let new_end = left_end.max(right_end);
 
 				let new_span = LabeledSpan::new(
 					left.label().map(String::from),
@@ -749,7 +749,7 @@ impl GraphicalReportHandler {
 					num_highlights += 1;
 				}
 			}
-			max_gutter = std::cmp::max(max_gutter, num_highlights);
+			max_gutter = max_gutter.max(num_highlights);
 		}
 
 		// Oh and one more thing: We need to figure out how much room our line
@@ -1348,7 +1348,7 @@ impl GraphicalReportHandler {
 					.style(hl.style)
 					.to_string(),
 				);
-				highest = std::cmp::max(highest, end);
+				highest = highest.max(end);
 
 				(hl, vbar_offset)
 			})

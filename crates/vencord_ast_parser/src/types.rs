@@ -311,9 +311,7 @@ impl From<SpanData> for Span {
 
 /// [`Span`] only implements [`Serialize`] (as a `{ start, end }` map), not
 /// [`Deserialize`], so we provide the inverse here.
-fn deserialize_span<'de, D>(
-	deserializer: D,
-) -> std::result::Result<Span, D::Error>
+fn deserialize_span<'de, D>(deserializer: D) -> Result<Span, D::Error>
 where
 	D: serde::Deserializer<'de>,
 {

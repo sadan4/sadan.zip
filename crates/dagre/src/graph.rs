@@ -12,7 +12,10 @@
 //! Edge identity is the triple `(v, w, name)`. For non-multigraphs the name is
 //! always the empty string.
 
-use std::collections::{self, BTreeMap, BTreeSet, HashMap, HashSet};
+use std::{
+	collections::{self, BTreeMap, BTreeSet, HashMap, HashSet},
+	mem,
+};
 
 pub use smol_str::SmolStr;
 
@@ -586,7 +589,7 @@ impl<G, N, E> Graph<G, N, E> {
 		}
 		// Canonicalize for undirected: ensure v <= w.
 		if !self.is_directed && v > w {
-			std::mem::swap(&mut v, &mut w);
+			mem::swap(&mut v, &mut w);
 		}
 		let edge = Edge {
 			v: v.clone(),
@@ -831,7 +834,7 @@ impl<G, N, E> Default for Graph<G, N, E> {
 
 pub mod alg {
 	use super::{Graph, NodeId};
-	use std::collections::HashSet;
+	use std::collections::{HashMap, HashSet};
 
 	/// Postorder DFS traversal — used by network-simplex.
 	pub fn postorder<G, N, E>(
@@ -857,9 +860,9 @@ pub mod alg {
 			g: &'a Graph<G, N, E>,
 			index: usize,
 			stack: Vec<NodeId>,
-			on_stack: std::collections::HashSet<NodeId>,
-			indices: std::collections::HashMap<NodeId, usize>,
-			lowlinks: std::collections::HashMap<NodeId, usize>,
+			on_stack: HashSet<NodeId>,
+			indices: HashMap<NodeId, usize>,
+			lowlinks: HashMap<NodeId, usize>,
 			results: Vec<Vec<NodeId>>,
 		}
 		fn strong_connect<G, N, E>(s: &mut State<G, N, E>, v: &str) {
@@ -897,9 +900,9 @@ pub mod alg {
 			g,
 			index: 0,
 			stack: Vec::new(),
-			on_stack: std::collections::HashSet::new(),
-			indices: std::collections::HashMap::new(),
-			lowlinks: std::collections::HashMap::new(),
+			on_stack: HashSet::new(),
+			indices: HashMap::new(),
+			lowlinks: HashMap::new(),
 			results: Vec::new(),
 		};
 		for v in g.nodes() {

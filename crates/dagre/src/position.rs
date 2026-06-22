@@ -18,8 +18,11 @@ use crate::{
 	},
 	util,
 };
-use ::std::hash::BuildHasher;
-use std::collections::{HashMap, HashSet};
+use std::{
+	cmp::Ordering,
+	collections::{HashMap, HashSet},
+	hash::BuildHasher,
+};
 
 pub fn position(graph: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>) {
 	// Work on a non-compound copy as the JS does.
@@ -757,7 +760,7 @@ pub fn balance<S: BuildHasher>(
 			.collect();
 		xs.sort_by(|a, b| {
 			a.partial_cmp(b)
-				.unwrap_or(std::cmp::Ordering::Equal)
+				.unwrap_or(Ordering::Equal)
 		});
 		let a = xs.get(1).copied().unwrap_or(0.0);
 		let b = xs.get(2).copied().unwrap_or(0.0);

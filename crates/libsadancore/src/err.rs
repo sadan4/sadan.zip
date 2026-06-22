@@ -1,4 +1,7 @@
-use std::{fmt::Display, io};
+use std::{
+	fmt::{self, Display},
+	io,
+};
 
 use wasm_bindgen::JsValue;
 
@@ -25,7 +28,7 @@ pub enum BadCast {
 }
 
 impl Display for BadCast {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		write!(f, "{self:?}")
 	}
 }

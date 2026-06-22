@@ -7,17 +7,18 @@ use crate::{
 };
 
 pub mod util_rank {
+	use std::collections::HashSet;
+
 	use super::{Edge, EdgeLabel, Graph, GraphLabel, NodeId, NodeLabel};
 
 	/// Initializes ranks using longest-path DFS from sources.
 	pub fn longest_path(graph: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>) {
-		let mut visited: std::collections::HashSet<NodeId> =
-			std::collections::HashSet::new();
+		let mut visited: HashSet<NodeId> = HashSet::new();
 
 		fn dfs(
 			graph: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>,
 			v: &str,
-			visited: &mut std::collections::HashSet<NodeId>,
+			visited: &mut HashSet<NodeId>,
 		) -> i32 {
 			if visited.contains(v) {
 				return graph
@@ -189,7 +190,7 @@ pub mod network_simplex {
 		util_rank::{longest_path, slack},
 	};
 	use crate::graph::alg::{postorder, preorder};
-	use std::collections::HashSet;
+	use std::{collections::HashSet, mem};
 
 	pub fn run(graph: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>) {
 		let mut simplified = simplify(graph);
@@ -330,7 +331,7 @@ pub mod network_simplex {
 	) -> Edge {
 		let (mut v, mut w) = (edge.v.clone(), edge.w.clone());
 		if !graph.has_edge(&v, &w) {
-			std::mem::swap(&mut v, &mut w);
+			mem::swap(&mut v, &mut w);
 		}
 		let v_label = tree
 			.node(&v)

@@ -1,6 +1,8 @@
 //! Port of `lib/acyclic.ts`: reverse feedback-arc-set edges so the graph
 //! becomes acyclic, then undo the reversal at the end of layout.
 
+use std::collections::HashSet;
+
 use crate::{
 	graph::{Edge, Graph, NodeId},
 	greedy_fas,
@@ -39,16 +41,14 @@ pub fn run(graph: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>) {
 
 fn dfs_fas(graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>) -> Vec<Edge> {
 	let mut fas: Vec<Edge> = Vec::new();
-	let mut stack: std::collections::HashSet<NodeId> =
-		std::collections::HashSet::new();
-	let mut visited: std::collections::HashSet<NodeId> =
-		std::collections::HashSet::new();
+	let mut stack: HashSet<NodeId> = HashSet::new();
+	let mut visited: HashSet<NodeId> = HashSet::new();
 
 	fn dfs(
 		graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
 		v: &str,
-		stack: &mut std::collections::HashSet<NodeId>,
-		visited: &mut std::collections::HashSet<NodeId>,
+		stack: &mut HashSet<NodeId>,
+		visited: &mut HashSet<NodeId>,
 		fas: &mut Vec<Edge>,
 	) {
 		if visited.contains(v) {

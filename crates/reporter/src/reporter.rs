@@ -33,6 +33,7 @@ use std::{
 	borrow::Cow,
 	cmp::Ordering,
 	collections::{HashMap, HashSet},
+	fmt,
 	mem,
 	sync::Arc,
 	time::{Duration, Instant},
@@ -681,15 +682,15 @@ impl WrappedOxcDiagnostic {
 	}
 }
 
-impl std::fmt::Display for WrappedOxcDiagnostic {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		<OxcDiagnostic as std::fmt::Display>::fmt(&self.diag, f)
+impl fmt::Display for WrappedOxcDiagnostic {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		<OxcDiagnostic as fmt::Display>::fmt(&self.diag, f)
 	}
 }
 
-impl std::fmt::Debug for WrappedOxcDiagnostic {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		<OxcDiagnostic as std::fmt::Debug>::fmt(&self.diag, f)
+impl fmt::Debug for WrappedOxcDiagnostic {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		<OxcDiagnostic as fmt::Debug>::fmt(&self.diag, f)
 	}
 }
 

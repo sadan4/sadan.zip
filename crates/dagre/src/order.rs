@@ -7,7 +7,11 @@ use crate::{
 	types::{EdgeLabel, GraphLabel, NodeLabel},
 	util,
 };
-use std::collections::HashMap;
+use std::{
+	cmp,
+	collections::{HashMap, HashSet},
+	mem,
+};
 
 #[derive(Debug, Default, Clone)]
 pub struct OrderOptions {
@@ -417,8 +421,7 @@ fn build_layer_graph(
 pub fn init_order(
 	graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
 ) -> Vec<Vec<NodeId>> {
-	let mut visited: std::collections::HashSet<NodeId> =
-		std::collections::HashSet::new();
+	let mut visited: HashSet<NodeId> = HashSet::new();
 	let simple_nodes: Vec<NodeId> = graph
 		.nodes()
 		.into_iter()
@@ -439,7 +442,7 @@ pub fn init_order(
 	fn dfs(
 		graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
 		v: &str,
-		visited: &mut std::collections::HashSet<NodeId>,
+		visited: &mut HashSet<NodeId>,
 		layers: &mut Vec<Vec<NodeId>>,
 	) {
 		if visited.contains(v) {
@@ -668,10 +671,10 @@ fn resolve_conflicts_impl(
 			sum += b * w;
 			weight += w;
 		}
-		let source_vs = std::mem::take(&mut m[source].vs);
+		let source_vs = mem::take(&mut m[source].vs);
 		let new_vs = {
 			let mut v = source_vs;
-			v.extend(std::mem::take(&mut m[target].vs));
+			v.extend(mem::take(&mut m[target].vs));
 			v
 		};
 		m[target].vs = new_vs;
@@ -735,15 +738,15 @@ fn resolve_conflicts_impl(
 fn sort_impl(entries: Vec<ResolvedEntry>, bias_right: bool) -> SortResult {
 	let (sortable, mut unsortable) =
 		util::partition(entries, |e| e.barycenter.is_some());
-	unsortable.sort_by_key(|e| std::cmp::Reverse(e.i));
+	unsortable.sort_by_key(|e| cmp::Reverse(e.i));
 	let mut sortable = sortable;
 	sortable.sort_by(|a, b| {
 		let ab = a.barycenter.unwrap();
 		let bb = b.barycenter.unwrap();
 		if ab < bb {
-			std::cmp::Ordering::Less
+			cmp::Ordering::Less
 		} else if ab > bb {
-			std::cmp::Ordering::Greater
+			cmp::Ordering::Greater
 		} else if !bias_right {
 			a.i.cmp(&b.i)
 		} else {
