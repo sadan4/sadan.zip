@@ -28,6 +28,7 @@ use dashmap::DashMap;
 use oxc::{allocator::Allocator, ast::ast::RegExpFlags};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use smol_str::SmolStr;
 use tokio::sync::Mutex;
 use tower_lsp::{
 	Client,
@@ -52,7 +53,7 @@ use crate::{
 
 #[derive(Debug)]
 struct HelperEntry {
-	plugin_name: String,
+	plugin_name: SmolStr,
 	/// Find expression as a single canonical string — string finds verbatim,
 	/// regex finds kept as their pattern. Used as a fingerprint when
 	/// relocating the patch after source edits.
@@ -76,9 +77,9 @@ struct HelperEntry {
 }
 
 impl HelperEntry {
-	fn placeholder() -> Self {
+	const fn placeholder() -> Self {
 		Self {
-			plugin_name: "MyPlugin".to_owned(),
+			plugin_name: SmolStr::new_static("MyPlugin"),
 			last_find: String::new(),
 			last_find_type: FindType::String,
 			occurrence: 0,
@@ -456,7 +457,7 @@ fn byte_to_line(s: &str, byte: usize) -> u32 {
 #[derive(Debug)]
 struct ExtractedPatch {
 	patch: Patch,
-	plugin_name: String,
+	plugin_name: SmolStr,
 	find_string: String,
 	find_type: FindType,
 	/// Position of this patch among all patches that share its find — see
@@ -480,8 +481,7 @@ fn extract_patch(source: &str, patch_index: usize) -> Result<ExtractedPatch> {
 	let plugin_name = parser
 		.plugin_info()
 		.context("source does not look like a Vencord plugin")?
-		.name
-		.to_owned();
+		.name;
 	let mut patches = parser
 		.patches(true)
 		.map_err(|e| anyhow!("canonicalize patches: {e}"))?;
@@ -523,8 +523,7 @@ fn relocate_patch(
 	let plugin_name = parser
 		.plugin_info()
 		.context("source no longer looks like a Vencord plugin")?
-		.name
-		.to_owned();
+		.name;
 	let patches = parser
 		.patches(true)
 		.map_err(|e| anyhow!("canonicalize patches: {e}"))?;

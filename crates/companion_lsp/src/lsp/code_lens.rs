@@ -100,13 +100,13 @@ fn patch_code_lenses(
 			out.push(make_plugin_lens(
 				range,
 				"Enable Plugin",
-				plugin.name,
+				&plugin.name,
 				true,
 			));
 			out.push(make_plugin_lens(
 				range,
 				"Disable Plugin",
-				plugin.name,
+				&plugin.name,
 				false,
 			));
 		}

@@ -148,6 +148,16 @@ fn gets_plugin_meta() {
 	    name: "Plugin8",
 	    description: None,
 	    devs: None,
+	    top_level_plugin_keys: {
+	      "name": {
+	        "start": 534,
+	        "end": 538,
+	      },
+	      "patches": {
+	        "start": 556,
+	        "end": 563,
+	      },
+	    },
 	    span: {
 	      "start": 528,
 	      "end": 3118,
@@ -178,6 +188,32 @@ fn gets_plugin_meta() {
 	        },
 	      ),
 	    ]),
+	    top_level_plugin_keys: {
+	      "setShift": {
+	        "start": 1182,
+	        "end": 1190,
+	      },
+	      "description": {
+	        "start": 207,
+	        "end": 218,
+	      },
+	      "shouldTransition": {
+	        "start": 1081,
+	        "end": 1097,
+	      },
+	      "name": {
+	        "start": 177,
+	        "end": 181,
+	      },
+	      "authors": {
+	        "start": 315,
+	        "end": 322,
+	      },
+	      "patches": {
+	        "start": 358,
+	        "end": 365,
+	      },
+	    },
 	    span: {
 	      "start": 171,
 	      "end": 1270,
@@ -208,6 +244,32 @@ fn gets_plugin_meta() {
 	        },
 	      ),
 	    ]),
+	    top_level_plugin_keys: {
+	      "patches": {
+	        "start": 621,
+	        "end": 628,
+	      },
+	      "description": {
+	        "start": 504,
+	        "end": 515,
+	      },
+	      "name": {
+	        "start": 436,
+	        "end": 440,
+	      },
+	      "authors": {
+	        "start": 468,
+	        "end": 475,
+	      },
+	      "tags": {
+	        "start": 582,
+	        "end": 586,
+	      },
+	      "sortEmojis": {
+	        "start": 1834,
+	        "end": 1844,
+	      },
+	    },
 	    span: {
 	      "start": 430,
 	      "end": 2578,

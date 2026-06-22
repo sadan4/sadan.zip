@@ -6,8 +6,9 @@ pub(crate) use collect_capture_groups::{
 	collect_capture_groups,
 };
 use memchr::memmem::Finder;
+use smol_str::{SmolStr, ToSmolStr};
 
-use std::{sync::mpsc, vec};
+use std::{collections::HashMap, sync::mpsc, vec};
 
 use crate::{
 	AnyFindType,
@@ -54,6 +55,7 @@ use ast_parser::{
 		ExpressionExt as _,
 		ImportDeclarationExt as _,
 		ObjectExpressionExt as _,
+		PropertyKeyExt,
 	},
 	parse_for_traverse,
 	sym_id::GetSymId,
@@ -167,17 +169,21 @@ impl<'ast> VencordAstParser<'ast> {
 	/// object literal. Returns `Err(reason)` if the file doesn't look like a
 	/// vencord plugin (no `@utils/types` import, no `definePlugin` call,
 	/// or no `name` string property).
-	pub fn plugin_info(&self) -> PResult<PluginInfo<'ast>> {
-		let name = self.plugin_name()?;
+	pub fn plugin_info(&self) -> PResult<PluginInfo> {
+		let name = self.plugin_name()?.to_smolstr();
 		// name requires define_plugin, so this should never error
-		let obj = self.define_plugin().unwrap();
-		let description = self.plugin_desc()?;
+		let span = self.define_plugin().unwrap().span;
+		let description = self
+			.plugin_desc()?
+			.map(ToSmolStr::to_smolstr);
 		let devs = self.plugin_devs()?;
+		let top_level_plugin_keys = self.top_level_plugin_keys()?;
 		Ok(PluginInfo {
 			name,
-			span: obj.span,
 			description,
 			devs,
+			top_level_plugin_keys,
+			span,
 		})
 	}
 
@@ -624,7 +630,7 @@ impl<'ast> VencordAstParser<'ast> {
 
 	fn parse_dev_el(
 		dev: &'ast ArrayExpressionElement<'ast>,
-	) -> PResult<PluginDev<'ast>> {
+	) -> PResult<PluginDev> {
 		match dev {
 			ArrayExpressionElement::ObjectExpression(obj) => {
 				let obj = obj.as_ref();
@@ -643,7 +649,7 @@ impl<'ast> VencordAstParser<'ast> {
 						err(&name_prop.value, "`name` is not a string literal")
 					})?
 					.value
-					.as_str();
+					.to_smolstr();
 				let id_val = id_prop
 					.value
 					.as_big_int_literal()
@@ -666,7 +672,7 @@ impl<'ast> VencordAstParser<'ast> {
 			}
 			ArrayExpressionElement::StaticMemberExpression(access) => {
 				let access = access.as_ref();
-				let key = access.property.name.as_str();
+				let key = access.property.name.to_smolstr();
 				let obj = access
 					.object
 					.as_identifier()
@@ -677,7 +683,7 @@ impl<'ast> VencordAstParser<'ast> {
 						)
 					})?
 					.name
-					.as_str();
+					.to_smolstr();
 				Ok(PluginDev {
 					dev: Dev::Reference { key, obj },
 					span: access.span,
@@ -690,7 +696,7 @@ impl<'ast> VencordAstParser<'ast> {
 		}
 	}
 
-	fn plugin_devs(&self) -> PResult<Option<Vec<PluginDev<'ast>>>> {
+	fn plugin_devs(&self) -> PResult<Option<Vec<PluginDev>>> {
 		let define_plugin = self
 			.define_plugin()
 			.map_err(|e| err_ns("Failed to find definePlugin").s(e.clone()))?;
@@ -710,6 +716,27 @@ impl<'ast> VencordAstParser<'ast> {
 			devs.push(dev);
 		}
 		Ok(Some(devs))
+	}
+
+	fn top_level_plugin_keys(&self) -> PResult<HashMap<SmolStr, Span>> {
+		let define_plugin = self
+			.define_plugin()
+			.map_err(|e| err_ns("Failed to find definePlugin").s(e.clone()))?;
+		let mut ret = HashMap::with_capacity(define_plugin.properties.len());
+		for prop in &define_plugin.properties {
+			if let Some(key) = prop
+				.as_property()
+				.and_then(|p| p.key.as_static_identifier())
+			{
+				ret.insert(key.name.to_smolstr(), key.span);
+			} else {
+				tracing::debug!(
+					"Skipping non-identifier top-level plugin key at {:?}",
+					prop.span()
+				);
+			}
+		}
+		Ok(ret)
 	}
 
 	fn try_into_raw_match_like(

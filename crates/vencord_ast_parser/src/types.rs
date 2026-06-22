@@ -7,27 +7,30 @@ use memchr::memmem::Finder;
 use oxc::{ast::ast::RegExpFlags, span::Span};
 use regress::{Flags, Regex};
 use serde::{Deserialize, Serialize};
-use std::hash::{Hash, Hasher};
+use smol_str::SmolStr;
+use std::{collections::HashMap, hash::{Hash, Hasher}};
 
 /// Surface-level info about a plugin's `definePlugin({...})` declaration —
 /// just enough for the LSP to anchor a code lens and ship a command
 /// payload, without exposing the full AST.
 #[derive(
-	Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
+	Debug, Clone, PartialEq, Eq, Serialize, Deserialize,
 )]
-pub struct PluginInfo<'ast> {
+pub struct PluginInfo {
 	/// the name of the plugin
-	pub name: &'ast str,
+	pub name: SmolStr,
 	/// a description of the plugin
 	///
 	/// while this is required by definePlugin, we treat it as optional
-	pub description: Option<&'ast str>,
+	pub description: Option<SmolStr>,
 	/// the authors of the plugin
 	///
 	/// [`None`] means that the property was not in the plugin definition, while `Some(vec![])` means that it was present but empty
 	///
 	/// while this is required by definePlugin, we treat it as optional
-	pub devs: Option<Vec<PluginDev<'ast>>>,
+	pub devs: Option<Vec<PluginDev>>,
+	#[serde(deserialize_with = "deserialize_span_map")]
+	pub top_level_plugin_keys: HashMap<SmolStr, Span>,
 	/// Source span covering the `definePlugin` object literal.
 	#[serde(deserialize_with = "deserialize_span")]
 	pub span: Span,
@@ -36,7 +39,6 @@ pub struct PluginInfo<'ast> {
 #[derive(
 	Debug,
 	Clone,
-	Copy,
 	PartialEq,
 	Eq,
 	PartialOrd,
@@ -48,17 +50,16 @@ pub struct PluginInfo<'ast> {
 /// A developer of a plugin, either an inline declaration or a reference to a known dev.
 ///
 /// used in [`PluginInfo`]
-pub struct PluginDev<'a> {
-	#[serde(bound(deserialize = "'de: 'a"))]
+pub struct PluginDev {
 	/// the dev
-	pub dev: Dev<'a>,
+	pub dev: Dev,
 	/// the span of where the dev is listed within the plugin
 	#[serde(deserialize_with = "deserialize_span")]
 	pub span: Span,
 }
 
-impl<'a> PluginDev<'a> {
-	pub const fn inline(name: &'a str, id: u64, span: Span) -> Self {
+impl PluginDev {
+	pub const fn inline(name: SmolStr, id: u64, span: Span) -> Self {
 		Self {
 			dev: Dev::Inline { name, id },
 			span,
@@ -69,7 +70,6 @@ impl<'a> PluginDev<'a> {
 #[derive(
 	Debug,
 	Clone,
-	Copy,
 	PartialEq,
 	Eq,
 	PartialOrd,
@@ -78,14 +78,14 @@ impl<'a> PluginDev<'a> {
 	Serialize,
 	Deserialize,
 )]
-pub enum Dev<'a> {
+pub enum Dev {
 	/// a reference to a dev
 	/// ## Example:
 	/// ```ts
 	/// Devs.sadan;
 	/// EquicordDevs.sadan;
 	/// ```
-	Reference { key: &'a str, obj: &'a str },
+	Reference { key: SmolStr, obj: SmolStr },
 	/// an inline dev
 	/// ## Example:
 	/// ```ts
@@ -94,7 +94,7 @@ pub enum Dev<'a> {
 	///     id: 999999999999999999n,
 	/// };
 	/// ```
-	Inline { name: &'a str, id: u64 },
+	Inline { name: SmolStr, id: u64 },
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -404,6 +404,20 @@ where
 	Ok(Vec::<SpanData>::deserialize(deserializer)?
 		.into_iter()
 		.map(Into::into)
+		.collect())
+}
+
+/// As [`deserialize_span`], but for a map of borrowed string keys to spans
+/// (e.g. `top_level_plugin_keys`). The keys are borrowed from the input.
+fn deserialize_span_map<'de, D>(
+	deserializer: D,
+) -> Result<HashMap<SmolStr, Span>, D::Error>
+where
+	D: serde::Deserializer<'de>,
+{
+	Ok(HashMap::<SmolStr, SpanData>::deserialize(deserializer)?
+		.into_iter()
+		.map(|(k, v)| (k, v.into()))
 		.collect())
 }
 
