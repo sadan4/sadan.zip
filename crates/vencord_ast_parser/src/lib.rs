@@ -13,6 +13,8 @@ pub use types::{
 	MatchRegex,
 	Patch,
 	PluginInfo,
+	PluginDev,
+	Dev,
 	ReplaceLike,
 	Replacement,
 	Replacer,
