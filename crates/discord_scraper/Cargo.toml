@@ -14,7 +14,7 @@ tracing.workspace = true
 html_parser.workspace = true
 regress.workspace = true
 memchr.workspace = true
-oxc_allocator.workspace = true
+oxc_allocator = { workspace = true, features = ["pool"] }
 const_format.workspace = true
 webpack_chunk_parser.workspace = true
 webpack_ast_parser.workspace = true

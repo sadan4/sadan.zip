@@ -5,6 +5,7 @@ mod pass;
 pub mod patches;
 mod types;
 
+pub use oxc::allocator::Allocator;
 pub use parser::VencordAstParser;
 pub use types::{
 	Match,

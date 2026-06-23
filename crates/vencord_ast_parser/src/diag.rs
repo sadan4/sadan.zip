@@ -10,13 +10,12 @@ pub use miette::Severity;
 #[derive(Error, Debug, Clone, Default)]
 #[error("VencordAstParser: {msg}")]
 pub struct ParserDiagnostic {
-	pub(crate) msg: Cow<'static, str>,
-	pub(crate) labels: Vec<(Span, Cow<'static, str>)>,
-	pub(crate) severity: miette::Severity,
+	pub msg: Cow<'static, str>,
+	pub labels: Vec<(Span, Cow<'static, str>)>,
+	pub severity: miette::Severity,
 	#[debug("({:?})", txt.as_deref().and_then(|s| s.name()).unwrap_or("unknown source"))]
-	pub(crate) txt: Option<Arc<dyn miette::SourceCode + Send + Sync + 'static>>,
-	pub(crate) cause:
-		Option<Arc<dyn miette::Diagnostic + Send + Sync + 'static>>,
+	pub txt: Option<Arc<dyn miette::SourceCode + Send + Sync + 'static>>,
+	pub cause: Option<Arc<dyn miette::Diagnostic + Send + Sync + 'static>>,
 }
 
 impl ParserDiagnostic {
@@ -28,18 +27,6 @@ impl ParserDiagnostic {
 		debug_assert!(self.cause.is_none(), "should only set cause once");
 		self.cause = Some(Arc::from(cause.into()));
 		self
-	}
-
-	pub fn message(&self) -> &str {
-		&self.msg
-	}
-
-	pub fn labels_raw(&self) -> &[(Span, Cow<'static, str>)] {
-		&self.labels
-	}
-
-	pub const fn severity_raw(&self) -> miette::Severity {
-		self.severity
 	}
 
 	pub fn with_local_source<'a>(

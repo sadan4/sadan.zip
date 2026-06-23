@@ -1705,9 +1705,9 @@ dependencies = [
 
 [[package]]
 name = "json-escape-simd"
-version = "3.0.1"
+version = "3.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a3c2a6c0b4b5637c41719973ef40c6a1cf564f9db6958350de6193fbee9c23f5"
+checksum = "35e770254dd7802184595b1d30da2a15cb72569e2aca2b177aef8d22eac8a693"
 
 [[package]]
 name = "konst"
@@ -2115,9 +2115,9 @@ dependencies = [
 
 [[package]]
 name = "oxc-browserslist"
-version = "3.0.2"
+version = "3.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3be1f075e9100260ff5ecb2b375fb24d6c5f2c97a23e6a86367720831e9faa8e"
+checksum = "2b87743c2f6963036971ca587539cd9235693d953dc018a734014241afb20d5b"
 dependencies = [
  "flate2",
  "postcard",
@@ -2168,9 +2168,7 @@ dependencies = [
  "allocator-api2",
  "hashbrown 0.17.0",
  "oxc_data_structures",
- "oxc_estree",
  "rustc-hash",
- "serde",
 ]
 
 [[package]]
@@ -2414,9 +2412,9 @@ dependencies = [
 
 [[package]]
 name = "oxc_sourcemap"
-version = "8.0.1"
+version = "8.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "174d2498c2390ccfab0a9caaf47ef5accda1d509aaa34a5be8f45e00e5299f04"
+checksum = "9ac6db7d8c33f46a0b9ebb702c077364abcd6b64c3a3a97bb86b9f5b3554833c"
 dependencies = [
  "base64-simd",
  "json-escape-simd",
@@ -2470,7 +2468,6 @@ dependencies = [
  "oxc_span",
  "oxc_str",
  "phf 0.13.1",
- "serde",
  "unicode-id-start",
 ]
 
@@ -4184,6 +4181,7 @@ dependencies = [
  "oxc",
  "oxc-miette",
  "oxc_ecmascript",
+ "oxc_span",
  "oxc_traverse",
  "regress",
  "serde",

@@ -138,11 +138,11 @@ fn parser_diagnostic_to_lsp(
 	source: &str,
 	diag: &ParserDiagnostic,
 ) -> Option<Diagnostic> {
-	let (primary_span, _) = diag.labels_raw().first()?;
+	let (primary_span, _) = diag.labels.first()?;
 	let range = span_to_range(source, *primary_span);
 
-	let mut message = diag.message().to_owned();
-	for (_, label) in diag.labels_raw().iter().skip(1) {
+	let mut message = diag.msg.clone().into_owned();
+	for (_, label) in diag.labels.iter().skip(1) {
 		if label.is_empty() {
 			continue;
 		}
@@ -152,7 +152,7 @@ fn parser_diagnostic_to_lsp(
 
 	Some(Diagnostic {
 		range,
-		severity: Some(severity_to_lsp(diag.severity_raw())),
+		severity: Some(severity_to_lsp(diag.severity)),
 		source: Some("vencord".into()),
 		message,
 		..Default::default()

@@ -9,7 +9,7 @@ doctest = false
 [dependencies]
 anyhow.workspace = true
 itertools.workspace = true
-oxc.workspace = true
+oxc = { workspace = true, features = ["semantic", "ast_visit"] }
 oxc_ecmascript.workspace = true
 derive_more.workspace = true
 oxc-miette.workspace = true

@@ -14,7 +14,8 @@ derive_more.workspace = true
 itertools.workspace = true
 memchr.workspace = true
 num-bigint.workspace = true
-oxc.workspace = true
+oxc = { workspace = true, features = ["minifier", "regular_expression"] }
+oxc_span = { workspace = true, features = ["serialize"] }
 oxc_ecmascript.workspace = true
 oxc_traverse.workspace = true
 regress.workspace = true
@@ -27,6 +28,7 @@ oxc-miette = { workspace = true }
 
 [dev-dependencies]
 insta.workspace = true
+oxc = { workspace = true, features = ["minifier", "codegen"] }
 
 [lints]
 workspace = true
