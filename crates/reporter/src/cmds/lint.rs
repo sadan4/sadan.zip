@@ -55,6 +55,9 @@ pub fn lint(
 		parser.diag_ch = Some(tx);
 		parser.collect_diagnostics();
 		while let Ok(diag) = rx.try_recv() {
+			if diag.severity != miette::Severity::Error && cli.no_warnings {
+				continue;
+			}
 			let report = miette::Error::new(diag);
 			let e = LocalSource {
 				inner: report,

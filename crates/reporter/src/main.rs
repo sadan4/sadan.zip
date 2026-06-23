@@ -1,4 +1,4 @@
-use anyhow::{Result, bail};
+use miette::{Result, bail};
 use clap::{CommandFactory as _, Parser as _};
 use derive_more::From;
 use indicatif::MultiProgress;

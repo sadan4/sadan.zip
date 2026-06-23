@@ -7,9 +7,9 @@ use std::{
 	sync::Arc,
 };
 
-use anyhow::{Context as _, Result, bail};
 use derive_more::{Deref, From};
 use explorer_server_core::Channel;
+use miette::{Context as _, Report, Result, bail};
 use notify::{RecommendedWatcher, Watcher as _};
 use rustc_hash::FxHasher;
 use tokio::{fs, sync::mpsc};
@@ -32,12 +32,14 @@ struct FsWatcher {
 impl FsWatcher {
 	fn new() -> Result<Self> {
 		let (tx, rx) = mpsc::channel(256);
-		let watcher = notify::recommended_watcher(WatcherTx(tx))?;
+		let watcher =
+			notify::recommended_watcher(WatcherTx(tx)).map_err(Report::msg)?;
 		Ok(Self { inner: watcher, rx })
 	}
 	fn watch_file(&mut self, path: &Path) -> Result<()> {
 		self.inner
-			.watch(path, notify::RecursiveMode::NonRecursive)?;
+			.watch(path, notify::RecursiveMode::NonRecursive)
+			.map_err(Report::msg)?;
 		Ok(())
 	}
 }
@@ -67,7 +69,9 @@ pub async fn run_watcher(
 	info!("Starting watcher");
 	let FullReporterResult {
 		plugins, modules, ..
-	} = run_reporter(&cli, global_bar).await?;
+	} = run_reporter(&cli, global_bar)
+		.await
+		.map_err(Report::msg)?;
 	global_bar.clear();
 	info!("Finished initial run. Watching for file changes...");
 	let mut watcher = FsWatcher::new()?;
@@ -84,7 +88,10 @@ pub async fn run_watcher(
 	}
 	while let Some(event) = watcher.rx.recv().await {
 		fn match_event(event: NotifyEvent) -> Result<Option<Vec<PathBuf>>> {
-			let mut event = match event.context("Watcher Event") {
+			let mut event = match event
+				.map_err(Report::msg)
+				.context("Watcher Event")
+			{
 				Ok(event) => event,
 				Err(e) => {
 					warn!("{e:?}");
@@ -96,7 +103,9 @@ pub async fn run_watcher(
 				return Ok(None);
 			}
 			for path in &mut event.paths {
-				*path = path.canonicalize()?;
+				*path = path
+					.canonicalize()
+					.map_err(Report::msg)?;
 			}
 			Ok(Some(event.paths))
 		}
@@ -122,7 +131,9 @@ pub async fn run_watcher(
 		debug!("Files changed. Re-running reporter...");
 		let mut changed_contents = Vec::with_capacity(changed_paths.len());
 		for path in mem::take(&mut changed_paths) {
-			let contents = fs::read_to_string(&path).await?;
+			let contents = fs::read_to_string(&path)
+				.await
+				.map_err(Report::msg)?;
 			let new_hash = hash_contents(contents.as_bytes());
 			match last_hash.get_mut(&path) {
 				Some(hash) if *hash == new_hash => {
@@ -161,5 +172,7 @@ async fn run_for_all_plugins(
 	builds: Vec<(Channel, Arc<ScrapedOutput>)>,
 	global_bar: &MultiProgressWrapper,
 ) -> Result<FullReporterResult> {
-	run_with_data(builds, Arc::new(new_plugins), cli, global_bar).await
+	run_with_data(builds, Arc::new(new_plugins), cli, global_bar)
+		.await
+		.map_err(Report::msg)
 }

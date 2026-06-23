@@ -503,4 +503,73 @@ export default definePlugin({
 			"expected non-existent-capture-group error, got {diags:#?}"
 		);
 	}
+
+	#[test]
+	fn errors_on_unbound_self_reference() {
+		// `$self.doesNotExist` refers to a property the plugin never declares.
+		const SRC: &str = r#"import definePlugin from "@utils/types";
+export default definePlugin({
+    name: "P",
+    start() {},
+    patches: [{
+        find: "abc",
+        replacement: { match: /x/, replace: "$self.doesNotExist" }
+    }],
+});
+"#;
+		let diags = collect_parser_diagnostics(SRC);
+		assert!(
+			diags
+				.iter()
+				.any(|d| d.severity == Some(DiagnosticSeverity::ERROR)
+					&& d.message.contains("doesNotExist")),
+			"expected unbound `$self` error, got {diags:#?}"
+		);
+	}
+
+	#[test]
+	fn allows_known_self_reference() {
+		// `foo` is a top-level method, so `$self.foo` is valid.
+		const SRC: &str = r#"import definePlugin from "@utils/types";
+export default definePlugin({
+    name: "P",
+    foo() {},
+    patches: [{
+        find: "abc",
+        replacement: { match: /x/, replace: "$self.foo" }
+    }],
+});
+"#;
+		let diags = collect_parser_diagnostics(SRC);
+		assert!(
+			!diags
+				.iter()
+				.any(|d| d.message.contains("$self")),
+			"expected no `$self` diagnostic, got {diags:#?}"
+		);
+	}
+
+	#[test]
+	fn ignores_escaped_and_bare_self() {
+		// `$$self.x` is an escaped `$`, and bare `$self` has no property access.
+		const SRC: &str = r#"import definePlugin from "@utils/types";
+export default definePlugin({
+    name: "P",
+    patches: [{
+        find: "abc",
+        replacement: [
+            { match: /x/, replace: "$$self.whatever" },
+            { match: /y/, replace: "$self" }
+        ]
+    }],
+});
+"#;
+		let diags = collect_parser_diagnostics(SRC);
+		assert!(
+			!diags
+				.iter()
+				.any(|d| d.message.contains("$self")),
+			"expected no `$self` diagnostic, got {diags:#?}"
+		);
+	}
 }

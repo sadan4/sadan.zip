@@ -22,17 +22,18 @@ pub enum Cmd {
 pub async fn run(
 	cli: super::Cli,
 	global_bar: &MultiProgressWrapper,
-) -> anyhow::Result<i8> {
+) -> miette::Result<i8> {
 	match cli.cmd {
 		Cmd::Run => run::run_reporter(&cli, global_bar)
 			.await
-			.map(|r| r.num_errs.try_into().unwrap_or(-1)),
+			.map(|r| r.num_errs.try_into().unwrap_or(-1))
+			.map_err(miette::Report::msg),
 		Cmd::Watch => {
 			let _ = watch::run_watcher(cli, global_bar).await?;
 			unreachable!()
 		}
 		Cmd::Lint => {
-			lint::lint(cli, global_bar)?;
+			lint::lint(cli, global_bar).map_err(miette::Report::msg)?;
 			Ok(0)
 		}
 	}

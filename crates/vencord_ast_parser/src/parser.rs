@@ -157,10 +157,14 @@ impl<'ast> VencordAstParser<'ast> {
 			}
 			Ok(e) => e,
 		};
+		let plugin_keys = self
+			.top_level_plugin_keys()
+			.unwrap_or_default();
 		for patch in patches {
 			self.check_find(patch.find);
 			for repl in &patch.replacement {
 				self.check_replacement(repl);
+				self.check_self_references(repl, &plugin_keys);
 			}
 		}
 	}
@@ -221,6 +225,56 @@ impl<'ast> VencordAstParser<'ast> {
 		self.cache
 			.finds
 			.get(|| self.get_finds_())
+	}
+
+	/// If `offset` falls on a `$self.<prop>` reference inside a string
+	/// replacement, returns the span of `<prop>`'s definition — its key in the
+	/// `definePlugin({...})` object. Returns `None` when the cursor isn't on
+	/// such a reference, or when `<prop>` is not a known top-level plugin key
+	/// (an unbound reference, which [`Self::check_self_references`] flags).
+	///
+	/// Powers "go to definition" on `$self.<prop>` in the LSP.
+	pub fn self_reference_definition(&self, offset: u32) -> Option<Span> {
+		let plugin_keys = self.top_level_plugin_keys().ok()?;
+		let patches = self.raw_patches().ok()?;
+		for patch in &patches {
+			for repl in &patch.replacement {
+				let (value, scan_offset) = match repl.replace {
+					RawReplace::ComputedString(value, span) => {
+						(value.as_str(), span.start + 1)
+					}
+					RawReplace::String(lit) => {
+						(lit.value.as_str(), lit.span.start + 1)
+					}
+					// In a function or template replacement, `$self.<prop>`
+					// appears verbatim in the raw source (it's a textual
+					// substitution Vencord applies to the stringified replace),
+					// so scan the node's source slice with its start as the
+					// offset — no `+ 1` since there's no opening quote to skip.
+					RawReplace::Func(f) => (
+						&self.txt
+							[f.span.start as usize..f.span.end as usize],
+						f.span.start,
+					),
+					RawReplace::Template(t) => (
+						&self.txt
+							[t.span.start as usize..t.span.end as usize],
+						t.span.start,
+					),
+				};
+				let refs =
+					Self::collect_self_references(value, scan_offset);
+				for (prop, spans) in &refs {
+					if spans
+						.iter()
+						.any(|s| (s.start..=s.end).contains(&offset))
+					{
+						return plugin_keys.get(prop).copied();
+					}
+				}
+			}
+		}
+		None
 	}
 }
 /// Diagnostics
@@ -322,6 +376,45 @@ impl<'ast> VencordAstParser<'ast> {
 						ch.send(diag).ok();
 					}
 				}
+			}
+		}
+	}
+
+	/// Errors on any `$self.<prop>` reference in a string replacement whose
+	/// `<prop>` is not a top-level key of the plugin. Unlike
+	/// [`Self::check_replacement`], this is not gated on the match being a
+	/// regex — `$self` is valid for any find.
+	fn check_self_references(
+		&self,
+		repl: &RawReplacement<'ast>,
+		plugin_keys: &HashMap<SmolStr, Span>,
+	) {
+		let (value, replace_span) = match repl.replace {
+			RawReplace::ComputedString(value, span) => (value.as_str(), span),
+			RawReplace::String(lit) => (lit.value.as_str(), lit.span),
+			RawReplace::Func(_) | RawReplace::Template(_) => return,
+		};
+
+		let ch = self.diag_ch.as_ref().unwrap();
+		let refs = Self::collect_self_references(value, replace_span.start + 1);
+		for (prop, spans) in &refs {
+			if plugin_keys.contains_key(prop) {
+				continue;
+			}
+			for &span in spans {
+				ch.send(ParserDiagnostic {
+					msg: format!(
+						"`$self.{prop}` references `{prop}`, which is not a top-level property of the plugin"
+					)
+					.into(),
+					labels: vec![(
+						span,
+						"no such property on the plugin".into(),
+					)],
+					severity: miette::Severity::Error,
+					..Default::default()
+				})
+				.ok();
 			}
 		}
 	}
@@ -1171,6 +1264,58 @@ impl<'ast> VencordAstParser<'ast> {
 		Ok(ret)
 	}
 
+	/// Collects every `$self.<prop>` reference in a replacement string, mapping
+	/// each referenced property name to the span(s) of the `<prop>` identifier.
+	///
+	/// `offset` is added to all spans (pass `replace_span.start + 1` to skip the
+	/// opening quote), so the returned spans are absolute file offsets pointing
+	/// at just the `<prop>` identifier. `$$` is treated as a literal-`$` escape,
+	/// so `$$self.x` is not a reference. Only top-level `.`-access is captured
+	/// (`$self.a.b` -> `a`); computed access (`$self["x"]`) and bare `$self` are
+	/// ignored.
+	pub(crate) fn collect_self_references(
+		value: &str,
+		offset: u32,
+	) -> HashMap<SmolStr, Vec<Span>> {
+		let bytes = value.as_bytes();
+		let mut refs: HashMap<SmolStr, Vec<Span>> = HashMap::new();
+		let mut i = 0;
+		while i < bytes.len() {
+			if bytes[i] != b'$' {
+				i += 1;
+				continue;
+			}
+			// `$$` -> literal `$` escape; consume both, not a `$self` ref.
+			if bytes.get(i + 1) == Some(&b'$') {
+				i += 2;
+				continue;
+			}
+			if bytes[i + 1..].starts_with(b"self.") {
+				let prop_start = i + "$self.".len();
+				let mut end = prop_start;
+				if matches!(bytes.get(end), Some(c) if is_ident_start(*c)) {
+					end += 1;
+					while matches!(bytes.get(end), Some(c) if is_ident_continue(*c))
+					{
+						end += 1;
+					}
+					let prop = &value[prop_start..end];
+					let span = Span::new(
+						offset + prop_start as u32,
+						offset + end as u32,
+					);
+					refs.entry(prop.into())
+						.or_default()
+						.push(span);
+					i = end;
+					continue;
+				}
+			}
+			i += 1;
+		}
+		refs
+	}
+
 	/// offset is added to the returned spans
 	///
 	/// TODO: named groups?
@@ -1522,6 +1667,17 @@ impl<'ast> VencordAstParser<'ast> {
 
 		Ok(ret)
 	}
+}
+
+/// Whether `b` is valid as the first byte of a JS identifier (ASCII subset,
+/// sufficient for plugin top-level keys).
+const fn is_ident_start(b: u8) -> bool {
+	b.is_ascii_alphabetic() || b == b'_' || b == b'$'
+}
+
+/// Whether `b` is valid as a non-leading byte of a JS identifier (ASCII subset).
+const fn is_ident_continue(b: u8) -> bool {
+	b.is_ascii_alphanumeric() || b == b'_' || b == b'$'
 }
 
 impl GlobalContext<'_> for VencordAstParser<'_> {

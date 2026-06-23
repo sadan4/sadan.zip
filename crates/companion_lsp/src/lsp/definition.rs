@@ -11,7 +11,7 @@
 
 use std::{mem, path::PathBuf, sync::Arc};
 
-use oxc::span::Span;
+use oxc::{allocator::Allocator, span::Span};
 use tower_lsp::{
 	jsonrpc::Result as LspResult,
 	lsp_types::{
@@ -23,6 +23,7 @@ use tower_lsp::{
 		Url,
 	},
 };
+use vencord_ast_parser::VencordAstParser;
 use webpack_ast_parser::{WebpackAstParser, bundle};
 
 use crate::{
@@ -55,7 +56,15 @@ pub async fn goto_definition(
 	// Vencord plugin files: cursor on a capture-group use in a replacement
 	// (e.g. `$1`) jumps to that group's definition in the regex. Handled
 	// before the webpack path since the two operate on disjoint file kinds.
-	if let Some(loc) = capture_group_definition(backend, &doc, pos).await {
+	if let Some(loc) = capture_group_definition(backend, doc.clone(), pos).await
+	{
+		return Ok(Some(GotoDefinitionResponse::Scalar(loc)));
+	}
+
+	// Vencord plugin files: cursor on a `$self.<prop>` reference in a
+	// replacement jumps to where `<prop>` is defined in the `definePlugin`
+	// object. Disjoint from the capture-group path above.
+	if let Some(loc) = self_prop_definition(doc.clone(), pos).await {
 		return Ok(Some(GotoDefinitionResponse::Scalar(loc)));
 	}
 
@@ -101,11 +110,10 @@ pub async fn goto_definition(
 /// every `goto_definition` before falling through to the webpack path.
 async fn capture_group_definition(
 	backend: &Backend,
-	doc: &Document,
+	doc: Document,
 	pos: Position,
 ) -> Option<Location> {
 	let state = Arc::clone(&backend.state);
-	let doc = doc.clone();
 	tokio::task::spawn_blocking(move || {
 		let offset = ast_parser::get_offset_from_line_and_column(
 			&doc.text,
@@ -122,6 +130,32 @@ async fn capture_group_definition(
 	.await
 	.ok()
 	.flatten()
+}
+
+/// Resolves a `$self.<prop>` reference under the cursor to where `<prop>` is
+/// defined in the plugin's `definePlugin({...})` object. Parses the plugin
+/// fresh (cheap, on-demand) rather than reusing the patch cache, since the key
+/// definition spans come from the plugin info, not the patches.
+async fn self_prop_definition(
+	doc: Document,
+	pos: Position,
+) -> Option<Location> {
+	tokio::task::spawn_blocking(move || {
+		let offset = ast_parser::get_offset_from_line_and_column(
+			&doc.text,
+			pos.line,
+			pos.character,
+		);
+		let alloc = Allocator::new();
+		let parser = VencordAstParser::try_new(&alloc, &doc.text, None).ok()?;
+		let span = parser.self_reference_definition(offset)?;
+		Some(Location {
+			uri: doc.uri.clone(),
+			range: span_to_range(&doc.text, span),
+		})
+	})
+	.await
+	.expect("Failed to join task")
 }
 
 fn resolve_definitions(

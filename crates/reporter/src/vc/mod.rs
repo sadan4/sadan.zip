@@ -105,13 +105,15 @@ fn do_collect_patches(
 
 pub async fn collect_plugins_from_paths(
 	paths: Vec<(PathBuf, String)>,
-) -> Result<Vec<Plugin>> {
-	task::spawn_blocking(move || do_collect_plugins_from_paths(paths)).await?
+) -> miette::Result<Vec<Plugin>> {
+	task::spawn_blocking(move || do_collect_plugins_from_paths(paths))
+		.await
+		.map_err(|e| miette::Report::msg(e))?
 }
 
 fn do_collect_plugins_from_paths(
 	paths: Vec<(PathBuf, String)>,
-) -> Result<Vec<Plugin>> {
+) -> miette::Result<Vec<Plugin>> {
 	let mut allocator = Allocator::new();
 	let mut plugins = paths
 		.into_iter()
@@ -127,8 +129,7 @@ fn do_collect_plugins_from_paths(
 			&allocator,
 			&plugin.entry_source,
 			Some(&path),
-		)
-		.map_err(|e| anyhow!(e))?;
+		)?;
 		plugin.patches = parser.patches(true)?;
 		allocator.reset();
 	}
