@@ -166,15 +166,15 @@ pub fn infer_plugin_dirs(vencord_dir: &Path) -> Result<Vec<PathBuf>> {
 		}
 		if file_name.ends_with("plugins") {
 			for sub_dir in PLUGIN_SUB_DIRS {
-				let Ok(sub_dir) = path.join(sub_dir).canonicalize() else {
+				let sub_dir = path.join(sub_dir);
+				let Ok(sub_dir) = sub_dir.canonicalize() else {
+					debug!(?sub_dir, "doesnt exist, skipping");
 					continue;
 				};
-				let sub_dir = sub_dir
-					.strip_prefix(&vencord_dir)
-					.context("inferred plugin dir is not in vencord dir")?
-					.to_owned();
 				if sub_dir.is_dir() {
 					ret.push(sub_dir);
+				} else {
+					warn!(?sub_dir, "expected a directory");
 				}
 			}
 			let path = path
@@ -278,11 +278,6 @@ fn resolve_plugin_entry_point(plugin_dir: &Path) -> Option<PathBuf> {
 		let entry_point = plugin_dir.join(file);
 		// TODO: use async exists
 		if entry_point.exists() {
-			trace!(
-				?plugin_dir,
-				?entry_point,
-				"Resolved entry point for plugin"
-			);
 			return Some(entry_point);
 		}
 	}

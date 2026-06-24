@@ -30,6 +30,9 @@ pub struct Cli {
 	/// Dump the contents of any module involved in an error, before any transformations, to `$PWD/{Stable, Canary}/<module_id>.js`
 	#[arg(long, default_value_t = false)]
 	pub dump_on_error: bool,
+	/// print debug logs
+	#[arg(short, long, action = clap::ArgAction::Count)]
+	pub verbose: u8,
 	/// Do not print reporter warnings, only print errors.
 	///
 	/// This is not the same thing as a patch being noWarn

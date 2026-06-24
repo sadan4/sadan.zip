@@ -1,7 +1,7 @@
-use miette::{Result, bail};
 use clap::{CommandFactory as _, Parser as _};
 use derive_more::From;
 use indicatif::MultiProgress;
+use miette::{Result, bail};
 use reporter::{
 	Cli,
 	cmds,
@@ -42,11 +42,16 @@ fn install_tracing() {
 	// dbg!(args().collect_vec());
 	let filter_layer = EnvFilter::try_from_default_env()
 		.or_else(|_| {
-			EnvFilter::builder().parse(if cfg!(debug_assertions) {
+			let (is_debug, is_trace) = Cli::try_parse().map_or_default(|c| {
+				let lvl = c.verbose;
+				(lvl >= 1, lvl >= 2)
+			});
+			EnvFilter::builder().parse(if cfg!(debug_assertions) || is_debug {
 				[
-					"debug",
+					if is_trace { "trace" } else { "debug" },
 					"h2::codec::framed_read=info",
 					"h2::codec::framed_write=info",
+					"h2=debug",
 					"hyper_util::client::legacy::pool=info",
 				]
 				.join(",")
