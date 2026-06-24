@@ -5,6 +5,7 @@ use std::{
 	mem,
 	path::{Path, PathBuf},
 	sync::Arc,
+	time::Duration,
 };
 
 use derive_more::{Deref, From};
@@ -59,6 +60,41 @@ fn hash_contents(data: &[u8]) -> u64 {
 	let mut hasher = FxHasher::default();
 	hasher.write(data);
 	hasher.finish()
+}
+
+/// Read a watched file, tolerating the window during which an editor has
+/// truncated the file but not yet written its new contents.
+///
+/// Editors commonly save by opening the file with `O_TRUNC` and then writing
+/// the new contents in a separate syscall. `notify` delivers the modify event
+/// as soon as the truncate happens, so a naive read can observe the file while
+/// it is momentarily empty (between the truncate and the write), yielding an
+/// empty string. Rather than guessing a fixed sleep, retry briefly until the
+/// file has contents.
+async fn read_when_ready(path: &Path) -> Result<String> {
+	const RETRY_DELAY: Duration = Duration::from_millis(1);
+	/// Give up after this long so a genuinely-empty file can't hang the loop.
+	const MAX_WAIT: Duration = Duration::from_millis(100);
+
+	let mut waited = Duration::ZERO;
+	loop {
+		let contents = fs::read_to_string(&path)
+			.await
+			.map_err(Report::msg)?;
+		if !contents.is_empty() {
+			return Ok(contents);
+		}
+		if waited >= MAX_WAIT {
+			bail!(
+				"File {} is still empty after {}ms",
+				path.display(),
+				MAX_WAIT.as_millis()
+			);
+		}
+		trace!(?path, "read empty file mid-write, retrying");
+		tokio::time::sleep(RETRY_DELAY).await;
+		waited += RETRY_DELAY;
+	}
 }
 
 // TODO: exit success on ctrl-c
@@ -131,9 +167,7 @@ pub async fn run_watcher(
 		debug!("Files changed. Re-running reporter...");
 		let mut changed_contents = Vec::with_capacity(changed_paths.len());
 		for path in mem::take(&mut changed_paths) {
-			let contents = fs::read_to_string(&path)
-				.await
-				.map_err(Report::msg)?;
+			let contents = read_when_ready(&path).await?;
 			let new_hash = hash_contents(contents.as_bytes());
 			match last_hash.get_mut(&path) {
 				Some(hash) if *hash == new_hash => {
@@ -153,9 +187,10 @@ pub async fn run_watcher(
 			debug!("Not re-running, no file contents changed");
 			continue;
 		}
-		debug!("Changed paths: {changed_paths:?}");
 		global_bar.clear();
-		global_bar.suspend(|| clearscreen::clear().unwrap());
+		if !cli.is_trace() {
+			global_bar.suspend(|| clearscreen::clear().unwrap());
+		}
 		info!("Plugins changed. Re-running reporter...");
 		let new_plugins = collect_plugins_from_paths(changed_contents).await?;
 		let _ =

@@ -45,6 +45,15 @@ pub struct Cli {
 	pub cmd: cmds::Cmd,
 }
 
+impl Cli {
+	pub fn is_debug(&self) -> bool {
+		self.verbose >= 1
+	}
+	pub fn is_trace(&self) -> bool {
+		self.verbose >= 2
+	}
+}
+
 #[derive(ValueEnum, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Branch {
 	Stable,
