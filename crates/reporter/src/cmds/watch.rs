@@ -13,7 +13,7 @@ use explorer_server_core::Channel;
 use miette::{Context as _, Report, Result, bail};
 use notify::{RecommendedWatcher, Watcher as _};
 use rustc_hash::FxHasher;
-use tokio::{fs, sync::mpsc};
+use tokio::{fs, sync::mpsc, time::sleep};
 use tracing::{debug, info, trace, warn};
 
 use crate::{
@@ -92,7 +92,7 @@ async fn read_when_ready(path: &Path) -> Result<String> {
 			);
 		}
 		trace!(?path, "read empty file mid-write, retrying");
-		tokio::time::sleep(RETRY_DELAY).await;
+		sleep(RETRY_DELAY).await;
 		waited += RETRY_DELAY;
 	}
 }
