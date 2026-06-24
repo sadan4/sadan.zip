@@ -299,6 +299,16 @@ fn gets_plugin_meta() {
 	"#);
 }
 
+#[test]
+fn mixed_string_concatentaions_and_templates() {
+	let code = include_str!("data/plugin11.tsx");
+	let a = Allocator::new();
+	let parser =
+		VencordAstParser::try_new(&a, code, Some("data/plugin11.tsx")).unwrap();
+	let patches = parser.patches(false).unwrap();
+	assert_ron_snapshot!(patches);
+}
+
 mod self_reference_tests {
 	use super::*;
 

@@ -1,0 +1,86 @@
+---
+source: crates/vencord_ast_parser/src/tests/mod.rs
+expression: patches
+---
+[
+  Patch(
+    plugin_id: None,
+    all: false,
+    no_warn: false,
+    find: MatchLike(
+      v: Str(FinderDef(
+        needle: ".wDsPXs",
+      )),
+      s: {
+        "start": 301,
+        "end": 330,
+      },
+    ),
+    replacement: [
+      Replacement(
+        match_: MatchLike(
+          v: Regex(MatchRegex(
+            pattern: "(?<=,channel:\\i,message:\\i\\}\\)\\.then\\().+?(?=\\i\\.content!==this\\.props\\.message\\.content&&\\i\\((.+?)\\)\\})",
+            flags: RegExpFlagsDef(
+              bits: 0,
+            ),
+            capture_spans: [
+              {
+                "start": 477,
+                "end": 482,
+              },
+            ],
+          )),
+          s: {
+            "start": 382,
+            "end": 488,
+          },
+        ),
+        replace: ReplaceLike(
+          v: Template(TemplateEvaluator(
+            lits: [
+              "async ",
+              "if(await Vencord.Api.MessageEvents._handlePreEdit(",
+              "))return Promise.resolve({shouldClear:false,shouldRefocus:true});",
+            ],
+            captures: [
+              0,
+              1,
+            ],
+          )),
+          s: {
+            "start": 515,
+            "end": 745,
+          },
+          used_replace_capture_spans: [
+            [
+              {
+                "start": 516,
+                "end": 521,
+              },
+              {
+                "start": 566,
+                "end": 571,
+              },
+            ],
+            [
+              {
+                "start": 523,
+                "end": 527,
+              },
+              {
+                "start": 649,
+                "end": 653,
+              },
+            ],
+          ],
+        ),
+        no_warn: false,
+      ),
+    ],
+    span: {
+      "start": 281,
+      "end": 769,
+    },
+  ),
+]
