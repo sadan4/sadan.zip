@@ -5,6 +5,7 @@ import { MonacoCodeEditor } from "@/components/CodeEditor/Monaco";
 import { Input } from "@/components/Input";
 import { Box } from "@/components/layout/Box";
 import { BufferedScroller } from "@/components/layout/BufferedScroller";
+import { ScrollArea } from "@/components/layout/ScrollArea";
 import { HorizontalLine } from "@/components/Lines";
 import { Modal, ModalContext } from "@/components/modal";
 import { Select, type SelectOption } from "@/components/Select";
@@ -48,6 +49,7 @@ import {
     FileCodeIcon,
     GithubIcon,
     NetworkIcon,
+    SearchIcon,
     SettingsIcon,
     TriangleAlertIcon,
     Undo2Icon,
@@ -236,6 +238,11 @@ function ModuleGraph2({ graph: { nodes, edges } }: ModuleGraph2Props) {
 }
 
 const IconButtonInternalLink = createLink(IconButton);
+
+const enum SidebarTab {
+    MODULES,
+    SEARCH,
+}
 
 function ModuleGraphWrapper() {
     const moduleId = useModuleViewerStore(({ selectedModule }) => selectedModule);
@@ -525,11 +532,26 @@ function ExplorerSidebar() {
     const inputRef = useRef<HTMLInputElement>(null);
     const buildService = useModuleViewerStore(({ _buildService }) => _buildService);
     const buildHash = useModuleViewerStore(({ buildHash }) => buildHash);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [submittedSearchQuery, setSubmittedSearchQuery] = useState("");
+    const [regexSearch, setRegexSearch] = useState(false);
+    const [sidebarTab, setSidebarTab] = useState(SidebarTab.MODULES);
 
     const { data: moduleIds, status } = useQuery({
         queryKey: ["allModuleIds", buildHash],
         queryFn() {
             return buildService.getAllModuleIds();
+        },
+    });
+
+    const { data: searchResults = [], status: searchStatus } = useQuery({
+        queryKey: ["bundleSearch", buildHash, submittedSearchQuery, regexSearch],
+        queryFn() {
+            if (!submittedSearchQuery.trim()) {
+                return [];
+            }
+
+            return buildService.searchModules(submittedSearchQuery, regexSearch, 1000);
         },
     });
 
@@ -543,70 +565,206 @@ function ExplorerSidebar() {
     }, [navigate]);
 
     return (
-        <div className="flex shrink-0 flex-col">
-            <div className="flex items-center justify-between">
-                <Input
-                    ref={inputRef}
-                    placeholder="Enter a Module ID"
-                    className="m-2"
-                />
-                <IconButton
-                    onClick={async () => {
-                        const v = inputRef.current?.value;
-
-                        if (!v) {
-                            return false;
-                        }
-
-                        const { selectedModule, hasId } = ModuleViewerStore.getState();
-                        const inputModuleId = +v;
-
-                        if (selectedModule === inputModuleId) {
-                            return null;
-                        }
-
-                        if (await hasId(inputModuleId)) {
-                            setSelectedModule(inputModuleId);
-
-                            return true;
-                        }
-
-                        return false;
-                    }}
-                    className="mr-2 ml-4 size-10"
-                    label="Jump To Module"
-                    tooltipPosition={TooltipPosition.RIGHT}
-                    colorType="outline"
-                >
-                    <ArrowBigRight />
-                </IconButton>
-            </div>
-            <div className="min-h-0 grow">
-                {status === "success" && (
-                    <ModuleSelector
-                        modules={moduleIds}
-                        onSelectModule={setSelectedModule}
-                    />
-                )}
-                {status === "pending" && (
-                    <Text
-                        size="lg"
-                        color="accent"
-                        center
+        <div className="flex w-72 max-w-[40vw] shrink-0 flex-col">
+            <ToggleButtonGroup<SidebarTab>
+                tooltipPosition={TooltipPosition.RIGHT}
+                className="mx-auto mb-2 w-fit rounded-lg border-2 border-fg-700 p-2"
+                selectedItem={sidebarTab}
+                onSelectItem={(tab) => {
+                    setSidebarTab(tab);
+                }}
+                items={[
+                    {
+                        id: SidebarTab.MODULES,
+                        label: "Modules",
+                        renderIcon() {
+                            return <FileCodeIcon />;
+                        },
+                    },
+                    {
+                        id: SidebarTab.SEARCH,
+                        label: "Search",
+                        renderIcon() {
+                            return <SearchIcon />;
+                        },
+                    },
+                ]}
+            />
+            {sidebarTab === SidebarTab.SEARCH && (
+                <div className="flex min-h-0 min-w-0 grow flex-col">
+                    <form
+                        className="mx-2 mb-2 flex shrink-0 flex-col gap-2"
+                        onSubmit={(e) => {
+                            e.preventDefault();
+                            setSubmittedSearchQuery(searchQuery);
+                        }}
                     >
-                        Loading Modules...
-                    </Text>
-                )}
-                {status === "error" && (
-                    <Text
-                        size="lg"
-                        color="error"
-                        center
-                    >
-                        An error occurred while loading the module list.
-                    </Text>
-                )}
-            </div>
+                        <div className="flex min-w-0 items-center justify-between gap-2">
+                            <div className="min-w-0 grow">
+                                <Input
+                                    placeholder={regexSearch ? "Search regex" : "Search text"}
+                                    value={searchQuery}
+                                    onChange={(e) => {
+                                        setSearchQuery(e.target.value);
+                                    }}
+                                    clearButton
+                                    focusAfterClear
+                                    onClear={() => {
+                                        setSearchQuery("");
+                                        setSubmittedSearchQuery("");
+                                    }}
+                                    className="w-full"
+                                />
+                            </div>
+                            <IconButton
+                                label="Search Bundle"
+                                className="size-10 shrink-0"
+                                colorType="outline"
+                                loadingAnimation
+                                onClick={() => {
+                                    setSubmittedSearchQuery(searchQuery);
+                                    return Boolean(searchQuery.trim());
+                                }}
+                                tooltipPosition={TooltipPosition.RIGHT}
+                            >
+                                <SearchIcon />
+                            </IconButton>
+                        </div>
+                        <LabeledSwitch
+                            value={regexSearch}
+                            size="sm"
+                            onChange={(value) => {
+                                setRegexSearch(value);
+                            }}
+                        >
+                            Regex search
+                        </LabeledSwitch>
+                    </form>
+                    {submittedSearchQuery.trim() && (
+                        <div className="mx-2 mb-2 flex min-h-0 min-w-0 grow flex-col gap-2 rounded-md border-2 border-fg-700 p-2 text-sm">
+                            <div className="w-full min-w-0 shrink-0 break-words leading-5 text-[color:var(--color-fg-600)]">
+                                {searchStatus === "success" ? `${searchResults.length} matches` : "Searching..."}
+                            </div>
+                            {searchStatus === "error" && (
+                                <div className="w-full min-w-0 shrink-0 break-words leading-5 text-[color:var(--color-error-400)]">
+                                    Invalid regex or search failed.
+                                </div>
+                            )}
+                            {searchStatus === "success" && searchResults.length === 0 && (
+                                <div className="w-full min-w-0 shrink-0 break-words leading-5 text-[color:var(--color-fg-600)]">
+                                    No matches found.
+                                </div>
+                            )}
+                            {searchStatus === "success" && searchResults.length > 0 && (
+                                <ScrollArea className="min-h-0">
+                                    <ul className="flex flex-col gap-1">
+                                        {searchResults.map((result, index) => (
+                                            <Clickable
+                                                key={`${result.moduleId}-${result.lineNumber}-${result.column}-${index}`}
+                                                tag="li"
+                                                className="cursor-pointer rounded-sm px-2 py-1 hover:bg-fg-800"
+                                                onClick={() => {
+                                                    navigate({
+                                                        to: "/e/view/{-$buildHash}/{-$moduleId}",
+                                                        params: {
+                                                            moduleId: result.moduleId,
+                                                        },
+                                                        search: {
+                                                            sl: result.lineNumber,
+                                                            sc: result.column,
+                                                        },
+                                                    });
+                                                }}
+                                            >
+                                                <Text
+                                                    size="sm"
+                                                    color="primary"
+                                                >
+                                                    {result.moduleId}:{result.lineNumber}:{result.column}
+                                                </Text>
+                                                <Text
+                                                    size="sm"
+                                                    color="white-600"
+                                                    className="break-all"
+                                                >
+                                                    {result.preview || "(empty line)"}
+                                                </Text>
+                                            </Clickable>
+                                        ))}
+                                    </ul>
+                                </ScrollArea>
+                            )}
+                        </div>
+                    )}
+                </div>
+            )}
+            {sidebarTab === SidebarTab.MODULES && (
+                <div className="flex min-h-0 grow flex-col">
+                    <div className="flex shrink-0 items-center justify-between">
+                        <Input
+                            ref={inputRef}
+                            placeholder="Enter a Module ID"
+                            className="m-2"
+                        />
+                        <IconButton
+                            onClick={async () => {
+                                const v = inputRef.current?.value;
+
+                                if (!v) {
+                                    return false;
+                                }
+
+                                const { selectedModule, hasId } = ModuleViewerStore.getState();
+                                const inputModuleId = +v;
+
+                                if (selectedModule === inputModuleId) {
+                                    return null;
+                                }
+
+                                if (await hasId(inputModuleId)) {
+                                    setSelectedModule(inputModuleId);
+
+                                    return true;
+                                }
+
+                                return false;
+                            }}
+                            className="mr-2 ml-4 size-10"
+                            label="Jump To Module"
+                            tooltipPosition={TooltipPosition.RIGHT}
+                            colorType="outline"
+                        >
+                            <ArrowBigRight />
+                        </IconButton>
+                    </div>
+                    <div className="min-h-0 grow">
+                        {status === "success" && (
+                            <ModuleSelector
+                                modules={moduleIds}
+                                onSelectModule={setSelectedModule}
+                            />
+                        )}
+                        {status === "pending" && (
+                            <Text
+                                size="lg"
+                                color="accent"
+                                center
+                            >
+                                Loading Modules...
+                            </Text>
+                        )}
+                        {status === "error" && (
+                            <Text
+                                size="lg"
+                                color="error"
+                                center
+                            >
+                                An error occurred while loading the module list.
+                            </Text>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

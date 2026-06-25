@@ -20,6 +20,17 @@ export interface HoverInfo {
     i18nKey?: string;
 }
 
+export interface BundleSearchResult {
+    moduleId: TModuleId;
+    lineNumber: number;
+    column: number;
+    preview: string;
+}
+
+type SearchableBundle = Bundle & {
+    search_modules(query: string, regex: boolean, limit: number): BundleSearchResult[];
+};
+
 export interface IBuildService {
     hasId(moduleId: number): moduleId is TModuleId;
     getFormattedSource(moduleId: TModuleId): string;
@@ -27,6 +38,7 @@ export interface IBuildService {
     generateReferences(moduleId: TModuleId, position: Monaco.IPosition): ModuleLocation[];
     generateHover(moduleId: TModuleId, position: Monaco.IPosition): HoverInfo | undefined;
     getAllModuleIds(): Uint32Array;
+    searchModules(query: string, regex: boolean, limit: number): BundleSearchResult[];
     generateModuleGraph(moduleId: TModuleId, depth: number): GeneratedGraph;
 }
 
@@ -143,6 +155,10 @@ class BuildService implements IBuildService {
         const ids = this.#bundle.get_id_list();
 
         return comlink.transfer(ids, [ids.buffer]);
+    }
+
+    public searchModules(query: string, regex: boolean, limit: number): BundleSearchResult[] {
+        return (this.#bundle as SearchableBundle).search_modules(query, regex, limit);
     }
 
     public generateModuleGraph(moduleId: TModuleId, depth: number): GeneratedGraph {

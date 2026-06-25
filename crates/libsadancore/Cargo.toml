@@ -27,6 +27,8 @@ smol_str.workspace = true
 ast_parser.workspace = true
 pretty_printer.workspace = true
 dagre.workspace = true
+regress.workspace = true
+memchr.workspace = true
 
 [features]
 local-server = []
