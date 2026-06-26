@@ -22,13 +22,29 @@ export interface HoverInfo {
 
 export interface BundleSearchResult {
     moduleId: TModuleId;
+    rawIndex: number;
+}
+
+export interface BundleSearchResults {
+    moduleIds: Uint32Array;
+    rawIndices: Uint32Array;
+}
+
+export interface BundleSearchResultInfo {
     lineNumber: number;
     column: number;
     preview: string;
 }
 
+export interface BundleSearchLocation {
+    lineNumber: number;
+    column: number;
+}
+
 type SearchableBundle = Bundle & {
-    search_modules(query: string, regex: boolean, limit: number): BundleSearchResult[];
+    search_modules(query: string, regex: boolean): BundleSearchResults;
+    get_search_result_info(moduleId: number, rawIndex: number, longPreview: boolean): BundleSearchResultInfo;
+    get_search_location(moduleId: number, rawIndex: number): BundleSearchLocation;
 };
 
 export interface IBuildService {
@@ -38,7 +54,9 @@ export interface IBuildService {
     generateReferences(moduleId: TModuleId, position: Monaco.IPosition): ModuleLocation[];
     generateHover(moduleId: TModuleId, position: Monaco.IPosition): HoverInfo | undefined;
     getAllModuleIds(): Uint32Array;
-    searchModules(query: string, regex: boolean, limit: number): BundleSearchResult[];
+    searchModules(query: string, regex: boolean): BundleSearchResults;
+    getSearchResultInfo(moduleId: TModuleId, rawIndex: number, longPreview: boolean): BundleSearchResultInfo;
+    getSearchLocation(moduleId: TModuleId, rawIndex: number): BundleSearchLocation;
     generateModuleGraph(moduleId: TModuleId, depth: number): GeneratedGraph;
 }
 
@@ -157,8 +175,18 @@ class BuildService implements IBuildService {
         return comlink.transfer(ids, [ids.buffer]);
     }
 
-    public searchModules(query: string, regex: boolean, limit: number): BundleSearchResult[] {
-        return (this.#bundle as SearchableBundle).search_modules(query, regex, limit);
+    public searchModules(query: string, regex: boolean): BundleSearchResults {
+        const results = (this.#bundle as SearchableBundle).search_modules(query, regex);
+
+        return comlink.transfer(results, [results.moduleIds.buffer, results.rawIndices.buffer]);
+    }
+
+    public getSearchResultInfo(moduleId: TModuleId, rawIndex: number, longPreview: boolean): BundleSearchResultInfo {
+        return (this.#bundle as SearchableBundle).get_search_result_info(moduleId, rawIndex, longPreview);
+    }
+
+    public getSearchLocation(moduleId: TModuleId, rawIndex: number): BundleSearchLocation {
+        return (this.#bundle as SearchableBundle).get_search_location(moduleId, rawIndex);
     }
 
     public generateModuleGraph(moduleId: TModuleId, depth: number): GeneratedGraph {

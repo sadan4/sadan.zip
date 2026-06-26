@@ -5,7 +5,6 @@ import { MonacoCodeEditor } from "@/components/CodeEditor/Monaco";
 import { Input } from "@/components/Input";
 import { Box } from "@/components/layout/Box";
 import { BufferedScroller } from "@/components/layout/BufferedScroller";
-import { ScrollArea } from "@/components/layout/ScrollArea";
 import { HorizontalLine } from "@/components/Lines";
 import { Modal, ModalContext } from "@/components/modal";
 import { Select, type SelectOption } from "@/components/Select";
@@ -38,6 +37,8 @@ import {
     useModuleViewerStore,
     ViewMode,
 } from "./-data";
+import type { BundleSearchResult, BundleSearchResults } from "./-data/worker/sharedWorker";
+import type { RemoteBuildService } from "./-data/worker/api";
 import { Route } from "./view.{-$buildHash}.{-$moduleId}";
 
 import "@xyflow/react/dist/style.css";
@@ -58,6 +59,10 @@ import {
 import { Activity, type PropsWithChildren, use, useCallback, useEffect, useRef, useState } from "react";
 
 
+const EMPTY_SEARCH_RESULTS = {
+    moduleIds: new Uint32Array(),
+    rawIndices: new Uint32Array(),
+} satisfies BundleSearchResults;
 interface ModuleListItemProps {
     moduleId: number;
     onSelectModule(moduleId: number): void;
@@ -108,6 +113,146 @@ function ModuleSelector({ modules, onSelectModule }: ModuleSelectorProps) {
                         key={item}
                         moduleId={item}
                         onSelectModule={onSelectModule}
+                    />
+                );
+            }}
+        />
+    );
+}
+
+interface SearchResultItemProps {
+    buildHash: string;
+    buildService: RemoteBuildService;
+    result: BundleSearchResult;
+    index: number;
+    loadPreview: boolean;
+    longPreview: boolean;
+}
+
+function SearchResultItem({ buildHash, buildService, result, index, loadPreview, longPreview }: SearchResultItemProps) {
+    const navigate = Route.useNavigate();
+    const { data: resultInfo } = useQuery({
+        queryKey: ["bundleSearchResultInfo", buildHash, result.moduleId, result.rawIndex, longPreview],
+        queryFn() {
+            return buildService.getSearchResultInfo(result.moduleId, result.rawIndex, longPreview);
+        },
+        enabled: loadPreview,
+        retry: false,
+        staleTime: Infinity,
+    });
+
+    return (
+        <Clickable
+            key={`${result.moduleId}-${result.rawIndex}-${index}`}
+            tag="div"
+            className={cn(
+                "cursor-pointer overflow-hidden rounded-sm px-2 py-1 hover:bg-fg-800",
+                longPreview ? "h-28" : "h-12",
+            )}
+            onClick={async () => {
+                const location = await buildService.getSearchLocation(result.moduleId, result.rawIndex);
+
+                navigate({
+                    to: "/e/view/{-$buildHash}/{-$moduleId}",
+                    params: {
+                        moduleId: result.moduleId,
+                    },
+                    search: {
+                        sl: location.lineNumber,
+                        sc: location.column,
+                    },
+                });
+            }}
+        >
+            <Text
+                size="sm"
+                color="primary"
+            >
+                {resultInfo
+                    ? `${result.moduleId}:${resultInfo.lineNumber}:${resultInfo.column}`
+                    : `${result.moduleId}@${result.rawIndex}`}
+            </Text>
+            <Text
+                size="sm"
+                color="white-600"
+                className={cn("block leading-4", longPreview ? "break-all" : "truncate")}
+                style={longPreview
+                    ? {
+                        display: "-webkit-box",
+                        overflow: "hidden",
+                        whiteSpace: "pre-wrap",
+                        WebkitBoxOrient: "vertical",
+                        WebkitLineClamp: 5,
+                    }
+                    : undefined}
+            >
+                {resultInfo?.preview || "Loading preview..."}
+            </Text>
+        </Clickable>
+    );
+}
+
+interface SearchResultsListProps {
+    buildHash: string;
+    buildService: RemoteBuildService;
+    results: BundleSearchResults;
+    longPreview: boolean;
+}
+
+function SearchResultsList({ buildHash, buildService, results, longPreview }: SearchResultsListProps) {
+    const scrollTimerRef = useRef<number | undefined>(undefined);
+    const [loadPreview, setLoadPreview] = useState(true);
+
+    useEffect(() => {
+        setLoadPreview(true);
+    }, [results, longPreview]);
+
+    useEffect(() => {
+        return () => {
+            window.clearTimeout(scrollTimerRef.current);
+        };
+    }, []);
+
+    const rowCount = results.moduleIds.length;
+    const firstKey = rowCount
+        ? `${results.moduleIds[0]}:${results.rawIndices[0]}`
+        : "empty";
+    const lastKey = rowCount
+        ? `${results.moduleIds[rowCount - 1]}:${results.rawIndices[rowCount - 1]}`
+        : "empty";
+
+    return (
+        <BufferedScroller
+            key={`${rowCount}:${firstKey}:${lastKey}:${longPreview}`}
+            items={results.moduleIds}
+            batchSize={50}
+            bufferSize={2}
+            className="min-h-0 grow"
+            onScroll={() => {
+                setLoadPreview(false);
+                window.clearTimeout(scrollTimerRef.current);
+                scrollTimerRef.current = window.setTimeout(() => {
+                    setLoadPreview(true);
+                }, 180);
+            }}
+            onScrollEnd={() => {
+                setLoadPreview(true);
+            }}
+            renderItem={({ item: moduleId, index }) => {
+                const rawIndex = results.rawIndices[index];
+
+                return (
+                    <SearchResultItem
+                        key={`${moduleId}-${rawIndex}-${index}`}
+                        buildHash={buildHash}
+                        buildService={buildService}
+                        result={{
+                            moduleId: moduleId as TModuleId,
+                            rawIndex,
+                        }}
+                        index={index}
+                        loadPreview={loadPreview}
+                        longPreview={longPreview}
                     />
                 );
             }}
@@ -532,6 +677,7 @@ function ExplorerSidebar() {
     const inputRef = useRef<HTMLInputElement>(null);
     const buildService = useModuleViewerStore(({ _buildService }) => _buildService);
     const buildHash = useModuleViewerStore(({ buildHash }) => buildHash);
+    const longSearchPreviews = useModuleViewerSettingsStore(({ longSearchPreviews }) => longSearchPreviews);
     const [searchQuery, setSearchQuery] = useState("");
     const [submittedSearchQuery, setSubmittedSearchQuery] = useState("");
     const [regexSearch, setRegexSearch] = useState(false);
@@ -544,14 +690,14 @@ function ExplorerSidebar() {
         },
     });
 
-    const { data: searchResults = [], status: searchStatus } = useQuery({
+    const { data: searchResults = EMPTY_SEARCH_RESULTS, status: searchStatus } = useQuery({
         queryKey: ["bundleSearch", buildHash, submittedSearchQuery, regexSearch],
         queryFn() {
             if (!submittedSearchQuery.trim()) {
-                return [];
+                return EMPTY_SEARCH_RESULTS;
             }
 
-            return buildService.searchModules(submittedSearchQuery, regexSearch, 1000);
+            return buildService.searchModules(submittedSearchQuery, regexSearch);
         },
     });
 
@@ -639,60 +785,38 @@ function ExplorerSidebar() {
                         >
                             Regex search
                         </LabeledSwitch>
+                        <LabeledSwitch
+                            value={longSearchPreviews}
+                            size="sm"
+                            onChange={(value) => {
+                                useModuleViewerSettingsStore.setState({ longSearchPreviews: value });
+                            }}
+                        >
+                            Long previews
+                        </LabeledSwitch>
                     </form>
                     {submittedSearchQuery.trim() && (
                         <div className="mx-2 mb-2 flex min-h-0 min-w-0 grow flex-col gap-2 rounded-md border-2 border-fg-700 p-2 text-sm">
                             <div className="w-full min-w-0 shrink-0 break-words leading-5 text-[color:var(--color-fg-600)]">
-                                {searchStatus === "success" ? `${searchResults.length} matches` : "Searching..."}
+                                {searchStatus === "success" ? `${searchResults.moduleIds.length} matches` : "Searching..."}
                             </div>
                             {searchStatus === "error" && (
                                 <div className="w-full min-w-0 shrink-0 break-words leading-5 text-[color:var(--color-error-400)]">
                                     Invalid regex or search failed.
                                 </div>
                             )}
-                            {searchStatus === "success" && searchResults.length === 0 && (
+                            {searchStatus === "success" && searchResults.moduleIds.length === 0 && (
                                 <div className="w-full min-w-0 shrink-0 break-words leading-5 text-[color:var(--color-fg-600)]">
                                     No matches found.
                                 </div>
                             )}
-                            {searchStatus === "success" && searchResults.length > 0 && (
-                                <ScrollArea className="min-h-0">
-                                    <ul className="flex flex-col gap-1">
-                                        {searchResults.map((result, index) => (
-                                            <Clickable
-                                                key={`${result.moduleId}-${result.lineNumber}-${result.column}-${index}`}
-                                                tag="li"
-                                                className="cursor-pointer rounded-sm px-2 py-1 hover:bg-fg-800"
-                                                onClick={() => {
-                                                    navigate({
-                                                        to: "/e/view/{-$buildHash}/{-$moduleId}",
-                                                        params: {
-                                                            moduleId: result.moduleId,
-                                                        },
-                                                        search: {
-                                                            sl: result.lineNumber,
-                                                            sc: result.column,
-                                                        },
-                                                    });
-                                                }}
-                                            >
-                                                <Text
-                                                    size="sm"
-                                                    color="primary"
-                                                >
-                                                    {result.moduleId}:{result.lineNumber}:{result.column}
-                                                </Text>
-                                                <Text
-                                                    size="sm"
-                                                    color="white-600"
-                                                    className="break-all"
-                                                >
-                                                    {result.preview || "(empty line)"}
-                                                </Text>
-                                            </Clickable>
-                                        ))}
-                                    </ul>
-                                </ScrollArea>
+                            {searchStatus === "success" && searchResults.moduleIds.length > 0 && (
+                                <SearchResultsList
+                                    buildHash={buildHash}
+                                    buildService={buildService}
+                                    results={searchResults}
+                                    longPreview={longSearchPreviews}
+                                />
                             )}
                         </div>
                     )}

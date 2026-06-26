@@ -2,7 +2,7 @@ mod graph;
 
 use std::{
 	cell::RefCell,
-	collections::{HashMap, HashSet},
+	collections::HashMap,
 	fmt::Write as _,
 	marker::PhantomPinned,
 	mem,
@@ -28,6 +28,7 @@ use explorer_types::{
 	ModuleSources,
 	TModuleId,
 };
+use js_sys::{Object, Reflect, Uint32Array};
 use memchr::memmem::Finder;
 use oxc::{allocator::Allocator, span::Span};
 use pretty_printer::{FormattedContent, format_with_alloc};
@@ -79,6 +80,8 @@ struct BundleInner {
 	#[expect(clippy::box_collection)]
 	formatted_modules: RefCell<HashMap<ModuleId, Pin<Box<String>>>>,
 	formatted_module_mappings: RefCell<HashMap<ModuleId, Vec<(u32, u32)>>>,
+	raw_module_line_indices: RefCell<HashMap<ModuleId, LineIndex>>,
+	formatted_module_line_indices: RefCell<HashMap<ModuleId, LineIndex>>,
 	raw_alloc: Box<Allocator>,
 	parsers: RefCell<HashMap<ModuleId, Rc<WebpackAstParser<'static>>>>,
 	self_ptr: *const Self,
@@ -120,13 +123,33 @@ struct ModuleDepsJs<'a> {
 	lazy_uses: &'a Vec<ModuleId>,
 }
 
+struct BundleSearchResults {
+	module_ids: Vec<u32>,
+	raw_indices: Vec<u32>,
+}
+
+impl BundleSearchResults {
+	fn new() -> Self {
+		Self {
+			module_ids: Vec::new(),
+			raw_indices: Vec::new(),
+		}
+	}
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-struct BundleSearchResult {
-	module_id: u32,
+struct BundleSearchResultInfo {
 	line_number: u32,
 	column: u32,
 	preview: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct BundleSearchLocation {
+	line_number: u32,
+	column: u32,
 }
 
 #[wasm_bindgen]
@@ -303,26 +326,40 @@ impl BundleInner {
 		}
 		Ok(FormattedContent { code, mappings })
 	}
-	fn get_formatted_search_location(
+	fn with_raw_line_index<R>(
 		&self,
 		id: ModuleId,
-		raw_index: usize,
-	) -> anyhow::Result<(MonacoPosition, String)> {
-		_ = self.get_formatted_module(id)?;
-		let formatted_index = {
-			let mappings = self.formatted_module_mappings.borrow();
-			let mappings = mappings
-				.get(&id)
-				.with_context(|| anyhow!("Module source mapping not found for {id}"))?;
-			find_formatted_pos(mappings, raw_index as u32) as usize
-		};
-		let formatted_source = self.get_formatted_module(id)?;
-		let formatted_index = normalize_source_index(formatted_source, formatted_index);
+		f: impl FnOnce(&str, &LineIndex) -> R,
+	) -> anyhow::Result<R> {
+		let source = self
+			.unformatted_modules
+			.get(&id)
+			.with_context(|| anyhow!("Module source not found for {id}"))?;
+		let mut line_indices = self.raw_module_line_indices.borrow_mut();
+		line_indices
+			.entry(id)
+			.or_insert_with(|| LineIndex::new(source));
+		let line_index = line_indices
+			.get(&id)
+			.expect("line index should exist after insertion");
 
-		Ok((
-			MonacoPosition::from_offset(formatted_source, formatted_index as u32),
-			line_preview(formatted_source, formatted_index),
-		))
+		Ok(f(source, line_index))
+	}
+	fn with_formatted_line_index<R>(
+		&self,
+		id: ModuleId,
+		f: impl FnOnce(&str, &LineIndex) -> R,
+	) -> anyhow::Result<R> {
+		let source = self.get_formatted_module(id)?;
+		let mut line_indices = self.formatted_module_line_indices.borrow_mut();
+		line_indices
+			.entry(id)
+			.or_insert_with(|| LineIndex::new(source));
+		let line_index = line_indices
+			.get(&id)
+			.expect("line index should exist after insertion");
+
+		Ok(f(source, line_index))
 	}
 }
 
@@ -367,55 +404,175 @@ fn normalize_source_index(source: &str, index: usize) -> usize {
 	index
 }
 
-fn line_preview(source: &str, index: usize) -> String {
-	let index = normalize_source_index(source, index);
-	let line_start = source[..index]
-		.rfind('\n')
-		.map(|line_start| line_start + 1)
-		.unwrap_or(0);
-	let line_end = source[index..]
-		.find('\n')
-		.map(|line_end| index + line_end)
-		.unwrap_or(source.len());
-
-	source[line_start..line_end]
-		.trim()
-		.chars()
-		.take(180)
-		.collect()
+struct LineIndex {
+	line_starts: Vec<usize>,
 }
 
-fn search_results_to_js(results: &[BundleSearchResult]) -> Result<JsValue> {
-	Ok(serde_wasm_bindgen::to_value(results)
-		.context("Failed to serialize search results")?)
-}
+impl LineIndex {
+	fn new(source: &str) -> Self {
+		let mut line_starts = vec![0];
 
-fn push_search_result(
-	inner: &BundleInner,
-	results: &mut Vec<BundleSearchResult>,
-	seen_results: &mut HashSet<(u32, u32, u32)>,
-	module_id: ModuleId,
-	source: &str,
-	index: usize,
-	limit: usize,
-) -> Result<bool> {
-	let index = normalize_source_index(source, index);
-	let (position, preview) =
-		inner.get_formatted_search_location(module_id, index)?;
-	let result_key = (*module_id, position.line, position.column);
+		for (index, byte) in source.bytes().enumerate() {
+			if byte == b'\n' {
+				line_starts.push(index + 1);
+			}
+		}
 
-	if !seen_results.insert(result_key) {
-		return Ok(false);
+		Self { line_starts }
 	}
 
-	results.push(BundleSearchResult {
-		module_id: *module_id,
-		line_number: position.line,
-		column: position.column,
-		preview,
-	});
+	fn line_bounds(&self, source: &str, index: usize) -> (usize, usize, u32) {
+		let index = normalize_source_index(source, index);
+		let line_index = match self.line_starts.binary_search(&index) {
+			Ok(line_index) => line_index,
+			Err(line_index) => line_index.saturating_sub(1),
+		};
+		let line_start = self.line_starts[line_index];
+		let line_end = self
+			.line_starts
+			.get(line_index + 1)
+			.map(|line_start| line_start.saturating_sub(1))
+			.unwrap_or(source.len());
+		let line_number = u32::try_from(line_index + 1).unwrap_or(u32::MAX);
 
-	Ok(results.len() >= limit)
+		(line_start, line_end, line_number)
+	}
+
+	fn position(&self, source: &str, index: usize) -> MonacoPosition {
+		let index = normalize_source_index(source, index);
+		let (line_start, _, line_number) = self.line_bounds(source, index);
+		let column = source[line_start..index].chars().count() + 1;
+		let column = u32::try_from(column).unwrap_or(u32::MAX);
+
+		MonacoPosition {
+			line: line_number,
+			column,
+		}
+	}
+
+	fn preview(&self, source: &str, index: usize, long_preview: bool) -> String {
+		const MAX_PREVIEW_LINES: usize = 3;
+		const SHORT_PREVIEW_CHARS: usize = 180;
+		const LONG_PREVIEW_CHARS: usize = 360;
+
+		let index = normalize_source_index(source, index);
+		let (line_start, line_end, _) = self.line_bounds(source, index);
+		let (mut preview_start, mut preview_end, max_preview_chars) = if long_preview {
+			let line_index = match self.line_starts.binary_search(&index) {
+				Ok(line_index) => line_index,
+				Err(line_index) => line_index.saturating_sub(1),
+			};
+			let start_line = line_index.saturating_sub(1);
+			let end_line = (line_index + (MAX_PREVIEW_LINES - 1))
+				.min(self.line_starts.len().saturating_sub(1));
+			let preview_start = self.line_starts[start_line];
+			let preview_end = self
+				.line_starts
+				.get(end_line + 1)
+				.map(|line_start| line_start.saturating_sub(1))
+				.unwrap_or(source.len());
+
+			(preview_start, preview_end, LONG_PREVIEW_CHARS)
+		} else {
+			(line_start, line_end, SHORT_PREVIEW_CHARS)
+		};
+
+		if preview_end.saturating_sub(preview_start) > max_preview_chars {
+			preview_start = index
+				.saturating_sub(max_preview_chars / 2)
+				.max(preview_start);
+			preview_end = preview_start
+				.saturating_add(max_preview_chars)
+				.min(preview_end);
+
+			preview_start = normalize_source_index(source, preview_start);
+			preview_end = normalize_source_index(source, preview_end);
+		}
+
+		source[preview_start..preview_end]
+			.trim()
+			.chars()
+			.take(max_preview_chars)
+			.collect()
+	}
+}
+
+fn search_results_to_js(results: &BundleSearchResults) -> Result<JsValue> {
+	let obj = Object::new();
+	let module_ids = Uint32Array::from(results.module_ids.as_slice());
+	let raw_indices = Uint32Array::from(results.raw_indices.as_slice());
+	Reflect::set(
+		&obj,
+		&JsValue::from_str("moduleIds"),
+		module_ids.as_ref(),
+	)
+	.map_err(|_| anyhow!("Failed to serialize search module ids"))?;
+	Reflect::set(
+		&obj,
+		&JsValue::from_str("rawIndices"),
+		raw_indices.as_ref(),
+	)
+	.map_err(|_| anyhow!("Failed to serialize search raw indices"))?;
+
+	Ok(obj.into())
+}
+
+fn formatted_search_position(
+	inner: &BundleInner,
+	module_id: ModuleId,
+	raw_index: usize,
+) -> Result<MonacoPosition> {
+	let formatted_source = inner.get_formatted_module(module_id)?;
+	let mappings = inner.formatted_module_mappings.borrow();
+	let mappings = mappings
+		.get(&module_id)
+		.with_context(|| anyhow!("Module source mapping not found for {module_id}"))?;
+	let formatted_index =
+		find_formatted_pos(mappings, raw_index as u32) as usize;
+	let formatted_index = normalize_source_index(formatted_source, formatted_index);
+
+	Ok(inner.with_formatted_line_index(module_id, |formatted_source, line_index| {
+		line_index.position(formatted_source, formatted_index)
+	})?)
+}
+
+fn formatted_search_result_info(
+	inner: &BundleInner,
+	module_id: ModuleId,
+	raw_index: usize,
+	long_preview: bool,
+) -> Result<BundleSearchResultInfo> {
+	let formatted_source = inner.get_formatted_module(module_id)?;
+	let mappings = inner.formatted_module_mappings.borrow();
+	let mappings = mappings
+		.get(&module_id)
+		.with_context(|| anyhow!("Module source mapping not found for {module_id}"))?;
+	let formatted_index =
+		find_formatted_pos(mappings, raw_index as u32) as usize;
+	let formatted_index = normalize_source_index(formatted_source, formatted_index);
+
+	Ok(inner.with_formatted_line_index(module_id, |formatted_source, line_index| {
+		let position = line_index.position(formatted_source, formatted_index);
+
+		BundleSearchResultInfo {
+			line_number: position.line,
+			column: position.column,
+			preview: line_index.preview(formatted_source, formatted_index, long_preview),
+		}
+	})?)
+}
+
+fn push_module_search_results(
+	results: &mut BundleSearchResults,
+	module_id: ModuleId,
+	match_indices: impl Iterator<Item = usize>,
+) {
+	for index in match_indices {
+		results.module_ids.push(*module_id);
+		results
+			.raw_indices
+			.push(u32::try_from(index).unwrap_or(u32::MAX));
+	}
 }
 
 #[wasm_bindgen]
@@ -458,15 +615,10 @@ impl Bundle {
 			.unformatted_modules
 			.contains_key(&ModuleId(module_id))
 	}
-	pub fn search_modules(
-		&self,
-		query: &str,
-		regex: bool,
-		limit: usize,
-	) -> Result<JsValue> {
+	pub fn search_modules(&self, query: &str, regex: bool) -> Result<JsValue> {
 		let query = query.trim();
-		if query.is_empty() || limit == 0 {
-			return search_results_to_js(&[]);
+		if query.is_empty() {
+			return search_results_to_js(&BundleSearchResults::new());
 		}
 
 		let mut module_ids: Vec<ModuleId> = self
@@ -477,8 +629,7 @@ impl Bundle {
 			.collect();
 		module_ids.sort_unstable();
 
-		let mut results = Vec::new();
-		let mut seen_results = HashSet::new();
+		let mut results = BundleSearchResults::new();
 		let pattern = if regex {
 			Some(Regex::new(query).context("Invalid search regex")?)
 		} else {
@@ -494,19 +645,11 @@ impl Bundle {
 				.with_context(|| anyhow!("Module source not found for {module_id}"))?;
 
 			if let Some(pattern) = &pattern {
-				for regex_match in pattern.find_iter(source) {
-					if push_search_result(
-						&self.inner,
-						&mut results,
-						&mut seen_results,
-						module_id,
-						source,
-						regex_match.start(),
-						limit,
-					)? {
-						return search_results_to_js(&results);
-					}
-				}
+				push_module_search_results(
+					&mut results,
+					module_id,
+					pattern.find_iter(source).map(|regex_match| regex_match.start()),
+				);
 
 				continue;
 			}
@@ -514,22 +657,48 @@ impl Bundle {
 			let finder = finder
 				.as_ref()
 				.expect("non-regex search should have a literal finder");
-			for search_index in finder.find_iter(source.as_bytes()) {
-				if push_search_result(
-					&self.inner,
-					&mut results,
-					&mut seen_results,
-					module_id,
-					source,
-					search_index,
-					limit,
-				)? {
-					return search_results_to_js(&results);
-				}
-			}
+			push_module_search_results(
+				&mut results,
+				module_id,
+				finder.find_iter(source.as_bytes()),
+			);
 		}
 
 		search_results_to_js(&results)
+	}
+	pub fn get_search_result_info(
+		&self,
+		module_id: u32,
+		raw_index: u32,
+		long_preview: bool,
+	) -> Result<JsValue> {
+		let info = formatted_search_result_info(
+			&self.inner,
+			ModuleId(module_id),
+			raw_index as usize,
+			long_preview,
+		)?;
+
+		Ok(serde_wasm_bindgen::to_value(&info)
+			.context("Failed to serialize search result info")?)
+	}
+	pub fn get_search_location(
+		&self,
+		module_id: u32,
+		raw_index: u32,
+	) -> Result<JsValue> {
+		let position = formatted_search_position(
+			&self.inner,
+			ModuleId(module_id),
+			raw_index as usize,
+		)?;
+		let location = BundleSearchLocation {
+			line_number: position.line,
+			column: position.column,
+		};
+
+		Ok(serde_wasm_bindgen::to_value(&location)
+			.context("Failed to serialize search location")?)
 	}
 	/// line and column are 1-based
 	pub fn provide_definition(
@@ -638,11 +807,20 @@ fn provide_i18n_hover(
 
 #[wasm_bindgen(typescript_custom_section)]
 const MODULE_DEPS_JS_TYPES: &str = r#"
-    export interface BundleSearchResult {
-        moduleId: number;
+    export interface BundleSearchResults {
+        moduleIds: Uint32Array;
+        rawIndices: Uint32Array;
+    }
+
+    export interface BundleSearchResultInfo {
         lineNumber: number;
         column: number;
         preview: string;
+    }
+
+    export interface BundleSearchLocation {
+        lineNumber: number;
+        column: number;
     }
 
     export interface Bundle {
@@ -650,7 +828,9 @@ const MODULE_DEPS_JS_TYPES: &str = r#"
             syncUses: number[];
             lazyUses: number[];
         } | undefined;
-        search_modules(query: string, regex: boolean, limit: number): BundleSearchResult[];
+        search_modules(query: string, regex: boolean): BundleSearchResults;
+        get_search_result_info(module_id: number, raw_index: number, long_preview: boolean): BundleSearchResultInfo;
+        get_search_location(module_id: number, raw_index: number): BundleSearchLocation;
     }
 "#;
 
@@ -674,6 +854,8 @@ pub async fn get_bundle(
 	let parsers = RefCell::new(HashMap::new());
 	let formatted_modules = RefCell::new(HashMap::new());
 	let formatted_module_mappings = RefCell::new(HashMap::new());
+	let raw_module_line_indices = RefCell::new(HashMap::new());
+	let formatted_module_line_indices = RefCell::new(HashMap::new());
 	let inner = BundleInner {
 		metadata: metadata.into(),
 		dep_info: dep_info.into(),
@@ -684,6 +866,8 @@ pub async fn get_bundle(
 		format_alloc: RefCell::new(Allocator::new()),
 		formatted_modules,
 		formatted_module_mappings,
+		raw_module_line_indices,
+		formatted_module_line_indices,
 		self_ptr: ptr::null(),
 		_pin: PhantomPinned,
 	};
