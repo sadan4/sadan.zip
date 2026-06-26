@@ -4,7 +4,19 @@ import type { GeneratedGraph } from "@/hooks/moduleGraph2";
 import { assert } from "@/utils/error";
 import type { Monaco } from "@/utils/monaco";
 import type { TBundleHash, TModuleId } from "@/utils/types";
-import { Bundle, default as initWasm, get_bundle, HoverInfo as RawHoverInfo, LaidOutGraph, ModuleLocation as RawModuleLocation, MonacoPosition, MonacoRange } from "@sadan4/libsadancore";
+import {
+    Bundle,
+    type BundleSearchLocation,
+    type BundleSearchResultInfo,
+    type BundleSearchResults as RawBundleSearchResults,
+    default as initWasm,
+    get_bundle,
+    HoverInfo as RawHoverInfo,
+    LaidOutGraph,
+    ModuleLocation as RawModuleLocation,
+    MonacoPosition,
+    MonacoRange,
+} from "@sadan4/libsadancore";
 import type { Edge, Node } from "@xyflow/react";
 
 import * as comlink from "comlink";
@@ -20,32 +32,7 @@ export interface HoverInfo {
     i18nKey?: string;
 }
 
-export interface BundleSearchResult {
-    moduleId: TModuleId;
-    rawIndex: number;
-}
-
-export interface BundleSearchResults {
-    moduleIds: Uint32Array;
-    rawIndices: Uint32Array;
-}
-
-export interface BundleSearchResultInfo {
-    lineNumber: number;
-    column: number;
-    preview: string;
-}
-
-export interface BundleSearchLocation {
-    lineNumber: number;
-    column: number;
-}
-
-type SearchableBundle = Bundle & {
-    search_modules(query: string, regex: boolean): BundleSearchResults;
-    get_search_result_info(moduleId: number, rawIndex: number, longPreview: boolean): BundleSearchResultInfo;
-    get_search_location(moduleId: number, rawIndex: number): BundleSearchLocation;
-};
+export type BundleSearchResults = Pick<RawBundleSearchResults, "moduleIds" | "rawIndices">;
 
 export interface IBuildService {
     hasId(moduleId: number): moduleId is TModuleId;
@@ -176,17 +163,24 @@ class BuildService implements IBuildService {
     }
 
     public searchModules(query: string, regex: boolean): BundleSearchResults {
-        const results = (this.#bundle as SearchableBundle).search_modules(query, regex);
+        const results = this.#bundle.search_modules(query, regex);
+        const { moduleIds } = results;
+        const { rawIndices } = results;
 
-        return comlink.transfer(results, [results.moduleIds.buffer, results.rawIndices.buffer]);
+        (results as { free?(): void; }).free?.();
+
+        return comlink.transfer({
+            moduleIds,
+            rawIndices,
+        }, [moduleIds.buffer, rawIndices.buffer]);
     }
 
     public getSearchResultInfo(moduleId: TModuleId, rawIndex: number, longPreview: boolean): BundleSearchResultInfo {
-        return (this.#bundle as SearchableBundle).get_search_result_info(moduleId, rawIndex, longPreview);
+        return this.#bundle.get_search_result_info(moduleId, rawIndex, longPreview);
     }
 
     public getSearchLocation(moduleId: TModuleId, rawIndex: number): BundleSearchLocation {
-        return (this.#bundle as SearchableBundle).get_search_location(moduleId, rawIndex);
+        return this.#bundle.get_search_location(moduleId, rawIndex);
     }
 
     public generateModuleGraph(moduleId: TModuleId, depth: number): GeneratedGraph {

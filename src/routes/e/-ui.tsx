@@ -28,6 +28,8 @@ import { useQuery } from "@tanstack/react-query";
 import { createLink } from "@tanstack/react-router";
 import { Background, Controls, MiniMap, ReactFlow, ReactFlowProvider } from "@xyflow/react";
 
+import type { RemoteBuildService } from "./-data/worker/api";
+import type { BundleSearchResults } from "./-data/worker/sharedWorker";
 import {
     ModuleViewerSettingsStore,
     ModuleViewerStore,
@@ -37,8 +39,6 @@ import {
     useModuleViewerStore,
     ViewMode,
 } from "./-data";
-import type { BundleSearchResult, BundleSearchResults } from "./-data/worker/sharedWorker";
-import type { RemoteBuildService } from "./-data/worker/api";
 import { Route } from "./view.{-$buildHash}.{-$moduleId}";
 
 import "@xyflow/react/dist/style.css";
@@ -56,13 +56,14 @@ import {
     Undo2Icon,
     XIcon,
 } from "lucide-react";
-import { Activity, type PropsWithChildren, use, useCallback, useEffect, useRef, useState } from "react";
+import { Activity, type PropsWithChildren, use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 
 const EMPTY_SEARCH_RESULTS = {
     moduleIds: new Uint32Array(),
     rawIndices: new Uint32Array(),
 } satisfies BundleSearchResults;
+
 interface ModuleListItemProps {
     moduleId: number;
     onSelectModule(moduleId: number): void;
@@ -123,14 +124,20 @@ function ModuleSelector({ modules, onSelectModule }: ModuleSelectorProps) {
 interface SearchResultItemProps {
     buildHash: string;
     buildService: RemoteBuildService;
-    result: BundleSearchResult;
-    index: number;
+    result: SearchResultListItem;
     loadPreview: boolean;
     longPreview: boolean;
 }
 
-function SearchResultItem({ buildHash, buildService, result, index, loadPreview, longPreview }: SearchResultItemProps) {
+interface SearchResultListItem {
+    key: string;
+    moduleId: TModuleId;
+    rawIndex: number;
+}
+
+function SearchResultItem({ buildHash, buildService, result, loadPreview, longPreview }: SearchResultItemProps) {
     const navigate = Route.useNavigate();
+
     const { data: resultInfo } = useQuery({
         queryKey: ["bundleSearchResultInfo", buildHash, result.moduleId, result.rawIndex, longPreview],
         queryFn() {
@@ -143,7 +150,6 @@ function SearchResultItem({ buildHash, buildService, result, index, loadPreview,
 
     return (
         <Clickable
-            key={`${result.moduleId}-${result.rawIndex}-${index}`}
             tag="div"
             className={cn(
                 "cursor-pointer overflow-hidden rounded-sm px-2 py-1 hover:bg-fg-800",
@@ -213,18 +219,37 @@ function SearchResultsList({ buildHash, buildService, results, longPreview }: Se
         };
     }, []);
 
-    const rowCount = results.moduleIds.length;
+    const searchItems = useMemo(() => {
+        const items: SearchResultListItem[] = [];
+
+        for (let index = 0; index < results.moduleIds.length; index++) {
+            const moduleId = results.moduleIds[index] as TModuleId;
+            const rawIndex = results.rawIndices[index];
+
+            items.push({
+                key: `${moduleId}:${rawIndex}:${index}`,
+                moduleId,
+                rawIndex,
+            });
+        }
+
+        return items;
+    }, [results]);
+
+    const rowCount = searchItems.length;
+
     const firstKey = rowCount
-        ? `${results.moduleIds[0]}:${results.rawIndices[0]}`
+        ? searchItems[0].key
         : "empty";
+
     const lastKey = rowCount
-        ? `${results.moduleIds[rowCount - 1]}:${results.rawIndices[rowCount - 1]}`
+        ? searchItems[rowCount - 1].key
         : "empty";
 
     return (
         <BufferedScroller
             key={`${rowCount}:${firstKey}:${lastKey}:${longPreview}`}
-            items={results.moduleIds}
+            items={searchItems}
             batchSize={50}
             bufferSize={2}
             className="min-h-0 grow"
@@ -238,19 +263,13 @@ function SearchResultsList({ buildHash, buildService, results, longPreview }: Se
             onScrollEnd={() => {
                 setLoadPreview(true);
             }}
-            renderItem={({ item: moduleId, index }) => {
-                const rawIndex = results.rawIndices[index];
-
+            renderItem={({ item }) => {
                 return (
                     <SearchResultItem
-                        key={`${moduleId}-${rawIndex}-${index}`}
+                        key={item.key}
                         buildHash={buildHash}
                         buildService={buildService}
-                        result={{
-                            moduleId: moduleId as TModuleId,
-                            rawIndex,
-                        }}
-                        index={index}
+                        result={item}
                         loadPreview={loadPreview}
                         longPreview={longPreview}
                     />
@@ -797,16 +816,16 @@ function ExplorerSidebar() {
                     </form>
                     {submittedSearchQuery.trim() && (
                         <div className="mx-2 mb-2 flex min-h-0 min-w-0 grow flex-col gap-2 rounded-md border-2 border-fg-700 p-2 text-sm">
-                            <div className="w-full min-w-0 shrink-0 break-words leading-5 text-[color:var(--color-fg-600)]">
+                            <div className="w-full min-w-0 shrink-0 leading-5 break-words text-[color:var(--color-fg-600)]">
                                 {searchStatus === "success" ? `${searchResults.moduleIds.length} matches` : "Searching..."}
                             </div>
                             {searchStatus === "error" && (
-                                <div className="w-full min-w-0 shrink-0 break-words leading-5 text-[color:var(--color-error-400)]">
+                                <div className="w-full min-w-0 shrink-0 leading-5 break-words text-[color:var(--color-error-400)]">
                                     Invalid regex or search failed.
                                 </div>
                             )}
                             {searchStatus === "success" && searchResults.moduleIds.length === 0 && (
-                                <div className="w-full min-w-0 shrink-0 break-words leading-5 text-[color:var(--color-fg-600)]">
+                                <div className="w-full min-w-0 shrink-0 leading-5 break-words text-[color:var(--color-fg-600)]">
                                     No matches found.
                                 </div>
                             )}

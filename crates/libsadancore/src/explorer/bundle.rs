@@ -28,7 +28,6 @@ use explorer_types::{
 	ModuleSources,
 	TModuleId,
 };
-use js_sys::{Object, Reflect, Uint32Array};
 use memchr::memmem::Finder;
 use oxc::{allocator::Allocator, span::Span};
 use pretty_printer::{FormattedContent, format_with_alloc};
@@ -80,7 +79,6 @@ struct BundleInner {
 	#[expect(clippy::box_collection)]
 	formatted_modules: RefCell<HashMap<ModuleId, Pin<Box<String>>>>,
 	formatted_module_mappings: RefCell<HashMap<ModuleId, Vec<(u32, u32)>>>,
-	raw_module_line_indices: RefCell<HashMap<ModuleId, LineIndex>>,
 	formatted_module_line_indices: RefCell<HashMap<ModuleId, LineIndex>>,
 	raw_alloc: Box<Allocator>,
 	parsers: RefCell<HashMap<ModuleId, Rc<WebpackAstParser<'static>>>>,
@@ -123,17 +121,31 @@ struct ModuleDepsJs<'a> {
 	lazy_uses: &'a Vec<ModuleId>,
 }
 
-struct BundleSearchResults {
+#[wasm_bindgen]
+pub struct BundleSearchResults {
 	module_ids: Vec<u32>,
 	raw_indices: Vec<u32>,
 }
 
 impl BundleSearchResults {
-	fn new() -> Self {
+	const fn new() -> Self {
 		Self {
 			module_ids: Vec::new(),
 			raw_indices: Vec::new(),
 		}
+	}
+}
+
+#[wasm_bindgen]
+impl BundleSearchResults {
+	#[wasm_bindgen(getter, js_name = moduleIds)]
+	pub fn module_ids(&self) -> Box<[u32]> {
+		self.module_ids.clone().into_boxed_slice()
+	}
+
+	#[wasm_bindgen(getter, js_name = rawIndices)]
+	pub fn raw_indices(&self) -> Box<[u32]> {
+		self.raw_indices.clone().into_boxed_slice()
 	}
 }
 
@@ -326,25 +338,6 @@ impl BundleInner {
 		}
 		Ok(FormattedContent { code, mappings })
 	}
-	fn with_raw_line_index<R>(
-		&self,
-		id: ModuleId,
-		f: impl FnOnce(&str, &LineIndex) -> R,
-	) -> anyhow::Result<R> {
-		let source = self
-			.unformatted_modules
-			.get(&id)
-			.with_context(|| anyhow!("Module source not found for {id}"))?;
-		let mut line_indices = self.raw_module_line_indices.borrow_mut();
-		line_indices
-			.entry(id)
-			.or_insert_with(|| LineIndex::new(source));
-		let line_index = line_indices
-			.get(&id)
-			.expect("line index should exist after insertion");
-
-		Ok(f(source, line_index))
-	}
 	fn with_formatted_line_index<R>(
 		&self,
 		id: ModuleId,
@@ -394,10 +387,10 @@ fn find_formatted_pos(mappings: &[(u32, u32)], original_pos: u32) -> u32 {
 	0
 }
 
-fn normalize_source_index(source: &str, index: usize) -> usize {
-	let mut index = index.min(source.len());
+fn normalize_source_index(source: &str, index: u32) -> u32 {
+	let mut index = index.min(u32::try_from(source.len()).unwrap_or(u32::MAX));
 
-	while !source.is_char_boundary(index) {
+	while !source.is_char_boundary(index as usize) {
 		index -= 1;
 	}
 
@@ -405,7 +398,7 @@ fn normalize_source_index(source: &str, index: usize) -> usize {
 }
 
 struct LineIndex {
-	line_starts: Vec<usize>,
+	line_starts: Vec<u32>,
 }
 
 impl LineIndex {
@@ -414,14 +407,14 @@ impl LineIndex {
 
 		for (index, byte) in source.bytes().enumerate() {
 			if byte == b'\n' {
-				line_starts.push(index + 1);
+				line_starts.push(u32::try_from(index + 1).unwrap_or(u32::MAX));
 			}
 		}
 
 		Self { line_starts }
 	}
 
-	fn line_bounds(&self, source: &str, index: usize) -> (usize, usize, u32) {
+	fn line_bounds(&self, source: &str, index: u32) -> (u32, u32, u32) {
 		let index = normalize_source_index(source, index);
 		let line_index = match self.line_starts.binary_search(&index) {
 			Ok(line_index) => line_index,
@@ -431,17 +424,18 @@ impl LineIndex {
 		let line_end = self
 			.line_starts
 			.get(line_index + 1)
-			.map(|line_start| line_start.saturating_sub(1))
-			.unwrap_or(source.len());
+			.map_or(u32::try_from(source.len()).unwrap_or(u32::MAX), |line_start| {
+				line_start.saturating_sub(1)
+			});
 		let line_number = u32::try_from(line_index + 1).unwrap_or(u32::MAX);
 
 		(line_start, line_end, line_number)
 	}
 
-	fn position(&self, source: &str, index: usize) -> MonacoPosition {
+	fn position(&self, source: &str, index: u32) -> MonacoPosition {
 		let index = normalize_source_index(source, index);
 		let (line_start, _, line_number) = self.line_bounds(source, index);
-		let column = source[line_start..index].chars().count() + 1;
+		let column = source[line_start as usize..index as usize].chars().count() + 1;
 		let column = u32::try_from(column).unwrap_or(u32::MAX);
 
 		MonacoPosition {
@@ -450,10 +444,10 @@ impl LineIndex {
 		}
 	}
 
-	fn preview(&self, source: &str, index: usize, long_preview: bool) -> String {
+	fn preview(&self, source: &str, index: u32, long_preview: bool) -> String {
 		const MAX_PREVIEW_LINES: usize = 3;
-		const SHORT_PREVIEW_CHARS: usize = 180;
-		const LONG_PREVIEW_CHARS: usize = 360;
+		const SHORT_PREVIEW_CHARS: u32 = 180;
+		const LONG_PREVIEW_CHARS: u32 = 360;
 
 		let index = normalize_source_index(source, index);
 		let (line_start, line_end, _) = self.line_bounds(source, index);
@@ -469,8 +463,9 @@ impl LineIndex {
 			let preview_end = self
 				.line_starts
 				.get(end_line + 1)
-				.map(|line_start| line_start.saturating_sub(1))
-				.unwrap_or(source.len());
+				.map_or(u32::try_from(source.len()).unwrap_or(u32::MAX), |line_start| {
+					line_start.saturating_sub(1)
+				});
 
 			(preview_start, preview_end, LONG_PREVIEW_CHARS)
 		} else {
@@ -489,38 +484,18 @@ impl LineIndex {
 			preview_end = normalize_source_index(source, preview_end);
 		}
 
-		source[preview_start..preview_end]
+		source[preview_start as usize..preview_end as usize]
 			.trim()
 			.chars()
-			.take(max_preview_chars)
+			.take(max_preview_chars as usize)
 			.collect()
 	}
-}
-
-fn search_results_to_js(results: &BundleSearchResults) -> Result<JsValue> {
-	let obj = Object::new();
-	let module_ids = Uint32Array::from(results.module_ids.as_slice());
-	let raw_indices = Uint32Array::from(results.raw_indices.as_slice());
-	Reflect::set(
-		&obj,
-		&JsValue::from_str("moduleIds"),
-		module_ids.as_ref(),
-	)
-	.map_err(|_| anyhow!("Failed to serialize search module ids"))?;
-	Reflect::set(
-		&obj,
-		&JsValue::from_str("rawIndices"),
-		raw_indices.as_ref(),
-	)
-	.map_err(|_| anyhow!("Failed to serialize search raw indices"))?;
-
-	Ok(obj.into())
 }
 
 fn formatted_search_position(
 	inner: &BundleInner,
 	module_id: ModuleId,
-	raw_index: usize,
+	raw_index: u32,
 ) -> Result<MonacoPosition> {
 	let formatted_source = inner.get_formatted_module(module_id)?;
 	let mappings = inner.formatted_module_mappings.borrow();
@@ -528,7 +503,7 @@ fn formatted_search_position(
 		.get(&module_id)
 		.with_context(|| anyhow!("Module source mapping not found for {module_id}"))?;
 	let formatted_index =
-		find_formatted_pos(mappings, raw_index as u32) as usize;
+		find_formatted_pos(mappings, raw_index);
 	let formatted_index = normalize_source_index(formatted_source, formatted_index);
 
 	Ok(inner.with_formatted_line_index(module_id, |formatted_source, line_index| {
@@ -539,7 +514,7 @@ fn formatted_search_position(
 fn formatted_search_result_info(
 	inner: &BundleInner,
 	module_id: ModuleId,
-	raw_index: usize,
+	raw_index: u32,
 	long_preview: bool,
 ) -> Result<BundleSearchResultInfo> {
 	let formatted_source = inner.get_formatted_module(module_id)?;
@@ -548,7 +523,7 @@ fn formatted_search_result_info(
 		.get(&module_id)
 		.with_context(|| anyhow!("Module source mapping not found for {module_id}"))?;
 	let formatted_index =
-		find_formatted_pos(mappings, raw_index as u32) as usize;
+		find_formatted_pos(mappings, raw_index);
 	let formatted_index = normalize_source_index(formatted_source, formatted_index);
 
 	Ok(inner.with_formatted_line_index(module_id, |formatted_source, line_index| {
@@ -565,13 +540,11 @@ fn formatted_search_result_info(
 fn push_module_search_results(
 	results: &mut BundleSearchResults,
 	module_id: ModuleId,
-	match_indices: impl Iterator<Item = usize>,
+	match_indices: impl Iterator<Item = u32>,
 ) {
 	for index in match_indices {
 		results.module_ids.push(*module_id);
-		results
-			.raw_indices
-			.push(u32::try_from(index).unwrap_or(u32::MAX));
+		results.raw_indices.push(index);
 	}
 }
 
@@ -615,10 +588,11 @@ impl Bundle {
 			.unformatted_modules
 			.contains_key(&ModuleId(module_id))
 	}
-	pub fn search_modules(&self, query: &str, regex: bool) -> Result<JsValue> {
+	#[wasm_bindgen(skip_typescript)]
+	pub fn search_modules(&self, query: &str, regex: bool) -> Result<BundleSearchResults> {
 		let query = query.trim();
 		if query.is_empty() {
-			return search_results_to_js(&BundleSearchResults::new());
+			return Ok(BundleSearchResults::new());
 		}
 
 		let mut module_ids: Vec<ModuleId> = self
@@ -648,23 +622,25 @@ impl Bundle {
 				push_module_search_results(
 					&mut results,
 					module_id,
-					pattern.find_iter(source).map(|regex_match| regex_match.start()),
+					pattern.find_iter(source).map(|regex_match| {
+						u32::try_from(regex_match.start()).unwrap_or(u32::MAX)
+					}),
 				);
-
-				continue;
+			} else {
+				let finder = finder
+					.as_ref()
+					.expect("non-regex search should have a literal finder");
+				push_module_search_results(
+					&mut results,
+					module_id,
+					finder.find_iter(source.as_bytes()).map(|index| {
+						u32::try_from(index).unwrap_or(u32::MAX)
+					}),
+				);
 			}
-
-			let finder = finder
-				.as_ref()
-				.expect("non-regex search should have a literal finder");
-			push_module_search_results(
-				&mut results,
-				module_id,
-				finder.find_iter(source.as_bytes()),
-			);
 		}
 
-		search_results_to_js(&results)
+		Ok(results)
 	}
 	pub fn get_search_result_info(
 		&self,
@@ -675,7 +651,7 @@ impl Bundle {
 		let info = formatted_search_result_info(
 			&self.inner,
 			ModuleId(module_id),
-			raw_index as usize,
+			raw_index,
 			long_preview,
 		)?;
 
@@ -690,7 +666,7 @@ impl Bundle {
 		let position = formatted_search_position(
 			&self.inner,
 			ModuleId(module_id),
-			raw_index as usize,
+			raw_index,
 		)?;
 		let location = BundleSearchLocation {
 			line_number: position.line,
@@ -854,7 +830,6 @@ pub async fn get_bundle(
 	let parsers = RefCell::new(HashMap::new());
 	let formatted_modules = RefCell::new(HashMap::new());
 	let formatted_module_mappings = RefCell::new(HashMap::new());
-	let raw_module_line_indices = RefCell::new(HashMap::new());
 	let formatted_module_line_indices = RefCell::new(HashMap::new());
 	let inner = BundleInner {
 		metadata: metadata.into(),
@@ -866,7 +841,6 @@ pub async fn get_bundle(
 		format_alloc: RefCell::new(Allocator::new()),
 		formatted_modules,
 		formatted_module_mappings,
-		raw_module_line_indices,
 		formatted_module_line_indices,
 		self_ptr: ptr::null(),
 		_pin: PhantomPinned,
