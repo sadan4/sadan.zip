@@ -816,16 +816,16 @@ function ExplorerSidebar() {
                     </form>
                     {submittedSearchQuery.trim() && (
                         <div className="mx-2 mb-2 flex min-h-0 min-w-0 grow flex-col gap-2 rounded-md border-2 border-fg-700 p-2 text-sm">
-                            <div className="w-full min-w-0 shrink-0 leading-5 break-words text-[color:var(--color-fg-600)]">
+                            <div className="w-full min-w-0 shrink-0 leading-5 wrap-break-word text-fg-600">
                                 {searchStatus === "success" ? `${searchResults.moduleIds.length} matches` : "Searching..."}
                             </div>
                             {searchStatus === "error" && (
-                                <div className="w-full min-w-0 shrink-0 leading-5 break-words text-[color:var(--color-error-400)]">
+                                <div className="w-full min-w-0 shrink-0 leading-5 wrap-break-word text-error-400">
                                     Invalid regex or search failed.
                                 </div>
                             )}
                             {searchStatus === "success" && searchResults.moduleIds.length === 0 && (
-                                <div className="w-full min-w-0 shrink-0 leading-5 break-words text-[color:var(--color-fg-600)]">
+                                <div className="w-full min-w-0 shrink-0 leading-5 wrap-break-word text-fg-600">
                                     No matches found.
                                 </div>
                             )}
