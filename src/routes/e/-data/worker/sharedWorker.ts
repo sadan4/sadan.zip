@@ -8,7 +8,6 @@ import {
     Bundle,
     type BundleSearchLocation,
     type BundleSearchResultInfo,
-    type BundleSearchResults as RawBundleSearchResults,
     default as initWasm,
     get_bundle,
     HoverInfo as RawHoverInfo,
@@ -32,7 +31,10 @@ export interface HoverInfo {
     i18nKey?: string;
 }
 
-export type BundleSearchResults = Pick<RawBundleSearchResults, "moduleIds" | "rawIndices">;
+export interface BundleSearchResults {
+    moduleIds: Uint32Array;
+    rawIndices: Uint32Array;
+}
 
 export interface IBuildService {
     hasId(moduleId: number): moduleId is TModuleId;
@@ -163,11 +165,9 @@ class BuildService implements IBuildService {
     }
 
     public searchModules(query: string, regex: boolean): BundleSearchResults {
-        const results = this.#bundle.search_modules(query, regex);
+        const results = this.#bundle.search_modules(query, regex) as BundleSearchResults;
         const { moduleIds } = results;
         const { rawIndices } = results;
-
-        (results as { free?(): void; }).free?.();
 
         return comlink.transfer({
             moduleIds,

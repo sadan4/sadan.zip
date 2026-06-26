@@ -28,6 +28,7 @@ use explorer_types::{
 	ModuleSources,
 	TModuleId,
 };
+use js_sys::{Object, Reflect, Uint32Array};
 use memchr::memmem::Finder;
 use oxc::{allocator::Allocator, span::Span};
 use pretty_printer::{FormattedContent, format_with_alloc};
@@ -121,8 +122,7 @@ struct ModuleDepsJs<'a> {
 	lazy_uses: &'a Vec<ModuleId>,
 }
 
-#[wasm_bindgen]
-pub struct BundleSearchResults {
+struct BundleSearchResults {
 	module_ids: Vec<u32>,
 	raw_indices: Vec<u32>,
 }
@@ -133,19 +133,6 @@ impl BundleSearchResults {
 			module_ids: Vec::new(),
 			raw_indices: Vec::new(),
 		}
-	}
-}
-
-#[wasm_bindgen]
-impl BundleSearchResults {
-	#[wasm_bindgen(getter, js_name = moduleIds)]
-	pub fn module_ids(&self) -> Box<[u32]> {
-		self.module_ids.clone().into_boxed_slice()
-	}
-
-	#[wasm_bindgen(getter, js_name = rawIndices)]
-	pub fn raw_indices(&self) -> Box<[u32]> {
-		self.raw_indices.clone().into_boxed_slice()
 	}
 }
 
@@ -548,6 +535,26 @@ fn push_module_search_results(
 	}
 }
 
+fn search_results_to_js(results: &BundleSearchResults) -> Result<JsValue> {
+	let obj = Object::new();
+	let module_ids = Uint32Array::from(results.module_ids.as_slice());
+	let raw_indices = Uint32Array::from(results.raw_indices.as_slice());
+	Reflect::set(
+		&obj,
+		&JsValue::from_str("moduleIds"),
+		module_ids.as_ref(),
+	)
+	.map_err(|_| anyhow!("Failed to serialize search module ids"))?;
+	Reflect::set(
+		&obj,
+		&JsValue::from_str("rawIndices"),
+		raw_indices.as_ref(),
+	)
+	.map_err(|_| anyhow!("Failed to serialize search raw indices"))?;
+
+	Ok(obj.into())
+}
+
 #[wasm_bindgen]
 impl Bundle {
 	pub fn get_module_text(&self, module_id: u32) -> Result<String> {
@@ -589,10 +596,10 @@ impl Bundle {
 			.contains_key(&ModuleId(module_id))
 	}
 	#[wasm_bindgen(skip_typescript)]
-	pub fn search_modules(&self, query: &str, regex: bool) -> Result<BundleSearchResults> {
+	pub fn search_modules(&self, query: &str, regex: bool) -> Result<JsValue> {
 		let query = query.trim();
 		if query.is_empty() {
-			return Ok(BundleSearchResults::new());
+			return search_results_to_js(&BundleSearchResults::new());
 		}
 
 		let mut module_ids: Vec<ModuleId> = self
@@ -640,7 +647,7 @@ impl Bundle {
 			}
 		}
 
-		Ok(results)
+		search_results_to_js(&results)
 	}
 	pub fn get_search_result_info(
 		&self,
