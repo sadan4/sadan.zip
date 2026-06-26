@@ -54,6 +54,7 @@ use ast_parser::{
 		BindingPatternExt as _,
 		ExpressionExt as _,
 		ImportDeclarationExt as _,
+		MemberExpressionExt,
 		ObjectExpressionExt as _,
 		PropertyKeyExt,
 	},
@@ -252,18 +253,15 @@ impl<'ast> VencordAstParser<'ast> {
 					// so scan the node's source slice with its start as the
 					// offset — no `+ 1` since there's no opening quote to skip.
 					RawReplace::Func(f) => (
-						&self.txt
-							[f.span.start as usize..f.span.end as usize],
+						&self.txt[f.span.start as usize..f.span.end as usize],
 						f.span.start,
 					),
 					RawReplace::Template(t) => (
-						&self.txt
-							[t.span.start as usize..t.span.end as usize],
+						&self.txt[t.span.start as usize..t.span.end as usize],
 						t.span.start,
 					),
 				};
-				let refs =
-					Self::collect_self_references(value, scan_offset);
+				let refs = Self::collect_self_references(value, scan_offset);
 				for (prop, spans) in &refs {
 					if spans
 						.iter()
@@ -1004,72 +1002,150 @@ impl<'ast> VencordAstParser<'ast> {
 		Ok(ret)
 	}
 
-	/// TODO: better error handling
+	/// TODO: refactor to support more types of spread expressions
 	fn parse_spread_patch(
 		&self,
 		spread: &'ast SpreadElement<'ast>,
 		ret: &mut OxcVec<'ast, RawPatch<'ast>>,
-	) -> Option<()> {
-		let call = spread.argument.as_call_expression()?;
+	) -> PResult<()> {
+		let call = spread
+			.argument
+			.as_call_expression()
+			.ok_or_else(|| {
+				err(
+					&spread.argument,
+					"TODO: support non-call spread expressions",
+				)
+			})?;
 		if call.arguments.len() != 1 {
-			return None;
+			return Err(err(
+				&spread.argument,
+				"Expected exactly one argument to spread expression call",
+			));
 		}
 		let mapper = call.arguments[0]
-			.as_expression()?
-			.as_arrow_function_expression()?;
+			.as_expression()
+			.ok_or_else(|| {
+				err(&call.arguments[0], "call argument is not an expression")
+			})?
+			.as_arrow_function_expression()
+			.ok_or_else(|| {
+				err(
+					&call.arguments[0],
+					"call argument is not an arrow function expression",
+				)
+			})?;
 		if mapper.params.parameters_count() != 1 || mapper.params.rest.is_some()
 		{
-			return None;
+			return Err(err(
+				&spread.argument,
+				"Expected exactly one non-rest parameter in arrow map function",
+			));
 		}
-		let mapper_param = mapper.params.items[0]
-			.pattern
-			.as_binding_identifier()?
-			.symbol_id();
-		let map_prop = call.callee.as_member_expression()?;
-		if map_prop.static_property_name() != Some("map") {
-			return None;
+		let mapper_param = &mapper.params.items[0].pattern;
+		let mapper_param = mapper_param
+			.as_binding_identifier()
+			.ok_or_else(|| {
+				err(
+					mapper_param,
+					"Expected map function parameter to be a binding identifier",
+				)
+			})?;
+		let mapper_param_sym_id = mapper_param.symbol_id();
+		let map_prop = call
+			.callee
+			.as_static_member_expression()
+			.ok_or_else(|| {
+				err(&call.callee, "callee is not a static member expression")
+			})?;
+		if map_prop.property.name != "map" {
+			return Err(err(
+				&map_prop.property,
+				"callee is not a `.map` static member expression",
+			));
 		}
 		let arr = map_prop
-			.object()
-			.as_array_expression()?;
+			.object
+			.as_array_expression()
+			.ok_or_else(|| {
+				err(&map_prop.object, "Expected array literal expression")
+			})?;
 		if arr.elements.is_empty() {
-			return None;
+			let err = err(arr, "Empty array literal in spread patch, skipping");
+			let inner = miette::Report::from(err);
+			let report = LocalSource {
+				inner,
+				source: self.txt,
+				name: self.path,
+			};
+			tracing::warn!("{report:?}");
+			return Ok(());
 		}
-		let obj = self
-			.get_arrow_single_return_value(mapper)?
-			.without_parentheses()
-			.as_object_expression()?;
-		let find = obj
-			.get_property("find")?
-			.value
-			.as_identifier()?
-			.reference_id();
+		let mapper_ret = self
+			.get_arrow_single_return_value(mapper)
+			.ok_or_else(|| {
+				err(
+					mapper,
+					"arrow function does not have a single return value",
+				)
+			})?
+			.without_parentheses();
+		let obj = mapper_ret
+			.as_object_expression()
+			.ok_or_else(|| {
+				err(
+					mapper_ret,
+					"arrow function return value is not an object expression",
+				)
+			})?;
+		let find = &obj
+			.get_property("find")
+			.ok_or_else(|| err(obj, "patch object missing `find` property"))?
+			.value;
+		let find = find
+			.as_identifier()
+			.ok_or_else(|| err(find, "find prop value is not an identifier"))?;
+		let find_ref_id = find.reference_id();
 
 		if self
 			.sema
 			.scoping()
-			.get_reference(find)
+			.get_reference(find_ref_id)
 			.symbol_id()
-			!= Some(mapper_param)
+			!= Some(mapper_param_sym_id)
 		{
-			return None;
+			let mut err = err(
+				find,
+				"find prop value is not a reference to the map parameter",
+			);
+			err.labels
+				.push((find.span, "find parameter is declared here".into()));
+			return Err(err);
 		}
-		let all = obj.parse_bool_flag("all").ok()?;
-		let no_warn = obj.parse_bool_flag("noWarn").ok()?;
+		let all = obj
+			.parse_bool_flag("all")
+			.map_err(|e| err(e, "expected a boolean"))?;
+		let no_warn = obj
+			.parse_bool_flag("noWarn")
+			.map_err(|e| err(e, "expected a boolean"))?;
 		let predicate = obj
 			.get_property("predicate")
 			.map(|p| &p.value)
 			.into();
-		let replacement = self
-			.parse_replacement(&obj.get_property("replacement")?.value)
-			.ok()?;
+		let replacement = self.parse_replacement(
+			&obj.get_property("replacement")
+				.ok_or_else(|| {
+					err(obj, "patch object missing `replacement` property")
+				})?
+				.value,
+		)?;
 		ret.reserve(arr.elements.len());
 		for e in &arr.elements {
-			let find_expr = e.as_expression()?;
+			let find_expr = e
+				.as_expression()
+				.ok_or_else(|| err(e, "array element is not an expression"))?;
 			let span = find_expr.span();
-			let find = self
-				.try_into_raw_match_like(find_expr)
-				.ok()?;
+			let find = self.try_into_raw_match_like(find_expr)?;
 
 			ret.push(RawPatch {
 				all,
@@ -1084,7 +1160,7 @@ impl<'ast> VencordAstParser<'ast> {
 			});
 		}
 
-		Some(())
+		Ok(())
 	}
 
 	fn get_arrow_single_return_value(
@@ -1118,13 +1194,16 @@ impl<'ast> VencordAstParser<'ast> {
 
 		for patch_obj in &patches.elements {
 			if let Some(spread) = patch_obj.as_spread() {
-				if self
-					.parse_spread_patch(spread, &mut ret)
-					.is_none()
-				{
+				if let Err(e) = self.parse_spread_patch(spread, &mut ret) {
 					let plugin_name = self.plugin_name();
+					let inner = miette::Report::from(e);
+					let report = LocalSource {
+						name: self.path,
+						source: self.txt,
+						inner,
+					};
 					warn!(
-						"Failed to parse spread patch for plugin {plugin_name:?}, skipping"
+						"Failed to parse spread patch for plugin {plugin_name:?}, skipping. Cause: \n{report:?}"
 					);
 				}
 			} else {
