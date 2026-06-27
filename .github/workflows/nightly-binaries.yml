@@ -8,6 +8,7 @@ on:
       - "Cargo.toml"
       - "Cargo.lock"
       - "crates/**"
+      - ".github/workflows/nightly-binaries.yml" # lol
 
 permissions:
   contents: write
