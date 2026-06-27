@@ -103,8 +103,9 @@ codegen-units = 1
 incremental = true
 lto = "thin"
 opt-level = 3
-debug = "line-tables-only"
-strip = false
+debug = true
+split-debuginfo = "packed"
+strip = true
 panic = "abort"
 
 [profile.dev]
@@ -120,7 +121,6 @@ opt-level = 3
 debug = true
 split-debuginfo = "off"
 strip = false
-panic = "abort"
 
 [profile.dev.package.regex]
 opt-level = 3
