@@ -1,3 +1,4 @@
+#![expect(clippy::cast_possible_wrap, clippy::cast_precision_loss)]
 //! Rust port of dagre, a directed graph layout library.
 //!
 //! Scope: the core layout pipeline only — acyclic, rank, normalize, order,

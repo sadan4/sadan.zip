@@ -102,16 +102,16 @@ pub mod bk {
 	};
 }
 
-pub fn add_conflict(c: &mut Conflicts, v: &str, w: &str) {
+pub fn add_conflict(conflicts: &mut Conflicts, v: &str, w: &str) {
 	let (a, b) = if v > w { (w, v) } else { (v, w) };
-	c.entry(a.into())
+	conflicts.entry(a.into())
 		.or_default()
 		.insert(b.into());
 }
 
-pub fn has_conflict(c: &Conflicts, v: &str, w: &str) -> bool {
+pub fn has_conflict(conflicts: &Conflicts, v: &str, w: &str) -> bool {
 	let (a, b) = if v > w { (w, v) } else { (v, w) };
-	c.get(a).is_some_and(|s| s.contains(b))
+	conflicts.get(a).is_some_and(|s| s.contains(b))
 }
 
 pub fn find_type1_conflicts(
@@ -335,6 +335,8 @@ where
 	(root, align)
 }
 
+// TODO: Refactor
+#[expect(clippy::too_many_lines)]
 pub fn horizontal_compaction<S: BuildHasher, S2: BuildHasher>(
 	graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
 	layering: &[Vec<NodeId>],

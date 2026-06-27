@@ -318,6 +318,8 @@ async fn cmd_purge_module_cache(backend: &Backend) -> Result<Value> {
 	ok_response()
 }
 
+// TODO: Refactor
+#[expect(clippy::too_many_lines)]
 async fn cmd_download_module_cache(backend: &Backend) -> Result<Value> {
 	if !backend
 		.state

@@ -1003,6 +1003,7 @@ impl<'ast> VencordAstParser<'ast> {
 	}
 
 	/// TODO: refactor to support more types of spread expressions
+	#[expect(clippy::too_many_lines)]
 	fn parse_spread_patch(
 		&self,
 		spread: &'ast SpreadElement<'ast>,

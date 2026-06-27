@@ -430,6 +430,7 @@ fn changed_line_range(old: &str, new: &str) -> Option<(u32, u32)> {
 
 	let suffix_budget = max - prefix;
 	let mut suffix = 0;
+	#[expect(clippy::suspicious_operation_groupings, reason = "not a bug")]
 	while suffix < suffix_budget
 		&& old_b[old_b.len() - 1 - suffix] == new_b[new_b.len() - 1 - suffix]
 	{

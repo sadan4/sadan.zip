@@ -46,10 +46,10 @@ pub struct Cli {
 }
 
 impl Cli {
-	pub fn is_debug(&self) -> bool {
+	pub const fn is_debug(&self) -> bool {
 		self.verbose >= 1
 	}
-	pub fn is_trace(&self) -> bool {
+	pub const fn is_trace(&self) -> bool {
 		self.verbose >= 2
 	}
 }

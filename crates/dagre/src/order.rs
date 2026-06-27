@@ -608,6 +608,8 @@ fn barycenter_impl(
 
 // ---------- resolve conflicts --------------------------------------------
 
+// TODO: refactor
+#[expect(clippy::too_many_lines)]
 fn resolve_conflicts_impl(
 	entries: &[BarycenterEntry],
 	constraint_graph: &Graph<(), (), ()>,
