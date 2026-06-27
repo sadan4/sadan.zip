@@ -44,7 +44,7 @@ jobs:
       - name: Build release binaries
         run: >
           cargo build --release --target ${{ matrix.target }}
-          -p reporter -p explorer_server
+          -p reporter -p explorer_server -p companion_lsp
 
       - name: Prepare release files
         shell: bash
@@ -52,6 +52,26 @@ jobs:
           mkdir -p release
           cp "target/${{ matrix.target }}/release/reporter${{ matrix.ext }}" "release/reporter-${{ matrix.target }}${{ matrix.ext }}"
           cp "target/${{ matrix.target }}/release/explorer_server${{ matrix.ext }}" "release/explorer_server-${{ matrix.target }}${{ matrix.ext }}"
+          cp "target/${{ matrix.target }}/release/companion_lsp${{ matrix.ext }}" "release/companion_lsp-${{ matrix.target }}${{ matrix.ext }}"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup pnpm
+        run: corepack enable pnpm
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Package extension
+        run: cargo xtask package extension
+
+      - name: Move extension to release
+        shell: bash
+        run: |
+          mv packages/VencordCompanion/*.vsix "release/vencord-user-companion-${{ matrix.target }}.vsix"
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
