@@ -9,7 +9,7 @@ pub struct Rope<'s> {
 impl<'s> Rope<'s> {
 	pub fn new_in(alloc: &'s Allocator) -> Self {
 		Self {
-			strs: OxcVec::new_in(alloc),
+			strs: OxcVec::new_in(&alloc),
 			total_len: 0,
 		}
 	}

@@ -279,7 +279,7 @@ impl<'a> JavaScriptFormatter<'a> {
 			.program
 			.comments
 			.sort_by_key(|c| c.span.start);
-		let comments = parsed.program.comments.take_in(alloc);
+		let comments = parsed.program.comments.take_in(&alloc);
 		let tokens = parsed.tokens;
 		builder.hint_num_tokens(comments.len() + tokens.len());
 		let tok_stream = TokenStream::new(tokens, comments);

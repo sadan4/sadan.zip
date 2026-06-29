@@ -1,7 +1,7 @@
 use crate::pass::util::Ctx;
 use ast_parser::exts::{ExpressionExt as _, TemplateLiteralExt as _};
 use oxc::{
-	ast::ast::{Expression, TemplateElementValue},
+	ast::ast::{Expression, StringLiteral, TemplateElementValue},
 	span::GetSpan as _,
 };
 use oxc_ecmascript::constant_evaluation::ConstantEvaluation;
@@ -25,10 +25,11 @@ impl<'ast, State> Traverse<'ast, State> for FlattenTemplatePass {
 			let TemplateElementValue { raw, cooked } =
 				template_node.quasis.remove(0).value;
 			let cooked = cooked.unwrap();
-			let lit = ctx.ast.alloc_string_literal(
+			let lit = StringLiteral::boxed(
 				template_node.span,
 				cooked,
 				Some(raw),
+				ctx,
 			);
 			*node = Expression::StringLiteral(lit);
 			return;
@@ -39,11 +40,7 @@ impl<'ast, State> Traverse<'ast, State> for FlattenTemplatePass {
 		if template_node.is_literal(&ctx) {
 			// we just checked that this has a literal value, so this should never be None
 			let str_atom = ctx.eval_template(template_node);
-			*node = ctx.ast.expression_string_literal(
-				template_node.span,
-				str_atom,
-				None,
-			);
+			*node = Expression::new_string_literal(template_node.span, str_atom, None, &ctx);
 			return;
 		}
 		// try to inline as many literal expressions as we can

@@ -56,8 +56,8 @@ pub fn collect_capture_groups<'ast>(
 ) -> GroupInfo<'ast> {
 	let mut v = CapturingGroups {
 		info: GroupInfo {
-			indexed_groups: OxcVec::new_in(parser.alloc),
-			unbound_refs: OxcVec::new_in(parser.alloc),
+			indexed_groups: OxcVec::new_in(parser),
+			unbound_refs: OxcVec::new_in(parser),
 		},
 		parser,
 	};
@@ -76,7 +76,7 @@ impl<'ast> VisitRegex<'ast> for CapturingGroups<'ast, '_> {
 		// check that it has not been previously declared
 		let mut gr = Capture {
 			group: it,
-			refs: OxcVec::new_in(self.parser.alloc),
+			refs: OxcVec::new_in(self.parser),
 			flags: CaptureFlags::empty(),
 		};
 		if let Some(name) = it.name

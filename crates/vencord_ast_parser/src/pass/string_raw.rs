@@ -2,7 +2,7 @@ use super::util::Ctx;
 use ast_parser::exts::ExpressionExt as _;
 use oxc::{
 	allocator::TakeIn,
-	ast::ast::{Expression, TemplateElementValue},
+	ast::ast::{Expression, TemplateElement, TemplateElementValue},
 };
 use oxc_traverse::Traverse;
 
@@ -32,13 +32,14 @@ impl<'ast> Traverse<'ast, ()> for EvalStringRawPass {
 		let iter = raw_template.quasis.iter_mut();
 		for elem in iter {
 			let old_raw = elem.value.raw;
-			*elem = ctx.ast.template_element_escape_raw(
+			*elem = TemplateElement::new_escape_raw(
 				elem.span,
 				TemplateElementValue {
 					raw: old_raw,
 					cooked: Some(old_raw),
 				},
 				elem.tail,
+				&ctx,
 			);
 		}
 		*node = Expression::TemplateLiteral(raw_template);

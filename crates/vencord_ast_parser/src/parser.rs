@@ -62,7 +62,12 @@ use ast_parser::{
 	sym_id::GetSymId,
 };
 use oxc::{
-	allocator::{Allocator, HashMap as OxcHashMap, Vec as OxcVec},
+	allocator::{
+		Allocator,
+		GetAllocator,
+		HashMap as OxcHashMap,
+		Vec as OxcVec,
+	},
 	ast::{
 		AstBuilder,
 		AstKind,
@@ -78,9 +83,11 @@ use oxc::{
 			RegExpFlags,
 			RegExpLiteral,
 			SpreadElement,
+			Str,
 			StringLiteral,
 			TemplateLiteral,
 		},
+		builder::GetAstBuilder,
 	},
 	minifier::PropertyReadSideEffects,
 	semantic::{Semantic, SymbolId},
@@ -99,6 +106,7 @@ pub struct VencordAstParser<'ast> {
 	pub(crate) sema: Semantic<'ast>,
 	pub(crate) txt: &'ast str,
 	pub(crate) path: &'ast str,
+	ast_builder: AstBuilder<'ast>,
 	cache: Cache<'ast>,
 	pub diag_ch: Option<mpsc::Sender<ParserDiagnostic>>,
 }
@@ -131,13 +139,14 @@ impl<'ast> VencordAstParser<'ast> {
 			.run_pass(InlineConstantsPass::default()) // HACK: should not be needed
 			.run_pass(FlattenTemplatePass)
 			.finish();
-
+		let ast_builder = AstBuilder::new(alloc);
 		Ok(Self {
 			alloc,
 			prog,
 			sema,
 			txt: source,
 			path: path.unwrap_or("file.tsx"),
+			ast_builder,
 			cache: Cache::default(),
 			diag_ch: None,
 		})
@@ -852,7 +861,7 @@ impl<'ast> VencordAstParser<'ast> {
 						)
 					})?;
 				Ok(RawMatchLike::ComputedString(
-					AstBuilder::new(self.alloc).str_from_cow(&cow),
+					Str::from_cow_in(&cow, self),
 					b.span,
 				))
 			}
@@ -910,7 +919,7 @@ impl<'ast> VencordAstParser<'ast> {
 						err(s.as_ref(), "Invalid bin exp for replace")
 					})?;
 				Ok(RawReplace::ComputedString(
-					AstBuilder::new(self.alloc).str_from_cow(&cow),
+					Str::from_cow_in(&cow, self),
 					s.span,
 				))
 			}
@@ -977,8 +986,7 @@ impl<'ast> VencordAstParser<'ast> {
 		let ret = match prop {
 			Expression::ArrayExpression(arr) => {
 				let elements = &arr.elements;
-				let mut ret =
-					OxcVec::with_capacity_in(elements.len(), self.alloc);
+				let mut ret = OxcVec::with_capacity_in(elements.len(), self);
 				for elem in elements {
 					let elem = elem
 						.as_expression()
@@ -995,7 +1003,7 @@ impl<'ast> VencordAstParser<'ast> {
 			}
 			Expression::ObjectExpression(obj) => OxcVec::from_array_in(
 				[self.try_into_raw_replacement(obj.as_ref())?],
-				self.alloc,
+				self,
 			),
 			_ => return Err(err(prop, "invalid replacement type")),
 		};
@@ -1155,7 +1163,7 @@ impl<'ast> VencordAstParser<'ast> {
 				find,
 				replacement: OxcVec::from_iter_in(
 					replacement.iter().cloned(),
-					self.alloc,
+					self,
 				),
 				span,
 			});
@@ -1175,7 +1183,7 @@ impl<'ast> VencordAstParser<'ast> {
 	// TODO: Cache this
 	// maybe noop the replace and just test that the find matches at least once
 	fn raw_patches(&self) -> PResult<OxcVec<'ast, RawPatch<'ast>>> {
-		let mut ret = OxcVec::new_in(self.alloc);
+		let mut ret = OxcVec::new_in(self);
 		let define_plugin = self
 			.define_plugin()
 			.map_err(|e| err_ns("Failed to find definePlugin").s(e.clone()))?;
@@ -1643,7 +1651,7 @@ impl<'ast> VencordAstParser<'ast> {
 		else {
 			return Vec::new();
 		};
-		let default_var = OxcVec::new_in(self.alloc);
+		let default_var = OxcVec::new_in(self);
 		let import_syms = webpack_import
 			.specifiers
 			.as_ref()
@@ -1787,11 +1795,21 @@ impl MayHaveSideEffectsContext<'_> for VencordAstParser<'_> {
 	}
 }
 
-impl<'ast> ConstantEvaluationCtx<'ast> for VencordAstParser<'ast> {
-	fn ast(&self) -> AstBuilder<'ast> {
-		AstBuilder::new(self.alloc)
+impl<'ast> GetAllocator<'ast> for VencordAstParser<'ast> {
+	fn allocator(&self) -> &'ast Allocator {
+		self.alloc
 	}
 }
+
+impl<'ast> GetAstBuilder<'ast> for VencordAstParser<'ast> {
+	type Builder = AstBuilder<'ast>;
+
+	fn builder(&self) -> &Self::Builder {
+		&self.ast_builder
+	}
+}
+
+impl<'ast> ConstantEvaluationCtx<'ast> for VencordAstParser<'ast> {}
 
 impl<'ast> AstParser<'ast> for VencordAstParser<'ast> {
 	fn prog(&self) -> &'ast Program<'ast> {

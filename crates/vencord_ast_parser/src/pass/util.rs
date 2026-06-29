@@ -2,15 +2,19 @@ use ast_parser::exts::TemplateLiteralExt as _;
 use derive_more::{Deref, DerefMut};
 use itertools::Itertools;
 use oxc::{
-	allocator::{Allocator, AllocatorAccessor, Dummy, StringBuilder},
-	ast::ast::{
-		BigintBase,
-		Expression,
-		IdentifierReference,
-		NumberBase,
-		Str,
-		TemplateElementValue,
-		TemplateLiteral,
+	allocator::{Allocator, Dummy, GetAllocator, StringBuilder},
+	ast::{
+		AstBuilder,
+		ast::{
+			BigintBase,
+			Expression,
+			IdentifierReference,
+			NumberBase,
+			Str,
+			TemplateElementValue,
+			TemplateLiteral,
+		},
+		builder::GetAstBuilder,
 	},
 	minifier::PropertyReadSideEffects,
 	semantic::IsGlobalReference,
@@ -39,34 +43,35 @@ impl<'a, 'ast: 'a, State> Ctx<'a, 'ast, State> {
 		span: Span,
 	) -> Expression<'ast> {
 		match value {
-			ConstantValue::Number(n) => self.ast.expression_numeric_literal(
+			ConstantValue::Number(n) => Expression::new_numeric_literal(
 				span,
 				n,
 				None,
 				NumberBase::Float,
+				self,
 			),
 			ConstantValue::BigInt(n) => {
 				let str_repr = self
 					.ast
 					.allocator
 					.alloc_str(&n.to_string());
-				self.ast.expression_big_int_literal(
+				Expression::new_big_int_literal(
 					span,
 					str_repr,
 					None,
 					BigintBase::Decimal,
+					self,
 				)
 			}
 			ConstantValue::String(cow) => {
-				let atom = self.ast.str_from_cow(&cow);
-				self.ast
-					.expression_string_literal(span, atom, None)
+				let atom = Str::from_cow_in(&cow, self);
+				Expression::new_string_literal(span, atom, None, self)
 			}
-			ConstantValue::Boolean(b) => self
-				.ast
-				.expression_boolean_literal(span, b),
-			ConstantValue::Undefined => self.ast.void_0(span),
-			ConstantValue::Null => self.ast.expression_null_literal(span),
+			ConstantValue::Boolean(b) => {
+				Expression::new_boolean_literal(span, b, self)
+			}
+			ConstantValue::Undefined => Expression::new_void_0(span, self),
+			ConstantValue::Null => Expression::new_null_literal(span, self),
 		}
 	}
 
@@ -166,14 +171,18 @@ impl<'a, 'ast: 'a, State> MayHaveSideEffectsContext<'ast>
 	}
 }
 
-impl<'a, 'ast: 'a, State> AllocatorAccessor<'ast> for &Ctx<'a, 'ast, State> {
-	fn allocator(self) -> &'ast Allocator {
+impl<'a, 'ast: 'a, State> GetAllocator<'ast> for Ctx<'a, 'ast, State> {
+	fn allocator(&self) -> &'ast Allocator {
 		self.ast.allocator
 	}
 }
 
-impl<'a, 'ast: 'a, State> ConstantEvaluationCtx<'ast> for Ctx<'a, 'ast, State> {
-	fn ast(&self) -> oxc::ast::AstBuilder<'ast> {
-		self.0.ast
+impl<'a, 'ast: 'a, State> GetAstBuilder<'ast> for Ctx<'a, 'ast, State> {
+	type Builder = AstBuilder<'ast>;
+
+	fn builder(&self) -> &Self::Builder {
+		&self.0.ast
 	}
 }
+
+impl<'a, 'ast: 'a, State> ConstantEvaluationCtx<'ast> for Ctx<'a, 'ast, State> {}

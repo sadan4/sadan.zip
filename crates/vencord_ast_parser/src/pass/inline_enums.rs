@@ -2,13 +2,17 @@ use super::util::Ctx;
 use ast_parser::exts::ExpressionExt as _;
 use derive_more::{Deref, DerefMut};
 use oxc::{
-	allocator::{Allocator, CloneIn},
-	ast::ast::{
-		Expression,
-		IdentifierReference,
-		NumberBase,
-		Str,
-		TSEnumMemberName,
+	allocator::{Allocator, CloneIn, GetAllocator},
+	ast::{
+		AstBuilder,
+		ast::{
+			Expression,
+			IdentifierReference,
+			NumberBase,
+			Str,
+			TSEnumMemberName,
+		},
+		builder::GetAstBuilder,
 	},
 	minifier::PropertyReadSideEffects,
 	semantic::{ReferenceId, SymbolId},
@@ -87,11 +91,12 @@ fn inline_enum_references_in_expr<'ast>(
 				value_map,
 				ctx,
 			);
-			ctx.ast.expression_binary(
+			Expression::new_binary_expression(
 				bin_expr.span,
 				left,
 				bin_expr.operator,
 				right,
+				ctx,
 			)
 		}
 		// For other expression types, clone as-is
@@ -107,15 +112,16 @@ fn enum_value_to_expression<'ast>(
 	ctx: &Ctx<'_, 'ast, ()>,
 ) -> Expression<'ast> {
 	match value {
-		EnumValue::Number(n) => ctx.ast.expression_numeric_literal(
+		EnumValue::Number(n) => Expression::new_numeric_literal(
 			span,
 			*n,
 			None,
 			NumberBase::Decimal,
+			ctx,
 		),
-		EnumValue::String(atom) => ctx
-			.ast
-			.expression_string_literal(span, *atom, None),
+		EnumValue::String(atom) => {
+			Expression::new_string_literal(span, *atom, None, ctx)
+		}
 		EnumValue::Computed(expr) => expr.clone_in(ctx.a()),
 	}
 }
@@ -198,7 +204,7 @@ impl<'ast> Traverse<'ast, ()> for InlineEnumsPass<'ast> {
 
 					let value = match evaluated {
 						Some(ConstantValue::String(s)) => {
-							let atom = Str::from_cow_in(&s, ctx.a());
+							let atom = Str::from_cow_in(&s, &ctx);
 							EnumValue::String(atom)
 						}
 						Some(ConstantValue::Number(n)) => {
@@ -279,17 +285,17 @@ impl<'ast> Traverse<'ast, ()> for InlineEnumsPass<'ast> {
 		};
 		match constant_value {
 			EnumValue::Number(n) => {
-				*node = ctx.ast.expression_numeric_literal(
+				*node = Expression::new_numeric_literal(
 					*span,
 					*n,
 					None,
 					NumberBase::Decimal,
+					&ctx,
 				);
 			}
 			EnumValue::String(atom) => {
-				*node = ctx
-					.ast
-					.expression_string_literal(*span, *atom, None);
+				*node =
+					Expression::new_string_literal(*span, *atom, None, &ctx);
 			}
 			EnumValue::Computed(expr) => {
 				*node = expr.clone_in(ctx.a());
@@ -347,11 +353,21 @@ impl<'ast> MayHaveSideEffectsContext<'ast> for EnumValueTracker<'_, 'ast> {
 	}
 }
 
-impl<'ast> ConstantEvaluationCtx<'ast> for EnumValueTracker<'_, 'ast> {
-	fn ast(&self) -> oxc::ast::AstBuilder<'ast> {
-		self.1.ast()
+impl<'ast> GetAllocator<'ast> for EnumValueTracker<'_, 'ast> {
+	fn allocator(&self) -> &'ast Allocator {
+		self.1.allocator()
 	}
 }
+
+impl<'ast> GetAstBuilder<'ast> for EnumValueTracker<'_, 'ast> {
+	type Builder = AstBuilder<'ast>;
+
+	fn builder(&self) -> &Self::Builder {
+		self.1.builder()
+	}
+}
+
+impl<'ast> ConstantEvaluationCtx<'ast> for EnumValueTracker<'_, 'ast> {}
 
 #[cfg(test)]
 mod tests {

@@ -60,6 +60,7 @@ mod fold_template {
 			IdentifierReference,
 			Str,
 			StringLiteral,
+			TemplateElement,
 			TemplateElementValue,
 			TemplateLiteral,
 		},
@@ -89,13 +90,14 @@ mod fold_template {
 				left_val,
 				q1.value.cooked.unwrap().as_str(),
 			]);
-		let new_q1 = ctx.ast.template_element(
+		let new_q1 = TemplateElement::new(
 			q1.span,
 			TemplateElementValue {
 				raw: Str::from(new_q1_raw),
 				cooked: Some(Str::from(new_q1_val)),
 			},
 			q1.tail,
+			ctx,
 		);
 		right.quasis[0] = new_q1;
 		right.span = span;
@@ -130,13 +132,14 @@ mod fold_template {
 			q.tail,
 			"last element of template literal should have tail=true"
 		);
-		let new_q = ctx.ast.template_element(
+		let new_q = TemplateElement::new(
 			q.span,
 			TemplateElementValue {
 				raw: Str::from(new_q_raw),
 				cooked: Some(Str::from(new_q_val)),
 			},
 			q.tail,
+			ctx,
 		);
 		left.quasis[last_idx] = new_q;
 		left.span = span;
@@ -155,10 +158,11 @@ mod fold_template {
 	) -> Expression<'ast> {
 		let mut right = ctx.take(right);
 		let left = ctx.take(left);
-		let new_q = ctx.ast.template_element(
+		let new_q = TemplateElement::new(
 			Span::new(right.span.start, right.span.start),
 			empty_template_element_value(),
 			false,
+			ctx,
 		);
 		right
 			.expressions
@@ -180,10 +184,11 @@ mod fold_template {
 		let mut left = ctx.take(left);
 		let right = ctx.take(right);
 		left.quasis.last_mut().unwrap().tail = false;
-		let new_q = ctx.ast.template_element(
+		let new_q = TemplateElement::new(
 			Span::new(left.span.end, left.span.end),
 			empty_template_element_value(),
 			true,
+			ctx,
 		);
 		left.expressions
 			.push(Expression::Identifier(ctx.alloc(right)));
@@ -225,13 +230,14 @@ mod fold_template {
 					.unwrap()
 					.as_str(),
 			]);
-		let joiner = ctx.ast.template_element(
+		let joiner = TemplateElement::new(
 			left_joiner.span,
 			TemplateElementValue {
 				raw: Str::from(joiner_raw),
 				cooked: Some(Str::from(joiner_cooked)),
 			},
 			right_joiner.tail,
+			ctx,
 		);
 		*left_joiner = joiner;
 		left.quasis
