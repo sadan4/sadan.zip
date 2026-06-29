@@ -7,7 +7,7 @@ import { TooltipPosition } from "@/components/Tooltip/constants";
 import { Route } from "@/routes/e/view.{-$buildHash}.{-$moduleId}";
 import { useQuery } from "@tanstack/react-query";
 
-import { ModuleViewerStore, useModuleViewerStore } from "../../../-data";
+import { ModuleViewerStore, useModuleViewerStore } from "../../-data";
 
 import { ArrowBigRight } from "lucide-react";
 import { useCallback, useEffect, useRef } from "react";

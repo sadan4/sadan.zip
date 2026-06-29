@@ -8,7 +8,7 @@ import { makeExclusiveRange } from "@/utils/array";
 import type { TModuleId } from "@/utils/types";
 import { useQuery } from "@tanstack/react-query";
 
-import { ModuleViewerSettingsStore, useModuleViewerSettingsStore, useModuleViewerStore } from "../../-data";
+import { useModuleViewerSettingsStore, useModuleViewerStore } from "../../-data";
 import type { RemoteBuildService } from "../../-data/worker/api";
 import type { BundleSearchResults } from "../../-data/worker/sharedWorker";
 import { Route } from "../../view.{-$buildHash}.{-$moduleId}";
@@ -22,9 +22,9 @@ const EMPTY_SEARCH_RESULTS = {
     rawIndices: new Uint32Array(),
 } satisfies BundleSearchResults;
 
-function handleChangeLongSearchPreviews(longSearchPreviews: boolean) {
-    ModuleViewerSettingsStore.setState({ longSearchPreviews });
-}
+// function handleChangeLongSearchPreviews(longSearchPreviews: boolean) {
+//     ModuleViewerSettingsStore.setState({ longSearchPreviews });
+// }
 
 const SEARCH_CHECK = Object.freeze({
     type: "len",
