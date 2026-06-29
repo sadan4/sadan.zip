@@ -111,6 +111,9 @@
   "tailwindCSS.classFunctions": [
     "cn"
   ],
+  "tailwindCSS.experimental.classRegex": [
+    "cn\\(((?:[^()]|\\([^()]*?\\))*?)\\)", "(?:'|\"|`)([^']*?)(?:'|\"|`)"
+  ],
   "rust-analyzer.check.command": "clippy",
   "chat.tools.terminal.autoApprove": {
     "cargo xtask run": true,
