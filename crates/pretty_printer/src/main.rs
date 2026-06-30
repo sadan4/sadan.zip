@@ -1,7 +1,7 @@
 use std::{
 	env,
 	fs,
-	io::{self, Write},
+	io::{self, IsTerminal as _, Write},
 	path::{Path, PathBuf},
 	process::exit,
 	sync::atomic::{AtomicBool, Ordering},
@@ -11,7 +11,7 @@ use std::{
 use clap::{CommandFactory as _, Parser};
 use clap_complete::Shell;
 
-use anyhow::{Context as _, Result};
+use anyhow::{Context as _, Result, bail};
 
 #[derive(Parser)]
 #[command(version, about)]
@@ -35,8 +35,15 @@ struct Cli {
 }
 
 fn handle_stdin(indent_size: u8) -> Result<()> {
-	let contents = io::read_to_string(io::stdin())
-		.context("Failed to read file from stdin")?;
+	let stdin = io::stdin();
+	if stdin.is_terminal() {
+		Cli::command()
+			.print_long_help()
+			.unwrap();
+		bail!("stdin is a terminal, cant read anything");
+	}
+	let contents =
+		io::read_to_string(stdin).context("Failed to read file from stdin")?;
 	let formatted = pretty_printer::format_to_str(&contents, indent_size)
 		.context("Failed to format file from stdin")?;
 	io::stdout()
