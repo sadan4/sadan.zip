@@ -1,6 +1,6 @@
 [package]
 name = "pretty_printer"
-description = "A rewrite of the pretty printer found in chrome's devtools, with byte-for-byte output (including bugs)."
+description = "A port of the pretty printer found in chrome's devtools, with byte-for-byte output (excluding bugs)."
 version = "0.1.0"
 edition.workspace = true
 license = "BSD-3-Clause"
@@ -10,8 +10,10 @@ doctest = false
 
 [dependencies]
 anyhow.workspace = true
-oxc.workspace = true
+oxc = { workspace = true, features = ["ast_visit", "semantic"] }
 derive_more.workspace = true
+clap.workspace = true
+clap_complete.workspace = true
 
 [dev-dependencies]
 insta.workspace = true
