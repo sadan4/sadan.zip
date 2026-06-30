@@ -40,7 +40,12 @@ impl<'ast, State> Traverse<'ast, State> for FlattenTemplatePass {
 		if template_node.is_literal(&ctx) {
 			// we just checked that this has a literal value, so this should never be None
 			let str_atom = ctx.eval_template(template_node);
-			*node = Expression::new_string_literal(template_node.span, str_atom, None, &ctx);
+			*node = Expression::new_string_literal(
+				template_node.span,
+				str_atom,
+				None,
+				&ctx,
+			);
 			return;
 		}
 		// try to inline as many literal expressions as we can

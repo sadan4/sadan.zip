@@ -8,13 +8,13 @@ mod types;
 pub use oxc::allocator::Allocator;
 pub use parser::VencordAstParser;
 pub use types::{
+	Dev,
 	Match,
 	MatchLike,
 	MatchRegex,
 	Patch,
-	PluginInfo,
 	PluginDev,
-	Dev,
+	PluginInfo,
 	ReplaceLike,
 	Replacement,
 	Replacer,

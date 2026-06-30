@@ -8,14 +8,15 @@ use oxc::{ast::ast::RegExpFlags, span::Span};
 use regress::{Flags, Regex};
 use serde::{Deserialize, Serialize};
 use smol_str::SmolStr;
-use std::{collections::HashMap, hash::{Hash, Hasher}};
+use std::{
+	collections::HashMap,
+	hash::{Hash, Hasher},
+};
 
 /// Surface-level info about a plugin's `definePlugin({...})` declaration —
 /// just enough for the LSP to anchor a code lens and ship a command
 /// payload, without exposing the full AST.
-#[derive(
-	Debug, Clone, PartialEq, Eq, Serialize, Deserialize,
-)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PluginInfo {
 	/// the name of the plugin
 	pub name: SmolStr,
@@ -37,15 +38,7 @@ pub struct PluginInfo {
 }
 
 #[derive(
-	Debug,
-	Clone,
-	PartialEq,
-	Eq,
-	PartialOrd,
-	Ord,
-	Hash,
-	Serialize,
-	Deserialize,
+	Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
 )]
 /// A developer of a plugin, either an inline declaration or a reference to a known dev.
 ///
@@ -68,15 +61,7 @@ impl PluginDev {
 }
 
 #[derive(
-	Debug,
-	Clone,
-	PartialEq,
-	Eq,
-	PartialOrd,
-	Ord,
-	Hash,
-	Serialize,
-	Deserialize,
+	Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
 )]
 pub enum Dev {
 	/// a reference to a dev

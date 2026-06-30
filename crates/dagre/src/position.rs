@@ -104,14 +104,17 @@ pub mod bk {
 
 pub fn add_conflict(conflicts: &mut Conflicts, v: &str, w: &str) {
 	let (a, b) = if v > w { (w, v) } else { (v, w) };
-	conflicts.entry(a.into())
+	conflicts
+		.entry(a.into())
 		.or_default()
 		.insert(b.into());
 }
 
 pub fn has_conflict(conflicts: &Conflicts, v: &str, w: &str) -> bool {
 	let (a, b) = if v > w { (w, v) } else { (v, w) };
-	conflicts.get(a).is_some_and(|s| s.contains(b))
+	conflicts
+		.get(a)
+		.is_some_and(|s| s.contains(b))
 }
 
 pub fn find_type1_conflicts(
