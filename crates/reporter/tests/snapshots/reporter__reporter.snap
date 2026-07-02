@@ -506,6 +506,7 @@ expression: errs
       offset: SourceOffset(2771),
       length: 19,
     ),
+    patch_hash: 2347310399911285752,
     plugin_id: 9,
   )),
   NoWarn(FindNotFound(
@@ -513,6 +514,7 @@ expression: errs
       offset: SourceOffset(8272),
       length: 22,
     ),
+    patch_hash: 15855369505084964638,
     plugin_id: 133,
   )),
 ]

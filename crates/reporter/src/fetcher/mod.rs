@@ -1,4 +1,5 @@
 use anyhow::{Context as _, Result, bail};
+use arrayvec::ArrayVec;
 use clap::Args;
 use discord_scraper::{
 	JsScraper,
@@ -56,8 +57,8 @@ pub async fn fetch_build(
 	opts: FetchOpts,
 	bars: &MultiProgressWrapper,
 ) -> Result<Vec<ScrapedBranch>> {
-	let mut futs: Vec<task::JoinHandle<Result<ScrapedBranch>>> =
-		Vec::with_capacity(2);
+	let mut futs: ArrayVec<task::JoinHandle<Result<ScrapedBranch>>, 2> =
+		ArrayVec::new_const();
 	for &branch in &opts.branches {
 		let ch = branch.into();
 		let bars2 = bars.clone();

@@ -18,6 +18,7 @@ use crate::{
 	util::fetch_struct,
 };
 use anyhow::{Context, anyhow};
+use arrayvec::ArrayString;
 use ast_parser::{get_line_and_column, get_offset_from_line_and_column};
 use explorer_types::{
 	DepInfo,
@@ -287,17 +288,13 @@ fn format_module_header(src: &mut String, m_id: ModuleId, is_find: bool) {
 	if WebpackAstParser::is_webpack_module(src) {
 		return;
 	}
-	let mut buf = String::with_capacity(BUF_LEN);
-	_ = writeln!(buf, "// Webpack Module {m_id}");
+	let mut buf = ArrayString::<BUF_LEN>::new_const();
+	writeln!(buf, "// Webpack Module {m_id}").unwrap();
 	if is_find {
-		_ = writeln!(buf, "//OPEN FULL MODULE: {m_id}");
+		writeln!(buf, "//OPEN FULL MODULE: {m_id}").unwrap();
 	}
-	_ = writeln!(buf, "//EXTRACTED WEBPACK MODULE {m_id}");
-	_ = writeln!(buf, "0,");
-	debug_assert!(
-		buf.len() <= BUF_LEN,
-		"increase BUF_LEN to avoid reallocation"
-	);
+	writeln!(buf, "//EXTRACTED WEBPACK MODULE {m_id}").unwrap();
+	writeln!(buf, "0,").unwrap();
 	src.insert_str(0, &buf);
 }
 

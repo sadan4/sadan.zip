@@ -1,12 +1,14 @@
+mod fix;
 mod lint;
 mod run;
 mod watch;
 
 use clap::Subcommand;
+use miette::miette;
 
 use crate::util::MultiProgressWrapper;
 
-#[derive(Subcommand, Default, Clone, Copy)]
+#[derive(Subcommand, Default, Clone)]
 pub enum Cmd {
 	/// Run the reporter once and exit.
 	///
@@ -17,6 +19,9 @@ pub enum Cmd {
 	Run,
 	Watch,
 	Lint,
+	Fix {
+		patch_hash: String,
+	},
 }
 
 pub async fn run(
@@ -35,6 +40,14 @@ pub async fn run(
 		Cmd::Lint => {
 			lint::lint(cli, global_bar).map_err(miette::Report::msg)?;
 			Ok(0)
+		}
+		Cmd::Fix { ref patch_hash } => {
+			let hash = u64::from_str_radix(patch_hash, 16).map_err(|_| {
+				miette!(
+					"Invalid patch hash: `{patch_hash}`. Expected a hex string"
+				)
+			})?;
+			fix::fix(cli, global_bar, hash).await
 		}
 	}
 }

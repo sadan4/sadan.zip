@@ -49,7 +49,7 @@ use vencord_ast_parser::{Match, Patch, Replacement, Replacer};
 pub enum Msg {
 	RequestProgressBar(oneshot::Sender<MultiProgressWrapper>),
 	Error(ReporterError),
-	Done(Result<Duration>),
+	Done(Duration),
 }
 
 impl From<ReporterError> for Msg {
@@ -58,7 +58,6 @@ impl From<ReporterError> for Msg {
 	}
 }
 
-#[track_caller]
 pub fn report_broken_patches(
 	channel: Channel,
 	target_build: Arc<ScrapedOutput>,
@@ -70,7 +69,7 @@ pub fn report_broken_patches(
 		let start = Instant::now();
 		run_reporter(channel, &target_build, &plugins, &mut tx);
 		let duration = start.elapsed();
-		tx.blocking_send(Msg::Done(Ok(duration)))
+		tx.blocking_send(Msg::Done(duration))
 			.unwrap();
 	});
 
@@ -218,9 +217,10 @@ impl<'a> ReporterState<'a> {
 			let mut err = ReporterError::FindNotFound {
 				find_span: patch.find.s.into(),
 				plugin_id: patch.plugin_id(),
+				patch_hash: patch.content_hash(),
 			};
 			if patch.no_warn {
-				err = ReporterError::NoWarn(err.into());
+				err = ReporterError::NoWarn(Box::new(err));
 			}
 			self.tx
 				.blocking_send(err.into())

@@ -61,16 +61,9 @@ impl ChannelStatus {
 				Msg::RequestProgressBar(tx) => {
 					tx.send(self.bars.clone()).unwrap();
 				}
-				Msg::Done(res) => {
-					match res {
-						Err(e) => {
-							error!("Reporter failed with error: {e:?}");
-						}
-						Ok(raw_time) => {
-							if self.end.set(raw_time).is_err() {
-								warn!("Msg::Done sent more than once");
-							}
-						}
+				Msg::Done(raw_time) => {
+					if self.end.set(raw_time).is_err() {
+						warn!("Msg::Done sent more than once");
 					}
 					break;
 				}
@@ -232,18 +225,11 @@ async fn stream_single_build(
 			Msg::RequestProgressBar(tx) => {
 				tx.send(bars.clone()).unwrap();
 			}
-			Msg::Done(res) => {
-				match res {
-					Err(e) => {
-						error!("Reporter failed with error: {e:?}");
-					}
-					Ok(raw_time) => {
-						info!(
-							"Reporter finished in {:.2?}. (raw time: {raw_time:.2?})",
-							start.elapsed()
-						);
-					}
-				}
+			Msg::Done(raw_time) => {
+				info!(
+					"Reporter finished in {:.2?}. (raw time: {raw_time:.2?})",
+					start.elapsed()
+				);
 				break;
 			}
 			Msg::Error(e) => 'm: {
