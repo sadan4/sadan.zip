@@ -309,6 +309,16 @@ fn mixed_string_concatentaions_and_templates() {
 	assert_ron_snapshot!(patches);
 }
 
+#[test]
+fn arrow_func_with_brace_body_and_single_return() {
+	let code = include_str!("data/plugin12.tsx");
+	let a = Allocator::new();
+	let parser =
+		VencordAstParser::try_new(&a, code, Some("data/plugin12.tsx")).unwrap();
+	let patches = parser.patches(false).unwrap();
+	assert_ron_snapshot!(patches);
+}
+
 mod self_reference_tests {
 	use super::*;
 

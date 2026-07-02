@@ -57,6 +57,7 @@ use ast_parser::{
 		MemberExpressionExt,
 		ObjectExpressionExt as _,
 		PropertyKeyExt,
+		StatementExt,
 	},
 	parse_for_traverse,
 	sym_id::GetSymId,
@@ -83,6 +84,7 @@ use oxc::{
 			RegExpFlags,
 			RegExpLiteral,
 			SpreadElement,
+			Statement,
 			Str,
 			StringLiteral,
 			TemplateLiteral,
@@ -1090,8 +1092,7 @@ impl<'ast> VencordAstParser<'ast> {
 			tracing::warn!("{report:?}");
 			return Ok(());
 		}
-		let mapper_ret = self
-			.get_arrow_single_return_value(mapper)
+		let mapper_ret = Self::get_arrow_single_return_value(mapper)
 			.ok_or_else(|| {
 				err(
 					mapper,
@@ -1173,12 +1174,21 @@ impl<'ast> VencordAstParser<'ast> {
 	}
 
 	fn get_arrow_single_return_value(
-		&self,
 		func: &'ast ArrowFunctionExpression<'ast>,
 	) -> Option<&'ast Expression<'ast>> {
-		_ = self;
 		// TODO: use CFG to get return value of arrow function that might have a body
-		func.get_expression()
+		if func.expression
+			&& let Some(body) =
+				func.body.statements[0].as_expression_statement()
+		{
+			Some(&body.expression)
+		} else if let [Statement::ReturnStatement(ret)] =
+			func.body.statements.as_slice()
+		{
+			ret.argument.as_ref()
+		} else {
+			None
+		}
 	}
 	// TODO: Cache this
 	// maybe noop the replace and just test that the find matches at least once
@@ -1248,9 +1258,8 @@ impl<'ast> VencordAstParser<'ast> {
 		&self,
 		f: &'ast ArrowFunctionExpression<'ast>,
 	) -> PResult<ReplaceLike> {
-		let f_ret = self
-			.get_arrow_single_return_value(f)
-			.ok_or_else(|| {
+		let f_ret =
+			Self::get_arrow_single_return_value(f).ok_or_else(|| {
 				err(
 					f.body.as_ref(),
 					"replace function does not have a single return value",

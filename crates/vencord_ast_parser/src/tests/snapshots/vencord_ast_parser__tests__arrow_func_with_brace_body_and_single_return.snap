@@ -1,0 +1,152 @@
+---
+source: crates/vencord_ast_parser/src/tests/mod.rs
+expression: patches
+---
+[
+  Patch(
+    plugin_id: None,
+    all: false,
+    no_warn: false,
+    find: MatchLike(
+      v: Str(FinderDef(
+        needle: "\"italics\"),!0;",
+      )),
+      s: {
+        "start": 1205,
+        "end": 1221,
+      },
+    ),
+    replacement: [
+      Replacement(
+        match_: MatchLike(
+          v: Regex(MatchRegex(
+            pattern: "case (\\i\\.\\i)\\.TAB:if\\(null!=(\\i).selection&&\\i\\((\\i)(?=.{0,300}(\\i\\.\\i\\.insertText))",
+            flags: RegExpFlagsDef(
+              bits: 0,
+            ),
+            capture_spans: [
+              {
+                "start": 1370,
+                "end": 1378,
+              },
+              {
+                "start": 1394,
+                "end": 1398,
+              },
+              {
+                "start": 1414,
+                "end": 1418,
+              },
+              {
+                "start": 1429,
+                "end": 1449,
+              },
+            ],
+          )),
+          s: {
+            "start": 1364,
+            "end": 1451,
+          },
+        ),
+        replace: ReplaceLike(
+          v: Template(TemplateEvaluator(
+            lits: [
+              "case ",
+              ".ENTER:\n                                    if(",
+              ".shiftKey && ",
+              ".ctrlKey){\n                                        ",
+              ".preventDefault();\n                                        ",
+              ".stopPropagation();\n                                        ",
+              "(",
+              ",\'\\n\');\n                                        return true;\n                                    }\n                                    break;\n                                ",
+              "",
+            ],
+            captures: [
+              1,
+              3,
+              3,
+              3,
+              3,
+              4,
+              2,
+              0,
+            ],
+          )),
+          s: {
+            "start": 1482,
+            "end": 2062,
+          },
+          used_replace_capture_spans: [
+            [
+              {
+                "start": 1483,
+                "end": 1487,
+              },
+              {
+                "start": 2033,
+                "end": 2037,
+              },
+            ],
+            [
+              {
+                "start": 1489,
+                "end": 1493,
+              },
+              {
+                "start": 1566,
+                "end": 1570,
+              },
+            ],
+            [
+              {
+                "start": 1495,
+                "end": 1501,
+              },
+              {
+                "start": 1849,
+                "end": 1855,
+              },
+            ],
+            [
+              {
+                "start": 1503,
+                "end": 1508,
+              },
+              {
+                "start": 1620,
+                "end": 1625,
+              },
+              {
+                "start": 1641,
+                "end": 1646,
+              },
+              {
+                "start": 1700,
+                "end": 1705,
+              },
+              {
+                "start": 1767,
+                "end": 1772,
+              },
+            ],
+            [
+              {
+                "start": 1510,
+                "end": 1520,
+              },
+              {
+                "start": 1835,
+                "end": 1845,
+              },
+            ],
+          ],
+        ),
+        no_warn: false,
+      ),
+    ],
+    span: {
+      "start": 1185,
+      "end": 2104,
+    },
+  ),
+]
