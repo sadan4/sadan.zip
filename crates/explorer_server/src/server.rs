@@ -1,9 +1,15 @@
+use std::{
+	fs::FileTimes,
+	io,
+	time::{Duration, SystemTime},
+};
+
 use axum::{
 	Router,
 	body::Body,
 	extract::Path,
 	response::{IntoResponse, Response},
-	routing::get,
+	routing::{get, post},
 };
 use explorer_server_core::{
 	DATA_FILE_NAME,
@@ -12,9 +18,9 @@ use explorer_server_core::{
 	get_build_path,
 	get_root_build_path,
 };
-use explorer_types::{BuildList, FullBundle};
+use explorer_types::{BuildList, BundleMetadata, FullBundle};
 use http::{StatusCode, header};
-use tokio::{fs, net};
+use tokio::{fs, net, task::JoinSet};
 use tokio_stream::{StreamExt, wrappers::ReadDirStream};
 use tokio_util::io::ReaderStream;
 use tower_http::cors;
@@ -103,6 +109,52 @@ async fn get_build_full(Path(build_hash): Path<String>) -> Result<Response> {
 	let data_body = Body::from_stream(data_stream);
 
 	Ok((ZSTD_HEADERS, data_body).into_response())
+}
+
+async fn touch_builds() -> Result<Response> {
+	async fn update_times(
+		file: fs::File,
+		time: std::fs::FileTimes,
+	) -> io::Result<()> {
+		let file = file.into_std().await;
+		tokio::task::spawn_blocking(move || file.set_times(time))
+			.await
+			.expect("should never panic")
+	}
+	async fn update_build_timestamp(entry: fs::DirEntry) -> Result<()> {
+		let ft = entry.file_type().await?;
+		if !ft.is_dir() {
+			return Ok(());
+		}
+		let dir_path = entry.path();
+		let meta_path = dir_path.join(METADATA_FILE_NAME);
+		let meta_zstd_raw = fs::read(meta_path).await?;
+		let meta_raw = zstd::decode_all(&*meta_zstd_raw)?;
+		let meta = rmp_serde::from_slice::<BundleMetadata>(&meta_raw)?;
+		let time =
+			SystemTime::UNIX_EPOCH + Duration::from_millis(meta.first_seen);
+		let file_times = FileTimes::new().set_modified(time);
+		let file = fs::File::open(dir_path).await?;
+		update_times(file, file_times).await?;
+		Ok(())
+	}
+	let mut dirs = fs::read_dir(get_root_build_path()?).await?;
+	let mut js = JoinSet::new();
+	while let Some(d) = dirs.next_entry().await? {
+		js.spawn(update_build_timestamp(d));
+	}
+	let mut err = None;
+	while let Some(n) = js.join_next().await {
+		if let Err(e) = n? {
+			err = Some(e);
+			break;
+		}
+	}
+	js.join_all().await;
+	match err {
+		Some(e) => Err(e),
+		None => Ok(StatusCode::NO_CONTENT.into_response()),
+	}
 }
 
 fn make_tarball(zstd_raw_data: &[u8]) -> Result<Vec<u8>> {
@@ -203,6 +255,7 @@ pub async fn serve(bind_addr: &str) -> anyhow::Result<()> {
 		.route("/build/{id}/full", get(get_build_full))
 		.route("/build/{id}/archive.tar.zst", get(get_bundle_tarball))
 		.route("/builds", get(get_all_builds))
+		.route("/fixup-timestamps", post(touch_builds))
 		.layer(cors::CorsLayer::new().allow_origin(cors::Any));
 	let listener = net::TcpListener::bind(bind_addr).await?;
 	info!("Server listening on http://{}", bind_addr);
