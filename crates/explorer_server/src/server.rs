@@ -129,8 +129,11 @@ async fn touch_builds() -> Result<Response> {
 		let dir_path = entry.path();
 		let meta_path = dir_path.join(METADATA_FILE_NAME);
 		let meta_zstd_raw = fs::read(meta_path).await?;
-		let meta_raw = zstd::decode_all(&*meta_zstd_raw)?;
-		let meta = rmp_serde::from_slice::<BundleMetadata>(&meta_raw)?;
+		let meta = tokio::task::spawn_blocking(move || -> Result<_> {
+			let meta_raw = zstd::decode_all(&*meta_zstd_raw)?;
+			let meta = rmp_serde::from_slice::<BundleMetadata>(&meta_raw)?;
+			Ok(meta)
+		}).await??;
 		let time =
 			SystemTime::UNIX_EPOCH + Duration::from_millis(meta.first_seen);
 		let file_times = FileTimes::new().set_modified(time);
