@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
 use explorer_server_core::Channel;
-use itertools::{Itertools, multiunzip};
+use itertools::Itertools;
 use miette::{Diagnostic, Report, Severity, bail};
 use tracing::{debug, error, info, trace, warn};
-use vencord_ast_parser::{Patch, diag::LocalSource};
+use vencord_ast_parser::diag::LocalSource;
 
 use crate::{
 	Cli,

@@ -5,7 +5,7 @@ use explorer_server_core::Channel;
 use itertools::Itertools;
 use miette::{Diagnostic as _, NamedSource, Severity::Warning};
 use tokio::{sync::mpsc, time::Instant};
-use tracing::{error, info, warn};
+use tracing::{info, warn};
 
 use crate::{
 	SourceWrapper,
