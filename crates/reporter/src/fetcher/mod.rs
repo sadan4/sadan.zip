@@ -16,7 +16,7 @@ use std::{
 	sync::{Arc, Mutex, OnceLock},
 };
 use tokio::task;
-use tracing::{debug, info, warn};
+use tracing::{debug, error, info, warn};
 
 use crate::{
 	Branch,
@@ -101,6 +101,12 @@ async fn fetch_for_channel(
 			debug!("Cache miss on fetching build");
 		}
 		Err(e) => {
+			if e.is_deserialize() {
+				warn!("Failed to deserialize cache file. invalidating entry");
+				if let Err(e) = cache::invalidate(&build_hash).await {
+					error!("Failed to invalidate cache entry {e:?}");
+				}
+			}
 			warn!(
 				"Failed to read from cache, falling back to scraping via network. {e:?}"
 			);

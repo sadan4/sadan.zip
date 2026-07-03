@@ -15,7 +15,7 @@ use crate::{
 	vc,
 };
 
-async fn diagnoise_patch(
+async fn diagnose_patch(
 	channel: Channel,
 	output: Arc<ScrapedOutput>,
 	patch: Arc<Vec<vc::Plugin>>,
@@ -156,7 +156,7 @@ pub(super) async fn fix(
 	let base_branch = Arc::new(base_branch);
 	debug!("found patch with hash {patch_hash:x}");
 	let Some(issue) =
-		diagnoise_patch(channel.into(), base_branch, plugin.clone(), global_bar).await
+		diagnose_patch(channel.into(), base_branch, plugin.clone(), global_bar).await
 	else {
 		bail!("Failed to diagnose patch")
 	};
@@ -167,5 +167,5 @@ pub(super) async fn fix(
 		name: &plugin.entry_point.to_string_lossy(),
 		source: &plugin.entry_source,
 	};
-	panic!("Diagnoised patch with hash {patch_hash:x} as issue \n{printer:?}");
+	panic!("Diagnosed patch with hash {patch_hash:x} as issue \n{printer:?}");
 }
