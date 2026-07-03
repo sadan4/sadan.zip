@@ -31,7 +31,7 @@ use tokio::{fs, net, task::JoinSet};
 use tokio_stream::{StreamExt, wrappers::ReadDirStream};
 use tokio_util::io::ReaderStream;
 use tower_http::cors;
-use tracing::{info, instrument};
+use tracing::{info, instrument, warn};
 
 type Result<T = Response> = std::result::Result<T, AppError>;
 
@@ -119,6 +119,7 @@ async fn get_build_full(Path(build_hash): Path<String>) -> Result<Response> {
 }
 
 // TODO: ratelimit to like 4/hr
+#[instrument(skip(state))]
 async fn touch_builds(State(state): State<crate::State>) -> Result<Response> {
 	async fn update_times(
 		file: fs::File,
@@ -135,6 +136,15 @@ async fn touch_builds(State(state): State<crate::State>) -> Result<Response> {
 			return Ok(());
 		}
 		let dir_path = entry.path();
+		if fs::read_dir(&dir_path)
+			.await?
+			.next_entry()
+			.await?
+			.is_none()
+		{
+			warn!("skipping empty build directory: {}", dir_path.display());
+			return Ok(());
+		}
 		let meta_path = dir_path.join(METADATA_FILE_NAME);
 		let meta_zstd_raw = fs::read(meta_path)
 			.await
@@ -165,7 +175,10 @@ async fn touch_builds(State(state): State<crate::State>) -> Result<Response> {
 		}
 	}
 	js.join_all().await;
-	state.populate_from_disk().await?;
+	state
+		.populate_from_disk()
+		.await
+		.context("Failed to re-populate builds from disk")?;
 	match err {
 		Some(e) => Err(e),
 		None => Ok(StatusCode::NO_CONTENT.into_response()),

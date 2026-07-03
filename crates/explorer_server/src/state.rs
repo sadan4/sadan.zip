@@ -9,7 +9,7 @@ use derive_more::Deref;
 use explorer_server_core::{METADATA_FILE_NAME, get_root_build_path};
 use explorer_types::BundleMetadata;
 use tokio::{fs, sync::RwLock, task::JoinSet};
-use tracing::info;
+use tracing::{info, instrument, warn};
 
 #[derive(Debug, Clone, Default, Deref)]
 pub struct State(Arc<RwLock<StateInner>>);
@@ -20,6 +20,7 @@ pub struct StateInner {
 	pub meta_by_hash: HashMap<String, Arc<BundleMetadata>>,
 }
 
+#[instrument(skip_all)]
 async fn read_meta_entry(
 	entry: fs::DirEntry,
 ) -> Result<Option<Arc<BundleMetadata>>> {
@@ -27,7 +28,16 @@ async fn read_meta_entry(
 	if !ft.is_dir() {
 		return Ok(None);
 	}
-	let meta_path = entry.path().join(METADATA_FILE_NAME);
+	let entry_path = entry.path();
+	let meta_path = entry_path.join(METADATA_FILE_NAME);
+	if fs::read_dir(&entry_path)
+		.await?
+		.next_entry()
+		.await?
+		.is_none()
+	{
+		warn!("skipping empty build directory: {}", entry_path.display());
+	}
 	let meta_zstd_raw = fs::read(&meta_path)
 		.await
 		.with_context(|| {
