@@ -1,4 +1,3 @@
-#![feature(btree_cursors)]
 use anyhow::Result;
 use explorer_types::FullBundle;
 use serde::{Deserialize, Serialize};
@@ -137,12 +136,8 @@ pub fn get_around<'m, K, V>(
 where
 	K: Ord,
 {
-	let lower_bound = map
-		.upper_bound(Bound::Excluded(key))
-		.prev();
-	let upper_bound = map
-		.lower_bound(Bound::Excluded(key))
-		.next();
+	let lower_bound = map.range(..key).next_back();
+	let upper_bound = map.range((Bound::Excluded(key), Bound::Unbounded)).next();
 	(lower_bound, upper_bound)
 }
 
