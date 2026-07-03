@@ -2,6 +2,7 @@ use anyhow::Result;
 use explorer_types::FullBundle;
 use serde::{Deserialize, Serialize};
 use std::{
+	cmp::Ordering,
 	collections::BTreeMap,
 	env,
 	fmt::Debug,
@@ -137,8 +138,39 @@ where
 	K: Ord,
 {
 	let lower_bound = map.range(..key).next_back();
-	let upper_bound = map.range((Bound::Excluded(key), Bound::Unbounded)).next();
+	let upper_bound = map
+		.range((Bound::Excluded(key), Bound::Unbounded))
+		.next();
 	(lower_bound, upper_bound)
+}
+
+/// It is a logic error for `arr` to not be sorted
+pub fn get_around_arr<F, T>(arr: &[T], f: F) -> (Option<usize>, Option<usize>)
+where
+	F: Fn(&T) -> Ordering,
+{
+	match arr.binary_search_by(f) {
+		Ok(idx) => {
+			if idx == 0 {
+				(None, Some(1))
+			} else if idx == arr.len() - 1 {
+				(Some(idx - 1), None)
+			} else {
+				(Some(idx - 1), Some(idx + 1))
+			}
+		}
+		Err(idx) => {
+			if arr.is_empty() {
+				(None, None)
+			} else if idx == 0 {
+				(None, Some(0))
+			} else if idx == arr.len() {
+				(Some(idx - 1), None)
+			} else {
+				(Some(idx - 1), Some(idx))
+			}
+		}
+	}
 }
 
 #[cfg(test)]
@@ -159,5 +191,59 @@ mod tests {
 
 		assert_eq!(b, Some((&2, &2)));
 		assert_eq!(a, Some((&4, &4)));
+	}
+
+	#[test]
+	fn test_get_around_arr() {
+		let arr = [1, 2, 4, 5];
+		let arr2 = [1, 2, 3, 4, 5];
+
+		let (b, a) = get_around_arr(&arr, |x| x.cmp(&3));
+		let (b2, a2) = get_around_arr(&arr2, |x| x.cmp(&3));
+		let b = b.map(|i| arr[i]);
+		let a = a.map(|i| arr[i]);
+		let b2 = b2.map(|i| arr2[i]);
+		let a2 = a2.map(|i| arr2[i]);
+
+		assert_eq!(b, b2);
+		assert_eq!(a, a2);
+
+		assert_eq!(b, Some(2));
+		assert_eq!(a, Some(4));
+	}
+
+	#[test]
+	fn get_around_empty_arr() {
+		assert_eq!(get_around_arr(&[0; 0], |x| x.cmp(&3)), (None, None));
+	}
+
+	#[test]
+	fn test_get_around_arr_edge_cases() {
+		let arr = [4, 5];
+		let arr2 = [3, 4, 5];
+		let arr3 = [1, 2, 3];
+		let arr4 = [1, 2];
+		let (b, a) = get_around_arr(&arr, |x| x.cmp(&3));
+		let (b2, a2) = get_around_arr(&arr2, |x| x.cmp(&3));
+		let (b3, a3) = get_around_arr(&arr3, |x| x.cmp(&3));
+		let (b4, a4) = get_around_arr(&arr4, |x| x.cmp(&3));
+		let b = b.map(|i| arr[i]);
+		let a = a.map(|i| arr[i]);
+		let b2 = b2.map(|i| arr2[i]);
+		let a2 = a2.map(|i| arr2[i]);
+		let b3 = b3.map(|i| arr3[i]);
+		let a3 = a3.map(|i| arr3[i]);
+		let b4 = b4.map(|i| arr4[i]);
+		let a4 = a4.map(|i| arr4[i]);
+
+		assert_eq!(b, b2);
+		assert_eq!(a, a2);
+		assert_eq!(b, None);
+		assert_eq!(a, Some(4));
+
+		assert_eq!(b3, b4);
+		assert_eq!(a3, a4);
+		assert_eq!(b3, Some(2));
+		assert_eq!(a3, None);
 	}
 }
