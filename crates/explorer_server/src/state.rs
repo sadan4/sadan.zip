@@ -37,6 +37,7 @@ async fn read_meta_entry(
 		.is_none()
 	{
 		warn!("skipping empty build directory: {}", entry_path.display());
+		return Ok(None);
 	}
 	let meta_zstd_raw = fs::read(&meta_path)
 		.await
