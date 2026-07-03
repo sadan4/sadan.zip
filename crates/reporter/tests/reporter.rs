@@ -57,8 +57,7 @@ async fn reporter() {
 				err.sort_inner_data();
 				errs.push(err);
 			}
-			Msg::Done(duration) => {
-				duration.expect("reporter failed");
+			Msg::Done(_) => {
 				break;
 			}
 		}
