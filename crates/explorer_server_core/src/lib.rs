@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use explorer_types::FullBundle;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -16,9 +16,12 @@ pub const DATA_FILE_NAME: &str = "data.mpk.zst";
 pub const METADATA_FILE_NAME: &str = "meta.mpk.zst";
 
 pub fn get_root_build_path() -> Result<PathBuf> {
-	let build_path = env::current_dir()?.join("builds");
+	let build_path = env::current_dir()
+		.context("Failed to get current dir")?
+		.join("builds");
 	if !build_path.exists() {
-		fs::create_dir_all(&build_path)?;
+		fs::create_dir_all(&build_path)
+			.context("Failed to create root build path")?;
 	}
 	Ok(build_path)
 }

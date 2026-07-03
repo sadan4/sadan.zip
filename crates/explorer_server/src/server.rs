@@ -4,6 +4,7 @@ use std::{
 	time::{Duration, SystemTime},
 };
 
+use anyhow::Context;
 use axum::{
 	Router,
 	body::Body,
@@ -135,7 +136,9 @@ async fn touch_builds(State(state): State<crate::State>) -> Result<Response> {
 		}
 		let dir_path = entry.path();
 		let meta_path = dir_path.join(METADATA_FILE_NAME);
-		let meta_zstd_raw = fs::read(meta_path).await?;
+		let meta_zstd_raw = fs::read(meta_path)
+			.await
+			.context("Failed to read bundle metadata")?;
 		let meta = tokio::task::spawn_blocking(move || -> Result<_> {
 			let meta_raw = zstd::decode_all(&*meta_zstd_raw)?;
 			let meta = rmp_serde::from_slice::<BundleMetadata>(&meta_raw)?;
