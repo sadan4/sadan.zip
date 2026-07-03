@@ -7,7 +7,7 @@ use std::{
 use axum::{
 	Router,
 	body::Body,
-	extract::Path,
+	extract::{Path, State},
 	response::{IntoResponse, Response},
 	routing::{get, post},
 };
@@ -15,10 +15,16 @@ use explorer_server_core::{
 	DATA_FILE_NAME,
 	METADATA_FILE_NAME,
 	compress_full_bundle_data,
+	get_around,
 	get_build_path,
 	get_root_build_path,
 };
-use explorer_types::{BuildList, BundleMetadata, FullBundle};
+use explorer_types::{
+	BuildList,
+	BundleMetadata,
+	FullBundle,
+	TimestampQueryResults,
+};
 use http::{StatusCode, header};
 use tokio::{fs, net, task::JoinSet};
 use tokio_stream::{StreamExt, wrappers::ReadDirStream};
@@ -41,7 +47,7 @@ impl IntoResponse for AppError {
 	fn into_response(self) -> Response {
 		(
 			StatusCode::INTERNAL_SERVER_ERROR,
-			format!("internal server error: {}", self.0),
+			format!("internal server error: {:?}", self.0),
 		)
 			.into_response()
 	}
@@ -111,7 +117,8 @@ async fn get_build_full(Path(build_hash): Path<String>) -> Result<Response> {
 	Ok((ZSTD_HEADERS, data_body).into_response())
 }
 
-async fn touch_builds() -> Result<Response> {
+// TODO: ratelimit to like 4/hr
+async fn touch_builds(State(state): State<crate::State>) -> Result<Response> {
 	async fn update_times(
 		file: fs::File,
 		time: std::fs::FileTimes,
@@ -133,14 +140,15 @@ async fn touch_builds() -> Result<Response> {
 			let meta_raw = zstd::decode_all(&*meta_zstd_raw)?;
 			let meta = rmp_serde::from_slice::<BundleMetadata>(&meta_raw)?;
 			Ok(meta)
-		}).await??;
-		let time =
-			SystemTime::UNIX_EPOCH + Duration::from_millis(meta.first_seen);
+		})
+		.await??;
+		let time = meta.first_seen_as_time();
 		let file_times = FileTimes::new().set_modified(time);
 		let file = fs::File::open(dir_path).await?;
 		update_times(file, file_times).await?;
 		Ok(())
 	}
+	info!("updating build timestamps");
 	let mut dirs = fs::read_dir(get_root_build_path()?).await?;
 	let mut js = JoinSet::new();
 	while let Some(d) = dirs.next_entry().await? {
@@ -154,10 +162,53 @@ async fn touch_builds() -> Result<Response> {
 		}
 	}
 	js.join_all().await;
+	state.populate_from_disk().await?;
 	match err {
 		Some(e) => Err(e),
 		None => Ok(StatusCode::NO_CONTENT.into_response()),
 	}
+}
+
+async fn get_before_timestamp(
+	Path(timestamp): Path<u64>,
+	State(state): State<crate::State>,
+) -> Result {
+	let time = SystemTime::UNIX_EPOCH + Duration::from_millis(timestamp);
+	let state = state.read().await;
+	// we discard the upper_bound because this method only reutrns the build before the given timestamp, not after
+	let (lower_bound, _) = get_around(&state.meta_by_time, &time);
+	let lower_bound = lower_bound.map(|(_, v)| v.as_ref().clone());
+	drop(state);
+	let ret_data = TimestampQueryResults {
+		before: lower_bound,
+		after: None,
+	};
+
+	let raw = rmp_serde::to_vec(&ret_data)?;
+	let body = Body::from(raw);
+	Ok((MSGPACK_HEADERS, body).into_response())
+}
+
+async fn get_before_hash(
+	Path(hash): Path<String>,
+	State(state): State<crate::State>,
+) -> Result {
+	let state = state.read().await;
+	let build = state.meta_by_hash.get(&hash);
+	let Some(build) = build else {
+		return Ok(StatusCode::NOT_FOUND.into_response());
+	};
+	let (before, _) =
+		get_around(&state.meta_by_time, &build.first_seen_as_time());
+	let before = before.map(|(_, v)| v.as_ref().clone());
+	drop(state);
+	let ret_data = TimestampQueryResults {
+		before,
+		after: None,
+	};
+	let raw = rmp_serde::to_vec(&ret_data)?;
+	let body = Body::from(raw);
+	Ok((MSGPACK_HEADERS, body).into_response())
 }
 
 fn make_tarball(zstd_raw_data: &[u8]) -> Result<Vec<u8>> {
@@ -252,13 +303,16 @@ async fn get_all_builds() -> Result<Response> {
 }
 
 #[instrument]
-pub async fn serve(bind_addr: &str) -> anyhow::Result<()> {
+pub async fn serve(bind_addr: &str, state: crate::State) -> anyhow::Result<()> {
 	let app = Router::new()
 		.route("/build/{id}/metadata", get(get_build_metadata))
 		.route("/build/{id}/full", get(get_build_full))
 		.route("/build/{id}/archive.tar.zst", get(get_bundle_tarball))
 		.route("/builds", get(get_all_builds))
+		.route("/builds/before/time/{timestamp}", get(get_before_timestamp))
+		.route("/builds/before/hash/{hash}", get(get_before_hash))
 		.route("/fixup-timestamps", post(touch_builds))
+		.with_state(state)
 		.layer(cors::CorsLayer::new().allow_origin(cors::Any));
 	let listener = net::TcpListener::bind(bind_addr).await?;
 	info!("Server listening on http://{}", bind_addr);

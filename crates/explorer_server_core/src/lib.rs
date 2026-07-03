@@ -1,11 +1,14 @@
+#![feature(btree_cursors)]
 use anyhow::Result;
 use explorer_types::FullBundle;
 use serde::{Deserialize, Serialize};
 use std::{
+	collections::BTreeMap,
 	env,
 	fmt::Debug,
 	fs,
 	io,
+	ops::Bound,
 	path::{Path, PathBuf},
 };
 
@@ -105,5 +108,61 @@ impl EncodableBuild {
 	}
 	pub fn decode(from: &mut impl io::Read) -> Result<Self> {
 		rmp_serde::decode::from_read(from).map_err(From::from)
+	}
+}
+
+type BTreeBound<'a, K, V> = Option<(&'a K, &'a V)>;
+type BTreeBounds<'a, K, V> = (BTreeBound<'a, K, V>, BTreeBound<'a, K, V>);
+
+/// gets the bounds of the given key in the map, returning the lower and upper bounds as a tuple
+/// ```
+/// # use std::collections::BTreeMap;
+/// # use explorer_server_core::get_around;
+/// let map = BTreeMap::from([(1, 1), (2, 2), (4, 4), (5, 5)]);
+/// let map2 = BTreeMap::from([(1, 1), (2, 2), (3, 3), (4, 4), (5, 5)]);
+///
+/// let (b, a) = get_around(&map, &3);
+/// let (b2, a2) = get_around(&map2, &3);
+///
+/// assert_eq!(b, b2);
+/// assert_eq!(a, a2);
+///
+/// assert_eq!(b, Some((&2, &2)));
+/// assert_eq!(a, Some((&4, &4)));
+/// ```
+pub fn get_around<'m, K, V>(
+	map: &'m BTreeMap<K, V>,
+	key: &K,
+) -> BTreeBounds<'m, K, V>
+where
+	K: Ord,
+{
+	let lower_bound = map
+		.upper_bound(Bound::Excluded(key))
+		.prev();
+	let upper_bound = map
+		.lower_bound(Bound::Excluded(key))
+		.next();
+	(lower_bound, upper_bound)
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	/// copy of the doctest
+	fn test_get_around() {
+		let map = BTreeMap::from([(1, 1), (2, 2), (4, 4), (5, 5)]);
+		let map2 = BTreeMap::from([(1, 1), (2, 2), (3, 3), (4, 4), (5, 5)]);
+
+		let (b, a) = get_around(&map, &3);
+		let (b2, a2) = get_around(&map2, &3);
+
+		assert_eq!(b, b2);
+		assert_eq!(a, a2);
+
+		assert_eq!(b, Some((&2, &2)));
+		assert_eq!(a, Some((&4, &4)));
 	}
 }

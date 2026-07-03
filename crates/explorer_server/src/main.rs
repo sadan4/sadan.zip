@@ -1,9 +1,11 @@
 mod migrations;
 mod server;
+mod state;
 mod watcher;
 
 use clap::Parser;
 use std::process;
+use tokio::task::JoinSet;
 
 use tracing::{debug, error, info, warn};
 
@@ -13,6 +15,8 @@ use tracing_subscriber::{
 	layer::SubscriberExt,
 	util::SubscriberInitExt,
 };
+
+pub use crate::state::State;
 
 #[derive(Parser)]
 #[command(version, about)]
@@ -56,25 +60,36 @@ async fn main() {
 			process::exit(1);
 		}
 	}
-	let mut tasks = Vec::new();
-	tasks.push(tokio::spawn(async move {
-		watcher::start_watcher().await;
-	}));
+	let state = State::default();
+	let mut tasks = JoinSet::new();
+	let state_ = state.clone();
+	tasks.spawn(async move {
+		if let Err(e) = state_.populate_from_disk().await {
+			error!("Failed to populate state from disk: {e:?}");
+		}
+	});
+	debug!("spawned state population");
+	let state_ = state.clone();
+	tasks.spawn(async move {
+		watcher::start_watcher(state_).await;
+	});
 	debug!("spawned watcher");
-	tasks.push(tokio::spawn(async move {
+	let state_ = state.clone();
+	tasks.spawn(async move {
 		if let Err(e) =
-			server::serve(&format!("{}:{}", cli.host, cli.port)).await
+			server::serve(&format!("{}:{}", cli.host, cli.port), state_).await
 		{
 			error!("Error in HTTP server: {e}");
 		}
 		warn!("HTTP server exited");
-	}));
+	});
 	debug!("spawned HTTP server");
 	info!("Explorer server started");
-	for task in tasks {
-		if let Err(e) = task.await {
+	while let Some(task) = tasks.join_next().await {
+		if let Err(e) = task {
 			error!("Task failed: {e}");
 			process::exit(1);
 		}
 	}
+	warn!("All tasks exited, shutting down");
 }
