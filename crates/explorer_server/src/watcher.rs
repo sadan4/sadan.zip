@@ -50,46 +50,6 @@ async fn get_build(channel: Channel) -> Result<Option<Build>> {
 	}))
 }
 
-// use std::io;
-// use crate::scraper::html_parser::{ParsedHtml, parse_html};
-// use crate::watcher::spawn::{BuildParserWorker as _, DefaultBuildParserWorker},
-// use explorer_server_core::EncodableBuild;
-// async fn write_to_pipe(
-// 	build: Build,
-// 	channel: Channel,
-// 	mut tx: io::PipeWriter,
-// ) -> Result<()> {
-// 	let build_hash = build.build_hash;
-
-// 	let ParsedHtml {
-// 		global_env_text,
-// 		web_js_url,
-// 	} = parse_html(&build.response.text().await?)?;
-
-// 	let eb = EncodableBuild {
-// 		channel,
-// 		build_hash,
-// 		global_env_text,
-// 		web_js_url,
-// 	};
-// 	rmp_serde::encode::write(&mut tx, &eb)?;
-// 	Ok(())
-// }
-
-// async fn run_js_handler(build: Build, channel: Channel) -> Result<()> {
-// 	let (rx, tx) = io::pipe()?;
-// 	let writer_fut = tokio::spawn(write_to_pipe(build, channel, tx));
-// 	spawn::DefaultBuildParserWorker::spawn(rx).await?;
-
-// 	writer_fut
-// 		.await
-// 		.map_err(From::from)
-// 		.flatten()
-// 		.context("Failed to write build info to pipe")?;
-
-// 	Ok(())
-// }
-
 #[instrument]
 async fn handle_build(c: Channel) -> Result<()> {
 	if let Some(build) = get_build(c).await? {
