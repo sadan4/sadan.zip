@@ -12,6 +12,8 @@ use std::{fs, sync::Arc, time::Duration};
 use tokio::time;
 use tracing::{error, info, instrument, trace};
 
+use crate::state::State;
+
 const fn get_app_url(c: Channel) -> &'static str {
 	match c {
 		Channel::Stable => "https://discord.com/app",
@@ -50,50 +52,11 @@ async fn get_build(channel: Channel) -> Result<Option<Build>> {
 	}))
 }
 
-// use std::io;
-// use crate::scraper::html_parser::{ParsedHtml, parse_html};
-// use crate::watcher::spawn::{BuildParserWorker as _, DefaultBuildParserWorker},
-// use explorer_server_core::EncodableBuild;
-// async fn write_to_pipe(
-// 	build: Build,
-// 	channel: Channel,
-// 	mut tx: io::PipeWriter,
-// ) -> Result<()> {
-// 	let build_hash = build.build_hash;
-
-// 	let ParsedHtml {
-// 		global_env_text,
-// 		web_js_url,
-// 	} = parse_html(&build.response.text().await?)?;
-
-// 	let eb = EncodableBuild {
-// 		channel,
-// 		build_hash,
-// 		global_env_text,
-// 		web_js_url,
-// 	};
-// 	rmp_serde::encode::write(&mut tx, &eb)?;
-// 	Ok(())
-// }
-
-// async fn run_js_handler(build: Build, channel: Channel) -> Result<()> {
-// 	let (rx, tx) = io::pipe()?;
-// 	let writer_fut = tokio::spawn(write_to_pipe(build, channel, tx));
-// 	spawn::DefaultBuildParserWorker::spawn(rx).await?;
-
-// 	writer_fut
-// 		.await
-// 		.map_err(From::from)
-// 		.flatten()
-// 		.context("Failed to write build info to pipe")?;
-
-// 	Ok(())
-// }
-
 #[instrument]
-async fn handle_build(c: Channel) -> Result<()> {
+async fn handle_build(c: Channel, state: &State) -> Result<()> {
 	if let Some(build) = get_build(c).await? {
 		info!("new {c:?} build: {}", build.build_hash);
+		let state = state.clone();
 		// FIXME: handle run_js_handler errs
 		tokio::spawn(async move {
 			let start = time::Instant::now();
@@ -112,6 +75,8 @@ async fn handle_build(c: Channel) -> Result<()> {
 			.await;
 			match result {
 				Ok(build) => {
+					let meta = build.metadata.clone();
+					tokio::spawn(async move { state.add_build(meta).await });
 					if let Err(e) = write_full_bundle(&build) {
 						error!("Failed to write full bundle: {e:?}");
 					}
@@ -133,12 +98,12 @@ async fn handle_build(c: Channel) -> Result<()> {
 	Ok(())
 }
 
-pub async fn start_watcher() {
+pub async fn start_watcher(state: State) {
 	info!("starting watcher loop");
 	let mut interval = tokio::time::interval(Duration::from_mins(1));
 	loop {
 		interval.tick().await;
-		match handle_build(Channel::Stable).await {
+		match handle_build(Channel::Stable, &state).await {
 			Ok(()) => {}
 			Err(e) => {
 				error!("failed to get stable build: {e}");

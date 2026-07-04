@@ -962,6 +962,7 @@ dependencies = [
  "anyhow",
  "axum",
  "clap",
+ "derive_more",
  "discord_scraper",
  "explorer_server_core",
  "explorer_types",

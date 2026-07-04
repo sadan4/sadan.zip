@@ -1,10 +1,13 @@
 use derive_more::{Deref, Display, From, Into};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::{
+	collections::HashMap,
+	time::{Duration, SystemTime},
+};
 
 pub type TModuleId = u32;
 
-#[derive(Serialize, Deserialize, Default, Debug)]
+#[derive(Serialize, Deserialize, Default, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct BundleMetadata {
 	pub build_hash: String,
@@ -121,4 +124,17 @@ impl IncomingModuleDeps {
 			lazy: Vec::new(),
 		}
 	}
+}
+
+impl BundleMetadata {
+	pub fn first_seen_as_time(&self) -> SystemTime {
+		SystemTime::UNIX_EPOCH + Duration::from_millis(self.first_seen)
+	}
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+/// the results of querying for the builds before and after a given timestamp
+pub struct TimestampQueryResults {
+	pub before: Option<BundleMetadata>,
+	pub after: Option<BundleMetadata>,
 }

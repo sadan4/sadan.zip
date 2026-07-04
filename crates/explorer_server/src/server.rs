@@ -1,24 +1,37 @@
+use std::{
+	fs::FileTimes,
+	io,
+	time::{Duration, SystemTime},
+};
+
+use anyhow::Context;
 use axum::{
 	Router,
 	body::Body,
-	extract::Path,
+	extract::{Path, State},
 	response::{IntoResponse, Response},
-	routing::get,
+	routing::{get, post},
 };
 use explorer_server_core::{
 	DATA_FILE_NAME,
 	METADATA_FILE_NAME,
 	compress_full_bundle_data,
+	get_around,
 	get_build_path,
 	get_root_build_path,
 };
-use explorer_types::{BuildList, FullBundle};
+use explorer_types::{
+	BuildList,
+	BundleMetadata,
+	FullBundle,
+	TimestampQueryResults,
+};
 use http::{StatusCode, header};
-use tokio::{fs, net};
+use tokio::{fs, net, task::JoinSet};
 use tokio_stream::{StreamExt, wrappers::ReadDirStream};
 use tokio_util::io::ReaderStream;
 use tower_http::cors;
-use tracing::{info, instrument};
+use tracing::{info, instrument, warn};
 
 type Result<T = Response> = std::result::Result<T, AppError>;
 
@@ -29,13 +42,15 @@ const MSGPACK_MIME_TYPE: &str = "application/vnd.msgpack";
 const MSGPACK_HEADERS: [(header::HeaderName, &str); 1] =
 	[(header::CONTENT_TYPE, MSGPACK_MIME_TYPE)];
 
+const MB: usize = 1024 * 1024;
+
 struct AppError(anyhow::Error);
 
 impl IntoResponse for AppError {
 	fn into_response(self) -> Response {
 		(
 			StatusCode::INTERNAL_SERVER_ERROR,
-			format!("internal server error: {}", self.0),
+			format!("internal server error: {:?}", self.0),
 		)
 			.into_response()
 	}
@@ -57,9 +72,7 @@ fn is_valid_build_hash(build_hash: &str) -> bool {
 }
 
 #[axum::debug_handler]
-async fn get_build_metadata(
-	Path(build_hash): Path<String>,
-) -> Result<Response> {
+async fn get_build_metadata(Path(build_hash): Path<String>) -> Result {
 	if !is_valid_build_hash(&build_hash) {
 		return Ok(
 			(StatusCode::BAD_REQUEST, "invalid build hash").into_response()
@@ -73,16 +86,14 @@ async fn get_build_metadata(
 		)
 			.into_response());
 	}
-	let meta_file = fs::File::open(meta_path).await?;
-
-	let meta_stream = ReaderStream::new(meta_file);
-
-	let meta_body = Body::from_stream(meta_stream);
+	// not big enough (<5KiB) to bother with streaming, just read it all into memory and send it
+	let meta = fs::read(meta_path).await?;
+	let meta_body = Body::from(meta);
 
 	Ok((ZSTD_HEADERS, meta_body).into_response())
 }
 
-async fn get_build_full(Path(build_hash): Path<String>) -> Result<Response> {
+async fn get_build_full(Path(build_hash): Path<String>) -> Result {
 	if !is_valid_build_hash(&build_hash) {
 		return Ok(
 			(StatusCode::BAD_REQUEST, "invalid build hash").into_response()
@@ -98,11 +109,122 @@ async fn get_build_full(Path(build_hash): Path<String>) -> Result<Response> {
 	}
 	let data_file = fs::File::open(data_path).await?;
 
-	let data_stream = ReaderStream::new(data_file);
+	// the default stream size is 4KiB, which makes our requests VERY slow
+	// as our files are 25-30MiB. use a default of 5MiB to make them not slow.
+	let data_stream = ReaderStream::with_capacity(data_file, 5 * MB);
 
 	let data_body = Body::from_stream(data_stream);
 
 	Ok((ZSTD_HEADERS, data_body).into_response())
+}
+
+// TODO: ratelimit to like 4/hr
+#[instrument(skip(state))]
+async fn touch_builds(State(state): State<crate::State>) -> Result {
+	async fn update_times(
+		file: fs::File,
+		time: std::fs::FileTimes,
+	) -> io::Result<()> {
+		let file = file.into_std().await;
+		tokio::task::spawn_blocking(move || file.set_times(time))
+			.await
+			.expect("should never panic")
+	}
+	async fn update_build_timestamp(entry: fs::DirEntry) -> Result<()> {
+		let ft = entry.file_type().await?;
+		if !ft.is_dir() {
+			return Ok(());
+		}
+		let dir_path = entry.path();
+		if fs::read_dir(&dir_path)
+			.await?
+			.next_entry()
+			.await?
+			.is_none()
+		{
+			warn!("skipping empty build directory: {}", dir_path.display());
+			return Ok(());
+		}
+		let meta_path = dir_path.join(METADATA_FILE_NAME);
+		let meta_zstd_raw = fs::read(meta_path)
+			.await
+			.context("Failed to read bundle metadata")?;
+		let meta = tokio::task::spawn_blocking(move || -> Result<_> {
+			let meta_raw = zstd::decode_all(&*meta_zstd_raw)?;
+			let meta = rmp_serde::from_slice::<BundleMetadata>(&meta_raw)?;
+			Ok(meta)
+		})
+		.await??;
+		let time = meta.first_seen_as_time();
+		let file_times = FileTimes::new().set_modified(time);
+		let file = fs::File::open(dir_path).await?;
+		update_times(file, file_times).await?;
+		Ok(())
+	}
+	info!("updating build timestamps");
+	let mut dirs = fs::read_dir(get_root_build_path()?).await?;
+	let mut js = JoinSet::new();
+	while let Some(d) = dirs.next_entry().await? {
+		js.spawn(update_build_timestamp(d));
+	}
+	let mut err = None;
+	while let Some(n) = js.join_next().await {
+		if let Err(e) = n? {
+			err = Some(e);
+			break;
+		}
+	}
+	js.join_all().await;
+	state
+		.populate_from_disk()
+		.await
+		.context("Failed to re-populate builds from disk")?;
+	match err {
+		Some(e) => Err(e),
+		None => Ok(StatusCode::NO_CONTENT.into_response()),
+	}
+}
+
+async fn get_before_timestamp(
+	Path(timestamp): Path<u64>,
+	State(state): State<crate::State>,
+) -> Result {
+	let time = SystemTime::UNIX_EPOCH + Duration::from_millis(timestamp);
+	let state = state.read().await;
+	// we discard the upper_bound because this method only reutrns the build before the given timestamp, not after
+	let (lower_bound, _) = get_around(&state.meta_by_time, &time);
+	let lower_bound = lower_bound.map(|(_, v)| v.as_ref().clone());
+	drop(state);
+	let ret_data = TimestampQueryResults {
+		before: lower_bound,
+		after: None,
+	};
+
+	let raw = rmp_serde::to_vec(&ret_data)?;
+	let body = Body::from(raw);
+	Ok((MSGPACK_HEADERS, body).into_response())
+}
+
+async fn get_before_hash(
+	Path(hash): Path<String>,
+	State(state): State<crate::State>,
+) -> Result {
+	let state = state.read().await;
+	let build = state.meta_by_hash.get(&hash);
+	let Some(build) = build else {
+		return Ok(StatusCode::NOT_FOUND.into_response());
+	};
+	let (before, _) =
+		get_around(&state.meta_by_time, &build.first_seen_as_time());
+	let before = before.map(|(_, v)| v.as_ref().clone());
+	drop(state);
+	let ret_data = TimestampQueryResults {
+		before,
+		after: None,
+	};
+	let raw = rmp_serde::to_vec(&ret_data)?;
+	let body = Body::from(raw);
+	Ok((MSGPACK_HEADERS, body).into_response())
 }
 
 fn make_tarball(zstd_raw_data: &[u8]) -> Result<Vec<u8>> {
@@ -147,9 +269,7 @@ fn make_tarball(zstd_raw_data: &[u8]) -> Result<Vec<u8>> {
 	Ok(zstd_a_data)
 }
 
-async fn get_bundle_tarball(
-	Path(build_hash): Path<String>,
-) -> Result<Response> {
+async fn get_bundle_tarball(Path(build_hash): Path<String>) -> Result {
 	if !is_valid_build_hash(&build_hash) {
 		return Ok(
 			(StatusCode::BAD_REQUEST, "invalid build hash").into_response()
@@ -172,7 +292,7 @@ async fn get_bundle_tarball(
 	Ok((ZSTD_HEADERS, body).into_response())
 }
 
-async fn get_all_builds() -> Result<Response> {
+async fn get_all_builds() -> Result {
 	let dirs = fs::read_dir(get_root_build_path()?).await?;
 	let mut st = ReadDirStream::new(dirs);
 	let mut builds = Vec::new();
@@ -196,13 +316,40 @@ async fn get_all_builds() -> Result<Response> {
 	Ok((MSGPACK_HEADERS, body).into_response())
 }
 
+async fn get_latest_build_meta(State(state): State<crate::State>) -> Result {
+	let lock = state.read().await;
+	let meta = lock
+		.meta_by_time
+		.iter()
+		.next_back()
+		.map(|(_, v)| v.clone());
+	drop(lock);
+	let Some(meta) = meta else {
+		return Ok(
+			(StatusCode::NOT_FOUND, "server has no builds").into_response()
+		);
+	};
+	Ok((
+		MSGPACK_HEADERS,
+		Body::from(
+			rmp_serde::to_vec(&*meta).context("Failed to serialize meta")?,
+		),
+	)
+		.into_response())
+}
+
 #[instrument]
-pub async fn serve(bind_addr: &str) -> anyhow::Result<()> {
+pub async fn serve(bind_addr: &str, state: crate::State) -> anyhow::Result<()> {
 	let app = Router::new()
 		.route("/build/{id}/metadata", get(get_build_metadata))
 		.route("/build/{id}/full", get(get_build_full))
 		.route("/build/{id}/archive.tar.zst", get(get_bundle_tarball))
 		.route("/builds", get(get_all_builds))
+		.route("/builds/before/time/{timestamp}", get(get_before_timestamp))
+		.route("/builds/before/hash/{hash}", get(get_before_hash))
+		.route("/builds/latest/meta", get(get_latest_build_meta))
+		.route("/fixup-timestamps", post(touch_builds))
+		.with_state(state)
 		.layer(cors::CorsLayer::new().allow_origin(cors::Any));
 	let listener = net::TcpListener::bind(bind_addr).await?;
 	info!("Server listening on http://{}", bind_addr);
