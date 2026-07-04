@@ -45,6 +45,7 @@ num_cpus.workspace = true
 dashmap.workspace = true
 rmp-serde.workspace = true
 arrayvec.workspace = true
+jiff.workspace = true
 
 [dev-dependencies]
 insta.workspace = true

@@ -90,6 +90,7 @@ bytecount = { version = "0.6.9" }
 rayon = "1.12.0"
 num_cpus = "1.17.0"
 arrayvec = "0.7.8"
+jiff = { version = "0.2.31", features = ["logging"] }
 
 
 [profile.release]

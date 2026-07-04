@@ -151,7 +151,13 @@ pub async fn run_reporter(
 	let plugins = Arc::new(plugins??);
 	let scraped_outputs = target_build??
 		.into_iter()
-		.map(|ScrapedBranch { channel, out }| (channel, Arc::new(out)))
+		.map(
+			|ScrapedBranch {
+			     channel,
+			     modules,
+			     build_hash: _,
+			 }| (channel, Arc::new(modules)),
+		)
 		.collect_vec();
 	run_with_data(scraped_outputs, plugins, cli, bars).await
 }

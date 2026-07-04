@@ -652,7 +652,7 @@ mod serde_named_source_string;
 
 mod cmp_wrapped_oxc_diag;
 
-#[derive(Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct WrappedOxcDiagnostic {
 	#[serde(with = "serde_oxc_diag")]
 	diag: Box<OxcDiagnostic>,

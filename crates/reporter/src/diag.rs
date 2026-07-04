@@ -19,6 +19,7 @@ mod serde_regress_error;
 	Eq,
 	PartialOrd,
 	Ord,
+	Clone,
 )]
 pub enum ReporterError {
 	#[error("Bad Regex Syntax")]
@@ -122,7 +123,6 @@ pub enum ReporterError {
 	#[error(transparent)]
 	NoWarn(Box<Self>),
 }
-
 impl ReporterError {
 	pub const fn plugin_id(&self) -> u16 {
 		match self {

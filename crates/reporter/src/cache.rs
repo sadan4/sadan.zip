@@ -127,6 +127,7 @@ where
 		})? {
 		return Ok(None);
 	}
+	debug!("Reading cache file: {}", cache_file.display());
 	let raw_zstd_data = fs::read(&cache_file)
 		.await
 		.map_err(|e| CacheError::Read {
