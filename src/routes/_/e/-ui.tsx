@@ -100,6 +100,7 @@ function BundleItem({ bundleMeta }: BundleItemProps) {
                         moduleId: null,
                     }}
                     color="primary"
+                    preload={false}
                 >
                     Open Bundle <ExternalLinkIcon className="inline" />
                 </TextLink>
