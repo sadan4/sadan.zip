@@ -42,6 +42,8 @@ const MSGPACK_MIME_TYPE: &str = "application/vnd.msgpack";
 const MSGPACK_HEADERS: [(header::HeaderName, &str); 1] =
 	[(header::CONTENT_TYPE, MSGPACK_MIME_TYPE)];
 
+const MB: usize = 1024 * 1024;
+
 struct AppError(anyhow::Error);
 
 impl IntoResponse for AppError {
@@ -86,11 +88,9 @@ async fn get_build_metadata(
 		)
 			.into_response());
 	}
-	let meta_file = fs::File::open(meta_path).await?;
-
-	let meta_stream = ReaderStream::new(meta_file);
-
-	let meta_body = Body::from_stream(meta_stream);
+	// not big enough (<5KiB) to bother with streaming, just read it all into memory and send it
+	let meta = fs::read(meta_path).await?;
+	let meta_body = Body::from(meta);
 
 	Ok((ZSTD_HEADERS, meta_body).into_response())
 }
@@ -111,7 +111,9 @@ async fn get_build_full(Path(build_hash): Path<String>) -> Result<Response> {
 	}
 	let data_file = fs::File::open(data_path).await?;
 
-	let data_stream = ReaderStream::new(data_file);
+	// the default stream size is 4KiB, which makes our requests VERY slow
+	// as our files are 25-30MiB. use a default of 5MiB to make them not slow.
+	let data_stream = ReaderStream::with_capacity(data_file, 5 * MB);
 
 	let data_body = Body::from_stream(data_stream);
 
@@ -318,6 +320,30 @@ async fn get_all_builds() -> Result<Response> {
 	Ok((MSGPACK_HEADERS, body).into_response())
 }
 
+async fn get_latest_build_meta(
+	State(state): State<crate::State>,
+) -> Result<Response> {
+	let lock = state.read().await;
+	let meta = lock
+		.meta_by_time
+		.iter()
+		.next_back()
+		.map(|(_, v)| v.clone());
+	drop(lock);
+	let Some(meta) = meta else {
+		return Ok(
+			(StatusCode::NOT_FOUND, "server has no builds").into_response()
+		);
+	};
+	Ok((
+		MSGPACK_HEADERS,
+		Body::from(
+			rmp_serde::to_vec(&*meta).context("Failed to serialize meta")?,
+		),
+	)
+		.into_response())
+}
+
 #[instrument]
 pub async fn serve(bind_addr: &str, state: crate::State) -> anyhow::Result<()> {
 	let app = Router::new()
@@ -327,6 +353,7 @@ pub async fn serve(bind_addr: &str, state: crate::State) -> anyhow::Result<()> {
 		.route("/builds", get(get_all_builds))
 		.route("/builds/before/time/{timestamp}", get(get_before_timestamp))
 		.route("/builds/before/hash/{hash}", get(get_before_hash))
+		.route("/builds/latest/meta", get(get_latest_build_meta))
 		.route("/fixup-timestamps", post(touch_builds))
 		.with_state(state)
 		.layer(cors::CorsLayer::new().allow_origin(cors::Any));
