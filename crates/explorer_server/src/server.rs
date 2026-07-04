@@ -72,9 +72,7 @@ fn is_valid_build_hash(build_hash: &str) -> bool {
 }
 
 #[axum::debug_handler]
-async fn get_build_metadata(
-	Path(build_hash): Path<String>,
-) -> Result<Response> {
+async fn get_build_metadata(Path(build_hash): Path<String>) -> Result {
 	if !is_valid_build_hash(&build_hash) {
 		return Ok(
 			(StatusCode::BAD_REQUEST, "invalid build hash").into_response()
@@ -95,7 +93,7 @@ async fn get_build_metadata(
 	Ok((ZSTD_HEADERS, meta_body).into_response())
 }
 
-async fn get_build_full(Path(build_hash): Path<String>) -> Result<Response> {
+async fn get_build_full(Path(build_hash): Path<String>) -> Result {
 	if !is_valid_build_hash(&build_hash) {
 		return Ok(
 			(StatusCode::BAD_REQUEST, "invalid build hash").into_response()
@@ -122,7 +120,7 @@ async fn get_build_full(Path(build_hash): Path<String>) -> Result<Response> {
 
 // TODO: ratelimit to like 4/hr
 #[instrument(skip(state))]
-async fn touch_builds(State(state): State<crate::State>) -> Result<Response> {
+async fn touch_builds(State(state): State<crate::State>) -> Result {
 	async fn update_times(
 		file: fs::File,
 		time: std::fs::FileTimes,
@@ -271,9 +269,7 @@ fn make_tarball(zstd_raw_data: &[u8]) -> Result<Vec<u8>> {
 	Ok(zstd_a_data)
 }
 
-async fn get_bundle_tarball(
-	Path(build_hash): Path<String>,
-) -> Result<Response> {
+async fn get_bundle_tarball(Path(build_hash): Path<String>) -> Result {
 	if !is_valid_build_hash(&build_hash) {
 		return Ok(
 			(StatusCode::BAD_REQUEST, "invalid build hash").into_response()
@@ -296,7 +292,7 @@ async fn get_bundle_tarball(
 	Ok((ZSTD_HEADERS, body).into_response())
 }
 
-async fn get_all_builds() -> Result<Response> {
+async fn get_all_builds() -> Result {
 	let dirs = fs::read_dir(get_root_build_path()?).await?;
 	let mut st = ReadDirStream::new(dirs);
 	let mut builds = Vec::new();
@@ -320,9 +316,7 @@ async fn get_all_builds() -> Result<Response> {
 	Ok((MSGPACK_HEADERS, body).into_response())
 }
 
-async fn get_latest_build_meta(
-	State(state): State<crate::State>,
-) -> Result<Response> {
+async fn get_latest_build_meta(State(state): State<crate::State>) -> Result {
 	let lock = state.read().await;
 	let meta = lock
 		.meta_by_time
