@@ -949,6 +949,7 @@ dependencies = [
  "discord_scraper",
  "explorer_server_core",
  "explorer_types",
+ "git_hash",
  "http",
  "reqwest",
  "rmp-serde",
@@ -1201,6 +1202,10 @@ name = "gimli"
 version = "0.32.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e629b9b98ef3dd8afe6ca2bd0f89306cec16d43d907889945bc5d6687f2f13c7"
+
+[[package]]
+name = "git_hash"
+version = "0.1.0"
 
 [[package]]
 name = "glam"
