@@ -647,7 +647,18 @@ impl<'ast> WebpackAstParser<'ast> {
 			return false;
 		};
 		let mut last_decl_id = SymbolId::MAX_INDEX;
-		for decl in &node.declarations {
+		let mut iter = node
+			.declarations
+			.iter()
+			// webpack will declare extra variables that will be used as empty first
+			// eg:
+			// var a, b, c, d = wreq(0);
+			.skip_while(|d| d.init.is_none())
+			.peekable();
+		if iter.peek().is_none() {
+			return false;
+		}
+		for decl in iter {
 			// _ = n(000000)
 			// OR
 			// b = n.n(a)
@@ -728,7 +739,7 @@ impl<'ast> WebpackAstParser<'ast> {
 	fn count_num_concatentated_modules(&self) -> Option<u32> {
 		let main_func = main_func_finder::find(self)?;
 		let mut count = 0;
-		let mut last_was_import_block = true;
+		let mut last_was_import_block = false;
 		for stmt in &main_func
 			.body
 			.as_ref()
@@ -736,9 +747,11 @@ impl<'ast> WebpackAstParser<'ast> {
 			.statements
 		{
 			if let Statement::VariableDeclaration(decl) = stmt
-				&& !last_was_import_block
 				&& self.is_import_decl(decl)
 			{
+				if !last_was_import_block {
+					count += 1;
+				}
 				last_was_import_block = true;
 			} else if last_was_import_block
 				&& let Statement::ExpressionStatement(stmt) = stmt
@@ -746,9 +759,6 @@ impl<'ast> WebpackAstParser<'ast> {
 			{
 				// do nothing if we find a side effect import statement in the middle of an import block
 			} else {
-				if last_was_import_block {
-					count += 1;
-				}
 				last_was_import_block = false;
 			}
 		}

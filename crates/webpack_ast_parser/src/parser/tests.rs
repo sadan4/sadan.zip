@@ -179,12 +179,24 @@ fn doesnt_find_side_effect_import() {
 	assert_eq!(info, None);
 }
 
-#[test]
-fn get_num_concatenated_modules() {
-	let alloc = Allocator::new();
-	let p = parse!(alloc, "test_data/wp/concatenated_module.js");
-	let num = p.num_concatenated_modules();
-	assert_eq!(num, 11);
+mod concatenated_modules {
+	use super::{*, test};
+
+	#[test]
+	fn get_num() {
+		let alloc = Allocator::new();
+		let p = parse!(alloc, "test_data/wp/concatenated_module.js");
+		let num = p.num_concatenated_modules();
+		assert_eq!(num, 11);
+	}
+
+	#[test]
+	fn gets_num_for_non_concatenated_module() {
+		let alloc = Allocator::new();
+		let p = parse!(alloc, "test_data/wp/module.js");
+		let num = p.num_concatenated_modules();
+		assert_eq!(num, 1);
+	}
 }
 
 mod module_id {

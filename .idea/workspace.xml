@@ -32,6 +32,9 @@
       <package file="$PROJECT_DIR$/crates/macros">
         <feature name="default" enabled="true" />
       </package>
+      <package file="$PROJECT_DIR$/crates/miette_ctx">
+        <feature name="default" enabled="true" />
+      </package>
       <package file="$PROJECT_DIR$/crates/pretty_printer">
         <feature name="default" enabled="true" />
       </package>
@@ -56,7 +59,30 @@
     </cargoProject>
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="7b584492-e42b-47b1-a34d-2bb70715a8a1" name="Changes" comment="" />
+    <list default="true" id="7b584492-e42b-47b1-a34d-2bb70715a8a1" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Cargo.lock" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.lock" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/crates/ast_parser/src/ast_kind.rs" beforeDir="false" afterPath="$PROJECT_DIR$/crates/ast_parser/src/ast_kind.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/crates/companion_lsp/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/crates/companion_lsp/Cargo.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/crates/companion_lsp/src/lsp/cross_module.rs" beforeDir="false" afterPath="$PROJECT_DIR$/crates/companion_lsp/src/lsp/cross_module.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/crates/discord_scraper/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/crates/discord_scraper/Cargo.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/crates/discord_scraper/src/bundle_parser.rs" beforeDir="false" afterPath="$PROJECT_DIR$/crates/discord_scraper/src/bundle_parser.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/crates/explorer_types/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/crates/explorer_types/src/lib.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/crates/libsadancore/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/crates/libsadancore/Cargo.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/crates/libsadancore/src/explorer/bundle.rs" beforeDir="false" afterPath="$PROJECT_DIR$/crates/libsadancore/src/explorer/bundle.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/crates/reporter/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/crates/reporter/Cargo.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/crates/reporter/src/cmds/fix.rs" beforeDir="false" afterPath="$PROJECT_DIR$/crates/reporter/src/cmds/fix.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/crates/reporter/src/cmds/fix/find_last_build.rs" beforeDir="false" afterPath="$PROJECT_DIR$/crates/reporter/src/cmds/fix/find_last_build.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/crates/reporter/src/cmds/fix/track_module.rs" beforeDir="false" afterPath="$PROJECT_DIR$/crates/reporter/src/cmds/fix/track_module.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/crates/reporter/src/reporter.rs" beforeDir="false" afterPath="$PROJECT_DIR$/crates/reporter/src/reporter.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/crates/reporter/src/util.rs" beforeDir="false" afterPath="$PROJECT_DIR$/crates/reporter/src/util.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/crates/reporter/tests/reporter.rs" beforeDir="false" afterPath="$PROJECT_DIR$/crates/reporter/tests/reporter.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/crates/webpack_ast_parser/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/crates/webpack_ast_parser/Cargo.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/crates/webpack_ast_parser/src/parser.rs" beforeDir="false" afterPath="$PROJECT_DIR$/crates/webpack_ast_parser/src/parser.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/crates/webpack_ast_parser/src/parser/tests.rs" beforeDir="false" afterPath="$PROJECT_DIR$/crates/webpack_ast_parser/src/parser/tests.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/crates/webpack_ast_parser/tests/util/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/crates/webpack_ast_parser/tests/util/mod.rs" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -90,6 +116,7 @@
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
     "Cargo.Install cargo-llvm-cov.executor": "Run",
+    "Cargo.Test parser::tests::concatenated_modules::get_num.executor": "Debug",
     "Cargo.Test sadan.zip.executor": "Coverage",
     "Cargo.Test tests::gets_plugin_name.executor": "Debug",
     "ModuleVcsDetector.initialDetectionPerformed": "true",
@@ -104,7 +131,7 @@
     "RunOnceActivity.git.unshallow": "true",
     "RunOnceActivity.typescript.service.memoryLimit.init": "true",
     "codeWithMe.voiceChat.enabledByDefault": "false",
-    "git-widget-placeholder": "lsp-rust",
+    "git-widget-placeholder": "reporter-auto-fix",
     "node.js.detected.package.eslint": "true",
     "node.js.selected.package.eslint": "(autodetect)",
     "nodejs_package_manager_path": "pnpm",
@@ -114,7 +141,7 @@
     "settings.editor.selected.configurable": "coverage"
   }
 }]]></component>
-  <component name="RunManager" selected="Cargo.Test tests::gets_plugin_name">
+  <component name="RunManager" selected="Cargo.Test parser::tests::concatenated_modules::get_num">
     <configuration name="Run explorer_server" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
       <option name="command" value="run --package explorer_server --bin explorer_server" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$" />
@@ -183,6 +210,23 @@
         <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
       </method>
     </configuration>
+    <configuration name="Test parser::tests::concatenated_modules::get_num" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+      <option name="command" value="test --package webpack_ast_parser --lib -- parser::tests::concatenated_modules::get_num --exact" />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
+      <envs />
+      <option name="emulateTerminal" value="true" />
+      <option name="channel" value="DEFAULT" />
+      <option name="requiredFeatures" value="true" />
+      <option name="allFeatures" value="false" />
+      <option name="withSudo" value="false" />
+      <option name="buildTarget" value="REMOTE" />
+      <option name="backtrace" value="SHORT" />
+      <option name="isRedirectInput" value="false" />
+      <option name="redirectInputPath" value="" />
+      <method v="2">
+        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+      </method>
+    </configuration>
     <configuration name="Test sadan.zip" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
       <option name="buildProfileId" value="test" />
       <option name="command" value="test --workspace" />
@@ -220,6 +264,7 @@
     </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="Cargo.Test parser::tests::concatenated_modules::get_num" />
         <item itemvalue="Cargo.Test tests::gets_plugin_name" />
       </list>
     </recent_temporary>
@@ -237,6 +282,7 @@
       <workItem from="1780536488807" duration="340000" />
       <workItem from="1780536837980" duration="730000" />
       <workItem from="1781591198797" duration="1389000" />
+      <workItem from="1783311925814" duration="626000" />
     </task>
     <servers />
   </component>
@@ -250,6 +296,11 @@
           <url>file://$PROJECT_DIR$/crates/vencord_ast_parser/src/tests/mod.rs</url>
           <line>80</line>
           <option name="timeStamp" value="1" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$PROJECT_DIR$/crates/webpack_ast_parser/src/parser.rs</url>
+          <line>731</line>
+          <option name="timeStamp" value="2" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>
