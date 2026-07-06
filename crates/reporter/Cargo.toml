@@ -10,10 +10,12 @@ tokio = { workspace = true, features = [
     "fs",
     "process",
 ] }
+tokio-scoped.workspace = true
 discord_scraper.workspace = true
 explorer_types.workspace = true
 explorer_server_core.workspace = true
 vencord_ast_parser.workspace = true
+webpack_ast_parser.workspace = true
 anyhow.workspace = true
 clap.workspace = true
 clap_complete.workspace = true
@@ -46,6 +48,10 @@ dashmap.workspace = true
 rmp-serde.workspace = true
 arrayvec.workspace = true
 jiff.workspace = true
+miette_ctx.workspace = true
+smol_str.workspace = true
+daft.workspace = true
+diff-match-patch-rs.workspace = true
 
 [dev-dependencies]
 insta.workspace = true

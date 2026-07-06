@@ -13,6 +13,7 @@ use indicatif::{
 	ProgressFinish,
 	ProgressStyle,
 };
+use tokio::sync::mpsc;
 
 #[derive(Debug, From, Deref, DerefMut)]
 pub struct Stage(pub ProgressBar);
@@ -87,12 +88,29 @@ impl MultiProgressWrapper {
 	}
 	/// Create a progress bar for testing.
 	/// will never print anything
-	pub fn test_bar() -> Self {
+	pub fn null_bar() -> Self {
 		Self {
 			inner: MultiProgress::with_draw_target(ProgressDrawTarget::hidden()),
 			bars: Arc::new(Mutex::new(Vec::new())),
 		}
 	}
+}
+
+pub fn sink_sender<T>(buffer: usize) -> mpsc::Sender<T>
+where
+	T: Send + 'static,
+{
+	let (tx, mut rx) = mpsc::channel(buffer);
+	tokio::spawn(async move {
+		let mut buf = Vec::with_capacity(buffer);
+		loop {
+			// returns 0 when channel is closed
+			if rx.recv_many(&mut buf, buffer).await == 0 {
+				break;
+			}
+		}
+	});
+	tx
 }
 
 pub async fn join_all<T>(

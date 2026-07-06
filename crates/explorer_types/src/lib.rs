@@ -32,7 +32,7 @@ pub struct KeyModules {
 	pub flux_dispatcher_class: Vec<(ModuleId, ExportName)>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct DepInfo {
 	pub key_modules: KeyModules,
@@ -43,7 +43,7 @@ pub type ModuleSources = HashMap<String, Vec<ModuleId>>;
 
 pub type Modules = HashMap<ModuleId, String>;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct FullBundle {
 	pub metadata: BundleMetadata,

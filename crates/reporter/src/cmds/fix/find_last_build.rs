@@ -2,7 +2,7 @@ use super::diagnose_patch;
 use std::{collections::HashSet, sync::Arc};
 
 use explorer_server_core::Channel;
-use explorer_types::FullBundle;
+use explorer_types::{BundleMetadata, FullBundle};
 use jiff::tz::TimeZone;
 use miette::{Diagnostic, Report, Severity, miette};
 use tracing::{error, info, warn};
@@ -13,7 +13,13 @@ pub enum PreviousBundle {
 	Scraped(ScrapedBranch),
 }
 
-#[derive(Debug)]
+impl Default for PreviousBundle {
+	fn default() -> Self {
+		Self::Full(FullBundle::default())
+	}
+}
+
+#[derive(Debug, Default)]
 pub struct BuildDiff {
 	/// the first broken build after the working build
 	pub broken: PreviousBundle,
@@ -21,9 +27,45 @@ pub struct BuildDiff {
 	pub working: FullBundle,
 }
 
+impl PreviousBundle {
+	pub const fn modules(&self) -> &ScrapedOutput {
+		match self {
+			Self::Full(FullBundle { modules, .. })
+			| Self::Scraped(ScrapedBranch { modules, .. }) => modules,
+		}
+	}
+
+	pub const fn modules_mut(&mut self) -> &mut ScrapedOutput {
+		match self {
+			Self::Full(FullBundle { modules, .. })
+			| Self::Scraped(ScrapedBranch { modules, .. }) => modules,
+		}
+	}
+
+	pub fn build_hash(&self) -> &str {
+		match self {
+			Self::Full(FullBundle {
+				metadata: BundleMetadata { build_hash, .. },
+				..
+			})
+			| Self::Scraped(ScrapedBranch { build_hash, .. }) => build_hash,
+		}
+	}
+
+	pub fn build_number(&self) -> Option<u32> {
+		match self {
+			Self::Full(FullBundle {
+				metadata: BundleMetadata { build_number, .. },
+				..
+			}) => Some(*build_number),
+			Self::Scraped(ScrapedBranch { .. }) => None,
+		}
+	}
+}
+
 use crate::{
 	diag::ReporterError,
-	fetcher::ScrapedBranch,
+	fetcher::{ScrapedBranch, ScrapedOutput, http::fetch_previous_build_meta},
 	util::MultiProgressWrapper,
 	vc,
 };
@@ -35,14 +77,13 @@ async fn do_find_recursive(
 	channel: Channel,
 	patch: Arc<Vec<vc::Plugin>>,
 	global_bar: &MultiProgressWrapper,
-	prev_diag: ReporterError,
+	prev_diag: &ReporterError,
 	seen: &mut HashSet<String>,
 	prev_bundle: PreviousBundle,
 ) -> R {
-	let prev_build_meta =
-		crate::fetcher::http::fetch_previous_build_meta(prev_hash)
-			.await
-			.map_err(|e| Report::msg(e))?;
+	let prev_build_meta = fetch_previous_build_meta(prev_hash)
+		.await
+		.map_err(|e| Report::msg(e))?;
 	let Some(meta) = prev_build_meta else {
 		error!("No previous build found. Cannot fix patch");
 		return Ok(None);
@@ -78,7 +119,7 @@ async fn do_find_recursive(
 			broken: prev_bundle,
 		})),
 		Some(diag) => {
-			let is_same_diag = diag == prev_diag;
+			let is_same_diag = diag == *prev_diag;
 			let new_diag_is_error = diag.severity() == Some(Severity::Error);
 			debug_assert_eq!(
 				prev_diag.severity(),
@@ -98,7 +139,7 @@ async fn do_find_recursive(
 					channel,
 					patch,
 					global_bar,
-					diag,
+					&diag,
 					seen,
 					PreviousBundle::Full(full_bundle),
 				))
@@ -120,7 +161,7 @@ pub(super) async fn find_last_build(
 	channel: Channel,
 	patch: Arc<Vec<vc::Plugin>>,
 	global_bar: &MultiProgressWrapper,
-	prev_err: ReporterError,
+	prev_err: &ReporterError,
 	prev_bundle: PreviousBundle,
 ) -> R {
 	let mut seen = HashSet::from([prev_hash.to_string()]);

@@ -76,15 +76,15 @@ pub fn report_broken_patches(
 	rx
 }
 
-struct ReporterState<'a> {
-	tx: &'a mut mpsc::Sender<Msg>,
-	m_bar: MultiProgressWrapper,
-	patches: HashSet<&'a Patch>,
-	find_map: HashMap<&'a Patch, Vec<ModuleId>>,
-	alloc: AllocatorPool,
-	build: &'a ScrapedOutput,
-	stats: DashMap<ModuleId, Stats>,
-	channel: Channel,
+pub(crate) struct ReporterState<'a> {
+	pub(crate) tx: &'a mut mpsc::Sender<Msg>,
+	pub(crate) m_bar: MultiProgressWrapper,
+	pub(crate) patches: HashSet<&'a Patch>,
+	pub(crate) find_map: HashMap<&'a Patch, Vec<ModuleId>>,
+	pub(crate) alloc: AllocatorPool,
+	pub(crate) build: &'a ScrapedOutput,
+	pub(crate) stats: DashMap<ModuleId, Stats>,
+	pub(crate) channel: Channel,
 }
 
 impl<'a> ReporterState<'a> {
@@ -161,7 +161,7 @@ impl<'a> ReporterState<'a> {
 		Stage::new(format!("[{:?}]: {msg}", self.channel), n)
 			.and_attach(&self.m_bar)
 	}
-	fn prune_bad_finds(&mut self) {
+	pub(crate) fn prune_bad_finds(&mut self) {
 		let bar = self.stage("Pruning bad finds", Some(self.patches.len()));
 		self.patches.retain(|p| {
 			bar.step();
@@ -185,7 +185,7 @@ impl<'a> ReporterState<'a> {
 			}
 		});
 	}
-	fn collect_finds(&mut self) {
+	pub(crate) fn collect_finds(&mut self) {
 		let progress =
 			self.stage("Collecting find matches", Some(self.patches.len()));
 		self.find_map = self
@@ -208,7 +208,7 @@ impl<'a> ReporterState<'a> {
 			})
 			.collect();
 	}
-	fn report_empty_finds(&mut self) {
+	pub(crate) fn report_empty_finds(&mut self) {
 		_ = self.stage("Reporting empty finds", None);
 		for (patch, _) in self
 			.find_map
@@ -227,7 +227,7 @@ impl<'a> ReporterState<'a> {
 				.unwrap();
 		}
 	}
-	fn resolve_ambiguous_finds(&mut self) {
+	pub(crate) fn resolve_ambiguous_finds(&mut self) {
 		let it = self
 			.find_map
 			.extract_if(|p, m| !p.all && m.len() > 1)
@@ -278,7 +278,7 @@ impl<'a> ReporterState<'a> {
 			bar.step();
 		});
 	}
-	fn test_patches(&mut self) {
+	pub(crate) fn test_patches(&mut self) {
 		// temporarily take the find_map so we don't have to deal with 2x &mut self
 		let found_patches = mem::take(&mut self.find_map);
 		let bar = self.stage("Testing patches", Some(found_patches.len()));

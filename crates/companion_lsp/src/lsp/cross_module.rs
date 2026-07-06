@@ -30,6 +30,7 @@ use std::{
 
 use anyhow::{Context, Result};
 use explorer_types::{IncomingModuleDeps, ModuleId};
+use miette_ctx::into_anyhow;
 use oxc::allocator::Allocator;
 use smol_str::SmolStr;
 use tower_lsp::lsp_types::Url;
@@ -264,6 +265,7 @@ impl Inner {
 			mem::transmute::<&Allocator, &'static Allocator>(&self.alloc)
 		};
 		let mut parser = WebpackAstParser::try_new(alloc_static, src_static)
+			.map_err(into_anyhow)
 			.with_context(|| format!("parse module {id}"))?;
 		// SAFETY: self is pinned.
 		let self_static: &'static Self = unsafe { &*self.self_ptr };

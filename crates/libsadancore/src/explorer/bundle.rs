@@ -29,6 +29,7 @@ use explorer_types::{
 	ModuleSources,
 	TModuleId,
 };
+use miette_ctx::into_anyhow;
 use oxc::{allocator::Allocator, span::Span};
 use pretty_printer::{FormattedContent, format_with_alloc};
 use serde::Serialize;
@@ -224,6 +225,7 @@ impl BundleInner {
 		// SAFETY: TODO
 			unsafe { mem::transmute::<&str, &'static str>(raw_source_str) };
 		let mut parser = WebpackAstParser::try_new(alloc, source_str)
+			.map_err(into_anyhow)
 			.context("Failed to create parser")?;
 		// SAFETY: TODO
 		let static_self_ref: &Self = unsafe { &*self.self_ptr };
@@ -278,24 +280,9 @@ impl BundleInner {
 			mappings: _,
 		} = format_with_alloc(unformatted, &alloc, 4)
 			.context("Failed to format module")?;
-		format_module_header(&mut code, id, false);
+		WebpackAstParser::format_module_header(&mut code, id, false);
 		Ok(code)
 	}
-}
-
-fn format_module_header(src: &mut String, m_id: ModuleId, is_find: bool) {
-	const BUF_LEN: usize = 128;
-	if WebpackAstParser::is_webpack_module(src) {
-		return;
-	}
-	let mut buf = ArrayString::<BUF_LEN>::new_const();
-	writeln!(buf, "// Webpack Module {m_id}").unwrap();
-	if is_find {
-		writeln!(buf, "//OPEN FULL MODULE: {m_id}").unwrap();
-	}
-	writeln!(buf, "//EXTRACTED WEBPACK MODULE {m_id}").unwrap();
-	writeln!(buf, "0,").unwrap();
-	src.insert_str(0, &buf);
 }
 
 #[wasm_bindgen]
@@ -348,7 +335,9 @@ impl Bundle {
 		let fmt_src = self.inner.get_formatted_module(m_id)?;
 		let parser = self.inner.get_or_make_parser(m_id)?;
 		let pos = m_pos.to_offset(fmt_src);
-		let locs = parser.generate_definitions(pos)?;
+		let locs = parser
+			.generate_definitions(pos)
+			.map_err(into_anyhow)?;
 		let ret = locs
 			.into_iter()
 			.map(|loc| {
@@ -378,7 +367,9 @@ impl Bundle {
 		let parser = self.inner.get_or_make_parser(m_id)?;
 		let pos = m_pos.to_offset(fmt_src);
 
-		let locs = parser.generate_references(pos)?;
+		let locs = parser
+			.generate_references(pos)
+			.map_err(into_anyhow)?;
 
 		let ret = locs
 			.into_iter()
@@ -415,7 +406,8 @@ impl Bundle {
 		}
 
 		let ret = parser
-			.generate_hover(pos)?
+			.generate_hover(pos)
+			.map_err(into_anyhow)?
 			.map(|(span, content)| {
 				let range = MonacoRange::from_span(span, fmt_src);
 				HoverInfo {

@@ -1,4 +1,5 @@
 mod find_last_build;
+mod fixer;
 mod track_module;
 
 use std::sync::Arc;
@@ -177,7 +178,7 @@ pub(super) async fn fix(
 		channel.into(),
 		plugin.clone(),
 		global_bar,
-		issue,
+		&issue,
 		PreviousBundle::Scraped(scraped_branch),
 	)
 	.await
@@ -186,6 +187,19 @@ pub(super) async fn fix(
 		error!("No working build found");
 		return Ok(-1);
 	};
-	info!("Found last working build with meta {:#?}", &build_diff.working.metadata);
-	Ok(0)
+	info!(
+		build_number=?build_diff.broken.build_number(),
+		hash=%build_diff.broken.build_hash(),
+		"Found oldest broken build",
+	);
+	info!(
+		build_number=%build_diff.working.metadata.build_number,
+		hash=%build_diff.working.metadata.build_hash,
+		"Found last working build",
+	);
+	global_bar.clear();
+	fixer::dispatch(build_diff, plugin, issue, channel.into())
+		.await
+		.context("Failed to fix patch")?;
+	todo!()
 }

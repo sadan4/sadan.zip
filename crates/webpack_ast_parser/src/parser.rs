@@ -45,7 +45,7 @@ use crate::{
 		},
 	},
 };
-use anyhow::{Context, Result, anyhow, bail};
+use arrayvec::ArrayString;
 use ast_parser::{
 	AstParser,
 	ast_kind::IntoAstKind,
@@ -67,6 +67,8 @@ use ast_parser::{
 use explorer_types::{IncomingModuleDeps, ModuleId, OutgoingModuleDeps};
 use export_map::RawExportMap;
 use itertools::Itertools as _;
+use miette::{Result, bail};
+use miette_ctx::{ErrCtx as _, map_anyhow};
 use oxc::{
 	allocator::{Allocator, GetAddress, UnstableAddress},
 	ast::{
@@ -97,7 +99,6 @@ use oxc::{
 			VariableDeclarator,
 		},
 	},
-	parser::Kind::Symbol,
 	semantic::{NodeId, ReferenceId, Semantic, SymbolId},
 	span::{GetSpan, SourceType, Span},
 };
@@ -105,6 +106,7 @@ use smol_str::{SmolStr, ToSmolStr as _};
 use std::{
 	borrow::Cow,
 	collections::{HashMap, HashSet},
+	fmt::Write,
 	iter,
 	rc::Rc,
 };
@@ -148,8 +150,7 @@ impl<'ast> AstParser<'ast> for WebpackAstParser<'ast> {
 /// Public API
 impl<'ast> WebpackAstParser<'ast> {
 	pub fn try_new(alloc: &'ast Allocator, source: &'ast str) -> Result<Self> {
-		let (prog, sema) = parse(alloc, source, SourceType::script())
-			.map_err(|e| anyhow!(e))?;
+		let (prog, sema) = parse(alloc, source, SourceType::script())?;
 		Ok(Self {
 			prog,
 			sema,
@@ -166,6 +167,25 @@ impl<'ast> WebpackAstParser<'ast> {
 		src.starts_with("// Webpack Module")
 			|| src[0..src.ceil_char_boundary(src.len().min(100))]
 				.contains("//OPEN FULL MODULE:")
+	}
+
+	pub fn format_module_header(
+		src: &mut String,
+		m_id: ModuleId,
+		is_find: bool,
+	) {
+		const BUF_LEN: usize = 128;
+		if Self::is_webpack_module(src) {
+			return;
+		}
+		let mut buf = ArrayString::<BUF_LEN>::new_const();
+		writeln!(buf, "// Webpack Module {m_id}").unwrap();
+		if is_find {
+			writeln!(buf, "//OPEN FULL MODULE: {m_id}").unwrap();
+		}
+		writeln!(buf, "//EXTRACTED WEBPACK MODULE {m_id}").unwrap();
+		writeln!(buf, "0,").unwrap();
+		src.insert_str(0, &buf);
 	}
 
 	pub const fn get_source(&self) -> &'ast str {
@@ -423,6 +443,7 @@ impl<'ast> WebpackAstParser<'ast> {
 			.context("Module ID not found")?;
 		self.module_dep_provider
 			.get_module_deps(module_id)
+			.map_err(map_anyhow)
 	}
 	/// Figure out if this module re-exports another given the module id of the other and
 	/// the name of the export from the other module.
@@ -1036,6 +1057,7 @@ impl<'ast> WebpackAstParser<'ast> {
 	fn try_get_module_parser(&self, module_id: ModuleId) -> Result<Rc<Self>> {
 		self.module_cache
 			.get_latest_module_parser(self, module_id)
+			.map_err(map_anyhow)
 	}
 	/// Gets the [`ModuleId`] from a require by the returned symbol id
 	/// ```js

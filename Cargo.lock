@@ -42,6 +42,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 
 [[package]]
+name = "android_system_properties"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "819e7219dbd41043ac279b19830f2efc897156490d7fd6ea916720117ee66311"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "anes"
 version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -424,6 +433,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "chrono"
+version = "0.4.45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1aa79e62e7697b8e29b513a68abacf485adcd1fe8284a4316c5ae868e6633327"
+dependencies = [
+ "iana-time-zone",
+ "js-sys",
+ "num-traits",
+ "wasm-bindgen",
+ "windows-link",
+]
+
+[[package]]
 name = "ciborium"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -572,6 +594,7 @@ dependencies = [
  "explorer_types",
  "futures-util",
  "insta",
+ "miette_ctx",
  "oxc",
  "oxc-miette",
  "pretty_printer",
@@ -778,6 +801,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "daft"
+version = "0.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "49921a57f45e3bf2cc8a0c4e3a10aa342b95a481d7dd89d844c1225496957296"
+dependencies = [
+ "daft-derive",
+ "paste",
+]
+
+[[package]]
+name = "daft-derive"
+version = "0.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "91850c0efee1e6dffcea4e5841ff3a71db80575a79f933d0c77e41c6fe0973d1"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "dagre"
 version = "0.1.0"
 dependencies = [
@@ -875,6 +919,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "diff-match-patch-rs"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f1e836eb966678daed8789e698dbdb1016a260c3cdaca6172585e13580c4e4be"
+dependencies = [
+ "chrono",
+ "percent-encoding",
+]
+
+[[package]]
 name = "digest"
 version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -897,6 +951,7 @@ dependencies = [
  "html_parser",
  "http",
  "memchr",
+ "miette_ctx",
  "oxc_allocator",
  "regress",
  "reqwest",
@@ -1440,6 +1495,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "iana-time-zone"
+version = "0.1.65"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e31bc9ad994ba00e440a8aa5c9ef0ec67d5cb5e5cb0cc7f8b744a35b389cc470"
+dependencies = [
+ "android_system_properties",
+ "core-foundation-sys",
+ "iana-time-zone-haiku",
+ "js-sys",
+ "log",
+ "wasm-bindgen",
+ "windows-core",
+]
+
+[[package]]
+name = "iana-time-zone-haiku"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f31827a206f56af32e590ba56d5d2d085f558508192593743f16b2306495269f"
+dependencies = [
+ "cc",
+]
+
+[[package]]
 name = "icu_collections"
 version = "2.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1818,6 +1897,7 @@ dependencies = [
  "dagre",
  "explorer_types",
  "js-sys",
+ "miette_ctx",
  "oxc",
  "pretty_printer",
  "rmp-serde",
@@ -1922,6 +2002,15 @@ name = "memchr"
 version = "2.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "88904434abc2901f197fe8cc55f0445e7ded921dba5911dad2e2b39b48e663c4"
+
+[[package]]
+name = "miette_ctx"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "oxc-miette",
+ "thiserror 2.0.18",
+]
 
 [[package]]
 name = "mime"
@@ -2566,6 +2655,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "paste"
+version = "1.0.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
+
+[[package]]
 name = "percent-encoding"
 version = "2.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3046,8 +3141,10 @@ dependencies = [
  "clap",
  "clap_complete",
  "clearscreen",
+ "daft",
  "dashmap 6.2.1",
  "derive_more",
+ "diff-match-patch-rs",
  "discord_scraper",
  "explorer_server_core",
  "explorer_types",
@@ -3055,6 +3152,7 @@ dependencies = [
  "insta",
  "itertools 0.15.0",
  "jiff",
+ "miette_ctx",
  "notify",
  "num_cpus",
  "owo-colors",
@@ -3068,15 +3166,18 @@ dependencies = [
  "rmp-serde",
  "rustc-hash",
  "serde",
+ "smol_str",
  "syntect",
  "terminal_size",
  "textwrap",
  "thiserror 2.0.18",
  "tokio",
+ "tokio-scoped",
  "tracing",
  "tracing-subscriber",
  "unicode-width",
  "vencord_ast_parser",
+ "webpack_ast_parser",
  "zstd",
 ]
 
@@ -3900,6 +4001,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "tokio-scoped"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e4beb8ba13bc53ac53ce1d52b42f02e5d8060f0f42138862869beb769722b256"
+dependencies = [
+ "tokio",
+ "tokio-stream",
+]
+
+[[package]]
 name = "tokio-stream"
 version = "0.1.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4396,13 +4507,17 @@ name = "webpack_ast_parser"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "arrayvec",
  "ast_parser",
+ "daft",
  "derive_more",
  "explorer_types",
  "insta",
  "itertools 0.15.0",
  "macros",
+ "miette_ctx",
  "oxc",
+ "oxc-miette",
  "serde",
  "smol_str",
  "tracing",
@@ -4489,6 +4604,41 @@ name = "winapi-x86_64-pc-windows-gnu"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
+
+[[package]]
+name = "windows-core"
+version = "0.62.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b8e83a14d34d0623b51dce9581199302a221863196a1dde71a7663a4c2be9deb"
+dependencies = [
+ "windows-implement",
+ "windows-interface",
+ "windows-link",
+ "windows-result",
+ "windows-strings",
+]
+
+[[package]]
+name = "windows-implement"
+version = "0.60.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "053e2e040ab57b9dc951b72c264860db7eb3b0200ba345b4e4c3b14f67855ddf"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "windows-interface"
+version = "0.59.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3f316c4a2570ba26bbec722032c4099d8c8bc095efccdc15688708623367e358"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
 
 [[package]]
 name = "windows-link"

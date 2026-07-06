@@ -47,7 +47,7 @@ async fn reporter() {
 		plugins.clone(),
 	);
 	let mut errs = Vec::new();
-	let bar = MultiProgressWrapper::test_bar();
+	let bar = MultiProgressWrapper::null_bar();
 	while let Some(msg) = rx.recv().await {
 		match msg {
 			Msg::RequestProgressBar(sender) => {

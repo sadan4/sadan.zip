@@ -16,6 +16,7 @@ tar = "0.4.44"
 tokio = { version = "1.49.0", features = ["macros", "rt-multi-thread"] }
 tokio-stream = { version = "0.1.18", default-features = false }
 tokio-util = { version = "0.7.18", default-features = false }
+tokio-scoped = "0.2.0"
 reqwest = "0.13.2"
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
@@ -75,6 +76,7 @@ webpack_chunk_parser = { path = "crates/webpack_chunk_parser" }
 pretty_printer = { path = "crates/pretty_printer" }
 dagre = { path = "crates/dagre", features = ["serde"] }
 discord_scraper = { path = "crates/discord_scraper" }
+miette_ctx = { path = "crates/miette_ctx" }
 tower-lsp = "0.20.0"
 tokio-tungstenite = "0.29.0"
 futures-util = "0.3.31"
@@ -91,6 +93,8 @@ rayon = "1.12.0"
 num_cpus = "1.17.0"
 arrayvec = "0.7.8"
 jiff = { version = "0.2.31", features = ["logging"] }
+daft = { version = "0.1.7", features = ["derive"] }
+diff-match-patch-rs = "0.5.1"
 
 
 [profile.release]
@@ -201,6 +205,11 @@ redundant_pub_crate = "warn"
 search_is_some = "warn"
 set_contains_or_insert = "warn"
 significant_drop_in_scrutinee = "warn"
+# too damn noisy
+cast_possible_wrap = "allow"
+# it doesnt take types into account, so two names
+# with different types will still trigger the lint
+similar_names = "allow"
 # love to enable this, however it is very broken rust-lang/rust-clippy#11279
 significant_drop_tightening = "allow"
 single_option_map = "warn"

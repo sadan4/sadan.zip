@@ -7,10 +7,11 @@ use std::{
 	rc::Rc,
 };
 
-use anyhow::{Context, Result, anyhow};
 use ast_parser::{get_offset_from_line_and_column, span_line_and_column};
 use explorer_types::{IncomingModuleDeps, ModuleId};
 use itertools::Itertools;
+use miette::{Result, miette};
+use miette_ctx::{ErrCtx as _, into_anyhow};
 use oxc::{allocator::Allocator, span::Span};
 use smol_str::SmolStr;
 use webpack_ast_parser::{
@@ -39,8 +40,12 @@ impl<'a> Bundle<'a> {
 		for entry in
 			fs::read_dir(&bundle_dir).context("Failed to read bundle dir")?
 		{
-			let entry = entry?;
-			if entry.file_type()?.is_dir() {
+			let entry = entry.context("Failed to read entry")?;
+			if entry
+				.file_type()
+				.context("Failed to get file type")?
+				.is_dir()
+			{
 				continue;
 			}
 			let path = entry.path();
@@ -58,7 +63,9 @@ impl<'a> Bundle<'a> {
 				.parse::<u32>()
 				.context("Module filename is not a valid ModuleId")?
 				.into();
-			let module_str = fs::read_to_string(&path)?;
+			let module_str = fs::read_to_string(&path).with_context(|| {
+				format!("Failed to read {}", path.display())
+			})?;
 			let module_str = alloc.alloc_str(module_str.as_str());
 			let parser = WebpackAstParser::try_new(alloc, module_str)?;
 
@@ -111,7 +118,7 @@ impl<'a> Bundle<'a> {
 			.collect::<HashMap<_, _>>();
 		self.parsers
 			.set(parsers)
-			.map_err(|_| anyhow!("Parsers already set"))
+			.map_err(|_| miette!("Parsers already set"))
 			.unwrap();
 	}
 
@@ -193,22 +200,27 @@ impl<'a> IModuleCache<'a> for Bundle<'a> {
 		_requestor: &WebpackAstParser<'a>,
 		id: ModuleId,
 		_latest: Option<bool>,
-	) -> Result<Rc<WebpackAstParser<'a>>> {
+	) -> anyhow::Result<Rc<WebpackAstParser<'a>>> {
 		self.parsers
 			.get()
 			.unwrap()
 			.get(&id)
 			.cloned()
 			.context("Module ID not found in bundle")
+			.map_err(into_anyhow)
 	}
 }
 
 impl IModuleDepProvider for Bundle<'_> {
-	fn get_module_deps(&self, id: ModuleId) -> Result<Rc<IncomingModuleDeps>> {
+	fn get_module_deps(
+		&self,
+		id: ModuleId,
+	) -> anyhow::Result<Rc<IncomingModuleDeps>> {
 		self.deps
 			.get(&id)
 			.cloned()
 			.context("Module ID not found in bundle")
+			.map_err(into_anyhow)
 	}
 }
 

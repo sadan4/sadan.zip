@@ -282,7 +282,7 @@
       <workItem from="1780536488807" duration="340000" />
       <workItem from="1780536837980" duration="730000" />
       <workItem from="1781591198797" duration="1389000" />
-      <workItem from="1783311925814" duration="626000" />
+      <workItem from="1783311925814" duration="908000" />
     </task>
     <servers />
   </component>
@@ -299,7 +299,7 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
           <url>file://$PROJECT_DIR$/crates/webpack_ast_parser/src/parser.rs</url>
-          <line>731</line>
+          <line>742</line>
           <option name="timeStamp" value="2" />
         </line-breakpoint>
       </breakpoints>
