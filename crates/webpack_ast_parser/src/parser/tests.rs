@@ -179,6 +179,14 @@ fn doesnt_find_side_effect_import() {
 	assert_eq!(info, None);
 }
 
+#[test]
+fn get_num_concatenated_modules() {
+	let alloc = Allocator::new();
+	let p = parse!(alloc, "test_data/wp/concatenated_module.js");
+	let num = p.num_concatenated_modules();
+	assert_eq!(num, 11);
+}
+
 mod module_id {
 	use super::*;
 	use macros::test;
@@ -1291,8 +1299,8 @@ mod direct_module_definition {
 			_requestor: &WebpackAstParser<'ast>,
 			_id: ModuleId,
 			_latest: Option<bool>,
-		) -> Result<Rc<WebpackAstParser<'ast>>> {
-			bail!("test cache does not provide parsers")
+		) -> anyhow::Result<Rc<WebpackAstParser<'ast>>> {
+			anyhow::bail!("test cache does not provide parsers")
 		}
 	}
 

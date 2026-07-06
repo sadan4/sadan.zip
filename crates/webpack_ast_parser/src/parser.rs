@@ -1,6 +1,7 @@
 mod arg_finder;
 mod enum_iife;
 pub mod export_map;
+mod main_func_finder;
 mod types;
 mod util;
 
@@ -71,12 +72,14 @@ use oxc::{
 	ast::{
 		AstKind,
 		ast::{
+			Argument,
 			ArrowFunctionExpression,
 			BindingIdentifier,
 			CallExpression,
 			Class,
 			ClassElement,
 			Expression,
+			ExpressionStatement,
 			IdentifierReference,
 			MethodDefinition,
 			MethodDefinitionKind,
@@ -86,11 +89,15 @@ use oxc::{
 			ObjectProperty,
 			ObjectPropertyKind,
 			Program,
+			Statement,
 			StaticMemberExpression,
 			Str,
+			VariableDeclaration,
+			VariableDeclarationKind,
 			VariableDeclarator,
 		},
 	},
+	parser::Kind::Symbol,
 	semantic::{NodeId, ReferenceId, Semantic, SymbolId},
 	span::{GetSpan, SourceType, Span},
 };
@@ -125,6 +132,7 @@ struct Cache<'ast> {
 	module_id: cache::Value<Option<ModuleId>>,
 	does_re_export_whole_module: cache::Value<Option<ModuleId>>,
 	modules_that_this_module_requires: cache::Ref<Option<OutgoingModuleDeps>>,
+	num_concatenated_modules: cache::Value<u32>,
 }
 
 impl<'ast> AstParser<'ast> for WebpackAstParser<'ast> {
@@ -595,11 +603,157 @@ impl<'ast> WebpackAstParser<'ast> {
 			_ => None,
 		}
 	}
+
+	/// Includes the "base" module
+	pub fn num_concatenated_modules(&self) -> u32 {
+		self.c.num_concatenated_modules.get(|| {
+			self.count_num_concatentated_modules()
+				.unwrap_or(0)
+		})
+	}
 }
 
 /// Private API
 #[expect(clippy::multiple_inherent_impl)]
 impl<'ast> WebpackAstParser<'ast> {
+	/// checks if the expression is `wreq` or `wreq.n`
+	fn is_import_callee(
+		&self,
+		wreq: SymbolId,
+		expr: &'ast Expression<'ast>,
+	) -> bool {
+		match expr {
+			Expression::Identifier(ident) => {
+				self.cmp_sym(ident.as_ref(), &wreq)
+			}
+			Expression::StaticMemberExpression(access) => {
+				access
+					.object
+					.as_identifier()
+					.is_some_and(|id| self.cmp_sym(id, &wreq))
+					&& access.property.name == "n"
+			}
+			_ => false,
+		}
+	}
+	/// checks if `node` is a decl of webpack imports
+	fn is_import_decl(&self, node: &'ast VariableDeclaration<'ast>) -> bool {
+		if node.kind != VariableDeclarationKind::Var {
+			// webpack import blocks use var, not let
+			return false;
+		}
+		let Some(wreq) = self.wreq() else {
+			// we cant import anything if we dont have wreq
+			return false;
+		};
+		let mut last_decl_id = SymbolId::MAX_INDEX;
+		for decl in &node.declarations {
+			// _ = n(000000)
+			// OR
+			// b = n.n(a)
+			// where a was the previous declaration
+			let Some(init) = decl.init.as_ref() else {
+				return false;
+			};
+			// only plain idents are bound to imports
+			let Some(decl_ident) = decl.id.as_binding_identifier() else {
+				return false;
+			};
+			let Expression::CallExpression(call) = init else {
+				return false;
+			};
+			if !self.is_import_callee(wreq, &call.callee) {
+				return false;
+			}
+			// is the argument valid
+			match call.arguments.as_slice() {
+				[Argument::NumericLiteral(_)] => {
+					last_decl_id = decl_ident.symbol_id().into();
+				}
+				[Argument::Identifier(ident)] => {
+					if last_decl_id != SymbolId::MAX_INDEX
+						// SAFETY: it's not MAX_INDEX
+						// and we only ever set it to MAX_INDEX as a sentinel value 
+						// or an already valid symbol id
+						&& !self.cmp_sym(ident.as_ref(), &unsafe {
+							SymbolId::from_usize_unchecked(last_decl_id)
+						}) {
+						return false;
+					}
+				}
+				_ => {
+					return false;
+				}
+			}
+		}
+		true
+	}
+
+	/// Webpack will insert side effect imports as seen below
+	///
+	/// returns true if `stmt` is a side effect import statement
+	///
+	/// ```ts
+	/// import foo from "foo";
+	/// import "bar";
+	/// import baz from "baz";
+	/// // Turns into
+	/// var foo = wreq(0); // importing foo
+	/// wreq(1); // side effect import bar
+	/// var baz = wreq(2); // importing baz
+	/// ```
+	fn is_side_effect_import_stmt(
+		&self,
+		stmt: &'ast ExpressionStatement<'ast>,
+	) -> bool {
+		// wreq(...); must be a call expr
+		let Expression::CallExpression(call) = &stmt.expression else {
+			return false;
+		};
+		let Some(wreq) = self.wreq() else {
+			return false;
+		};
+		// it must be a call on a plain identifier
+		// webpack will do an indirect call on imports to change the `this` value
+		// eg: `(0, foo.default)(...)`, which is not a side effect import
+		let Expression::Identifier(wreq_ref) = &call.callee else {
+			return false;
+		};
+		let [Argument::NumericLiteral(_)] = call.arguments.as_slice() else {
+			return false;
+		};
+		self.cmp_sym(wreq_ref.as_ref(), &wreq)
+	}
+
+	fn count_num_concatentated_modules(&self) -> Option<u32> {
+		let main_func = main_func_finder::find(self)?;
+		let mut count = 0;
+		let mut last_was_import_block = true;
+		for stmt in &main_func
+			.body
+			.as_ref()
+			.unwrap()
+			.statements
+		{
+			if let Statement::VariableDeclaration(decl) = stmt
+				&& !last_was_import_block
+				&& self.is_import_decl(decl)
+			{
+				last_was_import_block = true;
+			} else if last_was_import_block
+				&& let Statement::ExpressionStatement(stmt) = stmt
+				&& self.is_side_effect_import_stmt(stmt)
+			{
+				// do nothing if we find a side effect import statement in the middle of an import block
+			} else {
+				if last_was_import_block {
+					count += 1;
+				}
+				last_was_import_block = false;
+			}
+		}
+		Some(count)
+	}
 	/// Given a reference to `wreq`, returns the `wreq(m_id)` call expression the
 	/// reference is the callee of — or `None` if it isn't being used to require `m_id`.
 	fn match_wreq_require_call(
