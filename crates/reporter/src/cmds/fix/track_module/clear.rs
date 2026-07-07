@@ -12,8 +12,8 @@ fn store_data(StoreData { flux_events, .. }: StoreData<Span>) -> StoreData<()> {
 	StoreData {
 		store: (),
 		flux_events: flux_events
-			.into_iter()
-			.map(|(k, _)| (k, ()))
+			.into_keys()
+			.map(|k| (k, ()))
 			.collect(),
 	}
 }

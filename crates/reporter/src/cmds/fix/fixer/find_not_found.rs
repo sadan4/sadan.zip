@@ -7,19 +7,15 @@ use dashmap::DashMap;
 use explorer_server_core::Channel;
 use explorer_types::ModuleId;
 use miette_ctx::ErrCtx as _;
-use oxc_allocator::{Allocator, AllocatorPool};
-use rayon::iter::{
-	IntoParallelIterator,
-	IntoParallelRefMutIterator,
-	ParallelIterator as _,
-};
+use oxc_allocator::AllocatorPool;
+use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator as _};
 use tracing::{info, warn};
 use webpack_ast_parser::WebpackAstParser;
 
 use crate::{
 	cmds::fix::{
 		find_last_build::{BuildDiff, PreviousBundle},
-		fixer::TODO,
+		fixer::Todo,
 		track_module::ModuleTracker,
 	},
 	diag::ReporterError,
@@ -60,7 +56,7 @@ impl Fixer {
 			});
 		});
 	}
-	pub async fn fix(mut self) -> miette::Result<TODO> {
+	pub async fn fix(mut self) -> miette::Result<Todo> {
 		self.fixup_modules();
 		info!("Attempting to find module in new build");
 		let m_id = self.find_working_module_id();
@@ -68,15 +64,12 @@ impl Fixer {
 		info!("Tracking module to new build. This might take a while");
 		let tracker = ModuleTracker::try_new(
 			&self.diff.working.modules,
-			&self.diff.working.metadata.build_hash,
 			m_id,
 			self.diff.broken.modules(),
 			self.diff.broken.build_hash(),
 		)
 		.context("Failed to create module tracker")?;
-		let new_module = tracker
-			.track()
-			.context("Failed to track module to new build")?;
+		let new_module = tracker.track();
 		info!("new_module={new_module:?}");
 		todo!()
 	}

@@ -3,7 +3,6 @@ mod graph;
 use std::{
 	cell::RefCell,
 	collections::HashMap,
-	fmt::Write as _,
 	marker::PhantomPinned,
 	mem,
 	pin::Pin,
@@ -18,7 +17,6 @@ use crate::{
 	util::fetch_struct,
 };
 use anyhow::{Context, anyhow};
-use arrayvec::ArrayString;
 use ast_parser::{get_line_and_column, get_offset_from_line_and_column};
 use explorer_types::{
 	DepInfo,

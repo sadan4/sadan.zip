@@ -1,13 +1,9 @@
-use std::{
-	fmt::Display,
-	sync::atomic::{AtomicU64, Ordering},
-	time::{Duration, Instant},
-};
+use std::time::Instant;
 
+use arrayvec::ArrayVec;
 use daft::Diffable;
 use explorer_types::ModuleId;
-use itertools::Itertools;
-use miette::{Result, miette};
+use miette::Result;
 use miette_ctx::ErrCtx as _;
 use oxc_allocator::AllocatorPool;
 use pretty_printer::format_to_str;
@@ -23,20 +19,16 @@ use crate::{
 };
 
 pub struct ModuleTracker<'a> {
-	prev_build: &'a ScrapedOutput,
-	prev_hash: &'a str,
-	prev_info: PreviousModuleInfo<'a>,
+	prev_info: PreviousModuleInfo,
 	next_build: &'a ScrapedOutput,
 	next_hash: &'a str,
 	pool: AllocatorPool,
 }
 
-struct PreviousModuleInfo<'a> {
+struct PreviousModuleInfo {
 	module_id: ModuleId,
 	/// the exports of the previous module
 	export_map: ExportMap<()>,
-	len: usize,
-	txt: &'a str,
 	formatted_txt: String,
 	num_concatenated: u32,
 }
@@ -63,10 +55,9 @@ struct Confindence {
 	text_diff_score: u8,
 	/// the difference in exports between the two modules
 	exports: ExportDiff,
-	/// the length of the original module
-	orig_len: usize,
 	/// the length of the module that is being compared
 	new_len: usize,
+	// TODO: also use the ids of imported modules
 }
 impl Confindence {
 	/// Generates a score based on the different hurestics of the module
@@ -75,12 +66,13 @@ impl Confindence {
 	///
 	/// in practice [`usize::MAX`] is never returned
 	fn score(&self) -> usize {
+		let il2 = self.new_len.ilog2() as usize;
 		let mut score = 0;
-		score += usize::from(self.text_diff_score) * 10;
+		score += usize::from(self.text_diff_score) * 2 * il2;
 		score += self.score_exports();
-		score += self.num_concatenated.unsigned_abs() as usize * 20;
+		score += self.num_concatenated.unsigned_abs() as usize * 2 * il2;
 		if self.same_id {
-			score = score.saturating_sub(15);
+			score = score.saturating_sub(150);
 		}
 		score
 	}
@@ -128,14 +120,21 @@ impl Confindence {
 		let mut base = 5;
 		base += al * 10;
 		base += rl * 10;
+		// if we just have the name of one export changing, this is even more unlikely
+		if ul == 0 && al | rl == 1 {
+			base *= 2;
+		}
 		base
 	}
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct TrackedModule {
 	new_module_id: ModuleId,
-	confidence: Confindence,
+	/// the result of [`Confindence::score`] for the tracked module
+	///
+	/// Lower is better
+	score: usize,
 }
 
 /// TODO: Move to `webpack_ast_parser`
@@ -192,20 +191,16 @@ fn diff_modules<'a>(old: &'a str, new: &'a str) -> u8 {
 	Confindence::score_diff(&d)
 }
 
-static FORMAT_TIME: AtomicU64 = AtomicU64::new(0);
-static PARSE_TIME: AtomicU64 = AtomicU64::new(0);
-static DIFF_TIME: AtomicU64 = AtomicU64::new(0);
-static EXPORT_DIFF_TIME: AtomicU64 = AtomicU64::new(0);
-static SCORE_TIME: AtomicU64 = AtomicU64::new(0);
+const MAX_TRACKED_MODULES: usize = 8;
+pub type TrackedModules = ArrayVec<TrackedModule, MAX_TRACKED_MODULES>;
 
 impl<'a> ModuleTracker<'a> {
 	pub fn try_new(
 		prev_build: &'a ScrapedOutput,
-		prev_hash: &'a str,
 		prev_mid: ModuleId,
 		next_build: &'a ScrapedOutput,
 		next_hash: &'a str,
-	) -> miette::Result<Self> {
+	) -> Result<Self> {
 		let pool = AllocatorPool::new(num_cpus::get());
 		let alloc_guard = pool.get();
 		let alloc = &*alloc_guard;
@@ -220,15 +215,11 @@ impl<'a> ModuleTracker<'a> {
 		let prev_info = PreviousModuleInfo {
 			module_id: prev_mid,
 			export_map: clear::map(parser.get_export_map().clone()),
-			len: parser.get_source().len(),
-			txt: prev_module.as_str(),
 			formatted_txt,
 			num_concatenated: parser.num_concatenated_modules(),
 		};
 		drop(alloc_guard);
 		let ret = Self {
-			prev_build,
-			prev_hash,
 			prev_info,
 			next_build,
 			next_hash,
@@ -236,53 +227,28 @@ impl<'a> ModuleTracker<'a> {
 		};
 		Ok(ret)
 	}
-	fn confindence_for(
-		&self,
-		k: ModuleId,
-		v: &str,
-	) -> miette::Result<Confindence> {
+	fn confindence_for(&self, k: ModuleId, v: &str) -> Result<Confindence> {
 		let alloc = &*self.pool.get();
-		let parse_start = Instant::now();
 		let parser = WebpackAstParser::try_new(alloc, v)?;
 		let new_export_map = clear::map(parser.get_export_map().clone());
 		let num_concatenated = parser.num_concatenated_modules();
-		PARSE_TIME.fetch_add(
-			parse_start.elapsed().as_millis() as u64,
-			Ordering::SeqCst,
-		);
-		let export_diff_start = Instant::now();
 		let exports =
 			ExportDiff::diff(&self.prev_info.export_map, &new_export_map);
-		EXPORT_DIFF_TIME.fetch_add(
-			export_diff_start.elapsed().as_millis() as u64,
-			Ordering::SeqCst,
-		);
-		let format_start = Instant::now();
 		let new_formatted =
 			format_to_str(v, 0).context("Failed to format new source")?;
-		FORMAT_TIME.fetch_add(
-			format_start.elapsed().as_millis() as u64,
-			Ordering::SeqCst,
-		);
-		let diff_start = Instant::now();
 		let text_diff_score =
 			diff_modules(&self.prev_info.formatted_txt, &new_formatted);
-		DIFF_TIME.fetch_add(
-			diff_start.elapsed().as_millis() as u64,
-			Ordering::SeqCst,
-		);
 		let ret = Confindence {
 			same_id: k == self.prev_info.module_id,
 			num_concatenated: (num_concatenated as i32)
 				- (self.prev_info.num_concatenated as i32),
 			text_diff_score,
 			exports,
-			orig_len: self.prev_info.len,
 			new_len: v.len(),
 		};
 		Ok(ret)
 	}
-	pub fn track(self) -> miette::Result<TrackedModule> {
+	pub fn track(self) -> TrackedModules {
 		// if let Some(new_module_contents) = self
 		// 	.next_build
 		// 	.get(&self.prev_info.module_id)
@@ -305,7 +271,6 @@ impl<'a> ModuleTracker<'a> {
 			.next_build
 			.par_iter()
 			.filter_map(|(k, v)| {
-				let start = Instant::now();
 				let c = match self.confindence_for(*k, v) {
 					Ok(c) => c,
 					Err(e) => {
@@ -316,37 +281,16 @@ impl<'a> ModuleTracker<'a> {
 						return None;
 					}
 				};
-				let ret = Some((*k, c.score()));
-				SCORE_TIME.fetch_add(
-					start.elapsed().as_millis() as u64,
-					Ordering::SeqCst,
-				);
-				ret
+				Some(TrackedModule {
+					new_module_id: *k,
+					score: c.score(),
+				})
 			})
 			.collect();
 		let elapsed = start.elapsed();
-		let parse_time =
-			Duration::from_millis(PARSE_TIME.load(Ordering::SeqCst));
-		let format_time =
-			Duration::from_millis(FORMAT_TIME.load(Ordering::SeqCst));
-		let diff_time = Duration::from_millis(DIFF_TIME.load(Ordering::SeqCst));
-		let export_diff_time =
-			Duration::from_millis(EXPORT_DIFF_TIME.load(Ordering::SeqCst));
-		let score_time =
-			Duration::from_millis(SCORE_TIME.load(Ordering::SeqCst));
-		info!(
-			"Tracked {} modules in {:?}. PARSE_TIME={:.2?}. FORMAT_TIME={:.2?}. DIFF_TIME={:.2?}. EXPORT_DIFF_TIME={:.2?}. SCORE_TIME={:.2?}",
-			scores.len(),
-			elapsed,
-			parse_time,
-			format_time,
-			diff_time,
-			export_diff_time,
-			score_time,
-		);
-		scores.sort_unstable_by_key(|(_, a)| *a);
-		scores.truncate(10);
-		dbg!(scores);
-		todo!()
+		info!("Tracked {} modules in {:?}", scores.len(), elapsed);
+		scores.sort_unstable_by_key(|module| module.score);
+		scores.truncate(MAX_TRACKED_MODULES);
+		ArrayVec::from_iter(scores)
 	}
 }

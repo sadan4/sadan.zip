@@ -2073,6 +2073,7 @@ impl<'ast> WebpackAstParser<'ast> {
 				);
 				if name.is_none() {
 					warn!(
+						module_id=?self.get_module_id(),
 						"Store has displayName prop but could not resolve display name. This should not happen"
 					);
 				}

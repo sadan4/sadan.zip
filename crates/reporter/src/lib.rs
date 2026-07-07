@@ -1,4 +1,3 @@
-#![feature(integer_widen_truncate)]
 mod cache;
 pub mod cmds;
 pub mod diag;
