@@ -1,26 +1,26 @@
-use std::convert::Infallible;
+use std::fmt::Display;
 
 use daft::Diffable;
 use diff_match_patch_rs::{DiffMatchPatch, Ops, dmp::Diff};
 use explorer_types::ModuleId;
 use itertools::Itertools;
-use miette::{IntoDiagnostic, Report, Result, miette};
+use miette::{Result, miette};
 use miette_ctx::ErrCtx as _;
 use oxc_allocator::AllocatorPool;
 use pretty_printer::format_to_str;
+use rayon::iter::{IntoParallelRefIterator as _, ParallelIterator as _};
 use smol_str::SmolStr;
-use tracing::debug;
-use webpack_ast_parser::{
-	WebpackAstParser,
-	export_map::{ExportMap, ExtraData, RangeExportMap},
-};
+use tracing::warn;
+use webpack_ast_parser::{WebpackAstParser, export_map::ExportMap};
 
 use crate::fetcher::ScrapedOutput;
 
 pub struct ModuleTracker<'a> {
 	prev_build: &'a ScrapedOutput,
+	prev_hash: &'a str,
 	prev_info: PreviousModuleInfo<'a>,
 	next_build: &'a ScrapedOutput,
+	next_hash: &'a str,
 	pool: AllocatorPool,
 }
 
@@ -63,27 +63,52 @@ struct Confindence {
 impl Confindence {
 	/// Generates a score based on the different hurestics of the module
 	/// 0 means that the two modules are exactly equal
-	/// [`u32::MAX`] means that the two modules are completely different
-	fn score(&self) -> u32 {
-		todo!()
+	/// [`usize::MAX`] means that the two modules are completely different
+	///
+	/// in practice [`usize::MAX`] is never returned
+	fn score(&self) -> usize {
+		let mut score = 0;
+		score += usize::from(self.score_diff());
+		score += self.score_exports();
+		score += self.num_concatenated.unsigned_abs() as usize * 20;
+		if self.same_id {
+			score = score.saturating_sub(15);
+		}
+		score
 	}
 
-	fn diff_len(&self) -> isize {
-		self.new_len as isize - self.orig_len as isize
+	/// returns a number from 0 to 100 indicating how similar the two modules are
+	///
+	/// 0 means that the two modules are the same
+	///
+	/// 100 means that the two modules are completely different
+	fn score_diff(&self) -> u8 {
+		let mut good = 0;
+		let mut all = 0;
+		for v in &self.text_diff {
+			let len = v.data().len();
+			all += len;
+			if v.op() == Ops::Equal {
+				good += len;
+			}
+		}
+		let ret = (good * 100) / all;
+		debug_assert!(ret <= 100, "score_diff should be between 0 and 100");
+		let ret = ret as u8;
+		100 - ret
 	}
 
-	/// score the diff
-	fn score_diff(&self) -> u32 {
-		let it = self
-			.text_diff
-			.iter()
-			.filter(|d| d.op() == Ops::Equal)
-			.map(|d| d.data().len())
-			.sum::<usize>()
-			* 2;
-		let ret = it / (self.orig_len + self.new_len);
-		debug!("ret={ret}");
-		ret as u32
+	const fn score_exports(&self) -> usize {
+		let al = self.exports.added.len();
+		let rl = self.exports.removed.len();
+		let ul = self.exports.unchanged.len();
+		if self.exports.equal && ul > 1 {
+			return 0;
+		}
+		let mut base = 5;
+		base += al * 10;
+		base += rl * 10;
+		base
 	}
 }
 
@@ -94,74 +119,16 @@ pub struct TrackedModule {
 }
 
 /// TODO: Move to `webpack_ast_parser`
-mod clear {
-	use oxc::span::Span;
-	use webpack_ast_parser::export_map::{
-		ExportMap,
-		ExportRange,
-		ExportValue,
-		ExtraData,
-		RangeExportMap,
-		RangeExportMapValue,
-		RangeExportRange,
-		StoreData,
-	};
-
-	fn store_data(
-		StoreData { flux_events, .. }: StoreData<Span>,
-	) -> StoreData<()> {
-		StoreData {
-			store: (),
-			flux_events: flux_events
-				.into_iter()
-				.map(|(k, _)| (k, ()))
-				.collect(),
-		}
-	}
-	fn extra_data(data: ExtraData<Span>) -> ExtraData<()> {
-		use ExtraData as ED;
-		match data {
-			ED::None => ED::None,
-			ED::Store(sd) => ED::Store(store_data(sd)),
-		}
-	}
-	fn range(ExportRange(arr, hov): RangeExportRange) -> ExportRange<()> {
-		ExportRange(vec![(); arr.len()], hov)
-	}
-	fn value(value: ExportValue<Span>) -> ExportValue<()> {
-		use ExportValue as EV;
-		match value {
-			EV::Range(v) => EV::Range(range(v)),
-			EV::Map(v) => EV::Map(map(v)),
-		}
-	}
-	pub fn map(
-		ExportMap {
-			exports,
-			cjs_default,
-			hover,
-			extra_data: ed,
-		}: ExportMap<Span>,
-	) -> ExportMap<()> {
-		ExportMap {
-			exports: exports
-				.into_iter()
-				.map(|(k, v)| (k, value(v)))
-				.collect(),
-			cjs_default: cjs_default.map(|v| Box::new(value(*v))),
-			hover,
-			extra_data: extra_data(ed),
-		}
-	}
-}
+mod clear;
 
 #[derive(Default, Debug)]
 struct ExportDiff {
 	added: Vec<SmolStr>,
 	removed: Vec<SmolStr>,
+	unchanged: Vec<SmolStr>,
 	equal: bool,
-	/// only a shallow comparison `old.is_some() ^ new.is_some()`
-	cjs_default_changed: bool,
+	// /// only a shallow comparison `old.is_some() ^ new.is_some()`
+	// cjs_default_changed: bool,
 }
 
 impl ExportDiff {
@@ -183,12 +150,17 @@ impl ExportDiff {
 			.into_keys()
 			.cloned()
 			.collect();
-		let cjs_default_changed =
-			old.cjs_default.is_none() ^ new.cjs_default.is_none();
+		let unchanged = diff
+			.common
+			.into_keys()
+			.cloned()
+			.collect();
+		// let cjs_default_changed =
+		// 	old.cjs_default.is_none() ^ new.cjs_default.is_none();
 		Self {
 			added,
 			removed,
-			cjs_default_changed,
+			unchanged,
 			..Self::default()
 		}
 	}
@@ -203,8 +175,10 @@ fn diff_modules(old: &str, new: &str) -> Result<Vec<Diff<u8>>> {
 impl<'a> ModuleTracker<'a> {
 	pub fn try_new(
 		prev_build: &'a ScrapedOutput,
+		prev_hash: &'a str,
 		prev_mid: ModuleId,
 		next_build: &'a ScrapedOutput,
+		next_hash: &'a str,
 	) -> miette::Result<Self> {
 		let pool = AllocatorPool::new(num_cpus::get());
 		let alloc_guard = pool.get();
@@ -228,8 +202,10 @@ impl<'a> ModuleTracker<'a> {
 		drop(alloc_guard);
 		let ret = Self {
 			prev_build,
+			prev_hash,
 			prev_info,
 			next_build,
+			next_hash,
 			pool,
 		};
 		Ok(ret)
@@ -251,8 +227,8 @@ impl<'a> ModuleTracker<'a> {
 				.context("Failed to diff modules")?;
 		let ret = Confindence {
 			same_id: k == self.prev_info.module_id,
-			num_concatenated: (parser.num_concatenated_modules()
-				- self.prev_info.num_concatenated) as i32,
+			num_concatenated: (parser.num_concatenated_modules() as i32)
+				- (self.prev_info.num_concatenated as i32),
 			text_diff,
 			exports,
 			orig_len: self.prev_info.len,
@@ -260,17 +236,52 @@ impl<'a> ModuleTracker<'a> {
 		};
 		Ok(ret)
 	}
-	pub fn track(self) -> miette::Result<TrackedModule> {
-		if let Some(new_module_contents) = self
-			.next_build
-			.get(&self.prev_info.module_id)
-		{
-			let c = self
-				.confindence_for(self.prev_info.module_id, new_module_contents)
-				.context("Failed to get confindence for module with same id")?;
-			let score = c.score();
-			todo!("score for module with same id: {score}");
+	fn debug_url(mid: ModuleId, hash: &str) -> impl Display + use<'_> {
+		struct D<'a>(&'a str, ModuleId);
+		impl Display for D<'_> {
+			fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+				write!(f, "https://sadan.zip/e/view/{}/{}", self.0, self.1)
+			}
 		}
-		todo!("else")
+		D(hash, mid)
+	}
+	pub fn track(self) -> miette::Result<TrackedModule> {
+		// if let Some(new_module_contents) = self
+		// 	.next_build
+		// 	.get(&self.prev_info.module_id)
+		// {
+		// 	let c = self
+		// 		.confindence_for(self.prev_info.module_id, new_module_contents)
+		// 		.context("Failed to get confindence for module with same id")?;
+		// 	let score = c.score();
+		// 	todo!("score for module with same id: {score}");
+		// }
+		// let id = ModuleId(89865);
+		// let m = &self.next_build[&id];
+		// let c = self
+		// 	.confindence_for(id, m)
+		// 	.context("failed to get confindence for new module")?;
+		// let score = c.score();
+		// todo!("score for new module: {score}");
+		let mut scores: Vec<_> = self
+			.next_build
+			.par_iter()
+			.filter_map(|(k, v)| {
+				let c = match self.confindence_for(*k, v) {
+					Ok(c) => c,
+					Err(e) => {
+						warn!(
+							"Failed to get confindence for module url=<{}>. cause: {e:?}",
+							Self::debug_url(*k, self.next_hash)
+						);
+						return None;
+					}
+				};
+				Some((*k, c.score()))
+			})
+			.collect();
+		scores.sort_unstable_by(|(_, a), (_, b)| b.cmp(a));
+		dbg!(scores);
+		todo!()
 	}
 }

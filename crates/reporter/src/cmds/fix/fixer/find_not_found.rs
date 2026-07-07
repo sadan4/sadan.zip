@@ -68,8 +68,10 @@ impl Fixer {
 		info!("Tracking module to new build");
 		let tracker = ModuleTracker::try_new(
 			&self.diff.working.modules,
+			&self.diff.working.metadata.build_hash,
 			m_id,
 			self.diff.broken.modules(),
+			self.diff.broken.build_hash(),
 		)
 		.context("Failed to create module tracker")?;
 		let new_module = tracker
