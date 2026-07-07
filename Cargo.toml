@@ -94,7 +94,9 @@ num_cpus = "1.17.0"
 arrayvec = "0.7.8"
 jiff = { version = "0.2.31", features = ["logging"] }
 daft = { version = "0.1.7", features = ["derive"] }
-diff-match-patch-rs = "0.5.1"
+smallvec = "1.15.2"
+hashbrown = "0.17.1"
+bstr = "1.12.3"
 
 
 [profile.release]

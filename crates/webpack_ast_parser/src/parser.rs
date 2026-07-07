@@ -1255,7 +1255,7 @@ impl<'ast> WebpackAstParser<'ast> {
 						ExportValue::Map(map) => ret.merge_with(map),
 						rng @ ExportValue::Range(_) => {
 							if !ret.exports.is_empty() {
-								warn!(
+								debug!(
 									"module.exports in module id {:?} is assigned to more than once",
 									self.get_module_id()
 								);
@@ -1284,7 +1284,7 @@ impl<'ast> WebpackAstParser<'ast> {
 					let key_txt = SmolStr::new(&self.source[key.span()]);
 					let val = self.raw_make_export_map_recursive(export_val);
 					if ret.exports.contains_key(&key_txt) {
-						warn!(
+						debug!(
 							"module.exports.{key_txt} is assigned to more than once in module id {:?}",
 							self.get_module_id()
 						);

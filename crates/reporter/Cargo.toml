@@ -51,7 +51,9 @@ jiff.workspace = true
 miette_ctx.workspace = true
 smol_str.workspace = true
 daft.workspace = true
-diff-match-patch-rs.workspace = true
+smallvec.workspace = true
+bstr.workspace = true
+hashbrown.workspace = true
 
 [dev-dependencies]
 insta.workspace = true

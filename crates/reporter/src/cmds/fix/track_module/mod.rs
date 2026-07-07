@@ -1,7 +1,10 @@
-use std::fmt::Display;
+use std::{
+	fmt::Display,
+	sync::atomic::{AtomicU64, Ordering},
+	time::{Duration, Instant},
+};
 
 use daft::Diffable;
-use diff_match_patch_rs::{DiffMatchPatch, Ops, dmp::Diff};
 use explorer_types::ModuleId;
 use itertools::Itertools;
 use miette::{Result, miette};
@@ -10,10 +13,14 @@ use oxc_allocator::AllocatorPool;
 use pretty_printer::format_to_str;
 use rayon::iter::{IntoParallelRefIterator as _, ParallelIterator as _};
 use smol_str::SmolStr;
-use tracing::warn;
+use tracing::{info, warn};
 use webpack_ast_parser::{WebpackAstParser, export_map::ExportMap};
 
-use crate::fetcher::ScrapedOutput;
+use crate::{
+	cmds::fix::track_module::diff::{DiffHunk, DiffHunkKind},
+	fetcher::ScrapedOutput,
+	util::debug_module_url,
+};
 
 pub struct ModuleTracker<'a> {
 	prev_build: &'a ScrapedOutput,
@@ -52,7 +59,8 @@ struct Confindence {
 	/// the similarity of the code between the two modules
 	///
 	/// the diff is of the formatted code, not the unformatted code.
-	text_diff: Vec<Diff<u8>>,
+	/// we put the score here instead of the data because the data is tied to the lifeime of the input strings
+	text_diff_score: u8,
 	/// the difference in exports between the two modules
 	exports: ExportDiff,
 	/// the length of the original module
@@ -68,7 +76,7 @@ impl Confindence {
 	/// in practice [`usize::MAX`] is never returned
 	fn score(&self) -> usize {
 		let mut score = 0;
-		score += usize::from(self.score_diff());
+		score += usize::from(self.text_diff_score) * 10;
 		score += self.score_exports();
 		score += self.num_concatenated.unsigned_abs() as usize * 20;
 		if self.same_id {
@@ -82,14 +90,26 @@ impl Confindence {
 	/// 0 means that the two modules are the same
 	///
 	/// 100 means that the two modules are completely different
-	fn score_diff(&self) -> u8 {
+	fn score_diff(diff: &[DiffHunk]) -> u8 {
 		let mut good = 0;
 		let mut all = 0;
-		for v in &self.text_diff {
-			let len = v.data().len();
-			all += len;
-			if v.op() == Ops::Equal {
-				good += len;
+		for v in diff {
+			debug_assert_eq!(
+				v.contents.len(),
+				2,
+				"diff hunk should have two contents"
+			);
+			if v.kind == DiffHunkKind::Matching {
+				debug_assert_eq!(
+					v.contents[0].len(),
+					v.contents[1].len(),
+					"matching diff hunk should have the same length"
+				);
+				good += v.contents[0].len();
+				all += v.contents[0].len();
+			} else {
+				all += v.contents[0].len();
+				all += v.contents[1].len();
 			}
 		}
 		let ret = (good * 100) / all;
@@ -120,6 +140,7 @@ pub struct TrackedModule {
 
 /// TODO: Move to `webpack_ast_parser`
 mod clear;
+mod diff;
 
 #[derive(Default, Debug)]
 struct ExportDiff {
@@ -166,11 +187,16 @@ impl ExportDiff {
 	}
 }
 
-fn diff_modules(old: &str, new: &str) -> Result<Vec<Diff<u8>>> {
-	let dmp = DiffMatchPatch::new();
-	dmp.diff_main::<u8>(old, new)
-		.map_err(|e| miette!("{e:?}"))
+fn diff_modules<'a>(old: &'a str, new: &'a str) -> u8 {
+	let d = diff::diff([old, new]);
+	Confindence::score_diff(&d)
 }
+
+static FORMAT_TIME: AtomicU64 = AtomicU64::new(0);
+static PARSE_TIME: AtomicU64 = AtomicU64::new(0);
+static DIFF_TIME: AtomicU64 = AtomicU64::new(0);
+static EXPORT_DIFF_TIME: AtomicU64 = AtomicU64::new(0);
+static SCORE_TIME: AtomicU64 = AtomicU64::new(0);
 
 impl<'a> ModuleTracker<'a> {
 	pub fn try_new(
@@ -216,34 +242,45 @@ impl<'a> ModuleTracker<'a> {
 		v: &str,
 	) -> miette::Result<Confindence> {
 		let alloc = &*self.pool.get();
+		let parse_start = Instant::now();
 		let parser = WebpackAstParser::try_new(alloc, v)?;
 		let new_export_map = clear::map(parser.get_export_map().clone());
+		let num_concatenated = parser.num_concatenated_modules();
+		PARSE_TIME.fetch_add(
+			parse_start.elapsed().as_millis() as u64,
+			Ordering::SeqCst,
+		);
+		let export_diff_start = Instant::now();
 		let exports =
 			ExportDiff::diff(&self.prev_info.export_map, &new_export_map);
+		EXPORT_DIFF_TIME.fetch_add(
+			export_diff_start.elapsed().as_millis() as u64,
+			Ordering::SeqCst,
+		);
+		let format_start = Instant::now();
 		let new_formatted =
 			format_to_str(v, 0).context("Failed to format new source")?;
-		let text_diff =
-			diff_modules(&self.prev_info.formatted_txt, &new_formatted)
-				.context("Failed to diff modules")?;
+		FORMAT_TIME.fetch_add(
+			format_start.elapsed().as_millis() as u64,
+			Ordering::SeqCst,
+		);
+		let diff_start = Instant::now();
+		let text_diff_score =
+			diff_modules(&self.prev_info.formatted_txt, &new_formatted);
+		DIFF_TIME.fetch_add(
+			diff_start.elapsed().as_millis() as u64,
+			Ordering::SeqCst,
+		);
 		let ret = Confindence {
 			same_id: k == self.prev_info.module_id,
-			num_concatenated: (parser.num_concatenated_modules() as i32)
+			num_concatenated: (num_concatenated as i32)
 				- (self.prev_info.num_concatenated as i32),
-			text_diff,
+			text_diff_score,
 			exports,
 			orig_len: self.prev_info.len,
 			new_len: v.len(),
 		};
 		Ok(ret)
-	}
-	fn debug_url(mid: ModuleId, hash: &str) -> impl Display + use<'_> {
-		struct D<'a>(&'a str, ModuleId);
-		impl Display for D<'_> {
-			fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-				write!(f, "https://sadan.zip/e/view/{}/{}", self.0, self.1)
-			}
-		}
-		D(hash, mid)
 	}
 	pub fn track(self) -> miette::Result<TrackedModule> {
 		// if let Some(new_module_contents) = self
@@ -263,24 +300,52 @@ impl<'a> ModuleTracker<'a> {
 		// 	.context("failed to get confindence for new module")?;
 		// let score = c.score();
 		// todo!("score for new module: {score}");
+		let start = Instant::now();
 		let mut scores: Vec<_> = self
 			.next_build
 			.par_iter()
 			.filter_map(|(k, v)| {
+				let start = Instant::now();
 				let c = match self.confindence_for(*k, v) {
 					Ok(c) => c,
 					Err(e) => {
 						warn!(
 							"Failed to get confindence for module url=<{}>. cause: {e:?}",
-							Self::debug_url(*k, self.next_hash)
+							debug_module_url(*k, self.next_hash)
 						);
 						return None;
 					}
 				};
-				Some((*k, c.score()))
+				let ret = Some((*k, c.score()));
+				SCORE_TIME.fetch_add(
+					start.elapsed().as_millis() as u64,
+					Ordering::SeqCst,
+				);
+				ret
 			})
 			.collect();
-		scores.sort_unstable_by(|(_, a), (_, b)| b.cmp(a));
+		let elapsed = start.elapsed();
+		let parse_time =
+			Duration::from_millis(PARSE_TIME.load(Ordering::SeqCst));
+		let format_time =
+			Duration::from_millis(FORMAT_TIME.load(Ordering::SeqCst));
+		let diff_time = Duration::from_millis(DIFF_TIME.load(Ordering::SeqCst));
+		let export_diff_time =
+			Duration::from_millis(EXPORT_DIFF_TIME.load(Ordering::SeqCst));
+		let score_time =
+			Duration::from_millis(SCORE_TIME.load(Ordering::SeqCst));
+		info!(
+			"Tracked {} modules in {:?}. PARSE_TIME={:.2?}. FORMAT_TIME={:.2?}. DIFF_TIME={:.2?}. EXPORT_DIFF_TIME={:.2?}. SCORE_TIME={:.2?}",
+			scores.len(),
+			elapsed,
+			parse_time,
+			format_time,
+			diff_time,
+			export_diff_time,
+			score_time,
+		);
+		scores.sort_unstable_by_key(|(_, a)| *a);
+		scores.truncate(10);
 		dbg!(scores);
 		todo!()
 	}

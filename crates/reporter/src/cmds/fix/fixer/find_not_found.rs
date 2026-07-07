@@ -65,7 +65,7 @@ impl Fixer {
 		info!("Attempting to find module in new build");
 		let m_id = self.find_working_module_id();
 		info!("found working module in old build: {m_id:?}");
-		info!("Tracking module to new build");
+		info!("Tracking module to new build. This might take a while");
 		let tracker = ModuleTracker::try_new(
 			&self.diff.working.modules,
 			&self.diff.working.metadata.build_hash,

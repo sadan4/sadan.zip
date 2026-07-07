@@ -1,11 +1,13 @@
 use std::{
 	borrow::Cow,
+	fmt::Display,
 	mem,
 	sync::{Arc, Mutex},
 	time::Duration,
 };
 
 use derive_more::{Debug, Deref, DerefMut, From};
+use explorer_types::ModuleId;
 use indicatif::{
 	MultiProgress,
 	ProgressBar,
@@ -122,4 +124,16 @@ pub async fn join_all<T>(
 		ret.push(fut.await);
 	}
 	ret
+}
+
+/// prints a debug url for a module
+#[must_use = "This function returns a value that implements Display"]
+pub fn debug_module_url(mid: ModuleId, hash: &str) -> impl Display + use<'_> {
+	struct D<'a>(&'a str, ModuleId);
+	impl Display for D<'_> {
+		fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+			write!(f, "https://sadan.zip/e/view/{}/{}", self.0, self.1)
+		}
+	}
+	D(hash, mid)
 }
