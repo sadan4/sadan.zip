@@ -825,6 +825,27 @@ mod export_parsing {
 			}
 			"#);
 		}
+
+		#[test]
+		fn runtime_export_switch() {
+			let alloc = Allocator::new();
+			let p =
+				parse!(alloc, "test_data/wp/e.exports/runtimeExportSwitch.js");
+			let map = p.dbg_export_map();
+			assert_debug_snapshot!(map, @r#"
+			{
+			    "__esModule": [
+			        "[12:31->12:33)",
+			    ],
+			    "default": [
+			        "[13:28->13:37)",
+			    ],
+			    "SYM_CJS_DEFAULT": [
+			        "[7:27->11:9)",
+			    ],
+			}
+			"#);
+		}
 	}
 	mod exports {
 		use super::*;

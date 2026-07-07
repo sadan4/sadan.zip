@@ -1244,7 +1244,9 @@ impl<'ast> WebpackAstParser<'ast> {
 				AstKind::AssignmentExpression(assign) => {
 					// bail out if we are on the rhs
 					// eg: `e.exports.default = e.exports`
-					if assign.left.address() != module_exports_access.unstable_address() {
+					if assign.left.address()
+						!= module_exports_access.unstable_address()
+					{
 						continue;
 					}
 					let val = &assign.right;
@@ -1252,7 +1254,13 @@ impl<'ast> WebpackAstParser<'ast> {
 					match new_ret {
 						ExportValue::Map(map) => ret.merge_with(map),
 						rng @ ExportValue::Range(_) => {
-							assert!(ret.exports.is_empty(), "how??? module_id: {:?}", self.get_module_id());
+							if !ret.exports.is_empty() {
+								warn!(
+									"module.exports in module id {:?} is assigned to more than once",
+									self.get_module_id()
+								);
+								continue;
+							}
 							ret.cjs_default = Some(Box::new(rng));
 						}
 					}
@@ -1266,17 +1274,22 @@ impl<'ast> WebpackAstParser<'ast> {
 					};
 					// bail out of we are on the rhs
 					// eg `e.exports.bar = e.exports.foo`
-					if module_exports_name_access.unstable_address() != export_assignment.left.address() {
+					if module_exports_name_access.unstable_address()
+						!= export_assignment.left.address()
+					{
 						continue;
 					}
 					let export_val = &export_assignment.right;
 					let key = &module_exports_name_access.property;
 					let key_txt = SmolStr::new(&self.source[key.span()]);
 					let val = self.raw_make_export_map_recursive(export_val);
-					debug_assert!(
-						!ret.exports.contains_key(&key_txt),
-						"Duplicate export for key {key_txt}"
-					);
+					if ret.exports.contains_key(&key_txt) {
+						warn!(
+							"module.exports.{key_txt} is assigned to more than once in module id {:?}",
+							self.get_module_id()
+						);
+						continue;
+					}
 					ret.exports.insert(key_txt, val);
 				}
 				_ => {}
