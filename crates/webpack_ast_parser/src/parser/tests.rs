@@ -180,7 +180,7 @@ fn doesnt_find_side_effect_import() {
 }
 
 mod concatenated_modules {
-	use super::{*, test};
+	use super::{test, *};
 
 	#[test]
 	fn get_num() {
@@ -801,6 +801,26 @@ mod export_parsing {
 			{
 			    "SYM_CJS_DEFAULT": [
 			        "[5:16->5:44)",
+			    ],
+			}
+			"#);
+		}
+
+		#[test]
+		fn e_exports_on_rhs() {
+			let alloc = Allocator::new();
+			let p = parse!(alloc, "test_data/wp/e.exports/panic1.js");
+			let map = p.dbg_export_map();
+			assert_debug_snapshot!(map, @r#"
+			{
+			    "__esModule": [
+			        "[9:27->9:29)",
+			    ],
+			    "default": [
+			        "[10:24->10:33)",
+			    ],
+			    "SYM_CJS_DEFAULT": [
+			        "[4:16->4:28)",
 			    ],
 			}
 			"#);

@@ -1242,12 +1242,17 @@ impl<'ast> WebpackAstParser<'ast> {
 			}
 			match self.p(module_exports_access.node_id()) {
 				AstKind::AssignmentExpression(assign) => {
+					// bail out if we are on the rhs
+					// eg: `e.exports.default = e.exports`
+					if assign.left.address() != module_exports_access.unstable_address() {
+						continue;
+					}
 					let val = &assign.right;
 					let new_ret = self.raw_make_export_map_recursive(val);
 					match new_ret {
 						ExportValue::Map(map) => ret.merge_with(map),
 						rng @ ExportValue::Range(_) => {
-							assert!(ret.exports.is_empty(), "how???");
+							assert!(ret.exports.is_empty(), "how??? module_id: {:?}", self.get_module_id());
 							ret.cjs_default = Some(Box::new(rng));
 						}
 					}
@@ -1259,6 +1264,11 @@ impl<'ast> WebpackAstParser<'ast> {
 					else {
 						continue;
 					};
+					// bail out of we are on the rhs
+					// eg `e.exports.bar = e.exports.foo`
+					if module_exports_name_access.unstable_address() != export_assignment.left.address() {
+						continue;
+					}
 					let export_val = &export_assignment.right;
 					let key = &module_exports_name_access.property;
 					let key_txt = SmolStr::new(&self.source[key.span()]);
