@@ -71,7 +71,8 @@ use itertools::Itertools as _;
 use miette::{Result, bail};
 use miette_ctx::{ErrCtx as _, map_anyhow};
 use oxc::{
-	allocator::{Allocator, GetAddress, UnstableAddress}, ast::{
+	allocator::{Allocator, GetAddress, UnstableAddress},
+	ast::{
 		AstKind,
 		ast::{
 			Argument,
@@ -82,6 +83,7 @@ use oxc::{
 			ClassElement,
 			Expression,
 			ExpressionStatement,
+			Function,
 			IdentifierReference,
 			MethodDefinition,
 			MethodDefinitionKind,
@@ -98,7 +100,10 @@ use oxc::{
 			VariableDeclarationKind,
 			VariableDeclarator,
 		},
-	}, parser::Token, semantic::{NodeId, ReferenceId, Semantic, SymbolId}, span::{GetSpan, SourceType, Span},
+	},
+	parser::{Kind as TK, Token},
+	semantic::{NodeId, ReferenceId, Semantic, SymbolId},
+	span::{GetSpan, SourceType, Span},
 };
 use smol_str::{SmolStr, ToSmolStr as _};
 use std::{
@@ -106,6 +111,7 @@ use std::{
 	collections::{HashMap, HashSet},
 	fmt::Write,
 	iter,
+	mem,
 	rc::Rc,
 };
 use tracing::{debug, error, trace, warn};
@@ -134,6 +140,7 @@ struct Cache<'ast> {
 	does_re_export_whole_module: cache::Value<Option<ModuleId>>,
 	modules_that_this_module_requires: cache::Ref<Option<OutgoingModuleDeps>>,
 	num_concatenated_modules: cache::Value<u32>,
+	main_func: cache::Value<Option<&'ast Function<'ast>>>,
 }
 
 impl<'ast> AstParser<'ast> for WebpackAstParser<'ast> {
@@ -638,6 +645,11 @@ impl<'ast> WebpackAstParser<'ast> {
 /// Private API
 #[expect(clippy::multiple_inherent_impl)]
 impl<'ast> WebpackAstParser<'ast> {
+	fn get_main_func(&self) -> Option<&'ast Function<'ast>> {
+		self.c
+			.main_func
+			.get(|| main_func_finder::find(self))
+	}
 	/// checks if the expression is `wreq` or `wreq.n`
 	fn is_import_callee(
 		&self,
@@ -759,7 +771,7 @@ impl<'ast> WebpackAstParser<'ast> {
 	}
 
 	fn count_num_concatentated_modules(&self) -> Option<u32> {
-		let main_func = main_func_finder::find(self)?;
+		let main_func = self.get_main_func()?;
 		let mut count = 0;
 		let mut last_was_import_block = false;
 		for stmt in &main_func
@@ -1617,6 +1629,68 @@ impl<'ast> WebpackAstParser<'ast> {
 		self.c
 			.does_re_export_whole_module
 			.get(|| self.does_re_export_whole_module_impl())
+	}
+
+	/// Checks if the given token is usable for a find
+	fn igt(&self, t: Token) -> bool {
+		_ = self;
+		match t.kind() {
+			TK::Eof | TK::Undetermined => false,
+			TK::Skip => todo!("???"),
+			// Not only do we never handle a file with a hashbang
+			// oxc doesnt even emit them despite having a token kind for them.
+			TK::HashbangComment => unreachable!(),
+			// if an ident is > 4 chars, it's probably not minified
+			TK::Ident => t.span().size() > 4,
+			_ => true,
+		}
+	}
+
+	/// returns the spans of all top-level webpack import statements in the main function of this module
+	///
+	/// simalar to [`Self::count_num_concatentated_modules`]
+	fn get_import_spans(&self) -> Vec<Span> {
+		let Some(mf) = self.get_main_func() else {
+			return Vec::new();
+		};
+		let mut ret = Vec::new();
+		let mut last_was_import_block = false;
+		for stmt in &mf.body.as_ref().unwrap().statements {
+			if let Statement::VariableDeclaration(decl) = stmt
+				&& self.is_import_decl(decl)
+			{
+				ret.push(decl.span());
+				last_was_import_block = true;
+			} else if last_was_import_block
+				&& let Statement::ExpressionStatement(es) = stmt
+				&& self.is_side_effect_import_stmt(es)
+			{
+				ret.push(es.span());
+			} else {
+				last_was_import_block = false;
+			}
+		}
+		ret
+	}
+
+	/// Attempt to generate a unique string for this module
+	///
+	/// nothing here is guaranteed to be unique, these are just the best candidates
+	///
+	/// they need to be filtered for uniqueness by the caller
+	fn generate_finds(&self) -> Vec<()> {
+		let mut seqs = Vec::new();
+		let mut cs = Vec::new();
+		// FIXME: Use rangemap https://docs.rs/rangemap/latest/rangemap/set/struct.RangeSet.html
+		let mut bad_spans = self.get_import_spans();
+		for t in self.toks.iter().copied() {
+			if self.igt(t) {
+				cs.push(t);
+			} else if !cs.is_empty() {
+				seqs.push(mem::take(&mut cs));
+			}
+		}
+		todo!()
 	}
 }
 
