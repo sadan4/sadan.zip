@@ -2,6 +2,7 @@ mod find_not_found;
 use std::sync::Arc;
 
 use explorer_server_core::Channel;
+use miette_ctx::ErrCtx;
 
 use crate::{
 	cmds::fix::find_last_build::BuildDiff,
@@ -23,16 +24,13 @@ pub async fn dispatch(
 		| ReporterError::ReplaceSyntaxError { .. }
 		| ReporterError::FindAmbiguous { .. }
 		| ReporterError::FindAmbiguousRecoverable { .. }
-		| ReporterError::NoWarn(..) => todo!(),
+		| ReporterError::NoWarn(..) => todo!("handle {diag:#?}"),
 		ReporterError::FindNotFound { .. } => {
-			find_not_found::Fixer {
-				diff,
-				plugins: patch,
-				diag,
-				channel,
-			}
-			.fix()
+			tokio::task::spawn_blocking(move || {
+				find_not_found::Fixer::new(diff, patch, diag, channel).fix()
+			})
 			.await
+			.context("Join Error")?
 		}
 	}
 }

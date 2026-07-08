@@ -12,6 +12,7 @@ pub use ast_parser::{
 	parse,
 	parse_for_traverse,
 	parse_no_sema,
+	parse_with_tokens,
 };
 use oxc::span::Span;
 

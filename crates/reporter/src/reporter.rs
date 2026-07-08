@@ -64,10 +64,10 @@ pub fn report_broken_patches(
 	plugins: Arc<Vec<Plugin>>,
 ) -> mpsc::Receiver<Msg> {
 	const BUFFER_SIZE: usize = 0x4000;
-	let (mut tx, rx) = mpsc::channel(BUFFER_SIZE);
+	let (tx, rx) = mpsc::channel(BUFFER_SIZE);
 	task::spawn_blocking(move || {
 		let start = Instant::now();
-		run_reporter(channel, &target_build, &plugins, &mut tx);
+		run_reporter(channel, &target_build, &plugins, &tx);
 		let duration = start.elapsed();
 		tx.blocking_send(Msg::Done(duration))
 			.unwrap();
@@ -77,7 +77,7 @@ pub fn report_broken_patches(
 }
 
 pub(crate) struct ReporterState<'a> {
-	pub(crate) tx: &'a mut mpsc::Sender<Msg>,
+	pub(crate) tx: &'a mpsc::Sender<Msg>,
 	pub(crate) m_bar: MultiProgressWrapper,
 	pub(crate) patches: HashSet<&'a Patch>,
 	pub(crate) find_map: HashMap<&'a Patch, Vec<ModuleId>>,
@@ -91,7 +91,7 @@ impl<'a> ReporterState<'a> {
 	fn new(
 		plugins: &'a [Plugin],
 		build: &'a ScrapedOutput,
-		tx: &'a mut mpsc::Sender<Msg>,
+		tx: &'a mpsc::Sender<Msg>,
 		channel: Channel,
 	) -> Self {
 		let (pb_tx, rx) = oneshot::channel();
@@ -122,7 +122,7 @@ impl<'a> ReporterState<'a> {
 }
 
 #[derive(Copy, Clone, IsVariant)]
-enum PatchStatus {
+pub enum PatchStatus {
 	Ok,
 	Error,
 }
@@ -304,7 +304,7 @@ impl<'a> ReporterState<'a> {
 			});
 		self.find_map = found_patches;
 	}
-	fn test_patch_against_module(
+	pub(crate) fn test_patch_against_module(
 		&self,
 		patch: &'a Patch,
 		m_id: ModuleId,
@@ -599,7 +599,7 @@ fn run_reporter(
 	channel: Channel,
 	build: &ScrapedOutput,
 	plugins: &[Plugin],
-	tx: &mut mpsc::Sender<Msg>,
+	tx: &mpsc::Sender<Msg>,
 ) {
 	ReporterState::new(plugins, build, tx, channel).run();
 }

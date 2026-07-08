@@ -52,7 +52,7 @@ impl PreviousBundle {
 		}
 	}
 
-	pub fn build_number(&self) -> Option<u32> {
+	pub const fn build_number(&self) -> Option<u32> {
 		match self {
 			Self::Full(FullBundle {
 				metadata: BundleMetadata { build_number, .. },

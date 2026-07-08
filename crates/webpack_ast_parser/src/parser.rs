@@ -63,6 +63,7 @@ use ast_parser::{
 		StatementExt,
 	},
 	parse,
+	parse_with_tokens,
 };
 use explorer_types::{IncomingModuleDeps, ModuleId, OutgoingModuleDeps};
 use export_map::RawExportMap;
@@ -70,8 +71,7 @@ use itertools::Itertools as _;
 use miette::{Result, bail};
 use miette_ctx::{ErrCtx as _, map_anyhow};
 use oxc::{
-	allocator::{Allocator, GetAddress, UnstableAddress},
-	ast::{
+	allocator::{Allocator, GetAddress, UnstableAddress}, ast::{
 		AstKind,
 		ast::{
 			Argument,
@@ -98,9 +98,7 @@ use oxc::{
 			VariableDeclarationKind,
 			VariableDeclarator,
 		},
-	},
-	semantic::{NodeId, ReferenceId, Semantic, SymbolId},
-	span::{GetSpan, SourceType, Span},
+	}, parser::Token, semantic::{NodeId, ReferenceId, Semantic, SymbolId}, span::{GetSpan, SourceType, Span},
 };
 use smol_str::{SmolStr, ToSmolStr as _};
 use std::{
@@ -116,6 +114,7 @@ pub struct WebpackAstParser<'ast> {
 	prog: &'ast Program<'ast>,
 	sema: Semantic<'ast>,
 	source: &'ast str,
+	toks: &'ast [Token],
 	module_cache: &'ast dyn IModuleCache<'ast>,
 	module_dep_provider: &'ast dyn IModuleDepProvider,
 	/// Internal cache
@@ -150,11 +149,13 @@ impl<'ast> AstParser<'ast> for WebpackAstParser<'ast> {
 /// Public API
 impl<'ast> WebpackAstParser<'ast> {
 	pub fn try_new(alloc: &'ast Allocator, source: &'ast str) -> Result<Self> {
-		let (prog, sema) = parse(alloc, source, SourceType::script())?;
+		let (toks, prog, sema) =
+			parse_with_tokens(alloc, source, SourceType::script())?;
 		Ok(Self {
 			prog,
 			sema,
 			source,
+			toks: toks.into_arena_slice(),
 			module_cache: &DefaultModuleCache,
 			module_dep_provider: &DefaultModuleDepProvider,
 			c: Cache::default(),

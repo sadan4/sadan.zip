@@ -130,11 +130,11 @@ impl Confindence {
 
 #[derive(Debug, Clone, Copy)]
 pub struct TrackedModule {
-	new_module_id: ModuleId,
+	pub new_module_id: ModuleId,
 	/// the result of [`Confindence::score`] for the tracked module
 	///
 	/// Lower is better
-	score: usize,
+	pub score: usize,
 }
 
 /// TODO: Move to `webpack_ast_parser`
@@ -191,10 +191,12 @@ fn diff_modules<'a>(old: &'a str, new: &'a str) -> u8 {
 	Confindence::score_diff(&d)
 }
 
-const MAX_TRACKED_MODULES: usize = 8;
-pub type TrackedModules = ArrayVec<TrackedModule, MAX_TRACKED_MODULES>;
+pub type TrackedModules =
+	ArrayVec<TrackedModule, { ModuleTracker::MAX_TRACKED_MODULES }>;
 
 impl<'a> ModuleTracker<'a> {
+	pub const MAX_TRACKED_MODULES: usize = 8;
+
 	pub fn try_new(
 		prev_build: &'a ScrapedOutput,
 		prev_mid: ModuleId,
@@ -290,7 +292,7 @@ impl<'a> ModuleTracker<'a> {
 		let elapsed = start.elapsed();
 		info!("Tracked {} modules in {:?}", scores.len(), elapsed);
 		scores.sort_unstable_by_key(|module| module.score);
-		scores.truncate(MAX_TRACKED_MODULES);
+		scores.truncate(Self::MAX_TRACKED_MODULES);
 		ArrayVec::from_iter(scores)
 	}
 }
