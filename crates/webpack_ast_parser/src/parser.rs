@@ -42,6 +42,7 @@ use crate::{
 			flatten_property_access_expression,
 			get_nested_export_from_map,
 			match_export_chain,
+			span_to_range,
 		},
 	},
 };
@@ -62,7 +63,6 @@ use ast_parser::{
 		PropertyKeyExt,
 		StatementExt,
 	},
-	parse,
 	parse_with_tokens,
 };
 use explorer_types::{IncomingModuleDeps, ModuleId, OutgoingModuleDeps};
@@ -105,6 +105,7 @@ use oxc::{
 	semantic::{NodeId, ReferenceId, Semantic, SymbolId},
 	span::{GetSpan, SourceType, Span},
 };
+use rangemap::RangeSet;
 use smol_str::{SmolStr, ToSmolStr as _};
 use std::{
 	borrow::Cow,
@@ -1636,7 +1637,6 @@ impl<'ast> WebpackAstParser<'ast> {
 		_ = self;
 		match t.kind() {
 			TK::Eof | TK::Undetermined => false,
-			TK::Skip => todo!("???"),
 			// Not only do we never handle a file with a hashbang
 			// oxc doesnt even emit them despite having a token kind for them.
 			TK::HashbangComment => unreachable!(),
@@ -1646,31 +1646,89 @@ impl<'ast> WebpackAstParser<'ast> {
 		}
 	}
 
+	/// Collect all lazy webpack chunk requires in this module
+	/// eg `wreq.e("123456")` in
+	/// ```js
+	/// Promise.all([
+	///     n.e("123456"),
+	/// ]).then(n.bind(n, 577593));
+	/// ```
+	fn collect_lazy_chunk_requires(&self) -> Vec<&'ast CallExpression<'ast>> {
+		let Some(wreq) = self.wreq() else {
+			return Vec::new();
+		};
+		let mut calls = Vec::new();
+		for n in self.ref_nodes(wreq) {
+			let Some(sme) = self
+				.p(n.node_id())
+				.as_static_member_expression()
+			else {
+				continue;
+			};
+			if sme.property.name != "e" {
+				continue;
+			}
+			let Some(call) = self
+				.p(sme.node_id())
+				.as_call_expression()
+			else {
+				continue;
+			};
+			let [chunk_num_str] = call.arguments.as_slice() else {
+				continue;
+			};
+			let Some(_) = chunk_num_str.as_string_literal() else {
+				continue;
+			};
+			calls.push(call);
+		}
+		calls
+	}
+
 	/// returns the spans of all top-level webpack import statements in the main function of this module
 	///
 	/// simalar to [`Self::count_num_concatentated_modules`]
-	fn get_import_spans(&self) -> Vec<Span> {
+	fn get_import_spans(&self) -> RangeSet<u32> {
+		let mut rs = RangeSet::new();
 		let Some(mf) = self.get_main_func() else {
-			return Vec::new();
+			return rs;
 		};
-		let mut ret = Vec::new();
 		let mut last_was_import_block = false;
 		for stmt in &mf.body.as_ref().unwrap().statements {
 			if let Statement::VariableDeclaration(decl) = stmt
 				&& self.is_import_decl(decl)
 			{
-				ret.push(decl.span());
+				rs.insert(span_to_range(decl.span()));
 				last_was_import_block = true;
 			} else if last_was_import_block
 				&& let Statement::ExpressionStatement(es) = stmt
 				&& self.is_side_effect_import_stmt(es)
 			{
-				ret.push(es.span());
+				rs.insert(span_to_range(es.span()));
 			} else {
 				last_was_import_block = false;
 			}
 		}
-		ret
+		rs
+	}
+
+	/// if true, this `seq` would make for a bad sequence of finds
+	fn is_good_find_seq(seq: &[Token]) -> bool {
+		if seq.len() == 1 {
+			!matches!(
+				seq[0].kind(),
+				TK::Dot
+					| TK::Comma | TK::Colon
+					| TK::Eq | TK::Eq2
+					| TK::Eq3 | TK::Amp2
+					| TK::LParen | TK::RParen
+					| TK::Pipe2 | TK::Semicolon
+					| TK::Question | TK::Extends
+					| TK::Let
+			)
+		} else {
+			true
+		}
 	}
 
 	/// Attempt to generate a unique string for this module
@@ -1678,19 +1736,39 @@ impl<'ast> WebpackAstParser<'ast> {
 	/// nothing here is guaranteed to be unique, these are just the best candidates
 	///
 	/// they need to be filtered for uniqueness by the caller
-	fn generate_finds(&self) -> Vec<()> {
+	fn generate_finds(&self) -> Vec<Vec<Token>> {
 		let mut seqs = Vec::new();
 		let mut cs = Vec::new();
-		// FIXME: Use rangemap https://docs.rs/rangemap/latest/rangemap/set/struct.RangeSet.html
 		let mut bad_spans = self.get_import_spans();
+		for chunk_req in self.collect_lazy_chunk_requires() {
+			bad_spans.insert(span_to_range(chunk_req.span()));
+		}
 		for t in self.toks.iter().copied() {
-			if self.igt(t) {
+			if self.igt(t) && !bad_spans.contains(&t.start()) {
 				cs.push(t);
 			} else if !cs.is_empty() {
-				seqs.push(mem::take(&mut cs));
+				if Self::is_good_find_seq(&cs) {
+					seqs.push(mem::take(&mut cs));
+				} else {
+					cs.clear();
+				}
 			}
 		}
-		todo!()
+		seqs
+	}
+
+	fn score_find_seq(seq: &[Token]) -> u32 {
+		let mut ts = 0;
+		for t in seq {
+			let tl = t.span().size();
+			debug_assert_ne!(tl, 0, "token has zero length");
+			let score = match t.kind() {
+				TK::Ident => tl.ilog2() * tl,
+				_ => todo!("score token {:#?}", t),
+			};
+			ts += score;
+		}
+		ts
 	}
 }
 

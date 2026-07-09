@@ -5,7 +5,7 @@ use std::rc::Rc;
 use ast_parser::{ast_kind::IntoAstKind, exts::MemberExprAccessKind};
 use derive_more::From;
 use explorer_types::ModuleId;
-use oxc::ast::{
+use oxc::{ast::{
 	AstKind,
 	ast::{
 		CallExpression,
@@ -14,7 +14,7 @@ use oxc::ast::{
 		MemberExpression,
 		ObjectExpression,
 	},
-};
+}, parser::Token};
 
 use crate::{WebpackAstParser, parser::export_map::ExportMapKey};
 
@@ -100,4 +100,20 @@ pub struct ResolvedDefinition<'ast> {
 	pub raw_export_names: Vec<MemberExprAccessKind<'ast>>,
 	/// the chain of export names to get the definition from [`Self::parser`]
 	pub export_names: Vec<ExportMapKey>,
+}
+
+/// A scored find sequence.
+/// 
+/// created by [`WebpackAstParser::generate_finds`]
+pub(crate) struct ScoredFindSequence {
+	/// the quality of the find
+	/// 
+	/// higher is better
+	pub score: u32,
+	/// the tokens involved in the find
+	/// 
+	/// will be in source order, but not necessarily contiguous
+	/// 
+	/// eg: `void 0` has a gap between the token `void` and the token `0`
+	pub tokens: Vec<Token>,
 }
