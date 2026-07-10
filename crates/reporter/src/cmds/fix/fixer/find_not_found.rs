@@ -1,4 +1,5 @@
 use std::{
+	cmp::Reverse,
 	collections::{HashMap, HashSet},
 	sync::Arc,
 	time::Instant,
@@ -144,7 +145,8 @@ impl Fixer {
 				info!("generating new find for the module");
 				let src = &self.diff.broken.modules()[&mid];
 				let start = Instant::now();
-				let good_finds = self.generate_good_finds(mid);
+				let mut good_finds = self.generate_good_finds(mid);
+				good_finds.sort_by_key(|f| Reverse(f.score));
 				let good_find_strs = good_finds
 					.iter()
 					.map(|f| f.get_find(src))
