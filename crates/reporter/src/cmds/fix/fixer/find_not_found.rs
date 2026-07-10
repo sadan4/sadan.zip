@@ -1,23 +1,26 @@
 use std::{
 	collections::{HashMap, HashSet},
 	sync::Arc,
+	time::Instant,
 };
 
 use dashmap::DashMap;
 use explorer_server_core::Channel;
 use explorer_types::ModuleId;
 use itertools::Itertools;
+use memchr::memmem::Finder;
 use miette_ctx::ErrCtx as _;
-use oxc_allocator::AllocatorPool;
+use oxc_allocator::{Allocator, AllocatorPool};
 use rayon::iter::{
 	IntoParallelIterator,
 	IntoParallelRefIterator as _,
 	IntoParallelRefMutIterator,
+	ParallelBridge,
 	ParallelIterator as _,
 };
 use tokio::sync::mpsc;
 use tracing::{error, info, warn};
-use webpack_ast_parser::WebpackAstParser;
+use webpack_ast_parser::{WebpackAstParser, find::ScoredFindSequence};
 
 use crate::{
 	cmds::fix::{
@@ -133,20 +136,57 @@ impl Fixer {
 				todo!()
 			}
 			1 => {
+				let mid = good_modules[0].0.new_module_id;
 				info!(
 					"found new module {} it is the only one that worked",
-					debug_module_url(
-						good_modules[0].0.new_module_id,
-						self.diff.broken.build_hash()
-					)
+					debug_module_url(mid, self.diff.broken.build_hash())
 				);
 				info!("generating new find for the module");
+				let src = &self.diff.broken.modules()[&mid];
+				let start = Instant::now();
+				let good_finds = self.generate_good_finds(mid);
+				let good_find_strs = good_finds
+					.iter()
+					.map(|f| f.get_find(src))
+					.collect_vec();
+				info!(
+					"generated {} finds in {:.2?}. finds: {:#?}",
+					good_find_strs.len(),
+					start.elapsed(),
+					good_find_strs
+				);
 				todo!();
 			}
 			n => {
 				todo!("handle {n} modules worked 100%");
 			}
 		}
+	}
+
+	fn generate_good_finds(&self, mid: ModuleId) -> Vec<ScoredFindSequence> {
+		let src = &self.diff.broken.modules()[&mid];
+		let alloc = Allocator::new();
+		let parser = WebpackAstParser::try_new(&alloc, src).unwrap();
+		let finds = parser.generate_finds();
+
+		finds
+			.into_par_iter()
+			.filter(|find| {
+				let ft = find.get_find(src);
+				let finder = Finder::new(ft);
+				!self
+					.diff
+					.broken
+					.modules()
+					.par_iter()
+					.any(|(id, code)| {
+						if *id == mid {
+							return false;
+						}
+						finder.find(code.as_bytes()).is_some()
+					})
+			})
+			.collect()
 	}
 
 	fn find_working_module_id(&self) -> ModuleId {

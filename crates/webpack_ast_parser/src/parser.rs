@@ -12,8 +12,7 @@ use crate::{
 		DefaultModuleDepProvider,
 		IModuleCache,
 		IModuleDepProvider,
-	},
-	parser::{
+	}, find::ScoredFindSequence, parser::{
 		enum_iife::EnumIIFEState1_2,
 		export_map::{
 			ExportMap,
@@ -640,6 +639,14 @@ impl<'ast> WebpackAstParser<'ast> {
 			self.count_num_concatentated_modules()
 				.unwrap_or(0)
 		})
+	}
+	/// Attempt to generate a unique string for this module
+	///
+	/// nothing here is guaranteed to be unique, these are just the best candidates
+	///
+	/// they need to be filtered for uniqueness by the caller
+	pub fn generate_finds(&self) -> Vec<ScoredFindSequence> {
+		self.impl_generate_finds()
 	}
 }
 
@@ -1731,12 +1738,9 @@ impl<'ast> WebpackAstParser<'ast> {
 		}
 	}
 
-	/// Attempt to generate a unique string for this module
-	///
-	/// nothing here is guaranteed to be unique, these are just the best candidates
-	///
-	/// they need to be filtered for uniqueness by the caller
-	fn generate_finds(&self) -> Vec<Vec<Token>> {
+	const MIN_FIND_SCORE: u32 = 8;
+
+	fn impl_generate_finds(&self) -> Vec<ScoredFindSequence> {
 		let mut seqs = Vec::new();
 		let mut cs = Vec::new();
 		let mut bad_spans = self.get_import_spans();
@@ -1748,7 +1752,12 @@ impl<'ast> WebpackAstParser<'ast> {
 				cs.push(t);
 			} else if !cs.is_empty() {
 				if Self::is_good_find_seq(&cs) {
-					seqs.push(mem::take(&mut cs));
+					let seq = self.score_find_seq(mem::take(&mut cs));
+					if seq.score < Self::MIN_FIND_SCORE {
+						cs.clear();
+					} else {
+						seqs.push(seq);
+					}
 				} else {
 					cs.clear();
 				}
@@ -1757,18 +1766,128 @@ impl<'ast> WebpackAstParser<'ast> {
 		seqs
 	}
 
-	fn score_find_seq(seq: &[Token]) -> u32 {
-		let mut ts = 0;
-		for t in seq {
+	#[expect(clippy::too_many_lines)]
+	fn score_find_seq(&self, seq: Vec<Token>) -> ScoredFindSequence {
+		// start with a base of the find length
+		debug_assert!(!seq.is_empty(), "cannot score empty find sequence");
+		let mut ts = seq.last().unwrap().span().end - seq[0].span().start;
+		for t in &seq {
 			let tl = t.span().size();
 			debug_assert_ne!(tl, 0, "token has zero length");
 			let score = match t.kind() {
-				TK::Ident => tl.ilog2() * tl,
-				_ => todo!("score token {:#?}", t),
+				// FIXME: handle intl strings
+				TK::Ident
+				// special-case ident
+				| TK::This
+				// contextual keywords in ts, idents elsewhere
+				| TK::Is // declare function f(a): a is {}
+				| TK::String
+				| TK::Type
+				| TK::Default
+				| TK::Object
+				// strings
+				| TK::Str
+				| TK::TemplateHead
+				| TK::TemplateMiddle
+				| TK::TemplateTail
+				| TK::NoSubstitutionTemplate => tl.ilog2() * tl,
+				// TODO: handle `0` literal case
+				TK::Decimal
+				| TK::Float
+				| TK::PositiveExponential
+				| TK::NegativeExponential => (tl.ilog2() * tl).min(1),
+				TK::Comma
+				| TK::LParen
+				| TK::RParen
+				| TK::LCurly
+				| TK::RCurly
+				| TK::Arrow
+				| TK::Dot
+				| TK::LBrack
+				| TK::RBrack
+				| TK::Semicolon => 0,
+				TK::Eq
+				| TK::Question
+				| TK::Question2
+				| TK::QuestionDot
+				| TK::Colon
+				| TK::Eq2
+				| TK::Eq3
+				| TK::RAngle
+				| TK::LAngle
+				| TK::Of
+				| TK::Catch
+				| TK::Class
+				| TK::Static
+				| TK::Async
+				| TK::Await
+				| TK::Finally
+				| TK::Switch
+				| TK::Case
+				| TK::In
+				| TK::GtEq
+				| TK::LtEq
+				| TK::Amp
+				| TK::If
+				| TK::Break
+				| TK::Var
+				| TK::Else
+				| TK::Neq
+				| TK::Minus2
+				| TK::Plus2
+				| TK::Plus
+				| TK::Neq2
+				| TK::Amp2
+				| TK::Pipe2
+				| TK::Dot3
+				| TK::Minus
+				| TK::Star
+				| TK::Slash
+				| TK::Let
+				| TK::Bang => 1,
+				TK::Null => {
+					debug_assert_eq!(tl, 4, "null token should be 4 bytes");
+					tl
+				}
+				TK::Void => {
+					debug_assert_eq!(tl, 4, "void token should be 4 bytes");
+					tl
+				}
+				TK::From => {
+					debug_assert_eq!(tl, 4, "from token should be 4 bytes");
+					tl
+				}
+				TK::Return => {
+					debug_assert_eq!(tl, 6, "return token should be 6 bytes");
+					tl / 2
+				}
+				TK::For => {
+					debug_assert_eq!(tl, 3, "for token should be 3 bytes");
+					tl
+				}
+				TK::New => {
+					debug_assert_eq!(tl, 3, "new token should be 3 bytes");
+					tl
+				}
+				TK::Function => {
+					debug_assert_eq!(tl, 8, "function token should be 8 bytes");
+					tl / 2
+				}
+				TK::Instanceof => {
+					debug_assert_eq!(
+						tl, 10,
+						"instanceof token should be 10 bytes"
+					);
+					tl
+				}
+				_ => todo!("mid: {:?} score token {:#?}", self.get_module_id(), t),
 			};
 			ts += score;
 		}
-		ts
+		ScoredFindSequence {
+			score: ts,
+			tokens: seq,
+		}
 	}
 }
 

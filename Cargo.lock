@@ -3116,6 +3116,7 @@ dependencies = [
  "insta",
  "itertools 0.15.0",
  "jiff",
+ "memchr",
  "miette_ctx",
  "notify",
  "num_cpus",

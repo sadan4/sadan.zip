@@ -91,33 +91,6 @@ impl Debug for ExportMapDumper<'_> {
 	}
 }
 
-#[derive(Copy, Clone)]
-struct FindDumper<'ast>(Span, &'ast str);
-
-impl Debug for FindDumper<'_> {
-	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-		f.write_str(&self.1[self.0])
-	}
-}
-
-impl<'ast> FindDumper<'ast> {
-	fn new(tokens: &[Token], source: &'ast str) -> Self {
-		assert!(!tokens.is_empty(), "tokens must not be empty");
-		for [t1, t2] in tokens.iter().array_windows() {
-			assert!(
-				t1.end() <= t2.start(),
-				"tokens must be in source order. t1: {t1:#?}, t2: {t2:#?}, t1 src: {}, t2 src: {}, combined source: {}",
-				&source[t1.span()],
-				&source[t2.span()],
-				&source[Span::new(t1.start(), t2.end())]
-			);
-		}
-		let start = tokens[0].start();
-		let end = tokens.last().unwrap().end();
-		Self(Span::new(start, end), source)
-	}
-}
-
 impl<'ast> WebpackAstParser<'ast> {
 	fn t_sym_info<'a>(&'a self, sym_id: SymbolId) -> (Str<'a>, Span)
 	where
@@ -147,13 +120,6 @@ impl<'ast> WebpackAstParser<'ast> {
 			.into_iter()
 			.sorted()
 			.map(|span| SpanDumper(span, self.source))
-			.collect()
-	}
-
-	fn dbg_finds(&self) -> Vec<FindDumper<'_>> {
-		self.generate_finds()
-			.into_iter()
-			.map(|ts| FindDumper::new(&ts, self.source))
 			.collect()
 	}
 }
