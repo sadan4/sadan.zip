@@ -250,7 +250,7 @@ impl<'a> ModuleTracker<'a> {
 		};
 		Ok(ret)
 	}
-	pub fn track(self) -> TrackedModules {
+	pub fn track(self, bars: &crate::util::MultiProgressWrapper) -> TrackedModules {
 		// if let Some(new_module_contents) = self
 		// 	.next_build
 		// 	.get(&self.prev_info.module_id)
@@ -269,6 +269,8 @@ impl<'a> ModuleTracker<'a> {
 		// let score = c.score();
 		// todo!("score for new module: {score}");
 		let start = Instant::now();
+		let bar = crate::util::Stage::new("Tracking module", Some(self.next_build.len())).and_attach(bars);
+		
 		let mut scores: Vec<_> = self
 			.next_build
 			.par_iter()
@@ -280,9 +282,11 @@ impl<'a> ModuleTracker<'a> {
 							"Failed to get confidence for module url=<{}>. cause: {e:?}",
 							debug_module_url(*k, self.next_hash)
 						);
+						bar.step();
 						return None;
 					}
 				};
+				bar.step();
 				Some(TrackedModule {
 					new_module_id: *k,
 					score: c.score(),

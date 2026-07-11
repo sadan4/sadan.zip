@@ -1,4 +1,5 @@
 mod fix;
+mod gen_finds;
 mod lint;
 mod run;
 mod watch;
@@ -21,6 +22,9 @@ pub enum Cmd {
 	Lint,
 	Fix {
 		patch_hash: String,
+	},
+	GenFinds {
+		module_id: u32,
 	},
 }
 
@@ -49,5 +53,10 @@ pub async fn run(
 			})?;
 			fix::fix(cli, global_bar, hash).await
 		}
+		Cmd::GenFinds { module_id } => {
+			gen_finds::gen_finds(explorer_types::ModuleId(module_id), &cli, global_bar).await?;
+			Ok(0)
+		}
 	}
 }
+

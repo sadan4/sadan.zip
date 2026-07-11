@@ -1,6 +1,9 @@
 use std::{
 	borrow::Cow,
+	cmp::Reverse,
+	collections::HashMap,
 	fmt::Display,
+	hash::BuildHasher,
 	mem,
 	sync::{Arc, Mutex},
 	time::Duration,
@@ -15,7 +18,12 @@ use indicatif::{
 	ProgressFinish,
 	ProgressStyle,
 };
+use memchr::memmem::Finder;
+use miette::miette;
+use oxc_allocator::Allocator;
+use rayon::prelude::*;
 use tokio::sync::mpsc;
+use webpack_ast_parser::{WebpackAstParser, find::ScoredFindSequence};
 
 #[derive(Debug, From, Deref, DerefMut)]
 pub struct Stage(pub ProgressBar);
@@ -136,4 +144,48 @@ pub fn debug_module_url(mid: ModuleId, hash: &str) -> impl Display + use<'_> {
 		}
 	}
 	D(hash, mid)
+}
+
+pub fn generate_unique_finds<S>(
+	module_id: ModuleId,
+	modules: &HashMap<ModuleId, String, S>,
+	bars: &MultiProgressWrapper,
+) -> miette::Result<Vec<ScoredFindSequence>>
+where
+	S: BuildHasher + Sync,
+{
+	let src = modules
+		.get(&module_id)
+		.ok_or_else(|| miette!("Module {} not found", module_id.0))?;
+
+	let alloc = Allocator::new();
+	let parser = WebpackAstParser::try_new(&alloc, src)
+		.map_err(|e| miette!("Failed to parse file: {e:?}"))?;
+
+	let finds = parser.generate_finds();
+
+	let bar = Stage::new("Generating unique finds", Some(finds.len()))
+		.and_attach(bars);
+
+	let mut finds: Vec<_> = finds
+		.into_par_iter()
+		.filter(|find| {
+			let ft = find.get_find(src);
+			let finder = Finder::new(ft);
+
+			let is_unique = !modules.par_iter().any(|(id, code)| {
+				if *id == module_id {
+					return false;
+				}
+				finder.find(code.as_bytes()).is_some()
+			});
+
+			bar.step();
+			is_unique
+		})
+		.collect();
+
+	finds.sort_by_key(|f| Reverse(f.score));
+
+	Ok(finds)
 }

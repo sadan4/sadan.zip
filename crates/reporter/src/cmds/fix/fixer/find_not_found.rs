@@ -42,6 +42,7 @@ pub struct Fixer {
 	diag: ReporterError,
 	channel: Channel,
 	tx: mpsc::Sender<Msg>,
+	bars: MultiProgressWrapper,
 }
 
 impl Fixer {
@@ -50,6 +51,7 @@ impl Fixer {
 		plugins: Arc<Vec<Plugin>>,
 		diag: ReporterError,
 		channel: Channel,
+		bars: MultiProgressWrapper,
 	) -> Self {
 		Self {
 			diff,
@@ -57,6 +59,7 @@ impl Fixer {
 			diag,
 			channel,
 			tx: sink_sender(32),
+			bars,
 		}
 	}
 	pub fn fixup_modules(&mut self) {
@@ -112,7 +115,7 @@ impl Fixer {
 		)
 		.context("Failed to create module tracker")?;
 		let reporter = self.new_reporter();
-		let new_modules = tracker.track();
+		let new_modules = tracker.track(&self.bars);
 		let mut tested_modules: Vec<_> = new_modules
 			.par_iter()
 			.map(|tm| {
@@ -166,29 +169,7 @@ impl Fixer {
 	}
 
 	fn generate_good_finds(&self, mid: ModuleId) -> Vec<ScoredFindSequence> {
-		let src = &self.diff.broken.modules()[&mid];
-		let alloc = Allocator::new();
-		let parser = WebpackAstParser::try_new(&alloc, src).unwrap();
-		let finds = parser.generate_finds();
-
-		finds
-			.into_par_iter()
-			.filter(|find| {
-				let ft = find.get_find(src);
-				let finder = Finder::new(ft);
-				!self
-					.diff
-					.broken
-					.modules()
-					.par_iter()
-					.any(|(id, code)| {
-						if *id == mid {
-							return false;
-						}
-						finder.find(code.as_bytes()).is_some()
-					})
-			})
-			.collect()
+		crate::util::generate_unique_finds(mid, self.diff.broken.modules(), &crate::util::MultiProgressWrapper::null_bar()).unwrap()
 	}
 
 	fn find_working_module_id(&self) -> ModuleId {

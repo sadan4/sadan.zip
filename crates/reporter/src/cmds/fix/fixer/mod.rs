@@ -16,6 +16,7 @@ pub async fn dispatch(
 	patch: Arc<Vec<Plugin>>,
 	diag: ReporterError,
 	channel: Channel,
+	bars: crate::util::MultiProgressWrapper,
 ) -> miette::Result<Todo> {
 	match diag {
 		ReporterError::BadRegexSyntax { .. }
@@ -27,7 +28,7 @@ pub async fn dispatch(
 		| ReporterError::NoWarn(..) => todo!("handle {diag:#?}"),
 		ReporterError::FindNotFound { .. } => {
 			tokio::task::spawn_blocking(move || {
-				find_not_found::Fixer::new(diff, patch, diag, channel).fix()
+				find_not_found::Fixer::new(diff, patch, diag, channel, bars).fix()
 			})
 			.await
 			.context("Join Error")?
