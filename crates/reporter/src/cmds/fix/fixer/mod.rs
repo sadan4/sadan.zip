@@ -28,7 +28,8 @@ pub async fn dispatch(
 		| ReporterError::NoWarn(..) => todo!("handle {diag:#?}"),
 		ReporterError::FindNotFound { .. } => {
 			tokio::task::spawn_blocking(move || {
-				find_not_found::Fixer::new(diff, patch, diag, channel, bars).fix()
+				find_not_found::Fixer::new(diff, patch, diag, channel, bars)
+					.fix()
 			})
 			.await
 			.context("Join Error")?

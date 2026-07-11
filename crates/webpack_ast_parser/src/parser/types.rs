@@ -5,16 +5,14 @@ use std::rc::Rc;
 use ast_parser::{ast_kind::IntoAstKind, exts::MemberExprAccessKind};
 use derive_more::From;
 use explorer_types::ModuleId;
-use oxc::{
+use oxc::ast::{
+	AstKind,
 	ast::{
-		AstKind,
-		ast::{
-			CallExpression,
-			Expression,
-			IdentifierReference,
-			MemberExpression,
-			ObjectExpression,
-		},
+		CallExpression,
+		Expression,
+		IdentifierReference,
+		MemberExpression,
+		ObjectExpression,
 	},
 };
 

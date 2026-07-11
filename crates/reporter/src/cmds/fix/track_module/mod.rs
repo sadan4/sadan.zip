@@ -250,7 +250,10 @@ impl<'a> ModuleTracker<'a> {
 		};
 		Ok(ret)
 	}
-	pub fn track(self, bars: &crate::util::MultiProgressWrapper) -> TrackedModules {
+	pub fn track(
+		self,
+		bars: &crate::util::MultiProgressWrapper,
+	) -> TrackedModules {
 		// if let Some(new_module_contents) = self
 		// 	.next_build
 		// 	.get(&self.prev_info.module_id)
@@ -269,8 +272,12 @@ impl<'a> ModuleTracker<'a> {
 		// let score = c.score();
 		// todo!("score for new module: {score}");
 		let start = Instant::now();
-		let bar = crate::util::Stage::new("Tracking module", Some(self.next_build.len())).and_attach(bars);
-		
+		let bar = crate::util::Stage::new(
+			"Tracking module",
+			Some(self.next_build.len()),
+		)
+		.and_attach(bars);
+
 		let mut scores: Vec<_> = self
 			.next_build
 			.par_iter()

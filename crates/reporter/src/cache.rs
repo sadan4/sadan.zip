@@ -136,12 +136,13 @@ where
 		})?;
 	let raw_data =
 		zstd::decode_all(&*raw_zstd_data).map_err(CacheError::Zstd)?;
-	let data = rmp_serde::from_slice(&raw_data).map_err(CacheError::Deserialize)?;
+	let data =
+		rmp_serde::from_slice(&raw_data).map_err(CacheError::Deserialize)?;
 	Ok(Some(data))
 }
 
 /// Invalidate a cache entry by key.
-/// 
+///
 /// This will remove the cache file if it exists, and do nothing if it does not exist.
 pub async fn invalidate(key: &str) -> Result<()> {
 	let cache_dir = get_cache_dir().await?;

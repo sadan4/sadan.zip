@@ -1,4 +1,5 @@
 use ast_parser::ast_kind::IntoAstKind;
+use daft::Diffable;
 use derive_more::{
 	Constructor,
 	Deref,
@@ -13,7 +14,6 @@ use oxc::{ast::AstKind, span::Span};
 use serde::{Deserialize, Serialize};
 use smol_str::SmolStr;
 use std::{collections::HashMap, convert::AsMut, fmt::Debug, iter};
-use daft::Diffable;
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq, Diffable)]
 #[serde(rename_all = "camelCase")]
@@ -90,7 +90,9 @@ impl<T> ExportMap<T> {
 	}
 }
 
-#[derive(Debug, Default, Clone, Serialize, Unwrap, IsVariant, PartialEq, Eq, Diffable)]
+#[derive(
+	Debug, Default, Clone, Serialize, Unwrap, IsVariant, PartialEq, Eq, Diffable,
+)]
 #[unwrap(ref, ref_mut)]
 pub enum ExtraData<T> {
 	#[default]
@@ -247,7 +249,18 @@ impl<T> FromIterator<T> for ExportRange<T> {
 	}
 }
 
-#[derive(Debug, Clone, Serialize, From, Unwrap, TryUnwrap, IsVariant, PartialEq, Eq, Diffable)]
+#[derive(
+	Debug,
+	Clone,
+	Serialize,
+	From,
+	Unwrap,
+	TryUnwrap,
+	IsVariant,
+	PartialEq,
+	Eq,
+	Diffable,
+)]
 #[serde(untagged)]
 #[unwrap(ref, ref_mut)]
 #[try_unwrap(ref, ref_mut)]

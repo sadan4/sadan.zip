@@ -12,7 +12,9 @@ use crate::{
 		DefaultModuleDepProvider,
 		IModuleCache,
 		IModuleDepProvider,
-	}, find::ScoredFindSequence, parser::{
+	},
+	find::ScoredFindSequence,
+	parser::{
 		enum_iife::EnumIIFEState1_2,
 		export_map::{
 			ExportMap,

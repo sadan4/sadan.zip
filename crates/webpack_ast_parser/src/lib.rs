@@ -1,6 +1,6 @@
 // #![warn(missing_docs)]
 pub mod bundle;
-mod parser;
 pub mod find;
+mod parser;
 
 pub use parser::{WebpackAstParser, export_map};
