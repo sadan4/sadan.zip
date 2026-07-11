@@ -1,7 +1,6 @@
 pub mod http;
 
 use anyhow::{Context as _, Result, bail};
-use arrayvec::ArrayVec;
 use clap::Args;
 use discord_scraper::{
 	JsScraper,
@@ -14,6 +13,7 @@ use explorer_server_core::Channel;
 use explorer_types::ModuleId;
 use reqwest_middleware::ClientWithMiddleware;
 use serde::{Deserialize, Serialize};
+use smallvec::SmallVec;
 use std::{
 	collections::HashMap,
 	sync::{Arc, Mutex, OnceLock},
@@ -62,8 +62,11 @@ pub async fn fetch_build(
 	opts: FetchOpts,
 	bars: &MultiProgressWrapper,
 ) -> Result<Vec<ScrapedBranch>> {
-	let mut futs: ArrayVec<task::JoinHandle<Result<ScrapedBranch>>, 2> =
-		ArrayVec::new_const();
+	if opts.branches.len() > 2 {
+		warn!(?opts.branches, "Fetching more than 2 branches at once ????");
+	}
+	let mut futs: SmallVec<[task::JoinHandle<Result<ScrapedBranch>>; 2]> =
+		SmallVec::with_capacity(opts.branches.len());
 	for &branch in &opts.branches {
 		let ch = branch.into();
 		let bars2 = bars.clone();

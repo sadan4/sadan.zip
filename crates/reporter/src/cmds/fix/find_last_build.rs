@@ -93,6 +93,11 @@ async fn do_find_recursive(
 	})?;
 	info!("Found previous build with hash {}", meta.build_hash);
 
+	if seen.contains(&meta.build_hash) {
+		error!("Cycle detected: build hash {} has already been visited. Cannot continue.", meta.build_hash);
+		return Ok(None);
+	}
+
 	let strftime = meta
 		.first_seen_as_zoned()
 		.with_time_zone(TimeZone::system())

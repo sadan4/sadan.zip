@@ -36,7 +36,7 @@ struct PreviousModuleInfo {
 /// the different hurestics that are used to track a module
 #[derive(Default, Debug)]
 #[non_exhaustive]
-struct Confindence {
+struct Confidence {
 	/// if both share the same module id.
 	/// this indicated that the filenames are the same
 	same_id: bool,
@@ -59,7 +59,7 @@ struct Confindence {
 	new_len: usize,
 	// TODO: also use the ids of imported modules
 }
-impl Confindence {
+impl Confidence {
 	/// Generates a score based on the different hurestics of the module
 	/// 0 means that the two modules are exactly equal
 	/// [`usize::MAX`] means that the two modules are completely different
@@ -131,7 +131,7 @@ impl Confindence {
 #[derive(Debug, Clone, Copy)]
 pub struct TrackedModule {
 	pub new_module_id: ModuleId,
-	/// the result of [`Confindence::score`] for the tracked module
+	/// the result of [`Confidence::score`] for the tracked module
 	///
 	/// Lower is better
 	pub score: usize,
@@ -188,7 +188,7 @@ impl ExportDiff {
 
 fn diff_modules<'a>(old: &'a str, new: &'a str) -> u8 {
 	let d = diff::diff([old, new]);
-	Confindence::score_diff(&d)
+	Confidence::score_diff(&d)
 }
 
 pub type TrackedModules =
@@ -229,7 +229,7 @@ impl<'a> ModuleTracker<'a> {
 		};
 		Ok(ret)
 	}
-	fn confindence_for(&self, k: ModuleId, v: &str) -> Result<Confindence> {
+	fn confidence_for(&self, k: ModuleId, v: &str) -> Result<Confidence> {
 		let alloc = &*self.pool.get();
 		let parser = WebpackAstParser::try_new(alloc, v)?;
 		let new_export_map = clear::map(parser.get_export_map().clone());
@@ -240,7 +240,7 @@ impl<'a> ModuleTracker<'a> {
 			format_to_str(v, 0).context("Failed to format new source")?;
 		let text_diff_score =
 			diff_modules(&self.prev_info.formatted_txt, &new_formatted);
-		let ret = Confindence {
+		let ret = Confidence {
 			same_id: k == self.prev_info.module_id,
 			num_concatenated: (num_concatenated as i32)
 				- (self.prev_info.num_concatenated as i32),
@@ -256,16 +256,16 @@ impl<'a> ModuleTracker<'a> {
 		// 	.get(&self.prev_info.module_id)
 		// {
 		// 	let c = self
-		// 		.confindence_for(self.prev_info.module_id, new_module_contents)
-		// 		.context("Failed to get confindence for module with same id")?;
+		// 		.confidence_for(self.prev_info.module_id, new_module_contents)
+		// 		.context("Failed to get confidence for module with same id")?;
 		// 	let score = c.score();
 		// 	todo!("score for module with same id: {score}");
 		// }
 		// let id = ModuleId(89865);
 		// let m = &self.next_build[&id];
 		// let c = self
-		// 	.confindence_for(id, m)
-		// 	.context("failed to get confindence for new module")?;
+		// 	.confidence_for(id, m)
+		// 	.context("failed to get confidence for new module")?;
 		// let score = c.score();
 		// todo!("score for new module: {score}");
 		let start = Instant::now();
@@ -273,11 +273,11 @@ impl<'a> ModuleTracker<'a> {
 			.next_build
 			.par_iter()
 			.filter_map(|(k, v)| {
-				let c = match self.confindence_for(*k, v) {
+				let c = match self.confidence_for(*k, v) {
 					Ok(c) => c,
 					Err(e) => {
 						warn!(
-							"Failed to get confindence for module url=<{}>. cause: {e:?}",
+							"Failed to get confidence for module url=<{}>. cause: {e:?}",
 							debug_module_url(*k, self.next_hash)
 						);
 						return None;
