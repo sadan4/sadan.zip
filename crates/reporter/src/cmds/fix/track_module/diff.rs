@@ -24,7 +24,7 @@ use std::{
 
 use bstr::BStr;
 use hashbrown::HashTable;
-use itertools::Itertools as _;
+use itertools::{EitherOrBoth, Itertools as _};
 use smallvec::{SmallVec, smallvec};
 
 pub fn find_line_ranges(text: &[u8]) -> Vec<Range<usize>> {
@@ -37,7 +37,7 @@ pub fn find_line_ranges(text: &[u8]) -> Vec<Range<usize>> {
 		.collect()
 }
 
-fn is_word_byte(b: u8) -> bool {
+const fn is_word_byte(b: u8) -> bool {
 	// TODO: Make this configurable (probably higher up in the call stack)
 	matches!(
 		b,
@@ -74,12 +74,14 @@ pub fn find_nonword_ranges(text: &[u8]) -> Vec<Range<usize>> {
 		.collect()
 }
 
+#[allow(dead_code)]
 fn bytes_ignore_all_whitespace(text: &[u8]) -> impl Iterator<Item = u8> {
 	text.iter()
 		.copied()
 		.filter(|b| !b.is_ascii_whitespace())
 }
 
+#[allow(dead_code)]
 fn bytes_ignore_whitespace_amount(text: &[u8]) -> impl Iterator<Item = u8> {
 	let mut prev_was_space = false;
 	text.iter().filter_map(move |&b| {
@@ -94,6 +96,7 @@ fn bytes_ignore_whitespace_amount(text: &[u8]) -> impl Iterator<Item = u8> {
 	})
 }
 
+#[allow(dead_code)]
 fn hash_with_length_suffix<I, H>(data: I, state: &mut H)
 where
 	I: IntoIterator,
@@ -156,6 +159,7 @@ impl CompareBytes for CompareBytesExactly {
 }
 
 /// Compares byte sequences ignoring any whitespace occurrences.
+#[allow(dead_code)]
 #[derive(Clone, Debug, Default)]
 pub struct CompareBytesIgnoreAllWhitespace;
 
@@ -170,6 +174,7 @@ impl CompareBytes for CompareBytesIgnoreAllWhitespace {
 }
 
 /// Compares byte sequences ignoring changes in whitespace amount.
+#[allow(dead_code)]
 #[derive(Clone, Debug, Default)]
 pub struct CompareBytesIgnoreWhitespaceAmount;
 
@@ -290,7 +295,7 @@ impl<'input> LocalDiffSource<'input, '_> {
 		}
 	}
 
-	fn map_to_global(&self, position: LocalWordPosition) -> WordPosition {
+	const fn map_to_global(&self, position: LocalWordPosition) -> WordPosition {
 		WordPosition(self.global_offset.0 + position.0)
 	}
 
@@ -593,7 +598,7 @@ fn intersect_unchanged_words(
 		new_positions,
 		|(cur_base_pos, _), (new_base_pos, _)| cur_base_pos.cmp(new_base_pos),
 	)
-	.filter_map(|entry| entry.both())
+	.filter_map(EitherOrBoth::both)
 	.map(|((base_pos, mut other_positions), &(_, new_other_pos))| {
 		other_positions.push(new_other_pos);
 		(base_pos, other_positions)
@@ -625,7 +630,7 @@ impl UnchangedRange {
 	}
 
 	fn is_all_empty(&self) -> bool {
-		self.base.is_empty() && self.others.iter().all(|r| r.is_empty())
+		self.base.is_empty() && self.others.iter().all(Range::is_empty)
 	}
 }
 
@@ -655,6 +660,7 @@ impl<'input> ContentDiff<'input> {
 		let other_inputs: SmallVec<[&BStr; 1]> = inputs.collect();
 		// First tokenize each input
 		let base_token_ranges: Vec<Range<usize>>;
+		#[expect(clippy::useless_let_if_seq)]
 		let other_token_ranges: Vec<Vec<Range<usize>>>;
 		// No need to tokenize if one of the inputs is empty. Non-empty inputs
 		// are all different as long as the tokenizer emits non-empty ranges.
@@ -791,6 +797,7 @@ impl<'input> ContentDiff<'input> {
 		diff
 	}
 
+	#[allow(dead_code)]
 	pub fn unrefined<T: AsRef<[u8]> + ?Sized + 'input>(
 		inputs: impl IntoIterator<Item = &'input T>,
 	) -> Self {
@@ -798,6 +805,7 @@ impl<'input> ContentDiff<'input> {
 	}
 
 	/// Compares `inputs` line by line.
+	#[allow(dead_code)]
 	pub fn by_line<T: AsRef<[u8]> + ?Sized + 'input>(
 		inputs: impl IntoIterator<Item = &'input T>,
 	) -> Self {
@@ -812,6 +820,7 @@ impl<'input> ContentDiff<'input> {
 	///
 	/// The `inputs` is usually a changed hunk (e.g. a `DiffHunk::Different`)
 	/// that was the output from a line-by-line diff.
+	#[allow(dead_code)]
 	pub fn by_word<T: AsRef<[u8]> + ?Sized + 'input>(
 		inputs: impl IntoIterator<Item = &'input T>,
 	) -> Self {
@@ -938,6 +947,7 @@ pub struct DiffHunk<'input> {
 }
 
 impl<'input> DiffHunk<'input> {
+	#[allow(dead_code)]
 	pub fn matching<T: AsRef<[u8]> + ?Sized + 'input>(
 		contents: impl IntoIterator<Item = &'input T>,
 	) -> Self {
@@ -950,6 +960,7 @@ impl<'input> DiffHunk<'input> {
 		}
 	}
 
+	#[allow(dead_code)]
 	pub fn different<T: AsRef<[u8]> + ?Sized + 'input>(
 		contents: impl IntoIterator<Item = &'input T>,
 	) -> Self {
@@ -1710,6 +1721,7 @@ mod tests {
 	}
 
 	#[test]
+	#[expect(clippy::too_many_lines)]
 	fn test_diff_real_case_gitgit_read_tree_c() {
 		// This is the diff from commit e497ea2a9b in the git.git repo
 		#[rustfmt::skip]
