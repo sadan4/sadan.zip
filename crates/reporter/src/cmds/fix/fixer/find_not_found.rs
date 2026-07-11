@@ -9,14 +9,11 @@ use dashmap::DashMap;
 use explorer_server_core::Channel;
 use explorer_types::ModuleId;
 use itertools::Itertools;
-use memchr::memmem::Finder;
 use miette_ctx::ErrCtx as _;
-use oxc_allocator::{Allocator, AllocatorPool};
+use oxc_allocator::AllocatorPool;
 use rayon::iter::{
-	IntoParallelIterator,
 	IntoParallelRefIterator as _,
-	IntoParallelRefMutIterator,
-	ParallelBridge,
+	IntoParallelRefMutIterator as _,
 	ParallelIterator as _,
 };
 use tokio::sync::mpsc;
@@ -30,7 +27,7 @@ use crate::{
 		track_module::ModuleTracker,
 	},
 	diag::ReporterError,
-	reporter::{Msg, PatchStatus, ReporterState},
+	reporter::{Msg, ReporterState},
 	util::{MultiProgressWrapper, debug_module_url, sink_sender},
 	vc::Plugin,
 };
@@ -39,7 +36,7 @@ use crate::{
 pub struct Fixer {
 	diff: BuildDiff,
 	plugins: Arc<Vec<Plugin>>,
-	diag: ReporterError,
+	// diag: ReporterError,
 	channel: Channel,
 	tx: mpsc::Sender<Msg>,
 	bars: MultiProgressWrapper,
@@ -49,14 +46,13 @@ impl Fixer {
 	pub fn new(
 		diff: BuildDiff,
 		plugins: Arc<Vec<Plugin>>,
-		diag: ReporterError,
+		_diag: ReporterError,
 		channel: Channel,
 		bars: MultiProgressWrapper,
 	) -> Self {
 		Self {
 			diff,
 			plugins,
-			diag,
 			channel,
 			tx: sink_sender(32),
 			bars,
@@ -131,6 +127,7 @@ impl Fixer {
 			.extract_if(.., |(_, s)| s.is_ok())
 			.collect_vec();
 		let bad_modules = tested_modules;
+		_ = bad_modules;
 		match good_modules.len() {
 			0 => {
 				error!("No patches worked in the new build.");
@@ -169,7 +166,12 @@ impl Fixer {
 	}
 
 	fn generate_good_finds(&self, mid: ModuleId) -> Vec<ScoredFindSequence> {
-		crate::util::generate_unique_finds(mid, self.diff.broken.modules(), &crate::util::MultiProgressWrapper::null_bar()).unwrap()
+		crate::util::generate_unique_finds(
+			mid,
+			self.diff.broken.modules(),
+			&crate::util::MultiProgressWrapper::null_bar(),
+		)
+		.unwrap()
 	}
 
 	fn find_working_module_id(&self) -> ModuleId {

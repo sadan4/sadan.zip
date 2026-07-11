@@ -35,13 +35,6 @@ impl PreviousBundle {
 		}
 	}
 
-	pub const fn modules_mut(&mut self) -> &mut ScrapedOutput {
-		match self {
-			Self::Full(FullBundle { modules, .. })
-			| Self::Scraped(ScrapedBranch { modules, .. }) => modules,
-		}
-	}
-
 	pub fn build_hash(&self) -> &str {
 		match self {
 			Self::Full(FullBundle {
