@@ -158,6 +158,20 @@ where
 		.get(&module_id)
 		.ok_or_else(|| miette!("Module {} not found", module_id.0))?;
 
+	// `src` as stored in the fetched build map may be missing the
+	// `// Webpack Module` header (and the leading `0,` that turns a bare
+	// `function(...) {}` into a parseable expression instead of an invalid,
+	// unnamed function declaration). Add it if it's missing so parsing
+	// doesn't fail on otherwise-valid modules.
+	let mut owned_src;
+	let src: &str = if WebpackAstParser::is_webpack_module(src) {
+		src
+	} else {
+		owned_src = src.clone();
+		WebpackAstParser::format_module_header(&mut owned_src, module_id, false);
+		&owned_src
+	};
+
 	let alloc = Allocator::new();
 	let parser = WebpackAstParser::try_new(&alloc, src)
 		.map_err(|e| miette!("Failed to parse file: {e:?}"))?;

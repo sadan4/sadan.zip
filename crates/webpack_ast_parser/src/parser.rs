@@ -1789,6 +1789,7 @@ impl<'ast> WebpackAstParser<'ast> {
 				| TK::Object
 				// strings
 				| TK::Str
+				| TK::RegExp
 				| TK::TemplateHead
 				| TK::TemplateMiddle
 				| TK::TemplateTail
@@ -1818,6 +1819,7 @@ impl<'ast> WebpackAstParser<'ast> {
 				| TK::RAngle
 				| TK::LAngle
 				| TK::Of
+				| TK::Try
 				| TK::Catch
 				| TK::Class
 				| TK::Static
@@ -1855,6 +1857,10 @@ impl<'ast> WebpackAstParser<'ast> {
 					debug_assert_eq!(tl, 4, "void token should be 4 bytes");
 					tl
 				}
+				TK::Typeof => {
+					debug_assert_eq!(tl, 6, "typeof token should be 6 bytes");
+					tl
+				}
 				TK::From => {
 					debug_assert_eq!(tl, 4, "from token should be 4 bytes");
 					tl
@@ -1869,6 +1875,11 @@ impl<'ast> WebpackAstParser<'ast> {
 				}
 				TK::New => {
 					debug_assert_eq!(tl, 3, "new token should be 3 bytes");
+					tl
+				}
+				// `new.target`
+				TK::Target => {
+					debug_assert_eq!(tl, 6, "target token should be 6 bytes");
 					tl
 				}
 				TK::Function => {
