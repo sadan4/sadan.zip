@@ -27,7 +27,12 @@ use crate::{
 	},
 	diag::ReporterError,
 	reporter::{Msg, ReporterState},
-	util::{MultiProgressWrapper, debug_module_url, sink_sender},
+	util::{
+		MultiProgressWrapper,
+		debug_module_url,
+		generate_unique_finds,
+		sink_sender,
+	},
 	vc::Plugin,
 };
 
@@ -166,10 +171,10 @@ impl Fixer {
 	}
 
 	fn generate_good_finds(&self, mid: ModuleId) -> Vec<ScoredFindSequence> {
-		crate::util::generate_unique_finds(
+		generate_unique_finds(
 			mid,
 			self.diff.broken.modules(),
-			&crate::util::MultiProgressWrapper::null_bar(),
+			&MultiProgressWrapper::null_bar(),
 		)
 		.unwrap()
 	}

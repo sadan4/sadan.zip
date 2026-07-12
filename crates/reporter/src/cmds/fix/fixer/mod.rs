@@ -7,6 +7,7 @@ use miette_ctx::ErrCtx;
 use crate::{
 	cmds::fix::find_last_build::BuildDiff,
 	diag::ReporterError,
+	util::MultiProgressWrapper,
 	vc::Plugin,
 };
 
@@ -15,7 +16,7 @@ pub async fn dispatch(
 	patch: Arc<Vec<Plugin>>,
 	diag: ReporterError,
 	channel: Channel,
-	bars: crate::util::MultiProgressWrapper,
+	bars: MultiProgressWrapper,
 ) -> miette::Result<i8> {
 	match diag {
 		ReporterError::BadRegexSyntax { .. }
