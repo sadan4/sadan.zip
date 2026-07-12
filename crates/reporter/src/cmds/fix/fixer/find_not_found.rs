@@ -23,7 +23,6 @@ use webpack_ast_parser::{WebpackAstParser, find::ScoredFindSequence};
 use crate::{
 	cmds::fix::{
 		find_last_build::{BuildDiff, PreviousBundle},
-		fixer::Todo,
 		track_module::ModuleTracker,
 	},
 	diag::ReporterError,
@@ -97,7 +96,7 @@ impl Fixer {
 		}
 	}
 
-	pub fn fix(mut self) -> miette::Result<Todo> {
+	pub fn fix(mut self) -> miette::Result<i8> {
 		self.fixup_modules();
 		info!("Attempting to find module in new build");
 		let m_id = self.find_working_module_id();
@@ -134,7 +133,7 @@ impl Fixer {
 				info!(
 					"The modules tested were (a lower score is better): {new_modules:#?}"
 				);
-				todo!()
+				Ok(-1)
 			}
 			1 => {
 				let mid = good_modules[0].0.new_module_id;
@@ -157,10 +156,11 @@ impl Fixer {
 					start.elapsed(),
 					good_find_strs
 				);
-				todo!();
+				Ok(0)
 			}
 			n => {
-				todo!("handle {n} modules worked 100%");
+				error!("handle {n} modules worked 100%");
+				Ok(-1)
 			}
 		}
 	}

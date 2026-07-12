@@ -10,14 +10,13 @@ use crate::{
 	vc::Plugin,
 };
 
-pub struct Todo;
 pub async fn dispatch(
 	diff: BuildDiff,
 	patch: Arc<Vec<Plugin>>,
 	diag: ReporterError,
 	channel: Channel,
 	bars: crate::util::MultiProgressWrapper,
-) -> miette::Result<Todo> {
+) -> miette::Result<i8> {
 	match diag {
 		ReporterError::BadRegexSyntax { .. }
 		| ReporterError::ReplaceMatchNotFound { .. }

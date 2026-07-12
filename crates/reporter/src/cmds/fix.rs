@@ -198,7 +198,7 @@ pub(super) async fn fix(
 		"Found last working build",
 	);
 	global_bar.clear();
-	fixer::dispatch(
+	let code = fixer::dispatch(
 		build_diff,
 		plugin,
 		issue,
@@ -207,5 +207,5 @@ pub(super) async fn fix(
 	)
 	.await
 	.context("Failed to fix patch")?;
-	todo!()
+	Ok(code)
 }
