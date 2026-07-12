@@ -177,6 +177,11 @@ function Item({ results, idx, longPreview, buildService, buildHash }: ItemProps)
             }}
             className="mb-1 border-b border-fg-700"
         >
+            <Text size="xs" weight="bold" color="accent">
+                {moduleId}
+                .js:
+                {data?.lineNumber ?? "?"}
+            </Text>
             <Text size="sm">
                 {data?.preview ?? "Loading Preview..."}
             </Text>
@@ -197,6 +202,7 @@ function ResultsList({ results, longPreview, buildService, buildHash }: ResultsL
     return (
         <BufferedScroller
             items={items}
+            batchSize={20}
             bufferSize={2}
             renderItem={({ item }) => {
                 return (
