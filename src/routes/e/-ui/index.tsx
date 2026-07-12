@@ -127,6 +127,7 @@ function ModuleViewer() {
             language={Language.JAVASCRIPT}
             theme={editorTheme}
             uri={data}
+            options={{ readOnly: true }}
         />
     );
 }
