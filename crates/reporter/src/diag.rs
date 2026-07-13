@@ -19,6 +19,7 @@ mod serde_regress_error;
 	Eq,
 	PartialOrd,
 	Ord,
+	Clone,
 )]
 pub enum ReporterError {
 	#[error("Bad Regex Syntax")]
@@ -43,10 +44,10 @@ pub enum ReporterError {
         help("This error occurred in module {module_id}")
     ]]
 	ReplaceMatchNotFound {
+		plugin_id: u16,
 		#[label("Caused by this match")]
 		match_span: SourceSpan,
 		module_id: ModuleId,
-		plugin_id: u16,
 	},
 	#[error("Replace Match Ambiguous")]
 	#[diagnostic[
@@ -55,9 +56,9 @@ pub enum ReporterError {
         help("This error occurred in module {module_id}")        
     ]]
 	ReplaceMatchAmbiguous {
+		plugin_id: u16,
 		#[label("Caused by this match")]
 		match_span: SourceSpan,
-		plugin_id: u16,
 		module_id: ModuleId,
 	},
 	#[error("Replace Syntax Error")]
@@ -67,13 +68,13 @@ pub enum ReporterError {
         help("This error occurred in module {module_id}"),
     ]]
 	ReplaceSyntaxError {
+		plugin_id: u16,
 		#[label("Caused by this replacement")]
 		replace_span: SourceSpan,
 		#[source]
 		#[diagnostic_source]
 		cause: WrappedOxcDiagnostic,
 		module_id: ModuleId,
-		plugin_id: u16,
 	},
 	#[error("Find Ambiguous")]
 	#[diagnostic[
@@ -83,11 +84,11 @@ pub enum ReporterError {
     ]]
 	// TODO: Add related failures here something like Option<Vec<ReporterError>>
 	FindAmbiguous {
+		plugin_id: u16,
 		#[label(
 			"This find matches more than one module. Make it more specific!"
 		)]
 		find_span: SourceSpan,
-		plugin_id: u16,
 		ok_ids: Vec<u32>,
 		err_ids: Vec<u32>,
 	},
@@ -98,11 +99,11 @@ pub enum ReporterError {
         help("This patch executed without issue on module {ok_id}; however, it matched and failed to execute on modules {err_ids:?}.{extra_help}"),
     ]]
 	FindAmbiguousRecoverable {
+		plugin_id: u16,
 		#[label(
 			"This find matches more than one module. Make it more specific!"
 		)]
 		find_span: SourceSpan,
-		plugin_id: u16,
 		ok_id: ModuleId,
 		err_ids: Vec<u32>,
 		extra_help: &'static str,
@@ -111,16 +112,17 @@ pub enum ReporterError {
 	#[diagnostic[
         code(reporter::find::not_found),
         severity(Error),
+		help("for help with fixing this specific patch, you can try `reporter fix {patch_hash:x}`")
     ]]
 	FindNotFound {
+		plugin_id: u16,
 		#[label("This find failed to match anything")]
 		find_span: SourceSpan,
-		plugin_id: u16,
+		patch_hash: u64,
 	},
 	#[error(transparent)]
 	NoWarn(Box<Self>),
 }
-
 impl ReporterError {
 	pub const fn plugin_id(&self) -> u16 {
 		match self {

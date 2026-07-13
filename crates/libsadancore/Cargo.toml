@@ -26,6 +26,8 @@ smol_str.workspace = true
 ast_parser.workspace = true
 pretty_printer.workspace = true
 dagre.workspace = true
+arrayvec.workspace = true
+miette_ctx.workspace = true
 regress.workspace = true
 memchr.workspace = true
 

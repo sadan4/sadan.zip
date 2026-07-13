@@ -12,6 +12,7 @@ use std::{
 	collections::HashMap,
 	hash::{Hash, Hasher},
 };
+use xxhash_rust::xxh64::Xxh64;
 
 /// Surface-level info about a plugin's `definePlugin({...})` declaration —
 /// just enough for the LSP to anchor a code lens and ship a command
@@ -277,6 +278,26 @@ impl Patch {
 	pub const fn plugin_id(&self) -> u16 {
 		self.plugin_id
 			.expect("Plugin ID not set")
+	}
+
+	/// takes the hash of the patch's content, ignoring the plugin ID
+	pub fn content_hash(&self) -> u64 {
+		let h = &mut Xxh64::default();
+		// destructure to avoid missing new fields
+		let Self {
+			all,
+			no_warn,
+			find,
+			replacement,
+			span,
+			plugin_id: _,
+		} = self;
+		all.hash(h);
+		no_warn.hash(h);
+		find.hash(h);
+		replacement.hash(h);
+		span.hash(h);
+		h.finish()
 	}
 }
 

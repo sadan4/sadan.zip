@@ -5,7 +5,7 @@ use explorer_server_core::Channel;
 use itertools::Itertools;
 use miette::{Diagnostic as _, NamedSource, Severity::Warning};
 use tokio::{sync::mpsc, time::Instant};
-use tracing::{error, info, warn};
+use tracing::{info, warn};
 
 use crate::{
 	SourceWrapper,
@@ -61,16 +61,9 @@ impl ChannelStatus {
 				Msg::RequestProgressBar(tx) => {
 					tx.send(self.bars.clone()).unwrap();
 				}
-				Msg::Done(res) => {
-					match res {
-						Err(e) => {
-							error!("Reporter failed with error: {e:?}");
-						}
-						Ok(raw_time) => {
-							if self.end.set(raw_time).is_err() {
-								warn!("Msg::Done sent more than once");
-							}
-						}
+				Msg::Done(raw_time) => {
+					if self.end.set(raw_time).is_err() {
+						warn!("Msg::Done sent more than once");
 					}
 					break;
 				}
@@ -158,7 +151,13 @@ pub async fn run_reporter(
 	let plugins = Arc::new(plugins??);
 	let scraped_outputs = target_build??
 		.into_iter()
-		.map(|ScrapedBranch { channel, out }| (channel, Arc::new(out)))
+		.map(
+			|ScrapedBranch {
+			     channel,
+			     modules,
+			     build_hash: _,
+			 }| (channel, Arc::new(modules)),
+		)
 		.collect_vec();
 	run_with_data(scraped_outputs, plugins, cli, bars).await
 }
@@ -232,18 +231,11 @@ async fn stream_single_build(
 			Msg::RequestProgressBar(tx) => {
 				tx.send(bars.clone()).unwrap();
 			}
-			Msg::Done(res) => {
-				match res {
-					Err(e) => {
-						error!("Reporter failed with error: {e:?}");
-					}
-					Ok(raw_time) => {
-						info!(
-							"Reporter finished in {:.2?}. (raw time: {raw_time:.2?})",
-							start.elapsed()
-						);
-					}
-				}
+			Msg::Done(raw_time) => {
+				info!(
+					"Reporter finished in {:.2?}. (raw time: {raw_time:.2?})",
+					start.elapsed()
+				);
 				break;
 			}
 			Msg::Error(e) => 'm: {

@@ -3,7 +3,6 @@ mod graph;
 use std::{
 	cell::RefCell,
 	collections::HashMap,
-	fmt::Write as _,
 	marker::PhantomPinned,
 	mem,
 	pin::Pin,
@@ -30,6 +29,7 @@ use explorer_types::{
 };
 use js_sys::{Object, Reflect, Uint32Array};
 use memchr::memmem::Finder;
+use miette_ctx::into_anyhow;
 use oxc::{allocator::Allocator, span::Span};
 use pretty_printer::{FormattedContent, format_with_alloc};
 use regress::Regex;
@@ -260,6 +260,7 @@ impl BundleInner {
 		// SAFETY: TODO
 			unsafe { mem::transmute::<&str, &'static str>(raw_source_str) };
 		let mut parser = WebpackAstParser::try_new(alloc, source_str)
+			.map_err(into_anyhow)
 			.context("Failed to create parser")?;
 		// SAFETY: TODO
 		let static_self_ref: &Self = unsafe { &*self.self_ptr };
@@ -320,7 +321,7 @@ impl BundleInner {
 			mut mappings,
 		} = format_with_alloc(unformatted, &alloc, 4)
 			.context("Failed to format module")?;
-		let inserted_len = format_module_header(&mut code, id, false);
+		let inserted_len = WebpackAstParser::format_module_header(&mut code, id, false);
 		if inserted_len != 0 {
 			for (_, after) in &mut mappings {
 				*after += inserted_len as u32;
@@ -344,27 +345,6 @@ impl BundleInner {
 
 		Ok(f(source, line_index))
 	}
-}
-
-fn format_module_header(src: &mut String, m_id: ModuleId, is_find: bool) -> usize {
-	const BUF_LEN: usize = 128;
-	if WebpackAstParser::is_webpack_module(src) {
-		return 0;
-	}
-	let mut buf = String::with_capacity(BUF_LEN);
-	_ = writeln!(buf, "// Webpack Module {m_id}");
-	if is_find {
-		_ = writeln!(buf, "//OPEN FULL MODULE: {m_id}");
-	}
-	_ = writeln!(buf, "//EXTRACTED WEBPACK MODULE {m_id}");
-	_ = writeln!(buf, "0,");
-	debug_assert!(
-		buf.len() <= BUF_LEN,
-		"increase BUF_LEN to avoid reallocation"
-	);
-	let inserted_len = buf.len();
-	src.insert_str(0, &buf);
-	inserted_len
 }
 
 /// `mappings` must be sorted in ascending `before` (original position) order,
@@ -698,7 +678,9 @@ impl Bundle {
 		let fmt_src = self.inner.get_formatted_module(m_id)?;
 		let parser = self.inner.get_or_make_parser(m_id)?;
 		let pos = m_pos.to_offset(fmt_src);
-		let locs = parser.generate_definitions(pos)?;
+		let locs = parser
+			.generate_definitions(pos)
+			.map_err(into_anyhow)?;
 		let ret = locs
 			.into_iter()
 			.map(|loc| {
@@ -728,7 +710,9 @@ impl Bundle {
 		let parser = self.inner.get_or_make_parser(m_id)?;
 		let pos = m_pos.to_offset(fmt_src);
 
-		let locs = parser.generate_references(pos)?;
+		let locs = parser
+			.generate_references(pos)
+			.map_err(into_anyhow)?;
 
 		let ret = locs
 			.into_iter()
@@ -765,7 +749,8 @@ impl Bundle {
 		}
 
 		let ret = parser
-			.generate_hover(pos)?
+			.generate_hover(pos)
+			.map_err(into_anyhow)?
 			.map(|(span, content)| {
 				let range = MonacoRange::from_span(span, fmt_src);
 				HoverInfo {

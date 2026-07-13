@@ -16,6 +16,11 @@ smol_str.workspace = true
 tracing.workspace = true
 itertools.workspace = true
 explorer_types.workspace = true
+oxc-miette.workspace = true
+miette_ctx.workspace = true
+daft.workspace = true
+arrayvec.workspace = true
+rangemap.workspace = true
 
 [dev-dependencies]
 insta.workspace = true

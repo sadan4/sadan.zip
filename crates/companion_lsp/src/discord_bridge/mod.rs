@@ -202,7 +202,7 @@ async fn handle_connection(
 		while let Some(msg) = outbound_rx.recv().await {
 			trace!(bytes = msg.len(), "ws send");
 			if sink
-				.send(Message::Text(msg))
+				.send(Message::Text(msg.into()))
 				.await
 				.is_err()
 			{
@@ -449,7 +449,7 @@ mod tests {
 			},
 		});
 		client
-			.send(Message::Text(reply.to_string()))
+			.send(Message::Text(reply.to_string().into()))
 			.await
 			.unwrap();
 
@@ -471,7 +471,7 @@ mod tests {
 				"data": null,
 			});
 			client
-				.send(Message::Text(reply.to_string()))
+				.send(Message::Text(reply.to_string().into()))
 				.await
 				.unwrap();
 		}
@@ -523,7 +523,8 @@ mod tests {
 					"ok": true,
 					"data": { "modules": ["111", "222", "333"] }
 				})
-				.to_string(),
+				.to_string()
+				.into(),
 			))
 			.await
 			.unwrap();

@@ -1,6 +1,7 @@
 mod arg_finder;
 mod enum_iife;
 pub mod export_map;
+mod main_func_finder;
 mod types;
 mod util;
 
@@ -12,6 +13,7 @@ use crate::{
 		IModuleCache,
 		IModuleDepProvider,
 	},
+	find::ScoredFindSequence,
 	parser::{
 		enum_iife::EnumIIFEState1_2,
 		export_map::{
@@ -41,10 +43,11 @@ use crate::{
 			flatten_property_access_expression,
 			get_nested_export_from_map,
 			match_export_chain,
+			span_to_range,
 		},
 	},
 };
-use anyhow::{Context, Result, anyhow, bail};
+use arrayvec::ArrayString;
 use ast_parser::{
 	AstParser,
 	ast_kind::IntoAstKind,
@@ -61,22 +64,27 @@ use ast_parser::{
 		PropertyKeyExt,
 		StatementExt,
 	},
-	parse,
+	parse_with_tokens,
 };
 use explorer_types::{IncomingModuleDeps, ModuleId, OutgoingModuleDeps};
 use export_map::RawExportMap;
 use itertools::Itertools as _;
+use miette::{Result, bail};
+use miette_ctx::{ErrCtx as _, map_anyhow};
 use oxc::{
 	allocator::{Allocator, GetAddress, UnstableAddress},
 	ast::{
 		AstKind,
 		ast::{
+			Argument,
 			ArrowFunctionExpression,
 			BindingIdentifier,
 			CallExpression,
 			Class,
 			ClassElement,
 			Expression,
+			ExpressionStatement,
+			Function,
 			IdentifierReference,
 			MethodDefinition,
 			MethodDefinitionKind,
@@ -86,19 +94,26 @@ use oxc::{
 			ObjectProperty,
 			ObjectPropertyKind,
 			Program,
+			Statement,
 			StaticMemberExpression,
 			Str,
+			VariableDeclaration,
+			VariableDeclarationKind,
 			VariableDeclarator,
 		},
 	},
+	parser::{Kind as TK, Token},
 	semantic::{NodeId, ReferenceId, Semantic, SymbolId},
 	span::{GetSpan, SourceType, Span},
 };
+use rangemap::RangeSet;
 use smol_str::{SmolStr, ToSmolStr as _};
 use std::{
 	borrow::Cow,
 	collections::{HashMap, HashSet},
+	fmt::Write,
 	iter,
+	mem,
 	rc::Rc,
 };
 use tracing::{debug, error, trace, warn};
@@ -107,6 +122,7 @@ pub struct WebpackAstParser<'ast> {
 	prog: &'ast Program<'ast>,
 	sema: Semantic<'ast>,
 	source: &'ast str,
+	toks: &'ast [Token],
 	module_cache: &'ast dyn IModuleCache<'ast>,
 	module_dep_provider: &'ast dyn IModuleDepProvider,
 	/// Internal cache
@@ -125,6 +141,8 @@ struct Cache<'ast> {
 	module_id: cache::Value<Option<ModuleId>>,
 	does_re_export_whole_module: cache::Value<Option<ModuleId>>,
 	modules_that_this_module_requires: cache::Ref<Option<OutgoingModuleDeps>>,
+	num_concatenated_modules: cache::Value<u32>,
+	main_func: cache::Value<Option<&'ast Function<'ast>>>,
 }
 
 impl<'ast> AstParser<'ast> for WebpackAstParser<'ast> {
@@ -140,12 +158,13 @@ impl<'ast> AstParser<'ast> for WebpackAstParser<'ast> {
 /// Public API
 impl<'ast> WebpackAstParser<'ast> {
 	pub fn try_new(alloc: &'ast Allocator, source: &'ast str) -> Result<Self> {
-		let (prog, sema) = parse(alloc, source, SourceType::script())
-			.map_err(|e| anyhow!(e))?;
+		let (toks, prog, sema) =
+			parse_with_tokens(alloc, source, SourceType::script())?;
 		Ok(Self {
 			prog,
 			sema,
 			source,
+			toks: toks.into_arena_slice(),
 			module_cache: &DefaultModuleCache,
 			module_dep_provider: &DefaultModuleDepProvider,
 			c: Cache::default(),
@@ -158,6 +177,28 @@ impl<'ast> WebpackAstParser<'ast> {
 		src.starts_with("// Webpack Module")
 			|| src[0..src.ceil_char_boundary(src.len().min(100))]
 				.contains("//OPEN FULL MODULE:")
+	}
+
+	/// Returns the number of bytes inserted at the start of `src`, or `0` if
+	/// `src` was already a webpack module and nothing was inserted.
+	pub fn format_module_header(
+		src: &mut String,
+		m_id: ModuleId,
+		is_find: bool,
+	) -> usize {
+		const BUF_LEN: usize = 128;
+		if Self::is_webpack_module(src) {
+			return 0;
+		}
+		let mut buf = ArrayString::<BUF_LEN>::new_const();
+		writeln!(buf, "// Webpack Module {m_id}").unwrap();
+		if is_find {
+			writeln!(buf, "//OPEN FULL MODULE: {m_id}").unwrap();
+		}
+		writeln!(buf, "//EXTRACTED WEBPACK MODULE {m_id}").unwrap();
+		writeln!(buf, "0,").unwrap();
+		src.insert_str(0, &buf);
+		buf.len()
 	}
 
 	pub const fn get_source(&self) -> &'ast str {
@@ -415,6 +456,7 @@ impl<'ast> WebpackAstParser<'ast> {
 			.context("Module ID not found")?;
 		self.module_dep_provider
 			.get_module_deps(module_id)
+			.map_err(map_anyhow)
 	}
 	/// Figure out if this module re-exports another given the module id of the other and
 	/// the name of the export from the other module.
@@ -595,11 +637,180 @@ impl<'ast> WebpackAstParser<'ast> {
 			_ => None,
 		}
 	}
+
+	/// Includes the "base" module
+	pub fn num_concatenated_modules(&self) -> u32 {
+		self.c.num_concatenated_modules.get(|| {
+			self.count_num_concatentated_modules()
+				.unwrap_or(0)
+		})
+	}
+	/// Attempt to generate a unique string for this module
+	///
+	/// nothing here is guaranteed to be unique, these are just the best candidates
+	///
+	/// they need to be filtered for uniqueness by the caller
+	pub fn generate_finds(&self) -> Vec<ScoredFindSequence> {
+		self.impl_generate_finds()
+	}
 }
 
 /// Private API
 #[expect(clippy::multiple_inherent_impl)]
 impl<'ast> WebpackAstParser<'ast> {
+	fn get_main_func(&self) -> Option<&'ast Function<'ast>> {
+		self.c
+			.main_func
+			.get(|| main_func_finder::find(self))
+	}
+	/// checks if the expression is `wreq` or `wreq.n`
+	fn is_import_callee(
+		&self,
+		wreq: SymbolId,
+		expr: &'ast Expression<'ast>,
+	) -> bool {
+		match expr {
+			Expression::Identifier(ident) => {
+				self.cmp_sym(ident.as_ref(), &wreq)
+			}
+			Expression::StaticMemberExpression(access) => {
+				access
+					.object
+					.as_identifier()
+					.is_some_and(|id| self.cmp_sym(id, &wreq))
+					&& access.property.name == "n"
+			}
+			_ => false,
+		}
+	}
+	/// checks if `node` is a decl of webpack imports
+	fn is_import_decl(&self, node: &'ast VariableDeclaration<'ast>) -> bool {
+		if node.kind != VariableDeclarationKind::Var {
+			// webpack import blocks use var, not let
+			return false;
+		}
+		let Some(wreq) = self.wreq() else {
+			// we cant import anything if we dont have wreq
+			return false;
+		};
+		let mut last_decl_id = SymbolId::MAX_INDEX;
+		let mut iter = node
+			.declarations
+			.iter()
+			// webpack will declare extra variables that will be used as empty first
+			// eg:
+			// var a, b, c, d = wreq(0);
+			.skip_while(|d| d.init.is_none())
+			.peekable();
+		if iter.peek().is_none() {
+			return false;
+		}
+		for decl in iter {
+			// _ = n(000000)
+			// OR
+			// b = n.n(a)
+			// where a was the previous declaration
+			let Some(init) = decl.init.as_ref() else {
+				return false;
+			};
+			// only plain idents are bound to imports
+			let Some(decl_ident) = decl.id.as_binding_identifier() else {
+				return false;
+			};
+			let Expression::CallExpression(call) = init else {
+				return false;
+			};
+			if !self.is_import_callee(wreq, &call.callee) {
+				return false;
+			}
+			// is the argument valid
+			match call.arguments.as_slice() {
+				[Argument::NumericLiteral(_)] => {
+					last_decl_id = decl_ident.symbol_id().into();
+				}
+				[Argument::Identifier(ident)] => {
+					if last_decl_id != SymbolId::MAX_INDEX
+						// SAFETY: it's not MAX_INDEX
+						// and we only ever set it to MAX_INDEX as a sentinel value 
+						// or an already valid symbol id
+						&& !self.cmp_sym(ident.as_ref(), &unsafe {
+							SymbolId::from_usize_unchecked(last_decl_id)
+						}) {
+						return false;
+					}
+				}
+				_ => {
+					return false;
+				}
+			}
+		}
+		true
+	}
+
+	/// Webpack will insert side effect imports as seen below
+	///
+	/// returns true if `stmt` is a side effect import statement
+	///
+	/// ```ts
+	/// import foo from "foo";
+	/// import "bar";
+	/// import baz from "baz";
+	/// // Turns into
+	/// var foo = wreq(0); // importing foo
+	/// wreq(1); // side effect import bar
+	/// var baz = wreq(2); // importing baz
+	/// ```
+	fn is_side_effect_import_stmt(
+		&self,
+		stmt: &'ast ExpressionStatement<'ast>,
+	) -> bool {
+		// wreq(...); must be a call expr
+		let Expression::CallExpression(call) = &stmt.expression else {
+			return false;
+		};
+		let Some(wreq) = self.wreq() else {
+			return false;
+		};
+		// it must be a call on a plain identifier
+		// webpack will do an indirect call on imports to change the `this` value
+		// eg: `(0, foo.default)(...)`, which is not a side effect import
+		let Expression::Identifier(wreq_ref) = &call.callee else {
+			return false;
+		};
+		let [Argument::NumericLiteral(_)] = call.arguments.as_slice() else {
+			return false;
+		};
+		self.cmp_sym(wreq_ref.as_ref(), &wreq)
+	}
+
+	fn count_num_concatentated_modules(&self) -> Option<u32> {
+		let main_func = self.get_main_func()?;
+		let mut count = 0;
+		let mut last_was_import_block = false;
+		for stmt in &main_func
+			.body
+			.as_ref()
+			.unwrap()
+			.statements
+		{
+			if let Statement::VariableDeclaration(decl) = stmt
+				&& self.is_import_decl(decl)
+			{
+				if !last_was_import_block {
+					count += 1;
+				}
+				last_was_import_block = true;
+			} else if last_was_import_block
+				&& let Statement::ExpressionStatement(stmt) = stmt
+				&& self.is_side_effect_import_stmt(stmt)
+			{
+				// do nothing if we find a side effect import statement in the middle of an import block
+			} else {
+				last_was_import_block = false;
+			}
+		}
+		Some(count)
+	}
 	/// Given a reference to `wreq`, returns the `wreq(m_id)` call expression the
 	/// reference is the callee of — or `None` if it isn't being used to require `m_id`.
 	fn match_wreq_require_call(
@@ -872,6 +1083,7 @@ impl<'ast> WebpackAstParser<'ast> {
 	fn try_get_module_parser(&self, module_id: ModuleId) -> Result<Rc<Self>> {
 		self.module_cache
 			.get_latest_module_parser(self, module_id)
+			.map_err(map_anyhow)
 	}
 	/// Gets the [`ModuleId`] from a require by the returned symbol id
 	/// ```js
@@ -1056,12 +1268,25 @@ impl<'ast> WebpackAstParser<'ast> {
 			}
 			match self.p(module_exports_access.node_id()) {
 				AstKind::AssignmentExpression(assign) => {
+					// bail out if we are on the rhs
+					// eg: `e.exports.default = e.exports`
+					if assign.left.address()
+						!= module_exports_access.unstable_address()
+					{
+						continue;
+					}
 					let val = &assign.right;
 					let new_ret = self.raw_make_export_map_recursive(val);
 					match new_ret {
 						ExportValue::Map(map) => ret.merge_with(map),
 						rng @ ExportValue::Range(_) => {
-							assert!(ret.exports.is_empty(), "how???");
+							if !ret.exports.is_empty() {
+								debug!(
+									"module.exports in module id {:?} is assigned to more than once",
+									self.get_module_id()
+								);
+								continue;
+							}
 							ret.cjs_default = Some(Box::new(rng));
 						}
 					}
@@ -1073,14 +1298,24 @@ impl<'ast> WebpackAstParser<'ast> {
 					else {
 						continue;
 					};
+					// bail out of we are on the rhs
+					// eg `e.exports.bar = e.exports.foo`
+					if module_exports_name_access.unstable_address()
+						!= export_assignment.left.address()
+					{
+						continue;
+					}
 					let export_val = &export_assignment.right;
 					let key = &module_exports_name_access.property;
 					let key_txt = SmolStr::new(&self.source[key.span()]);
 					let val = self.raw_make_export_map_recursive(export_val);
-					debug_assert!(
-						!ret.exports.contains_key(&key_txt),
-						"Duplicate export for key {key_txt}"
-					);
+					if ret.exports.contains_key(&key_txt) {
+						debug!(
+							"module.exports.{key_txt} is assigned to more than once in module id {:?}",
+							self.get_module_id()
+						);
+						continue;
+					}
 					ret.exports.insert(key_txt, val);
 				}
 				_ => {}
@@ -1407,6 +1642,268 @@ impl<'ast> WebpackAstParser<'ast> {
 		self.c
 			.does_re_export_whole_module
 			.get(|| self.does_re_export_whole_module_impl())
+	}
+
+	/// Checks if the given token is usable for a find
+	fn igt(&self, t: Token) -> bool {
+		_ = self;
+		match t.kind() {
+			TK::Eof | TK::Undetermined => false,
+			// Not only do we never handle a file with a hashbang
+			// oxc doesnt even emit them despite having a token kind for them.
+			TK::HashbangComment => unreachable!(),
+			// if an ident is > 4 chars, it's probably not minified
+			TK::Ident => t.span().size() > 4,
+			_ => true,
+		}
+	}
+
+	/// Collect all lazy webpack chunk requires in this module
+	/// eg `wreq.e("123456")` in
+	/// ```js
+	/// Promise.all([
+	///     n.e("123456"),
+	/// ]).then(n.bind(n, 577593));
+	/// ```
+	fn collect_lazy_chunk_requires(&self) -> Vec<&'ast CallExpression<'ast>> {
+		let Some(wreq) = self.wreq() else {
+			return Vec::new();
+		};
+		let mut calls = Vec::new();
+		for n in self.ref_nodes(wreq) {
+			let Some(sme) = self
+				.p(n.node_id())
+				.as_static_member_expression()
+			else {
+				continue;
+			};
+			if sme.property.name != "e" {
+				continue;
+			}
+			let Some(call) = self
+				.p(sme.node_id())
+				.as_call_expression()
+			else {
+				continue;
+			};
+			let [chunk_num_str] = call.arguments.as_slice() else {
+				continue;
+			};
+			let Some(_) = chunk_num_str.as_string_literal() else {
+				continue;
+			};
+			calls.push(call);
+		}
+		calls
+	}
+
+	/// returns the spans of all top-level webpack import statements in the main function of this module
+	///
+	/// simalar to [`Self::count_num_concatentated_modules`]
+	fn get_import_spans(&self) -> RangeSet<u32> {
+		let mut rs = RangeSet::new();
+		let Some(mf) = self.get_main_func() else {
+			return rs;
+		};
+		let mut last_was_import_block = false;
+		for stmt in &mf.body.as_ref().unwrap().statements {
+			if let Statement::VariableDeclaration(decl) = stmt
+				&& self.is_import_decl(decl)
+			{
+				rs.insert(span_to_range(decl.span()));
+				last_was_import_block = true;
+			} else if last_was_import_block
+				&& let Statement::ExpressionStatement(es) = stmt
+				&& self.is_side_effect_import_stmt(es)
+			{
+				rs.insert(span_to_range(es.span()));
+			} else {
+				last_was_import_block = false;
+			}
+		}
+		rs
+	}
+
+	/// if true, this `seq` would make for a bad sequence of finds
+	fn is_good_find_seq(seq: &[Token]) -> bool {
+		if seq.len() == 1 {
+			!matches!(
+				seq[0].kind(),
+				TK::Dot
+					| TK::Comma | TK::Colon
+					| TK::Eq | TK::Eq2
+					| TK::Eq3 | TK::Amp2
+					| TK::LParen | TK::RParen
+					| TK::Pipe2 | TK::Semicolon
+					| TK::Question | TK::Extends
+					| TK::Let
+			)
+		} else {
+			true
+		}
+	}
+
+	const MIN_FIND_SCORE: u32 = 8;
+
+	fn impl_generate_finds(&self) -> Vec<ScoredFindSequence> {
+		let mut seqs = Vec::new();
+		let mut cs = Vec::new();
+		let mut bad_spans = self.get_import_spans();
+		for chunk_req in self.collect_lazy_chunk_requires() {
+			bad_spans.insert(span_to_range(chunk_req.span()));
+		}
+		for t in self.toks.iter().copied() {
+			if self.igt(t) && !bad_spans.contains(&t.start()) {
+				cs.push(t);
+			} else if !cs.is_empty() {
+				if Self::is_good_find_seq(&cs) {
+					let seq = self.score_find_seq(mem::take(&mut cs));
+					if seq.score < Self::MIN_FIND_SCORE {
+						cs.clear();
+					} else {
+						seqs.push(seq);
+					}
+				} else {
+					cs.clear();
+				}
+			}
+		}
+		seqs
+	}
+
+	#[expect(clippy::too_many_lines)]
+	fn score_find_seq(&self, seq: Vec<Token>) -> ScoredFindSequence {
+		// start with a base of the find length
+		debug_assert!(!seq.is_empty(), "cannot score empty find sequence");
+		let mut ts = seq.last().unwrap().span().end - seq[0].span().start;
+		for t in &seq {
+			let tl = t.span().size();
+			debug_assert_ne!(tl, 0, "token has zero length");
+			let score = match t.kind() {
+				// FIXME: handle intl strings
+				TK::Ident
+				// special-case ident
+				| TK::This
+				// contextual keywords in ts, idents elsewhere
+				| TK::Is // declare function f(a): a is {}
+				| TK::String
+				| TK::Type
+				| TK::Default
+				| TK::Object
+				// strings
+				| TK::Str
+				| TK::RegExp
+				| TK::TemplateHead
+				| TK::TemplateMiddle
+				| TK::TemplateTail
+				| TK::NoSubstitutionTemplate => tl.ilog2() * tl,
+				// TODO: handle `0` literal case
+				TK::Decimal
+				| TK::Float
+				| TK::PositiveExponential
+				| TK::NegativeExponential => (tl.ilog2() * tl).min(1),
+				TK::Comma
+				| TK::LParen
+				| TK::RParen
+				| TK::LCurly
+				| TK::RCurly
+				| TK::Arrow
+				| TK::Dot
+				| TK::LBrack
+				| TK::RBrack
+				| TK::Semicolon => 0,
+				TK::Eq
+				| TK::Question
+				| TK::Question2
+				| TK::QuestionDot
+				| TK::Colon
+				| TK::Eq2
+				| TK::Eq3
+				| TK::RAngle
+				| TK::LAngle
+				| TK::Of
+				| TK::Try
+				| TK::Catch
+				| TK::Class
+				| TK::Static
+				| TK::Async
+				| TK::Await
+				| TK::Finally
+				| TK::Switch
+				| TK::Case
+				| TK::In
+				| TK::GtEq
+				| TK::LtEq
+				| TK::Amp
+				| TK::If
+				| TK::Break
+				| TK::Var
+				| TK::Else
+				| TK::Neq
+				| TK::Minus2
+				| TK::Plus2
+				| TK::Plus
+				| TK::Neq2
+				| TK::Amp2
+				| TK::Pipe2
+				| TK::Dot3
+				| TK::Minus
+				| TK::Star
+				| TK::Slash
+				| TK::Let
+				| TK::Bang => 1,
+				TK::Null => {
+					debug_assert_eq!(tl, 4, "null token should be 4 bytes");
+					tl
+				}
+				TK::Void => {
+					debug_assert_eq!(tl, 4, "void token should be 4 bytes");
+					tl
+				}
+				TK::Typeof => {
+					debug_assert_eq!(tl, 6, "typeof token should be 6 bytes");
+					tl
+				}
+				TK::From => {
+					debug_assert_eq!(tl, 4, "from token should be 4 bytes");
+					tl
+				}
+				TK::Return => {
+					debug_assert_eq!(tl, 6, "return token should be 6 bytes");
+					tl / 2
+				}
+				TK::For => {
+					debug_assert_eq!(tl, 3, "for token should be 3 bytes");
+					tl
+				}
+				TK::New => {
+					debug_assert_eq!(tl, 3, "new token should be 3 bytes");
+					tl
+				}
+				// `new.target`
+				TK::Target => {
+					debug_assert_eq!(tl, 6, "target token should be 6 bytes");
+					tl
+				}
+				TK::Function => {
+					debug_assert_eq!(tl, 8, "function token should be 8 bytes");
+					tl / 2
+				}
+				TK::Instanceof => {
+					debug_assert_eq!(
+						tl, 10,
+						"instanceof token should be 10 bytes"
+					);
+					tl
+				}
+				_ => todo!("mid: {:?} score token {:#?}", self.get_module_id(), t),
+			};
+			ts += score;
+		}
+		ScoredFindSequence {
+			score: ts,
+			tokens: seq,
+		}
 	}
 }
 
@@ -1864,6 +2361,7 @@ impl<'ast> WebpackAstParser<'ast> {
 				);
 				if name.is_none() {
 					warn!(
+						module_id=?self.get_module_id(),
 						"Store has displayName prop but could not resolve display name. This should not happen"
 					);
 				}

@@ -49,7 +49,7 @@ use vencord_ast_parser::{Match, Patch, Replacement, Replacer};
 pub enum Msg {
 	RequestProgressBar(oneshot::Sender<MultiProgressWrapper>),
 	Error(ReporterError),
-	Done(Result<Duration>),
+	Done(Duration),
 }
 
 impl From<ReporterError> for Msg {
@@ -58,41 +58,40 @@ impl From<ReporterError> for Msg {
 	}
 }
 
-#[track_caller]
 pub fn report_broken_patches(
 	channel: Channel,
 	target_build: Arc<ScrapedOutput>,
 	plugins: Arc<Vec<Plugin>>,
 ) -> mpsc::Receiver<Msg> {
 	const BUFFER_SIZE: usize = 0x4000;
-	let (mut tx, rx) = mpsc::channel(BUFFER_SIZE);
+	let (tx, rx) = mpsc::channel(BUFFER_SIZE);
 	task::spawn_blocking(move || {
 		let start = Instant::now();
-		run_reporter(channel, &target_build, &plugins, &mut tx);
+		run_reporter(channel, &target_build, &plugins, &tx);
 		let duration = start.elapsed();
-		tx.blocking_send(Msg::Done(Ok(duration)))
+		tx.blocking_send(Msg::Done(duration))
 			.unwrap();
 	});
 
 	rx
 }
 
-struct ReporterState<'a> {
-	tx: &'a mut mpsc::Sender<Msg>,
-	m_bar: MultiProgressWrapper,
-	patches: HashSet<&'a Patch>,
-	find_map: HashMap<&'a Patch, Vec<ModuleId>>,
-	alloc: AllocatorPool,
-	build: &'a ScrapedOutput,
-	stats: DashMap<ModuleId, Stats>,
-	channel: Channel,
+pub(crate) struct ReporterState<'a> {
+	pub(crate) tx: &'a mpsc::Sender<Msg>,
+	pub(crate) m_bar: MultiProgressWrapper,
+	pub(crate) patches: HashSet<&'a Patch>,
+	pub(crate) find_map: HashMap<&'a Patch, Vec<ModuleId>>,
+	pub(crate) alloc: AllocatorPool,
+	pub(crate) build: &'a ScrapedOutput,
+	pub(crate) stats: DashMap<ModuleId, Stats>,
+	pub(crate) channel: Channel,
 }
 
 impl<'a> ReporterState<'a> {
 	fn new(
 		plugins: &'a [Plugin],
 		build: &'a ScrapedOutput,
-		tx: &'a mut mpsc::Sender<Msg>,
+		tx: &'a mpsc::Sender<Msg>,
 		channel: Channel,
 	) -> Self {
 		let (pb_tx, rx) = oneshot::channel();
@@ -123,7 +122,7 @@ impl<'a> ReporterState<'a> {
 }
 
 #[derive(Copy, Clone, IsVariant)]
-enum PatchStatus {
+pub enum PatchStatus {
 	Ok,
 	Error,
 }
@@ -162,7 +161,7 @@ impl<'a> ReporterState<'a> {
 		Stage::new(format!("[{:?}]: {msg}", self.channel), n)
 			.and_attach(&self.m_bar)
 	}
-	fn prune_bad_finds(&mut self) {
+	pub(crate) fn prune_bad_finds(&mut self) {
 		let bar = self.stage("Pruning bad finds", Some(self.patches.len()));
 		self.patches.retain(|p| {
 			bar.step();
@@ -186,7 +185,7 @@ impl<'a> ReporterState<'a> {
 			}
 		});
 	}
-	fn collect_finds(&mut self) {
+	pub(crate) fn collect_finds(&mut self) {
 		let progress =
 			self.stage("Collecting find matches", Some(self.patches.len()));
 		self.find_map = self
@@ -209,7 +208,7 @@ impl<'a> ReporterState<'a> {
 			})
 			.collect();
 	}
-	fn report_empty_finds(&mut self) {
+	pub(crate) fn report_empty_finds(&mut self) {
 		_ = self.stage("Reporting empty finds", None);
 		for (patch, _) in self
 			.find_map
@@ -218,16 +217,17 @@ impl<'a> ReporterState<'a> {
 			let mut err = ReporterError::FindNotFound {
 				find_span: patch.find.s.into(),
 				plugin_id: patch.plugin_id(),
+				patch_hash: patch.content_hash(),
 			};
 			if patch.no_warn {
-				err = ReporterError::NoWarn(err.into());
+				err = ReporterError::NoWarn(Box::new(err));
 			}
 			self.tx
 				.blocking_send(err.into())
 				.unwrap();
 		}
 	}
-	fn resolve_ambiguous_finds(&mut self) {
+	pub(crate) fn resolve_ambiguous_finds(&mut self) {
 		let it = self
 			.find_map
 			.extract_if(|p, m| !p.all && m.len() > 1)
@@ -278,7 +278,7 @@ impl<'a> ReporterState<'a> {
 			bar.step();
 		});
 	}
-	fn test_patches(&mut self) {
+	pub(crate) fn test_patches(&mut self) {
 		// temporarily take the find_map so we don't have to deal with 2x &mut self
 		let found_patches = mem::take(&mut self.find_map);
 		let bar = self.stage("Testing patches", Some(found_patches.len()));
@@ -304,7 +304,7 @@ impl<'a> ReporterState<'a> {
 			});
 		self.find_map = found_patches;
 	}
-	fn test_patch_against_module(
+	pub(crate) fn test_patch_against_module(
 		&self,
 		patch: &'a Patch,
 		m_id: ModuleId,
@@ -599,7 +599,7 @@ fn run_reporter(
 	channel: Channel,
 	build: &ScrapedOutput,
 	plugins: &[Plugin],
-	tx: &mut mpsc::Sender<Msg>,
+	tx: &mpsc::Sender<Msg>,
 ) {
 	ReporterState::new(plugins, build, tx, channel).run();
 }
@@ -652,7 +652,7 @@ mod serde_named_source_string;
 
 mod cmp_wrapped_oxc_diag;
 
-#[derive(Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct WrappedOxcDiagnostic {
 	#[serde(with = "serde_oxc_diag")]
 	diag: Box<OxcDiagnostic>,

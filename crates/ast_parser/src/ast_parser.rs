@@ -4,13 +4,18 @@ use crate::{
 };
 use anyhow::Result;
 use oxc::{
-	allocator::{Allocator, Box as OxcBox},
+	allocator::{Allocator, Box as OxcBox, Vec as OxcVec},
 	ast::{
 		AstKind,
 		ast::{Expression, ImportDeclaration, ModuleDeclaration, Program},
 	},
 	ast_visit::Visit,
-	parser::{ParseOptions, Parser as OxcParser},
+	parser::{
+		ParseOptions,
+		Parser as OxcParser,
+		Token,
+		config::{NoTokensParserConfig, TokensParserConfig},
+	},
 	semantic::{
 		AstNode,
 		NodeId,
@@ -25,12 +30,21 @@ use oxc::{
 use std::sync::Arc;
 
 macro_rules! impl_parse {
-	($alloc:expr, $source:expr, $source_type:expr, $ast:ident, $sema:ident) => {
+	(
+		alloc: $alloc:expr,
+		source: $source:expr,
+		source_type: $source_type:expr,
+		ast: $ast:ident,
+		sema: $sema:ident,
+		toks: $toks:pat,
+		toks_cfg: $toks_cfg:expr
+	) => {
 		let mut parsed = OxcParser::new($alloc, $source, $source_type)
 			.with_options(ParseOptions {
 				parse_regular_expression: true,
 				..Default::default()
 			})
+			.with_config($toks_cfg)
 			.parse();
 		if !parsed.diagnostics.is_empty() {
 			let dbg_src = Arc::new($source.to_string());
@@ -41,6 +55,7 @@ macro_rules! impl_parse {
 			return Err(err);
 		}
 		let $ast: &'ast mut Program<'ast> = $alloc.alloc(parsed.program);
+		let $toks = parsed.tokens;
 		let $sema = SemanticBuilder::new()
 			.with_cfg(true)
 			.with_build_nodes(true)
@@ -63,8 +78,36 @@ pub fn parse<'ast>(
 	source: &'ast str,
 	source_type: SourceType,
 ) -> Result<(&'ast Program<'ast>, Semantic<'ast>), miette::Error> {
-	impl_parse!(alloc, source, source_type, ast, sema);
+	impl_parse! {
+		alloc: alloc,
+		source: source,
+		source_type: source_type,
+		ast: ast,
+		sema: sema,
+		toks: _,
+		toks_cfg: NoTokensParserConfig
+	};
 	Ok((ast, sema.semantic))
+}
+
+pub fn parse_with_tokens<'ast>(
+	alloc: &'ast Allocator,
+	source: &'ast str,
+	source_type: SourceType,
+) -> Result<
+	(OxcVec<'ast, Token>, &'ast Program<'ast>, Semantic<'ast>),
+	miette::Error,
+> {
+	impl_parse! {
+		alloc: alloc,
+		source: source,
+		source_type: source_type,
+		ast: ast,
+		sema: sema,
+		toks: toks,
+		toks_cfg: TokensParserConfig
+	}
+	Ok((toks, ast, sema.semantic))
 }
 
 pub fn parse_no_sema<'ast>(
@@ -89,7 +132,15 @@ pub fn parse_for_traverse<'ast>(
 	source: &'ast str,
 	source_type: SourceType,
 ) -> Result<(&'ast mut Program<'ast>, Scoping), miette::Error> {
-	impl_parse!(alloc, source, source_type, ast, sema);
+	impl_parse! {
+		alloc: alloc,
+		source: source,
+		source_type: source_type,
+		ast: ast,
+		sema: sema,
+		toks: _,
+		toks_cfg: NoTokensParserConfig
+	}
 	let scoping = sema.semantic.into_scoping();
 	Ok((ast, scoping))
 }

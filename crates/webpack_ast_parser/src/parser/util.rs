@@ -1,6 +1,6 @@
 //! Private utilities for [`super::WebpackAstParser`].
 #![deny(clippy::missing_docs_in_private_items)]
-use std::{iter, mem};
+use std::{iter, mem, ops};
 
 use ast_parser::exts::{
 	ExpressionExt,
@@ -10,11 +10,14 @@ use ast_parser::exts::{
 	StatementExt as _,
 };
 use itertools::Itertools as _;
-use oxc::ast::ast::{
-	ArrowFunctionExpression,
-	Expression,
-	IdentifierName,
-	IdentifierReference,
+use oxc::{
+	ast::ast::{
+		ArrowFunctionExpression,
+		Expression,
+		IdentifierName,
+		IdentifierReference,
+	},
+	span::Span,
 };
 
 use crate::{
@@ -258,4 +261,14 @@ pub fn get_nested_export_from_map<'m, T>(
 		}
 	}
 	None
+}
+
+/// Converts a [`Span`] to an [`ops::Range<u32>`]
+///
+/// [`Span`] does not implement [`Into<ops::Range<u32>>`] even though it implements [`From<ops::Range<u32>>`]
+pub const fn span_to_range(s: Span) -> ops::Range<u32> {
+	ops::Range {
+		start: s.start,
+		end: s.end,
+	}
 }

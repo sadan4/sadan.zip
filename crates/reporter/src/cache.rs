@@ -1,6 +1,6 @@
 use std::{env, io, path::PathBuf};
 
-use anyhow::{Context as _, Result, bail};
+use derive_more::IsVariant;
 use serde::{Serialize, de::DeserializeOwned};
 use tokio::{fs, io::AsyncWriteExt};
 use tracing::{debug, info};
@@ -8,6 +8,46 @@ use tracing::{debug, info};
 const REPORTER_CACHE_DIR_ENV: &str = "REPORTER_CACHE_DIR";
 const XDG_CACHE_ENV: &str = "XDG_CACHE_HOME";
 const CACHE_SUBDIR: &str = env!("CARGO_CRATE_NAME");
+
+type Result<T> = std::result::Result<T, CacheError>;
+
+#[derive(thiserror::Error, Debug, IsVariant)]
+pub enum CacheError {
+	#[error("Failed to get home dir")]
+	NoHomeDir,
+	#[error("{} is a file. expected a directory", .0.display())]
+	NotDir(PathBuf),
+	#[error("Failed to create directory: {}", path.display())]
+	CreateDir {
+		path: PathBuf,
+		#[source]
+		cause: io::Error,
+	},
+	#[error("Failed to access path: {}", path.display())]
+	Access {
+		path: PathBuf,
+		#[source]
+		cause: io::Error,
+	},
+	#[error("Failed to read cache file: {}", path.display())]
+	Read {
+		path: PathBuf,
+		#[source]
+		cause: io::Error,
+	},
+	#[error("Failed to write cache file: {}", path.display())]
+	Write {
+		path: PathBuf,
+		#[source]
+		cause: io::Error,
+	},
+	#[error("ZSTD error: {0}")]
+	Zstd(#[source] io::Error),
+	#[error("Failed to deserialize cache file")]
+	Deserialize(#[source] rmp_serde::decode::Error),
+	#[error("Failed to serialize cache file")]
+	Serialize(#[source] rmp_serde::encode::Error),
+}
 
 /// get the system cache dir
 ///
@@ -25,16 +65,13 @@ async fn get_cache_dir() -> Result<PathBuf> {
 		} else {
 			debug!("using ~/.cache as default cache dir");
 			env::home_dir()
-				.context("Failed to get home dir")?
+				.ok_or(CacheError::NoHomeDir)?
 				.join(".cache")
 		};
 	match fs::metadata(&cache_base).await {
 		Ok(meta) => {
 			if !meta.is_dir() {
-				bail!(
-					"Cache base dir {} is a file, expected a directory",
-					cache_base.display()
-				);
+				return Err(CacheError::NotDir(cache_base));
 			}
 		}
 		Err(e) => {
@@ -44,9 +81,16 @@ async fn get_cache_dir() -> Result<PathBuf> {
 				);
 				fs::create_dir_all(&cache_base)
 					.await
-					.context("Failed to create cache base dir")?;
+					.map_err(|e| CacheError::CreateDir {
+						// not needed but cba to not use map_err
+						path: cache_base.clone(),
+						cause: e,
+					})?;
 			} else {
-				return Err(e).context("Failed to access cache base dir");
+				return Err(CacheError::Access {
+					path: cache_base,
+					cause: e,
+				});
 			}
 		}
 	}
@@ -58,7 +102,10 @@ async fn get_cache_dir() -> Result<PathBuf> {
 			if e.kind() == io::ErrorKind::AlreadyExists {
 				// noop
 			} else {
-				return Err(e).context("Failed to create cache dir");
+				return Err(CacheError::CreateDir {
+					cause: e,
+					path: cache_dir,
+				});
 			}
 		}
 	}
@@ -74,18 +121,46 @@ where
 	let cache_file = cache_dir.join(key);
 	if !fs::try_exists(&cache_file)
 		.await
-		.context("Failed to stat cache file")?
-	{
+		.map_err(|e| CacheError::Access {
+			path: cache_file.clone(),
+			cause: e,
+		})? {
 		return Ok(None);
 	}
+	debug!("Reading cache file: {}", cache_file.display());
 	let raw_zstd_data = fs::read(&cache_file)
 		.await
-		.context("Failed to read cache file")?;
-	let raw_data = zstd::decode_all(&*raw_zstd_data)
-		.context("Failed to decompress cache file")?;
-	let data = rmp_serde::from_slice(&raw_data)
-		.context("Failed to deserialize cache file")?;
+		.map_err(|e| CacheError::Read {
+			path: cache_file.clone(),
+			cause: e,
+		})?;
+	let raw_data =
+		zstd::decode_all(&*raw_zstd_data).map_err(CacheError::Zstd)?;
+	let data =
+		rmp_serde::from_slice(&raw_data).map_err(CacheError::Deserialize)?;
 	Ok(Some(data))
+}
+
+/// Invalidate a cache entry by key.
+///
+/// This will remove the cache file if it exists, and do nothing if it does not exist.
+pub async fn invalidate(key: &str) -> Result<()> {
+	let cache_dir = get_cache_dir().await?;
+	let cache_file = cache_dir.join(key);
+	if fs::try_exists(&cache_file)
+		.await
+		.map_err(|e| CacheError::Access {
+			path: cache_file.clone(),
+			cause: e,
+		})? {
+		fs::remove_file(&cache_file)
+			.await
+			.map_err(|e| CacheError::Access {
+				cause: e,
+				path: cache_file,
+			})?;
+	}
+	Ok(())
 }
 
 /// write a value to cache
@@ -100,14 +175,11 @@ where
 	T: Serialize,
 {
 	let compression_level = compression_level.into().unwrap_or(10);
-	let cache_dir = get_cache_dir()
-		.await
-		.context("Failed to get cache dir")?;
+	let cache_dir = get_cache_dir().await?;
 	let cache_file = cache_dir.join(key);
-	let raw_data =
-		rmp_serde::to_vec(data).context("Failed to serialize cache data")?;
+	let raw_data = rmp_serde::to_vec(data).map_err(CacheError::Serialize)?;
 	let raw_zstd_data = zstd::encode_all(&*raw_data, compression_level)
-		.context("Failed to compress data")?;
+		.map_err(CacheError::Zstd)?;
 	let mut file = fs::File::options()
 		.write(true)
 		.create(true)
@@ -115,13 +187,22 @@ where
 		.append(false)
 		.open(&cache_file)
 		.await
-		.context("Failed to open cache file")?;
+		.map_err(|e| CacheError::Access {
+			path: cache_file.clone(),
+			cause: e,
+		})?;
 	file.write_all(&raw_zstd_data)
 		.await
-		.context("Failed to write data to file")?;
+		.map_err(|e| CacheError::Write {
+			path: cache_file.clone(),
+			cause: e,
+		})?;
 	file.flush()
 		.await
-		.context("Failed to flush cache file")?;
+		.map_err(|e| CacheError::Write {
+			path: cache_file.clone(),
+			cause: e,
+		})?;
 	drop(file);
 	Ok(())
 }

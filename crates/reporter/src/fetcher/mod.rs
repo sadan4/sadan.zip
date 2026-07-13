@@ -1,3 +1,5 @@
+pub mod http;
+
 use anyhow::{Context as _, Result, bail};
 use clap::Args;
 use discord_scraper::{
@@ -10,12 +12,14 @@ use discord_scraper::{
 use explorer_server_core::Channel;
 use explorer_types::ModuleId;
 use reqwest_middleware::ClientWithMiddleware;
+use serde::{Deserialize, Serialize};
+use smallvec::SmallVec;
 use std::{
 	collections::HashMap,
 	sync::{Arc, Mutex, OnceLock},
 };
 use tokio::task;
-use tracing::{debug, info, warn};
+use tracing::{debug, error, info, warn};
 
 use crate::{
 	Branch,
@@ -47,26 +51,28 @@ pub struct FetchOpts {
 	pub branches: Vec<Branch>,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
 pub struct ScrapedBranch {
 	pub channel: Channel,
-	pub out: ScrapedOutput,
+	pub modules: ScrapedOutput,
+	pub build_hash: String,
 }
 
 pub async fn fetch_build(
 	opts: FetchOpts,
 	bars: &MultiProgressWrapper,
 ) -> Result<Vec<ScrapedBranch>> {
-	let mut futs: Vec<task::JoinHandle<Result<ScrapedBranch>>> =
-		Vec::with_capacity(2);
+	if opts.branches.len() > 2 {
+		warn!(?opts.branches, "Fetching more than 2 branches at once ????");
+	}
+	let mut futs: SmallVec<[task::JoinHandle<Result<ScrapedBranch>>; 2]> =
+		SmallVec::with_capacity(opts.branches.len());
 	for &branch in &opts.branches {
 		let ch = branch.into();
 		let bars2 = bars.clone();
 		futs.push(tokio::spawn(async move {
 			let scraped = fetch_for_channel(ch, bars2).await?;
-			Ok(ScrapedBranch {
-				channel: ch,
-				out: scraped,
-			})
+			Ok(scraped)
 		}));
 	}
 	let mut results = Vec::with_capacity(futs.len());
@@ -79,7 +85,7 @@ pub async fn fetch_build(
 async fn fetch_for_channel(
 	channel: Channel,
 	bars: MultiProgressWrapper,
-) -> Result<ScrapedOutput> {
+) -> Result<ScrapedBranch> {
 	info!("Fetching build from {channel:?} channel");
 	let pre_bar =
 		Stage::new(format!("[{channel:?}]: Scraping build data: "), None)
@@ -89,9 +95,9 @@ async fn fetch_for_channel(
 		make_reqwest_client().context("Failed to create HTTP client")?;
 	let IndexResponse { text, build_hash } =
 		fetch_index(&client, channel).await?;
-	let build_hash = make_cache_key(build_hash);
+	let cache_key = make_cache_key(build_hash.clone());
 	pre_bar.msg("Reading cache");
-	match cache::read(&build_hash).await {
+	match cache::read(&cache_key).await {
 		Ok(Some(data)) => {
 			info!("Cache hit on fetching build");
 			return Ok(data);
@@ -100,6 +106,12 @@ async fn fetch_for_channel(
 			debug!("Cache miss on fetching build");
 		}
 		Err(e) => {
+			if e.is_deserialize() {
+				warn!("Failed to deserialize cache file. invalidating entry");
+				if let Err(e) = cache::invalidate(&cache_key).await {
+					error!("Failed to invalidate cache entry {e:?}");
+				}
+			}
 			warn!(
 				"Failed to read from cache, falling back to scraping via network. {e:?}"
 			);
@@ -115,8 +127,13 @@ async fn fetch_for_channel(
 	});
 	let ScrapedModules { modules, .. } =
 		JsScraper::scrape(text.as_ref(), channel, client, progress).await?;
+	let output = ScrapedBranch {
+		channel,
+		modules,
+		build_hash,
+	};
 	// we need to await this here so the task isn't dropped on process exit
-	match cache::write(&build_hash, &modules, None).await {
+	match cache::write(&cache_key, &output, None).await {
 		Ok(()) => {
 			info!("Wrote modules to cache");
 		}
@@ -124,7 +141,7 @@ async fn fetch_for_channel(
 			warn!("Failed to write modules to cache. {e:?}");
 		}
 	}
-	Ok(modules)
+	Ok(output)
 }
 
 fn make_cache_key(mut build_hash: String) -> String {

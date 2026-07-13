@@ -1,4 +1,6 @@
 #![allow(clippy::unreadable_literal, clippy::too_many_lines)]
+mod find_gen;
+
 use super::*;
 use ast_parser::span_line_and_column;
 use insta::assert_debug_snapshot;
@@ -7,10 +9,11 @@ use macros::test;
 use oxc::{ast::ast::Str, span::Span};
 use std::fmt::{self, Debug};
 
-macro_rules! parse {
+#[macro_export]
+macro_rules! parse_ {
 	($alloc:expr, $source:literal) => {{
 		let source = include_str!($source);
-		WebpackAstParser::try_new(&$alloc, source).unwrap()
+		$crate::WebpackAstParser::try_new(&$alloc, source).unwrap()
 	}};
 }
 
@@ -131,7 +134,7 @@ fn constructs() {
 #[test]
 fn finds_wreq() {
 	let alloc = Allocator::new();
-	let p = parse!(alloc, "test_data/wp/module.js");
+	let p = parse_!(alloc, "test_data/wp/module.js");
 	let wreq = p.wreq().unwrap();
 	let info = p.t_sym_info(wreq);
 	assert_debug_snapshot!(info, @r#"
@@ -148,14 +151,14 @@ fn finds_wreq() {
 #[test]
 fn doesnt_find_wreq_in_module_that_doesnt_use_it() {
 	let alloc = Allocator::new();
-	let p = parse!(alloc, "test_data/wp/bad/noWreq.js");
+	let p = parse_!(alloc, "test_data/wp/bad/noWreq.js");
 	assert_eq!(p.wreq(), None);
 }
 
 #[test]
 fn finds_imported_var() {
 	let alloc = Allocator::new();
-	let p = parse!(alloc, "test_data/wp/module.js");
+	let p = parse_!(alloc, "test_data/wp/module.js");
 	let info = p
 		.get_imported_var(200651.into())
 		.unwrap();
@@ -174,9 +177,29 @@ fn finds_imported_var() {
 #[test]
 fn doesnt_find_side_effect_import() {
 	let alloc = Allocator::new();
-	let p = parse!(alloc, "test_data/wp/module.js");
+	let p = parse_!(alloc, "test_data/wp/module.js");
 	let info = p.get_imported_var(411104.into());
 	assert_eq!(info, None);
+}
+
+mod concatenated_modules {
+	use super::{test, *};
+
+	#[test]
+	fn get_num() {
+		let alloc = Allocator::new();
+		let p = parse_!(alloc, "test_data/wp/concatenated_module.js");
+		let num = p.num_concatenated_modules();
+		assert_eq!(num, 11);
+	}
+
+	#[test]
+	fn gets_num_for_non_concatenated_module() {
+		let alloc = Allocator::new();
+		let p = parse_!(alloc, "test_data/wp/module.js");
+		let num = p.num_concatenated_modules();
+		assert_eq!(num, 1);
+	}
 }
 
 mod module_id {
@@ -186,7 +209,7 @@ mod module_id {
 	#[test]
 	fn parses_module_id() {
 		let alloc = Allocator::new();
-		let p = parse!(alloc, "test_data/wp/module.js");
+		let p = parse_!(alloc, "test_data/wp/module.js");
 		let id = p.get_module_id();
 
 		assert_eq!(id, Some(ModuleId(317269)));
@@ -195,7 +218,7 @@ mod module_id {
 	#[test]
 	fn fails_to_parse_malformed_module_id() {
 		let alloc = Allocator::new();
-		let p = parse!(alloc, "test_data/wp/bad/badModule1.js");
+		let p = parse_!(alloc, "test_data/wp/bad/badModule1.js");
 		let id = p.get_module_id();
 		assert_eq!(id, None);
 	}
@@ -203,7 +226,7 @@ mod module_id {
 	#[test]
 	fn fails_to_parse_missing_module_id() {
 		let alloc = Allocator::new();
-		let p = parse!(alloc, "test_data/wp/bad/badModule2.js");
+		let p = parse_!(alloc, "test_data/wp/bad/badModule2.js");
 		let id = p.get_module_id();
 		assert_eq!(id, None);
 	}
@@ -216,7 +239,7 @@ mod export_parsing {
 		#[test]
 		fn simple_modules() {
 			let alloc = Allocator::new();
-			let p = parse!(alloc, "test_data/wp/module.js");
+			let p = parse_!(alloc, "test_data/wp/module.js");
 			let export_map = p.dbg_export_map();
 			assert_debug_snapshot!(export_map, @r#"
 			{
@@ -238,7 +261,7 @@ mod export_parsing {
 		#[test]
 		fn string_literal_export() {
 			let alloc = Allocator::new();
-			let p = parse!(alloc, "test_data/wp/wreq.d/simpleString.js");
+			let p = parse_!(alloc, "test_data/wp/wreq.d/simpleString.js");
 			let export_map = p.dbg_export_map();
 			assert_debug_snapshot!(export_map, @r#"
 			{
@@ -255,7 +278,7 @@ mod export_parsing {
 		#[test]
 		fn object_literal_export() {
 			let alloc = Allocator::new();
-			let p = parse!(alloc, "test_data/wp/wreq.d/objectExport.js");
+			let p = parse_!(alloc, "test_data/wp/wreq.d/objectExport.js");
 			let map = p.dbg_export_map();
 			assert_debug_snapshot!(map, @r#"
 			{
@@ -310,7 +333,7 @@ mod export_parsing {
 		#[test]
 		fn object_with_computed_prop() {
 			let alloc = Allocator::new();
-			let p = parse!(alloc, "test_data/wp/wreq.d/computedPropInObj.js");
+			let p = parse_!(alloc, "test_data/wp/wreq.d/computedPropInObj.js");
 			let map = p.dbg_export_map();
 			assert_debug_snapshot!(map, @r#"
 			{
@@ -333,7 +356,7 @@ mod export_parsing {
 		#[test]
 		fn class_export() {
 			let alloc = Allocator::new();
-			let p = parse!(alloc, "test_data/wp/wreq.d/classExport.js");
+			let p = parse_!(alloc, "test_data/wp/wreq.d/classExport.js");
 			let map = p.dbg_export_map();
 			assert_debug_snapshot!(map, @r#"
 			{
@@ -395,7 +418,7 @@ mod export_parsing {
 		#[test]
 		fn enum_export() {
 			let alloc = Allocator::new();
-			let p = parse!(alloc, "test_data/wp/wreq.d/enums.js");
+			let p = parse_!(alloc, "test_data/wp/wreq.d/enums.js");
 			let map = p.get_export_map();
 			// only pick the keys we have tests for in js
 			// TODO: Broaden tests in this module
@@ -579,7 +602,7 @@ mod export_parsing {
 		/// class names
 		fn object_literal_exports() {
 			let alloc = Allocator::new();
-			let p = parse!(alloc, "test_data/wp/e.exports/objLiteral.js");
+			let p = parse_!(alloc, "test_data/wp/e.exports/objLiteral.js");
 			let map = p.dbg_export_map();
 			assert_debug_snapshot!(map, @r#"
 			{
@@ -613,7 +636,7 @@ mod export_parsing {
 		#[test]
 		fn single_string_export() {
 			let alloc = Allocator::new();
-			let p = parse!(alloc, "test_data/wp/e.exports/string.js");
+			let p = parse_!(alloc, "test_data/wp/e.exports/string.js");
 			let map = p.dbg_export_map();
 			assert_debug_snapshot!(map, @r#"
 			{
@@ -628,7 +651,7 @@ mod export_parsing {
 		#[test]
 		fn re_export() {
 			let alloc = Allocator::new();
-			let p = parse!(alloc, "test_data/wp/e.exports/identReExport.js");
+			let p = parse_!(alloc, "test_data/wp/e.exports/identReExport.js");
 			let map = p.dbg_export_map();
 			assert_debug_snapshot!(map, @r#"
 			{
@@ -641,7 +664,7 @@ mod export_parsing {
 		#[test]
 		fn exports_with_an_intermediate_var() {
 			let alloc = Allocator::new();
-			let p = parse!(alloc, "test_data/wp/e.exports/ident.js");
+			let p = parse_!(alloc, "test_data/wp/e.exports/ident.js");
 			let map = p.dbg_export_map();
 			assert_debug_snapshot!(map, @r#"
 			{
@@ -705,7 +728,7 @@ mod export_parsing {
 		#[test]
 		fn function_expression() {
 			let alloc = Allocator::new();
-			let p = parse!(alloc, "test_data/wp/e.exports/function.js");
+			let p = parse_!(alloc, "test_data/wp/e.exports/function.js");
 			let map = p.dbg_export_map();
 			assert_debug_snapshot!(map, @r#"
 			{
@@ -718,7 +741,7 @@ mod export_parsing {
 		#[test]
 		fn class_default_export() {
 			let alloc = Allocator::new();
-			let p = parse!(alloc, "test_data/wp/e.exports/classExport.js");
+			let p = parse_!(alloc, "test_data/wp/e.exports/classExport.js");
 			let map = p.dbg_export_map();
 			assert_debug_snapshot!(map, @r#"
 			{
@@ -775,12 +798,53 @@ mod export_parsing {
 		/// `parses_everything_else` from js
 		fn ponyfill() {
 			let alloc = Allocator::new();
-			let p = parse!(alloc, "test_data/wp/e.exports/everythingElse.js");
+			let p = parse_!(alloc, "test_data/wp/e.exports/everythingElse.js");
 			let map = p.dbg_export_map();
 			assert_debug_snapshot!(map, @r#"
 			{
 			    "SYM_CJS_DEFAULT": [
 			        "[5:16->5:44)",
+			    ],
+			}
+			"#);
+		}
+
+		#[test]
+		fn e_exports_on_rhs() {
+			let alloc = Allocator::new();
+			let p = parse_!(alloc, "test_data/wp/e.exports/panic1.js");
+			let map = p.dbg_export_map();
+			assert_debug_snapshot!(map, @r#"
+			{
+			    "__esModule": [
+			        "[9:27->9:29)",
+			    ],
+			    "default": [
+			        "[10:24->10:33)",
+			    ],
+			    "SYM_CJS_DEFAULT": [
+			        "[4:16->4:28)",
+			    ],
+			}
+			"#);
+		}
+
+		#[test]
+		fn runtime_export_switch() {
+			let alloc = Allocator::new();
+			let p =
+				parse_!(alloc, "test_data/wp/e.exports/runtimeExportSwitch.js");
+			let map = p.dbg_export_map();
+			assert_debug_snapshot!(map, @r#"
+			{
+			    "__esModule": [
+			        "[12:31->12:33)",
+			    ],
+			    "default": [
+			        "[13:28->13:37)",
+			    ],
+			    "SYM_CJS_DEFAULT": [
+			        "[7:27->11:9)",
 			    ],
 			}
 			"#);
@@ -792,7 +856,7 @@ mod export_parsing {
 		#[test]
 		fn pre_es6_class() {
 			let alloc = Allocator::new();
-			let p = parse!(alloc, "test_data/wp/exports/module.js");
+			let p = parse_!(alloc, "test_data/wp/exports/module.js");
 			let map = p.dbg_export_map();
 			assert_debug_snapshot!(map, @r#"
 			{
@@ -822,7 +886,7 @@ mod export_parsing {
 		#[test]
 		fn normal_store() {
 			let alloc = Allocator::new();
-			let p = parse!(alloc, "test_data/wp/stores/store1.js");
+			let p = parse_!(alloc, "test_data/wp/stores/store1.js");
 			let map = p.dbg_export_map();
 			assert_debug_snapshot!(map, @r#"
 			{
@@ -847,7 +911,7 @@ mod export_parsing {
 		#[test]
 		fn ctor_with_no_args() {
 			let alloc = Allocator::new();
-			let p = parse!(alloc, "test_data/wp/stores/store2.js");
+			let p = parse_!(alloc, "test_data/wp/stores/store2.js");
 			let map = p.dbg_export_map();
 			assert_debug_snapshot!(map, @r#"
 			{
@@ -909,7 +973,7 @@ mod export_parsing {
 		#[test]
 		fn no_initialize_method() {
 			let alloc = Allocator::new();
-			let p = parse!(alloc, "test_data/wp/stores/store3.js");
+			let p = parse_!(alloc, "test_data/wp/stores/store3.js");
 			let map = p.dbg_export_map();
 			assert_debug_snapshot!(map, @r#"
 			{
@@ -956,7 +1020,7 @@ mod export_parsing {
 		#[test]
 		fn with_getters() {
 			let alloc = Allocator::new();
-			let p = parse!(alloc, "test_data/wp/stores/getter.js");
+			let p = parse_!(alloc, "test_data/wp/stores/getter.js");
 			let map = p.dbg_export_map();
 			assert_debug_snapshot!(map, @r#"
 			{
@@ -984,7 +1048,7 @@ mod export_parsing {
 		// which we don't parse
 		fn using_libdiscore() {
 			let alloc = Allocator::new();
-			let p = parse!(alloc, "test_data/wp/stores/store-libdiscore-1.js");
+			let p = parse_!(alloc, "test_data/wp/stores/store-libdiscore-1.js");
 			let map = p.dbg_export_map();
 			assert_debug_snapshot!(map, @r#"
 			{
@@ -1011,7 +1075,7 @@ mod export_parsing {
 		#[test]
 		fn with_static_properties() {
 			let alloc = Allocator::new();
-			let p = parse!(
+			let p = parse_!(
 				alloc,
 				"test_data/wp/stores/store-static-displayName.js"
 			);
@@ -1095,7 +1159,7 @@ mod export_parsing {
 		#[test]
 		fn persisted_store() {
 			let alloc = Allocator::new();
-			let p = parse!(alloc, "test_data/wp/stores/persistedStore.js");
+			let p = parse_!(alloc, "test_data/wp/stores/persistedStore.js");
 			let map = p.dbg_export_map();
 			assert_debug_snapshot!(map, @r#"
 			{
@@ -1165,7 +1229,7 @@ mod import_parsing {
 	#[test]
 	fn only_reexported_export() {
 		let alloc = Allocator::new();
-		let p = parse!(alloc, "test_data/wp/imports/reExport.js");
+		let p = parse_!(alloc, "test_data/wp/imports/reExport.js");
 		let uses = p.dbg_uses_of_import(ModuleId(999001), &[k("foo")]);
 		assert_debug_snapshot!(uses, @r#"
 		[
@@ -1176,7 +1240,7 @@ mod import_parsing {
 	#[test]
 	fn reexport_with_other_uses() {
 		let alloc = Allocator::new();
-		let p = parse!(alloc, "test_data/wp/imports/reExport.js");
+		let p = parse_!(alloc, "test_data/wp/imports/reExport.js");
 		let uses = p.dbg_uses_of_import(ModuleId(999001), &[k("bar")]);
 		assert_debug_snapshot!(uses, @r#"
 		[
@@ -1188,14 +1252,14 @@ mod import_parsing {
 	#[test]
 	fn empty_when_no_uses() {
 		let alloc = Allocator::new();
-		let p = parse!(alloc, "test_data/wp/imports/reExport.js");
+		let p = parse_!(alloc, "test_data/wp/imports/reExport.js");
 		let uses = p.dbg_uses_of_import(ModuleId(999001), &[k("baz")]);
 		assert_debug_snapshot!(uses, @"[]");
 	}
 	#[test]
 	fn empty_when_not_imported() {
 		let alloc = Allocator::new();
-		let p = parse!(alloc, "test_data/wp/imports/reExport.js");
+		let p = parse_!(alloc, "test_data/wp/imports/reExport.js");
 		let uses = p.dbg_uses_of_import(ModuleId(999003), &[k("foo")]);
 		assert_debug_snapshot!(uses, @"[]");
 	}
@@ -1203,21 +1267,21 @@ mod import_parsing {
 	#[test]
 	fn empty_when_no_uses_2() {
 		let alloc = Allocator::new();
-		let p = parse!(alloc, "test_data/wp/imports/indirectCall.js");
+		let p = parse_!(alloc, "test_data/wp/imports/indirectCall.js");
 		let uses = p.dbg_uses_of_import(ModuleId(999002), &[k("bar")]);
 		assert_debug_snapshot!(uses, @"[]");
 	}
 	#[test]
 	fn empty_when_not_imported_2() {
 		let alloc = Allocator::new();
-		let p = parse!(alloc, "test_data/wp/imports/indirectCall.js");
+		let p = parse_!(alloc, "test_data/wp/imports/indirectCall.js");
 		let uses = p.dbg_uses_of_import(ModuleId(999004), &[k("foo")]);
 		assert_debug_snapshot!(uses, @"[]");
 	}
 	#[test]
 	fn indirect_call() {
 		let alloc = Allocator::new();
-		let p = parse!(alloc, "test_data/wp/imports/indirectCall.js");
+		let p = parse_!(alloc, "test_data/wp/imports/indirectCall.js");
 		let uses = p.dbg_uses_of_import(ModuleId(999002), &[k("foo")]);
 		assert_debug_snapshot!(uses, @r#"
 		[
@@ -1228,7 +1292,7 @@ mod import_parsing {
 	#[test]
 	fn direct_call() {
 		let alloc = Allocator::new();
-		let p = parse!(alloc, "test_data/wp/imports/directCall.js");
+		let p = parse_!(alloc, "test_data/wp/imports/directCall.js");
 		let uses = p.dbg_uses_of_import(ModuleId(999003), &[k("foo3")]);
 		assert_debug_snapshot!(uses, @r#"
 		[
@@ -1240,7 +1304,7 @@ mod import_parsing {
 	#[test]
 	fn none_when_wreq_unused() {
 		let alloc = Allocator::new();
-		let p = parse!(alloc, "test_data/wp/imports/directCall.js");
+		let p = parse_!(alloc, "test_data/wp/imports/directCall.js");
 		let uses = p.get_uses_of_import(ModuleId(0), &[]);
 		assert_eq!(uses, vec![]);
 	}
@@ -1248,7 +1312,7 @@ mod import_parsing {
 	#[test]
 	fn node_default_exports() {
 		let alloc = Allocator::new();
-		let p = parse!(alloc, "test_data/wp/imports/nodeModule.js");
+		let p = parse_!(alloc, "test_data/wp/imports/nodeModule.js");
 		let uses =
 			p.dbg_uses_of_import(ModuleId(999005), &[ExportMapKey::Default]);
 		assert_debug_snapshot!(uses, @r#"
@@ -1262,7 +1326,7 @@ mod import_parsing {
 	#[test]
 	fn node_named_exports() {
 		let alloc = Allocator::new();
-		let p = parse!(alloc, "test_data/wp/imports/nodeModule.js");
+		let p = parse_!(alloc, "test_data/wp/imports/nodeModule.js");
 		let uses = p.dbg_uses_of_import(ModuleId(999005), &[k("qux")]);
 		assert_debug_snapshot!(uses, @r#"
 		[
@@ -1291,8 +1355,8 @@ mod direct_module_definition {
 			_requestor: &WebpackAstParser<'ast>,
 			_id: ModuleId,
 			_latest: Option<bool>,
-		) -> Result<Rc<WebpackAstParser<'ast>>> {
-			bail!("test cache does not provide parsers")
+		) -> anyhow::Result<Rc<WebpackAstParser<'ast>>> {
+			anyhow::bail!("test cache does not provide parsers")
 		}
 	}
 
@@ -1331,14 +1395,14 @@ mod direct_module_definition {
 	#[test]
 	fn errors_when_module_cache_has_no_filepath() {
 		let alloc = Allocator::new();
-		let p = parse!(alloc, "test_data/wp/module.js");
+		let p = parse_!(alloc, "test_data/wp/module.js");
 		let _ = p.generate_definitions(188).unwrap_err();
 	}
 
 	#[test]
 	fn errors_when_numeric_literal_parent_is_not_a_call() {
 		let alloc = Allocator::new();
-		let p = parse!(alloc, "test_data/wp/module.js");
+		let p = parse_!(alloc, "test_data/wp/module.js");
 		let _ = p.generate_definitions(38).unwrap_err();
 	}
 }

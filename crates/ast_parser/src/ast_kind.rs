@@ -1,7 +1,13 @@
 use oxc::{
 	ast::{
 		AstKind,
-		ast::{BindingPattern, Expression, MemberExpression, PropertyKey},
+		ast::{
+			BindingPattern,
+			Expression,
+			MemberExpression,
+			PropertyKey,
+			Statement,
+		},
 	},
 	semantic::AstNode,
 };
@@ -352,6 +358,48 @@ impl<'ast> IntoAstKind<'ast> for &'ast BindingPattern<'ast> {
 			BindingPattern::ObjectPattern(e) => e.into_ast_kind(),
 			BindingPattern::ArrayPattern(e) => e.into_ast_kind(),
 			BindingPattern::AssignmentPattern(e) => e.into_ast_kind(),
+		}
+	}
+}
+
+impl<'ast> IntoAstKind<'ast> for &'ast Statement<'ast> {
+	fn into_ast_kind(self) -> AstKind<'ast> {
+		match self {
+			Statement::BlockStatement(block_statement) => {
+				block_statement.into_ast_kind()
+			}
+			Statement::BreakStatement(e) => e.into_ast_kind(),
+			Statement::ContinueStatement(e) => e.into_ast_kind(),
+			Statement::DebuggerStatement(e) => e.into_ast_kind(),
+			Statement::DoWhileStatement(e) => e.into_ast_kind(),
+			Statement::EmptyStatement(e) => e.into_ast_kind(),
+			Statement::ExpressionStatement(e) => e.into_ast_kind(),
+			Statement::ForInStatement(e) => e.into_ast_kind(),
+			Statement::ForOfStatement(e) => e.into_ast_kind(),
+			Statement::ForStatement(e) => e.into_ast_kind(),
+			Statement::IfStatement(e) => e.into_ast_kind(),
+			Statement::LabeledStatement(e) => e.into_ast_kind(),
+			Statement::ReturnStatement(e) => e.into_ast_kind(),
+			Statement::SwitchStatement(e) => e.into_ast_kind(),
+			Statement::ThrowStatement(e) => e.into_ast_kind(),
+			Statement::TryStatement(e) => e.into_ast_kind(),
+			Statement::WhileStatement(e) => e.into_ast_kind(),
+			Statement::WithStatement(e) => e.into_ast_kind(),
+			Statement::VariableDeclaration(e) => e.into_ast_kind(),
+			Statement::FunctionDeclaration(e) => e.into_ast_kind(),
+			Statement::ClassDeclaration(e) => e.into_ast_kind(),
+			Statement::TSTypeAliasDeclaration(e) => e.into_ast_kind(),
+			Statement::TSInterfaceDeclaration(e) => e.into_ast_kind(),
+			Statement::TSEnumDeclaration(e) => e.into_ast_kind(),
+			Statement::TSModuleDeclaration(e) => e.into_ast_kind(),
+			Statement::TSGlobalDeclaration(e) => e.into_ast_kind(),
+			Statement::TSImportEqualsDeclaration(e) => e.into_ast_kind(),
+			Statement::ImportDeclaration(e) => e.into_ast_kind(),
+			Statement::ExportAllDeclaration(e) => e.into_ast_kind(),
+			Statement::ExportDefaultDeclaration(e) => e.into_ast_kind(),
+			Statement::ExportNamedDeclaration(e) => e.into_ast_kind(),
+			Statement::TSExportAssignment(e) => e.into_ast_kind(),
+			Statement::TSNamespaceExportDeclaration(e) => e.into_ast_kind(),
 		}
 	}
 }

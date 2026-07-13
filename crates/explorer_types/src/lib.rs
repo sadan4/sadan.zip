@@ -1,4 +1,5 @@
 use derive_more::{Deref, Display, From, Into};
+use jiff::{Timestamp, Zoned, tz::TimeZone};
 use serde::{Deserialize, Serialize};
 use std::{
 	collections::HashMap,
@@ -31,7 +32,7 @@ pub struct KeyModules {
 	pub flux_dispatcher_class: Vec<(ModuleId, ExportName)>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct DepInfo {
 	pub key_modules: KeyModules,
@@ -42,7 +43,7 @@ pub type ModuleSources = HashMap<String, Vec<ModuleId>>;
 
 pub type Modules = HashMap<ModuleId, String>;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct FullBundle {
 	pub metadata: BundleMetadata,
@@ -129,6 +130,15 @@ impl IncomingModuleDeps {
 impl BundleMetadata {
 	pub fn first_seen_as_time(&self) -> SystemTime {
 		SystemTime::UNIX_EPOCH + Duration::from_millis(self.first_seen)
+	}
+
+	pub fn first_seen_as_timestamp(&self) -> Timestamp {
+		Timestamp::UNIX_EPOCH + Duration::from_millis(self.first_seen)
+	}
+
+	pub fn first_seen_as_zoned(&self) -> Zoned {
+		self.first_seen_as_timestamp()
+			.to_zoned(TimeZone::UTC)
 	}
 }
 

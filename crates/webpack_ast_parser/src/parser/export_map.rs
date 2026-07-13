@@ -1,4 +1,5 @@
 use ast_parser::ast_kind::IntoAstKind;
+use daft::Diffable;
 use derive_more::{
 	Constructor,
 	Deref,
@@ -14,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use smol_str::SmolStr;
 use std::{collections::HashMap, convert::AsMut, fmt::Debug, iter};
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, PartialEq, Eq, Diffable)]
 #[serde(rename_all = "camelCase")]
 pub struct ExportMap<T> {
 	#[serde(default, skip_serializing_if = "HashMap::is_empty")]
@@ -89,7 +90,9 @@ impl<T> ExportMap<T> {
 	}
 }
 
-#[derive(Debug, Default, Clone, Serialize, Unwrap, IsVariant)]
+#[derive(
+	Debug, Default, Clone, Serialize, Unwrap, IsVariant, PartialEq, Eq, Diffable,
+)]
 #[unwrap(ref, ref_mut)]
 pub enum ExtraData<T> {
 	#[default]
@@ -99,7 +102,7 @@ pub enum ExtraData<T> {
 
 /// Methods and props can be found in the attached [`ExportMap`]
 /// the store name will be in [`ExportMap::hover`] if it can be found
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct StoreData<T> {
 	/// will always be a reference to the store identifier. an [`AstKind::BindingIdentifier`]
 	pub store: T,
@@ -199,10 +202,11 @@ impl<T> Default for ExportMap<T> {
 	}
 }
 
-#[derive(Debug, Clone, Serialize, Deref, DerefMut)]
+#[derive(Debug, Clone, Serialize, Deref, DerefMut, PartialEq, Eq, Diffable)]
 pub struct ExportRange<T>(
 	#[deref]
 	#[deref_mut]
+	#[daft(leaf)]
 	pub Vec<T>,
 	pub Option<SmolStr>,
 );
@@ -245,7 +249,18 @@ impl<T> FromIterator<T> for ExportRange<T> {
 	}
 }
 
-#[derive(Debug, Clone, Serialize, From, Unwrap, TryUnwrap, IsVariant)]
+#[derive(
+	Debug,
+	Clone,
+	Serialize,
+	From,
+	Unwrap,
+	TryUnwrap,
+	IsVariant,
+	PartialEq,
+	Eq,
+	Diffable,
+)]
 #[serde(untagged)]
 #[unwrap(ref, ref_mut)]
 #[try_unwrap(ref, ref_mut)]

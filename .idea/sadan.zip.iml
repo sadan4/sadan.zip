@@ -23,6 +23,11 @@
       <sourceFolder url="file://$MODULE_DIR$/crates/win32_err_gen/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/crates/xtask/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/crates/companion_lsp/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/miette_ctx/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/pretty_printer/benches" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/pretty_printer/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/reporter/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/reporter/tests" isTestSource="true" />
       <excludeFolder url="file://$MODULE_DIR$/crates/dagre/target" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
       <excludeFolder url="file://$MODULE_DIR$/.direnv" />

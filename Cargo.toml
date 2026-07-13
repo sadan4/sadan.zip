@@ -16,6 +16,7 @@ tar = "0.4.44"
 tokio = { version = "1.49.0", features = ["macros", "rt-multi-thread"] }
 tokio-stream = { version = "0.1.18", default-features = false }
 tokio-util = { version = "0.7.18", default-features = false }
+tokio-scoped = "0.2.0"
 reqwest = "0.13.2"
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
@@ -26,11 +27,11 @@ http = "1.4.0"
 wasm-bindgen-futures = "0.4.64"
 thiserror = "2.0.18"
 const_format = { version = "0.2.35", features = ["fmt"] }
-tower-http = { version = "0.6.8", features = ["cors"] }
+tower-http = { version = "0.7.0", features = ["cors"] }
 html_parser = "0.7.0"
 clap = { version = "4.6.0", features = ["derive"] }
 clap_complete = "4.6.0"
-itertools = "0.14.0"
+itertools = "0.15.0"
 xxhash-rust = { version = "0.8.15", features = ["xxh64"] }
 oxc = { version = "0.138.0", default-features = false }
 oxc_span = { version = "0.138.0", default-features = false }
@@ -51,7 +52,7 @@ textwrap = "0.16.2"
 terminal_size = "0.4.4"
 syntect = { version = "5.3.0", default-features = false }
 memchr = "2.8.0"
-num-bigint = "0.4"
+num-bigint = "0.4" # cant update to 0.5 because of oxc dependency
 regex = "1.12.3"
 smol_str = { version = "0.3.6", features = ["std", "serde"] }
 proc-macro2 = { version = "1.0.32", default-features = false }
@@ -75,9 +76,10 @@ webpack_chunk_parser = { path = "crates/webpack_chunk_parser" }
 pretty_printer = { path = "crates/pretty_printer" }
 dagre = { path = "crates/dagre", features = ["serde"] }
 discord_scraper = { path = "crates/discord_scraper" }
+miette_ctx = { path = "crates/miette_ctx" }
 git_hash = { path = "crates/git_hash" }
 tower-lsp = "0.20.0"
-tokio-tungstenite = "0.24.0"
+tokio-tungstenite = "0.29.0"
 futures-util = "0.3.31"
 dashmap = "6.1.0"
 tempfile = "3.13.0"
@@ -86,10 +88,17 @@ rustc-hash = "2.1.2"
 clearscreen = "4.0.6"
 bitcode = { version = "0.6.9", features = ["serde"] }
 markdown = { version = "1.0.0", features = [] }
-criterion = { version = "0.5", features = ["html_reports"] }
+criterion = { version = "0.8.2", features = ["html_reports"] }
 bytecount = { version = "0.6.9" }
 rayon = "1.12.0"
 num_cpus = "1.17.0"
+arrayvec = "0.7.8"
+jiff = { version = "0.2.31", features = ["logging"] }
+daft = { version = "0.1.7", features = ["derive"] }
+smallvec = "1.15.2"
+rangemap = "1.7.1"
+hashbrown = "0.17.1"
+bstr = "1.12.3"
 
 
 [profile.release]
@@ -200,6 +209,11 @@ redundant_pub_crate = "warn"
 search_is_some = "warn"
 set_contains_or_insert = "warn"
 significant_drop_in_scrutinee = "warn"
+# too damn noisy
+cast_possible_wrap = "allow"
+# it doesnt take types into account, so two names
+# with different types will still trigger the lint
+similar_names = "allow"
 # love to enable this, however it is very broken rust-lang/rust-clippy#11279
 significant_drop_tightening = "allow"
 single_option_map = "warn"

@@ -47,7 +47,7 @@ async fn reporter() {
 		plugins.clone(),
 	);
 	let mut errs = Vec::new();
-	let bar = MultiProgressWrapper::test_bar();
+	let bar = MultiProgressWrapper::null_bar();
 	while let Some(msg) = rx.recv().await {
 		match msg {
 			Msg::RequestProgressBar(sender) => {
@@ -57,8 +57,7 @@ async fn reporter() {
 				err.sort_inner_data();
 				errs.push(err);
 			}
-			Msg::Done(duration) => {
-				duration.expect("reporter failed");
+			Msg::Done(_) => {
 				break;
 			}
 		}
