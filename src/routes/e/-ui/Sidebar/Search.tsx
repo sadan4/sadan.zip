@@ -177,7 +177,11 @@ function Item({ results, idx, longPreview, buildService, buildHash }: ItemProps)
             }}
             className="mb-1 border-b border-fg-700"
         >
-            <Text size="xs" weight="bold" color="accent">
+            <Text
+                size="xs"
+                weight="bold"
+                color="accent"
+            >
                 {moduleId}
                 .js:
                 {data?.lineNumber ?? "?"}

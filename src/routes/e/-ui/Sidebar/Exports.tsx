@@ -41,7 +41,10 @@ export function ModuleExports() {
         }
         case "error": {
             return (
-                <Text className="p-2" color="error">
+                <Text
+                    className="p-2"
+                    color="error"
+                >
                     Failed to load export map:
                     {" "}
                     {error instanceof Error ? error.message : String(error)}
@@ -114,7 +117,7 @@ function ExportTreeItem({ node, moduleId }: ExportTreeItemProps) {
             </Text>
             {node.ranges.map((range, i) => (
                 <Clickable
-                    // eslint-disable-next-line react/no-array-index-key
+                    // eslint-disable-next-line @eslint-react/no-array-index-key -- the index is stable for this data
                     key={i}
                     onClick={() => goToRange(range)}
                     className="ml-4"
