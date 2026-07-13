@@ -367,14 +367,16 @@ fn format_module_header(src: &mut String, m_id: ModuleId, is_find: bool) -> usiz
 	inserted_len
 }
 
+/// `mappings` must be sorted in ascending `before` (original position) order,
+/// which is how they're built in `formatted_content_builder.rs`.
 fn find_formatted_pos(mappings: &[(u32, u32)], original_pos: u32) -> u32 {
-	for (before, after) in mappings.iter().copied().rev() {
-		if original_pos >= before {
-			return after + (original_pos - before);
-		}
-	}
+	let index = mappings.partition_point(|&(before, _)| before <= original_pos);
 
-	0
+	let Some(&(before, after)) = index.checked_sub(1).and_then(|i| mappings.get(i)) else {
+		return 0;
+	};
+
+	after + (original_pos - before)
 }
 
 fn normalize_source_index(source: &str, index: u32) -> u32 {
@@ -1066,5 +1068,64 @@ mod tests {
 			"map node is missing the `ranges` key: {nested}"
 		);
 		assert_eq!(nested["ranges"], serde_json::json!([]));
+	}
+
+	#[test]
+	fn find_formatted_pos_returns_zero_for_empty_mappings() {
+		assert_eq!(find_formatted_pos(&[], 0), 0);
+		assert_eq!(find_formatted_pos(&[], 42), 0);
+	}
+
+	#[test]
+	fn find_formatted_pos_returns_zero_before_first_mapping() {
+		let mappings = [(10, 100), (20, 250)];
+		assert_eq!(find_formatted_pos(&mappings, 0), 0);
+		assert_eq!(find_formatted_pos(&mappings, 9), 0);
+	}
+
+	#[test]
+	fn find_formatted_pos_matches_exact_mapping_entries() {
+		let mappings = [(10, 100), (20, 250), (30, 400)];
+		assert_eq!(find_formatted_pos(&mappings, 10), 100);
+		assert_eq!(find_formatted_pos(&mappings, 20), 250);
+		assert_eq!(find_formatted_pos(&mappings, 30), 400);
+	}
+
+	#[test]
+	fn find_formatted_pos_offsets_from_nearest_preceding_mapping() {
+		let mappings = [(10, 100), (20, 250), (30, 400)];
+		// between first and second entry: offset from (10, 100)
+		assert_eq!(find_formatted_pos(&mappings, 15), 105);
+		// between second and third entry: offset from (20, 250)
+		assert_eq!(find_formatted_pos(&mappings, 25), 255);
+		// past the last entry: offset from (30, 400)
+		assert_eq!(find_formatted_pos(&mappings, 100), 470);
+	}
+
+	#[test]
+	fn find_formatted_pos_matches_naive_linear_scan() {
+		// reference impl mirroring the original linear-scan behavior,
+		// used to fuzz-check the binary search against many mapping
+		// tables and query positions.
+		fn naive(mappings: &[(u32, u32)], original_pos: u32) -> u32 {
+			for &(before, after) in mappings.iter().rev() {
+				if original_pos >= before {
+					return after + (original_pos - before);
+				}
+			}
+			0
+		}
+
+		let mappings: Vec<(u32, u32)> = (0..500)
+			.map(|i| (i * 7, i * 7 + i * 3))
+			.collect();
+
+		for original_pos in 0..(500 * 7 + 50) {
+			assert_eq!(
+				find_formatted_pos(&mappings, original_pos),
+				naive(&mappings, original_pos),
+				"mismatch at original_pos={original_pos}"
+			);
+		}
 	}
 }
