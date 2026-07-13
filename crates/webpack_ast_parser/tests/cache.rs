@@ -16,7 +16,7 @@ fn simple_export_in_single_file(b: &Bundle) {
 	        id: ModuleId(
 	            111111,
 	        ),
-	        range: "[17:26->17:27)",
+	        range: "[17:26->17:27) J",
 	    },
 	]
 	"#);
@@ -33,19 +33,19 @@ fn simple_export_in_many_files(b: &Bundle) {
 	            id: ModuleId(
 	                111111,
 	            ),
-	            range: "[17:18->17:19)",
+	            range: "[17:18->17:19) H",
 	        },
 	        ReferenceDumper {
 	            id: ModuleId(
 	                111111,
 	            ),
-	            range: "[17:40->17:41)",
+	            range: "[17:40->17:41) H",
 	        },
 	        ReferenceDumper {
 	            id: ModuleId(
 	                999999,
 	            ),
-	            range: "[14:41->14:42)",
+	            range: "[14:41->14:42) H",
 	        },
 	    ],
 	)
@@ -78,18 +78,18 @@ mod e_exports_default {
 		assert_snapshot!(map, @r#"
 		{
 		    "bar": [
-		        "[8:8->8:11)",
-		        "[8:11->8:14)",
+		        "[8:8->8:11) bar",
+		        "[8:11->8:14) () ",
 		    ],
 		    "baz": 2(
 		        [
-		            "[11:8->11:11)",
-		            "[11:13->11:14)",
+		            "[11:8->11:11) baz",
+		            "[11:13->11:14) 2",
 		        ],
 		    ),
 		    "foo": [
-		        "[5:8->5:11)",
-		        "[5:13->5:24)",
+		        "[5:8->5:11) foo",
+		        "[5:13->5:24) function() ",
 		    ],
 		}
 		"#);
@@ -100,7 +100,7 @@ mod e_exports_default {
 		        id: ModuleId(
 		            111111,
 		        ),
-		        range: "[33:28->33:31)",
+		        range: "[33:28->33:31) foo",
 		    },
 		]
 		"#);
@@ -115,7 +115,7 @@ mod e_exports_default {
 		        id: ModuleId(
 		            111111,
 		        ),
-		        range: "[34:28->34:31)",
+		        range: "[34:28->34:31) bar",
 		    },
 		]
 		"#);
@@ -130,7 +130,7 @@ mod e_exports_default {
 		        id: ModuleId(
 		            111111,
 		        ),
-		        range: "[35:28->35:31)",
+		        range: "[35:28->35:31) baz",
 		    },
 		]
 		"#);
@@ -149,7 +149,7 @@ fn react_class_component(b: &Bundle) {
 	        id: ModuleId(
 	            333333,
 	        ),
-	        range: "[14:52->14:53)",
+	        range: "[14:52->14:53) H",
 	    },
 	]
 	"#);
@@ -169,13 +169,13 @@ mod enum_uses {
 			        id: ModuleId(
 			            111111,
 			        ),
-			        range: "[20:25->20:29)",
+			        range: "[20:25->20:29) FOO1",
 			    },
 			    ReferenceDumper {
 			        id: ModuleId(
 			            111111,
 			        ),
-			        range: "[45:17->45:21)",
+			        range: "[45:17->45:21) FOO1",
 			    },
 			]
 			"#);
@@ -190,31 +190,31 @@ mod enum_uses {
 			        id: ModuleId(
 			            111111,
 			        ),
-			        range: "[20:23->20:24)",
+			        range: "[20:23->20:24) E",
 			    },
 			    ReferenceDumper {
 			        id: ModuleId(
 			            111111,
 			        ),
-			        range: "[43:23->43:24)",
+			        range: "[43:23->43:24) E",
 			    },
 			    ReferenceDumper {
 			        id: ModuleId(
 			            111111,
 			        ),
-			        range: "[45:15->45:16)",
+			        range: "[45:15->45:16) E",
 			    },
 			    ReferenceDumper {
 			        id: ModuleId(
 			            111111,
 			        ),
-			        range: "[45:26->45:27)",
+			        range: "[45:26->45:27) E",
 			    },
 			    ReferenceDumper {
 			        id: ModuleId(
 			            222222,
 			        ),
-			        range: "[20:23->20:24)",
+			        range: "[20:23->20:24) E",
 			    },
 			]
 			"#);
@@ -232,13 +232,13 @@ mod enum_uses {
 			        id: ModuleId(
 			            111111,
 			        ),
-			        range: "[20:36->20:40)",
+			        range: "[20:36->20:40) BAR2",
 			    },
 			    ReferenceDumper {
 			        id: ModuleId(
 			            111111,
 			        ),
-			        range: "[46:28->46:32)",
+			        range: "[46:28->46:32) BAR2",
 			    },
 			]
 			"#);
@@ -253,31 +253,31 @@ mod enum_uses {
 			        id: ModuleId(
 			            111111,
 			        ),
-			        range: "[20:34->20:35)",
+			        range: "[20:34->20:35) F",
 			    },
 			    ReferenceDumper {
 			        id: ModuleId(
 			            111111,
 			        ),
-			        range: "[43:29->43:30)",
+			        range: "[43:29->43:30) F",
 			    },
 			    ReferenceDumper {
 			        id: ModuleId(
 			            111111,
 			        ),
-			        range: "[46:15->46:16)",
+			        range: "[46:15->46:16) F",
 			    },
 			    ReferenceDumper {
 			        id: ModuleId(
 			            111111,
 			        ),
-			        range: "[46:26->46:27)",
+			        range: "[46:26->46:27) F",
 			    },
 			    ReferenceDumper {
 			        id: ModuleId(
 			            222222,
 			        ),
-			        range: "[20:32->20:33)",
+			        range: "[20:32->20:33) F",
 			    },
 			]
 			"#);
@@ -300,7 +300,7 @@ mod definitions {
 			        id: ModuleId(
 			            222222,
 			        ),
-			        range: "[17:13->17:15)",
+			        range: "[17:13->17:15) _g",
 			    },
 			]
 			"#);
@@ -316,7 +316,7 @@ mod definitions {
 			            id: ModuleId(
 			                333333,
 			            ),
-			            range: "[12:13->12:15)",
+			            range: "[12:13->12:15) _u",
 			        },
 			    ],
 			)
@@ -337,7 +337,7 @@ mod definitions {
 					        id: ModuleId(
 					            333333,
 					        ),
-					        range: "[21:8->21:18)",
+					        range: "[21:8->21:18) style1Enum",
 					    },
 					]
 					"#);
@@ -352,7 +352,7 @@ mod definitions {
 					        id: ModuleId(
 					            333333,
 					        ),
-					        range: "[21:8->21:18)",
+					        range: "[21:8->21:18) style1Enum",
 					    },
 					]
 					"#);
@@ -367,7 +367,7 @@ mod definitions {
 					        id: ModuleId(
 					            333333,
 					        ),
-					        range: "[22:24->22:30)",
+					        range: "[22:24->22:30) \"FOO1\"",
 					    },
 					]
 					"#);
@@ -385,7 +385,7 @@ mod definitions {
 					        id: ModuleId(
 					            333333,
 					        ),
-					        range: "[26:8->26:18)",
+					        range: "[26:8->26:18) style2Enum",
 					    },
 					]
 					"#);
@@ -400,7 +400,7 @@ mod definitions {
 					        id: ModuleId(
 					            333333,
 					        ),
-					        range: "[26:8->26:18)",
+					        range: "[26:8->26:18) style2Enum",
 					    },
 					]
 					"#);
@@ -415,7 +415,7 @@ mod definitions {
 					        id: ModuleId(
 					            333333,
 					        ),
-					        range: "[28:19->28:20)",
+					        range: "[28:19->28:20) 2",
 					    },
 					]
 					"#);
@@ -436,7 +436,7 @@ mod stores {
 		        id: ModuleId(
 		            999999,
 		        ),
-		        range: "[8:8->8:11)",
+		        range: "[8:8->8:11) foo",
 		    },
 		]
 		"#);
@@ -455,7 +455,7 @@ mod hover_text {
 		assert_debug_snapshot!(hov, @r#"
 		(
 		    "MyTestingStore",
-		    "[38:11->38:13)",
+		    "[38:11->38:13) ZP",
 		)
 		"#);
 	}
@@ -471,13 +471,13 @@ mod hover_text {
 		assert_debug_snapshot!(hov2, @r#"
 		(
 		    "MyTestingStore",
-		    "[32:23->32:25)",
+		    "[32:23->32:25) ZP",
 		)
 		"#);
 		assert_debug_snapshot!(hov, @r#"
 		(
 		    "MyTestingStore",
-		    "[15:23->15:25)",
+		    "[15:23->15:25) ZP",
 		)
 		"#);
 	}

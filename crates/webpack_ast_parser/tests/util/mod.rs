@@ -230,7 +230,8 @@ pub struct SpanDumper<'a>(pub Span, pub &'a str);
 impl Debug for SpanDumper<'_> {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		let ((l1, c1), (l2, c2)) = span_line_and_column(self.1, self.0);
-		write!(f, r#""[{l1}:{c1}->{l2}:{c2})""#)
+		let text = self.1[self.0].escape_debug();
+		write!(f, r#""[{l1}:{c1}->{l2}:{c2}) {text}""#)
 	}
 }
 
@@ -249,7 +250,9 @@ impl ExportMapDumper<'_> {
 					for &span in range.iter() {
 						let ((l1, c1), (l2, c2)) =
 							span_line_and_column(self.1, span);
-						dbg_list.entry(&format!("[{l1}:{c1}->{l2}:{c2})"));
+						let text = self.1[span].escape_debug();
+						dbg_list
+							.entry(&format!("[{l1}:{c1}->{l2}:{c2}) {text}"));
 					}
 					dbg_list.finish()
 				});

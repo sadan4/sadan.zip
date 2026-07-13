@@ -23,7 +23,8 @@ struct SpanDumper<'a>(pub Span, pub &'a str);
 impl Debug for SpanDumper<'_> {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		let ((l1, c1), (l2, c2)) = span_line_and_column(self.1, self.0);
-		write!(f, r#""[{l1}:{c1}->{l2}:{c2})""#)
+		let text = self.1[self.0].escape_debug();
+		write!(f, r#""[{l1}:{c1}->{l2}:{c2}) {text}""#)
 	}
 }
 
@@ -42,7 +43,9 @@ impl ExportMapDumper<'_> {
 					for &span in range.iter() {
 						let ((l1, c1), (l2, c2)) =
 							span_line_and_column(self.1, span);
-						dbg_list.entry(&format!("[{l1}:{c1}->{l2}:{c2})"));
+						let text = self.1[span].escape_debug();
+						dbg_list
+							.entry(&format!("[{l1}:{c1}->{l2}:{c2}) {text}"));
 					}
 					dbg_list.finish()
 				});
@@ -244,16 +247,16 @@ mod export_parsing {
 			assert_debug_snapshot!(export_map, @r#"
 			{
 			    "TB": [
-			        "[4:8->4:10)",
-			        "[162:13->162:14)",
+			        "[4:8->4:10) TB",
+			        "[162:13->162:14) T",
 			    ],
 			    "VY": [
-			        "[5:8->5:10)",
-			        "[183:13->183:14)",
+			        "[5:8->5:10) VY",
+			        "[183:13->183:14) x",
 			    ],
 			    "ZP": [
-			        "[6:8->6:10)",
-			        "[87:13->87:14)",
+			        "[6:8->6:10) ZP",
+			        "[87:13->87:14) y",
 			    ],
 			}
 			"#);
@@ -267,8 +270,8 @@ mod export_parsing {
 			{
 			    "STRING_EXPORT": "47835198259242069"(
 			        [
-			            "[5:8->5:21)",
-			            "[7:12->7:31)",
+			            "[5:8->5:21) STRING_EXPORT",
+			            "[7:12->7:31) \\\"47835198259242069\\\"",
 			        ],
 			    ),
 			}
@@ -283,46 +286,46 @@ mod export_parsing {
 			assert_debug_snapshot!(map, @r#"
 			{
 			    "EO": [
-			        "[5:8->5:10)",
-			        "[124:13->124:14)",
+			        "[5:8->5:10) EO",
+			        "[124:13->124:14) T",
 			    ],
 			    "ZP": ExportMap(
 			        {
 			            "getFormattedName": [
-			                "[164:8->164:24)",
-			                "[81:13->81:14)",
+			                "[164:8->164:24) getFormattedName",
+			                "[81:13->81:14) v",
 			            ],
 			            "getGlobalName": [
-			                "[165:8->165:21)",
-			                "[72:13->72:14)",
+			                "[165:8->165:21) getGlobalName",
+			                "[72:13->72:14) y",
 			            ],
 			            "getName": [
-			                "[156:8->156:15)",
-			                "[53:13->53:14)",
+			                "[156:8->156:15) getName",
+			                "[53:13->53:14) E",
 			            ],
 			            "getUserTag": [
-			                "[159:8->159:18)",
-			                "[142:13->142:14)",
+			                "[159:8->159:18) getUserTag",
+			                "[142:13->142:14) A",
 			            ],
 			            "humanizeStatus": [
-			                "[166:8->166:22)",
-			                "[90:13->90:14)",
+			                "[166:8->166:22) humanizeStatus",
+			                "[90:13->90:14) O",
 			            ],
 			            "isNameConcealed": [
-			                "[158:8->158:23)",
-			                "[158:25->158:30)",
+			                "[158:8->158:23) isNameConcealed",
+			                "[158:25->158:30) e => ",
 			            ],
 			            "useDirectMessageRecipient": [
-			                "[167:8->167:33)",
-			                "[147:13->147:14)",
+			                "[167:8->167:33) useDirectMessageRecipient",
+			                "[147:13->147:14) C",
 			            ],
 			            "useName": [
-			                "[157:8->157:15)",
-			                "[62:13->62:14)",
+			                "[157:8->157:15) useName",
+			                "[62:13->62:14) b",
 			            ],
 			            "useUserTag": [
-			                "[160:8->160:18)",
-			                "[160:20->160:35)",
+			                "[160:8->160:18) useUserTag",
+			                "[160:20->160:35) function(e, t) ",
 			            ],
 			        },
 			    ),
@@ -342,8 +345,8 @@ mod export_parsing {
 			            "n(231338).Et.GET_PLATFORM_BEHAVIORS": ExportMap(
 			                {
 			                    "handler": [
-			                        "[8:12->8:19)",
-			                        "[8:21->8:27)",
+			                        "[8:12->8:19) handler",
+			                        "[8:21->8:27) () => ",
 			                    ],
 			                },
 			            ),
@@ -363,51 +366,51 @@ mod export_parsing {
 			    "U": ExportMap(
 			        {
 			            "_dispatch": [
-			                "[112:8->112:17)",
+			                "[112:8->112:17) _dispatch",
 			            ],
 			            "_dispatchWithDevtools": [
-			                "[88:8->88:29)",
+			                "[88:8->88:29) _dispatchWithDevtools",
 			            ],
 			            "_dispatchWithLogging": [
-			                "[91:8->91:28)",
+			                "[91:8->91:28) _dispatchWithLogging",
 			            ],
 			            "addDependencies": [
-			                "[150:8->150:23)",
+			                "[150:8->150:23) addDependencies",
 			            ],
 			            "addInterceptor": [
-			                "[127:8->127:22)",
+			                "[127:8->127:22) addInterceptor",
 			            ],
 			            "createToken": [
-			                "[147:8->147:19)",
+			                "[147:8->147:19) createToken",
 			            ],
 			            "dispatch": [
-			                "[38:8->38:16)",
+			                "[38:8->38:16) dispatch",
 			            ],
 			            "dispatchForStoreTest": [
-			                "[55:8->55:28)",
+			                "[55:8->55:28) dispatchForStoreTest",
 			            ],
 			            "flushWaitQueue": [
-			                "[60:8->60:22)",
+			                "[60:8->60:22) flushWaitQueue",
 			            ],
 			            "isDispatching": [
-			                "[35:8->35:21)",
+			                "[35:8->35:21) isDispatching",
 			            ],
 			            "register": [
-			                "[144:8->144:16)",
+			                "[144:8->144:16) register",
 			            ],
 			            "subscribe": [
-			                "[134:8->134:17)",
+			                "[134:8->134:17) subscribe",
 			            ],
 			            "unsubscribe": [
-			                "[139:8->139:19)",
+			                "[139:8->139:19) unsubscribe",
 			            ],
 			            "wait": [
-			                "[130:8->130:12)",
+			                "[130:8->130:12) wait",
 			            ],
 			            "SYM_CJS_DEFAULT": [
-			                "[5:8->5:9)",
-			                "[34:10->34:11)",
-			                "[153:8->153:19)",
+			                "[5:8->5:9) U",
+			                "[34:10->34:11) E",
+			                "[153:8->153:19) constructor",
 			            ],
 			        },
 			    ),
@@ -431,39 +434,39 @@ mod export_parsing {
 			{
 			    "$7": 28(
 			        [
-			            "[5:8->5:10)",
-			            "[385:12->385:14)",
+			            "[5:8->5:10) $7",
+			            "[385:12->385:14) 28",
 			        ],
 			    ),
 			    "$X": "1397626558063050855"(
 			        [
-			            "[7:8->7:10)",
-			            "[421:13->421:34)",
+			            "[7:8->7:10) $X",
+			            "[421:13->421:34) \\\"1397626558063050855\\\"",
 			        ],
 			    ),
 			    "$n": 190(
 			        [
-			            "[9:8->9:10)",
-			            "[739:13->739:16)",
+			            "[9:8->9:10) $n",
+			            "[739:13->739:16) 190",
 			        ],
 			    ),
 			    "C": ExportMap(
 			        {
 			            "PREMIUM_DISCOUNT": 1(
 			                [
-			                    "[118:12->118:28)",
-			                    "[118:31->118:32)",
+			                    "[118:12->118:28) PREMIUM_DISCOUNT",
+			                    "[118:31->118:32) 1",
 			                ],
 			            ),
 			            "PREMIUM_TRIAL": 0(
 			                [
-			                    "[117:19->117:32)",
-			                    "[117:35->117:36)",
+			                    "[117:19->117:32) PREMIUM_TRIAL",
+			                    "[117:35->117:36) 0",
 			                ],
 			            ),
 			            "SYM_CJS_DEFAULT": [
-			                "[13:8->13:9)",
-			                "[116:8->116:9)",
+			                "[13:8->13:9) C",
+			                "[116:8->116:9) s",
 			            ],
 			        },
 			    ),
@@ -471,79 +474,79 @@ mod export_parsing {
 			        {
 			            "BOX": 2(
 			                [
-			                    "[701:12->701:15)",
-			                    "[701:18->701:19)",
+			                    "[701:12->701:15) BOX",
+			                    "[701:18->701:19) 2",
 			                ],
 			            ),
 			            "CAKE": 5(
 			                [
-			                    "[704:12->704:16)",
-			                    "[704:19->704:20)",
+			                    "[704:12->704:16) CAKE",
+			                    "[704:19->704:20) 5",
 			                ],
 			            ),
 			            "CHEST": 6(
 			                [
-			                    "[705:12->705:17)",
-			                    "[705:20->705:21)",
+			                    "[705:12->705:17) CHEST",
+			                    "[705:20->705:21) 6",
 			                ],
 			            ),
 			            "COFFEE": 7(
 			                [
-			                    "[706:12->706:18)",
-			                    "[706:21->706:22)",
+			                    "[706:12->706:18) COFFEE",
+			                    "[706:21->706:22) 7",
 			                ],
 			            ),
 			            "CUP": 3(
 			                [
-			                    "[702:12->702:15)",
-			                    "[702:18->702:19)",
+			                    "[702:12->702:15) CUP",
+			                    "[702:18->702:19) 3",
 			                ],
 			            ),
 			            "NITROWEEN_STANDARD": 12(
 			                [
-			                    "[711:12->711:30)",
-			                    "[711:33->711:35)",
+			                    "[711:12->711:30) NITROWEEN_STANDARD",
+			                    "[711:33->711:35) 12",
 			                ],
 			            ),
 			            "SEASONAL_CAKE": 9(
 			                [
-			                    "[708:12->708:25)",
-			                    "[708:28->708:29)",
+			                    "[708:12->708:25) SEASONAL_CAKE",
+			                    "[708:28->708:29) 9",
 			                ],
 			            ),
 			            "SEASONAL_CHEST": 10(
 			                [
-			                    "[709:12->709:26)",
-			                    "[709:29->709:31)",
+			                    "[709:12->709:26) SEASONAL_CHEST",
+			                    "[709:29->709:31) 10",
 			                ],
 			            ),
 			            "SEASONAL_COFFEE": 11(
 			                [
-			                    "[710:12->710:27)",
-			                    "[710:30->710:32)",
+			                    "[710:12->710:27) SEASONAL_COFFEE",
+			                    "[710:30->710:32) 11",
 			                ],
 			            ),
 			            "SEASONAL_STANDARD_BOX": 8(
 			                [
-			                    "[707:12->707:33)",
-			                    "[707:36->707:37)",
+			                    "[707:12->707:33) SEASONAL_STANDARD_BOX",
+			                    "[707:36->707:37) 8",
 			                ],
 			            ),
 			            "SNOWGLOBE": 1(
 			                [
-			                    "[700:19->700:28)",
-			                    "[700:31->700:32)",
+			                    "[700:19->700:28) SNOWGLOBE",
+			                    "[700:31->700:32) 1",
 			                ],
 			            ),
 			            "STANDARD_BOX": 4(
 			                [
-			                    "[703:12->703:24)",
-			                    "[703:27->703:28)",
+			                    "[703:12->703:24) STANDARD_BOX",
+			                    "[703:27->703:28) 4",
 			                ],
 			            ),
 			            "SYM_CJS_DEFAULT": [
-			                "[17:8->17:10)",
-			                "[699:8->699:10)",
+			                "[17:8->17:10) Cj",
+			                "[699:8->699:10) eY",
 			            ],
 			        },
 			    ),
@@ -551,43 +554,43 @@ mod export_parsing {
 			        {
 			            "GUILD": "590663762298667008"(
 			                [
-			                    "[153:10->153:15)",
-			                    "[153:18->153:38)",
+			                    "[153:10->153:15) GUILD",
+			                    "[153:18->153:38) \\\"590663762298667008\\\"",
 			                ],
 			            ),
 			            "LEGACY": "521842865731534868"(
 			                [
-			                    "[154:10->154:16)",
-			                    "[154:19->154:39)",
+			                    "[154:10->154:16) LEGACY",
+			                    "[154:19->154:39) \\\"521842865731534868\\\"",
 			                ],
 			            ),
 			            "NONE": "628379670982688768"(
 			                [
-			                    "[149:17->149:21)",
-			                    "[149:24->149:44)",
+			                    "[149:17->149:21) NONE",
+			                    "[149:24->149:44) \\\"628379670982688768\\\"",
 			                ],
 			            ),
 			            "TIER_0": "978380684370378762"(
 			                [
-			                    "[150:10->150:16)",
-			                    "[150:19->150:39)",
+			                    "[150:10->150:16) TIER_0",
+			                    "[150:19->150:39) \\\"978380684370378762\\\"",
 			                ],
 			            ),
 			            "TIER_1": "521846918637420545"(
 			                [
-			                    "[151:10->151:16)",
-			                    "[151:19->151:39)",
+			                    "[151:10->151:16) TIER_1",
+			                    "[151:19->151:39) \\\"521846918637420545\\\"",
 			                ],
 			            ),
 			            "TIER_2": "521847234246082599"(
 			                [
-			                    "[152:10->152:16)",
-			                    "[152:19->152:39)",
+			                    "[152:10->152:16) TIER_2",
+			                    "[152:19->152:39) \\\"521847234246082599\\\"",
 			                ],
 			            ),
 			            "SYM_CJS_DEFAULT": [
-			                "[44:8->44:10)",
-			                "[148:8->148:9)",
+			                "[44:8->44:10) Si",
+			                "[148:8->148:9) _",
 			            ],
 			        },
 			    ),
@@ -608,26 +611,26 @@ mod export_parsing {
 			{
 			    "addButton": "addButton_f5cb44"(
 			        [
-			            "[7:8->7:17)",
-			            "[7:19->7:37)",
+			            "[7:8->7:17) addButton",
+			            "[7:19->7:37) \\\"addButton_f5cb44\\\"",
 			        ],
 			    ),
 			    "addButtonInner": "addButtonInner_f5cb44"(
 			        [
-			            "[8:8->8:22)",
-			            "[8:24->8:47)",
+			            "[8:8->8:22) addButtonInner",
+			            "[8:24->8:47) \\\"addButtonInner_f5cb44\\\"",
 			        ],
 			    ),
 			    "productListings": "productListings_f5cb44"(
 			        [
-			            "[6:8->6:23)",
-			            "[6:25->6:49)",
+			            "[6:8->6:23) productListings",
+			            "[6:25->6:49) \\\"productListings_f5cb44\\\"",
 			        ],
 			    ),
 			    "productListingsHeader": "productListingsHeader_f5cb44"(
 			        [
-			            "[5:8->5:29)",
-			            "[5:31->5:61)",
+			            "[5:8->5:29) productListingsHeader",
+			            "[5:31->5:61) \\\"productListingsHeader_f5cb44\\\"",
 			        ],
 			    ),
 			}
@@ -642,7 +645,7 @@ mod export_parsing {
 			{
 			    "SYM_CJS_DEFAULT": "/assets/b8deed70d3e4a9bd.svg"(
 			        [
-			            "[4:16->4:46)",
+			            "[4:16->4:46) \\\"/assets/b8deed70d3e4a9bd.svg\\\"",
 			        ],
 			    ),
 			}
@@ -656,7 +659,7 @@ mod export_parsing {
 			assert_debug_snapshot!(map, @r#"
 			{
 			    "SYM_CJS_DEFAULT": [
-			        "[4:12->4:21)",
+			        "[4:12->4:21) n(843767)",
 			    ],
 			}
 			"#);
@@ -670,56 +673,56 @@ mod export_parsing {
 			{
 			    "closeContainer": "closeContainer__2dea3"(
 			        [
-			            "[6:8->6:22)",
-			            "[6:24->6:47)",
+			            "[6:8->6:22) closeContainer",
+			            "[6:24->6:47) \\\"closeContainer__2dea3\\\"",
 			        ],
 			    ),
 			    "closeIcon": "closeIcon__2dea3"(
 			        [
-			            "[7:8->7:17)",
-			            "[7:19->7:37)",
+			            "[7:8->7:17) closeIcon",
+			            "[7:19->7:37) \\\"closeIcon__2dea3\\\"",
 			        ],
 			    ),
 			    "confirmationContainer": "confirmationContainer__2dea3"(
 			        [
-			            "[10:8->10:29)",
-			            "[10:31->10:61)",
+			            "[10:8->10:29) confirmationContainer",
+			            "[10:31->10:61) \\\"confirmationContainer__2dea3\\\"",
 			        ],
 			    ),
 			    "confirmationSubtitle": "confirmationSubtitle__2dea3"(
 			        [
-			            "[13:8->13:28)",
-			            "[13:30->13:59)",
+			            "[13:8->13:28) confirmationSubtitle",
+			            "[13:30->13:59) \\\"confirmationSubtitle__2dea3\\\"",
 			        ],
 			    ),
 			    "confirmationTitle": "confirmationTitle__2dea3"(
 			        [
-			            "[12:8->12:25)",
-			            "[12:27->12:53)",
+			            "[12:8->12:25) confirmationTitle",
+			            "[12:27->12:53) \\\"confirmationTitle__2dea3\\\"",
 			        ],
 			    ),
 			    "headerContainer": "headerContainer__2dea3"(
 			        [
-			            "[5:8->5:23)",
-			            "[5:25->5:49)",
+			            "[5:8->5:23) headerContainer",
+			            "[5:25->5:49) \\\"headerContainer__2dea3\\\"",
 			        ],
 			    ),
 			    "headerImage": "headerImage__2dea3"(
 			        [
-			            "[8:8->8:19)",
-			            "[8:21->8:41)",
+			            "[8:8->8:19) headerImage",
+			            "[8:21->8:41) \\\"headerImage__2dea3\\\"",
 			        ],
 			    ),
 			    "headerImageContainer": "headerImageContainer__2dea3"(
 			        [
-			            "[9:8->9:28)",
-			            "[9:30->9:59)",
+			            "[9:8->9:28) headerImageContainer",
+			            "[9:30->9:59) \\\"headerImageContainer__2dea3\\\"",
 			        ],
 			    ),
 			    "purchaseConfirmation": "purchaseConfirmation__2dea3 confirmationContainer__2dea3"(
 			        [
-			            "[11:8->11:28)",
-			            "[11:30->11:88)",
+			            "[11:8->11:28) purchaseConfirmation",
+			            "[11:30->11:88) \\\"purchaseConfirmation__2dea3 confirmationContainer__2dea3\\\"",
 			        ],
 			    ),
 			}
@@ -733,7 +736,7 @@ mod export_parsing {
 			assert_debug_snapshot!(map, @r#"
 			{
 			    "SYM_CJS_DEFAULT": [
-			        "[9:16->9:28)",
+			        "[9:16->9:28) function(e) ",
 			    ],
 			}
 			"#);
@@ -746,50 +749,50 @@ mod export_parsing {
 			assert_debug_snapshot!(map, @r#"
 			{
 			    "_dispatch": [
-			        "[112:8->112:17)",
+			        "[112:8->112:17) _dispatch",
 			    ],
 			    "_dispatchWithDevtools": [
-			        "[88:8->88:29)",
+			        "[88:8->88:29) _dispatchWithDevtools",
 			    ],
 			    "_dispatchWithLogging": [
-			        "[91:8->91:28)",
+			        "[91:8->91:28) _dispatchWithLogging",
 			    ],
 			    "addDependencies": [
-			        "[150:8->150:23)",
+			        "[150:8->150:23) addDependencies",
 			    ],
 			    "addInterceptor": [
-			        "[127:8->127:22)",
+			        "[127:8->127:22) addInterceptor",
 			    ],
 			    "createToken": [
-			        "[147:8->147:19)",
+			        "[147:8->147:19) createToken",
 			    ],
 			    "dispatch": [
-			        "[38:8->38:16)",
+			        "[38:8->38:16) dispatch",
 			    ],
 			    "dispatchForStoreTest": [
-			        "[55:8->55:28)",
+			        "[55:8->55:28) dispatchForStoreTest",
 			    ],
 			    "flushWaitQueue": [
-			        "[60:8->60:22)",
+			        "[60:8->60:22) flushWaitQueue",
 			    ],
 			    "isDispatching": [
-			        "[35:8->35:21)",
+			        "[35:8->35:21) isDispatching",
 			    ],
 			    "register": [
-			        "[144:8->144:16)",
+			        "[144:8->144:16) register",
 			    ],
 			    "subscribe": [
-			        "[134:8->134:17)",
+			        "[134:8->134:17) subscribe",
 			    ],
 			    "unsubscribe": [
-			        "[139:8->139:19)",
+			        "[139:8->139:19) unsubscribe",
 			    ],
 			    "wait": [
-			        "[130:8->130:12)",
+			        "[130:8->130:12) wait",
 			    ],
 			    "SYM_CJS_DEFAULT": [
-			        "[34:10->34:11)",
-			        "[153:8->153:19)",
+			        "[34:10->34:11) E",
+			        "[153:8->153:19) constructor",
 			    ],
 			}
 			"#);
@@ -803,7 +806,7 @@ mod export_parsing {
 			assert_debug_snapshot!(map, @r#"
 			{
 			    "SYM_CJS_DEFAULT": [
-			        "[5:16->5:44)",
+			        "[5:16->5:44) Function.prototype.bind || r",
 			    ],
 			}
 			"#);
@@ -817,13 +820,13 @@ mod export_parsing {
 			assert_debug_snapshot!(map, @r#"
 			{
 			    "__esModule": [
-			        "[9:27->9:29)",
+			        "[9:27->9:29) !0",
 			    ],
 			    "default": [
-			        "[10:24->10:33)",
+			        "[10:24->10:33) e.exports",
 			    ],
 			    "SYM_CJS_DEFAULT": [
-			        "[4:16->4:28)",
+			        "[4:16->4:28) function(e) ",
 			    ],
 			}
 			"#);
@@ -838,13 +841,13 @@ mod export_parsing {
 			assert_debug_snapshot!(map, @r#"
 			{
 			    "__esModule": [
-			        "[12:31->12:33)",
+			        "[12:31->12:33) !0",
 			    ],
 			    "default": [
-			        "[13:28->13:37)",
+			        "[13:28->13:37) t.exports",
 			    ],
 			    "SYM_CJS_DEFAULT": [
-			        "[7:27->11:9)",
+			        "[7:27->11:9) s = \\\"function\\\" == typeof n && \\\"symbol\\\" == typeof o ? function(t) {\\n            return typeof t\\n        } : function(t) {\\n            return t && \\\"function\\\" == typeof n && t.constructor === n && t !== n.prototype ? \\\"symbol\\\" : typeof t\\n        }",
 			    ],
 			}
 			"#);
@@ -861,20 +864,20 @@ mod export_parsing {
 			assert_debug_snapshot!(map, @r#"
 			{
 			    "Deflate": [
-			        "[101:6->101:13)",
-			        "[18:13->18:14)",
+			        "[101:6->101:13) Deflate",
+			        "[18:13->18:14) m",
 			    ],
 			    "deflate": [
-			        "[102:6->102:13)",
-			        "[49:13->49:14)",
+			        "[102:6->102:13) deflate",
+			        "[49:13->49:14) E",
 			    ],
 			    "deflateRaw": [
-			        "[103:6->103:16)",
-			        "[56:13->56:14)",
+			        "[103:6->103:16) deflateRaw",
+			        "[56:13->56:14) v",
 			    ],
 			    "gzip": [
-			        "[104:6->104:10)",
-			        "[60:13->60:14)",
+			        "[104:6->104:10) gzip",
+			        "[60:13->60:14) b",
 			    ],
 			}
 			"#);
@@ -893,15 +896,15 @@ mod export_parsing {
 			    "Z": EnablePublicGuildUpsellNoticeStore(
 			        {
 			            "initialize": [
-			                "[11:8->11:18)",
+			                "[11:8->11:18) initialize",
 			            ],
 			            "isVisible": [
-			                "[18:8->18:17)",
+			                "[18:8->18:17) isVisible",
 			            ],
 			            "SYM_CJS_DEFAULT": [
-			                "[4:8->4:9)",
-			                "[32:16->32:17)",
-			                "[10:10->10:11)",
+			                "[4:8->4:9) Z",
+			                "[32:16->32:17) m",
+			                "[10:10->10:11) m",
 			            ],
 			        },
 			    ),
@@ -917,55 +920,55 @@ mod export_parsing {
 			{
 			    "ASSISTANT_WUMPUS_VOICE_USER": "47835198259242069"(
 			        [
-			            "[6:8->6:35)",
-			            "[39:12->39:31)",
+			            "[6:8->6:35) ASSISTANT_WUMPUS_VOICE_USER",
+			            "[39:12->39:31) \\\"47835198259242069\\\"",
 			        ],
 			    ),
 			    "default": UserStore(
 			        {
 			            "filter": [
-			                "[260:8->260:14)",
+			                "[260:8->260:14) filter",
 			            ],
 			            "findByTag": [
-			                "[253:8->253:17)",
+			                "[253:8->253:17) findByTag",
 			            ],
 			            "forEach": [
-			                "[248:8->248:15)",
+			                "[248:8->248:15) forEach",
 			            ],
 			            "getCurrentUser": [
-			                "[270:8->270:22)",
+			                "[270:8->270:22) getCurrentUser",
 			            ],
 			            "getUser": [
-			                "[241:8->241:15)",
+			                "[241:8->241:15) getUser",
 			            ],
 			            "getUserStoreVersion": 0(
 			                [
-			                    "[38:12->38:13)",
+			                    "[38:12->38:13) 0",
 			                ],
 			            ),
 			            "getUsers": [
-			                "[245:8->245:16)",
+			                "[245:8->245:16) getUsers",
 			            ],
 			            "handleLoadCache": [
-			                "[224:8->224:23)",
+			                "[224:8->224:23) handleLoadCache",
 			            ],
 			            "initialize": [
-			                "[212:8->212:18)",
+			                "[212:8->212:18) initialize",
 			            ],
 			            "takeSnapshot": [
-			                "[215:8->215:20)",
+			                "[215:8->215:20) takeSnapshot",
 			            ],
 			            "SYM_CJS_DEFAULT": [
-			                "[7:8->7:15)",
-			                "[286:17->286:19)",
-			                "[211:10->211:12)",
-			                "[273:8->273:19)",
+			                "[7:8->7:15) default",
+			                "[286:17->286:19) eR",
+			                "[211:10->211:12) eR",
+			                "[273:8->273:19) constructor",
 			            ],
 			        },
 			    ),
 			    "mergeUser": [
-			        "[8:8->8:17)",
-			        "[118:13->118:14)",
+			        "[8:8->8:17) mergeUser",
+			        "[118:13->118:14) A",
 			    ],
 			}
 			"#);
@@ -980,36 +983,36 @@ mod export_parsing {
 			    "Z": GuildStore(
 			        {
 			            "getAllGuildsRoles": [
-			                "[218:8->218:25)",
+			                "[218:8->218:25) getAllGuildsRoles",
 			            ],
 			            "getGeoRestrictedGuilds": [
-			                "[53:12->53:14)",
+			                "[53:12->53:14) []",
 			            ],
 			            "getGuild": [
-			                "[199:8->199:16)",
+			                "[199:8->199:16) getGuild",
 			            ],
 			            "getGuildCount": [
-			                "[4:8->4:9)",
+			                "[4:8->4:9) r",
 			            ],
 			            "getGuildIds": [
-			                "[206:8->206:19)",
+			                "[206:8->206:19) getGuildIds",
 			            ],
 			            "getGuilds": [
-			                "[203:8->203:17)",
+			                "[203:8->203:17) getGuilds",
 			            ],
 			            "getRole": [
-			                "[225:8->225:15)",
+			                "[225:8->225:15) getRole",
 			            ],
 			            "getRoles": [
-			                "[221:8->221:16)",
+			                "[221:8->221:16) getRoles",
 			            ],
 			            "isLoaded": [
-			                "[52:12->52:14)",
+			                "[52:12->52:14) !1",
 			            ],
 			            "SYM_CJS_DEFAULT": [
-			                "[6:8->6:9)",
-			                "[231:16->231:17)",
-			                "[198:10->198:11)",
+			                "[6:8->6:9) Z",
+			                "[231:16->231:17) U",
+			                "[198:10->198:11) U",
 			            ],
 			        },
 			    ),
@@ -1027,15 +1030,15 @@ mod export_parsing {
 			    "Z": SoundboardOverlayStore(
 			        {
 			            "enabled": [
-			                "[7:12->7:14)",
+			                "[7:12->7:14) !1",
 			            ],
 			            "keepOpen": [
-			                "[8:12->8:14)",
+			                "[8:12->8:14) !1",
 			            ],
 			            "SYM_CJS_DEFAULT": [
-			                "[4:8->4:9)",
-			                "[24:16->24:17)",
-			                "[9:10->9:11)",
+			                "[4:8->4:9) Z",
+			                "[24:16->24:17) u",
+			                "[9:10->9:11) u",
 			            ],
 			        },
 			    ),
@@ -1055,16 +1058,16 @@ mod export_parsing {
 			    "A": GuildStore(
 			        {
 			            "getGuildCount": [
-			                "[71:8->71:21)",
+			                "[71:8->71:21) getGuildCount",
 			            ],
 			            "stateWrapper": [
-			                "[68:8->68:20)",
+			                "[68:8->68:20) stateWrapper",
 			            ],
 			            "SYM_CJS_DEFAULT": [
-			                "[4:8->4:9)",
-			                "[88:16->88:17)",
-			                "[67:10->67:11)",
-			                "[74:8->74:19)",
+			                "[4:8->4:9) A",
+			                "[88:16->88:17) E",
+			                "[67:10->67:11) E",
+			                "[74:8->74:19) constructor",
 			            ],
 			        },
 			    ),
@@ -1084,73 +1087,73 @@ mod export_parsing {
 			{
 			    "ASSISTANT_WUMPUS_VOICE_USER": "47835198259242069"(
 			        [
-			            "[6:8->6:35)",
-			            "[35:12->35:31)",
+			            "[6:8->6:35) ASSISTANT_WUMPUS_VOICE_USER",
+			            "[35:12->35:31) \\\"47835198259242069\\\"",
 			        ],
 			    ),
 			    "default": "UserStore"(
 			        {
 			            "LATEST_SNAPSHOT_VERSION": 1(
 			                [
-			                    "[594:41->594:42)",
+			                    "[594:41->594:42) 1",
 			                ],
 			            ),
 			            "displayName": "UserStore"(
 			                [
-			                    "[593:29->593:40)",
+			                    "[593:29->593:40) \\\"UserStore\\\"",
 			                ],
 			            ),
 			            "filter": [
-			                "[710:8->710:14)",
+			                "[710:8->710:14) filter",
 			            ],
 			            "findByTag": [
-			                "[703:8->703:17)",
+			                "[703:8->703:17) findByTag",
 			            ],
 			            "forEach": [
-			                "[698:8->698:15)",
+			                "[698:8->698:15) forEach",
 			            ],
 			            "getCurrentUser": [
-			                "[720:8->720:22)",
+			                "[720:8->720:22) getCurrentUser",
 			            ],
 			            "getUser": [
-			                "[691:8->691:15)",
+			                "[691:8->691:15) getUser",
 			            ],
 			            "getUserStoreVersion": 0(
 			                [
-			                    "[34:12->34:13)",
+			                    "[34:12->34:13) 0",
 			                ],
 			            ),
 			            "getUsers": [
-			                "[695:8->695:16)",
+			                "[695:8->695:16) getUsers",
 			            ],
 			            "handleLoadCache": [
-			                "[676:8->676:23)",
+			                "[676:8->676:23) handleLoadCache",
 			            ],
 			            "initialize": [
-			                "[664:8->664:18)",
+			                "[664:8->664:18) initialize",
 			            ],
 			            "takeSnapshot": [
-			                "[667:8->667:20)",
+			                "[667:8->667:20) takeSnapshot",
 			            ],
 			            "SYM_CJS_DEFAULT": [
-			                "[7:8->7:15)",
-			                "[724:17->724:19)",
-			                "[592:10->592:12)",
-			                "[595:8->595:19)",
+			                "[7:8->7:15) default",
+			                "[724:17->724:19) ek",
+			                "[592:10->592:12) ek",
+			                "[595:8->595:19) constructor",
 			            ],
 			        },
 			    ),
 			    "mergeUser": [
-			        "[8:8->8:17)",
-			        "[128:13->128:14)",
+			        "[8:8->8:17) mergeUser",
+			        "[128:13->128:14) O",
 			    ],
 			    "transformUser": [
-			        "[9:8->9:21)",
-			        "[71:13->71:14)",
+			        "[9:8->9:21) transformUser",
+			        "[71:13->71:14) N",
 			    ],
 			    "users": [
-			        "[10:8->10:13)",
-			        "[10:15->10:21)",
+			        "[10:8->10:13) users",
+			        "[10:15->10:21) () => ",
 			    ],
 			}
 			"#);
@@ -1167,36 +1170,36 @@ mod export_parsing {
 			        {
 			            "displayName": "ThemeStore"(
 			                [
-			                    "[59:29->59:41)",
+			                    "[59:29->59:41) \\\"ThemeStore\\\"",
 			                ],
 			            ),
 			            "getState": [
-			                "[78:8->78:16)",
+			                "[78:8->78:16) getState",
 			            ],
 			            "initialize": [
-			                "[70:8->70:18)",
+			                "[70:8->70:18) initialize",
 			            ],
 			            "migrations": [
-			                "[61:28->69:17)",
+			                "[61:28->69:17) [e => {\\n            let t = e.theme;\\n            return \\\"amoled\\\" === t && (t = \\\"midnight\\\"),\\n            {\\n                ...e,\\n                theme: t\\n            }\\n        }\\n        , e => e]",
 			            ],
 			            "persistKey": "ThemeStore"(
 			                [
-			                    "[60:28->60:40)",
+			                    "[60:28->60:40) \\\"ThemeStore\\\"",
 			                ],
 			            ),
 			            "systemTheme": [
-			                "[34:12->35:10)",
+			                "[34:12->35:10) (0,\\n    o.A)()",
 			            ],
 			            "theme": [
-			                "[36:12->36:16)",
+			                "[36:12->36:16) A[I]",
 			            ],
 			            "themePreferenceForSystemTheme": [
-			                "[91:8->91:37)",
+			                "[91:8->91:37) themePreferenceForSystemTheme",
 			            ],
 			            "SYM_CJS_DEFAULT": [
-			                "[6:8->6:9)",
-			                "[95:16->95:17)",
-			                "[58:10->58:11)",
+			                "[6:8->6:9) A",
+			                "[95:16->95:17) C",
+			                "[58:10->58:11) C",
 			            ],
 			        },
 			    ),
@@ -1204,17 +1207,13 @@ mod export_parsing {
 			"#);
 		}
 
-		#[test]
-		#[ignore = "never seen example of this"]
-		fn exported_via_module_exports() {
-			unimplemented!();
-		}
+		// #[test]
+		// fn exported_via_module_exports() {
+		// }
 
-		#[test]
-		#[ignore = "never seen example of this"]
-		fn exported_via_exports() {
-			unimplemented!();
-		}
+		// #[test]
+		// fn exported_via_exports() {
+		// }
 	}
 }
 
@@ -1233,7 +1232,7 @@ mod import_parsing {
 		let uses = p.dbg_uses_of_import(ModuleId(999001), &[k("foo")]);
 		assert_debug_snapshot!(uses, @r#"
 		[
-		    "[5:21->5:24)",
+		    "[5:21->5:24) foo",
 		]
 		"#);
 	}
@@ -1244,8 +1243,8 @@ mod import_parsing {
 		let uses = p.dbg_uses_of_import(ModuleId(999001), &[k("bar")]);
 		assert_debug_snapshot!(uses, @r#"
 		[
-		    "[6:22->6:25)",
-		    "[10:18->10:21)",
+		    "[6:22->6:25) bar",
+		    "[10:18->10:21) bar",
 		]
 		"#);
 	}
@@ -1285,7 +1284,7 @@ mod import_parsing {
 		let uses = p.dbg_uses_of_import(ModuleId(999002), &[k("foo")]);
 		assert_debug_snapshot!(uses, @r#"
 		[
-		    "[9:22->9:25)",
+		    "[9:22->9:25) foo",
 		]
 		"#);
 	}
@@ -1296,7 +1295,7 @@ mod import_parsing {
 		let uses = p.dbg_uses_of_import(ModuleId(999003), &[k("foo3")]);
 		assert_debug_snapshot!(uses, @r#"
 		[
-		    "[8:29->8:33)",
+		    "[8:29->8:33) foo3",
 		]
 		"#);
 	}
@@ -1317,8 +1316,8 @@ mod import_parsing {
 			p.dbg_uses_of_import(ModuleId(999005), &[ExportMapKey::Default]);
 		assert_debug_snapshot!(uses, @r#"
 		[
-		    "[15:8->15:12)",
-		    "[20:15->20:19)",
+		    "[15:8->15:12) _1()",
+		    "[20:15->20:19) _1()",
 		]
 		"#);
 	}
@@ -1330,8 +1329,8 @@ mod import_parsing {
 		let uses = p.dbg_uses_of_import(ModuleId(999005), &[k("qux")]);
 		assert_debug_snapshot!(uses, @r#"
 		[
-		    "[16:20->16:23)",
-		    "[19:13->19:16)",
+		    "[16:20->16:23) qux",
+		    "[19:13->19:16) qux",
 		]
 		"#);
 	}
