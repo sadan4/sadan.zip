@@ -26,6 +26,7 @@ use explorer_types::{
 	FullBundle,
 	TimestampQueryResults,
 };
+use git_hash::GIT_HASH;
 use http::{StatusCode, header};
 use tokio::{fs, net, task::JoinSet};
 use tokio_stream::{StreamExt, wrappers::ReadDirStream};
@@ -248,7 +249,6 @@ fn make_tarball(zstd_raw_data: &[u8]) -> Result<Vec<u8>> {
 
 	// top-level files
 	// deps.json
-	dbg!(&b.dep_info);
 	let deps_json_data = serde_json::to_vec(&b.dep_info)?;
 	header.set_size(deps_json_data.len() as u64);
 	a.append_data(&mut header, "deps.json", &*deps_json_data)?;
@@ -349,6 +349,7 @@ pub async fn serve(bind_addr: &str, state: crate::State) -> anyhow::Result<()> {
 		.route("/builds/before/hash/{hash}", get(get_before_hash))
 		.route("/builds/latest/meta", get(get_latest_build_meta))
 		.route("/fixup-timestamps", post(touch_builds))
+		.route("/version", get(|| async { GIT_HASH }))
 		.with_state(state)
 		.layer(cors::CorsLayer::new().allow_origin(cors::Any));
 	let listener = net::TcpListener::bind(bind_addr).await?;

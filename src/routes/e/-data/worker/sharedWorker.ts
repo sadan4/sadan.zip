@@ -4,7 +4,19 @@ import type { GeneratedGraph } from "@/hooks/moduleGraph2";
 import { assert } from "@/utils/error";
 import type { Monaco } from "@/utils/monaco";
 import type { TBundleHash, TModuleId } from "@/utils/types";
-import { Bundle, default as initWasm, get_bundle, HoverInfo as RawHoverInfo, LaidOutGraph, ModuleLocation as RawModuleLocation, MonacoPosition, MonacoRange } from "@sadan4/libsadancore";
+import {
+    Bundle,
+    type BundleSearchLocation,
+    type BundleSearchResultInfo,
+    default as initWasm,
+    type ExportTreeNode,
+    get_bundle,
+    HoverInfo as RawHoverInfo,
+    LaidOutGraph,
+    ModuleLocation as RawModuleLocation,
+    MonacoPosition,
+    MonacoRange,
+} from "@sadan4/libsadancore";
 import type { Edge, Node } from "@xyflow/react";
 
 import * as comlink from "comlink";
@@ -20,6 +32,11 @@ export interface HoverInfo {
     i18nKey?: string;
 }
 
+export interface BundleSearchResults {
+    moduleIds: Uint32Array;
+    rawIndices: Uint32Array;
+}
+
 export interface IBuildService {
     hasId(moduleId: number): moduleId is TModuleId;
     getFormattedSource(moduleId: TModuleId): string;
@@ -27,7 +44,11 @@ export interface IBuildService {
     generateReferences(moduleId: TModuleId, position: Monaco.IPosition): ModuleLocation[];
     generateHover(moduleId: TModuleId, position: Monaco.IPosition): HoverInfo | undefined;
     getAllModuleIds(): Uint32Array;
+    searchModules(query: string, regex: boolean): BundleSearchResults;
+    getSearchResultInfo(moduleId: TModuleId, rawIndex: number, longPreview: boolean): BundleSearchResultInfo;
+    getSearchLocation(moduleId: TModuleId, rawIndex: number): BundleSearchLocation;
     generateModuleGraph(moduleId: TModuleId, depth: number): GeneratedGraph;
+    getModuleExportMap(moduleId: TModuleId): ExportTreeNode[];
 }
 
 const self = globalThis as any as SharedWorkerGlobalScope;
@@ -145,10 +166,33 @@ class BuildService implements IBuildService {
         return comlink.transfer(ids, [ids.buffer]);
     }
 
+    public searchModules(query: string, regex: boolean): BundleSearchResults {
+        const results = this.#bundle.search_modules(query, regex) as BundleSearchResults;
+        const { moduleIds } = results;
+        const { rawIndices } = results;
+
+        return comlink.transfer({
+            moduleIds,
+            rawIndices,
+        }, [moduleIds.buffer, rawIndices.buffer]);
+    }
+
+    public getSearchResultInfo(moduleId: TModuleId, rawIndex: number, longPreview: boolean): BundleSearchResultInfo {
+        return this.#bundle.get_search_result_info(moduleId, rawIndex, longPreview);
+    }
+
+    public getSearchLocation(moduleId: TModuleId, rawIndex: number): BundleSearchLocation {
+        return this.#bundle.get_search_location(moduleId, rawIndex);
+    }
+
     public generateModuleGraph(moduleId: TModuleId, depth: number): GeneratedGraph {
         const graph = this.#bundle.gen_graph(moduleId, depth);
 
         return convertGraph(graph);
+    }
+
+    public getModuleExportMap(moduleId: TModuleId): ExportTreeNode[] {
+        return this.#bundle.get_module_export_map(moduleId);
     }
 }
 

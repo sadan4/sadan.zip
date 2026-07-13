@@ -7,6 +7,7 @@ import { error } from "@/utils/error";
 import type { TOmit } from "@/utils/types";
 
 import * as styles from "./styles.module.scss";
+import { validateCheckedInput } from "./util";
 import { Clickable } from "../Clickable";
 import { ErrorIcon } from "../icons/ErrorIcon";
 import { Text } from "../Text";
@@ -133,39 +134,6 @@ export interface ErrorMessageProps {
     origCheck: CheckedInputProps["check"];
 }
 
-function throwIfInvalidLenCheck(lenCheck: LenCheck) {
-    // both undefined
-    if (!(lenCheck.min || lenCheck.max)) {
-        error("Invalid length check");
-    }
-    // min < 0
-    if (lenCheck.min != null && lenCheck.min < 0) {
-        error("Invalid minimum length");
-    }
-    // max <= 0
-    if (lenCheck.max != null && lenCheck.max <= 0) {
-        error("Invalid maximum length");
-    }
-    // min >= max
-    if (lenCheck.min != null && lenCheck.max != null && lenCheck.min >= lenCheck.max) {
-        error("Invalid length check");
-    }
-}
-
-function validateLength(check: LenCheck, value: string): boolean {
-    throwIfInvalidLenCheck(check);
-
-    const len = value.length;
-
-    if (check.min != null && len < check.min) {
-        return false;
-    }
-    if (check.max != null && len > check.max) {
-        return false;
-    }
-    return true;
-}
-
 function formatInvalidLenMessage(check: LenCheck): string {
     if (check.min != null && check.max != null) {
         return `Input must be between ${check.min} and ${check.max} characters long`;
@@ -206,7 +174,7 @@ function DefaultErrorMessage({ origCheck }: ErrorMessageProps) {
     );
 }
 
-interface LenCheck {
+export interface LenCheck {
     type: "len";
     /**
      * inclusive
@@ -224,24 +192,19 @@ export interface CheckedInputProps extends TOmit<InputProps, "onChange">, PropsW
     labelWeight?: keyof typeof textWeight;
     check: RegExp | ((value: string) => boolean) | LenCheck;
     errorMessage?: (props: ErrorMessageProps) => ReactNode;
+    /**
+     * e is undefined on initial render if checkInitialRender is true
+     */
     onValidChange?: (e: ChangeEvent<HTMLInputElement> | undefined, value: string) => void;
+    /**
+     * e is undefined on initial render if checkInitialRender is true
+     */
     onInvalidChange?: (e: ChangeEvent<HTMLInputElement> | undefined, value: string) => void;
     debounce?: number;
     wrapperClassName?: string;
     checkInitialRender?: boolean;
 }
 
-
-function validate(msg: string, check: CheckedInputProps["check"]): boolean {
-    if (typeof check === "function") {
-        return check(msg);
-    } else if (check instanceof RegExp) {
-        return check.test(msg);
-    } else if (check.type === "len") {
-        return validateLength(check, msg);
-    }
-    throw new Error("invalid check type");
-}
 export function CheckedInput({
     labelColor,
     labelSize = "md",
@@ -266,17 +229,15 @@ export function CheckedInput({
 
     // validate on initial render
     useEffect(() => {
-        if (ref.current) {
-            const valid = validate(ref.current.value, check);
+        if (ref.current && checkInitialRenderRef.current) {
+            const valid = validateCheckedInput(ref.current.value, check);
 
-            if (checkInitialRenderRef.current) {
-                if (valid) {
-                    onValidChange?.(undefined, ref.current.value);
-                } else {
-                    onInvalidChange?.(undefined, ref.current.value);
-                }
-                checkInitialRenderRef.current = false;
+            if (valid) {
+                onValidChange?.(undefined, ref.current.value);
+            } else {
+                onInvalidChange?.(undefined, ref.current.value);
             }
+
             if (!valid) {
                 setError((
                     <ErrorMessage
@@ -285,11 +246,12 @@ export function CheckedInput({
                     />
                 ));
             }
+            checkInitialRenderRef.current = false;
         }
     }, [ErrorMessage, check, onInvalidChange, onValidChange]);
 
     const handleChange = useDebouncedFn((e) => {
-        const valid = validate(e.target.value, check);
+        const valid = validateCheckedInput(e.target.value, check);
 
         if (valid) {
             setError(null);

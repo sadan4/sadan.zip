@@ -77,6 +77,7 @@ pretty_printer = { path = "crates/pretty_printer" }
 dagre = { path = "crates/dagre", features = ["serde"] }
 discord_scraper = { path = "crates/discord_scraper" }
 miette_ctx = { path = "crates/miette_ctx" }
+git_hash = { path = "crates/git_hash" }
 tower-lsp = "0.20.0"
 tokio-tungstenite = "0.29.0"
 futures-util = "0.3.31"

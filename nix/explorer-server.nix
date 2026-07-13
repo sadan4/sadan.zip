@@ -1,5 +1,6 @@
 {
 	lib,
+	git,
 	rustPlatform,
 }:
 rustPlatform.buildRustPackage (finalAttrs: {
@@ -22,6 +23,10 @@ rustPlatform.buildRustPackage (finalAttrs: {
 		cargoLock = {
 			lockFile = ../Cargo.lock;
 		};
+
+		nativeBuildInputs = [
+			git
+		];
 
 		strictDeps = true;
 

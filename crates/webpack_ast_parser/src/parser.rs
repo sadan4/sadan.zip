@@ -179,14 +179,16 @@ impl<'ast> WebpackAstParser<'ast> {
 				.contains("//OPEN FULL MODULE:")
 	}
 
+	/// Returns the number of bytes inserted at the start of `src`, or `0` if
+	/// `src` was already a webpack module and nothing was inserted.
 	pub fn format_module_header(
 		src: &mut String,
 		m_id: ModuleId,
 		is_find: bool,
-	) {
+	) -> usize {
 		const BUF_LEN: usize = 128;
 		if Self::is_webpack_module(src) {
-			return;
+			return 0;
 		}
 		let mut buf = ArrayString::<BUF_LEN>::new_const();
 		writeln!(buf, "// Webpack Module {m_id}").unwrap();
@@ -196,6 +198,7 @@ impl<'ast> WebpackAstParser<'ast> {
 		writeln!(buf, "//EXTRACTED WEBPACK MODULE {m_id}").unwrap();
 		writeln!(buf, "0,").unwrap();
 		src.insert_str(0, &buf);
+		buf.len()
 	}
 
 	pub const fn get_source(&self) -> &'ast str {
