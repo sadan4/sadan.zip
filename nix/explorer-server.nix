@@ -2,10 +2,15 @@
 	lib,
 	git,
 	rustPlatform,
+	rev ? null,
 }:
 rustPlatform.buildRustPackage (finalAttrs: {
 		pname = "explorer_server";
 		version = "0.1.0";
+
+		env = lib.optionalAttrs (rev != null) {
+			GIT_HASH = rev;
+		};
 
 		src =
 			lib.fileset.toSource {

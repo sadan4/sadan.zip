@@ -28,7 +28,12 @@
 		packages =
 			forAllSystems (
 				pkgs:
-					lib.filterAttrs (_: lib.isDerivation) (import ./default.nix {inherit pkgs;})
+					lib.filterAttrs (_: lib.isDerivation) (
+						import ./default.nix {
+							inherit pkgs;
+							rev = self.rev or self.dirtyRev or null;
+						}
+					)
 					// {default = self.packages.${pkgs.stdenv.hostPlatform.system}.reporter;}
 			);
 		nixosModules.default = import ./nix/nixos-module.nix;
