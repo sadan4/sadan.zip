@@ -249,7 +249,6 @@ fn make_tarball(zstd_raw_data: &[u8]) -> Result<Vec<u8>> {
 
 	// top-level files
 	// deps.json
-	dbg!(&b.dep_info);
 	let deps_json_data = serde_json::to_vec(&b.dep_info)?;
 	header.set_size(deps_json_data.len() as u64);
 	a.append_data(&mut header, "deps.json", &*deps_json_data)?;

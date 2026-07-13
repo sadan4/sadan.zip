@@ -50,6 +50,8 @@ export interface BufferedScrollProps<T> extends ScrollAreaProps {
     batchSize?: number;
     /**
      * The number of batches to keep rendered above and below the viewport.
+     * 
+     * @default Infinity
      */
     bufferSize?: number;
     /**
@@ -181,6 +183,7 @@ export function BufferedScroller<T>({
      */
     type ChunkHeights = Partial<Record<number, number>>;
 
+    // FIXME: Why are we using a hook for this
     const [batchSize] = useControlledState({
         initialValue: Math.min(Math.floor(items.length / 20), items.length),
         managedValue: _batchSize && Math.floor(_batchSize),

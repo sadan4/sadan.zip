@@ -6,7 +6,6 @@ edition = "2024"
 
 [lib]
 crate-type = ["cdylib"]
-test = false
 
 [dependencies]
 wasm-bindgen.workspace = true
@@ -27,6 +26,11 @@ smol_str.workspace = true
 ast_parser.workspace = true
 pretty_printer.workspace = true
 dagre.workspace = true
+regress.workspace = true
+memchr.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
 
 [features]
 local-server = []
