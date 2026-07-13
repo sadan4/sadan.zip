@@ -39,6 +39,7 @@ use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 use webpack_ast_parser::{
 	WebpackAstParser,
 	bundle::{IModuleCache, IModuleDepProvider},
+	export_map::{ExportValue, RangeExportMap, RangeExportMapValue},
 };
 
 struct RcDepInfo {
@@ -152,7 +153,8 @@ struct BundleSearchLocation {
 }
 
 #[wasm_bindgen]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct MonacoPosition {
 	/// 1-based
 	pub line: u32,
@@ -192,7 +194,8 @@ impl MonacoPosition {
 
 /// 1-based
 #[wasm_bindgen]
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Copy, Clone, Debug, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct MonacoRange {
 	/// 1-based
 	#[wasm_bindgen(readonly)]
@@ -772,6 +775,69 @@ impl Bundle {
 
 		Ok(ret)
 	}
+
+	pub fn get_module_export_map(&self, module_id: u32) -> Result<JsValue> {
+		let m_id = ModuleId(module_id);
+		let fmt_src = self.inner.get_formatted_module(m_id)?;
+		let parser = self.inner.get_or_make_parser(m_id)?;
+		let tree = build_export_tree(parser.get_export_map(), fmt_src);
+
+		Ok(serde_wasm_bindgen::to_value(&tree)
+			.context("Failed to serialize export map")?)
+	}
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ExportTreeNode {
+	name: String,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	hover: Option<String>,
+	// always serialized, even when empty: the frontend (`Exports.tsx`)
+	// and the `ExportTreeNode` typescript typings both read these
+	// fields unconditionally (`node.children.length`, `node.ranges[0]`)
+	ranges: Vec<MonacoRange>,
+	children: Vec<ExportTreeNode>,
+}
+
+fn build_export_tree(map: &RangeExportMap, src: &str) -> Vec<ExportTreeNode> {
+	let mut nodes: Vec<ExportTreeNode> = map
+		.exports
+		.iter()
+		.map(|(k, v)| build_export_node(k.to_string(), v, src))
+		.collect();
+
+	if let Some(def) = &map.cjs_default {
+		nodes.push(build_export_node("default".to_string(), def, src));
+	}
+
+	nodes.sort_by(|a, b| a.name.cmp(&b.name));
+	nodes
+}
+
+fn build_export_node(
+	name: String,
+	value: &RangeExportMapValue,
+	src: &str,
+) -> ExportTreeNode {
+	match value {
+		ExportValue::Range(range) => ExportTreeNode {
+			name,
+			hover: range.1.as_ref().map(SmolStr::to_string),
+			ranges: range
+				.0
+				.iter()
+				.map(|span| MonacoRange::from_span(*span, src))
+				.collect(),
+			children: Vec::new(),
+		},
+		ExportValue::Map(map) => ExportTreeNode {
+			name,
+			hover: map.hover.as_ref().map(SmolStr::to_string),
+			ranges: Vec::new(),
+			children: build_export_tree(map, src),
+		},
+	}
 }
 
 fn provide_i18n_hover(
@@ -806,6 +872,18 @@ const MODULE_DEPS_JS_TYPES: &str = r#"
         column: number;
     }
 
+    export interface MonacoRangeJs {
+        start: { line: number; column: number };
+        end: { line: number; column: number };
+    }
+
+    export interface ExportTreeNode {
+        name: string;
+        hover?: string;
+        ranges: MonacoRangeJs[];
+        children: ExportTreeNode[];
+    }
+
     export interface Bundle {
         get_module_deps(module_id: number): {
             syncUses: number[];
@@ -814,6 +892,7 @@ const MODULE_DEPS_JS_TYPES: &str = r#"
         search_modules(query: string, regex: boolean): BundleSearchResults;
         get_search_result_info(module_id: number, raw_index: number, long_preview: boolean): BundleSearchResultInfo;
         get_search_location(module_id: number, raw_index: number): BundleSearchLocation;
+        get_module_export_map(module_id: number): ExportTreeNode[];
     }
 "#;
 
@@ -863,4 +942,129 @@ pub async fn get_bundle(
 	};
 	let ret = Bundle { inner };
 	Ok(ret)
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use explorer_types::{BundleMetadata, DepInfo, KeyModules};
+	use std::collections::HashMap;
+
+	fn make_test_bundle(modules: HashMap<ModuleId, String>) -> Bundle {
+		let inner = BundleInner {
+			metadata: BundleMetadata::default().into(),
+			dep_info: DepInfo {
+				key_modules: KeyModules::default(),
+				module_deps: HashMap::new(),
+			}
+			.into(),
+			module_sources: HashMap::new(),
+			unformatted_modules: modules,
+			raw_alloc: Box::new(Allocator::new()),
+			parsers: RefCell::new(HashMap::new()),
+			format_alloc: RefCell::new(Allocator::new()),
+			formatted_modules: RefCell::new(HashMap::new()),
+			formatted_module_mappings: RefCell::new(HashMap::new()),
+			formatted_module_line_indices: RefCell::new(HashMap::new()),
+			self_ptr: ptr::null(),
+			_pin: PhantomPinned,
+		};
+		let mut inner = Box::pin(inner);
+		let self_ptr = &raw const *inner;
+		// SAFETY: mirrors `get_bundle`
+		unsafe {
+			inner
+				.as_mut()
+				.get_unchecked_mut()
+				.self_ptr = self_ptr;
+		};
+		Bundle { inner }
+	}
+
+	#[test]
+	fn get_module_export_map_resolves_for_cjs_default_with_dep_call() {
+		let modules = HashMap::from([
+			(
+				ModuleId(435815),
+				r#"function(e,t,n){var r=n(941094);e.exports=function(e,t){var n=e.__data__;return r(t)?n["string"==typeof t?"string":"hash"]:n.map}}"#.to_string(),
+			),
+			(
+				ModuleId(941094),
+				"function(e){e.exports=function(t){return typeof t}}".to_string(),
+			),
+		]);
+		let bundle = make_test_bundle(modules);
+		let m_id = ModuleId(435815);
+		let fmt_src = bundle
+			.inner
+			.get_formatted_module(m_id)
+			.expect("module should format");
+		let parser = bundle
+			.inner
+			.get_or_make_parser(m_id)
+			.expect("parser should be created");
+
+		let _tree = build_export_tree(parser.get_export_map(), fmt_src);
+	}
+
+	/// The frontend (`Search.tsx`/`Exports.tsx`) and the hand-written
+	/// `ExportTreeNode` typescript typings both assume `ranges` and
+	/// `children` are always present arrays (never omitted), and read
+	/// `node.children.length` / `node.ranges[0]` unconditionally.
+	/// `#[serde(skip_serializing_if = "Vec::is_empty")]` on those fields
+	/// broke that contract: a leaf node's `children` key (and a
+	/// map-only node's `ranges` key) disappeared entirely from the
+	/// serialized JSON, which crashed the UI with
+	/// "Cannot read properties of undefined (reading 'length')".
+	#[test]
+	fn export_tree_node_always_serializes_ranges_and_children_arrays() {
+		let modules = HashMap::from([(
+			ModuleId(1),
+			r#"function(e,t,n){e.exports={leaf:1,nested:{inner:2}}}"#
+				.to_string(),
+		)]);
+		let bundle = make_test_bundle(modules);
+		let m_id = ModuleId(1);
+		let fmt_src = bundle
+			.inner
+			.get_formatted_module(m_id)
+			.expect("module should format");
+		let parser = bundle
+			.inner
+			.get_or_make_parser(m_id)
+			.expect("parser should be created");
+		let tree = build_export_tree(parser.get_export_map(), fmt_src);
+
+		let json = serde_json::to_value(&tree)
+			.expect("export tree should serialize");
+		let top_level = json
+			.as_array()
+			.expect("top level should be an array");
+
+		// a leaf `Range` node must still carry a `children` array, not
+		// omit the key entirely
+		let leaf = top_level
+			.iter()
+			.find(|n| n["name"] == "leaf")
+			.expect("leaf export should be present");
+
+		assert!(
+			leaf.get("children").is_some(),
+			"leaf node is missing the `children` key: {leaf}"
+		);
+		assert_eq!(leaf["children"], serde_json::json!([]));
+
+		// a `Map` node must still carry a `ranges` array, not omit the
+		// key entirely
+		let nested = top_level
+			.iter()
+			.find(|n| n["name"] == "nested")
+			.expect("nested export should be present");
+
+		assert!(
+			nested.get("ranges").is_some(),
+			"map node is missing the `ranges` key: {nested}"
+		);
+		assert_eq!(nested["ranges"], serde_json::json!([]));
+	}
 }

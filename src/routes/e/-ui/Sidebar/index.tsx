@@ -1,15 +1,17 @@
 import { ToggleButtonGroup } from "@/components/ToggleButtonGroup";
 import { visibleIf } from "@/utils/react";
 
+import { ModuleExports } from "./Exports";
 import { ModuleList } from "./ModuleList";
 import { ModuleSearch } from "./Search";
 
-import { FilesIcon, SearchIcon } from "lucide-react";
+import { FilesIcon, ListTreeIcon, SearchIcon } from "lucide-react";
 import { Activity, useState } from "react";
 
 const enum SidebarTab {
     MODULES,
     SEARCH,
+    EXPORTS,
 }
 
 export function ExplorerSidebar() {
@@ -37,6 +39,13 @@ export function ExplorerSidebar() {
                                 return <SearchIcon />;
                             },
                         },
+                        {
+                            id: SidebarTab.EXPORTS,
+                            label: "Exports",
+                            renderIcon() {
+                                return <ListTreeIcon />;
+                            },
+                        },
                     ]}
                 />
             </div>
@@ -46,6 +55,9 @@ export function ExplorerSidebar() {
                 </Activity>
                 <Activity mode={visibleIf(tab === SidebarTab.SEARCH)} >
                     <ModuleSearch />
+                </Activity>
+                <Activity mode={visibleIf(tab === SidebarTab.EXPORTS)} >
+                    <ModuleExports />
                 </Activity>
             </div>
         </div>

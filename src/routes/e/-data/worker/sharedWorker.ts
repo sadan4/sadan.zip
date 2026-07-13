@@ -9,6 +9,7 @@ import {
     type BundleSearchLocation,
     type BundleSearchResultInfo,
     default as initWasm,
+    type ExportTreeNode,
     get_bundle,
     HoverInfo as RawHoverInfo,
     LaidOutGraph,
@@ -47,6 +48,7 @@ export interface IBuildService {
     getSearchResultInfo(moduleId: TModuleId, rawIndex: number, longPreview: boolean): BundleSearchResultInfo;
     getSearchLocation(moduleId: TModuleId, rawIndex: number): BundleSearchLocation;
     generateModuleGraph(moduleId: TModuleId, depth: number): GeneratedGraph;
+    getModuleExportMap(moduleId: TModuleId): ExportTreeNode[];
 }
 
 const self = globalThis as any as SharedWorkerGlobalScope;
@@ -187,6 +189,10 @@ class BuildService implements IBuildService {
         const graph = this.#bundle.gen_graph(moduleId, depth);
 
         return convertGraph(graph);
+    }
+
+    public getModuleExportMap(moduleId: TModuleId): ExportTreeNode[] {
+        return this.#bundle.get_module_export_map(moduleId);
     }
 }
 
