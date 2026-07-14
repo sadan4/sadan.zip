@@ -10,7 +10,6 @@ tokio = { workspace = true, features = [
     "fs",
     "process",
 ] }
-tokio-scoped.workspace = true
 discord_scraper.workspace = true
 explorer_types.workspace = true
 explorer_server_core.workspace = true

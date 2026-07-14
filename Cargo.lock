@@ -585,7 +585,6 @@ dependencies = [
  "insta",
  "miette_ctx",
  "oxc",
- "oxc-miette",
  "pretty_printer",
  "regex",
  "regress",
@@ -1852,7 +1851,6 @@ name = "libsadancore"
 version = "0.0.0"
 dependencies = [
  "anyhow",
- "arrayvec",
  "ast_parser",
  "console_error_panic_hook",
  "const_format",
@@ -3146,7 +3144,6 @@ dependencies = [
  "textwrap",
  "thiserror 2.0.18",
  "tokio",
- "tokio-scoped",
  "tracing",
  "tracing-subscriber",
  "unicode-width",
@@ -3972,16 +3969,6 @@ checksum = "1729aa945f29d91ba541258c8df89027d5792d85a8841fb65e8bf0f4ede4ef61"
 dependencies = [
  "rustls",
  "tokio",
-]
-
-[[package]]
-name = "tokio-scoped"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e4beb8ba13bc53ac53ce1d52b42f02e5d8060f0f42138862869beb769722b256"
-dependencies = [
- "tokio",
- "tokio-stream",
 ]
 
 [[package]]

@@ -3,6 +3,12 @@ package.edition = "2024"
 members = ["crates/*"]
 resolver = "3"
 
+[workspace.metadata.cargo-shear]
+# oxc_span is only pulled in for its "serialize" feature, which adds
+# `Serialize` impls to `oxc::span::Span` (re-exported by `oxc`). It's
+# never imported by name, so cargo-shear can't see the usage.
+ignored = ["oxc_span"]
+
 [workspace.dependencies]
 wasm-bindgen = "0.2.113"
 serde-wasm-bindgen = "0.6.5"
@@ -16,7 +22,6 @@ tar = "0.4.44"
 tokio = { version = "1.49.0", features = ["macros", "rt-multi-thread"] }
 tokio-stream = { version = "0.1.18", default-features = false }
 tokio-util = { version = "0.7.18", default-features = false }
-tokio-scoped = "0.2.0"
 reqwest = "0.13.2"
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
