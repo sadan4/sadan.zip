@@ -4,6 +4,10 @@
 //! translate, we use the typed `NodeLabel`/`EdgeLabel` and assert on the
 //! specific numeric fields that drive layout (`weight`, `minlen`, `rank`,
 //! `order`).
+//!
+//! Layout values here are exact integers/halves computed deterministically
+//! by the algorithm, so exact float equality is the intended assertion.
+#![allow(clippy::float_cmp)]
 
 use dagre::{
 	graph::{Graph, GraphOpts},
@@ -292,7 +296,7 @@ fn intersect_rect_touches_border() {
 }
 
 #[test]
-#[should_panic]
+#[should_panic(expected = "Not possible to find intersection inside of the rectangle")]
 fn intersect_rect_panics_at_center() {
 	let r = unit_rect();
 	let _ = util::intersect_rect(&r, Point { x: 0.0, y: 0.0 });

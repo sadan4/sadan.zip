@@ -3,6 +3,10 @@
 //! internals exposed via `dagre::position::bk`. Where the JS sets
 //! `dummy: true` (any truthy) we use the `Dummy::Edge` variant since our
 //! checks are `Option<Dummy>::is_some()`.
+//!
+//! Coordinates here are exact integers/halves computed deterministically
+//! by the algorithm, so exact float equality is the intended assertion.
+#![allow(clippy::float_cmp)]
 
 use dagre::{
 	graph::{Graph, NodeId},

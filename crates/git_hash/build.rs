@@ -12,6 +12,7 @@ fn main() {
 	// When building via Nix, the source tree is filtered and does not
 	// contain `.git`, so `git rev-parse` isn't available. In that case the
 	// hash is passed in explicitly via the `GIT_HASH` env var.
+	#[allow(clippy::single_match_else)]
 	let hash = match std::env::var("GIT_HASH") {
 		Ok(hash) => hash,
 		Err(_) => {

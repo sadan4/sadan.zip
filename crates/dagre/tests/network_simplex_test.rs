@@ -1,4 +1,8 @@
 //! Port of test/rank/network-simplex-test.ts.
+//!
+//! Cut values here are exact integers computed deterministically by the
+//! algorithm, so exact float equality is the intended assertion.
+#![allow(clippy::float_cmp)]
 
 use dagre::{
 	graph::{Edge, Graph, GraphOpts, NodeId},
@@ -292,7 +296,7 @@ fn exchange_edges_updates_cutvalues_and_lims() {
 		.iter()
 		.map(|v| t.node(v).unwrap().lim.unwrap())
 		.collect();
-	lims.sort();
+	lims.sort_unstable();
 	assert_eq!(lims, vec![1, 2, 3, 4, 5, 6, 7, 8]);
 }
 

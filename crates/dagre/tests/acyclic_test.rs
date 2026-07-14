@@ -1,4 +1,8 @@
 //! Port of test/acyclic-test.ts.
+//!
+//! Edge weights here are exact integers computed deterministically by the
+//! algorithm, so exact float equality is the intended assertion.
+#![allow(clippy::float_cmp)]
 
 use std::{cmp::Ordering, string::ToString};
 

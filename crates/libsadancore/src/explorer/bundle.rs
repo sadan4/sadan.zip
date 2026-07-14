@@ -292,10 +292,7 @@ impl BundleInner {
 			let ret = unsafe { mem::transmute::<&str, &'a str>(ret) };
 			Ok(ret)
 		} else {
-			let FormattedContent {
-				code,
-				mappings,
-			} = self.format_module(id)?;
+			let FormattedContent { code, mappings } = self.format_module(id)?;
 			let boxed = Box::pin(code);
 			fmt_mods.insert(id, boxed);
 			self.formatted_module_mappings
@@ -321,7 +318,8 @@ impl BundleInner {
 			mut mappings,
 		} = format_with_alloc(unformatted, &alloc, 4)
 			.context("Failed to format module")?;
-		let inserted_len = WebpackAstParser::format_module_header(&mut code, id, false);
+		let inserted_len =
+			WebpackAstParser::format_module_header(&mut code, id, false);
 		if inserted_len != 0 {
 			for (_, after) in &mut mappings {
 				*after += inserted_len as u32;
@@ -335,7 +333,9 @@ impl BundleInner {
 		f: impl FnOnce(&str, &LineIndex) -> R,
 	) -> anyhow::Result<R> {
 		let source = self.get_formatted_module(id)?;
-		let mut line_indices = self.formatted_module_line_indices.borrow_mut();
+		let mut line_indices = self
+			.formatted_module_line_indices
+			.borrow_mut();
 		line_indices
 			.entry(id)
 			.or_insert_with(|| LineIndex::new(source));
@@ -352,7 +352,10 @@ impl BundleInner {
 fn find_formatted_pos(mappings: &[(u32, u32)], original_pos: u32) -> u32 {
 	let index = mappings.partition_point(|&(before, _)| before <= original_pos);
 
-	let Some(&(before, after)) = index.checked_sub(1).and_then(|i| mappings.get(i)) else {
+	let Some(&(before, after)) = index
+		.checked_sub(1)
+		.and_then(|i| mappings.get(i))
+	else {
 		return 0;
 	};
 
@@ -396,9 +399,10 @@ impl LineIndex {
 		let line_end = self
 			.line_starts
 			.get(line_index + 1)
-			.map_or(u32::try_from(source.len()).unwrap_or(u32::MAX), |line_start| {
-				line_start.saturating_sub(1)
-			});
+			.map_or_else(
+				|| u32::try_from(source.len()).unwrap_or(u32::MAX),
+				|line_start| line_start.saturating_sub(1),
+			);
 		let line_number = u32::try_from(line_index + 1).unwrap_or(u32::MAX);
 
 		(line_start, line_end, line_number)
@@ -407,7 +411,9 @@ impl LineIndex {
 	fn position(&self, source: &str, index: u32) -> MonacoPosition {
 		let index = normalize_source_index(source, index);
 		let (line_start, _, line_number) = self.line_bounds(source, index);
-		let column = source[line_start as usize..index as usize].chars().count() + 1;
+		let column = source[line_start as usize..index as usize]
+			.chars()
+			.count() + 1;
 		let column = u32::try_from(column).unwrap_or(u32::MAX);
 
 		MonacoPosition {
@@ -423,26 +429,28 @@ impl LineIndex {
 
 		let index = normalize_source_index(source, index);
 		let (line_start, line_end, _) = self.line_bounds(source, index);
-		let (mut preview_start, mut preview_end, max_preview_chars) = if long_preview {
-			let line_index = match self.line_starts.binary_search(&index) {
-				Ok(line_index) => line_index,
-				Err(line_index) => line_index.saturating_sub(1),
-			};
-			let start_line = line_index.saturating_sub(1);
-			let end_line = (line_index + (MAX_PREVIEW_LINES - 1))
-				.min(self.line_starts.len().saturating_sub(1));
-			let preview_start = self.line_starts[start_line];
-			let preview_end = self
-				.line_starts
-				.get(end_line + 1)
-				.map_or(u32::try_from(source.len()).unwrap_or(u32::MAX), |line_start| {
-					line_start.saturating_sub(1)
-				});
+		let (mut preview_start, mut preview_end, max_preview_chars) =
+			if long_preview {
+				let line_index = match self.line_starts.binary_search(&index) {
+					Ok(line_index) => line_index,
+					Err(line_index) => line_index.saturating_sub(1),
+				};
+				let start_line = line_index.saturating_sub(1);
+				let end_line = (line_index + (MAX_PREVIEW_LINES - 1))
+					.min(self.line_starts.len().saturating_sub(1));
+				let preview_start = self.line_starts[start_line];
+				let preview_end = self
+					.line_starts
+					.get(end_line + 1)
+					.map_or_else(
+						|| u32::try_from(source.len()).unwrap_or(u32::MAX),
+						|line_start| line_start.saturating_sub(1),
+					);
 
-			(preview_start, preview_end, LONG_PREVIEW_CHARS)
-		} else {
-			(line_start, line_end, SHORT_PREVIEW_CHARS)
-		};
+				(preview_start, preview_end, LONG_PREVIEW_CHARS)
+			} else {
+				(line_start, line_end, SHORT_PREVIEW_CHARS)
+			};
 
 		if preview_end.saturating_sub(preview_start) > max_preview_chars {
 			preview_start = index
@@ -473,14 +481,19 @@ fn formatted_search_position(
 	let mappings = inner.formatted_module_mappings.borrow();
 	let mappings = mappings
 		.get(&module_id)
-		.with_context(|| anyhow!("Module source mapping not found for {module_id}"))?;
+		.with_context(|| {
+			anyhow!("Module source mapping not found for {module_id}")
+		})?;
+	let formatted_index = find_formatted_pos(mappings, raw_index);
 	let formatted_index =
-		find_formatted_pos(mappings, raw_index);
-	let formatted_index = normalize_source_index(formatted_source, formatted_index);
+		normalize_source_index(formatted_source, formatted_index);
 
-	Ok(inner.with_formatted_line_index(module_id, |formatted_source, line_index| {
-		line_index.position(formatted_source, formatted_index)
-	})?)
+	Ok(inner.with_formatted_line_index(
+		module_id,
+		|formatted_source, line_index| {
+			line_index.position(formatted_source, formatted_index)
+		},
+	)?)
 }
 
 fn formatted_search_result_info(
@@ -493,20 +506,30 @@ fn formatted_search_result_info(
 	let mappings = inner.formatted_module_mappings.borrow();
 	let mappings = mappings
 		.get(&module_id)
-		.with_context(|| anyhow!("Module source mapping not found for {module_id}"))?;
+		.with_context(|| {
+			anyhow!("Module source mapping not found for {module_id}")
+		})?;
+	let formatted_index = find_formatted_pos(mappings, raw_index);
 	let formatted_index =
-		find_formatted_pos(mappings, raw_index);
-	let formatted_index = normalize_source_index(formatted_source, formatted_index);
+		normalize_source_index(formatted_source, formatted_index);
 
-	Ok(inner.with_formatted_line_index(module_id, |formatted_source, line_index| {
-		let position = line_index.position(formatted_source, formatted_index);
+	Ok(inner.with_formatted_line_index(
+		module_id,
+		|formatted_source, line_index| {
+			let position =
+				line_index.position(formatted_source, formatted_index);
 
-		BundleSearchResultInfo {
-			line_number: position.line,
-			column: position.column,
-			preview: line_index.preview(formatted_source, formatted_index, long_preview),
-		}
-	})?)
+			BundleSearchResultInfo {
+				line_number: position.line,
+				column: position.column,
+				preview: line_index.preview(
+					formatted_source,
+					formatted_index,
+					long_preview,
+				),
+			}
+		},
+	)?)
 }
 
 fn push_module_search_results(
@@ -524,18 +547,10 @@ fn search_results_to_js(results: &BundleSearchResults) -> Result<JsValue> {
 	let obj = Object::new();
 	let module_ids = Uint32Array::from(results.module_ids.as_slice());
 	let raw_indices = Uint32Array::from(results.raw_indices.as_slice());
-	Reflect::set(
-		&obj,
-		&JsValue::from_str("moduleIds"),
-		module_ids.as_ref(),
-	)
-	.map_err(|_| anyhow!("Failed to serialize search module ids"))?;
-	Reflect::set(
-		&obj,
-		&JsValue::from_str("rawIndices"),
-		raw_indices.as_ref(),
-	)
-	.map_err(|_| anyhow!("Failed to serialize search raw indices"))?;
+	Reflect::set(&obj, &JsValue::from_str("moduleIds"), module_ids.as_ref())
+		.map_err(|_| anyhow!("Failed to serialize search module ids"))?;
+	Reflect::set(&obj, &JsValue::from_str("rawIndices"), raw_indices.as_ref())
+		.map_err(|_| anyhow!("Failed to serialize search raw indices"))?;
 
 	Ok(obj.into())
 }
@@ -608,15 +623,20 @@ impl Bundle {
 				.inner
 				.unformatted_modules
 				.get(&module_id)
-				.with_context(|| anyhow!("Module source not found for {module_id}"))?;
+				.with_context(|| {
+					anyhow!("Module source not found for {module_id}")
+				})?;
 
 			if let Some(pattern) = &pattern {
 				push_module_search_results(
 					&mut results,
 					module_id,
-					pattern.find_iter(source).map(|regex_match| {
-						u32::try_from(regex_match.start()).unwrap_or(u32::MAX)
-					}),
+					pattern
+						.find_iter(source)
+						.map(|regex_match| {
+							u32::try_from(regex_match.start())
+								.unwrap_or(u32::MAX)
+						}),
 				);
 			} else {
 				let finder = finder
@@ -625,9 +645,9 @@ impl Bundle {
 				push_module_search_results(
 					&mut results,
 					module_id,
-					finder.find_iter(source.as_bytes()).map(|index| {
-						u32::try_from(index).unwrap_or(u32::MAX)
-					}),
+					finder
+						.find_iter(source.as_bytes())
+						.map(|index| u32::try_from(index).unwrap_or(u32::MAX)),
 				);
 			}
 		}
@@ -784,7 +804,7 @@ struct ExportTreeNode {
 	// and the `ExportTreeNode` typescript typings both read these
 	// fields unconditionally (`node.children.length`, `node.ranges[0]`)
 	ranges: Vec<MonacoRange>,
-	children: Vec<ExportTreeNode>,
+	children: Vec<Self>,
 }
 
 fn build_export_tree(map: &RangeExportMap, src: &str) -> Vec<ExportTreeNode> {
@@ -820,7 +840,10 @@ fn build_export_node(
 		},
 		ExportValue::Map(map) => ExportTreeNode {
 			name,
-			hover: map.hover.as_ref().map(SmolStr::to_string),
+			hover: map
+				.hover
+				.as_ref()
+				.map(SmolStr::to_string),
 			ranges: Vec::new(),
 			children: build_export_tree(map, src),
 		},
@@ -933,6 +956,8 @@ pub async fn get_bundle(
 
 #[cfg(test)]
 mod tests {
+	#![allow(clippy::unreadable_literal)]
+
 	use super::*;
 	use explorer_types::{BundleMetadata, DepInfo, KeyModules};
 	use std::collections::HashMap;
@@ -1005,10 +1030,10 @@ mod tests {
 	/// "Cannot read properties of undefined (reading 'length')".
 	#[test]
 	fn export_tree_node_always_serializes_ranges_and_children_arrays() {
+		#[allow(clippy::literal_string_with_formatting_args)]
 		let modules = HashMap::from([(
 			ModuleId(1),
-			r#"function(e,t,n){e.exports={leaf:1,nested:{inner:2}}}"#
-				.to_string(),
+			r"function(e,t,n){e.exports={leaf:1,nested:{inner:2}}}".to_string(),
 		)]);
 		let bundle = make_test_bundle(modules);
 		let m_id = ModuleId(1);
@@ -1022,8 +1047,8 @@ mod tests {
 			.expect("parser should be created");
 		let tree = build_export_tree(parser.get_export_map(), fmt_src);
 
-		let json = serde_json::to_value(&tree)
-			.expect("export tree should serialize");
+		let json =
+			serde_json::to_value(&tree).expect("export tree should serialize");
 		let top_level = json
 			.as_array()
 			.expect("top level should be an array");

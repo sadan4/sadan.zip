@@ -45,6 +45,7 @@ fn small_graph() -> Graph<GraphLabel, NodeLabel, EdgeLabel> {
 /// cross-group connections. We use a deterministic LCG-like counter to
 /// match the JS bench's intent of "randomized" cross-edges while keeping
 /// the benchmark reproducible (true `Math.random()` in JS doesn't seed).
+#[allow(clippy::too_many_lines)]
 fn large_graph() -> LayoutGraph {
 	let mut g = make_graph();
 	let num_groups: usize = 25;

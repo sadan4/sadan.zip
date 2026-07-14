@@ -1,4 +1,8 @@
 //! Port of test/position-test.ts.
+//!
+//! Coordinates here are exact values computed deterministically by the
+//! algorithm, so exact float equality is the intended assertion.
+#![allow(clippy::float_cmp)]
 
 use dagre::{
 	graph::{Graph, GraphOpts},
