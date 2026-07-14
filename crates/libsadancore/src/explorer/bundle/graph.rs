@@ -1,6 +1,6 @@
 use anyhow::Context;
 use dagre::{EdgeLabel, GraphLabel, NodeLabel, RankDir, layout};
-use explorer_types::{ModuleId, OutgoingModuleDeps};
+use explorer_types::{ModuleId, OutgoingModuleDepsWithLocs};
 use std::{collections::HashSet, iter, mem};
 use wasm_bindgen::prelude::wasm_bindgen;
 
@@ -117,11 +117,12 @@ impl Bundle {
 						format!("Failed to get parser for {m_id:?}")
 					})
 					.unwrap();
-				static DEFAULT: OutgoingModuleDeps = OutgoingModuleDeps::new();
+				static DEFAULT: OutgoingModuleDepsWithLocs =
+					OutgoingModuleDepsWithLocs::new();
 				let deps = parser
 					.get_modules_that_this_module_requires()
 					.unwrap_or(&DEFAULT);
-				for dep in iter::chain(&deps.sync, &deps.lazy).copied() {
+				for dep in iter::chain(&deps.sync, &deps.lazy).map(|s| s.id) {
 					included_nodes.insert(dep);
 					new_q.push(dep);
 				}

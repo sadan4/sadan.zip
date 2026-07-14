@@ -1,5 +1,6 @@
 use derive_more::{Deref, Display, From, Into};
 use jiff::{Timestamp, Zoned, tz::TimeZone};
+use oxc_span::Span;
 use serde::{Deserialize, Serialize};
 use std::{
 	collections::HashMap,
@@ -107,6 +108,47 @@ pub struct OutgoingModuleDeps {
 	pub sync: Vec<ModuleId>,
 	/// the module that this module requires lazily (dynamic import)
 	pub lazy: Vec<ModuleId>,
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct SpannedId {
+	pub id: ModuleId,
+	pub span: Span,
+}
+
+/// Information about a module's dependencies with source locations
+#[derive(Default, Clone, Debug)]
+pub struct OutgoingModuleDepsWithLocs {
+	/// The modules that this module requires synchronously
+	pub sync: Vec<SpannedId>,
+	/// the module that this module requires lazily (dynamic import)
+	pub lazy: Vec<SpannedId>,
+}
+
+impl OutgoingModuleDepsWithLocs {
+	pub const fn new() -> Self {
+		Self {
+			sync: Vec::new(),
+			lazy: Vec::new(),
+		}
+	}
+}
+
+impl From<OutgoingModuleDepsWithLocs> for OutgoingModuleDeps {
+	fn from(value: OutgoingModuleDepsWithLocs) -> Self {
+		Self {
+			sync: value
+				.sync
+				.into_iter()
+				.map(|s| s.id)
+				.collect(),
+			lazy: value
+				.lazy
+				.into_iter()
+				.map(|s| s.id)
+				.collect(),
+		}
+	}
 }
 
 impl OutgoingModuleDeps {

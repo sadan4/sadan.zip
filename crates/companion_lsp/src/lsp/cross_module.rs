@@ -355,13 +355,13 @@ fn build_inverse_deps(
 		let lazy = outgoing.lazy.clone();
 		drop(parser);
 		for dep in sync {
-			inv.entry(dep)
+			inv.entry(dep.id)
 				.or_default()
 				.sync
 				.push(*id);
 		}
 		for dep in lazy {
-			inv.entry(dep)
+			inv.entry(dep.id)
 				.or_default()
 				.lazy
 				.push(*id);

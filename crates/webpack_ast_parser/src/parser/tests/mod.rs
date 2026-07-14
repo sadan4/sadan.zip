@@ -852,6 +852,13 @@ mod export_parsing {
 			}
 			"#);
 		}
+
+		#[test]
+		fn intl_chunk() {
+			let alloc = Allocator::new();
+			let p = parse_!(alloc, "test_data/wp/e.exports/i18nModule.js");
+			assert!(p.is_intl_module());
+		}
 	}
 	mod exports {
 		use super::*;

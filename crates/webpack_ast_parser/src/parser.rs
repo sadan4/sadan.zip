@@ -66,7 +66,12 @@ use ast_parser::{
 	},
 	parse_with_tokens,
 };
-use explorer_types::{IncomingModuleDeps, ModuleId, OutgoingModuleDeps};
+use explorer_types::{
+	IncomingModuleDeps,
+	ModuleId,
+	OutgoingModuleDepsWithLocs,
+	SpannedId,
+};
 use export_map::RawExportMap;
 use itertools::Itertools as _;
 use miette::{Result, bail};
@@ -78,6 +83,7 @@ use oxc::{
 		ast::{
 			Argument,
 			ArrowFunctionExpression,
+			AssignmentTarget,
 			BindingIdentifier,
 			CallExpression,
 			Class,
@@ -140,7 +146,8 @@ struct Cache<'ast> {
 	exports_arg: cache::Value<Option<SymbolId>>,
 	module_id: cache::Value<Option<ModuleId>>,
 	does_re_export_whole_module: cache::Value<Option<ModuleId>>,
-	modules_that_this_module_requires: cache::Ref<Option<OutgoingModuleDeps>>,
+	modules_that_this_module_requires:
+		cache::Ref<Option<OutgoingModuleDepsWithLocs>>,
 	num_concatenated_modules: cache::Value<u32>,
 	main_func: cache::Value<Option<&'ast Function<'ast>>>,
 }
@@ -416,7 +423,7 @@ impl<'ast> WebpackAstParser<'ast> {
 	}
 	pub fn get_modules_that_this_module_requires(
 		&self,
-	) -> Option<&OutgoingModuleDeps> {
+	) -> Option<&OutgoingModuleDepsWithLocs> {
 		self.c
 			.modules_that_this_module_requires
 			.get(|| self.get_modules_that_this_module_requires_impl())
@@ -424,7 +431,7 @@ impl<'ast> WebpackAstParser<'ast> {
 	}
 	fn get_modules_that_this_module_requires_impl(
 		&self,
-	) -> Option<OutgoingModuleDeps> {
+	) -> Option<OutgoingModuleDepsWithLocs> {
 		let wreq = self.wreq()?;
 		// TODO: merge these loops to avoid two iterations
 		let sync = self
@@ -436,17 +443,16 @@ impl<'ast> WebpackAstParser<'ast> {
 				if args.len() != 1 {
 					return None;
 				}
-				let ret = args[0]
-					.as_numeric_literal()?
-					.as_u32()?
-					.into();
+				let id =
+					ModuleId::from(args[0].as_numeric_literal()?.as_u32()?);
+				let span = args[0].span();
 
-				Some(ret)
+				Some(SpannedId { id, span })
 			})
 			.collect();
 		// TODO: implement lazy require parsing
 		let lazy = Vec::new();
-		Some(OutgoingModuleDeps { sync, lazy })
+		Some(OutgoingModuleDepsWithLocs { sync, lazy })
 	}
 	pub fn get_modules_that_require_this_module(
 		&self,
@@ -653,11 +659,94 @@ impl<'ast> WebpackAstParser<'ast> {
 	pub fn generate_finds(&self) -> Vec<ScoredFindSequence> {
 		self.impl_generate_finds()
 	}
+
+	/// Attempt to determine if the current module is an intl module
+	pub fn is_intl_module(&self) -> bool {
+		let Some(mf) = self.get_main_func() else {
+			return false;
+		};
+		// function () { ... }
+		let [es] = mf
+			.body
+			.as_ref()
+			.unwrap()
+			.statements
+			.as_slice()
+		else {
+			return false;
+		};
+		// expr;
+		let Statement::ExpressionStatement(es) = es else {
+			return false;
+		};
+		// ... = ...;
+		let Expression::AssignmentExpression(assign) = &es.expression else {
+			return false;
+		};
+		// foo.bar = ...;
+		let AssignmentTarget::StaticMemberExpression(module_exports_use) =
+			&assign.left
+		else {
+			return false;
+		};
+		let Expression::Identifier(module_use) = &module_exports_use.object
+		else {
+			return false;
+		};
+		let Expression::CallExpression(json_parse_intl) = &assign.right else {
+			return false;
+		};
+		let Expression::StaticMemberExpression(json_parse) =
+			&json_parse_intl.callee
+		else {
+			return false;
+		};
+		let Expression::Identifier(json_ref) = &json_parse.object else {
+			return false;
+		};
+		if !self
+			.sema
+			.is_reference_to_global_variable(json_ref)
+			|| json_ref.name != "JSON"
+			|| json_parse.property.name != "parse"
+		{
+			return false;
+		}
+		let [Argument::StringLiteral(intl)] =
+			json_parse_intl.arguments.as_slice()
+		else {
+			return false;
+		};
+		let Some(module) = self.mod_arg() else {
+			return false;
+		};
+		if !self.cmp_sym(module_use.as_ref(), &module)
+			|| module_exports_use.property.name != "exports"
+		{
+			return false;
+		}
+		let intl = intl.value.as_str();
+		Self::is_valid_intl_json(intl)
+	}
 }
 
 /// Private API
 #[expect(clippy::multiple_inherent_impl)]
 impl<'ast> WebpackAstParser<'ast> {
+	fn is_valid_intl_json(json: &str) -> bool {
+		use serde_json::{Value, from_str};
+		let Ok(Value::Object(obj)) = from_str(json) else {
+			return false;
+		};
+		// naive impl.
+		// TODO: check https://github.com/discord/discord-intl/tree/main and look into the format exported by the tool
+		for (_, v) in obj {
+			if !v.is_array() {
+				return false;
+			}
+		}
+		true
+	}
 	fn get_main_func(&self) -> Option<&'ast Function<'ast>> {
 		self.c
 			.main_func
@@ -1240,6 +1329,16 @@ impl<'ast> WebpackAstParser<'ast> {
 
 		Some(ret)
 	}
+	/// Returns the symbol id for the `module` argument
+	///
+	/// This is oftentimes the ident `e`
+	///
+	/// ```js
+	/// 0,
+	/// function(module, exports, wreq) {
+	/// // ...
+	/// }
+	/// ```
 	fn mod_arg(&self) -> Option<SymbolId> {
 		self.c
 			.mod_arg

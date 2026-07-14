@@ -26,14 +26,14 @@ pub fn parse_bundle<S: BuildHasher>(
 		};
 
 		for sync_dep in &outgoing_deps.sync {
-			deps.entry(*sync_dep)
+			deps.entry(sync_dep.id)
 				.or_default()
 				.sync
 				.push(*id);
 		}
 
 		for lazy_dep in &outgoing_deps.lazy {
-			deps.entry(*lazy_dep)
+			deps.entry(lazy_dep.id)
 				.or_default()
 				.lazy
 				.push(*id);
