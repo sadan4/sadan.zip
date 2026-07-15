@@ -737,6 +737,118 @@ mod export_parsing {
 			}
 			"#);
 		}
+
+		#[test]
+		fn seq_expr_enum_export_style_2() {
+			let alloc = Allocator::new();
+			let p = parse_!(alloc, "test_data/wp/wreq.d/enums4.js");
+			let map = p.get_export_map();
+			let map_dumper = ExportMapDumper(&map, p.source);
+			assert_debug_snapshot!(map_dumper, @r#"
+			{
+			    "n": ExportMap(
+			        {
+			            "CONTEXTLESS": 512(
+			                [
+			                    "[15:8->15:19) CONTEXTLESS",
+			                    "[15:22->15:25) 512",
+			                ],
+			            ),
+			            "EMBEDDED": 256(
+			                [
+			                    "[14:8->14:16) EMBEDDED",
+			                    "[14:19->14:22) 256",
+			                ],
+			            ),
+			            "INSTANCE": 1(
+			                [
+			                    "[8:25->8:33) INSTANCE",
+			                    "[8:36->8:37) 1",
+			                ],
+			            ),
+			            "JOIN": 2(
+			                [
+			                    "[9:8->9:12) JOIN",
+			                    "[9:15->9:16) 2",
+			                ],
+			            ),
+			            "PARTY_PRIVACY_FRIENDS": 64(
+			                [
+			                    "[12:8->12:29) PARTY_PRIVACY_FRIENDS",
+			                    "[12:32->12:34) 64",
+			                ],
+			            ),
+			            "PARTY_PRIVACY_VOICE_CHANNEL": 128(
+			                [
+			                    "[13:8->13:35) PARTY_PRIVACY_VOICE_CHANNEL",
+			                    "[13:38->13:41) 128",
+			                ],
+			            ),
+			            "PLAY": 32(
+			                [
+			                    "[11:8->11:12) PLAY",
+			                    "[11:15->11:17) 32",
+			                ],
+			            ),
+			            "SUPPORTS_JOIN_URL": 2048(
+			                [
+			                    "[17:8->17:25) SUPPORTS_JOIN_URL",
+			                    "[17:28->17:32) 2048",
+			                ],
+			            ),
+			            "SUPPORTS_REMOTE_ACTIVITY_ACTION_JOIN": 1024(
+			                [
+			                    "[16:8->16:44) SUPPORTS_REMOTE_ACTIVITY_ACTION_JOIN",
+			                    "[16:47->16:51) 1024",
+			                ],
+			            ),
+			            "SYNC": 16(
+			                [
+			                    "[10:8->10:12) SYNC",
+			                    "[10:15->10:17) 16",
+			                ],
+			            ),
+			            "SYM_CJS_DEFAULT": [
+			                "[4:8->4:9) n",
+			                "[8:8->8:10) nF",
+			            ],
+			        },
+			    ),
+			    "r": ExportMap(
+			        {
+			            "ALL_MESSAGES": 0(
+			                [
+			                    "[19:25->19:37) ALL_MESSAGES",
+			                    "[19:40->19:41) 0",
+			                ],
+			            ),
+			            "NO_MESSAGES": 2(
+			                [
+			                    "[21:8->21:19) NO_MESSAGES",
+			                    "[21:22->21:23) 2",
+			                ],
+			            ),
+			            "NULL": 3(
+			                [
+			                    "[22:8->22:12) NULL",
+			                    "[22:15->22:16) 3",
+			                ],
+			            ),
+			            "ONLY_MENTIONS": 1(
+			                [
+			                    "[20:8->20:21) ONLY_MENTIONS",
+			                    "[20:24->20:25) 1",
+			                ],
+			            ),
+			            "SYM_CJS_DEFAULT": [
+			                "[5:8->5:9) r",
+			                "[19:8->19:10) nV",
+			            ],
+			        },
+			    ),
+			}
+			"#);
+		}
 	}
 	mod e_exports {
 		use super::*;
