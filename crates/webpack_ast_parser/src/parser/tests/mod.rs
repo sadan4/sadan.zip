@@ -673,6 +673,70 @@ mod export_parsing {
 			}
 			"#);
 		}
+
+		#[test]
+		fn seq_expr_enum_export() {
+			let alloc = Allocator::new();
+			let p = parse_!(alloc, "test_data/wp/wreq.d/enums3.js");
+			let map = p.get_export_map();
+			let map_dumper = ExportMapDumper(&map, p.source);
+			assert_debug_snapshot!(map_dumper, @r#"
+			{
+			    "n": ExportMap(
+			        {
+			            "EXACT": "exact"(
+			                [
+			                    "[8:6->8:11) EXACT",
+			                    "[8:14->8:21) \\\"exact\\\"",
+			                ],
+			            ),
+			            "FUZZY": "fuzzy"(
+			                [
+			                    "[7:28->7:33) FUZZY",
+			                    "[7:36->7:43) \\\"fuzzy\\\"",
+			                ],
+			            ),
+			            "JARO_WINKLER": "jaro_winkler"(
+			                [
+			                    "[10:6->10:18) JARO_WINKLER",
+			                    "[10:21->10:35) \\\"jaro_winkler\\\"",
+			                ],
+			            ),
+			            "REGEX": "regex"(
+			                [
+			                    "[9:6->9:11) REGEX",
+			                    "[9:14->9:21) \\\"regex\\\"",
+			                ],
+			            ),
+			            "SYM_CJS_DEFAULT": [
+			                "[4:8->4:9) n",
+			                "[7:14->7:15) a",
+			            ],
+			        },
+			    ),
+			    "r": ExportMap(
+			        {
+			            "JARO_WINKLER": "jaro_winkler"(
+			                [
+			                    "[12:6->12:18) JARO_WINKLER",
+			                    "[12:21->12:35) \\\"jaro_winkler\\\"",
+			                ],
+			            ),
+			            "NONE": "none"(
+			                [
+			                    "[11:22->11:26) NONE",
+			                    "[11:29->11:35) \\\"none\\\"",
+			                ],
+			            ),
+			            "SYM_CJS_DEFAULT": [
+			                "[5:8->5:9) r",
+			                "[11:8->11:9) i",
+			            ],
+			        },
+			    ),
+			}
+			"#);
+		}
 	}
 	mod e_exports {
 		use super::*;

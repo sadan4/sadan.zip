@@ -102,6 +102,7 @@ use oxc::{
 			ObjectProperty,
 			ObjectPropertyKind,
 			Program,
+			SequenceExpression,
 			Statement,
 			StaticMemberExpression,
 			Str,
@@ -2241,7 +2242,7 @@ impl<'ast> WebpackAstParser<'ast> {
 
 		let mut state = EnumIIFEState1_2 {
 			p: self,
-			enum_param,
+			enum_param: enum_param.symbol_id(),
 			ret: RawExportMap::default(),
 		};
 
@@ -2275,6 +2276,57 @@ impl<'ast> WebpackAstParser<'ast> {
 		node: &'ast CallExpression<'ast>,
 	) -> Option<RawExportMap<'ast>> {
 		self.try_raw_make_export_map_for_enum_iife_style_1_and_2(node)
+	}
+	/// Sequence-expression enum style. Instead of an IIFE, the enum object is
+	/// built inline via a parenthesized sequence expression, seeding itself on
+	/// the first entry:
+	/// ```js
+	/// var a = ((l = {}).FUZZY = "fuzzy",
+	///     l.EXACT = "exact",
+	///     l.REGEX = "regex",
+	///     l);
+	/// ```
+	/// Reuses the style 1/2 entry logic from the IIFE parser.
+	fn try_raw_make_export_map_for_enum_style_3(
+		&self,
+		node: &'ast SequenceExpression<'ast>,
+	) -> Option<RawExportMap<'ast>> {
+		let exprs = &node.expressions;
+		// at minimum one entry + the trailing `,e`
+		if exprs.len() < 2 {
+			return None;
+		}
+		// the last `,e` is the finished enum object
+		let last = exprs.last().unwrap().as_identifier()?;
+		let enum_param = self.sym_id_of(last)?;
+
+		let mut state = EnumIIFEState1_2 {
+			p: self,
+			enum_param,
+			ret: RawExportMap::default(),
+		};
+
+		for expr in &exprs[..exprs.len() - 1] {
+			let expr = expr.as_assignment_expression()?;
+			state.process(expr)?;
+		}
+
+		let mut ret = state.ret;
+
+		// walk past the wrapping parens to find the `var a = (...)` binding
+		let mut parent = self.p(node.node_id());
+		while let AstKind::ParenthesizedExpression(_) = parent {
+			parent = self.p(parent.node_id());
+		}
+		if let Some(decl) = parent.as_variable_declarator()
+			&& let Some(name) = decl.id.as_binding_identifier()
+		{
+			debug_assert!(ret.cjs_default.is_none());
+			ret.cjs_default =
+				Some(Box::new(RawExportRange::from_node(name).into()));
+		}
+
+		Some(ret)
 	}
 	fn raw_make_export_map_object_expression(
 		&self,
@@ -2633,6 +2685,14 @@ impl<'ast> WebpackAstParser<'ast> {
 			AstKind::NewExpression(node) => {
 				self.raw_make_export_map_new_expression(node)
 			}
+			// `var a = ((l = {}).FOO = "foo", l.BAR = "bar", l)`
+			AstKind::ParenthesizedExpression(paren) => paren
+				.expression
+				.as_sequence_expression()
+				.and_then(|seq| {
+					self.try_raw_make_export_map_for_enum_style_3(seq)
+				})
+				.map_or_else(|| RawExportRange::from(node).into(), Into::into),
 			_ => {
 				if cfg!(debug_assertions) && cfg!(test) {
 					debug!(
