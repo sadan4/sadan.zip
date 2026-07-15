@@ -6,13 +6,13 @@ use tracing::{debug, info, instrument, warn};
 use crate::cache;
 
 const BASE_URL: &str = "https://s-d-br.sadan.zip";
-const PREVIOUS_BUILD_META_URL: &str = "/builds/before/hash";
+const PREVIOUS_BUILD_META_URL: &str = "/builds/before/time";
 
 #[instrument]
 pub async fn fetch_previous_build_meta(
-	hash: &str,
+	timestamp: u64,
 ) -> Result<Option<TimestampQueryResults>> {
-	let endpoint = format!("{BASE_URL}{PREVIOUS_BUILD_META_URL}/{hash}");
+	let endpoint = format!("{BASE_URL}{PREVIOUS_BUILD_META_URL}/{timestamp}");
 	debug!("Fetching previous build metadata from {endpoint}");
 	let res = reqwest::get(&endpoint)
 		.await

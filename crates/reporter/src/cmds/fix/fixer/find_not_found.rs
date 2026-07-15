@@ -21,10 +21,7 @@ use tracing::{error, info, warn};
 use webpack_ast_parser::{WebpackAstParser, find::ScoredFindSequence};
 
 use crate::{
-	cmds::fix::{
-		find_last_build::{BuildDiff, PreviousBundle},
-		track_module::ModuleTracker,
-	},
+	cmds::fix::{find_last_build::BuildDiff, track_module::ModuleTracker},
 	diag::ReporterError,
 	reporter::{Msg, ReporterState},
 	util::{
@@ -68,13 +65,12 @@ impl Fixer {
 		}
 		info!("Fixing up module headers in working and broken builds");
 		rayon::scope(|s| {
-			s.spawn(|_| match &mut self.diff.broken {
-				PreviousBundle::Full(full) => full
-					.modules
+			s.spawn(|_| {
+				self.diff
+					.broken
+					.modules_mut()
 					.par_iter_mut()
-					.for_each(fix_entry),
-				// a scraped bundle already is pre-processed
-				PreviousBundle::Scraped(_) => {}
+					.for_each(fix_entry);
 			});
 			s.spawn(|_| {
 				self.diff

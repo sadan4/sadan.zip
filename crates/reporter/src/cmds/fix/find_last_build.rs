@@ -1,5 +1,5 @@
 use super::diagnose_patch;
-use std::{collections::HashSet, sync::Arc};
+use std::{collections::HashSet, sync::Arc, time::SystemTime};
 
 use explorer_server_core::Channel;
 use explorer_types::{BundleMetadata, FullBundle};
@@ -35,6 +35,13 @@ impl PreviousBundle {
 		}
 	}
 
+	pub const fn modules_mut(&mut self) -> &mut ScrapedOutput {
+		match self {
+			Self::Full(FullBundle { modules, .. })
+			| Self::Scraped(ScrapedBranch { modules, .. }) => modules,
+		}
+	}
+
 	pub fn build_hash(&self) -> &str {
 		match self {
 			Self::Full(FullBundle {
@@ -54,6 +61,15 @@ impl PreviousBundle {
 			Self::Scraped(ScrapedBranch { .. }) => None,
 		}
 	}
+
+	pub const fn timestamp(&self) -> Option<u64> {
+		match self {
+			Self::Full(full_bundle) => {
+				Some(full_bundle.metadata.first_seen)
+			}
+			Self::Scraped(_) => None,
+		}
+	}
 }
 
 use crate::{
@@ -66,7 +82,7 @@ use crate::{
 type R = miette::Result<Option<BuildDiff>>;
 
 async fn do_find_recursive(
-	prev_hash: &str,
+	prev_timestamp: u64,
 	channel: Channel,
 	patch: Arc<Vec<vc::Plugin>>,
 	global_bar: &MultiProgressWrapper,
@@ -74,7 +90,7 @@ async fn do_find_recursive(
 	seen: &mut HashSet<String>,
 	prev_bundle: PreviousBundle,
 ) -> R {
-	let prev_build_meta = fetch_previous_build_meta(prev_hash)
+	let prev_build_meta = fetch_previous_build_meta(prev_timestamp)
 		.await
 		.map_err(|e| Report::msg(e))?;
 	let Some(meta) = prev_build_meta else {
@@ -133,10 +149,9 @@ async fn do_find_recursive(
 					debug_assert!(new_diag_is_error, "logic error");
 					warn!("diagnosis ");
 				}
-				let hash = meta.build_hash.clone();
 				seen.insert(meta.build_hash);
 				Box::pin(do_find_recursive(
-					&hash,
+					meta.first_seen,
 					channel,
 					patch,
 					global_bar,
@@ -165,9 +180,17 @@ pub(super) async fn find_last_build(
 	prev_err: &ReporterError,
 	prev_bundle: PreviousBundle,
 ) -> R {
-	let mut seen = HashSet::from([prev_hash.to_string()]);
+	let mut seen = HashSet::from([String::from(prev_hash)]);
+	let prev_timestamp = prev_bundle
+		.timestamp()
+		.unwrap_or_else(|| {
+			SystemTime::now()
+				.duration_since(SystemTime::UNIX_EPOCH)
+				.unwrap()
+				.as_millis() as u64
+		});
 	do_find_recursive(
-		prev_hash,
+		prev_timestamp,
 		channel,
 		patch,
 		global_bar,
