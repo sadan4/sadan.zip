@@ -56,3 +56,33 @@ fn doesnt_crash() {
 	let finds = parser.dbg_finds();
 	_ = &finds;
 }
+
+#[test]
+fn collects_string_and_ident_intl_keys() {
+	let alloc = Allocator::new();
+	let parser = parse_!(alloc, "test_data/wp/finds/intlKeys.js");
+	// the find contains an ident intl key (`Go5Vvs`), a string intl key
+	// (`1WjMbC`) — both resolvable to their unhashed names — and an
+	// unresolvable key (`Zzzz99`).
+	let finds = parser.generate_finds();
+	let keys: Vec<Vec<(&str, Option<&str>)>> = finds
+		.iter()
+		.filter(|f| !f.intl_keys.is_empty())
+		.map(|f| {
+			f.intl_keys
+				.iter()
+				.map(|k| {
+					(k.hashed.as_str(), k.unhashed.as_deref())
+				})
+				.collect()
+		})
+		.collect();
+	assert_eq!(
+		keys,
+		vec![vec![
+			("Go5Vvs", Some("PREVIEW_NUM_LINES")),
+			("1WjMbC", Some("DOWNLOAD")),
+			("Zzzz99", None),
+		]]
+	);
+}

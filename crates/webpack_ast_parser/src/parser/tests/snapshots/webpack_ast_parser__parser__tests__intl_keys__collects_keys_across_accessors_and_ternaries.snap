@@ -1,0 +1,23 @@
+---
+source: crates/webpack_ast_parser/src/parser/tests/mod.rs
+expression: keys
+---
+[
+    (
+        "[29:57->29:63) IZsalP",
+        "IZsalP",
+        None,
+    ),
+    (
+        "[29:76->29:82) ihBfyA",
+        "ihBfyA",
+        None,
+    ),
+    (
+        "[35:48->35:54) k8fFjp",
+        "k8fFjp",
+        Some(
+            "FAVORITES",
+        ),
+    ),
+]

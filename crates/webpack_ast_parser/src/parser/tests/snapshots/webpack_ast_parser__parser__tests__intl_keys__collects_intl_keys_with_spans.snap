@@ -1,0 +1,51 @@
+---
+source: crates/webpack_ast_parser/src/parser/tests/mod.rs
+expression: keys
+---
+[
+    (
+        "[99:39->99:47) \"9hghLC\"",
+        "9hghLC",
+        None,
+    ),
+    (
+        "[99:68->99:74) WbGtnJ",
+        "WbGtnJ",
+        None,
+    ),
+    (
+        "[101:35->101:41) Vv0abG",
+        "Vv0abG",
+        None,
+    ),
+    (
+        "[103:39->103:47) \"m/e1Cg\"",
+        "m/e1Cg",
+        None,
+    ),
+    (
+        "[103:68->103:74) qWbtVV",
+        "qWbtVV",
+        None,
+    ),
+    (
+        "[105:35->105:41) jaNpQE",
+        "jaNpQE",
+        None,
+    ),
+    (
+        "[107:35->107:41) bg24HB",
+        "bg24HB",
+        None,
+    ),
+    (
+        "[109:35->109:41) XKYej4",
+        "XKYej4",
+        None,
+    ),
+    (
+        "[132:35->132:41) sKdZ6e",
+        "sKdZ6e",
+        None,
+    ),
+]

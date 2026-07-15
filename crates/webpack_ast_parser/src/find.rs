@@ -1,4 +1,14 @@
 use oxc::{parser::Token, span::Span};
+use smol_str::SmolStr;
+
+/// An i18n/intl key referenced within a find sequence.
+pub struct IntlKey {
+	/// the 6-char hashed key as it appears in source (eg `Go5Vvs`)
+	pub hashed: SmolStr,
+	/// the original, unhashed message name (eg `ADD_TO_FAVOURITES`) when it
+	/// could be resolved from the embedded key mapping; `None` otherwise
+	pub unhashed: Option<SmolStr>,
+}
 
 /// A scored find sequence.
 ///
@@ -14,6 +24,10 @@ pub struct ScoredFindSequence {
 	///
 	/// eg: `void 0` has a gap between the token `void` and the token `0`
 	pub tokens: Vec<Token>,
+	/// all i18n/intl keys referenced within the find sequence
+	///
+	/// in source order; may contain duplicates
+	pub intl_keys: Vec<IntlKey>,
 }
 
 impl ScoredFindSequence {

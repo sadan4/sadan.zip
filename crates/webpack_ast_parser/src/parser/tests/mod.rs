@@ -114,6 +114,14 @@ impl<'ast> WebpackAstParser<'ast> {
 	fn dbg_export_map(&self) -> ExportMapDumper<'_> {
 		ExportMapDumper(self.get_export_map(), self.source)
 	}
+	fn dbg_intl_keys(&self) -> Vec<(SpanDumper<'_>, SmolStr, Option<SmolStr>)> {
+		self.get_intl_keys()
+			.into_iter()
+			.map(|(span, key)| {
+				(SpanDumper(span, self.source), key.hashed, key.unhashed)
+			})
+			.collect()
+	}
 	fn dbg_uses_of_import<'a>(
 		&'a self,
 		module_id: ModuleId,
@@ -1221,6 +1229,29 @@ mod export_parsing {
 		// #[test]
 		// fn exported_via_exports() {
 		// }
+	}
+}
+
+mod intl_keys {
+	use super::*;
+	use macros::test;
+
+	#[test]
+	fn collects_intl_keys_with_spans() {
+		let alloc = Allocator::new();
+		let p = parse_!(alloc, "test_data/wp/wreq.d/objectExport.js");
+		let keys = p.dbg_intl_keys();
+		assert_debug_snapshot!(keys);
+	}
+
+	#[test]
+	// keys reached through different accessors (`p.t.KEY`, `d.default.KEY`)
+	// and inside a ternary, all as args to `intl.string(...)`
+	fn collects_keys_across_accessors_and_ternaries() {
+		let alloc = Allocator::new();
+		let p = parse_!(alloc, "test_data/wp/finds/intlKeys2.js");
+		let keys = p.dbg_intl_keys();
+		assert_debug_snapshot!(keys);
 	}
 }
 

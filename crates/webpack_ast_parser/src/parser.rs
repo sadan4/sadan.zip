@@ -13,7 +13,7 @@ use crate::{
 		IModuleCache,
 		IModuleDepProvider,
 	},
-	find::ScoredFindSequence,
+	find::{IntlKey, ScoredFindSequence},
 	parser::{
 		enum_iife::EnumIIFEState1_2,
 		export_map::{
@@ -660,6 +660,35 @@ impl<'ast> WebpackAstParser<'ast> {
 		self.impl_generate_finds()
 	}
 
+	/// Collect every i18n/intl key referenced anywhere in the module, together
+	/// with the [`Span`] at which each is used.
+	///
+	/// Keys are returned in source order and may contain duplicates when the
+	/// same key is used in multiple places. Each key's original (unhashed)
+	/// message name is resolved when present in the embedded key mapping.
+	///
+	/// Unlike [`Self::get_i18n_key_at`] (which is loose enough for a
+	/// cursor-on-key hover), this only matches keys that are passed as an
+	/// argument to a Discord intl formatting call — `intl.string(<key>)` /
+	/// `intl.format(<key>)` (possibly nested inside a ternary etc). This keeps
+	/// real keys regardless of the messages accessor used (`x.t.KEY`,
+	/// `x.default.KEY`, ...) while excluding unrelated 6-char member accesses
+	/// (`Object.keys`, `arguments.length`, `.concat`, `.string`, ...).
+	pub fn get_intl_keys(&self) -> Vec<(Span, IntlKey)> {
+		self.toks
+			.iter()
+			.filter_map(|t| {
+				let pos = t.span().start;
+				if !self.is_intl_format_arg(pos) {
+					return None;
+				}
+				let (span, hashed) = self.get_i18n_key_at(pos)?;
+				let unhashed = crate::intl::resolve_unhashed_key(&hashed);
+				Some((span, IntlKey { hashed, unhashed }))
+			})
+			.collect()
+	}
+
 	/// Attempt to determine if the current module is an intl module
 	pub fn is_intl_module(&self) -> bool {
 		let Some(mf) = self.get_main_func() else {
@@ -733,6 +762,33 @@ impl<'ast> WebpackAstParser<'ast> {
 /// Private API
 #[expect(clippy::multiple_inherent_impl)]
 impl<'ast> WebpackAstParser<'ast> {
+	/// Whether the key node at `pos` is used as an argument to a Discord intl
+	/// formatting call, i.e. the nearest enclosing [`CallExpression`] has a
+	/// callee of the form `<x>.string` / `<x>.format*` and the key lies within
+	/// the call's arguments (not the callee itself).
+	fn is_intl_format_arg(&self, pos: u32) -> bool {
+		let node = self.get_node_at(pos);
+		let Some(call) =
+			self.find_parent(node.node_id(), AstKind::as_call_expression)
+		else {
+			return false;
+		};
+		// the key must be inside the arguments, not part of the callee
+		// (e.g. the `string` in `intl.string(...)` is itself a 6-char member)
+		let callee_span = call.callee.span();
+		let key_span = node.span();
+		if key_span.start >= callee_span.start
+			&& key_span.end <= callee_span.end
+		{
+			return false;
+		}
+		let Expression::StaticMemberExpression(m) = &call.callee else {
+			return false;
+		};
+		let method = m.property.name.as_str();
+		method == "string" || method.starts_with("format")
+	}
+
 	fn is_valid_intl_json(json: &str) -> bool {
 		use serde_json::{Value, from_str};
 		let Ok(Value::Object(obj)) = from_str(json) else {
@@ -1855,19 +1911,33 @@ impl<'ast> WebpackAstParser<'ast> {
 			if self.igt(t) && !bad_spans.contains(&t.start()) {
 				cs.push(t);
 			} else if !cs.is_empty() {
-				if Self::is_good_find_seq(&cs) {
-					let seq = self.score_find_seq(mem::take(&mut cs));
-					if seq.score < Self::MIN_FIND_SCORE {
-						cs.clear();
-					} else {
-						seqs.push(seq);
-					}
-				} else {
-					cs.clear();
-				}
+				self.flush_find_seq(&mut cs, &mut seqs);
 			}
 		}
+		// flush a trailing good run that ends at EOF (no non-good token
+		// follows it to trigger the flush inside the loop)
+		if !cs.is_empty() {
+			self.flush_find_seq(&mut cs, &mut seqs);
+		}
 		seqs
+	}
+
+	/// Scores the accumulated candidate run `cs`, pushing it to `seqs` when it
+	/// is a good sequence meeting [`Self::MIN_FIND_SCORE`]. Always leaves `cs`
+	/// empty.
+	fn flush_find_seq(
+		&self,
+		cs: &mut Vec<Token>,
+		seqs: &mut Vec<ScoredFindSequence>,
+	) {
+		if Self::is_good_find_seq(cs) {
+			let seq = self.score_find_seq(mem::take(cs));
+			if seq.score >= Self::MIN_FIND_SCORE {
+				seqs.push(seq);
+			}
+		} else {
+			cs.clear();
+		}
 	}
 
 	#[expect(clippy::too_many_lines)]
@@ -1875,11 +1945,15 @@ impl<'ast> WebpackAstParser<'ast> {
 		// start with a base of the find length
 		debug_assert!(!seq.is_empty(), "cannot score empty find sequence");
 		let mut ts = seq.last().unwrap().span().end - seq[0].span().start;
+		let mut intl_keys = Vec::new();
 		for t in &seq {
 			let tl = t.span().size();
 			debug_assert_ne!(tl, 0, "token has zero length");
+			if let Some((_, hashed)) = self.get_i18n_key_at(t.span().start) {
+				let unhashed = crate::intl::resolve_unhashed_key(&hashed);
+				intl_keys.push(IntlKey { hashed, unhashed });
+			}
 			let score = match t.kind() {
-				// FIXME: handle intl strings
 				TK::Ident
 				// special-case ident
 				| TK::This
@@ -1889,6 +1963,9 @@ impl<'ast> WebpackAstParser<'ast> {
 				| TK::Type
 				| TK::Default
 				| TK::Object
+				// contextual keyword, used as a method/property name
+				| TK::Constructor
+				| TK::Super
 				// strings
 				| TK::Str
 				| TK::RegExp
@@ -2002,6 +2079,7 @@ impl<'ast> WebpackAstParser<'ast> {
 		ScoredFindSequence {
 			score: ts,
 			tokens: seq,
+			intl_keys,
 		}
 	}
 }

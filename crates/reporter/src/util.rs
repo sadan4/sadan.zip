@@ -1,7 +1,7 @@
 use std::{
 	borrow::Cow,
 	cmp::Reverse,
-	collections::HashMap,
+	collections::{HashMap, HashSet},
 	fmt::Display,
 	hash::BuildHasher,
 	mem,
@@ -200,6 +200,12 @@ where
 		.collect();
 
 	finds.sort_by_key(|f| Reverse(f.score));
+
+	// multiple non-overlapping token runs can resolve to the same source
+	// substring (e.g. a repeated short expression); keep only the
+	// highest-scoring occurrence of each distinct find string.
+	let mut seen = HashSet::new();
+	finds.retain(|f| seen.insert(f.get_find(src)));
 
 	Ok(finds)
 }
