@@ -93,6 +93,7 @@ use oxc::{
 			ExpressionStatement,
 			Function,
 			IdentifierReference,
+			LogicalOperator,
 			MethodDefinition,
 			MethodDefinitionKind,
 			NewExpression,
@@ -2192,12 +2193,18 @@ impl<'ast> WebpackAstParser<'ast> {
 		if args.len() != 1 {
 			return None;
 		}
-		// `{}` in `function(e) {...}({})`
-		if !args[0]
-			.as_object_expression()?
-			.properties
-			.is_empty()
-		{
+		// `{}` in `function(e) {...}({})`, or the namespace-style
+		// `r || {}` in `function(e) {...}(r || {})`
+		let arg_obj = match args[0].as_expression()? {
+			Expression::ObjectExpression(o) => o.as_ref(),
+			Expression::LogicalExpression(l)
+				if l.operator == LogicalOperator::Or =>
+			{
+				l.right.as_object_expression()?
+			}
+			_ => return None,
+		};
+		if !arg_obj.properties.is_empty() {
 			return None;
 		}
 		// check body

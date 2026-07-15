@@ -605,6 +605,74 @@ mod export_parsing {
 			}
 			"#);
 		}
+
+		#[test]
+		fn namespace_enum_export() {
+			let alloc = Allocator::new();
+			let p = parse_!(alloc, "test_data/wp/wreq.d/enums2.js");
+			let map = p.get_export_map();
+			// filter the single `Z` export's inner map to a handful of members
+			let mut map2 = map.clone();
+			if let Some(ExportValue::Map(inner)) = map2.exports.get_mut("Z") {
+				inner.exports.retain(|k, _| {
+					matches!(
+						k.as_str(),
+						"QUICK_SWITCHER"
+							| "POPOUT_WINDOW" | "OVERLAY"
+							| "NOTICE" | "BADGE" | "CF_WARP_SETTINGS"
+					)
+				});
+			}
+			let map2_dumper = ExportMapDumper(&map2, p.source);
+			assert_debug_snapshot!(map2_dumper, @r#"
+			{
+			    "Z": ExportMap(
+			        {
+			            "BADGE": "badge"(
+			                [
+			                    "[14:10->14:15) BADGE",
+			                    "[14:18->14:25) \\\"badge\\\"",
+			                ],
+			            ),
+			            "CF_WARP_SETTINGS": "cloudflare warp settings"(
+			                [
+			                    "[537:10->537:26) CF_WARP_SETTINGS",
+			                    "[537:29->537:55) \\\"cloudflare warp settings\\\"",
+			                ],
+			            ),
+			            "NOTICE": "notice"(
+			                [
+			                    "[12:10->12:16) NOTICE",
+			                    "[12:19->12:27) \\\"notice\\\"",
+			                ],
+			            ),
+			            "OVERLAY": "overlay"(
+			                [
+			                    "[11:10->11:17) OVERLAY",
+			                    "[11:20->11:29) \\\"overlay\\\"",
+			                ],
+			            ),
+			            "POPOUT_WINDOW": "popout window"(
+			                [
+			                    "[10:10->10:23) POPOUT_WINDOW",
+			                    "[10:26->10:41) \\\"popout window\\\"",
+			                ],
+			            ),
+			            "QUICK_SWITCHER": "quick switcher"(
+			                [
+			                    "[9:17->9:31) QUICK_SWITCHER",
+			                    "[9:34->9:50) \\\"quick switcher\\\"",
+			                ],
+			            ),
+			            "SYM_CJS_DEFAULT": [
+			                "[6:8->6:9) Z",
+			                "[8:8->8:9) r",
+			            ],
+			        },
+			    ),
+			}
+			"#);
+		}
 	}
 	mod e_exports {
 		use super::*;
