@@ -48,6 +48,7 @@ use crate::{
 use ast_parser::{
 	AstParser,
 	ESModuleParser,
+	NodeLocationIndex,
 	cache,
 	exts::{
 		ArrayExpressionElementExt as _,
@@ -117,6 +118,7 @@ pub struct VencordAstParser<'ast> {
 struct Cache<'ast> {
 	finds: cache::Ref<PResult<Vec<FindUse>>>,
 	define_plugin: cache::Ref<PResult<&'ast ObjectExpression<'ast>>>,
+	node_index: cache::Ref<NodeLocationIndex<'ast>>,
 }
 
 const DEFINE_PLUGIN_IMPORT_SOURCE: &str = "@utils/types";
@@ -1827,6 +1829,10 @@ impl<'ast> AstParser<'ast> for VencordAstParser<'ast> {
 
 	fn sema(&self) -> &Semantic<'ast> {
 		&self.sema
+	}
+
+	fn node_location_index(&self) -> &cache::Ref<NodeLocationIndex<'ast>> {
+		&self.cache.node_index
 	}
 }
 

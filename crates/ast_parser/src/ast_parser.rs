@@ -1,4 +1,5 @@
 use crate::{
+	cache,
 	exts::{ExpressionExt, ModuleDeclarationExt},
 	sym_id::GetSymId,
 };
@@ -147,6 +148,10 @@ pub fn parse_for_traverse<'ast>(
 pub trait AstParser<'ast> {
 	fn prog(&self) -> &'ast Program<'ast>;
 	fn sema(&self) -> &Semantic<'ast>;
+	/// Per-parser cache slot backing [`Self::get_node_at`]. Implementors store
+	/// a `cache::Ref<NodeLocationIndex>` and hand back a reference to it so the
+	/// span index is built at most once.
+	fn node_location_index(&self) -> &cache::Ref<NodeLocationIndex<'ast>>;
 	// /// node from id
 	fn n<'a>(&'a self, node_id: NodeId) -> &'a AstNode<'ast>
 	where
@@ -327,8 +332,15 @@ pub trait AstParser<'ast> {
 		ret
 	}
 	/// Returns the most specific AST node whose span contains `pos`.
+	///
+	/// Backed by a cached [`NodeLocationIndex`] so repeated lookups (e.g. per
+	/// token on the finds hot path) are `O(log nodes)` rather than a full
+	/// program traversal per call.
 	fn get_node_at(&self, pos: u32) -> AstKind<'ast> {
-		get_node_at(self.prog(), pos)
+		self.node_location_index()
+			.get(|| NodeLocationIndex::build(self.prog()))
+			.get(pos)
+			.unwrap_or(AstKind::Program(self.prog()))
 	}
 }
 
@@ -362,36 +374,70 @@ pub trait ESModuleParser<'ast>: AstParser<'ast> {
 	}
 }
 
-fn get_node_at<'ast>(prog: &'ast Program<'ast>, pos: u32) -> AstKind<'ast> {
-	let mut finder = LocationFinder {
-		pos,
-		best: None,
-		best_span_size: u32::MAX,
-	};
-	finder.visit_program(prog);
-	finder
-		.best
-		.unwrap_or(AstKind::Program(prog))
+/// A precomputed, reusable index over every AST node's span, enabling
+/// `O(log n)` position → node lookups instead of a full-program traversal per
+/// query.
+///
+/// Building this once and querying it per position turns an `O(nodes)`
+/// per-query cost into `O(log nodes)` for the common case where the query
+/// position is a node boundary (e.g. a token start), which matters on the
+/// finds hot path where lookups are done per token.
+///
+/// Backs [`AstParser::get_node_at`] and returns the most specific
+/// (smallest-span) node whose half-open span `[start, end)` contains the
+/// position, breaking ties in favour of the node visited last in DFS
+/// pre-order.
+pub struct NodeLocationIndex<'ast> {
+	/// Sorted by `(start ASC, end DESC)`. Because AST spans form a laminar
+	/// family (properly nested, never partially overlapping) this ordering is
+	/// DFS pre-order, and a stable sort keeps identically-spanned nodes in DFS
+	/// order so the deepest (last-visited) one wins ties.
+	nodes: Vec<(u32, u32, AstKind<'ast>)>,
 }
 
-struct LocationFinder<'ast> {
-	pos: u32,
-	best: Option<AstKind<'ast>>,
-	best_span_size: u32,
+impl<'ast> NodeLocationIndex<'ast> {
+	#[must_use]
+	pub fn build(prog: &'ast Program<'ast>) -> Self {
+		let mut collector = NodeCollector { nodes: Vec::new() };
+		collector.visit_program(prog);
+		let mut nodes = collector.nodes;
+		// Stable sort: primary start ASC, secondary end DESC. Equal-span nodes
+		// retain their original DFS order (deepest last).
+		nodes.sort_by(|a, b| {
+			a.0
+				.cmp(&b.0)
+				.then_with(|| b.1.cmp(&a.1))
+		});
+		Self { nodes }
+	}
+
+	/// Returns the most specific node whose half-open span contains `pos`, or
+	/// [`None`] when no node does.
+	#[must_use]
+	pub fn get(&self, pos: u32) -> Option<AstKind<'ast>> {
+		// Every candidate has `start <= pos`; they occupy a prefix of `nodes`.
+		let hi = self
+			.nodes
+			.partition_point(|&(start, _, _)| start <= pos);
+		// Scan that prefix from the largest start downwards. Thanks to the
+		// laminar ordering, the first entry that also satisfies `end > pos` is
+		// the smallest-span (deepest) enclosing node.
+		self.nodes[..hi]
+			.iter()
+			.rev()
+			.find(|&&(_, end, _)| end > pos)
+			.map(|&(_, _, kind)| kind)
+	}
 }
 
-impl<'ast> Visit<'ast> for LocationFinder<'ast> {
+struct NodeCollector<'ast> {
+	nodes: Vec<(u32, u32, AstKind<'ast>)>,
+}
+
+impl<'ast> Visit<'ast> for NodeCollector<'ast> {
 	fn enter_node(&mut self, kind: AstKind<'ast>) {
 		let span = kind.span();
-		let contains_pos = (span.start..span.end).contains(&self.pos);
-		if !contains_pos {
-			return;
-		}
-
-		let span_size = span.size();
-		if span_size <= self.best_span_size {
-			self.best_span_size = span_size;
-			self.best = Some(kind);
-		}
+		self.nodes
+			.push((span.start, span.end, kind));
 	}
 }

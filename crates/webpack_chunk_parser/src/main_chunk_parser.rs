@@ -7,6 +7,8 @@ use crate::{
 use anyhow::{Result, anyhow};
 use ast_parser::{
 	AstParser,
+	NodeLocationIndex,
+	cache,
 	exts::{
 		BindingPatternExt,
 		ExpressionExt,
@@ -41,6 +43,7 @@ pub struct WebpackMainChunkParser<'ast> {
 	source_text: &'ast str,
 	prog: &'ast Program<'ast>,
 	sema: Semantic<'ast>,
+	node_index: cache::Ref<NodeLocationIndex<'ast>>,
 }
 
 const WEBPACK_EXPORTS_NAME: &str = "__webpack_exports__";
@@ -105,6 +108,7 @@ impl<'ast> WebpackMainChunkParser<'ast> {
 			source_text,
 			prog,
 			sema,
+			node_index: cache::Ref::new(),
 		})
 	}
 	/// gets `__webpack_require__`
@@ -472,6 +476,10 @@ impl<'ast> AstParser<'ast> for WebpackMainChunkParser<'ast> {
 
 	fn sema(&self) -> &Semantic<'ast> {
 		&self.sema
+	}
+
+	fn node_location_index(&self) -> &cache::Ref<NodeLocationIndex<'ast>> {
+		&self.node_index
 	}
 }
 

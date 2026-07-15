@@ -11,6 +11,7 @@ mod monaco_themes;
 mod syntax;
 mod ts_api;
 mod types;
+mod discord_intl;
 
 #[derive(Args)]
 pub struct Command {
@@ -30,6 +31,7 @@ impl Runnable for Command {
 			Target::ClientMonacoEntry(c) => c.run(),
 			Target::ClientTsApi(c) => c.run(),
 			Target::Client(c) => c.run(),
+			Target::DiscordIntl(c) => c.run(),
 		}
 	}
 }
@@ -52,4 +54,7 @@ enum Target {
 	ClientTsApi(ts_api::Command),
 	/// Generate all code needed for the client
 	Client(client::Command),
+	/// Convert the discord intl key mappings to a compressed binary 
+	/// format for `WebpackAstParser` and other rust crates
+	DiscordIntl(discord_intl::Command)
 }

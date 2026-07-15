@@ -16,6 +16,9 @@ syntect = { workspace = true, features = [
 ] }
 bitcode.workspace = true
 zstd.workspace = true
+serde_json.workspace = true
+rmp-serde.workspace = true
+smol_str.workspace = true
 serde.workspace = true
 
 [lints]

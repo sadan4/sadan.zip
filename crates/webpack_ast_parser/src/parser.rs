@@ -50,6 +50,7 @@ use crate::{
 use arrayvec::ArrayString;
 use ast_parser::{
 	AstParser,
+	NodeLocationIndex,
 	ast_kind::IntoAstKind,
 	cache,
 	exts::{
@@ -150,6 +151,7 @@ struct Cache<'ast> {
 		cache::Ref<Option<OutgoingModuleDepsWithLocs>>,
 	num_concatenated_modules: cache::Value<u32>,
 	main_func: cache::Value<Option<&'ast Function<'ast>>>,
+	node_index: cache::Ref<NodeLocationIndex<'ast>>,
 }
 
 impl<'ast> AstParser<'ast> for WebpackAstParser<'ast> {
@@ -159,6 +161,10 @@ impl<'ast> AstParser<'ast> for WebpackAstParser<'ast> {
 
 	fn sema(&self) -> &Semantic<'ast> {
 		&self.sema
+	}
+
+	fn node_location_index(&self) -> &cache::Ref<NodeLocationIndex<'ast>> {
+		&self.c.node_index
 	}
 }
 
@@ -1949,7 +1955,9 @@ impl<'ast> WebpackAstParser<'ast> {
 		for t in &seq {
 			let tl = t.span().size();
 			debug_assert_ne!(tl, 0, "token has zero length");
-			if let Some((_, hashed)) = self.get_i18n_key_at(t.span().start) {
+			if self.is_intl_format_arg(t.span().start)
+				&& let Some((_, hashed)) = self.get_i18n_key_at(t.span().start)
+			{
 				let unhashed = crate::intl::resolve_unhashed_key(&hashed);
 				intl_keys.push(IntlKey { hashed, unhashed });
 			}

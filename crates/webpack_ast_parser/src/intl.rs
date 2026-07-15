@@ -9,27 +9,21 @@ use std::{collections::HashMap, sync::LazyLock};
 
 use smol_str::SmolStr;
 
-/// Raw JSON map of `hashedKey -> UNHASHED_NAME`, embedded from the repo.
-static KEY_MAPPINGS_JSON: &str =
-	include_str!("../../../src/utils/discordI18n/key-mappings.json");
+static KEY_MAPPINGS_MPK_ZST: &[u8] = include_bytes!("./key_mappings.mpk.zst");
 
 /// Parsed, lazily-initialised map of hashed key -> unhashed message name.
-///
-/// Both keys and values borrow directly from the embedded, `'static` JSON
-/// (zero-copy) — the mapping contains no escape sequences.
-static KEY_MAPPINGS: LazyLock<HashMap<&'static str, &'static str>> =
+static KEY_MAPPINGS: LazyLock<HashMap<SmolStr, SmolStr>> =
 	LazyLock::new(|| {
-		serde_json::from_str(KEY_MAPPINGS_JSON)
-			.expect("key-mappings.json is valid JSON of string -> string")
+		let raw = zstd::decode_all(KEY_MAPPINGS_MPK_ZST)
+			.expect("Failed to decompress key_mappings.mpk.zst");
+		rmp_serde::from_slice(&raw)
+			.expect("Failed to parse key_mappings.mpk.zst")
 	});
 
 /// Attempt to resolve a hashed i18n key to its original (unhashed) message
 /// name. Returns `None` when the key is not present in the mapping.
 pub fn resolve_unhashed_key(hashed: &str) -> Option<SmolStr> {
-	KEY_MAPPINGS
-		.get(hashed)
-		.copied()
-		.map(SmolStr::new_static)
+	KEY_MAPPINGS.get(hashed).cloned()
 }
 
 #[cfg(test)]

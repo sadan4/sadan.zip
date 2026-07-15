@@ -4481,11 +4481,13 @@ dependencies = [
  "oxc",
  "oxc-miette",
  "rangemap",
+ "rmp-serde",
  "serde",
  "serde_json",
  "smol_str",
  "tracing",
  "tracing-subscriber",
+ "zstd",
 ]
 
 [[package]]
@@ -4789,7 +4791,10 @@ dependencies = [
  "anyhow",
  "bitcode",
  "clap",
+ "rmp-serde",
  "serde",
+ "serde_json",
+ "smol_str",
  "syntect",
  "tracing",
  "tracing-subscriber",

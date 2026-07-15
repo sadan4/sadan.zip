@@ -9,6 +9,7 @@ pub mod sym_id;
 pub use ast_parser::{
 	AstParser,
 	ESModuleParser,
+	NodeLocationIndex,
 	parse,
 	parse_for_traverse,
 	parse_no_sema,
