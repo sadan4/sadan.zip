@@ -14,9 +14,8 @@ impl Runnable for Command {
 	fn run(&self) -> Result<()> {
 		let raw_json = fs::read("src/utils/discordI18n/key-mappings.json")
 			.context("Failed to read key-mappings.json")?;
-		let json: HashMap<SmolStr, SmolStr> =
-			serde_json::from_slice(&raw_json)
-				.context("Failed to parse key-mappings.json")?;
+		let json: HashMap<SmolStr, SmolStr> = serde_json::from_slice(&raw_json)
+			.context("Failed to parse key-mappings.json")?;
 		let ser_keys = rmp_serde::to_vec(&json)
 			.context("Failed to serialize key-mappings.json to MessagePack")?;
 		let compressed = zstd::encode_all(&*ser_keys, 10)

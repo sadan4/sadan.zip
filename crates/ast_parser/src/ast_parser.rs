@@ -340,7 +340,7 @@ pub trait AstParser<'ast> {
 		self.node_location_index()
 			.get(|| NodeLocationIndex::build(self.prog()))
 			.get(pos)
-			.unwrap_or(AstKind::Program(self.prog()))
+			.unwrap_or_else(|| AstKind::Program(self.prog()))
 	}
 }
 
@@ -404,8 +404,7 @@ impl<'ast> NodeLocationIndex<'ast> {
 		// Stable sort: primary start ASC, secondary end DESC. Equal-span nodes
 		// retain their original DFS order (deepest last).
 		nodes.sort_by(|a, b| {
-			a.0
-				.cmp(&b.0)
+			a.0.cmp(&b.0)
 				.then_with(|| b.1.cmp(&a.1))
 		});
 		Self { nodes }

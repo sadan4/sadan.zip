@@ -64,9 +64,7 @@ impl PreviousBundle {
 
 	pub const fn timestamp(&self) -> Option<u64> {
 		match self {
-			Self::Full(full_bundle) => {
-				Some(full_bundle.metadata.first_seen)
-			}
+			Self::Full(full_bundle) => Some(full_bundle.metadata.first_seen),
 			Self::Scraped(_) => None,
 		}
 	}

@@ -2447,7 +2447,7 @@ impl<'ast> WebpackAstParser<'ast> {
 			return enum_export.into();
 		}
 		// `Object.freeze({...})` — descend into the wrapped object literal
-		if let Some(frozen) = self.unwrap_object_freeze(node) {
+		if let Some(frozen) = Self::unwrap_object_freeze(node) {
 			return self
 				.raw_make_export_map_object_expression(frozen)
 				.into();
@@ -2457,7 +2457,6 @@ impl<'ast> WebpackAstParser<'ast> {
 	/// If `node` is a call to `Object.freeze(objectLiteral)`, return the
 	/// wrapped object literal.
 	fn unwrap_object_freeze(
-		&self,
 		node: &'ast CallExpression<'ast>,
 	) -> Option<&'ast ObjectExpression<'ast>> {
 		let Expression::StaticMemberExpression(m) = &node.callee else {

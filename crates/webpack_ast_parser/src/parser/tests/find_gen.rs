@@ -71,9 +71,7 @@ fn collects_string_and_ident_intl_keys() {
 		.map(|f| {
 			f.intl_keys
 				.iter()
-				.map(|k| {
-					(k.hashed.as_str(), k.unhashed.as_deref())
-				})
+				.map(|k| (k.hashed.as_str(), k.unhashed.as_deref()))
 				.collect()
 		})
 		.collect();

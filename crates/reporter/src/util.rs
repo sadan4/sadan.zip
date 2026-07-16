@@ -168,7 +168,11 @@ where
 		src
 	} else {
 		owned_src = src.clone();
-		WebpackAstParser::format_module_header(&mut owned_src, module_id, false);
+		WebpackAstParser::format_module_header(
+			&mut owned_src,
+			module_id,
+			false,
+		);
 		&owned_src
 	};
 

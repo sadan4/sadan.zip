@@ -5,13 +5,13 @@ use crate::Runnable;
 
 mod client;
 mod client_grammars;
+mod discord_intl;
 mod indent_cache;
 mod monaco_editor;
 mod monaco_themes;
 mod syntax;
 mod ts_api;
 mod types;
-mod discord_intl;
 
 #[derive(Args)]
 pub struct Command {
@@ -54,7 +54,7 @@ enum Target {
 	ClientTsApi(ts_api::Command),
 	/// Generate all code needed for the client
 	Client(client::Command),
-	/// Convert the discord intl key mappings to a compressed binary 
+	/// Convert the discord intl key mappings to a compressed binary
 	/// format for `WebpackAstParser` and other rust crates
-	DiscordIntl(discord_intl::Command)
+	DiscordIntl(discord_intl::Command),
 }
