@@ -102,7 +102,7 @@ fn filter_plugins(
 				}
 			}
 		}
-		bail!("No plugin found")
+		bail!("No plugin found");
 	};
 	plugins.swap(0, i);
 	plugins[0].patches.swap(0, j);
@@ -159,7 +159,7 @@ pub(super) async fn fix(
 	)
 	.await
 	else {
-		bail!("Failed to diagnose patch")
+		bail!("Failed to diagnose patch");
 	};
 	let report = Report::new(issue.clone());
 	let plugin_ref = &plugin[0];

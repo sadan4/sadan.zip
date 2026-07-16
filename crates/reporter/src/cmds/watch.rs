@@ -152,7 +152,7 @@ pub async fn run_watcher(
 			let paths = match watcher.rx.try_recv() {
 				Ok(event) => match_event(event)?,
 				Err(mpsc::error::TryRecvError::Disconnected) => {
-					bail!("Watcher channel disconnected")
+					bail!("Watcher channel disconnected");
 				}
 				Err(mpsc::error::TryRecvError::Empty) => break,
 			};
