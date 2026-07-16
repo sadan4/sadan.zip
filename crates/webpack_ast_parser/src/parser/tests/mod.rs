@@ -679,7 +679,7 @@ mod export_parsing {
 			let alloc = Allocator::new();
 			let p = parse_!(alloc, "test_data/wp/wreq.d/enums3.js");
 			let map = p.get_export_map();
-			let map_dumper = ExportMapDumper(&map, p.source);
+			let map_dumper = ExportMapDumper(map, p.source);
 			assert_debug_snapshot!(map_dumper, @r#"
 			{
 			    "n": ExportMap(
@@ -743,7 +743,7 @@ mod export_parsing {
 			let alloc = Allocator::new();
 			let p = parse_!(alloc, "test_data/wp/wreq.d/enums4.js");
 			let map = p.get_export_map();
-			let map_dumper = ExportMapDumper(&map, p.source);
+			let map_dumper = ExportMapDumper(map, p.source);
 			assert_debug_snapshot!(map_dumper, @r#"
 			{
 			    "n": ExportMap(
