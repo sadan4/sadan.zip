@@ -2446,7 +2446,37 @@ impl<'ast> WebpackAstParser<'ast> {
 		{
 			return enum_export.into();
 		}
+		// `Object.freeze({...})` — descend into the wrapped object literal
+		if let Some(frozen) = self.unwrap_object_freeze(node) {
+			return self
+				.raw_make_export_map_object_expression(frozen)
+				.into();
+		}
 		RawExportRange::from_node(node).into()
+	}
+	/// If `node` is a call to `Object.freeze(objectLiteral)`, return the
+	/// wrapped object literal.
+	fn unwrap_object_freeze(
+		&self,
+		node: &'ast CallExpression<'ast>,
+	) -> Option<&'ast ObjectExpression<'ast>> {
+		let Expression::StaticMemberExpression(m) = &node.callee else {
+			return None;
+		};
+		if m.property.name != "freeze" {
+			return None;
+		}
+		let obj = m.object.as_identifier()?;
+		if obj.name != "Object" {
+			return None;
+		}
+		if node.arguments.len() != 1 {
+			return None;
+		}
+		node.arguments[0]
+			.as_expression()?
+			.get_inner_expression()
+			.as_object_expression()
 	}
 	fn raw_make_export_map_ident_ref(
 		&self,

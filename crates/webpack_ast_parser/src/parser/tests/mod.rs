@@ -849,6 +849,79 @@ mod export_parsing {
 			}
 			"#);
 		}
+
+		#[test]
+		fn object_freeze_enum_export() {
+			let alloc = Allocator::new();
+			let p = parse_!(alloc, "test_data/wp/wreq.d/objectFreeze.js");
+			let map = p.dbg_export_map();
+			assert_debug_snapshot!(map, @r#"
+			{
+			    "k": ExportMap(
+			        {
+			            "ALL": null(
+			                [
+			                    "[9:8->9:11) ALL",
+			                    "[9:13->9:17) null",
+			                ],
+			            ),
+			            "CHANNEL_CREATE": 10(
+			                [
+			                    "[11:8->11:22) CHANNEL_CREATE",
+			                    "[11:24->11:26) 10",
+			                ],
+			            ),
+			            "CHANNEL_DELETE": 12(
+			                [
+			                    "[13:8->13:22) CHANNEL_DELETE",
+			                    "[13:24->13:26) 12",
+			                ],
+			            ),
+			            "CHANNEL_UPDATE": 11(
+			                [
+			                    "[12:8->12:22) CHANNEL_UPDATE",
+			                    "[12:24->12:26) 11",
+			                ],
+			            ),
+			            "GUILD_UPDATE": 1(
+			                [
+			                    "[10:8->10:20) GUILD_UPDATE",
+			                    "[10:22->10:23) 1",
+			                ],
+			            ),
+			        },
+			    ),
+			    "l": ExportMap(
+			        {
+			            "0": 0(
+			                [
+			                    "[16:8->16:9) 0",
+			                    "[16:11->16:12) 0",
+			                ],
+			            ),
+			            "1": 2(
+			                [
+			                    "[17:8->17:9) 1",
+			                    "[17:11->17:12) 2",
+			                ],
+			            ),
+			            "2": 7(
+			                [
+			                    "[18:8->18:9) 2",
+			                    "[18:11->18:12) 7",
+			                ],
+			            ),
+			            "3": 14(
+			                [
+			                    "[19:8->19:9) 3",
+			                    "[19:11->19:13) 14",
+			                ],
+			            ),
+			        },
+			    ),
+			}
+			"#);
+		}
 	}
 	mod e_exports {
 		use super::*;
