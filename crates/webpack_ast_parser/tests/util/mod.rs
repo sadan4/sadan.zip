@@ -1,4 +1,5 @@
 use std::{
+	borrow::Cow,
 	cell::OnceCell,
 	collections::HashMap,
 	fmt::{self, Debug},
@@ -28,12 +29,16 @@ pub struct Bundle<'a> {
 }
 
 impl<'a> Bundle<'a> {
-	pub fn try_new(
+	pub fn try_new<'b>(
 		alloc: &'a Allocator,
+		sub_dir: impl Into<Option<Cow<'b, str>>>,
 	) -> Result<(Self, HashMap<ModuleId, WebpackAstParser<'a>>)> {
-		let bundle_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
+		let mut bundle_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
 			.join("tests")
 			.join(".modules");
+		if let Some(sub_dir) = sub_dir.into() {
+			bundle_dir.push(&*sub_dir);
+		}
 		let mut parsers = HashMap::new();
 		let mut deps: HashMap<ModuleId, IncomingModuleDeps> = HashMap::new();
 		// collect parsers
@@ -131,6 +136,7 @@ impl<'a> Bundle<'a> {
 			.clone()
 	}
 
+	/// line and col are 0-based
 	pub fn dbg_gen_refs(
 		&self,
 		parser: &WebpackAstParser,

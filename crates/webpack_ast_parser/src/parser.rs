@@ -502,15 +502,42 @@ impl<'ast> WebpackAstParser<'ast> {
 				let Ok(v) = v.try_unwrap_range_ref() else {
 					return false;
 				};
-				let Some(v) = v.first() else {
+				// The export value is stored as `[IdentifierName(key), <value>]`;
+				// the actual re-exported expression is the last element.
+				let Some(v) = v.last() else {
 					return false;
 				};
-				// TODO: why are we taking the first one
 				match v {
+					// `foo: () => bar` where `bar` is the whole imported module
 					AstKind::IdentifierReference(node) => {
 						self.cmp_sym(*node, &decl)
 					}
-					AstKind::StaticMemberExpression(_) => todo!(),
+					// `foo: () => bar.baz` where `bar` is the imported module and
+					// `baz` is the re-exported export name
+					AstKind::StaticMemberExpression(access) => {
+						let (object, chain) =
+							flatten_property_access_expression(*access);
+						// object must be the imported variable
+						let Some(object) = object.as_identifier() else {
+							return false;
+						};
+						if !self.cmp_sym(object, &decl) {
+							return false;
+						}
+						// and the first accessed property must be the export
+						// name we are looking for
+						match chain.first() {
+							Some(MemberExprAccessKind::Static(prop)) => {
+								match &export_name {
+									ExportMapKey::Named(name) => {
+										prop.name == name.as_str()
+									}
+									ExportMapKey::Default => false,
+								}
+							}
+							_ => false,
+						}
+					}
 					v => {
 						warn!("Unhandled type for reExport: {v:?}");
 						false

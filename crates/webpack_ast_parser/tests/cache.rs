@@ -482,3 +482,37 @@ mod hover_text {
 		"#);
 	}
 }
+
+mod references {
+	use super::*;
+	mod re_exports {
+		use super::*;
+		#[cache_test(sub_dir = "re_export")]
+		fn handles_re_export(b: &Bundle) {
+			let parser = b.parse(6151);
+			let locs = b.dbg_gen_refs(&parser, 6, 8).unwrap();
+			assert_debug_snapshot!(locs, @r#"
+			[
+			    ReferenceDumper {
+			        id: ModuleId(
+			            67956,
+			        ),
+			        range: "[13:18->13:20) v7",
+			    },
+			    ReferenceDumper {
+			        id: ModuleId(
+			            637141,
+			        ),
+			        range: "[11:17->11:18) v",
+			    },
+			    ReferenceDumper {
+			        id: ModuleId(
+			            944355,
+			        ),
+			        range: "[5:20->5:21) v",
+			    },
+			]
+			"#);
+		}
+	}
+}
