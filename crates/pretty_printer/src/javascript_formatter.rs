@@ -623,19 +623,17 @@ impl<'a> JavaScriptFormatter<'a> {
 		}
 	}
 
-	// TODO: can this be improved by doing a binary search like thing
 	fn line_of_pos(&self, pos: u32) -> u32 {
-		for (line_number, first_char_pos) in self
-			.line_pos_cache
-			.iter()
-			.enumerate()
-			.rev()
-		{
-			if pos >= *first_char_pos {
-				return line_number as u32;
-			}
-		}
-		unreachable!()
+		// `line_pos_cache` is sorted ascending, so the line containing `pos`
+		// is the last entry whose first-char position is `<= pos`.
+		debug_assert!(
+			!self.line_pos_cache.is_empty()
+				&& self.line_pos_cache[0] <= pos,
+			"pos precedes the first line"
+		);
+		self.line_pos_cache
+			.partition_point(|&first_char_pos| first_char_pos <= pos)
+			as u32 - 1
 	}
 
 	fn push(

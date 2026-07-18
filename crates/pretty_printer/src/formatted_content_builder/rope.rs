@@ -17,7 +17,7 @@ impl<'s> Rope<'s> {
 	pub fn last_char(&self) -> Option<char> {
 		self.strs
 			.last()
-			.and_then(|s| s.chars().last())
+			.and_then(|s| s.chars().next_back())
 	}
 
 	pub const fn is_empty(&self) -> bool {
