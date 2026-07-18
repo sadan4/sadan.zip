@@ -795,6 +795,9 @@ impl<'ast> WebpackAstParser<'ast> {
 		let c_then = parent
 			.callee
 			.as_static_member_expression()?;
+		if c_then.property.name != "then" {
+			return FALSE;
+		}
 		let c_then_obj = c_then.object.as_call_expression()?;
 		if self
 			.is_lazy_chunk_require(c_then_obj)
@@ -905,7 +908,6 @@ impl<'ast> WebpackAstParser<'ast> {
 				Some(SpannedId { id, span })
 			})
 			.collect();
-		// TODO: implement lazy require parsing
 		let lazy = self
 			.refs(wreq)
 			.filter_map(|usage| {
@@ -921,7 +923,7 @@ impl<'ast> WebpackAstParser<'ast> {
 				let span = module_id.span;
 				let module_id = module_id.as_u32()?;
 				// we are searching the pattern `n.bind(n, module_id)`
-				// we only want to match each one once, so we ingore the usage of `n` as an argument
+				// we only want to match each one once, so we ignore the usage of `n` as an argument
 				if wreq_use.node_id() == usage
 					|| !self.cmp_sym(wreq_use.as_ref(), &wreq)
 				{
@@ -944,7 +946,6 @@ impl<'ast> WebpackAstParser<'ast> {
 				})
 			})
 			.collect();
-		// let lazy = Vec::new();
 		Some(OutgoingModuleDepsWithLocs { sync, lazy })
 	}
 	/// Whether the key node at `pos` is used as an argument to a Discord intl
