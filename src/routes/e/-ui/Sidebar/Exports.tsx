@@ -325,8 +325,8 @@ function ModuleDependentsSection({ moduleId }: ModuleDependentsSectionProps) {
 
     const { data, status, error } = useQuery({
         queryKey: ["ExplorerSidebarModuleDependents", buildHash, moduleId],
-        queryFn() {
-            return buildService.getModuleDependents(moduleId);
+        async queryFn() {
+            return await buildService.getModuleDependents(moduleId) ?? null;
         },
     });
 
