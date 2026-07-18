@@ -114,9 +114,13 @@ impl<'ast> WebpackAstParser<'ast> {
 	fn dbg_export_map(&self) -> ExportMapDumper<'_> {
 		ExportMapDumper(self.get_export_map(), self.source)
 	}
+	#[expect(clippy::type_complexity)]
 	fn dbg_outgoing_deps(
 		&self,
-	) -> (Vec<(ModuleId, SpanDumper<'_>)>, Vec<(ModuleId, SpanDumper<'_>)>) {
+	) -> (
+		Vec<(ModuleId, SpanDumper<'_>)>,
+		Vec<(ModuleId, SpanDumper<'_>)>,
+	) {
 		let deps = self
 			.get_modules_that_this_module_requires()
 			.cloned()
