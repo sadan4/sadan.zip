@@ -25,6 +25,7 @@ use explorer_types::{
 	KeyModules,
 	ModuleId,
 	ModuleSources,
+	OutgoingModuleDepsWithLocs,
 	TModuleId,
 };
 use js_sys::{Object, Reflect, Uint32Array};
@@ -792,6 +793,24 @@ impl Bundle {
 		Ok(serde_wasm_bindgen::to_value(&tree)
 			.context("Failed to serialize export map")?)
 	}
+
+	pub fn get_module_dependencies(&self, module_id: u32) -> Result<JsValue> {
+		let m_id = ModuleId(module_id);
+		let parser = self.inner.get_or_make_parser(m_id)?;
+		static DEFAULT: OutgoingModuleDepsWithLocs = OutgoingModuleDepsWithLocs::new();
+		let deps = parser
+			.get_modules_that_this_module_requires()
+			.unwrap_or(&DEFAULT);
+		let sync_uses: Vec<ModuleId> = deps.sync.iter().map(|s| s.id).collect();
+		let lazy_uses: Vec<ModuleId> = deps.lazy.iter().map(|s| s.id).collect();
+		let tmp = ModuleDepsJs {
+			sync_uses: &sync_uses,
+			lazy_uses: &lazy_uses,
+		};
+
+		Ok(serde_wasm_bindgen::to_value(&tmp)
+			.context("Failed to serialize module dependencies")?)
+	}
 }
 
 #[derive(Serialize)]
@@ -899,6 +918,10 @@ const MODULE_DEPS_JS_TYPES: &str = r#"
             syncUses: number[];
             lazyUses: number[];
         } | undefined;
+        get_module_dependencies(module_id: number): {
+            syncUses: number[];
+            lazyUses: number[];
+        };
         search_modules(query: string, regex: boolean): BundleSearchResults;
         get_search_result_info(module_id: number, raw_index: number, long_preview: boolean): BundleSearchResultInfo;
         get_search_location(module_id: number, raw_index: number): BundleSearchLocation;

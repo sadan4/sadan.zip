@@ -37,6 +37,11 @@ export interface BundleSearchResults {
     rawIndices: Uint32Array;
 }
 
+export interface ModuleDeps {
+    syncUses: TModuleId[];
+    lazyUses: TModuleId[];
+}
+
 export interface IBuildService {
     hasId(moduleId: number): moduleId is TModuleId;
     getFormattedSource(moduleId: TModuleId): string;
@@ -49,6 +54,8 @@ export interface IBuildService {
     getSearchLocation(moduleId: TModuleId, rawIndex: number): BundleSearchLocation;
     generateModuleGraph(moduleId: TModuleId, depth: number): GeneratedGraph;
     getModuleExportMap(moduleId: TModuleId): ExportTreeNode[];
+    getModuleDependencies(moduleId: TModuleId): ModuleDeps;
+    getModuleDependents(moduleId: TModuleId): ModuleDeps | undefined;
 }
 
 const self = globalThis as any as SharedWorkerGlobalScope;
@@ -193,6 +200,14 @@ class BuildService implements IBuildService {
 
     public getModuleExportMap(moduleId: TModuleId): ExportTreeNode[] {
         return this.#bundle.get_module_export_map(moduleId);
+    }
+
+    public getModuleDependencies(moduleId: TModuleId): ModuleDeps {
+        return this.#bundle.get_module_dependencies(moduleId) as ModuleDeps;
+    }
+
+    public getModuleDependents(moduleId: TModuleId): ModuleDeps | undefined {
+        return this.#bundle.get_module_deps(moduleId) as ModuleDeps | undefined;
     }
 }
 
