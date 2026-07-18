@@ -437,31 +437,6 @@ impl<'ast> WebpackAstParser<'ast> {
 			.get(|| self.get_modules_that_this_module_requires_impl())
 			.as_ref()
 	}
-	fn get_modules_that_this_module_requires_impl(
-		&self,
-	) -> Option<OutgoingModuleDepsWithLocs> {
-		let wreq = self.wreq()?;
-		// TODO: merge these loops to avoid two iterations
-		let sync = self
-			.refs(wreq)
-			.filter_map(|usage| {
-				let p_call =
-					self.find_parent(usage, AstKind::as_call_expression)?;
-				let args = &p_call.arguments;
-				if args.len() != 1 {
-					return None;
-				}
-				let id =
-					ModuleId::from(args[0].as_numeric_literal()?.as_u32()?);
-				let span = args[0].span();
-
-				Some(SpannedId { id, span })
-			})
-			.collect();
-		// TODO: implement lazy require parsing
-		let lazy = Vec::new();
-		Some(OutgoingModuleDepsWithLocs { sync, lazy })
-	}
 	pub fn get_modules_that_require_this_module(
 		&self,
 	) -> Result<Rc<IncomingModuleDeps>> {
@@ -797,6 +772,181 @@ impl<'ast> WebpackAstParser<'ast> {
 /// Private API
 #[expect(clippy::multiple_inherent_impl)]
 impl<'ast> WebpackAstParser<'ast> {
+	/// there are three options for a lazy require call
+	/// `node` is the `n.bind(n, module_id)` part of the call
+	/// ```js
+	/// Promise.resolve().then(wreq.bind(wreq, module_id))
+	/// ```
+	/// ```js
+	/// require.e("chunk_id").then(wreq.bind(wreq, module_id))
+	/// ```
+	/// ```js
+	/// Promise.all([wreq.e("chunk_id_1"), wreq.e("chunk_id_2")]).then(wreq.bind(wreq, module_id))
+	/// ```
+	fn is_lazy_require_callee(
+		&self,
+		node: &'ast CallExpression<'ast>,
+	) -> Option<()> {
+		const TRUE: Option<()> = Some(());
+		const FALSE: Option<()> = None;
+		let parent = self
+			.p(node.node_id())
+			.as_call_expression()?;
+		let c_then = parent
+			.callee
+			.as_static_member_expression()?;
+		let c_then_obj = c_then.object.as_call_expression()?;
+		if self
+			.is_lazy_chunk_require(c_then_obj)
+			.is_some()
+			|| self.is_promise_resolve(c_then_obj)
+		{
+			return TRUE;
+		}
+		if let Some(Expression::ArrayExpression(arr)) =
+			self.is_promise_all(c_then_obj)
+			&& arr.elements.iter().all(|arg| {
+				arg.as_call_expression()
+					.is_some_and(|call| {
+						self.is_lazy_chunk_require(call)
+							.is_some()
+					})
+			}) {
+			TRUE
+		} else {
+			FALSE
+		}
+	}
+	/// checks if `node` is `Promise.all(arg)`
+	/// if it is, returns the argument passed to `Promise.all`, otherwise returns None
+	fn is_promise_all(
+		&self,
+		node: &'ast CallExpression<'ast>,
+	) -> Option<&'ast Expression<'ast>> {
+		let callee = node
+			.callee
+			.as_static_member_expression()?;
+		let [arg] = node.arguments.as_slice() else {
+			return None;
+		};
+		let arg = arg.as_expression()?;
+		let ident = callee.object.as_identifier()?;
+		if self
+			.sema
+			.is_reference_to_global_variable(ident)
+			&& ident.name == "Promise"
+			&& callee.property.name == "all"
+		{
+			Some(arg)
+		} else {
+			None
+		}
+	}
+	/// checks if `node` is `Promise.resolve()`
+	///
+	/// if any arguments are passed to `resolve`, it will return false
+	fn is_promise_resolve(&self, node: &'ast CallExpression<'ast>) -> bool {
+		if !node.arguments.is_empty() {
+			return false;
+		}
+		let Some(callee) = node
+			.callee
+			.as_static_member_expression()
+		else {
+			return false;
+		};
+		let Some(ident) = callee.object.as_identifier() else {
+			return false;
+		};
+		self.sema
+			.is_reference_to_global_variable(ident)
+			&& ident.name == "Promise"
+			&& callee.property.name == "resolve"
+	}
+	/// checks if `node` is a lazy chunk require call, `wreq.e("chunk_id")`
+	///
+	/// if it is, returns Some(&'ast str) where the str is the chunk id, otherwise returns None
+	fn is_lazy_chunk_require(
+		&self,
+		node: &'ast CallExpression<'ast>,
+	) -> Option<&'ast str> {
+		let [Argument::StringLiteral(chunk_id)] = node.arguments.as_slice()
+		else {
+			return None;
+		};
+		let wreq_e = node
+			.callee
+			.as_static_member_expression()?;
+		let wreq_use = wreq_e.object.as_identifier()?;
+		let wreq = self.wreq()?;
+		if !self.cmp_sym(wreq_use, &wreq) || wreq_e.property.name != "e" {
+			return None;
+		}
+		Some(&chunk_id.value)
+	}
+	fn get_modules_that_this_module_requires_impl(
+		&self,
+	) -> Option<OutgoingModuleDepsWithLocs> {
+		let wreq = self.wreq()?;
+		// TODO: merge these loops to avoid two iterations
+		let sync = self
+			.refs(wreq)
+			.filter_map(|usage| {
+				let p_call =
+					self.find_parent(usage, AstKind::as_call_expression)?;
+				let args = &p_call.arguments;
+				if args.len() != 1 {
+					return None;
+				}
+				let id =
+					ModuleId::from(args[0].as_numeric_literal()?.as_u32()?);
+				let span = args[0].span();
+
+				Some(SpannedId { id, span })
+			})
+			.collect();
+		// TODO: implement lazy require parsing
+		let lazy = self
+			.refs(wreq)
+			.filter_map(|usage| {
+				let call =
+					self.find_parent(usage, AstKind::as_call_expression)?;
+				let [
+					Argument::Identifier(wreq_use),
+					Argument::NumericLiteral(module_id),
+				] = call.arguments.as_slice()
+				else {
+					return None;
+				};
+				let span = module_id.span;
+				let module_id = module_id.as_u32()?;
+				// we are searching the pattern `n.bind(n, module_id)`
+				// we only want to match each one once, so we ingore the usage of `n` as an argument
+				if wreq_use.node_id() == usage
+					|| !self.cmp_sym(wreq_use.as_ref(), &wreq)
+				{
+					return None;
+				}
+				let wreq_bind = call
+					.callee
+					.as_static_member_expression()?;
+				let wreq_use = wreq_bind.object.as_identifier()?;
+				if !self.cmp_sym(wreq_use, &wreq)
+					|| wreq_bind.property.name != "bind"
+				{
+					return None;
+				}
+				self.is_lazy_require_callee(call)?;
+
+				Some(SpannedId {
+					id: ModuleId::from(module_id),
+					span,
+				})
+			})
+			.collect();
+		// let lazy = Vec::new();
+		Some(OutgoingModuleDepsWithLocs { sync, lazy })
+	}
 	/// Whether the key node at `pos` is used as an argument to a Discord intl
 	/// formatting call, i.e. the nearest enclosing [`CallExpression`] has a
 	/// callee of the form `<x>.string` / `<x>.format*` and the key lies within

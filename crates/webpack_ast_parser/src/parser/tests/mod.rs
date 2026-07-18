@@ -114,6 +114,21 @@ impl<'ast> WebpackAstParser<'ast> {
 	fn dbg_export_map(&self) -> ExportMapDumper<'_> {
 		ExportMapDumper(self.get_export_map(), self.source)
 	}
+	fn dbg_outgoing_deps(
+		&self,
+	) -> (Vec<(ModuleId, SpanDumper<'_>)>, Vec<(ModuleId, SpanDumper<'_>)>) {
+		let deps = self
+			.get_modules_that_this_module_requires()
+			.cloned()
+			.unwrap_or_default();
+		let map = |v: Vec<SpannedId>| {
+			v.into_iter()
+				.map(|s| (s.id, SpanDumper(s.span, self.source)))
+				.sorted_by_key(|(id, _)| id.0)
+				.collect::<Vec<_>>()
+		};
+		(map(deps.sync), map(deps.lazy))
+	}
 	fn dbg_intl_keys(&self) -> Vec<(SpanDumper<'_>, SmolStr, Option<SmolStr>)> {
 		self.get_intl_keys()
 			.into_iter()
@@ -240,6 +255,15 @@ mod module_id {
 		let p = parse_!(alloc, "test_data/wp/bad/badModule2.js");
 		let id = p.get_module_id();
 		assert_eq!(id, None);
+	}
+
+	#[test]
+	fn gets_ids_of_dependencies() {
+		let alloc = Allocator::new();
+		let parser = parse_!(alloc, "test_data/wp/concatenated_module.js");
+		let (sync, lazy) = parser.dbg_outgoing_deps();
+		assert_debug_snapshot!("sync_deps", sync);
+		assert_debug_snapshot!("lazy_deps", lazy);
 	}
 }
 mod export_parsing {

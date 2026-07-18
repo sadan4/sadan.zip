@@ -1,0 +1,24 @@
+---
+source: crates/webpack_ast_parser/src/parser/tests/mod.rs
+expression: lazy
+---
+[
+    (
+        ModuleId(
+            149938,
+        ),
+        "[189:74->189:80) 149938",
+    ),
+    (
+        ModuleId(
+            304232,
+        ),
+        "[812:73->812:79) 304232",
+    ),
+    (
+        ModuleId(
+            660207,
+        ),
+        "[1258:55->1258:61) 660207",
+    ),
+]
