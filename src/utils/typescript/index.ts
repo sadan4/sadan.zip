@@ -4,7 +4,7 @@ import { Language } from "../textmate";
 
 import type * as TS from "typescript";
 
-const ts: typeof import("typescript") = import.meta.env.SSR ? unavailableImport<never>("typescript") : await import("typescript");
+const ts: typeof import("typescript") = import.meta.env.SSR ? unavailableImport("typescript") : await import("typescript");
 
 export {
     type TS,
@@ -83,7 +83,7 @@ export function getNodeName({ kind }: TS.Node): string {
     if (markerMap.has(ret)) {
         return markerMap.get(ret)!;
     }
-    return ret ?? "<ERROR>";
+    return ret;
 }
 
 export function getTextChanges(oldText: string, newText: string): TS.TextChangeRange {
@@ -137,6 +137,7 @@ export function isSyntaxList(node: TS.Node): node is TS.SyntaxList {
 }
 
 export function getParent(node: TS.Node): TS.Node | undefined {
+    // oxlint-disable-next-line typescript/no-unnecessary-condition -- SourceFile.parent is undefined
     if (!node.parent) {
         return;
     }

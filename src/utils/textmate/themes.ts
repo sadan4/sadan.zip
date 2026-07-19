@@ -1,6 +1,6 @@
 import { TextmateTheme } from "./theme";
 
-import * as shiki from "shiki";
+import type * as shiki from "shiki";
 
 export type TMTheme = shiki.ThemeRegistration;
 

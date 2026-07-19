@@ -32,7 +32,7 @@ interface ThemeSetting {
 }
 
 class TokenizerState implements Monaco.languages.IState {
-    constructor(private _ruleStack: StateStack) { }
+    constructor(private readonly _ruleStack: StateStack) { }
 
     public get ruleStack(): StateStack {
         return this._ruleStack;
@@ -43,8 +43,8 @@ class TokenizerState implements Monaco.languages.IState {
     }
 
     public equals(other: Monaco.languages.IState): boolean {
-        if (!other
-          || !(other instanceof TokenizerState)
+        // FIXME: this smells
+        if (!(other instanceof TokenizerState)
           || other !== this
           || other._ruleStack !== this._ruleStack
         ) {
@@ -130,7 +130,7 @@ export function wireTmGrammars(
         }));
 }
 
-const themeRulesCache: Map<string, ThemeSetting[]> = new Map();
+const themeRulesCache = new Map<string, ThemeSetting[]>();
 
 function getRulesForTheme(editor: Monaco.editor.ICodeEditor, theme: string): ThemeSetting[] {
     if (themeRulesCache.has(theme)) {

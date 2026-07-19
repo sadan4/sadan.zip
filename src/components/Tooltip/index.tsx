@@ -221,7 +221,7 @@ export function Tooltip({
             flip(),
             // ]
             // : [autoPlacement()],
-            // eslint-disable-next-line react-hooks/refs
+            // eslint-disable-next-line react/react-compiler
             arrow({
                 element: arrowRef,
             }),

@@ -1,4 +1,3 @@
-import { error } from "@/utils/error";
 import { type Monaco, monaco } from "@/utils/monaco";
 import { filterObject } from "@/utils/obj";
 import { TextmateTheme } from "@/utils/textmate/theme";
@@ -7,12 +6,16 @@ import { loaderMap } from "./generated";
 
 import { use } from "react";
 
+const SYM_MONACO_THEME_LIGHT = Symbol("MonacoTheme.LIGHT");
+const SYM_MONACO_THEME_DARK = Symbol("MonacoTheme.DARK");
+const SYM_MONACO_THEME_HIGH_CONTRAST = Symbol("MonacoTheme.HIGH_CONTRAST");
+const SYM_MONACO_THEME_HIGH_CONTRAST_LIGHT = Symbol("MonacoTheme.HIGH_CONTRAST_LIGHT");
 
 export const MonacoTheme = Object.freeze({
-    LIGHT: Symbol("MonacoTheme.LIGHT"),
-    DARK: Symbol("MonacoTheme.DARK"),
-    HIGH_CONTRAST: Symbol("MonacoTheme.HIGH_CONTRAST"),
-    HIGH_CONTRAST_LIGHT: Symbol("MonacoTheme.HIGH_CONTRAST_LIGHT"),
+    LIGHT: SYM_MONACO_THEME_LIGHT,
+    DARK: SYM_MONACO_THEME_DARK,
+    HIGH_CONTRAST: SYM_MONACO_THEME_HIGH_CONTRAST,
+    HIGH_CONTRAST_LIGHT: SYM_MONACO_THEME_HIGH_CONTRAST_LIGHT,
 } as const);
 
 export type BuiltinMonacoTheme = typeof MonacoTheme[keyof typeof MonacoTheme];
@@ -33,7 +36,7 @@ const MonacoThemeStringMap: Record<BuiltinMonacoTheme, Monaco.editor.BuiltinThem
     [MonacoTheme.HIGH_CONTRAST_LIGHT]: "hc-light",
 };
 
-const registeredThemeMap: Map<TextmateTheme, string> = new Map();
+const registeredThemeMap = new Map<TextmateTheme, string>();
 
 function makeLegalThemeName(theme: string): string {
     return theme.replaceAll("_", "-");
@@ -42,11 +45,6 @@ function makeLegalThemeName(theme: string): string {
 async function loadLazyTextmateThemeForMonaco(theme: TextmateTheme): Promise<string> {
     const loader = loaderMap[theme];
     const legalThemeName = makeLegalThemeName(TextmateTheme[theme]);
-
-    if (!loader) {
-        error(`no loader for theme: ${TextmateTheme[theme]}`);
-    }
-
     const data = await loader();
 
     monaco.editor.defineTheme(legalThemeName, data);
@@ -78,8 +76,6 @@ export function useMonacoTheme(theme: MonacoTheme): string {
         case MonacoTheme.HIGH_CONTRAST_LIGHT: {
             return MonacoThemeStringMap[theme];
         }
-        default:
-            error(`unknown monaco theme: ${String(theme)} textmateTheme?: ${TextmateTheme[theme as never]}`);
     }
 }
 

@@ -1,7 +1,7 @@
 import type { ExtractState, StoreApi, UseBoundStore } from "zustand";
 import { useShallow } from "zustand/react/shallow";
 
-type WithSelectors<S> = S extends { getState: () => infer T; }
+type WithSelectors<S> = S extends { getState(): infer T; }
     // eslint-disable-next-line @stylistic/indent-binary-ops
     ? S & {
         use: { [K in keyof T]: () => T[K] };
@@ -28,7 +28,7 @@ export function createSelectors<S extends UseBoundStore<StoreApi<object>>>(_stor
     for (const key of Object.keys(store.getState())) {
         (store.use as any)[key] = () => store((state) => (state as any)[key]);
     }
-    // eslint-disable-next-line @eslint-react/component-hook-factories -- called once per store at top level
+    // eslint-disable-next-line react-x/component-hook-factories-- called once per store at top level
     store.useShallow = function useShallowStore(...args: Parameters<typeof store.useShallow>) {
         return store(useShallow(...args));
     } as any;

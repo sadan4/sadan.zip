@@ -174,13 +174,13 @@ export function Accordion({
 
 export interface AccordionGroupProps extends PropsWithChildren {
     activeItemId?: string;
-    onItemToggle?: (id: string) => void;
+    onItemToggle?(id: string): void;
     onlyOneOpen?: boolean;
     ref?: Ref<AccordionGroupHandle>;
 }
 
 export interface AccordionGroupHandle {
-    closeAll: () => void;
+    closeAll(): void;
 }
 
 export function AccordionGroup({ children, onlyOneOpen = true, ref }: AccordionGroupProps) {

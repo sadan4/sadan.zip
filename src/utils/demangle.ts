@@ -7,6 +7,7 @@ import { error } from "./error";
 // FIXME: fix the exports for @sadan4/demangler to export an interface instead of a class
 type Demangler = Awaited<ReturnType<typeof makeDemangler>>;
 
+// oxlint-disable-next-line typescript/no-unnecessary-condition
 const demangler: Demangler = (!import.meta.env.SSR as never) && await makeDemangler(wasmBundleUrl);
 
 export function demangle(mangled: string): string {

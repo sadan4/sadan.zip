@@ -4,22 +4,28 @@ const enterHandlers = new Set<() => void>();
 const leaveHandlers = new Set<() => void>();
 
 window.addEventListener("mouseover", () => {
-    enterHandlers.forEach((handler) => handler());
+    enterHandlers.forEach((handler) => {
+        handler();
+    });
 });
 
 window.addEventListener("mousemove", () => {
-    enterHandlers.forEach((handler) => handler());
+    enterHandlers.forEach((handler) => {
+        handler();
+    });
 });
 
 window.addEventListener("mouseout", (ev) => {
     // for some reason, this triggers on things like SVGs
     if (ev.relatedTarget === null) {
-        leaveHandlers.forEach((handler) => handler());
+        leaveHandlers.forEach((handler) => {
+            handler();
+        });
     }
 });
 
 export function useCursorVisible(defaultValue?: boolean) {
-    const [visible, setVisible] = useState(defaultValue !== undefined ? defaultValue : document.body.matches(":hover"));
+    const [visible, setVisible] = useState(() => defaultValue ?? document.body.matches(":hover"));
 
     // mousemove instead of mouseover because react 
     // devtools blocks mouseover events while inspecting

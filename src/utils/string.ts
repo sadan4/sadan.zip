@@ -18,7 +18,7 @@ export function dedent(
         if (i < values.length) {
             const value = alignValue(values[i], result);
 
-
+            // oxlint-disable-next-line typescript/restrict-plus-operands
             result += value;
         }
     }
@@ -56,31 +56,37 @@ export function dedent(
     result = result.trim();
 
     return result;
-    /**
-     * Adjusts the indentation of a multi-line interpolated value to match the current line.
-     */
-    function alignValue(value: unknown, precedingText: string): string | unknown {
-        if (typeof value !== "string" || !value.includes("\n")) {
-            return value;
-        }
+}
 
-        const currentLine = precedingText.slice(precedingText.lastIndexOf("\n") + 1);
-        const indentMatch = currentLine.match(/^(\s+)/);
-
-        if (indentMatch) {
-            const [indent] = indentMatch;
-
-            return value.replace(/\n/g, `\n${indent}`);
-        }
-
+/**
+ * Adjusts the indentation of a multi-line interpolated value to match the current line.
+ */
+function alignValue(value: string, precedingText: string): string;
+/**
+ * Adjusts the indentation of a multi-line interpolated value to match the current line.
+ */
+function alignValue<T>(value: T, precedingText: string): T;
+function alignValue<T>(value: T, precedingText: string): string | T {
+    if (typeof value !== "string" || !value.includes("\n")) {
         return value;
     }
+
+    const currentLine = precedingText.slice(precedingText.lastIndexOf("\n") + 1);
+    const indentMatch = currentLine.match(/^(\s+)/);
+
+    if (indentMatch) {
+        const [indent] = indentMatch;
+
+        return value.replace(/\n/g, `\n${indent}`);
+    }
+
+    return value;
 }
 
 export type DisposableString = string & Disposable;
 
 export function disposableString(str: string, func: (str: string) => void): DisposableString {
-    return Object.assign(String(str), {
+    return Object.assign(str, {
         [Symbol.dispose]() {
             func(str);
         },

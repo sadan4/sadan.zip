@@ -30,7 +30,7 @@ export interface TabBarProps {
     noSeparators?: boolean;
     selectedTab?: string;
     initialSelectedTab?: string;
-    onTabChange?: (tab: Tab) => void;
+    onTabChange?(tab: Tab): void;
     tabsPosition?: TabBarPosition;
 }
 
@@ -71,8 +71,8 @@ interface TabButtonProps {
     tab: Tab;
     activeTabId: string;
     className?: string;
-    setActiveTab: (tabId: string) => void;
-    onTabChange?: (tab: Tab) => void;
+    setActiveTab(tabId: string): void;
+    onTabChange?(tab: Tab): void;
     isManaged: boolean;
 }
 
@@ -121,11 +121,12 @@ export function TabBar({
 }: TabBarProps) {
     assert(!(selectedTab && initialSelectedTab), "You can only provide one of selectedTab or initialSelectedTab");
 
-    const [tab, setTab] = useState(selectedTab ?? initialSelectedTab ?? tabs[0]?.id ?? "");
+    const [tab, setTab] = useState(selectedTab ?? initialSelectedTab ?? (tabs[0] as Tab | undefined)?.id ?? "");
     const isManaged = selectedTab !== undefined;
 
     useEffect(() => {
         if (selectedTab) {
+            // oxlint-disable-next-line react/react-compiler
             setTab(selectedTab);
         }
     }, [selectedTab]);

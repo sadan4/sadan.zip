@@ -13,7 +13,7 @@ interface CopyHoverDataArgs {
 }
 
 export class WebpackExportHover implements Monaco.languages.HoverProvider {
-    static #COMMAND_NAME = "webpackI18nHover.copy";
+    static readonly #COMMAND_NAME = "webpackI18nHover.copy";
 
     private constructor() {
     }
@@ -22,7 +22,7 @@ export class WebpackExportHover implements Monaco.languages.HoverProvider {
         model: Monaco.editor.ITextModel,
         position: Monaco.Position,
         _token: Monaco.CancellationToken,
-        _context?: Monaco.languages.HoverContext<Monaco.languages.Hover> | undefined,
+        _context?: Monaco.languages.HoverContext,
     ): Promise<Monaco.languages.Hover | null | undefined> {
         try {
             const { buildHash: currentBuildHash, _buildService } = ModuleViewerStore.getState();
@@ -81,7 +81,7 @@ export class WebpackExportHover implements Monaco.languages.HoverProvider {
         const uri = monaco.Uri.parse(`command:${WebpackExportHover.#COMMAND_NAME}?${encodeURIComponent(JSON.stringify([props]))}`);
 
         return {
-            value: `$(copy) [Copy As Find](${uri})`,
+            value: `$(copy) [Copy As Find](${uri.toString()})`,
             supportThemeIcons: true,
             isTrusted: {
                 enabledCommands: [WebpackExportHover.#COMMAND_NAME],

@@ -24,7 +24,7 @@ export interface TypewriterProps extends ComponentPropsWithoutRef<"div"> {
     ref: Ref<TypewriterRef>;
     initialContent: ReactNode | TypewriterSource;
     children?: never;
-    onTypingStateChange?: (newState: boolean) => void;
+    onTypingStateChange?(newState: boolean): void;
 }
 
 function isTypewriterSource(source: any): source is TypewriterSource {

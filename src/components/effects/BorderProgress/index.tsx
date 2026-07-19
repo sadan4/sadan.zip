@@ -54,6 +54,7 @@ export function BorderProgress({
             const child = single(wrapper.children);
             const [length, path] = makeBorderPath(child);
 
+            // oxlint-disable-next-line react/react-compiler
             setBorderLen(length);
             borderRef.current?.setAttribute("d", path);
             maskRef.current?.setAttribute("d", path);

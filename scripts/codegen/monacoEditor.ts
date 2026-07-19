@@ -149,7 +149,7 @@ for (const { id, entry, name } of resolvedWorkers) {
 
     const fullWorkerPath = resolve(monacoWorkerPrefix, entry);
     const workerEntryId = posix.relative(outDir, fullWorkerPath);
-    const refId = `${workerEntryId}`;
+    const refId = workerEntryId;
     const names = new Set([name]);
 
     emitWorkers.set(id, {
@@ -220,4 +220,4 @@ const generatedContent = dedent/*js*/`
     ${makeImports(resolvedLanguages)}
 `;
 
-await writeFile(outPath, generatedContent);
+await writeFile(outPath, `${generatedContent}\n`);

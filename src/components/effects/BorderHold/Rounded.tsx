@@ -1,4 +1,4 @@
-import { SpringRef, useSpring } from "@react-spring/web";
+import { type SpringRef, useSpring } from "@react-spring/web";
 
 import { type BaseBorderHoldProps, borderHoldAnimConfig } from "./common";
 import { BorderProgress } from "../BorderProgress";
@@ -18,7 +18,7 @@ export interface BorderHoldHandle {
 
 export interface BorderHoldRoundedProps extends BaseBorderHoldProps {
     ref?: Ref<BorderHoldHandle | null>;
-    onPointerDown?: () => void;
+    onPointerDown?(): void;
     /**
      * higher number, thinner border.
      * 
@@ -54,7 +54,7 @@ export function BorderHoldRounded({
                     opacity: 1,
                     onChange(progress) {
                         // bug in react-spring types
-                        const value = progress.value.progress as number;
+                        const value = progress.value.progress;
 
                         if (!progress.cancelled && !dispatchedRef.current && value >= 98) {
                             dispatchedRef.current = true;
@@ -73,7 +73,7 @@ export function BorderHoldRounded({
                 await next({
                     progress: 0,
                     onChange(progress) {
-                        if (!progress.cancelled && (progress.value.progress as number) <= 5) {
+                        if (!progress.cancelled && progress.value.progress <= 5) {
                             // react spring doesn't like this, but it works
                             next({
                                 opacity: 0,
@@ -110,8 +110,12 @@ export function BorderHoldRounded({
                     e.preventDefault();
                 }
             }}
-            onPointerUp={() => onStopHold()}
-            onPointerLeave={() => onStopHold()}
+            onPointerUp={() => {
+                onStopHold();
+            }}
+            onPointerLeave={() => {
+                onStopHold();
+            }}
             pathStyle={{
                 opacity,
             }}

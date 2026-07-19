@@ -58,7 +58,9 @@ function TextExample() {
                         className="w-20"
                         items={textSizeSelectOptions}
                         defaultValue={size}
-                        onChange={(size) => setSize(size)}
+                        onChange={(size) => {
+                            setSize(size);
+                        }}
                     />
                     <Select
                         className="w-30"

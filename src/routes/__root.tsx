@@ -112,6 +112,8 @@ function RootComponent({ children }: { children: React.ReactNode; }) {
 
         assert(root instanceof HTMLBodyElement, "Failed to find root element");
 
+        // this is only ever called once
+        // oxlint-disable-next-line react/react-compiler
         setLayerCtx({
             level: 0,
             root,

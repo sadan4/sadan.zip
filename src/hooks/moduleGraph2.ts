@@ -17,14 +17,16 @@ export function useModuleGraph2() {
     useEffect(() => {
         let cancelled = false;
 
-        !async function () {
+        void async function () {
             if (!moduleId)
                 return;
 
             const { _buildService: buildService } = ModuleViewerStore.getState();
             const graph = await buildService.generateModuleGraph(moduleId as TModuleId, graphDepth);
 
+            // oxlint-disable-next-line typescript/no-unnecessary-condition -- ts bug?
             if (cancelled) {
+                // ^?
                 return;
             }
 

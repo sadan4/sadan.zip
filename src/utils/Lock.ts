@@ -3,7 +3,7 @@ import { assert } from "./error";
 export class Lock {
     private _locked: boolean;
 
-    constructor(initialState: boolean = false) {
+    constructor(initialState = false) {
         this._locked = initialState;
     }
 
@@ -25,7 +25,7 @@ export class Lock {
 
 
     bindIf<R extends {} | null, A extends any[]>(fn: (...args: A) => R): ((...args: A) => R | undefined);
-    bindIf<F extends (...args: any[]) => undefined | void>(fn: F): F;
+    bindIf<F extends (...args: any[]) => void>(fn: F): F;
     bindIf<R extends {} | null, A extends any[]>(fn: (...args: A) => R): ((...args: A) => R | undefined) {
         return (...args) => {
             return this._locked ? undefined : fn(...args);

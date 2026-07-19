@@ -32,7 +32,7 @@ export interface SelectOption<T> {
 interface SelectItemProps<T> {
     item: SelectOption<T>;
     isSelected: boolean;
-    onChange: (item: NoInfer<T>) => void;
+    onChange(item: NoInfer<T>): void;
 }
 
 function SelectItem<T>({ item: { label, value, disabled }, isSelected, onChange }: SelectItemProps<T>) {
@@ -70,7 +70,7 @@ interface SelectMenuProps<T> {
     items: SelectOption<T>[];
     selectedItem: NoInfer<T>;
     scrollAreaClassName?: string;
-    onChange: (item: NoInfer<T>) => void;
+    onChange(item: NoInfer<T>): void;
 }
 
 function SelectMenu<T>({ items, onChange, selectedItem, scrollAreaClassName }: SelectMenuProps<T>) {
@@ -104,12 +104,12 @@ export interface SelectProps<T extends PropertyKey> extends PropsWithChildren {
     selectedValue?: NoInfer<T>;
     defaultValue?: NoInfer<T>;
     customChildren?: boolean;
-    onChange?: (selection: NoInfer<T>) => void;
+    onChange?(selection: NoInfer<T>): void;
     closeOnSelect?: boolean;
     className?: string;
     scrollAreaClassName?: string;
     open?: boolean;
-    onOpenChange?: (open: boolean) => void;
+    onOpenChange?(open: boolean): void;
 }
 
 export function Select<T extends PropertyKey>({

@@ -52,6 +52,10 @@ export function parseCSSValue(value: string, element: Element, percentReference:
 
     const [, num, unit] = value.match(CSS_VALUE_REGEX) ?? [];
 
+    if (!num || !unit) {
+        error(`unhandled css value: ${value}`);
+    }
+
     switch (unit) {
         case "%": {
             const referenceValue = getPercentReferenceValue(element, percentReference);

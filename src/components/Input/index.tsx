@@ -2,7 +2,7 @@ import { AnimateHeight } from "@/components/effects/AnimateHeight";
 import { useComposedRefs } from "@/hooks/composedRefs";
 import { useDebouncedFn } from "@/hooks/debouncedFn";
 import { border } from "@/styles";
-import cn, { textColors, textSize, textWeight } from "@/utils/cn";
+import cn, { type textColors, type textSize, type textWeight } from "@/utils/cn";
 import { error } from "@/utils/error";
 import type { TOmit } from "@/utils/types";
 
@@ -30,7 +30,7 @@ export interface InputProps extends ComponentProps<"input"> {
     onChange?: ChangeEventHandler<HTMLInputElement>;
     clearButton?: boolean;
     focusAfterClear?: boolean;
-    onClear?: () => void;
+    onClear?(): void;
 }
 
 export function Input({
@@ -154,10 +154,9 @@ function DefaultErrorMessage({ origCheck }: ErrorMessageProps) {
         msg = "Invalid value";
     } else if (origCheck instanceof RegExp) {
         msg = `Input must match /${origCheck.source}/`;
-    } else if (origCheck.type === "len") {
-        msg = formatInvalidLenMessage(origCheck);
     } else {
-        throw new Error("invalid check type");
+        origCheck.type satisfies "len";
+        msg = formatInvalidLenMessage(origCheck);
     }
 
     return (
@@ -191,15 +190,15 @@ export interface CheckedInputProps extends TOmit<InputProps, "onChange">, PropsW
     labelSize?: keyof typeof textSize;
     labelWeight?: keyof typeof textWeight;
     check: RegExp | ((value: string) => boolean) | LenCheck;
-    errorMessage?: (props: ErrorMessageProps) => ReactNode;
+    errorMessage?(props: ErrorMessageProps): ReactNode;
     /**
      * e is undefined on initial render if checkInitialRender is true
      */
-    onValidChange?: (e: ChangeEvent<HTMLInputElement> | undefined, value: string) => void;
+    onValidChange?(e: ChangeEvent<HTMLInputElement> | undefined, value: string): void;
     /**
      * e is undefined on initial render if checkInitialRender is true
      */
-    onInvalidChange?: (e: ChangeEvent<HTMLInputElement> | undefined, value: string) => void;
+    onInvalidChange?(e: ChangeEvent<HTMLInputElement> | undefined, value: string): void;
     debounce?: number;
     wrapperClassName?: string;
     checkInitialRender?: boolean;

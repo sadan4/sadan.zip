@@ -5,9 +5,8 @@ import { devtools } from "@tanstack/devtools-vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import viteReact, { reactCompilerPreset } from "@vitejs/plugin-react";
 
-import { fileURLToPath } from "url";
-
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { defineConfig, type Rollup, type UserConfig } from "vite";
 import devtoolsJSON from "vite-plugin-devtools-json";
 

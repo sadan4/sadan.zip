@@ -70,7 +70,9 @@ export function RAMDownloader() {
                 });
             }, 100);
         }
-        return () => clearInterval(interval);
+        return () => {
+            clearInterval(interval);
+        };
     }, [status, selectedRam]);
 
     function handleStart(val: number) {
@@ -106,7 +108,9 @@ export function RAMDownloader() {
                     {RAM_OPTIONS.map((opt) => (
                         <Button
                             key={opt.value}
-                            onClick={() => handleStart(opt.value)}
+                            onClick={() => {
+                                handleStart(opt.value);
+                            }}
                             color="primary"
                             className="w-fit"
                         >

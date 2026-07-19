@@ -18,7 +18,9 @@ export function useCSSObserver(
     const cb = useRecent(callback);
 
     const [observer] = useState(() => new MutationObserver((records: MutationRecord[]) => {
-        records.forEach(() => cb.current());
+        records.forEach(() => {
+            cb.current();
+        });
     }));
 
     useEffect(() => {
@@ -32,8 +34,10 @@ export function useCSSObserver(
             });
             return () => {
                 // this is what i want
-                // eslint-disable-next-line @eslint-react/exhaustive-deps
-                observer.takeRecords().forEach(() => cb.current());
+                observer.takeRecords().forEach(() => {
+                    // oxlint-disable-next-line react-x/exhaustive-deps
+                    cb.current();
+                });
                 observer.disconnect();
             };
         }

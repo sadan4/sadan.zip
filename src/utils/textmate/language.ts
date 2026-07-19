@@ -12,7 +12,7 @@ export enum Language {
     CSS = "source.css",
 }
 
-const extensionMap: Readonly<Record<Language, string>> = Object.freeze({
+const extensionMap = Object.freeze({
     [Language.PLAINTEXT]: "txt",
     [Language.UNKNOWN]: "",
     [Language.JSON]: "json",
@@ -22,12 +22,12 @@ const extensionMap: Readonly<Record<Language, string>> = Object.freeze({
     [Language.JAVASCRIPT_REACT]: "jsx",
     [Language.HTML]: "html",
     [Language.CSS]: "css",
-});
+} as const satisfies Record<Language, string>);
 
 export function extensionForLanguage(language: Language): string {
     const ext = extensionMap[language];
 
-    return (ext && `.${ext}`) ?? error(`Could not find extension for ${language}`);
+    return (ext && `.${ext}`) || error(`Could not find extension for ${language}`);
 }
 
 export const languageDisplayNames = Object.freeze({
@@ -40,4 +40,4 @@ export const languageDisplayNames = Object.freeze({
     [Language.JAVASCRIPT_REACT]: "jsx",
     [Language.HTML]: "html",
     [Language.CSS]: "css",
-} satisfies Record<Language, string>);
+} as const satisfies Record<Language, string>);

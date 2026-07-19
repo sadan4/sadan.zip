@@ -5,17 +5,17 @@ import { assert } from "@/utils/error";
 import type { Monaco } from "@/utils/monaco";
 import type { TBundleHash, TModuleId } from "@/utils/types";
 import {
-    Bundle,
+    type Bundle,
     type BundleSearchLocation,
     type BundleSearchResultInfo,
     default as initWasm,
     type ExportTreeNode,
     get_bundle,
-    HoverInfo as RawHoverInfo,
-    LaidOutGraph,
-    ModuleLocation as RawModuleLocation,
+    type HoverInfo as RawHoverInfo,
+    type LaidOutGraph,
+    type ModuleLocation as RawModuleLocation,
     MonacoPosition,
-    MonacoRange,
+    type MonacoRange,
 } from "@sadan4/libsadancore";
 import type { Edge, Node } from "@xyflow/react";
 
@@ -128,6 +128,7 @@ class BuildService implements IBuildService {
             assert(this.#bundleHash === hash, "Worker already initialized with a different bundle hash");
         }
         this.#bundleHash = hash;
+        // oxlint-disable-next-line typescript/no-unnecessary-condition
         if (this.#bundle == null) {
             await this.#downloadBundle();
         }
@@ -174,7 +175,7 @@ class BuildService implements IBuildService {
     }
 
     public searchModules(query: string, regex: boolean): BundleSearchResults {
-        const results = this.#bundle.search_modules(query, regex) as BundleSearchResults;
+        const results = this.#bundle.search_modules(query, regex);
         const { moduleIds } = results;
         const { rawIndices } = results;
 

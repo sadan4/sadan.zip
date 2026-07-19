@@ -98,7 +98,7 @@ export function FriendModalNormal() {
                 // index is an important key because of positioning
                 // FIXME: is index really needed
                 return (
-                    // eslint-disable-next-line @eslint-react/no-array-index-key
+                    // oxlint-disable-next-line react-x/no-array-index-key
                     <DefaultPlacementCircleItem key={`${idx}-${friend.name}`}>
                         <FriendButton
                             friend={friend}

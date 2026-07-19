@@ -6,7 +6,7 @@ import { type Dispatch, type SetStateAction, useCallback, useEffect, useRef, use
 
 export interface ControlledStateOptions<T> {
     managedValue: T | undefined;
-    handleChange?: (newValue: NoInfer<T>) => void;
+    handleChange?(newValue: NoInfer<T>): void;
     initialValue: T | (() => T);
     debugName?: string;
 }
@@ -21,10 +21,11 @@ export function useControlledState<T>({ managedValue, initialValue, handleChange
     // OK to disable conditionally calling hooks here because they will always run
     // consistently in the same environment. Bundlers should be able to remove the
     // code block entirely in production.
-    /* eslint-disable @eslint-react/rules-of-hooks */
     if (process.env.NODE_ENV !== "production") {
+        // oxlint-disable-next-line react/react-compiler react-x/rules-of-hooks
         const isControlledRef = useRef(managedValue !== undefined);
 
+        // oxlint-disable-next-line react/react-compiler react-x/rules-of-hooks
         useEffect(() => {
             const wasControlled = isControlledRef.current;
 
@@ -37,8 +38,6 @@ export function useControlledState<T>({ managedValue, initialValue, handleChange
             isControlledRef.current = isControlled;
         }, [isControlled, debugName]);
     }
-
-    /* eslint-enable @eslint-react/rules-of-hooks */
 
     const setValue = useCallback<SetStateFunc<T>>((nextValue) => {
         if (isControlled) {

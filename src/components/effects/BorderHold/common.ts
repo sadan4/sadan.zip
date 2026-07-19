@@ -1,9 +1,9 @@
 import type { SpringConfig } from "@react-spring/web";
 
-import { type PropsWithChildren } from "react";
+import type { PropsWithChildren } from "react";
 
 export interface BaseBorderHoldProps extends PropsWithChildren {
-    onHold?: () => void;
+    onHold?(): void;
 }
 
 declare module "react" {

@@ -23,6 +23,7 @@ export default function Shadow({ children, noHover = false, className }: ShadowP
     useLayoutEffect(() => {
         const logHeight = Math.log(height);
 
+        // oxlint-disable-next-line react/react-compiler
         setCssProps({
             "--shadow-container-width": `${width}px`,
             "--shadow-container-height": `${height}px`,

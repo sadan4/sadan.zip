@@ -71,7 +71,7 @@ const typeFileContent = dedent`
     export type MonacoThemeData = monaco.editor.IStandaloneThemeData;
 `;
 
-await writeFile(typeFilePath, typeFileContent);
+await writeFile(typeFilePath, `${typeFileContent}\n`);
 
 const ret = [
     dedent`
@@ -106,7 +106,7 @@ for (const theme of themes) {
     const themeFile = `${themeDisplayName}.ts`;
     const themeFilePath = resolve(genPath, themeFile);
 
-    await writeFile(themeFilePath, content);
+    await writeFile(themeFilePath, `${content}\n`);
 
     ret.push(`export function ${theme}() { return import("./${themeFile}").then(({default: d}) => d) }`);
 }
@@ -125,4 +125,4 @@ ret.push(dedent`
 
 const content = ret.join("\n");
 
-await writeFile(resolve(genPath, "index.ts"), content);
+await writeFile(resolve(genPath, "index.ts"), `${content}\n`);

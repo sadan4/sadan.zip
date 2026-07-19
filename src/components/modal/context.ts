@@ -7,5 +7,5 @@ export interface ModalContext {
     requestClose(): void;
 }
 
-export const ModalContext = createContext<ModalContext | null>(null!);
+export const ModalContext = createContext<ModalContext | null>(null);
 ModalContext.displayName = "ModalContext";

@@ -71,8 +71,10 @@ function isDefaultPlacementCircleItem(component: ReactNode): boolean {
         if (!import.meta.hot?.data.defaultItems) {
             error("Default items set not found");
         }
+        // oxlint-disable-next-line typescript/no-unnecessary-condition
         return import.meta.hot.data.defaultItems.has((component as ReactElement)?.type);
     }
+    // oxlint-disable-next-line typescript/no-unnecessary-condition
     return (component as ReactElement)?.type === DefaultPlacementCircleItem;
 }
 
@@ -189,6 +191,7 @@ export function CircleItems({
                     return (
                         <CircleItemContext
                             value={placementProps}
+                            // oxlint-disable-next-line typescript/no-unnecessary-condition
                             key={(child as ReactElement)?.key}
                         >
                             {isDefaultPlacementCircleItem(child)
@@ -202,11 +205,12 @@ export function CircleItems({
                     );
                 }
 
-                const c = (child ?? (() => null))(placementProps);
+                const c = child(placementProps);
 
                 return (
                     <CircleItemContext
                         value={placementProps}
+                        // oxlint-disable-next-line typescript/no-unnecessary-condition
                         key={(c as ReactElement)?.key}
                     >
                         {c}

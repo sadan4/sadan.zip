@@ -179,8 +179,8 @@ export interface RenderMarkersProps {
     container: HTMLDivElement | null;
     min: number;
     max: number;
-    valueToPercent: (value: number) => number;
-    clampToRange: (num: number) => number;
+    valueToPercent(value: number): number;
+    clampToRange(num: number): number;
     renderMarker?(props: RenderMarkerProps): ReactNode;
     vertical: boolean;
 }
@@ -201,7 +201,6 @@ function DefaultRenderMarkers({
     useResizeObserver(container, updateSize);
 
     useEffect(() => {
-        dep;
         if (container) {
             const { width, height } = container.getBoundingClientRect();
 
@@ -212,6 +211,7 @@ function DefaultRenderMarkers({
                 PercentReference.WIDTH,
             );
 
+            // oxlint-disable-next-line react/react-compiler
             setContainerWidth(width);
             setContainerHeight(height);
             setThumbWidth(thumbWidth);

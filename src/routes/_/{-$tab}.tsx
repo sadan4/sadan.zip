@@ -14,6 +14,7 @@ export const Route = createFileRoute("/_/{-$tab}")({
                 return tabParamSchema.parse(rawParams);
             } catch (e) {
                 if (e instanceof z.ZodError) {
+                    // oxlint-disable-next-line typescript/only-throw-error
                     throw notFound();
                 } else {
                     throw e;

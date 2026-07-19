@@ -6,7 +6,7 @@ import { Clickable } from "../Clickable";
 import { Tooltip } from "../Tooltip";
 import type { TooltipPosition } from "../Tooltip/constants";
 
-import { type ComponentProps, type ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
 
 export interface ToggleButton<T extends string | number> {
     id: T;

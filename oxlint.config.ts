@@ -1,32 +1,29 @@
-// For more info, see https://github.com/storybookjs/eslint-plugin-storybook#configuration-flat-config-format
-import eslintReact from "@eslint-react/eslint-plugin";
-import stylistic, { type RuleOptions } from "@stylistic/eslint-plugin";
+// Migrated from ESLint (eslint.config.mts) to Oxlint.
+// Structure preserved: grouped rule consts, the padding-line-between-statements
+// IIFE + helpers, computed tailwind callees, and the shared `extensions` glob.
+//
+// Key differences vs the old ESLint flat config:
+// - `@typescript-eslint/*` rules -> native `typescript/*` (or core where oxlint
+//   folds them into the base rule, e.g. `no-use-before-define`, `default-param-last`,
+//   `prefer-destructuring`).
+// - `@eslint-react/*` -> react-x / react-dom / react-rsc / react-web-api /
+//   react-naming-convention JS plugins.
+// - `react-refresh/only-export-components` -> native `react/only-export-components`.
+// - `react-hooks/*` (React Compiler family) -> native experimental
+//   `react/react-compiler` rule.
+// - `@stylistic/*` kept verbatim, loaded via the `@stylistic/eslint-plugin` JS plugin.
+// - Local `require-css-as-namespace` rule loaded via its `.ts` source as a JS plugin.
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { defineConfig, type DummyRuleMap } from "oxlint";
 
-import requireCssAsNamespace from "./scripts/requireCssAsNamespace.ts";
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
-import { type Linter } from "eslint";
-import type { ESLintRules as IESLintRules } from "eslint/rules";
-import reactHooks from "eslint-plugin-react-hooks";
-import reactRefresh from "eslint-plugin-react-refresh";
-import simpleImportSort from "eslint-plugin-simple-import-sort";
-import storybook from "eslint-plugin-storybook";
-import tailwindcss from "eslint-plugin-tailwindcss";
-import unusedImports from "eslint-plugin-unused-imports";
-import { join } from "node:path";
-import TSEslint from "typescript-eslint";
+type RuleEntry = "off" | "warn" | "error" | [unknown, ...unknown[]];
 
-// cursed
-type _tsLintRules = typeof import("./node_modules/@typescript-eslint/eslint-plugin/dist/rules");
+type RuleMap = Record<string, RuleEntry>;
 
-type ITSLintRules = {
-    [K in keyof _tsLintRules & string as `@typescript-eslint/${K}`]: _tsLintRules[K] extends { meta: { defaultOptions?: infer Options extends any[]; }; } ? Linter.RuleEntry<Options> : never;
-};
-
-type IStyleRules = {
-    [K in keyof RuleOptions]: Linter.RuleEntry<RuleOptions[K]>;
-};
-
-type _statementType = RuleOptions["@stylistic/padding-line-between-statements"][number]["next" | "prev"];
+type _statementType = string;
 
 type PaddingSchema = {
     blankLine: "any" | "always" | "never";
@@ -34,7 +31,7 @@ type PaddingSchema = {
     next: _statementType | _statementType[] | readonly _statementType[];
 }[];
 
-const ESLintRules: Partial<IESLintRules> = {
+const ESLintRules: DummyRuleMap = {
     "array-callback-return": [
         "error",
         {
@@ -63,8 +60,6 @@ const ESLintRules: Partial<IESLintRules> = {
     "no-constructor-return": "error",
     "no-control-regex": "error",
     "no-debugger": "warn",
-    // done by tsserver
-    "no-dupe-args": "off",
     // done by tsserver
     "no-dupe-class-members": "off",
     "no-dupe-else-if": "error",
@@ -122,7 +117,6 @@ const ESLintRules: Partial<IESLintRules> = {
     "no-unused-vars": "off",
     "no-useless-assignment": "error",
     "no-useless-backreference": "error",
-    "require-atomic-updates": "off",
     "use-isnan": [
         "error",
         {
@@ -166,8 +160,6 @@ const ESLintRules: Partial<IESLintRules> = {
     "no-lonely-if": "error",
     "no-multi-str": "error",
     "no-nonoctal-decimal-escape": "error",
-    "no-octal": "error",
-    "no-octal-escape": "error",
     "no-redeclare": "off",
     "no-regex-spaces": "error",
     "no-return-assign": ["error", "except-parens"],
@@ -208,19 +200,8 @@ const ESLintRules: Partial<IESLintRules> = {
     "require-yield": "error",
     yoda: ["error", "never"],
     "func-style": ["error", "declaration"],
-};
-
-const TSLintRules: Partial<ITSLintRules> = {
-    "@typescript-eslint/no-use-before-define": [
-        "error",
-        {
-            ignoreTypeReferences: true,
-            functions: false,
-        },
-    ],
-    "@typescript-eslint/require-await": "error",
-    "@typescript-eslint/default-param-last": "error",
-    "@typescript-eslint/prefer-destructuring": [
+    // was @typescript-eslint/prefer-destructuring; oxlint folds into the core rule
+    "prefer-destructuring": [
         "error",
         {
             VariableDeclarator: {
@@ -236,7 +217,91 @@ const TSLintRules: Partial<ITSLintRules> = {
             enforceForRenamedProperties: false,
         },
     ],
-    "@typescript-eslint/switch-exhaustiveness-check": [
+};
+
+// Rules ported from @typescript-eslint/* -> oxlint `typescript/*` (or core where
+// oxlint exposes them without the plugin prefix).
+const TSLintRules: DummyRuleMap = {
+    "typescript/adjacent-overload-signatures": "error",
+    "typescript/array-type": "error",
+    "typescript/class-literal-property-style": ["error", "fields"],
+    "typescript/consistent-generic-constructors": ["error", "constructor"],
+    "typescript/consistent-type-definitions": ["error", "interface"],
+    "typescript/consistent-type-exports": "error",
+    "typescript/consistent-type-imports": [
+        "deny",
+        {
+            fixStyle: "inline-type-imports",
+            // needed for `const foo: typeof import("foo") = someRuntimeExpr();`
+            disallowTypeAnnotations: false,
+        },
+    ],
+    // consider typescript/explicit-member-accessibility
+    "typescript/method-signature-style": ["warn", "method"],
+    "typescript/no-confusing-non-null-assertion": "error",
+    "typescript/no-confusing-void-expression": "warn",
+    "typescript/no-deprecated": "warn",
+    "typescript/no-extraneous-class": "error",
+    "typescript/no-import-type-side-effects": "error",
+    "typescript/no-inferrable-types": "error",
+    "typescript/no-invalid-void-type": "warn",
+    "typescript/no-misused-promises": [
+        "warn",
+        {
+            checksVoidReturn: {
+                arguments: false,
+                attributes: false,
+            },
+        },
+    ],
+    "typescript/no-mixed-enums": "error",
+    "typescript/no-non-null-asserted-nullish-coalescing": "warn",
+    "typescript/no-unnecessary-boolean-literal-compare": "warn",
+    "typescript/no-unnecessary-condition": "warn",
+    "typescript/no-unnecessary-qualifier": "warn",
+    "typescript/no-unnecessary-template-expression": "warn",
+    "typescript/no-unnecessary-type-arguments": "warn",
+    "typescript/no-unnecessary-type-assertion": "warn",
+    "typescript/no-unnecessary-type-constraint": "warn",
+    "typescript/no-unnecessary-type-conversion": "warn",
+    "typescript/non-nullable-type-assertion-style": "warn",
+    "typescript/only-throw-error": [
+        "warn",
+        {
+            allow: [
+                {
+                    from: "package",
+                    package: "@tanstack/react-router",
+                    name: ["NotFoundError", "Redirect"],
+                },
+            ],
+        },
+    ],
+    "typescript/prefer-find": "warn",
+    "typescript/prefer-for-of": "warn",
+    "typescript/prefer-function-type": "error",
+    "typescript/prefer-includes": "warn",
+    "typescript/prefer-optional-chain": "warn",
+    "typescript/prefer-promise-reject-errors": "warn",
+    "typescript/prefer-readonly": "warn",
+    "typescript/prefer-reduce-type-parameter": "warn",
+    "typescript/prefer-return-this-type": "warn",
+    "typescript/prefer-ts-expect-error": "warn",
+    "typescript/related-getter-setter-pairs": "warn",
+    "typescript/restrict-plus-operands": "warn",
+    "typescript/strict-boolean-expressions": "off",
+    // core in oxlint
+    "no-use-before-define": [
+        "error",
+        {
+            ignoreTypeReferences: true,
+            functions: false,
+        },
+    ],
+    "typescript/require-await": "error",
+    // core in oxlint
+    "default-param-last": "error",
+    "typescript/switch-exhaustiveness-check": [
         "error",
         {
             allowDefaultCaseForExhaustiveSwitch: false,
@@ -244,17 +309,31 @@ const TSLintRules: Partial<ITSLintRules> = {
             considerDefaultExhaustiveForUnions: false,
         },
     ],
-    "@typescript-eslint/consistent-type-assertions": [
+    "typescript/consistent-type-assertions": [
         "error",
         {
             assertionStyle: "as",
         },
-        // FIXME: why is this needed
-        // https://typescript-eslint.io/rules/consistent-type-assertions#options
-    ] as any,
+    ],
+    "typescript/triple-slash-reference": "off",
+    // triggers on react prop destructuring methods
+    "typescript/unbound-method": "off",
+    // react-sprint makes everything return a promise, gets annoying when launching animations
+    "typescript/no-floating-promises": "off",
 };
 
-const styleRules: Partial<IStyleRules> = {
+const unicornRules: DummyRuleMap = {
+    "unicorn/consistent-existence-index-check": "error",
+    "unicorn/consistent-function-scoping": "error",
+    "unicorn/consistent-template-literal-escape": "error",
+    "unicorn/custom-error-definition": "error",
+    "unicorn/no-anonymous-default-export": "error",
+    "unicorn/no-array-reverse": "warn",
+    "unicorn/no-array-sort": "warn",
+    "unicorn/prefer-node-protocol": "error",
+};
+
+const styleRules: RuleMap = {
     "@stylistic/array-bracket-newline": [
         "error",
         {
@@ -479,7 +558,7 @@ const styleRules: Partial<IStyleRules> = {
     "@stylistic/padded-blocks": ["error", "never"],
     "@stylistic/padding-line-between-statements": [
         "error",
-        ...(((function (): PaddingSchema {
+        ...function (): PaddingSchema {
             const tsTypes = ["enum", "interface", "type"] as const;
             const varTypes = ["var", "let", "const"] as const;
             const singlelineVar = varTypes.map((x) => `singleline-${x}` as const);
@@ -555,8 +634,7 @@ const styleRules: Partial<IStyleRules> = {
                 makeFunctionPadding(),
                 makeTypescriptPadding(),
             ].flat(99);
-        })()
-            .flat() as any) /* doesn't include readonly arrays for some reason */),
+        }().flat() /* doesn't include readonly arrays for some reason */,
     ],
     "@stylistic/quote-props": ["error", "as-needed"],
     "@stylistic/quotes": [
@@ -619,8 +697,8 @@ const styleRules: Partial<IStyleRules> = {
     "@stylistic/type-named-tuple-spacing": ["error"],
     "@stylistic/wrap-regex": ["off"],
     "@stylistic/yield-star-spacing": ["error"],
-    "@stylistic/jsx-closing-bracket-location": [1, "tag-aligned"],
-    "@stylistic/jsx-closing-tag-location": [1, "tag-aligned"],
+    "@stylistic/jsx-closing-bracket-location": ["warn", "tag-aligned"],
+    "@stylistic/jsx-closing-tag-location": ["warn", "tag-aligned"],
     "@stylistic/jsx-curly-brace-presence": [
         "error",
         {
@@ -670,187 +748,235 @@ const styleRules: Partial<IStyleRules> = {
     ],
 };
 
-const reactHooksRules: Partial<Record<`react-hooks/${string}`, Linter.RuleEntry>> = {
-    // not done by @eslint-react/eslint-plugin
-    "react-hooks/config": "error",
-    "react-hooks/gating": "error",
-    "react-hooks/globals": "error",
-    "react-hooks/preserve-manual-memoization": "error",
-    "react-hooks/incompatible-library": "warn",
-    // undocumented rules???
-    "react-hooks/todo": "warn",
-    "react-hooks/syntax": "error",
-    // experimental in @eslint-react/eslint-plugin
-    "react-hooks/immutability": "error",
-    "react-hooks/refs": "error",
-    "react-hooks/purity": "error",
-    "react-hooks/set-state-in-render": "error",
+// @eslint-react/* rules split across oxlint's react-x / react-dom / react-rsc /
+// react-web-api / react-naming-convention JS plugins (rule prefixes below).
+// react-hooks/* (React Compiler family) are covered by native `react/react-compiler`.
+// TODO: move to oxcs react rules where possible
+const eslintReactRules: DummyRuleMap = {
+    // react-x rules
+    "react-x/exhaustive-deps": "error",
+    "react-x/rules-of-hooks": "error",
+    "react-x/set-state-in-effect": "off", // too noisy
+    "react-x/unsupported-syntax": "warn",
+    "react-x/no-nested-component-definitions": "error",
+    "react-x/use-memo": "error",
+    "react-x/component-hook-factories": "error",
+    "react-x/error-boundaries": "error",
+    "react-x/jsx-dollar": "warn",
+    "react-x/jsx-key-before-spread": "warn",
+    "react-x/jsx-no-comment-textnodes": "warn",
+    "react-x/jsx-no-duplicate-props": "error",
+    "react-x/jsx-shorthand-boolean": "warn",
+    "react-x/jsx-shorthand-fragment": "error",
+    "react-x/no-array-index-key": "error",
+    "react-x/no-children-prop": "warn",
+    "react-x/no-context-provider": "warn",
+    "react-x/no-forward-ref": "warn",
+    // type-aware (💭) react-x rules cannot run through oxlint's JS-plugin layer
+    // yet (no parser type services in JS plugins) -> disabled to avoid crashes.
+    "react-x/no-implicit-key": "off",
+    "react-x/no-leaked-conditional-rendering": "off",
+    "react-x/no-missing-component-display-name": "error",
+    "react-x/no-missing-context-display-name": "error",
+    "react-x/no-missing-key": "error",
+    "react-x/no-misused-capture-owner-stack": "error",
+    "react-x/no-unnecessary-use-callback": "error",
+    "react-x/no-unnecessary-use-memo": "error",
+    "react-x/no-unnecessary-use-prefix": "error",
+    "react-x/no-unstable-context-value": "error",
+    "react-x/no-unstable-default-props": "error",
+    // TODO: add
+    // "react-x/no-unused-props": "warn",
+    "react-x/no-use-context": "error",
+    "react-x/no-useless-fragment": "error",
+    "react-x/prefer-destructuring-assignment": "error",
+    "react-x/prefer-namespace-import": "error",
+    "react-x/set-state-in-render": "error",
+    "react-x/use-state": "error",
+    // react-rsc
+    "react-rsc/function-definition": "error",
+    // react-dom
+    "react-dom/no-dangerously-set-innerhtml": "error",
+    "react-dom/no-dangerously-set-innerhtml-with-children": "error",
+    "react-dom/no-missing-iframe-sandbox": "error",
+    "react-dom/no-namespace": "error",
+    "react-dom/no-string-style-prop": "error",
+    "react-dom/no-unknown-property": "warn",
+    "react-dom/no-unsafe-iframe-sandbox": "error",
+    "react-dom/no-unsafe-target-blank": "error",
+    "react-dom/no-void-elements-with-children": "error",
+    // react-web-api
+    "react-web-api/no-leaked-event-listener": "error",
+    "react-web-api/no-leaked-interval": "error",
+    "react-web-api/no-leaked-resize-observer": "error",
+    "react-web-api/no-leaked-timeout": "error",
+    // react-naming-contention
+    "react-naming-convention/context-name": "error",
+    "react-naming-convention/id-name": "warn",
+    "react-naming-convention/ref-name": "error",
 };
 
-const eslintReactRules: Partial<Record<`@eslint-react/${string}`, Linter.RuleEntry>> = {
-    // react-x rules
-    "@eslint-react/exhaustive-deps": "error",
-    "@eslint-react/rules-of-hooks": "error",
-    "@eslint-react/set-state-in-effect": "off", // too noisy
-    "@eslint-react/unsupported-syntax": "warn",
-    "@eslint-react/no-nested-component-definitions": "error",
-    "@eslint-react/use-memo": "error",
-    "@eslint-react/component-hook-factories": "error",
-    "@eslint-react/error-boundaries": "error",
-    "@eslint-react/jsx-dollar": "warn",
-    "@eslint-react/jsx-key-before-spread": "warn",
-    "@eslint-react/jsx-no-comment-textnodes": "warn",
-    "@eslint-react/jsx-no-duplicate-props": "error",
-    "@eslint-react/jsx-shorthand-boolean": "warn",
-    "@eslint-react/jsx-shorthand-fragment": "error",
-    "@eslint-react/no-array-index-key": "error",
-    "@eslint-react/no-children-prop": "warn",
-    "@eslint-react/no-context-provider": "warn",
-    "@eslint-react/no-forward-ref": "warn",
-    "@eslint-react/no-implicit-key": "error",
-    "@eslint-react/no-leaked-conditional-rendering": "error",
-    "@eslint-react/no-missing-component-display-name": "error",
-    "@eslint-react/no-missing-context-display-name": "error",
-    "@eslint-react/no-missing-key": "error",
-    "@eslint-react/no-misused-capture-owner-stack": "error",
-    "@eslint-react/no-unnecessary-use-callback": "error",
-    "@eslint-react/no-unnecessary-use-memo": "error",
-    "@eslint-react/no-unnecessary-use-prefix": "error",
-    "@eslint-react/no-unstable-context-value": "error",
-    "@eslint-react/no-unstable-default-props": "error",
-    // TODO: add
-    // "@eslint-react/no-unused-props": "warn",
-    "@eslint-react/no-use-context": "error",
-    "@eslint-react/no-useless-fragment": "error",
-    "@eslint-react/prefer-destructuring-assignment": "error",
-    "@eslint-react/prefer-namespace-import": "error",
-    "@eslint-react/set-state-in-render": "error",
-    "@eslint-react/use-state": "error",
-    // react-rsc
-    "@eslint-react/rsc/function-definition": "error",
-    // react-dom
-    "@eslint-react/dom/no-dangerously-set-innerhtml": "error",
-    "@eslint-react/dom/no-dangerously-set-innerhtml-with-children": "error",
-    "@eslint-react/dom/no-missing-iframe-sandbox": "error",
-    "@eslint-react/dom/no-namespace": "error",
-    "@eslint-react/dom/no-string-style-prop": "error",
-    "@eslint-react/dom/no-unknown-property": "warn",
-    "@eslint-react/dom/no-unsafe-iframe-sandbox": "error",
-    "@eslint-react/dom/no-unsafe-target-blank": "error",
-    "@eslint-react/dom/no-void-elements-with-children": "error",
-    // react-web-api
-    "@eslint-react/web-api/no-leaked-event-listener": "error",
-    "@eslint-react/web-api/no-leaked-interval": "error",
-    "@eslint-react/web-api/no-leaked-resize-observer": "error",
-    "@eslint-react/web-api/no-leaked-timeout": "error",
-    // react-naming-contention
-    "@eslint-react/naming-convention/context-name": "error",
-    "@eslint-react/naming-convention/id-name": "warn",
-    "@eslint-react/naming-convention/ref-name": "error",
+const oxcRules: DummyRuleMap = {
+    "oxc/approx-constant": "warn",
+    // false positives when creating bitmasks from enums
+    "oxc/bad-bitwise-operator": "off",
+    "oxc/branches-sharing-code": "warn",
+    "oxc/misrefactored-assign-op": "warn",
+    "oxc/no-accumulating-spread": "warn",
+    "oxc/no-barrel-file": "warn",
+    // oftentimes the tersest option
+    "oxc/no-map-spread": "off",
+    "oxc/no-this-in-exported-function": "error",
 };
 
 const extensions = "{js,mjs,cjs,jsx,mjsx,cjsx,ts,mts,cts,tsx,mtsx,ctsx}";
+const tailwindConfig = join(__dirname, "src", "index.css");
 
 const tailwindCallees = Object.freeze({
     callees: ["classnames", "clsx", "ctl", "cva", "tv", "cn"],
-    config: join(__dirname, "src", "index.css"),
+    config: tailwindConfig,
 });
 
 // TODO: re-add stories when storybook is re-added
-export default TSEslint.config(
-    {
-        ignores: [
-            "dist",
-            "crates",
-            "src/**/*.stories.tsx",
-            "dist.server",
-            "builds",
-            "node_modules",
-            ".vite-inspect",
-            ".wrangler",
-        ],
+export default defineConfig({
+    plugins: ["react", "typescript", "import", "unicorn", "oxc"],
+    options: {
+        typeAware: true,
     },
-    {
-        files: [`src/**/*.${extensions}`, `server/**/*.${extensions}`, `eslint.config.${extensions}`, `vite.config.${extensions}`, `stylelint.config.${extensions}`, `scripts/**/*.${extensions}`, `vitest.config.${extensions}`, `.storybook/*.${extensions}`],
-        plugins: {
-            "@stylistic": stylistic,
-            "@typescript-eslint": TSEslint.plugin,
-            "simple-import-sort": simpleImportSort,
-            "unused-imports": unusedImports,
-            "react-hooks": reactHooks,
-            "react-refresh": reactRefresh,
-            tailwindcss,
-            // eslint-react has a handful of plugins, add them all
-            ...eslintReact.configs.all.plugins,
-            local: {
-                rules: {
-                    "require-css-as-namespace": requireCssAsNamespace,
-                },
-                meta: {
-                    name: "local",
-                },
-            },
-        },
-        settings: {
-            "react-x": {
-                additionalEffectHooks: "(useIsomorphicLayoutEffect)",
-                polymorphicPropName: "tag",
-                compilationMode: "infer",
-            },
-        },
-        languageOptions: {
-            parser: TSEslint.parser,
-            parserOptions: {
-                projectService: true,
-                tsconfigRootDir: import.meta.dirname,
-            },
-        },
-        rules: {
-            ...ESLintRules,
-            ...TSLintRules,
-            // Style Rules
-            ...styleRules,
-            ...reactHooksRules,
-            ...eslintReactRules,
-            "unused-imports/no-unused-imports": "error",
-            "unused-imports/no-unused-vars": [
-                "warn",
-                {
-                    vars: "all",
-                    varsIgnorePattern: "^_",
-                    args: "after-used",
-                    argsIgnorePattern: "^_",
-                },
-            ],
-            // Plugin Rules
-            "simple-import-sort/imports": [
-                "error",
-                {
-                    groups: [
-                        ["^@.+$"],
-                        ["^\\./(?=.*/)(?!/?$)", "^\\.(?!/?$)", "^\\./?$", "^\\.\\.(?!/?$)", "^\\.\\./?$"],
-                        ["^(assert|buffer|child_process|cluster|console|constants|crypto|dgram|dns|domain|events|fs|http|https|module|net|os|path|punycode|querystring|readline|repl|stream|string_decoder|sys|timers|tls|tty|url|util|vm|zlib|freelist|v8|process|async_hooks|http2|perf_hooks)(/.*|$)"],
-                    ],
-                },
-            ],
-            "simple-import-sort/exports": "error",
-            "react-refresh/only-export-components": [
-                "warn",
-                { allowConstantExport: true },
-            ],
-            "tailwindcss/classnames-order": [
-                "error",
-                tailwindCallees,
-            ],
-            "tailwindcss/enforces-negative-arbitrary-values": ["error", tailwindCallees],
-            "tailwindcss/enforces-shorthand": ["error", tailwindCallees],
-            // maybe add no-arbitrary-value
-            "tailwindcss/no-contradicting-classname": ["error", tailwindCallees],
-            // not yet working in the beta
-            // "tailwindcss/no-custom-classname": ["error", tailwindCallees],
-            "tailwindcss/no-unnecessary-arbitrary-value": ["error", tailwindCallees],
-            "local/require-css-as-namespace": "error",
+    ignorePatterns: [
+        "dist",
+        "crates",
+        "src/**/*.stories.tsx",
+        "dist.server",
+        "builds",
+        "node_modules",
+        ".vite-inspect",
+        ".wrangler",
+        // subpackage has its own separate tooling; out of scope for root lint
+        "packages",
+        // vendored upstream vscode-textmate source (MIT); not ours to lint
+        "src/components/CodeEditor/Monaco/vscode-textmate",
+    ],
+    settings: {
+        // ported from the ESLint `react-x` settings block
+        "react-x": {
+            additionalEffectHooks: "(useIsomorphicLayoutEffect)",
+            polymorphicPropName: "tag",
+            compilationMode: "infer",
         },
     },
-    storybook.configs["flat/recommended"],
-);
+    overrides: [
+        {
+            files: [
+                `src/**/*.${extensions}`,
+                `server/**/*.${extensions}`,
+                `eslint.config.${extensions}`,
+                `oxlint.config.${extensions}`,
+                `vite.config.${extensions}`,
+                `stylelint.config.${extensions}`,
+                `scripts/**/*.${extensions}`,
+                `vitest.config.${extensions}`,
+                `.storybook/*.${extensions}`,
+            ],
+            jsPlugins: [
+                "@stylistic/eslint-plugin",
+                "eslint-plugin-react-x",
+                "eslint-plugin-react-rsc",
+                "eslint-plugin-react-dom",
+                "eslint-plugin-react-web-api",
+                "eslint-plugin-react-naming-convention",
+                "eslint-plugin-unused-imports",
+                "eslint-plugin-simple-import-sort",
+                "eslint-plugin-tailwindcss",
+                // local custom rule (require-css-as-namespace)
+                "./scripts/oxlintLocalPlugin.ts",
+            ],
+            rules: {
+                ...ESLintRules,
+                ...TSLintRules,
+                ...unicornRules,
+                // Style Rules
+                ...styleRules,
+                ...eslintReactRules,
+                ...oxcRules,
+                // React Compiler / Rules of React (experimental) -- replaces the
+                // former eslint-plugin-react-hooks v7 react-hooks/* rules.
+                "react/react-compiler": [
+                    "warn",
+                    {
+                        reportAllBailouts: true,
+                    },
+                ],
+                "unused-imports/no-unused-imports": "error",
+                "unused-imports/no-unused-vars": [
+                    "warn",
+                    {
+                        vars: "all",
+                        varsIgnorePattern: "^_",
+                        args: "after-used",
+                        argsIgnorePattern: "^_",
+                    },
+                ],
+                // Plugin Rules
+                "simple-import-sort/imports": [
+                    "error",
+                    {
+                        groups: [
+                            ["^@.+$"],
+                            ["^\\./(?=.*/)(?!/?$)", "^\\.(?!/?$)", "^\\./?$", "^\\.\\.(?!/?$)", "^\\.\\./?$"],
+                            ["^(assert|buffer|child_process|cluster|console|constants|crypto|dgram|dns|domain|events|fs|http|https|module|net|os|path|punycode|querystring|readline|repl|stream|string_decoder|sys|timers|tls|tty|url|util|vm|zlib|freelist|v8|process|async_hooks|http2|perf_hooks)(/.*|$)"],
+                        ],
+                    },
+                ],
+                "simple-import-sort/exports": "error",
+                "react/only-export-components": [
+                    "warn",
+                    {
+                        allowConstantExport: true,
+                        customHOCs: ["createFileRoute", "createRootRoute", "animated", "createLink"],
+                    },
+                ],
+                "tailwindcss/classnames-order": [
+                    "error",
+                    tailwindCallees,
+                ],
+                "tailwindcss/enforces-negative-arbitrary-values": ["error", tailwindCallees],
+                "tailwindcss/enforces-shorthand": ["error", tailwindCallees],
+                // maybe add no-arbitrary-value
+                "tailwindcss/no-contradicting-classname": ["error", tailwindCallees],
+                // not yet working in the beta
+                // "tailwindcss/no-custom-classname": ["error", tailwindCallees],
+                "tailwindcss/no-unnecessary-arbitrary-value": ["error", tailwindCallees],
+                "local/require-css-as-namespace": "error",
+            },
+        },
+        {
+            files: [
+                "**/*.stories.@(ts|tsx|js|jsx|mjs|cjs)",
+                "**/*.story.@(ts|tsx|js|jsx|mjs|cjs)",
+            ],
+            jsPlugins: ["eslint-plugin-storybook"],
+            rules: {
+                "storybook/await-interactions": "error",
+                "storybook/context-in-play-function": "error",
+                "storybook/default-exports": "error",
+                "storybook/hierarchy-separator": "warn",
+                "storybook/no-redundant-story-name": "warn",
+                "storybook/no-renderer-packages": "error",
+                "storybook/prefer-pascal-case": "warn",
+                "storybook/story-exports": "error",
+                "storybook/use-storybook-expect": "error",
+                "storybook/use-storybook-testing-library": "error",
+                "import/no-anonymous-default-export": "off",
+                "react/rules-of-hooks": "off",
+            },
+        },
+        {
+            files: [".storybook/main.@(js|cjs|mjs|ts)"],
+            jsPlugins: ["eslint-plugin-storybook"],
+            rules: {
+                "storybook/no-uninstalled-addons": "error",
+            },
+        },
+    ],
+});

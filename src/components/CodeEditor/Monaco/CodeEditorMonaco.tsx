@@ -13,7 +13,7 @@ import { ClientOnly } from "@tanstack/react-router";
 import { registry, wireTmGrammars } from "./grammars";
 import * as styles from "./styles.module.scss";
 import { DEFAULT_MONACO_THEME, type MonacoTheme, useMonacoTheme } from "./themes";
-import { type CodeEditorProps } from "../base";
+import type { CodeEditorProps } from "../base";
 
 import { Suspense, use, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
 
@@ -22,7 +22,7 @@ export interface MonacoCodeEditorProps extends CodeEditorProps<MonacoCodeEditor.
     options?: Monaco.editor.IStandaloneEditorConstructionOptions;
     uri?: Monaco.Uri;
     highlights?: Monaco.IRange[];
-    onDidChangeCursorPosition?: (e: Monaco.editor.ICursorPositionChangedEvent) => void;
+    onDidChangeCursorPosition?(e: Monaco.editor.ICursorPositionChangedEvent): void;
 }
 
 const monacoSetup = once(() => {
@@ -50,7 +50,9 @@ function MonacoCodeEditorInner({
     onDidChangeCursorPosition = NOOP,
     ref: _ref,
 }: MonacoCodeEditorProps) {
-    !import.meta.env.SSR && monacoSetup();
+    if (!import.meta.env.SSR) {
+        monacoSetup();
+    }
     use(loadOnigasmPromise());
 
     const [ref, setRef] = useState<HTMLDivElement | null>(null);
@@ -88,7 +90,7 @@ function MonacoCodeEditorInner({
     }
 
     useImperativeHandle(_ref, () => ({
-        // eslint-disable-next-line react-hooks/todo
+        // oxlint-disable-next-line react/react-compiler
         get editor() {
             return editorRef.current!;
         },
@@ -102,7 +104,9 @@ function MonacoCodeEditorInner({
         const langDepsMap = makeTMLanguageMap(language);
 
         wireTmGrammars(registry(), langDepsMap, editor, themeString)
-            .then(() => monaco.editor.setTheme(themeString));
+            .then(() => {
+                monaco.editor.setTheme(themeString);
+            });
     }, [language, themeString]);
 
 
@@ -134,6 +138,7 @@ function MonacoCodeEditorInner({
             theme: themeString,
         });
         // @ts-expect-error
+        // oxlint-disable-next-line typescript/no-unnecessary-condition -- not available on safari
         if (window.requestIdleCallback) {
             requestIdleCallback(() => {
                 setupThemes(editorRef.current!);
@@ -157,7 +162,7 @@ function MonacoCodeEditorInner({
             }
         };
         // TODO: look into what deps are needed here
-        // eslint-disable-next-line @eslint-react/exhaustive-deps
+        // eslint-disable-next-line react-x/exhaustive-deps
     }, [ref]);
 
     useEffect(() => {

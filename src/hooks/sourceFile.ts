@@ -1,5 +1,4 @@
-import { assert } from "@/utils/error";
-import { extensionForLanguage, Language } from "@/utils/textmate";
+import { extensionForLanguage, type Language } from "@/utils/textmate";
 import { defaultScriptTarget, getTextChanges, scriptKindForLanguage, type TS, ts } from "@/utils/typescript";
 
 import { useEffect, useReducer, useRef } from "react";
@@ -8,7 +7,7 @@ export const enum UpdateType {
     CODE,
     INIT,
     LANGUAGE,
-    SCRIPT_TARGET = LANGUAGE,
+    SCRIPT_TARGET,
 }
 
 type Update =
@@ -41,7 +40,7 @@ export function useSourceFile(
 
     // TODO: make useCounter hook
     const [reparseCount, incrementReparseCount] = useReducer(
-        (c: number, reset: boolean = false) => +!reset && c + 1,
+        (c: number, reset = false) => +!reset && c + 1,
         0,
     );
 
@@ -76,7 +75,7 @@ export function useSourceFile(
 
     return [sourceFile, { reparseCount }];
 
-    // eslint-disable-next-line react-hooks/todo
+    // eslint-disable-next-line react/react-compiler
     function reducer(state: TS.SourceFile, action: Update): TS.SourceFile {
         const filename = `file${extensionForLanguage(languageRef.current)}`;
         const newCode = codeRef.current;
@@ -87,7 +86,6 @@ export function useSourceFile(
 
         let res: TS.SourceFile | undefined;
 
-        assert(UpdateType.LANGUAGE === UpdateType.SCRIPT_TARGET, "expected to be the same");
         switch (action.type) {
             case UpdateType.CODE: {
                 const { oldCode } = action;
@@ -98,6 +96,7 @@ export function useSourceFile(
                 break;
             }
             case UpdateType.INIT:
+            case UpdateType.LANGUAGE:
             case UpdateType.SCRIPT_TARGET: {
                 incrementReparseCount(true);
                 res = ts.createSourceFile(

@@ -19,7 +19,7 @@ export function defaultPosition() {
     };
 }
 
-export const FriendModalContext = createContext<FriendModalContext | null>(null!);
+export const FriendModalContext = createContext<FriendModalContext | null>(null);
 FriendModalContext.displayName = "FriendModalContext";
 
 export const NORMAL_MAIN_CIRCLE_DIAMETER = 500;

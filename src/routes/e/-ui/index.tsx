@@ -1,6 +1,7 @@
 import { Boilerplate } from "@/components/Boilerplate";
 import { IconButton } from "@/components/Button";
 import { MonacoCodeEditor } from "@/components/CodeEditor/Monaco";
+import Github from "@/components/icons/Github";
 import { Box } from "@/components/layout/Box";
 import { HorizontalLine } from "@/components/Lines";
 import { Modal, ModalContext } from "@/components/modal";
@@ -43,7 +44,6 @@ import {
     ChevronLastIcon,
     DownloadIcon,
     FileCodeIcon,
-    GithubIcon,
     NetworkIcon,
     SettingsIcon,
     TriangleAlertIcon,
@@ -454,7 +454,7 @@ function ExplorerHeader() {
                     target="_blank"
                     tag="a"
                 >
-                    <GithubIcon />
+                    <Github />
                 </IconButton>
             </div>
         </>

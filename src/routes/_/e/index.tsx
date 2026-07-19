@@ -1,7 +1,7 @@
 import { unavailableImport } from "@/utils/error";
 import { createFileRoute } from "@tanstack/react-router";
 
-const ui = import.meta.env.SSR ? unavailableImport<never>("./-ui") : await import("./-ui");
+const ui = import.meta.env.SSR ? unavailableImport("./-ui") : await import("./-ui");
 
 export const Route = createFileRoute("/_/e/")({
     component: RouteComponent,

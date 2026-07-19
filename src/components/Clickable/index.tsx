@@ -2,7 +2,7 @@ import cn from "@/utils/cn";
 
 import * as styles from "./styles.module.scss";
 
-import { type ComponentPropsWithRef, type KeyboardEvent, type PropsWithChildren } from "react";
+import type { ComponentPropsWithRef, KeyboardEvent, PropsWithChildren } from "react";
 
 export type ClickableTags = "a" | "div" | "span" | "li" | "button";
 

@@ -223,7 +223,7 @@ export function FriendButton({ friend, tooltipPosition, mobile }: FriendButtonPr
                                 <mask
                                     id={maskId}
                                     // facebook/react#35920
-                                    // eslint-disable-next-line @eslint-react/dom/no-unknown-property
+                                    // eslint-disable-next-line react-dom/no-unknown-property
                                     mask-type="alpha"
                                 >
                                     <circle

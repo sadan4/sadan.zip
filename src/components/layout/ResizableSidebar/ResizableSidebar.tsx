@@ -41,7 +41,7 @@ export function ResizableSidebar({
 
     useEffect(() => {
         store.getState().setRef(contentRef);
-        () => {
+        return () => {
             store.getState().setRef(null);
         };
     }, [contentRef, store]);
@@ -50,7 +50,7 @@ export function ResizableSidebar({
         store.getState().setSidebarApi({
             // FIXME: this is cursed as all hell
             // also makes react compiler unhappy
-            // eslint-disable-next-line react-hooks/todo
+            // oxlint-disable-next-line react/react-compiler
             get current() {
                 if (!sidebarApiRef.current) {
                     return null;

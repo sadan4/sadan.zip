@@ -23,7 +23,9 @@ function ModuleListItem({ moduleId, onSelectModule }: ModuleListItemProps) {
     return (
         <Clickable
             tag="li"
-            onClick={() => onSelectModule(moduleId)}
+            onClick={() => {
+                onSelectModule(moduleId);
+            }}
         >
             <Text
                 tag="span"
@@ -37,7 +39,7 @@ function ModuleListItem({ moduleId, onSelectModule }: ModuleListItemProps) {
 
 interface ModuleSelectorProps {
     modules: Uint32Array;
-    onSelectModule: (module: number) => void;
+    onSelectModule(module: number): void;
 }
 
 function ModuleSelector({ modules, onSelectModule }: ModuleSelectorProps) {

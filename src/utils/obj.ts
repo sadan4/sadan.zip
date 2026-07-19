@@ -7,7 +7,7 @@ export {
     shallow as shallowEqual,
 } from "zustand/shallow";
 
-export function mapObject<T extends Object, U>(
+export function mapObject<T extends object, U>(
     obj: T,
     fn: (value: T[keyof T], key: keyof T) => U,
 ): { [K in keyof T]: U } {
@@ -19,7 +19,7 @@ export function mapObject<T extends Object, U>(
     return result;
 }
 
-export function mapValues<T extends Object, U>(
+export function mapValues<T extends object, U>(
     obj: T,
     fn: (value: T[keyof T]) => U,
 ): { [K in keyof T]: U } {
@@ -33,7 +33,7 @@ export function mapValues<T extends Object, U>(
 }
 
 export function filterObject<
-    T extends Object,
+    T extends object,
     K extends keyof T,
     V extends T[K],
     U extends V,
@@ -43,7 +43,7 @@ export function filterObject<
     fn: F,
 ): { -readonly [K in keyof T as T[K] extends AssertedType1<F> ? K : never]: T[K] };
 export function filterObject<
-    T extends Object,
+    T extends object,
     K extends keyof T,
     V extends T[K],
     U extends K,
@@ -52,16 +52,17 @@ export function filterObject<
     obj: T,
     fn: F,
 ): { -readonly [K in keyof T as K extends AssertedType0<F> ? K : never]: T[K] };
-export function filterObject<T extends Object>(obj: T, fn: (key: keyof T, value: T[keyof T]) => boolean): Partial<T>;
-export function filterObject<T extends Object>(obj: T, fn: (key: keyof T, value: T[keyof T]) => boolean): Partial<T> {
+export function filterObject<T extends object>(obj: T, fn: (key: keyof T, value: T[keyof T]) => boolean): Partial<T>;
+export function filterObject<T extends object>(obj: T, fn: (key: keyof T, value: T[keyof T]) => boolean): Partial<T> {
     return Object.fromEntries(Object.entries(obj).filter(([key, value]) => fn(key as keyof T, value))) as any;
 }
 
-export function pick<T extends Object, K extends keyof T>(obj: T, keys: K[]): Pick<T, K> {
+export function pick<T extends object, K extends keyof T>(obj: T, keys: K[]): Pick<T, K> {
     type R = Pick<T, K>;
 
     const result: Partial<R> = {};
 
+    // oxlint-disable-next-line typescript/prefer-for-of
     for (let i = 0; i < keys.length; i++) {
         const key = keys[i];
 
@@ -71,6 +72,11 @@ export function pick<T extends Object, K extends keyof T>(obj: T, keys: K[]): Pi
     return result as R;
 }
 
+/**
+ * Walks up the prototype chain to find a property descriptor, since
+ * {@link Object.getOwnPropertyDescriptor} only checks the object itself and
+ * misses inherited accessors/properties.
+ */
 export function getPropertyDescriptor(obj: object, prop: PropertyKey): PropertyDescriptor | undefined {
     let cur: any = obj;
     let res: PropertyDescriptor | undefined;

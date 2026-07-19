@@ -4,7 +4,7 @@ import { copy } from "@/utils/clipboard";
 import cn from "@/utils/cn";
 import { assert } from "@/utils/error";
 import * as shiki from "@/utils/shiki";
-import { Language } from "@/utils/textmate";
+import type { Language } from "@/utils/textmate";
 import { languageDisplayNames } from "@/utils/textmate/language";
 import { TextmateTheme } from "@/utils/textmate/theme";
 import type { LineNumberColor } from "@/utils/textmate/themes";
@@ -98,6 +98,7 @@ function CodeblockInner({
                 });
             });
         } else {
+            // oxlint-disable-next-line react/react-compiler
             setHtml(highlightToHtml());
             setLineNumberColor(shiki.getLineNumberColor(theme));
         }
@@ -105,7 +106,7 @@ function CodeblockInner({
 
     let highlightedCode = (
         <div
-            // eslint-disable-next-line @eslint-react/dom/no-dangerously-set-innerhtml -- from shiki
+            // eslint-disable-next-line react-dom/no-dangerously-set-innerhtml -- from shiki
             dangerouslySetInnerHTML={{ __html: html }}
             // we want a mismatch to avoid showing the fallback on suspense
             suppressHydrationWarning

@@ -109,6 +109,6 @@ class ScopeMatcher<TValue> {
             // no scopes matched
             return undefined;
         }
-        return this.values!.get(m[1])!;
+        return this.values!.get(m[1]!)!;
     }
 }

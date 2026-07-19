@@ -11,6 +11,7 @@ import { TextmateTheme } from "@/utils/textmate/theme";
 import { createFileRoute } from "@tanstack/react-router";
 
 import htmlExampleContent from "./-sample.html?raw";
+// oxlint-disable-next-line import/default -- oxlint bug
 import _reactExampleContent from "./-sample.tsx?raw";
 
 import { z } from "zod";

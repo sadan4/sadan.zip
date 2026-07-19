@@ -185,7 +185,7 @@ export function BufferedScroller<T>({
 
     // FIXME: Why are we using a hook for this
     const [batchSize] = useControlledState({
-        initialValue: Math.min(Math.floor(items.length / 20), items.length),
+        initialValue: Math.max(1, Math.min(Math.floor(items.length / 20), items.length)),
         managedValue: _batchSize && Math.floor(_batchSize),
     });
 
@@ -301,10 +301,7 @@ export function BufferedScroller<T>({
         // guess the first chunk that should be visible
         let viewStartChunk = 0;
 
-        // react compiler doesn't like for loops without init statements
-        for (let _; viewStartChunk < totalChunks; ++viewStartChunk) {
-            // typescript no unused vars
-            _;
+        for (; viewStartChunk < totalChunks; ++viewStartChunk) {
             acc += guessChunkHeight(viewStartChunk);
 
             if (acc > scrollTop) {
@@ -318,6 +315,13 @@ export function BufferedScroller<T>({
         }
 
         const averageChunkHeight = averageItemHeight * batchSize;
+
+        // heights not measured yet -> averageChunkHeight is NaN. Bail; the scroll
+        // handler re-fires once ResizeObservers populate chunkHeights.
+        if (!averageChunkHeight || Number.isNaN(averageChunkHeight)) {
+            return;
+        }
+
         // guess how many chunks fill the viewport
         const maxChunksInViewAtOnce = Math.ceil(clientHeight / averageChunkHeight);
         // TODO: will this do the wrong thing when buffer === infinity?
@@ -342,7 +346,7 @@ export function BufferedScroller<T>({
         // guess where we should be based on average chunk size
         // TODO: this might be janky if the footer/header is large        
         const viewportBottom = viewportTop + viewportHeight;
-        const lastChunkIdx = Math.min(firstChunk + numChunks, totalChunks);
+        const chunkEnd = Math.min(firstChunk + numChunks, totalChunks);
         let startOffset = 0;
 
         // guess the offset where we are currently rendering chunks
@@ -360,7 +364,7 @@ export function BufferedScroller<T>({
         let endOffset = startOffset;
 
         // guess the offset where we stop rendering chunks
-        for (let i = firstChunk; i < lastChunkIdx; ++i) {
+        for (let i = firstChunk; i < chunkEnd; ++i) {
             endOffset += guessChunkHeight(i);
         }
 
@@ -399,15 +403,32 @@ export function BufferedScroller<T>({
                 if (Number.isNaN(averageItemHeight)) {
                     // calculate it by hand
                     const renderedNodes = scrollArea.querySelectorAll("[data-scroller-chunk]>:not([data-flag])");
+
+                    if (renderedNodes.length === 0) {
+                        return;
+                    }
+
                     let height = 0;
 
-                    for (let i = 0; i < renderedNodes.length; ++i) {
-                        height += renderedNodes[i].clientHeight;
+                    for (const { clientHeight } of renderedNodes) {
+                        height += clientHeight;
                     }
 
                     itemOffset = idx * (height / renderedNodes.length);
                 } else {
-                    itemOffset = idx * averageItemHeight;
+                    // Sum guessChunkHeight for chunks before the target's chunk, then add
+                    // the partial offset within the target chunk. This uses measured
+                    // heights where available and matches the padding layout math, so the
+                    // target aligns with the real DOM offset for variable-height items.
+                    const targetChunk = Math.floor(idx / batchSize);
+                    let offset = 0;
+
+                    for (let i = 0; i < targetChunk; ++i) {
+                        offset += guessChunkHeight(i);
+                    }
+
+                    offset += (idx - (targetChunk * batchSize)) * averageItemHeight;
+                    itemOffset = offset;
                 }
 
                 // if the item is already in the viewport, then we don't need to scroll
@@ -433,7 +454,7 @@ export function BufferedScroller<T>({
                 });
             },
         } satisfies BufferedScroller.Handle<T>;
-    }, [averageItemHeight, hasNoPadding, items]);
+    }, [averageItemHeight, hasNoPadding, items, batchSize, guessChunkHeight]);
 
     useEffect(() => {
         let first = firstChunk;
@@ -441,6 +462,7 @@ export function BufferedScroller<T>({
 
         const visibleChunkIndices = mapObject(visibleChunks, (directions) => {
             return directions?.bottom || directions?.top;
+            //                  ^?
         });
 
         let firstVisibleChunk = Infinity;

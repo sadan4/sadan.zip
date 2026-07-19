@@ -83,6 +83,7 @@ interface Elements {
     option: HTMLOptionElement;
     output: HTMLOutputElement;
     p: HTMLParagraphElement;
+    // oxlint-disable-next-line typescript/no-deprecated
     param: HTMLParamElement;
     picture: HTMLElement;
     pre: HTMLPreElement;
@@ -109,9 +110,11 @@ interface Elements {
     table: HTMLTableElement;
     template: HTMLTemplateElement;
     tbody: HTMLTableSectionElement;
+    // oxlint-disable-next-line typescript/no-deprecated
     td: HTMLTableDataCellElement;
     textarea: HTMLTextAreaElement;
     tfoot: HTMLTableSectionElement;
+    // oxlint-disable-next-line typescript/no-deprecated
     th: HTMLTableHeaderCellElement;
     thead: HTMLTableSectionElement;
     time: HTMLTimeElement;

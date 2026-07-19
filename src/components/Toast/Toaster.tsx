@@ -28,7 +28,7 @@ const toastIcon = {
 
 function useToastQueue(): [currentToast: IToast | null, next: () => void] {
     const store = useToaster();
-    const currentToast = useStore(store, ({ _toasts: [t] }) => t) ?? null;
+    const currentToast = useStore(store, ({ _toasts: [t] }): IToast | undefined => t) ?? null;
 
     const nextToast = useCallback(() => {
         store.getState().popToast();
@@ -117,7 +117,7 @@ export function Toaster() {
 
 interface ToastProps {
     toast: IToast;
-    onDone: () => void;
+    onDone(): void;
 }
 
 function Toast({ toast: { duration, render, type }, onDone }: ToastProps) {

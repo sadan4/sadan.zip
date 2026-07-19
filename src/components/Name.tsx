@@ -121,7 +121,9 @@ export default function Name() {
         tryStart();
 
 
-        return () => clearTimeout(timeout);
+        return () => {
+            clearTimeout(timeout);
+        };
     }, []);
     return (
         <div

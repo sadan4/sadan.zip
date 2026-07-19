@@ -155,7 +155,9 @@ export function Vertical({
                 if (e.isPrimary) {
                     setDragging(true);
                     // prevent selection while we are dragging, this controller will be aborted when we finish resizing
-                    window.addEventListener("selectstart", (e) => e.preventDefault(), { signal: controllerRef.current.signal });
+                    window.addEventListener("selectstart", (e) => {
+                        e.preventDefault();
+                    }, { signal: controllerRef.current.signal });
                 }
                 props.onPointerDown?.(e);
             }}

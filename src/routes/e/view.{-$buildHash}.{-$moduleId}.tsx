@@ -53,6 +53,7 @@ export const Route = createFileRoute("/e/view/{-$buildHash}/{-$moduleId}")({
             const result = viewBundleParamsSchema.parse(raw);
 
             if (!result.buildHash) {
+                // oxlint-disable-next-line typescript/only-throw-error
                 throw redirect({
                     to: "/e",
                 });
@@ -72,7 +73,7 @@ export const Route = createFileRoute("/e/view/{-$buildHash}/{-$moduleId}")({
     },
     async loader({ params: { buildHash } }) {
         if (!import.meta.env.SSR) {
-            data ||= await import("./-data");
+            data ??= await import("./-data");
 
             const lsp = await import("./-lsp");
 

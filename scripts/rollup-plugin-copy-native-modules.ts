@@ -1,5 +1,5 @@
 import { basename } from "node:path";
-import { type Plugin } from "rollup";
+import type { Plugin } from "rollup";
 
 const NATIVE_MODULE_REGEX = /\.node$/;
 const queryRE = /\?.*$/s;

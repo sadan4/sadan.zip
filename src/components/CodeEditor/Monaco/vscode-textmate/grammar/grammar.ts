@@ -81,7 +81,7 @@ function nameMatcher(identifers: ScopeName[], scopes: ScopeName[]): boolean {
 
     return identifers.every((identifier) => {
         for (let i = lastIndex; i < scopes.length; i++) {
-            if (scopesAreMatching(scopes[i], identifier)) {
+            if (scopesAreMatching(scopes[i]!, identifier)) {
                 lastIndex = i + 1;
                 return true;
             }

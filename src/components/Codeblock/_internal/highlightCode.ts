@@ -1,6 +1,7 @@
+import { assert } from "@/utils/error";
 import { langMap, themeMap } from "@/utils/shiki";
-import { Language } from "@/utils/textmate";
-import { TextmateTheme } from "@/utils/textmate/theme";
+import type { Language } from "@/utils/textmate";
+import type { TextmateTheme } from "@/utils/textmate/theme";
 import { truthy } from "@/utils/types";
 
 import * as styles from "../styles.module.scss";
@@ -38,7 +39,9 @@ function makeLineNumberTransformer(startingLineNumber = 1): ShikiTransformer {
             // TODO: probably not needed, remove
             this.addClassToHast(node, styles.lineNumbersContainer);
 
-            let style = node.properties?.style ?? "";
+            let style = node.properties.style ?? "";
+
+            assert(!Array.isArray(style));
 
             style = `--num-max-digits: ${maxDigits}; ${style}`;
 

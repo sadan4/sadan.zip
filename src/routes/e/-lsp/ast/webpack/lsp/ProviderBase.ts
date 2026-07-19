@@ -34,7 +34,7 @@ export abstract class ProviderBase {
             return;
         }
 
-        const defs = await this.generateLocations(_buildService!, moduleId, position);
+        const defs = await this.generateLocations(_buildService, moduleId, position);
 
         if (!defs) {
             return;
@@ -45,7 +45,7 @@ export abstract class ProviderBase {
         for (const { id, range } of defs) {
             // await the model to ensure that it is loaded
             // so monaco can show the inline preview
-            const { uri } = await getModuleModel(id as TModuleId);
+            const { uri } = await getModuleModel(id);
 
             monacoDefs.push({
                 range,

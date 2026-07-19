@@ -26,6 +26,11 @@ import { useCallback, useDebugValue, useSyncExternalStore } from "react";
  * SOFTWARE.
  */
 
+function getServerSnapshot(): never {
+    error("useMediaQuery is a client-only hook");
+}
+
+
 export function useMediaQuery(query: string) {
     useDebugValue(query);
 
@@ -43,10 +48,6 @@ export function useMediaQuery(query: string) {
 
     function getSnapshot() {
         return matchMedia(query).matches;
-    }
-
-    function getServerSnapshot(): never {
-        throw error("useMediaQuery is a client-only hook");
     }
 
     return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);

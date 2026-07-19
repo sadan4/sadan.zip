@@ -41,7 +41,7 @@ class UnavailableImportError extends Error {
  * @see {@link https://developer.mozilla.org/en-US/docs/Glossary/Falsy|MDN - Falsy}
  * @see {@link https://developer.mozilla.org/en-US/docs/Web/API/HTMLAllCollection|MDN - HTMLAllCollection}
  */
-export function assert(cond: null | undefined | false | 0 | -0 | 0n | "" | HTMLAllCollection, msg?: string): never;
+export function assert(cond: null | undefined | false | 0 | 0n | "" | HTMLAllCollection, msg?: string): never;
 /**
  * Assert {@link cond} is truthy
  * 
@@ -73,7 +73,7 @@ export function assert(cond: unknown, msg?: string): asserts cond {
  * @see {@link https://developer.mozilla.org/en-US/docs/Glossary/Falsy|MDN - Falsy}
  * @see {@link https://developer.mozilla.org/en-US/docs/Web/API/HTMLAllCollection|MDN - HTMLAllCollection}
  */
-export function debug_assert(cond: null | undefined | false | 0 | -0 | 0n | "" | HTMLAllCollection, msg?: string): never;
+export function debug_assert(cond: null | undefined | false | 0 | 0n | "" | HTMLAllCollection, msg?: string): never;
 /**
  * Assert {@link cond} is truthy
  * 
@@ -89,6 +89,7 @@ export function debug_assert(cond: unknown, msg?: string): asserts cond {
         if (!cond) {
             const err = new DebugAssertionError(msg);
 
+            // oxlint-disable-next-line typescript/no-deprecated -- typescript is too smart for our own good
             DebugAssertionError.captureStackTrace(err, debug_assert);
             throw err;
         }
@@ -118,6 +119,7 @@ export function todo(msg?: string): never {
 }
 
 export function unavailableImport<T = never>(importName?: string): T {
+    // oxlint-disable-next-line unicorn/consistent-function-scoping -- we want a new instance every time
     function func() { }
 
     Object.defineProperty(func, "name", {

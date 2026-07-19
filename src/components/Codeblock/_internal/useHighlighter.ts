@@ -1,11 +1,11 @@
 import { useDeepMemo } from "@/hooks/deepMemo";
 import { grammarNeedsLoad, highlighter, loadGrammar, loadTheme, themeNeedsLoad } from "@/utils/shiki";
-import { Language } from "@/utils/textmate";
+import type { Language } from "@/utils/textmate";
 import { getLanguageDeps } from "@/utils/textmate/grammars";
 import type { TextmateTheme } from "@/utils/textmate/theme";
 
 import { use, useMemo } from "react";
-import { type HighlighterCore } from "shiki";
+import type { HighlighterCore } from "shiki";
 
 
 export function useHighlighter(language: Language, theme: TextmateTheme): HighlighterCore {

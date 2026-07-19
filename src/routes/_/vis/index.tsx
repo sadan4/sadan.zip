@@ -192,6 +192,7 @@ function Vis() {
     function updateTokens() {
         if (text) {
             try {
+                // oxlint-disable-next-line react/react-compiler
                 setTokens(parseTokens(text, source));
             } catch {
                 // noop
@@ -216,7 +217,9 @@ function Vis() {
                 <div className="mt-6 flex w-9/10 flex-col items-center gap-6">
                     <ToggleButtonGroup
                         className="m-2 rounded-lg border-2 border-fg-700 bg-bg-200 p-2"
-                        onSelectItem={(item) => setTab(item)}
+                        onSelectItem={(item) => {
+                            setTab(item);
+                        }}
                         items={[
                             {
                                 id: "json",

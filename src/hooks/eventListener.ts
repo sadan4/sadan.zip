@@ -39,10 +39,11 @@ export function useEventHandler<K extends keyof AllEventMaps, E extends HTMLElem
         if (element === null)
             return;
 
-        const el = element === undefined ? window : element;
+        const el = element ?? window;
 
         function wrappedHandler(this: E, ev: AllEventMaps[K]) {
-            return handlerRef.current.call(this, ev);
+            // oxlint-disable-next-line react/react-compiler
+            handlerRef.current.call(this, ev);
         }
 
         el.addEventListener(type, wrappedHandler as EventListenerOrEventListenerObject, opts);

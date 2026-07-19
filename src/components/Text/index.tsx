@@ -2,7 +2,7 @@ import cn, { type SizeProp, textSize, textWeight, type WeightProp } from "@/util
 
 import * as styles from "./styles.module.scss";
 
-import { type ComponentProps, type PropsWithChildren } from "react";
+import type { ComponentProps, PropsWithChildren } from "react";
 
 const textColors = {
     black: styles.black,

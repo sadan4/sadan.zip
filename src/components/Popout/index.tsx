@@ -148,7 +148,9 @@ export function PopoutContent({ children, position = Position.TOP, onDismiss }: 
             >
                 <div
                     className={cn(styles.content, positionMap[position])}
-                    onClick={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                    }}
                 >
                     {children}
                 </div>

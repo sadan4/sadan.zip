@@ -48,7 +48,7 @@ export interface SwitchProps {
     /**
      * Called when the switch is toggled.
      */
-    onChange?: (value: boolean) => void;
+    onChange?(value: boolean): void;
 }
 
 /**
@@ -69,6 +69,7 @@ export function Switch({ initialValue, value, onChange }: SwitchProps) {
 
     useEffect(() => {
         if (isManaged) {
+            // oxlint-disable-next-line react/react-compiler
             setInternalEnabled(value);
             setState(value ? SwitchState.ON : SwitchState.OFF);
         }

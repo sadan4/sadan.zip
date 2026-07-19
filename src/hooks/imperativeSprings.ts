@@ -13,8 +13,9 @@ export function useImperativeSprings<T extends Record<string, number>>(
 ): mapSpringValue<T> {
     const initRef = useRef(initialValue);
 
+    // oxlint-disable-next-line react/react-compiler
     return mapObject(initRef.current, (initialValue) => {
-        // eslint-disable-next-line @eslint-react/rules-of-hooks
+        // eslint-disable-next-line react-x/rules-of-hooks react/react-compiler
         return useSpringValue(initialValue, {
             config,
         });

@@ -33,6 +33,16 @@ const preloadFriends = once(function preloadFriends() {
 
 const defaultPositionProxy = makeLazy(() => proxyLazy(defaultPosition));
 
+function bounceConfig(k: "progress" | "opacity"): SpringConfig {
+    if (k === "progress") {
+        return {
+            friction: 1,
+            bounce: 0.5,
+        };
+    }
+    return {};
+}
+
 export default function Avatar({ round = false, ...props }: AvatarProps) {
     const modalRef = useRef<ModalContext>(null);
     const borderAnimRef = useRef<BorderHoldHandle>(null);
@@ -57,7 +67,7 @@ export default function Avatar({ round = false, ...props }: AvatarProps) {
             return unmounted || hasClickedRef.current;
         }
 
-        !async function () {
+        void async function () {
             await sleep(1000);
 
             const handle = borderAnimRef.current;
@@ -68,19 +78,10 @@ export default function Avatar({ round = false, ...props }: AvatarProps) {
 
             const api = handle.reactSpringApi;
 
-            api.start({
+            void api.start({
                 async to(next) {
                     if (shouldStop()) {
                         return;
-                    }
-                    function bounceConfig(k: "progress" | "opacity"): SpringConfig {
-                        if (k === "progress") {
-                            return {
-                                friction: 1,
-                                bounce: 0.5,
-                            };
-                        }
-                        return {};
                     }
                     await next({
                         progress: 10,

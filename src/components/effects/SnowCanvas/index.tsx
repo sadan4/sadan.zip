@@ -142,6 +142,7 @@ export function SnowCanvas({
             ctx.clearRect(0, 0, width, height);
             ctx.fillStyle = snowColor;
 
+            // oxlint-disable-next-line typescript/prefer-for-of
             for (let i = 0; i < snowflakes.length; i++) {
                 const flake = snowflakes[i];
 
@@ -155,6 +156,8 @@ export function SnowCanvas({
                 if (now - prev >= TARGET_FRAME_RATE) {
                     animate(ctx, snowColor);
                 } else {
+                    // react/react#37058
+                    // oxlint-disable-next-line react/react-compiler
                     animationFrameRef.current = requestAnimationFrame(time);
                 }
             });

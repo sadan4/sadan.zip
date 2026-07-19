@@ -10,7 +10,7 @@ export function useDebouncedFn<T extends (...args: any[]) => void>(fn: T, delay 
 
     useEffect(() => {
         return () => {
-            // eslint-disable-next-line @eslint-react/exhaustive-deps -- intentional
+            // eslint-disable-next-line react-x/exhaustive-deps -- intentional
             if (removeOnUnmountRef.current) {
                 clearTimeout(timeoutRef.current);
             }

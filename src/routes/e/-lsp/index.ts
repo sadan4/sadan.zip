@@ -37,9 +37,9 @@ function _register() {
                     } as const
                     : {
                         sl: selectionOrPosition.lineNumber,
-                        sc: selectionOrPosition?.column,
+                        sc: selectionOrPosition.column,
                         el: selectionOrPosition.lineNumber,
-                        ec: selectionOrPosition?.column,
+                        ec: selectionOrPosition.column,
                     } as const
                 : undefined;
 

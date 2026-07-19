@@ -71,8 +71,8 @@ function main() {
             ],
         },
         target: "es2024",
-        async externals(ctx: ExternalItemFunctionData): Promise<ExternalItemValue | void> {
-            if (ctx.request && /\.wasm$/.test(ctx.request)) {
+        async externals(ctx: ExternalItemFunctionData): Promise<ExternalItemValue | undefined> {
+            if (ctx.request?.endsWith(".wasm")) {
                 // @ts-expect-error rspack has really bad types
                 const fullPath = await ctx.getResolve!()(ctx.context, ctx.request)!;
                 const relativeToRoot = `./${relative(ssrRoot, fullPath)}`;
@@ -116,6 +116,6 @@ function main() {
     });
 }
 
-await main();
+main();
 
 export { };

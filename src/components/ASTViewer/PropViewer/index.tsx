@@ -6,7 +6,7 @@ import { useRecent } from "@/hooks/recent";
 import { NBSP } from "@/utils/constants";
 import { todo } from "@/utils/error";
 import { getPropertyDescriptor } from "@/utils/obj";
-import { type Primitive } from "@/utils/types";
+import type { Primitive } from "@/utils/types";
 import { getNodeName, getPublicKeys, isNode } from "@/utils/typescript";
 
 import { PropViewerFlags, SYM_NOT_COMPUTED } from "./constants";
@@ -150,7 +150,7 @@ function ObjectProp({ node }: ObjectProp<object>) {
     if (isNode(node)) {
         return <NodeObjectProp node={node} />;
     }
-    return <NonNodeObjectProp node={node as object} />;
+    return <NonNodeObjectProp node={node} />;
 }
 
 function GetOrSetProp({ prop, node, flags, desc: { set, get } }: ComputedSinglePropProps) {
@@ -162,6 +162,7 @@ function GetOrSetProp({ prop, node, flags, desc: { set, get } }: ComputedSingleP
     });
 
     useEffect(() => {
+        // oxlint-disable-next-line react/react-compiler
         setValue(() => {
             if (flags & PropViewerFlags.EAGER_GETTERS) {
                 return node[prop];
@@ -439,7 +440,7 @@ function NotDefinedProp({ prop }: Pick<ComputedSinglePropProps, "prop">) {
 
 export interface PropViewerProps {
     node: Node;
-    onSelectNode: (node: Node) => void;
+    onSelectNode(node: Node): void;
 }
 
 export function PropViewer({ node, onSelectNode }: PropViewerProps) {

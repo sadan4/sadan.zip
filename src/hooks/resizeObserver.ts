@@ -3,15 +3,13 @@ import { useRecent } from "./recent";
 
 import type { RefObject } from "react";
 
-export interface UseResizeObserverCallback {
-    (entry: ResizeObserverEntry, observer: ResizeObserver): void;
-}
+export type UseResizeObserverCallback = (entry: ResizeObserverEntry, observer: ResizeObserver) => void;
 
 export function useResizeObserverFromRef<T extends Element>(
     target: RefObject<T | null>,
     callback: UseResizeObserverCallback,
 ) {
-    return useResizeObserver(target.current, callback);
+    useResizeObserver(target.current, callback);
 }
 export function useResizeObserver<T extends Element>(
     target: RefObject<T> | T | null,

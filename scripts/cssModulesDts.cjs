@@ -1,4 +1,4 @@
-module.exports = (dts, { classes: _classes, filename: _filename, logger: _logger }) => {
+module.exports = function makeCssModuleDts(dts, { classes: _classes, filename: _filename, logger: _logger }) {
     return [
         "/* eslint-disable */",
         dts,

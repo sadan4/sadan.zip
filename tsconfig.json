@@ -55,7 +55,7 @@
   "include": [
     "src",
     "server",
-    "eslint.config.mts",
+    "oxlint.config.ts",
     "stylelint.config.ts",
     "vite.config.ts",
     "scripts"

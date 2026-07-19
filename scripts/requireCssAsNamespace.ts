@@ -1,4 +1,4 @@
-import { ESLintUtils, TSESLint, TSESTree as N } from "@typescript-eslint/utils";
+import { ESLintUtils, type TSESLint, type TSESTree as N } from "@typescript-eslint/utils";
 
 const createRule = ESLintUtils.RuleCreator((_name: string) => import.meta.filename);
 
@@ -37,7 +37,7 @@ export default createRule({
         type: "problem",
         schema: [],
         hasSuggestions: true,
+        defaultOptions: [],
     },
-    defaultOptions: [],
 });
 

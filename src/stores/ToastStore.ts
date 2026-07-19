@@ -22,7 +22,7 @@ export interface Toast {
     duration: number;
     type: ToastType;
     pos: ToastPosition;
-    render: () => ReactNode;
+    render(): ReactNode;
 }
 
 export interface IToastStore {

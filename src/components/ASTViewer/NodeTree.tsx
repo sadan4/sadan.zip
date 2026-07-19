@@ -12,7 +12,7 @@ import cn from "@/utils/cn";
 import { EMPTY_ARRAY, EMPTY_SET, NOOP } from "@/utils/constants";
 import { error } from "@/utils/error";
 import { toggleSetItem } from "@/utils/set";
-import { getChildrenWithMode, getNodeKey, getNodeName, getParent, TreeMode } from "@/utils/typescript";
+import { getChildrenWithMode, getNodeKey, getNodeName, getParent, type TreeMode } from "@/utils/typescript";
 
 import { TreeAccordion } from "./TreeAccordion";
 
@@ -23,7 +23,7 @@ import { createStore, type StoreApi, useStore } from "zustand";
 import { useShallow } from "zustand/shallow";
 
 export interface NodeTreeProps {
-    onSelectNode(node: Node): void;
+    onSelectNode?(node: Node): void;
     root: SourceFile;
     treeMode: TreeMode;
     reparseCount: number;
@@ -95,6 +95,7 @@ export function NodeTree({
 
             do {
                 needsToBeShown.add(getNodeKey(cur));
+                // oxlint-disable-next-line typescript/no-unnecessary-condition -- SourceFile.parent is undefined
             } while ((cur = cur.parent));
         }
 
@@ -232,7 +233,7 @@ export function NodeTree({
 
                 if (idx === siblings.length - 1) {
                     onSelectNode.current(parent);
-                } else if (idx >= 0) {
+                } else if (idx !== -1) {
                     onSelectNode.current(siblings[idx + 1]);
                 }
             },

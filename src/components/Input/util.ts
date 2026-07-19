@@ -40,8 +40,7 @@ export function validateCheckedInput(msg: string, check: CheckedInputProps["chec
         return check(msg);
     } else if (check instanceof RegExp) {
         return check.test(msg);
-    } else if (check.type === "len") {
-        return validateLength(check, msg);
     }
-    throw new Error("invalid check type");
+    check.type satisfies "len";
+    return validateLength(check, msg);
 }

@@ -19,8 +19,8 @@ export function animatedSleep(ms: number): Promise<void> {
 
 export function withResolvers<T>(): {
     promise: Promise<T>;
-    resolve: (value: T | PromiseLike<T>) => void;
-    reject: (reason?: any) => void;
+    resolve(value: T | PromiseLike<T>): void;
+    reject(reason?: any): void;
 } {
     let resolve!: (value: T | PromiseLike<T>) => void;
     let reject!: (reason?: any) => void;

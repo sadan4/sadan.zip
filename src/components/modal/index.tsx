@@ -67,11 +67,15 @@ export function Modal({ children, ref: _ref, className, innerRef, open: _open, .
                 >
                     <div
                         className={styles.centerWrapper}
-                        onClick={() => api.requestClose()}
+                        onClick={() => {
+                            api.requestClose();
+                        }}
                     >
                         <div
                             className={styles.content}
-                            onClick={(e) => e.stopPropagation()}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                            }}
                         >
                             <Layer>
                                 <Activity

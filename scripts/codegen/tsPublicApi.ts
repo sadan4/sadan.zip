@@ -11,14 +11,14 @@ interface NodeEntry {
 }
 
 class DTSAnalyzer {
-    private program: Program;
-    private tc: TypeChecker;
-    private file: SourceFile;
-    private fileSym: Symbol;
-    private fileExports: Symbol[];
-    private skExport: Symbol;
-    private syntaxKinds: ReadonlySet<Type>;
-    private _syntaxKindNameMap: WeakMap<Type, string> = new WeakMap();
+    private readonly program: Program;
+    private readonly tc: TypeChecker;
+    private readonly file: SourceFile;
+    private readonly fileSym: Symbol;
+    private readonly fileExports: Symbol[];
+    private readonly skExport: Symbol;
+    private readonly syntaxKinds: ReadonlySet<Type>;
+    private readonly _syntaxKindNameMap = new WeakMap<Type, string>();
 
     constructor(private readonly path: string) {
         this.program = createProgram([this.path], { strictNullChecks: true });
@@ -59,7 +59,7 @@ class DTSAnalyzer {
             return;
         }
 
-        const [decl] = kind.getDeclarations() ?? [];
+        const [decl = null] = kind.getDeclarations() ?? [];
 
         if (decl == null) {
             return;
@@ -127,7 +127,7 @@ class DTSAnalyzer {
     }
 
     generate(): NodeEntry[] {
-        const nodes: Map<string, Set<string>> = new Map();
+        const nodes = new Map<string, Set<string>>();
 
         for (const sym of this.fileExports) {
             const kinds = this.tryGetSyntaxKindOfNode(sym);
@@ -195,7 +195,7 @@ const content = dedent`
 
 const publicApiPath = resolve(genDir, "publicApi.ts");
 
-await writeFile(publicApiPath, content);
+await writeFile(publicApiPath, `${content}\n`);
 
 const markerMapContent = dedent`
     /* eslint-disable */
@@ -206,4 +206,4 @@ const markerMapContent = dedent`
 
 const markerMapPath = resolve(genDir, "markerMap.ts");
 
-await writeFile(markerMapPath, markerMapContent);
+await writeFile(markerMapPath, `${markerMapContent}\n`);

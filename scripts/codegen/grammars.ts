@@ -66,7 +66,7 @@ const typeFileContent = dedent`
 
 await mkdir(genDir, { recursive: true });
 
-await writeFile(resolve(genDir, typeFile), typeFileContent);
+await writeFile(resolve(genDir, typeFile), `${typeFileContent}\n`);
 
 const output = [
     dedent`
@@ -99,11 +99,11 @@ for (const lang of langs) {
     const fileName = `${languageDisplayNames[lang]}.ts`;
     const [ident] = lang.match(/[^.]+$/)!;
 
-    await writeFile(resolve(genDir, fileName), content);
+    await writeFile(resolve(genDir, fileName), `${content}\n`);
 
     output.push(`export function ${ident}(): Promise<LazyLang> { return import("./${fileName}").then(({default: d}) => d); }`);
 }
 
 const outputContent = output.join("\n");
 
-await writeFile(resolve(genDir, "index.ts"), outputContent);
+await writeFile(resolve(genDir, "index.ts"), `${outputContent}\n`);

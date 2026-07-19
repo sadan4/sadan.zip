@@ -53,7 +53,9 @@ function CollapsibleSection({ title, children }: CollapsibleSectionProps) {
         <section className="mt-4 first:mt-0">
             <TreeAccordion
                 open={open}
-                onArrowClick={() => setOpen((v) => !v)}
+                onArrowClick={() => {
+                    setOpen((v) => !v);
+                }}
                 contents={children}
             >
                 <SectionHeading>
@@ -158,9 +160,11 @@ function ExportTreeItem({ node, moduleId }: ExportTreeItemProps) {
             </Text>
             {node.ranges.map((range, i) => (
                 <Clickable
-                    // eslint-disable-next-line @eslint-react/no-array-index-key -- the index is stable for this data
+                    // eslint-disable-next-line react-x/no-array-index-key -- the index is stable for this data
                     key={i}
-                    onClick={() => goToRange(range)}
+                    onClick={() => {
+                        goToRange(range);
+                    }}
                     className="ml-4"
                 >
                     <Text
@@ -183,7 +187,9 @@ function ExportTreeItem({ node, moduleId }: ExportTreeItemProps) {
     return (
         <TreeAccordion
             open={open}
-            onArrowClick={() => setOpen((v) => !v)}
+            onArrowClick={() => {
+                setOpen((v) => !v);
+            }}
             contents={(
                 <div className="flex h-fit">
                     <div className="w-4 shrink-0" />

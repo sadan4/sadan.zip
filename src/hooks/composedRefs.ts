@@ -14,6 +14,7 @@ export function useComposedRefs<T>(...refs: (Ref<T> | undefined)[]): RefCallback
                     cleanups.push(maybeCleanup);
                 }
             } else {
+                // oxlint-disable-next-line react/react-compiler -- it's a ref
                 ref.current = instance;
             }
         }
@@ -33,6 +34,6 @@ export function useComposedRefs<T>(...refs: (Ref<T> | undefined)[]): RefCallback
                 throw new AggregateError(errs, "Ref cleanup failed");
             }
         };
-    // eslint-disable-next-line @eslint-react/exhaustive-deps -- this is correct
+    // eslint-disable-next-line react-hooks/exhaustive-deps react/react-compiler react-x/exhaustive-deps -- this is correct
     }, refs);
 }

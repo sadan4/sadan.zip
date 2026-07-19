@@ -96,7 +96,7 @@ export function useKeybinds(keybinds: Keybind[]): RefCallback<HTMLElement> {
     const keybindsRef = useRecent(keybinds);
 
     function callValidBinds(mode: "down" | "up", ev: KeyboardEvent) {
-        return keybindsRef.current
+        keybindsRef.current
             .filter((kb) => {
                 return kb.timing === mode && matchesEvent(ev, kb);
             })
