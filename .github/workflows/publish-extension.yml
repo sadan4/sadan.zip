@@ -1,0 +1,92 @@
+name: Publish VSCode Extension
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Publish (${{ matrix.vscodeTarget }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      # Do not cancel other platforms if one fails; a partial publish is
+      # recoverable by re-running the failed matrix leg.
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            vscodeTarget: linux-x64
+          - os: ubuntu-24.04-arm
+            vscodeTarget: linux-arm64
+          - os: windows-latest
+            vscodeTarget: win32-x64
+          - os: windows-11-arm
+            vscodeTarget: win32-arm64
+          - os: macos-13
+            vscodeTarget: darwin-x64
+          - os: macos-14
+            vscodeTarget: darwin-arm64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: "pnpm"
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.vscodeTarget }}
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Cross-compiles companion_lsp to the target triple, stages it into the
+      # extension's bin/, bundles the client, and produces a platform-specific
+      # .vsix (vsce package --target). Each matrix leg runs on a native runner
+      # so the target triple matches the host and no cross-toolchain is needed.
+      - name: Package platform-specific VSIX
+        run: cargo xtask package extension --target ${{ matrix.vscodeTarget }}
+
+      - name: Resolve vsix path
+        id: vsix
+        shell: bash
+        run: |
+          vsix="$(ls packages/VencordCompanion/*.vsix | head -n1)"
+          if [ -z "$vsix" ]; then
+            echo "No .vsix produced" >&2
+            exit 1
+          fi
+          echo "path=$vsix" >> "$GITHUB_OUTPUT"
+
+      - name: Publish to Visual Studio Marketplace
+        run: >
+          pnpm --filter vencord-user-companion exec
+          vsce publish --no-dependencies --target ${{ matrix.vscodeTarget }}
+          --packagePath "${{ github.workspace }}/${{ steps.vsix.outputs.path }}"
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+
+      - name: Publish to Open VSX
+        run: >
+          pnpm --filter vencord-user-companion exec
+          ovsx publish --target ${{ matrix.vscodeTarget }}
+          --packagePath "${{ github.workspace }}/${{ steps.vsix.outputs.path }}"
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
