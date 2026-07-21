@@ -9,6 +9,7 @@ use crate::{
 	util::{
 		cmd::{CommandExt as _, resolve_program_in_path},
 		fs,
+		target::ExtensionTarget,
 	},
 };
 
@@ -18,44 +19,66 @@ pub struct Command {
 	/// readable output). Also passed through to cargo as a debug build.
 	#[arg(long, default_value_t = false)]
 	pub dev: bool,
+
+	/// Build a platform-specific extension for the given VS Code target (e.g.
+	/// `linux-x64`, `darwin-arm64`). The `companion_lsp` binary is
+	/// cross-compiled to the matching Rust triple. When omitted, the host
+	/// platform is used and no `--target` is passed to cargo.
+	#[arg(long)]
+	pub target: Option<ExtensionTarget>,
 }
 
-const BIN_NAME: &str = if cfg!(windows) {
+/// The `companion_lsp` binary filename for the host platform.
+const HOST_BIN_NAME: &str = if cfg!(windows) {
 	"companion_lsp.exe"
 } else {
 	"companion_lsp"
 };
 
 impl Command {
-	fn cargo_bin_path(&self) -> PathBuf {
-		let profile = if self.dev { "debug" } else { "release" };
-		PathBuf::from("target")
-			.join(profile)
-			.join(BIN_NAME)
+	/// The `companion_lsp` filename to stage: target-specific when a
+	/// `--target` is given, otherwise the host binary name.
+	fn bin_name(&self) -> &'static str {
+		self.target
+			.map_or(HOST_BIN_NAME, ExtensionTarget::bin_name)
 	}
 
-	fn extension_bin_path() -> PathBuf {
+	fn cargo_bin_path(&self) -> PathBuf {
+		let profile = if self.dev { "debug" } else { "release" };
+		let mut path = PathBuf::from("target");
+		// Cross builds land under target/<triple>/<profile>/ rather than
+		// target/<profile>/.
+		if let Some(target) = self.target {
+			path.push(target.triple());
+		}
+		path.join(profile).join(self.bin_name())
+	}
+
+	fn extension_bin_path(&self) -> PathBuf {
 		PathBuf::from("packages")
 			.join("VencordCompanion")
 			.join("bin")
-			.join(BIN_NAME)
+			.join(self.bin_name())
 	}
 
 	#[instrument(skip(self))]
 	fn build_lsp(&self) -> Result<()> {
 		info!("Building companion_lsp binary");
-		process::Command::cargo("build")?
-			.arg("-p")
+		let mut cmd = process::Command::cargo("build")?;
+		cmd.arg("-p")
 			.arg("companion_lsp")
-			.arg_if(!self.dev, "--release")
-			.run()
+			.arg_if(!self.dev, "--release");
+		if let Some(target) = self.target {
+			cmd.arg("--target").arg(target.triple());
+		}
+		cmd.run()
 			.context("Failed to build companion_lsp")
 	}
 
 	#[instrument(skip(self))]
 	fn stage_lsp_binary(&self) -> Result<()> {
 		let src = self.cargo_bin_path();
-		let dst = Self::extension_bin_path();
+		let dst = self.extension_bin_path();
 		info!("Staging {} -> {}", src.display(), dst.display());
 		let bin_dir = dst
 			.parent()
