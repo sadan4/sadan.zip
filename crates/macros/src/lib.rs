@@ -1,4 +1,5 @@
 mod cache_test;
+mod command;
 mod test_log;
 
 use proc_macro::TokenStream;
@@ -16,4 +17,20 @@ pub fn test(attr: TokenStream, item: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn cache_test(attr: TokenStream, item: TokenStream) -> TokenStream {
 	cache_test::cache_test(attr, item)
+}
+
+#[expect(missing_docs)]
+#[proc_macro_attribute]
+pub fn command(attr: TokenStream, item: TokenStream) -> TokenStream {
+	command::command(attr.into(), item.into())
+		.unwrap_or_else(|e| e.to_compile_error())
+		.into()
+}
+
+#[expect(missing_docs)]
+#[proc_macro_attribute]
+pub fn executor(attr: TokenStream, item: TokenStream) -> TokenStream {
+	command::executor(attr.into(), item.into())
+		.unwrap_or_else(|e| e.to_compile_error())
+		.into()
 }
