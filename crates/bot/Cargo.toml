@@ -17,6 +17,7 @@ bitflags.workspace = true
 macros.workspace = true
 shlex.workspace = true
 itertools.workspace = true
+derive_more.workspace = true
 
 [lints]
 workspace = true

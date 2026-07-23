@@ -1,6 +1,8 @@
 mod cmds;
 mod fw;
 
+use std::{collections::HashMap, sync::Arc};
+
 use serenity::{
 	Client,
 	all::{
@@ -8,12 +10,22 @@ use serenity::{
 		EventHandler,
 		GatewayIntents,
 		Ready,
+		ShardId,
+		ShardRunnerInfo,
+		prelude::TypeMapKey,
 	},
 	async_trait,
 };
+use tokio::sync::Mutex;
 use tracing::{error, info};
 
 struct Handler;
+
+struct ShardInfo(Arc<Mutex<HashMap<ShardId, ShardRunnerInfo>>>);
+
+impl TypeMapKey for ShardInfo {
+	type Value = ShardInfo;
+}
 
 #[async_trait]
 impl EventHandler for Handler {
@@ -37,7 +49,15 @@ pub async fn run(token: &str) {
 		.event_handler(cmds)
 		.await
 		.expect("Error creating client");
+	let runners = Arc::clone(&client.shard_manager.runners);
+	client
+		.data
+		.write()
+		.await
+		.insert::<ShardInfo>(ShardInfo(runners));
+
 	if let Err(e) = client.start().await {
 		error!("Client error: {:?}", e);
 	}
 }
+mod util;

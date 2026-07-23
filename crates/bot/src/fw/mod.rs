@@ -1,4 +1,4 @@
-use std::{borrow::Cow, sync::OnceLock};
+use std::{borrow::Cow, sync::OnceLock, time::Instant};
 
 use anyhow::{Context as _, Result, bail};
 use bitflags::bitflags;
@@ -14,7 +14,10 @@ use shlex::Shlex;
 use tokio::sync::OnceCell;
 use tracing::{error, info};
 
-use crate::fw::check::Check;
+use crate::{
+	fw::check::Check,
+	util::{MESSAGE_RECEIVE_TIME, REFERENCED_USER, get_ref_user},
+};
 
 mod check {
 	use anyhow::Result;
@@ -56,7 +59,7 @@ pub struct CommandFramework {
 }
 
 impl CommandFramework {
-	pub fn new(root_cmd: &'static Command) -> Self {
+	pub const fn new(root_cmd: &'static Command) -> Self {
 		Self {
 			root_cmd,
 			prefixes: Vec::new(),
@@ -123,7 +126,7 @@ impl CommandFramework {
 		Ok((cmd, arg_matches.clone()))
 	}
 
-	pub async fn execute_command(
+	async fn execute_command_inner(
 		&self,
 		ctx: &Context,
 		msg: &Message,
@@ -140,15 +143,11 @@ impl CommandFramework {
 			})?;
 		Ok(())
 	}
-}
-
-#[async_trait]
-impl EventHandler for CommandFramework {
-	async fn message(&self, ctx: Context, msg: Message) -> () {
+	pub async fn execute_command(&self, ctx: &Context, msg: &Message) -> () {
 		for prefix in &self.prefixes {
 			if msg.content.starts_with(prefix.as_ref()) {
 				if let Err(e) = self
-					.execute_command(&ctx, &msg, prefix)
+					.execute_command_inner(ctx, msg, prefix)
 					.await
 				{
 					if let Some(e) = e.downcast_ref::<clap::Error>() {
@@ -202,6 +201,18 @@ impl EventHandler for CommandFramework {
 	}
 }
 
+#[async_trait]
+impl EventHandler for CommandFramework {
+	async fn message(&self, ctx: Context, msg: Message) -> () {
+		let handler_timestamp = Instant::now();
+		let ref_user = get_ref_user(&msg);
+		let fut = self.execute_command(&ctx, &msg);
+		REFERENCED_USER
+			.scope(ref_user, MESSAGE_RECEIVE_TIME.scope(handler_timestamp, fut))
+			.await;
+	}
+}
+
 /// Returns the byte index at which `s` can be truncated so that what remains
 /// is at most `max` codepoints long.
 ///
@@ -245,7 +256,6 @@ fn ansi_truncation_point(s: &str, max: usize) -> usize {
 	}
 	s.len()
 }
-
 
 bitflags! {
 	pub struct UsageLocation: u8 {
@@ -393,18 +403,24 @@ impl ParserFactory {
 		T: CommandFactory + FromArgMatches + 'static,
 	{
 		let cmd_name =
-			if cmd.flags & CommandFlags::ROOT_GROUP != CommandFlags::NONE {
-				""
-			} else {
+			if cmd.flags & CommandFlags::ROOT_GROUP == CommandFlags::NONE {
 				debug_assert!(
 					cmd.names.len() == 1,
 					"TODO: handle commands with more than one name"
 				);
 				cmd.names[0]
+			} else {
+				""
 			};
 		let mut command = T::command()
 			.name(cmd_name)
 			.about(cmd.desc.unwrap_or_default());
+		if !cmd.sub_cmds.is_empty() {
+			// the command's own args and a subcommand are mutually
+			// exclusive: supplying a subcommand waives the parent's required
+			// args, and supplying both is an error
+			command = command.args_conflicts_with_subcommands(true);
+		}
 		for sub in cmd.sub_cmds {
 			let sub_cmd = sub.parser.get(sub);
 			command = command.subcommand(sub_cmd);

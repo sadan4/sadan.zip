@@ -18,7 +18,6 @@ use syn::{
 	Signature,
 	Token,
 	parse::{Parse, ParseStream, discouraged::Speculative},
-	parse_macro_input,
 	parse2,
 	punctuated::Punctuated,
 	spanned::Spanned,
@@ -81,7 +80,7 @@ fn take_list_attr(attrs: &mut Vec<Attribute>, key: &str) -> Option<Attribute> {
 	Some(attrs.remove(i))
 }
 
-fn se(span: impl Spanned, msg: impl Display) -> syn::Error {
+fn se(span: &impl Spanned, msg: impl Display) -> syn::Error {
 	syn::Error::new(span.span(), msg)
 }
 
@@ -109,7 +108,7 @@ fn command_name(
 				}) => s.value(),
 				span => {
 					return Err(se(
-						span,
+						&span,
 						"Command name must be a string literal",
 					));
 				}
@@ -146,7 +145,20 @@ pub fn arg_parser(attrs: &mut Vec<Attribute>) -> syn::Result<Option<Path>> {
 		Meta::Path(_) | Meta::List(_) => unreachable!(),
 		Meta::NameValue(kv) => match kv.value {
 			Expr::Path(PatPath { path, .. }) => Ok(Some(path)),
-			span => Err(se(span, "arg_parser must be a path")),
+			span => Err(se(&span, "arg_parser must be a path")),
+		},
+	}
+}
+
+pub fn init_attr(attrs: &mut Vec<Attribute>) -> syn::Result<Option<Path>> {
+	let Some(kv) = take_kv_attr(attrs, "init") else {
+		return Ok(None);
+	};
+	match kv.meta {
+		Meta::Path(_) | Meta::List(_) => unreachable!(),
+		Meta::NameValue(kv) => match kv.value {
+			Expr::Path(PatPath { path, .. }) => Ok(Some(path)),
+			span => Err(se(&span, "init must be a path")),
 		},
 	}
 }
@@ -165,7 +177,7 @@ pub fn sub_cmds(attrs: &mut Vec<Attribute>) -> syn::Result<Vec<Path>> {
 	for p in &mut res {
 		let Some(seg) = p.segments.last_mut() else {
 			return Err(se(
-				p,
+				&p,
 				"Sub-command path must have at least one segment",
 			));
 		};
@@ -173,7 +185,7 @@ pub fn sub_cmds(attrs: &mut Vec<Attribute>) -> syn::Result<Vec<Path>> {
 			PathArguments::None => {}
 			_ => {
 				return Err(se(
-					seg,
+					&seg,
 					"Sub-command path must not have any generic arguments",
 				));
 			}
@@ -276,17 +288,39 @@ fn make_zero_context_factory(name: &Ident) -> TokenStream {
 	}
 }
 
-fn executor_factory(item: &ItemStruct, is_group: bool) -> TokenStream {
-	if is_group {
-		quote! {
+fn make_init_factory(init: &Path) -> TokenStream {
+	quote! {
+		crate::fw::OpaqueExecutor::from_const(|__fw| {
+			::std::boxed::Box::pin(async move {
+				::std::boxed::Box::new(#init(__fw).await)
+					as ::std::boxed::Box<
+						dyn crate::fw::CommandExecutor
+							+ ::std::marker::Send + ::std::marker::Sync + 'static
+					>
+			})
+		})
+	}
+}
+
+fn executor_factory(
+	item: &ItemStruct,
+	is_group: bool,
+	init: Option<&Path>,
+) -> syn::Result<TokenStream> {
+	if let Some(init) = init {
+		Ok(make_init_factory(init))
+	} else if is_group {
+		Ok(quote! {
 			crate::fw::OpaqueExecutor::__todo()
-		}
+		})
 	} else if item.fields.is_empty() {
-		make_zero_context_factory(&item.ident)
+		Ok(make_zero_context_factory(&item.ident))
 	} else {
-		quote! {
-			crate::fw::OpaqueExecutor::__todo()
-		}
+		Err(se(
+			&item.fields,
+			"stateful command (struct with fields) requires `#[init = path]` \
+			 to construct its session context",
+		))
 	}
 }
 
@@ -314,7 +348,7 @@ impl Parse for CommandTarget {
 	}
 }
 
-fn make_parser(parser: Option<&Path>, cmd_ident: &Ident) -> TokenStream {
+fn make_parser(parser: Option<&Path>, _cmd_ident: &Ident) -> TokenStream {
 	if let Some(parser) = parser {
 		quote! {
 			crate::fw::ParserFactory::__make_parser::<#parser>()
@@ -327,12 +361,13 @@ fn make_parser(parser: Option<&Path>, cmd_ident: &Ident) -> TokenStream {
 }
 
 fn command_struct(
-	attr: TokenStream,
+	_attr: &TokenStream,
 	mut st: ItemStruct,
 ) -> syn::Result<TokenStream> {
 	let name = command_name(&mut st.attrs, &st.ident)?;
 	let checks = checks(&mut st.attrs)?;
 	let arg_parser = arg_parser(&mut st.attrs)?;
+	let init = init_attr(&mut st.attrs)?;
 	let sub_cmds = sub_cmds(&mut st.attrs)?;
 	let is_group = group(&mut st.attrs);
 	let is_root_group =
@@ -342,14 +377,17 @@ fn command_struct(
 		context_type_ident,
 		..
 	} = CommandNames::new(&name);
-	let factory = executor_factory(&st, is_group);
+	let factory = executor_factory(&st, is_group, init.as_ref())?;
 	let context_struct_ident = &st.ident;
 	let root_group_flag = is_root_group
 		.then(|| quote! {.union(crate::fw::CommandFlags::ROOT_GROUP)});
 	let group_flag =
 		is_group.then(|| quote! {.union(crate::fw::CommandFlags::GROUP)});
 	let parser = make_parser(arg_parser.as_ref(), &cmd_ident);
+	// a pure group is a marker type that is never instantiated
+	let group_dead_code = is_group.then(|| quote! { #[allow(dead_code)] });
 	let toks = quote! {
+		#group_dead_code
 		#st
 
 		pub static #cmd_ident: crate::fw::Command = crate::fw::Command {
@@ -374,7 +412,7 @@ fn make_executor_impl_for_command_func(
 	func_ident: &Ident,
 	arg_parser: Option<&Path>,
 	extra_args: u8,
-) -> syn::Result<TokenStream> {
+) -> TokenStream {
 	let [parse_args, pass_args]: [TokenStream; 2] =
 		if let Some(parser) = arg_parser {
 			[
@@ -409,11 +447,11 @@ fn make_executor_impl_for_command_func(
 			}
 		}
 	};
-	Ok(res)
+	res
 }
 
 fn command_func(
-	attr: TokenStream,
+	_attr: &TokenStream,
 	mut func: ItemFn,
 ) -> syn::Result<TokenStream> {
 	verify_command_func_sig(&func.sig)?;
@@ -446,15 +484,21 @@ fn command_func(
 		..
 	} = CommandNames::new(&name);
 	let sub_cmds = sub_cmds(&mut func.attrs)?;
+	let is_group = group(&mut func.attrs);
+	let group_flag =
+		is_group.then(|| quote! {.union(crate::fw::CommandFlags::GROUP)});
 	let executor_impl = make_executor_impl_for_command_func(
 		&struct_ident,
 		&func.sig.ident,
 		parser.as_ref(),
 		num_extra_args,
-	)?;
+	);
 	let factory = make_zero_context_factory(&struct_ident);
 	let parser = make_parser(parser.as_ref(), &cmd_ident);
 	let res = quote! {
+		// the handler is required to be async (it is awaited during dispatch),
+		// even if a given command never awaits
+		#[allow(clippy::unused_async)]
 		#func
 		pub struct #struct_ident;
 		pub type #context_type_ident = #struct_ident;
@@ -467,14 +511,14 @@ fn command_func(
 			usage_location: crate::fw::UsageLocation::all(),
 			sub_cmds: &[#(& #sub_cmds),*],
 			executor: #factory,
-			flags: crate::fw::CommandFlags::NONE,
+			flags: crate::fw::CommandFlags::NONE #group_flag,
 		};
 	};
 	Ok(res)
 }
 
 pub fn command(
-	attr: TokenStream,
+	attr: &TokenStream,
 	item: TokenStream,
 ) -> syn::Result<TokenStream> {
 	let input = parse2(item)?;
@@ -486,20 +530,20 @@ pub fn command(
 
 fn verify_command_func_sig(sig: &Signature) -> syn::Result<()> {
 	if let Some(kw_const) = sig.constness {
-		return Err(se(kw_const, "executor function must not be const"));
+		return Err(se(&kw_const, "executor function must not be const"));
 	}
 	if sig.asyncness.is_none() {
 		return Err(se(&sig.ident, "executor function must be async"));
 	}
 	if let Some(kw_unsafe) = sig.unsafety {
-		return Err(se(kw_unsafe, "executor function must not be unsafe"));
+		return Err(se(&kw_unsafe, "executor function must not be unsafe"));
 	}
 	if let Some(abi) = &sig.abi {
 		return Err(se(abi, "executor function must not have an explicit ABI"));
 	}
 	if !sig.generics.params.is_empty() {
 		return Err(se(
-			sig.generics.params.span(),
+			&sig.generics.params.span(),
 			"executor function must not have generic parameters",
 		));
 	}
@@ -513,14 +557,14 @@ fn verify_executor_signature(sig: &Signature) -> syn::Result<()> {
 	verify_command_func_sig(sig)?;
 	if sig.inputs.len() != 6 {
 		return Err(se(
-			sig.inputs.span(),
+			&sig.inputs.span(),
 			"executor function must have exactly 6 parameters.\
 		\nExpected signature: \
-		`async fn cmd_name(this: &CommandData, ctx: &Context, msg: &Message, cmd: &'static Command, fw: &'static CommandFramework, args: &ArgMatches) -> ()`",
+		`async fn cmd_name(this: &CommandData, ctx: &Context, msg: &Message, cmd: &Command, fw: &CommandFramework, args: &ArgMatches) -> anyhow::Result<()>`",
 		));
 	}
 	for arg in &sig.inputs {
-		let FnArg::Typed(arg) = arg else {
+		let FnArg::Typed(_arg) = arg else {
 			return Err(se(
 				arg,
 				"executor function must not have a receiver argument",
@@ -542,6 +586,9 @@ pub fn executor(
 		context_type_ident, ..
 	} = CommandNames::new(&name);
 	let res = quote! {
+		// the executor is required to be async (it is called in an async
+		// context via the trait), even if a given handler never awaits
+		#[allow(clippy::unused_async)]
 		#input
 
 		#[::serenity::async_trait]
@@ -550,10 +597,10 @@ pub fn executor(
 				&self,
 				ctx: &::serenity::all::Context,
 				msg: &::serenity::all::Message,
-				cmd: &'static crate::fw::Command,
-				fw: &'static crate::fw::CommandFramework,
+				cmd: &crate::fw::Command,
+				fw: &crate::fw::CommandFramework,
 				args: &::clap::ArgMatches
-			) -> () {
+			) -> ::anyhow::Result<()> {
 				#fn_ident(self, ctx, msg, cmd, fw, args).await
 			}
 		}

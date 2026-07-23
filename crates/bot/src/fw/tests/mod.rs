@@ -29,12 +29,20 @@ fn never_cuts_inside_a_two_character_escape() {
 }
 
 mod command_framework {
-	use anyhow::Result;
-	use clap::{FromArgMatches, Parser};
-	use macros::command;
-	use serenity::all::{Context, Message};
+	use std::{
+		future,
+		sync::atomic::{AtomicU64, Ordering},
+	};
 
-	use crate::fw::{CommandFlags, CommandFramework};
+	use anyhow::Result;
+	use clap::{ArgMatches, FromArgMatches, Parser};
+	use macros::{command, executor};
+	use serenity::all::{Context, Message, UserId};
+
+	use crate::{
+		fw::{Command, CommandFlags, CommandFramework},
+		util::{FROM_REPLY, REFERENCED_USER, UserArg},
+	};
 
 	#[derive(Parser)]
 	struct EchoArgs {
@@ -42,6 +50,19 @@ mod command_framework {
 		text: String,
 		#[arg(long, default_value_t = 1)]
 		count: u8,
+	}
+
+	#[derive(Parser)]
+	struct RefArgs {
+		#[arg(default_value = FROM_REPLY)]
+		user: UserArg,
+	}
+
+	#[command]
+	#[arg_parser = RefArgs]
+	async fn refcmd(args: RefArgs, ctx: &Context, msg: &Message) -> Result<()> {
+		let _ = (args, ctx, msg);
+		Ok(())
 	}
 
 	#[command]
@@ -67,8 +88,49 @@ mod command_framework {
 	#[group]
 	struct Outer;
 
+	// a stateless callable group: takes its own args, has a subcommand, and
+	// runs its own handler when no subcommand matches
 	#[command]
-	#[sub_cmds(ping, echo, outer)]
+	#[group]
+	#[arg_parser = EchoArgs]
+	#[sub_cmds(ping)]
+	async fn grp(args: EchoArgs, ctx: &Context, msg: &Message) -> Result<()> {
+		let _ = (args, ctx, msg);
+		Ok(())
+	}
+
+	// a stateful callable group: its session context is built once via `#[init]`
+	#[command]
+	#[init = Counter::new]
+	#[sub_cmds(ping)]
+	struct Counter {
+		n: AtomicU64,
+	}
+
+	impl Counter {
+		fn new(_: &CommandFramework) -> future::Ready<Self> {
+			future::ready(Self {
+				n: AtomicU64::new(0),
+			})
+		}
+	}
+
+	#[executor]
+	async fn counter(
+		this: &Counter,
+		ctx: &Context,
+		msg: &Message,
+		cmd: &Command,
+		fw: &CommandFramework,
+		args: &ArgMatches,
+	) -> Result<()> {
+		let _ = (ctx, msg, cmd, fw, args);
+		this.n.fetch_add(1, Ordering::Relaxed);
+		Ok(())
+	}
+
+	#[command]
+	#[sub_cmds(ping, echo, outer, grp, counter, refcmd)]
 	#[group]
 	#[root]
 	struct TestRoot;
@@ -177,5 +239,85 @@ mod command_framework {
 			fw.find_matching_command("echo --nope")
 				.is_err()
 		);
+	}
+
+	#[test]
+	fn callable_group_runs_with_own_args() {
+		let fw = fw();
+		// no matching subcommand -> the group resolves to itself and its own
+		// args are parsed
+		let (cmd, matches) = fw
+			.find_matching_command("grp --text hi")
+			.unwrap();
+		assert_eq!(cmd.names[0], "grp");
+		assert!(cmd.flags.contains(CommandFlags::GROUP));
+		let args = EchoArgs::from_arg_matches(&matches).unwrap();
+		assert_eq!(args.text, "hi");
+	}
+
+	#[test]
+	fn callable_group_dispatches_subcommand_without_parent_args() {
+		let fw = fw();
+		// invoking the subcommand does not require the group's own required
+		// args
+		let (cmd, _) = fw
+			.find_matching_command("grp ping")
+			.unwrap();
+		assert_eq!(cmd.names[0], "ping");
+	}
+
+	#[test]
+	fn group_args_and_subcommand_are_mutually_exclusive() {
+		let fw = fw();
+		assert!(
+			fw.find_matching_command("grp --text hi ping")
+				.is_err()
+		);
+	}
+
+	#[test]
+	fn user_arg_uses_explicit_value() {
+		let fw = fw();
+		let (cmd, matches) = fw
+			.find_matching_command("refcmd 123")
+			.unwrap();
+		assert_eq!(cmd.names[0], "refcmd");
+		let args = RefArgs::from_arg_matches(&matches).unwrap();
+		assert_eq!(args.user, UserArg(UserId::new(123)));
+	}
+
+	#[test]
+	fn user_arg_falls_back_to_referenced_user() {
+		let fw = fw();
+		let id = UserId::new(999);
+		// the `FROM_REPLY` default is value-parsed during
+		// `find_matching_command`, so the task-local must be set around it
+		let (_, matches) = REFERENCED_USER
+			.sync_scope(Some(id), || fw.find_matching_command("refcmd"))
+			.unwrap();
+		let args = RefArgs::from_arg_matches(&matches).unwrap();
+		assert_eq!(args.user, UserArg(id));
+	}
+
+	#[test]
+	fn user_arg_errors_without_value_or_referenced_user() {
+		let fw = fw();
+		let res = REFERENCED_USER
+			.sync_scope(None, || fw.find_matching_command("refcmd"));
+		assert!(res.is_err());
+	}
+
+	#[test]
+	fn stateful_group_resolves_to_itself_and_child() {
+		let fw = fw();
+		let (cmd, _) = fw
+			.find_matching_command("counter")
+			.unwrap();
+		assert_eq!(cmd.names[0], "counter");
+
+		let (child, _) = fw
+			.find_matching_command("counter ping")
+			.unwrap();
+		assert_eq!(child.names[0], "ping");
 	}
 }

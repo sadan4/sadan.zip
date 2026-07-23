@@ -22,7 +22,7 @@ pub fn cache_test(attr: TokenStream, item: TokenStream) -> TokenStream {
 #[expect(missing_docs)]
 #[proc_macro_attribute]
 pub fn command(attr: TokenStream, item: TokenStream) -> TokenStream {
-	command::command(attr.into(), item.into())
+	command::command(&attr.into(), item.into())
 		.unwrap_or_else(|e| e.to_compile_error())
 		.into()
 }

@@ -36,7 +36,7 @@ pub struct Cli {
 	/// Do not print reporter warnings, only print errors.
 	///
 	/// This is not the same thing as a patch being noWarn
-	#[arg(long, default_value_t = false)]
+	#[arg(long, default_value_t)]
 	pub no_warnings: bool,
 	/// Generate shell completions
 	#[arg(long, value_enum)]

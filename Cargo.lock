@@ -377,6 +377,7 @@ dependencies = [
  "anyhow",
  "bitflags 2.13.1",
  "clap",
+ "derive_more",
  "futures-core",
  "itertools 0.15.0",
  "macros",
