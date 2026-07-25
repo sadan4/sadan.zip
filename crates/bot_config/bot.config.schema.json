@@ -11,6 +11,10 @@
         "type": "string"
       }
     },
+    "build_archive_url": {
+      "description": "The url for the build archive",
+      "type": "string"
+    },
     "home_guild_id": {
       "type": "string"
     },
@@ -20,6 +24,10 @@
     },
     "use_ansi_clap_errors": {
       "description": "If true, clap errors will be rendered in an ANSI codeblock\n\nif false, they will just use plain text",
+      "type": "boolean"
+    },
+    "use_local_build_cache": {
+      "description": "If true, cache local builds for faster startup time.",
       "type": "boolean"
     },
     "vencord_path": {
@@ -32,6 +40,8 @@
     "home_guild_id",
     "use_ansi_clap_errors",
     "bot_owners",
-    "vencord_path"
+    "vencord_path",
+    "build_archive_url",
+    "use_local_build_cache"
   ]
 }

@@ -35,6 +35,7 @@ memchr.workspace = true
 rayon.workspace = true
 oxc-miette.workspace = true
 strip-ansi-escapes.workspace = true
+git2.workspace = true
 
 [lints]
 workspace = true

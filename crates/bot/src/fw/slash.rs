@@ -309,7 +309,11 @@ impl CommandFramework {
 		ctx: &Context,
 	) -> Result<()> {
 		let commands = self.build_slash_commands();
-		match self.guild {
+		match self
+			.guild
+			.get()
+			.and_then(Option::as_ref)
+		{
 			Some(guild) => {
 				let count = commands.len();
 				guild

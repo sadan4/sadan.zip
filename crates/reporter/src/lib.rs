@@ -1,4 +1,4 @@
-mod cache;
+pub mod cache;
 pub mod cmds;
 pub mod diag;
 pub mod err;

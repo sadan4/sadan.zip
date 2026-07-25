@@ -23,7 +23,11 @@ pub struct Config {
 	#[schemars(schema_with = "wrap_schema::<Vec<String>>")]
 	pub bot_owners: Vec<UserId>,
 	/// The path of the vencord repo, used for testing PRs
-	pub vencord_path: String,
+	pub vencord_path:String,
+	/// The url for the build archive
+	pub build_archive_url: String,
+	/// If true, cache local builds for faster startup time.
+	pub use_local_build_cache: bool,
 }
 
 #[cfg(test)] 

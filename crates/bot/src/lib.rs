@@ -24,7 +24,7 @@ struct Handler;
 
 struct ShardInfo(Arc<Mutex<HashMap<ShardId, ShardRunnerInfo>>>);
 
-#[derive(Deref)]
+#[derive(Deref, Clone)]
 struct BotConfig(Arc<bot_config::Config>);
 
 impl Debug for BotConfig {
@@ -60,14 +60,15 @@ pub async fn run(config: bot_config::Config) {
 	// when set, slash commands register to this guild (instant); otherwise
 	// they are built for global registration but not auto-pushed
 	let guild = config.home_guild_id;
-	let cmds = fw::CommandFramework::new(&cmds::ROOT_CMD)
-		.with_prefix(";")
-		.with_guild(guild);
+	let cmds = fw::CommandFramework::new(&cmds::ROOT_CMD);
+	cmds.with_prefix(";");
+	cmds.with_guild(guild);
 	let mut client = Client::builder(&config.token, intents)
 		.event_handler(handler)
-		.event_handler(cmds)
+		.event_handler(cmds.clone())
 		.await
 		.expect("Error creating client");
+	cmds.init_data(client.data.clone());
 	let runners = Arc::clone(&client.shard_manager.runners);
 	client
 		.data

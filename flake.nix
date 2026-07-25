@@ -49,6 +49,9 @@
 								msgpack-tools
 								mold
 								clang_21
+                                pkg-config
+                                openssl
+                                libgit2
 							];
 							hardeningDisable = ["all"];
 							shellHook = ''

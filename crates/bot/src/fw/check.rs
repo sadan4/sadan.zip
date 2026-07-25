@@ -24,18 +24,14 @@ pub type CheckFn = for<'fut> fn(
 pub struct Check {
 	pub name: &'static str,
 	pub func: CheckFn,
-	pub check_for_help: bool,
-	pub hide_check: bool,
 }
 
-/// Gate a command behind bot ownership: passes only for the application's owner
-/// (or, for team-owned apps, the team owner). Attach with
-/// `#[checks(crate::fw::OWNER)]`.
+/// Only allow the owner(s) of the bot to run this command.
+///
+/// Use with `#[checks(crate::fw::OWNER)]`.
 pub const OWNER: Check = Check {
 	name: "owner",
 	func: is_owner,
-	check_for_help: true,
-	hide_check: false,
 };
 
 fn is_owner<'fut>(

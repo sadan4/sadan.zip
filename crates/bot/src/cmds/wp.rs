@@ -1,26 +1,29 @@
 use std::{
-	collections::HashMap,
-	fmt::{Display, Write as _},
-	future::{self, Ready},
-	io::Write as _,
+	fmt::Write as _,
 	iter,
 	path::{Path, PathBuf},
 	sync::Arc,
-	time::{Duration, Instant},
+	time::Instant,
 };
 
-use anyhow::{Context as _, Result, bail};
+use anyhow::{Context as _, Result};
 use clap::{Parser, ValueEnum};
 use discord_scraper::{NoProgress, make_reqwest_client, scrape_full_bundle};
 use explorer_server_core::Channel;
 use explorer_types::{FullBundle, ModuleId};
+use git2::{
+	Cred,
+	FetchOptions,
+	RemoteCallbacks,
+	Repository,
+	build::CheckoutBuilder,
+};
 use itertools::Itertools;
-use macros::{SlashArgs, command, executor};
+use macros::{SlashArgs, command};
 use memchr::memmem::Finder;
-use miette::{Diagnostic, NamedSource, Severity};
+use miette::{Diagnostic, Severity};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator as _};
 use reporter::{
-	SourceWrapper,
 	diag::ReporterError,
 	fetcher::ScrapedOutput,
 	reporter::Msg,
@@ -35,14 +38,11 @@ use serenity::all::{
 	CreateEmbedFooter,
 	prelude::TypeMapKey,
 };
-use smol_str::{SmolStr, ToSmolStr};
 use tokio::{
-	process,
 	sync::{Mutex, RwLock},
-	task::JoinSet,
 	try_join,
 };
-use tracing::info;
+use tracing::{debug, info, instrument, warn};
 
 use crate::{
 	BotConfig,
@@ -94,7 +94,7 @@ struct WebpackContext {
 }
 
 impl TypeMapKey for WebpackContext {
-	type Value = WebpackContext;
+	type Value = Self;
 }
 
 #[command]
@@ -175,12 +175,24 @@ async fn find_module_factory(
 async fn scrape_branch(
 	client: Arc<ClientWithMiddleware>,
 	channel: Channel,
+	use_cache: bool,
 ) -> Result<FullBundle> {
 	let html = reporter::fetcher::fetch_index(&client, channel)
 		.await
 		.with_context(|| {
 			format!("Failed to fetch index.html for {channel:?} branch")
 		})?;
+	let cache_key = if use_cache {
+		format!("bot-{}-full", html.build_hash)
+	} else {
+		String::new()
+	};
+	if use_cache
+		&& let Ok(Some(bundle)) = reporter::cache::read(&cache_key).await
+	{
+		info!("Using cached bundle for {channel:?} branch");
+		return Ok(bundle);
+	}
 	let bundle = scrape_full_bundle(
 		html.text.as_ref(),
 		channel,
@@ -192,15 +204,26 @@ async fn scrape_branch(
 	.with_context(|| {
 		format!("Failed to scrape full bundle for {channel:?} branch")
 	})?;
+	if use_cache
+		&& let Err(err) = reporter::cache::write(&cache_key, &bundle, 10).await
+	{
+		warn!("Failed to write bundle to cache: {err:?}");
+	}
 	Ok(bundle)
 }
 async fn init_webpack_context(fw: &CommandFramework) -> Result<()> {
 	let client =
 		make_reqwest_client().context("Failed to make reqwest client")?;
 	let client1 = client.clone();
+	let use_cache = fw
+		.get_data::<BotConfig>()
+		.await
+		.unwrap()
+		.use_local_build_cache;
 	let stable_fut =
-		tokio::spawn(scrape_branch(client.clone(), Channel::Stable));
-	let canary_fut = tokio::spawn(scrape_branch(client1, Channel::Canary));
+		tokio::spawn(scrape_branch(client.clone(), Channel::Stable, use_cache));
+	let canary_fut =
+		tokio::spawn(scrape_branch(client1, Channel::Canary, use_cache));
 	let stable_build = stable_fut
 		.await
 		.context("Join error")??;
@@ -237,6 +260,52 @@ struct TestPrArgs {
 }
 
 static REPO_LOCK: Mutex<()> = Mutex::const_new(());
+const FETCH_HEAD: &str = "FETCH_HEAD";
+
+/// blocking by proxy of libgit2
+#[instrument]
+fn checkout_pr(repo_dir: &Path, pr_num: u64) -> Result<()> {
+	let repo = Repository::open(repo_dir).with_context(|| {
+		format!("Failed to open repo at {}", repo_dir.display())
+	})?;
+	debug!("opened repo");
+	let mut remote = repo
+		.find_remote("origin")
+		.context("Failed to find remote `origin`")?;
+	debug!("found remote");
+	let mut cbs = RemoteCallbacks::new();
+	cbs.credentials(|url, username, credential_type| {
+		debug!("running credentials callback for url: {url}, username: {username:?}, credential_type: {credential_type:?}");
+		Cred::credential_helper(
+			&git2::Config::open_default()?,
+			url,
+			username,
+		)
+	});
+	let mut fo = FetchOptions::new();
+	fo.remote_callbacks(cbs);
+	debug!("Fetching remote");
+	remote
+		.fetch(&[format!("refs/pull/{pr_num}/head")], Some(&mut fo), None)
+		.with_context(|| format!("Failed to fetch {pr_num}"))?;
+	debug!("Fetched remote");
+	let commit = repo
+		.find_reference(FETCH_HEAD)
+		.context("Failed to find FETCH_HEAD after fetch")?
+		.peel_to_commit()
+		.context("FETCH_HEAD does not point to a commit")?;
+	debug!("Found commit {}", commit.id());
+	repo.checkout_tree(
+		commit.as_object(),
+		Some(CheckoutBuilder::new().force()),
+	)
+	.context("Failed to checkout pr to tree")?;
+	debug!("Checked out commit {}", commit.id());
+	repo.set_head_detached(commit.id())
+		.context("Failed to detach HEAD onto pr commit")?;
+	debug!("Detached HEAD onto commit {}", commit.id());
+	Ok(())
+}
 
 #[command]
 #[arg_parser = TestPrArgs]
@@ -261,40 +330,15 @@ async fn test_pr(
 		.vencord_path
 		.clone();
 	let plugins = {
-		let _ = REPO_LOCK.lock().await;
-		let cmd = process::Command::new("git")
-			.arg("fetch")
-			.arg("origin")
-			.arg(format!("pull/{}/head", args.pr_number))
-			.current_dir(&venord_dir)
-			.status()
-			.await
-			.context("Failed to fetch pr branch")?;
-		if !cmd.success() {
-			bail!("Failed to fetch pr branch: git exited with status {cmd}");
-		}
-		let cmd = process::Command::new("git")
-			.arg("checkout")
-			.arg("FETCH_HEAD")
-			.current_dir(&venord_dir)
-			.status()
-			.await
-			.context("Failed to checkout pr branch")?;
-		if !cmd.success() {
-			bail!(
-				"Failed to checkout pr {} branch: git exited with status {cmd}",
-				args.pr_number
-			);
-		}
-
-		let vencord_dir = PathBuf::from(venord_dir);
+		_ = REPO_LOCK.lock().await;
 		let opts = tokio::task::spawn_blocking(move || {
+			let repo_dir = PathBuf::from(venord_dir);
+			checkout_pr(&repo_dir, args.pr_number)
+				.context("Failed to checkout pr")?;
 			anyhow::Ok(reporter::vc::VencordOpts {
-				plugin_dirs: reporter::vc::infer_plugin_dirs(
-					vencord_dir.as_ref(),
-				)
-				.context("Failed to infer plugin dirs")?,
-				vencord_dir,
+				plugin_dirs: reporter::vc::infer_plugin_dirs(repo_dir.as_ref())
+					.context("Failed to infer plugin dirs")?,
+				vencord_dir: repo_dir,
 			})
 		})
 		.await
@@ -367,7 +411,11 @@ async fn test_pr(
 		.color(Color::RED);
 	if errs.is_empty() {
 		embed = embed.color(Color::DARK_GREEN);
-		embed = embed.field("No errors found!", "All patches that can be statically tested are working", false);
+		embed = embed.field(
+			"No errors found!",
+			"All patches that can be statically tested are working",
+			false,
+		);
 	} else {
 		errs.sort_unstable_by_key(ReporterError::plugin_id);
 		let fields_iter = errs.into_iter().map(|err| {

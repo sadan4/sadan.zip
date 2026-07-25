@@ -7,6 +7,7 @@ use std::{
 use anyhow::{Context as _, Result, bail};
 use bitflags::bitflags;
 use clap::{ArgMatches, CommandFactory, FromArgMatches};
+use derive_more::{Deref, DerefMut, From};
 use futures_core::future::BoxFuture;
 use itertools::Itertools;
 use serenity::{
@@ -42,32 +43,37 @@ use crate::{
 
 mod check;
 
-pub struct CommandFramework {
+pub struct CommandFrameworkInner {
 	root_cmd: &'static Command,
-	prefixes: Vec<Cow<'static, str>>,
+	prefixes: RwLock<Vec<Cow<'static, str>>>,
 	/// When set, slash commands are registered to this guild (instant
 	/// propagation); otherwise they are registered globally.
-	guild: Option<GuildId>,
-	data: Arc<Mutex<TypeMap>>,
+	guild: OnceLock<Option<GuildId>>,
+	data: OnceLock<Arc<RwLock<TypeMap>>>,
 }
+
+#[derive(Clone, Deref, DerefMut)]
+pub struct CommandFramework(Arc<CommandFrameworkInner>);
 
 impl CommandFramework {
 	pub fn new(root_cmd: &'static Command) -> Self {
-		Self {
+		Self(Arc::new(CommandFrameworkInner {
 			root_cmd,
-			prefixes: Vec::new(),
-			guild: None,
-			data: Arc::new(Mutex::new(TypeMap::new())),
-		}
+			prefixes: RwLock::const_new(Vec::new()),
+			guild: OnceLock::new(),
+			data: OnceLock::new(),
+		}))
 	}
 
+	/// This is a clone of [`serenity::all::Context::data`] and [`serenity::Client::data`]
 	pub async fn get_data<T>(&self) -> Option<T::Value>
 	where
 		T: TypeMapKey,
 		T::Value: Clone,
 	{
 		self.data
-			.lock()
+			.get()?
+			.read()
 			.await
 			.get::<T>()
 			.cloned()
@@ -77,34 +83,43 @@ impl CommandFramework {
 	where
 		T: TypeMapKey,
 	{
-		self.data
-			.lock()
-			.await
-			.insert::<T>(value);
+		if let Some(data) = self.data.get() {
+			data.write().await.insert::<T>(value);
+		}
 	}
 	/// Register slash commands to a single guild (instant propagation, ideal
 	/// for development) instead of globally.
-	pub fn with_guild(mut self, guild: impl Into<Option<GuildId>>) -> Self {
-		self.guild = guild.into();
-		self
+	pub async fn with_guild(&self, guild: impl Into<Option<GuildId>>) {
+		self.guild
+			.set(guild.into())
+			.expect("guild can only be set once");
 	}
 
-	pub fn with_prefixes<T, I>(mut self, prefixes: I) -> Self
+	pub fn init_data(&self, data: Arc<RwLock<TypeMap>>) {
+		if let Err(_) = self.data.set(data) {
+			panic!("data can only be set once");
+		}
+	}
+
+	pub async fn with_prefixes<T, I>(&self, prefixes: I)
 	where
 		T: Into<Cow<'static, str>>,
 		I: Iterator<Item = T>,
 	{
 		self.prefixes
+			.write()
+			.await
 			.extend(prefixes.map(Into::into));
-		self
 	}
 
-	pub fn with_prefix<T>(mut self, prefix: T) -> Self
+	pub async fn with_prefix<T>(&self, prefix: T)
 	where
 		T: Into<Cow<'static, str>>,
 	{
-		self.prefixes.push(prefix.into());
-		self
+		self.prefixes
+			.write()
+			.await
+			.push(prefix.into());
 	}
 
 	fn walk_command_tree<'a, 'b>(
@@ -285,7 +300,7 @@ impl CommandFramework {
 	}
 
 	pub async fn execute_command(&self, ctx: &Context, msg: &Message) -> () {
-		for prefix in &self.prefixes {
+		for prefix in self.prefixes.read().await.iter() {
 			if msg.content.starts_with(prefix.as_ref()) {
 				let cctx = CommandCtx::Prefix { msg };
 				let content = &msg.content[prefix.len()..];
@@ -487,7 +502,8 @@ impl OpaqueExecutor {
 
 	pub const fn __todo() -> Self {
 		Self::from_const(|_| {
-			Box::pin(future::ready(Ok(Box::new(Self::dummy_executor()) as Box<dyn CommandExecutor + Send + Sync>)))
+			Box::pin(future::ready(Ok(Box::new(Self::dummy_executor())
+				as Box<dyn CommandExecutor + Send + Sync>)))
 		})
 	}
 }
