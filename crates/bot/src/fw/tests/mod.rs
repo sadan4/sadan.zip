@@ -4,9 +4,9 @@ use super::*;
 fn cuts_plain_text_at_a_codepoint_boundary() {
 	let s = "héllo";
 	// the budget counts codepoints, not the bytes the é takes up
-	assert_eq!(ansi_truncation_point(s, 5), s.len());
-	assert_eq!(ansi_truncation_point(s, 9), s.len());
-	assert_eq!(&s[..ansi_truncation_point(s, 2)], "hé");
+	assert_eq!(crate::util::ansi_truncation_point(s, 5), s.len());
+	assert_eq!(crate::util::ansi_truncation_point(s, 9), s.len());
+	assert_eq!(&s[..crate::util::ansi_truncation_point(s, 2)], "hé");
 }
 
 #[test]
@@ -15,17 +15,20 @@ fn never_cuts_inside_a_control_sequence() {
 	// every cut that would land inside the sequence falls back to its
 	// start
 	for max in 2..=8 {
-		assert_eq!(&s[..ansi_truncation_point(s, max)], "ab");
+		assert_eq!(&s[..crate::util::ansi_truncation_point(s, max)], "ab");
 	}
-	assert_eq!(&s[..ansi_truncation_point(s, 9)], "ab\u{1b}[1;31m");
+	assert_eq!(
+		&s[..crate::util::ansi_truncation_point(s, 9)],
+		"ab\u{1b}[1;31m"
+	);
 }
 
 #[test]
 fn never_cuts_inside_a_two_character_escape() {
 	let s = "a\u{1b}Mb";
-	assert_eq!(&s[..ansi_truncation_point(s, 1)], "a");
-	assert_eq!(&s[..ansi_truncation_point(s, 2)], "a");
-	assert_eq!(&s[..ansi_truncation_point(s, 3)], "a\u{1b}M");
+	assert_eq!(&s[..crate::util::ansi_truncation_point(s, 1)], "a");
+	assert_eq!(&s[..crate::util::ansi_truncation_point(s, 2)], "a");
+	assert_eq!(&s[..crate::util::ansi_truncation_point(s, 3)], "a\u{1b}M");
 }
 
 mod command_framework {
@@ -37,10 +40,10 @@ mod command_framework {
 	use anyhow::Result;
 	use clap::{ArgMatches, FromArgMatches, Parser};
 	use macros::{command, executor};
-	use serenity::all::{Context, Message, UserId};
+	use serenity::all::{Context, UserId};
 
 	use crate::{
-		fw::{Command, CommandFlags, CommandFramework},
+		fw::{Command, CommandCtx, CommandFlags, CommandFramework},
 		util::{FROM_REPLY, REFERENCED_USER, UserArg},
 	};
 
@@ -60,21 +63,29 @@ mod command_framework {
 
 	#[command]
 	#[arg_parser = RefArgs]
-	async fn refcmd(args: RefArgs, ctx: &Context, msg: &Message) -> Result<()> {
-		let _ = (args, ctx, msg);
+	async fn refcmd(
+		args: RefArgs,
+		ctx: &Context,
+		cctx: &CommandCtx<'_>,
+	) -> Result<()> {
+		let _ = (args, ctx, cctx);
 		Ok(())
 	}
 
 	#[command]
 	#[arg_parser = EchoArgs]
-	async fn echo(args: EchoArgs, ctx: &Context, msg: &Message) -> Result<()> {
-		let _ = (args, ctx, msg);
+	async fn echo(
+		args: EchoArgs,
+		ctx: &Context,
+		cctx: &CommandCtx<'_>,
+	) -> Result<()> {
+		let _ = (args, ctx, cctx);
 		Ok(())
 	}
 
 	#[command]
-	async fn ping(ctx: &Context, msg: &Message) -> Result<()> {
-		let _ = (ctx, msg);
+	async fn ping(ctx: &Context, cctx: &CommandCtx<'_>) -> Result<()> {
+		let _ = (ctx, cctx);
 		Ok(())
 	}
 
@@ -94,8 +105,12 @@ mod command_framework {
 	#[group]
 	#[arg_parser = EchoArgs]
 	#[sub_cmds(ping)]
-	async fn grp(args: EchoArgs, ctx: &Context, msg: &Message) -> Result<()> {
-		let _ = (args, ctx, msg);
+	async fn grp(
+		args: EchoArgs,
+		ctx: &Context,
+		cctx: &CommandCtx<'_>,
+	) -> Result<()> {
+		let _ = (args, ctx, cctx);
 		Ok(())
 	}
 
@@ -108,10 +123,10 @@ mod command_framework {
 	}
 
 	impl Counter {
-		fn new(_: &CommandFramework) -> future::Ready<Self> {
-			future::ready(Self {
+		fn new(_: &CommandFramework) -> future::Ready<Result<Self>> {
+			future::ready(Ok(Self {
 				n: AtomicU64::new(0),
-			})
+			}))
 		}
 	}
 
@@ -119,12 +134,11 @@ mod command_framework {
 	async fn counter(
 		this: &Counter,
 		ctx: &Context,
-		msg: &Message,
+		cctx: &CommandCtx<'_>,
 		cmd: &Command,
 		fw: &CommandFramework,
-		args: &ArgMatches,
 	) -> Result<()> {
-		let _ = (ctx, msg, cmd, fw, args);
+		let _ = (ctx, cctx, cmd, fw);
 		this.n.fetch_add(1, Ordering::Relaxed);
 		Ok(())
 	}
@@ -319,5 +333,229 @@ mod command_framework {
 			.find_matching_command("counter ping")
 			.unwrap();
 		assert_eq!(child.names[0], "ping");
+	}
+}
+
+mod slash {
+	use std::collections::HashMap;
+
+	use anyhow::Result;
+	use clap::{FromArgMatches, Parser};
+	use macros::{SlashArgs, command};
+	use serenity::all::{Context, ResolvedValue};
+
+	use crate::{
+		fw::{
+			Availability,
+			CommandCtx,
+			CommandFramework,
+			slash::render_arg_tokens,
+		},
+		util::UserArg,
+	};
+
+	#[derive(Parser)]
+	struct EchoArgs {
+		#[arg(long)]
+		text: String,
+		#[arg(long, default_value_t = 1)]
+		count: u8,
+	}
+
+	#[derive(Parser)]
+	struct GreetArgs {
+		who: String,
+	}
+
+	/// Echo the given text.
+	#[command]
+	#[arg_parser = EchoArgs]
+	async fn echo(
+		_a: EchoArgs,
+		_c: &Context,
+		_x: &CommandCtx<'_>,
+	) -> Result<()> {
+		Ok(())
+	}
+
+	/// Greet the given user.
+	#[command]
+	#[arg_parser = GreetArgs]
+	async fn greet(
+		_a: GreetArgs,
+		_c: &Context,
+		_x: &CommandCtx<'_>,
+	) -> Result<()> {
+		Ok(())
+	}
+
+	/// Only reachable via slash.
+	#[command]
+	#[slash_only]
+	async fn slashonly(_c: &Context, _x: &CommandCtx<'_>) -> Result<()> {
+		Ok(())
+	}
+
+	/// Only reachable via prefix text.
+	#[command]
+	#[prefix_only]
+	async fn prefixonly(_c: &Context, _x: &CommandCtx<'_>) -> Result<()> {
+		Ok(())
+	}
+
+	#[derive(Parser, SlashArgs)]
+	struct NativeArgs {
+		who: UserArg,
+	}
+
+	/// Reference a user with a native picker.
+	#[command]
+	#[arg_parser = NativeArgs]
+	#[slash_args]
+	async fn native(
+		_a: NativeArgs,
+		_c: &Context,
+		_x: &CommandCtx<'_>,
+	) -> Result<()> {
+		Ok(())
+	}
+
+	#[command]
+	#[sub_cmds(echo, greet, slashonly, prefixonly, native)]
+	#[group]
+	#[root]
+	struct SlashRoot;
+
+	fn fw() -> CommandFramework {
+		CommandFramework::new(&SLASH_ROOT_CMD)
+	}
+
+	fn json_names(cmds: &[serenity::all::CreateCommand]) -> Vec<String> {
+		serde_json::to_value(cmds)
+			.unwrap()
+			.as_array()
+			.unwrap()
+			.iter()
+			.map(|c| c["name"].as_str().unwrap().to_owned())
+			.collect()
+	}
+
+	#[test]
+	fn availability_defaults_and_flags() {
+		assert_eq!(ECHO_CMD.availability, Availability::all());
+		assert_eq!(SLASHONLY_CMD.availability, Availability::SLASH);
+		assert_eq!(PREFIXONLY_CMD.availability, Availability::PREFIX);
+	}
+
+	#[test]
+	fn build_excludes_prefix_only_commands() {
+		let names = json_names(&fw().build_slash_commands());
+		assert!(names.contains(&"echo".to_owned()));
+		assert!(names.contains(&"greet".to_owned()));
+		assert!(names.contains(&"slashonly".to_owned()));
+		// prefix-only commands are not registered as slash commands
+		assert!(!names.contains(&"prefixonly".to_owned()));
+	}
+
+	#[test]
+	fn schema_maps_clap_args_to_string_options() {
+		let cmds = fw().build_slash_commands();
+		let json = serde_json::to_value(&cmds).unwrap();
+		let echo = json
+			.as_array()
+			.unwrap()
+			.iter()
+			.find(|c| c["name"] == "echo")
+			.unwrap();
+		// the description is captured from the handler's `///` doc comment
+		assert_eq!(echo["description"], "Echo the given text.");
+		let options = echo["options"].as_array().unwrap();
+		let text = options
+			.iter()
+			.find(|o| o["name"] == "text")
+			.unwrap();
+		// default String-reuse: type 3 == String; `text` has no default so it
+		// is required
+		assert_eq!(text["type"], 3);
+		assert_eq!(text["required"], true);
+		let count = options
+			.iter()
+			.find(|o| o["name"] == "count")
+			.unwrap();
+		// `count` has a default, so it is optional
+		assert_eq!(count["required"], false);
+	}
+
+	#[test]
+	fn lowers_long_flag_options_to_tokens() {
+		let clap_cmd = ECHO_CMD.parser.get(&ECHO_CMD);
+		let mut provided = HashMap::new();
+		provided.insert("text", ResolvedValue::String("hi"));
+		let tokens = render_arg_tokens(clap_cmd, &provided).unwrap();
+		assert_eq!(tokens, vec!["--text".to_owned(), "hi".to_owned()]);
+
+		// the synthesized tokens must round-trip back through the normal
+		// command pipeline
+		let fw = fw();
+		let full = std::iter::once("echo".to_owned())
+			.chain(tokens)
+			.collect::<Vec<_>>();
+		let (cmd, matches) = fw.match_command_tokens(full).unwrap();
+		assert_eq!(cmd.names[0], "echo");
+		let args = EchoArgs::from_arg_matches(&matches).unwrap();
+		assert_eq!(args.text, "hi");
+		assert_eq!(args.count, 1);
+	}
+
+	#[test]
+	fn lowers_positional_options_to_tokens() {
+		let clap_cmd = GREET_CMD.parser.get(&GREET_CMD);
+		let mut provided = HashMap::new();
+		provided.insert("who", ResolvedValue::String("bob"));
+		let tokens = render_arg_tokens(clap_cmd, &provided).unwrap();
+		// positional args are emitted as bare values, not `--who bob`
+		assert_eq!(tokens, vec!["bob".to_owned()]);
+
+		let fw = fw();
+		let (cmd, matches) = fw
+			.match_command_tokens(vec!["greet".to_owned(), "bob".to_owned()])
+			.unwrap();
+		assert_eq!(cmd.names[0], "greet");
+		let args = GreetArgs::from_arg_matches(&matches).unwrap();
+		assert_eq!(args.who, "bob");
+	}
+
+	#[test]
+	fn native_typing_overrides_option_kind() {
+		let cmds = fw().build_slash_commands();
+		let json = serde_json::to_value(&cmds).unwrap();
+		let native = json
+			.as_array()
+			.unwrap()
+			.iter()
+			.find(|c| c["name"] == "native")
+			.unwrap();
+		let who = native["options"]
+			.as_array()
+			.unwrap()
+			.iter()
+			.find(|o| o["name"] == "who")
+			.unwrap();
+		// `#[slash_args]` promotes the `UserArg` field to a native User picker
+		// (type 6) instead of the default String (type 3)
+		assert_eq!(who["type"], 6);
+	}
+
+	#[test]
+	fn resolve_node_walks_the_tree() {
+		let fw = fw();
+		let node = fw
+			.resolve_node(&["echo".to_owned()])
+			.unwrap();
+		assert_eq!(node.names[0], "echo");
+		assert!(
+			fw.resolve_node(&["nope".to_owned()])
+				.is_none()
+		);
 	}
 }

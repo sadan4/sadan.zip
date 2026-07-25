@@ -3,6 +3,7 @@ use clap::{Args, Subcommand};
 
 use crate::Runnable;
 
+mod bot_config;
 mod client;
 mod client_grammars;
 mod discord_intl;
@@ -32,6 +33,7 @@ impl Runnable for Command {
 			Target::ClientTsApi(c) => c.run(),
 			Target::Client(c) => c.run(),
 			Target::DiscordIntl(c) => c.run(),
+			Target::BotConfig(c) => c.run(),
 		}
 	}
 }
@@ -57,4 +59,6 @@ enum Target {
 	/// Convert the discord intl key mappings to a compressed binary
 	/// format for `WebpackAstParser` and other rust crates
 	DiscordIntl(discord_intl::Command),
+	/// Generate the JSON schema for the bot config (`bot_config::Config`)
+	BotConfig(bot_config::Command),
 }

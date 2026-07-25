@@ -137,6 +137,73 @@ pub fn group(attrs: &mut Vec<Attribute>) -> bool {
 	take_flag_attr(attrs, "group").is_some()
 }
 
+/// Parse `#[prefix_only]` / `#[slash_only]` into an `Availability` expression.
+/// Absent both, a command is available through every front-end.
+fn availability(attrs: &mut Vec<Attribute>) -> syn::Result<TokenStream> {
+	let prefix_only = take_flag_attr(attrs, "prefix_only");
+	let slash_only = take_flag_attr(attrs, "slash_only");
+	if let (Some(_), Some(slash)) = (&prefix_only, &slash_only) {
+		return Err(se(
+			slash,
+			"a command cannot be both `#[prefix_only]` and `#[slash_only]`",
+		));
+	}
+	Ok(if prefix_only.is_some() {
+		quote! { crate::fw::Availability::PREFIX }
+	} else if slash_only.is_some() {
+		quote! { crate::fw::Availability::SLASH }
+	} else {
+		quote! { crate::fw::Availability::all() }
+	})
+}
+
+/// Parse the `#[slash_args]` flag into the command's `slash_schema` field. When
+/// set, the command's `arg_parser` must derive `SlashArgs`, and its native
+/// option kinds are used at registration.
+fn slash_schema(
+	attrs: &mut Vec<Attribute>,
+	parser: Option<&Path>,
+) -> syn::Result<TokenStream> {
+	let Some(flag) = take_flag_attr(attrs, "slash_args") else {
+		return Ok(quote! { ::std::option::Option::None });
+	};
+	let Some(parser) = parser else {
+		return Err(se(
+			&flag,
+			"`#[slash_args]` requires `#[arg_parser = ...]`",
+		));
+	};
+	Ok(quote! {
+		::std::option::Option::Some(
+			<#parser as crate::fw::SlashSchema>::slash_option_kinds
+				as crate::fw::SlashSchemaFn
+		)
+	})
+}
+
+/// Collect `///` doc comments into the command's description. Discord requires
+/// slash commands to carry a description; when none is written, `None` is
+/// emitted and registration falls back to the command name.
+fn command_desc(attrs: &[Attribute]) -> TokenStream {
+	let mut lines: Vec<String> = Vec::new();
+	for attr in attrs {
+		if let Meta::NameValue(kv) = &attr.meta
+			&& kv.path.is_ident("doc")
+			&& let Expr::Lit(ExprLit {
+				lit: Lit::Str(s), ..
+			}) = &kv.value
+		{
+			lines.push(s.value().trim().to_owned());
+		}
+	}
+	let joined = lines.join(" ").trim().to_owned();
+	if joined.is_empty() {
+		quote! { ::std::option::Option::None }
+	} else {
+		quote! { ::std::option::Option::Some(#joined) }
+	}
+}
+
 pub fn arg_parser(attrs: &mut Vec<Attribute>) -> syn::Result<Option<Path>> {
 	let Some(kv) = take_kv_attr(attrs, "arg_parser") else {
 		return Ok(None);
@@ -218,7 +285,6 @@ pub fn screaming_snake(s: &[&str]) -> String {
 struct CommandNames {
 	struct_ident: Ident,
 	cmd_ident: Ident,
-	executor_ident: Ident,
 	context_type_ident: Ident,
 }
 
@@ -231,10 +297,6 @@ impl CommandNames {
 			),
 			cmd_ident: Ident::new(
 				&screaming_snake(&[name, "CMD"]),
-				Span::call_site(),
-			),
-			executor_ident: Ident::new(
-				&screaming_snake(&[name, "EXECUTOR"]),
 				Span::call_site(),
 			),
 			context_type_ident: Ident::new(
@@ -259,8 +321,10 @@ fn make_zero_context_factory(name: &Ident) -> TokenStream {
 			) -> ::std::pin::Pin<
 				::std::boxed::Box<
 					dyn ::std::future::Future<
-						Output = ::std::boxed::Box<
-							dyn crate::fw::CommandExecutor + ::std::marker::Send + ::std::marker::Sync + 'static
+						Output = ::anyhow::Result<
+							::std::boxed::Box<
+								dyn crate::fw::CommandExecutor + ::std::marker::Send + ::std::marker::Sync + 'static
+							>,
 						>,
 					> + ::std::marker::Send + 'a
 				>,
@@ -274,12 +338,14 @@ fn make_zero_context_factory(name: &Ident) -> TokenStream {
 				// SAFETY: this is safe because #name is a ZST
 				::std::boxed::Box::pin(
 					::std::future::ready(
-						::std::boxed::Box::new(unsafe {
-							::std::mem::MaybeUninit::<#name>::uninit().assume_init()
-						})
-							as ::std::boxed::Box<
-								dyn crate::fw::CommandExecutor + ::std::marker::Send + ::std::marker::Sync + 'static
-							>,
+						::std::result::Result::Ok(
+							::std::boxed::Box::new(unsafe {
+								::std::mem::MaybeUninit::<#name>::uninit().assume_init()
+							})
+								as ::std::boxed::Box<
+									dyn crate::fw::CommandExecutor + ::std::marker::Send + ::std::marker::Sync + 'static
+								>,
+						),
 					),
 				)
 			}
@@ -292,11 +358,13 @@ fn make_init_factory(init: &Path) -> TokenStream {
 	quote! {
 		crate::fw::OpaqueExecutor::from_const(|__fw| {
 			::std::boxed::Box::pin(async move {
-				::std::boxed::Box::new(#init(__fw).await)
-					as ::std::boxed::Box<
-						dyn crate::fw::CommandExecutor
-							+ ::std::marker::Send + ::std::marker::Sync + 'static
-					>
+				::std::result::Result::Ok(
+					::std::boxed::Box::new(#init(__fw).await?)
+						as ::std::boxed::Box<
+							dyn crate::fw::CommandExecutor
+								+ ::std::marker::Send + ::std::marker::Sync + 'static
+						>
+				)
 			})
 		})
 	}
@@ -372,6 +440,19 @@ fn command_struct(
 	let is_group = group(&mut st.attrs);
 	let is_root_group =
 		is_group && take_flag_attr(&mut st.attrs, "root").is_some();
+	let early_init = take_flag_attr(&mut st.attrs, "early_init");
+	if let Some(attr) = &early_init {
+		if init.is_none() {
+			return Err(se(
+				attr,
+				"`#[early_init]` requires `#[init = path]`: only stateful \
+				 commands have session context to pre-load",
+			));
+		}
+	}
+	let availability = availability(&mut st.attrs)?;
+	let slash_schema = slash_schema(&mut st.attrs, arg_parser.as_ref())?;
+	let desc = command_desc(&st.attrs);
 	let CommandNames {
 		cmd_ident,
 		context_type_ident,
@@ -383,6 +464,9 @@ fn command_struct(
 		.then(|| quote! {.union(crate::fw::CommandFlags::ROOT_GROUP)});
 	let group_flag =
 		is_group.then(|| quote! {.union(crate::fw::CommandFlags::GROUP)});
+	let early_init_flag = early_init
+		.is_some()
+		.then(|| quote! {.union(crate::fw::CommandFlags::EAGER_INIT)});
 	let parser = make_parser(arg_parser.as_ref(), &cmd_ident);
 	// a pure group is a marker type that is never instantiated
 	let group_dead_code = is_group.then(|| quote! { #[allow(dead_code)] });
@@ -394,11 +478,13 @@ fn command_struct(
 			checks: &[#(#checks),*],
 			names: &[#name],
 			parser: #parser,
-			desc: ::std::option::Option::Some("TODO: handle descriptions in macro"),
+			desc: #desc,
 			usage_location: crate::fw::UsageLocation::all(),
 			sub_cmds: &[#(& #sub_cmds),*],
 			executor: #factory,
-			flags: crate::fw::CommandFlags::NONE #group_flag #root_group_flag,
+			flags: crate::fw::CommandFlags::NONE #group_flag #root_group_flag #early_init_flag,
+			availability: #availability,
+			slash_schema: #slash_schema,
 		};
 
 		pub type #context_type_ident = #context_struct_ident;
@@ -436,13 +522,13 @@ fn make_executor_impl_for_command_func(
 			async fn execute(
 				&self,
 				__ctx: &::serenity::all::Context,
-				__msg: &::serenity::all::Message,
+				__cctx: &crate::fw::CommandCtx<'_>,
 				__cmd: &crate::fw::Command,
 				__fw: &crate::fw::CommandFramework,
 				__args: &::clap::ArgMatches,
 			) -> ::anyhow::Result<()> {
 				let __parsed_args = #parse_args;
-				let __result: ::anyhow::Result<()> = #func_ident(#pass_args __ctx, __msg, #pass_extra_args).await;
+				let __result: ::anyhow::Result<()> = #func_ident(#pass_args __ctx, __cctx, #pass_extra_args).await;
 				__result
 			}
 		}
@@ -485,6 +571,9 @@ fn command_func(
 	} = CommandNames::new(&name);
 	let sub_cmds = sub_cmds(&mut func.attrs)?;
 	let is_group = group(&mut func.attrs);
+	let availability = availability(&mut func.attrs)?;
+	let slash_schema = slash_schema(&mut func.attrs, parser.as_ref())?;
+	let desc = command_desc(&func.attrs);
 	let group_flag =
 		is_group.then(|| quote! {.union(crate::fw::CommandFlags::GROUP)});
 	let executor_impl = make_executor_impl_for_command_func(
@@ -507,14 +596,63 @@ fn command_func(
 			checks: &[#(#checks),*],
 			names: &[#name],
 			parser: #parser,
-			desc: ::std::option::Option::Some("TODO: handle descriptions in macro"),
+			desc: #desc,
 			usage_location: crate::fw::UsageLocation::all(),
 			sub_cmds: &[#(& #sub_cmds),*],
 			executor: #factory,
 			flags: crate::fw::CommandFlags::NONE #group_flag,
+			availability: #availability,
+			slash_schema: #slash_schema,
 		};
 	};
 	Ok(res)
+}
+
+/// If `ty` is `Option<T>`, returns `T`; otherwise returns `ty` unchanged. Used
+/// so an optional argument registers with the same native option kind as its
+/// required counterpart.
+fn unwrap_option(ty: &syn::Type) -> &syn::Type {
+	if let syn::Type::Path(tp) = ty
+		&& tp.qself.is_none()
+		&& let Some(seg) = tp.path.segments.last()
+		&& seg.ident == "Option"
+		&& let PathArguments::AngleBracketed(args) = &seg.arguments
+		&& let Some(syn::GenericArgument::Type(inner)) = args.args.first()
+	{
+		return inner;
+	}
+	ty
+}
+
+/// Derive `SlashSchema`: emit each field's `(name, discord_kind)` by reading
+/// the field type through the `SlashArg` trait.
+pub fn slash_args_derive(item: TokenStream) -> syn::Result<TokenStream> {
+	let input: ItemStruct = parse2(item)?;
+	let ident = &input.ident;
+	let mut entries = Vec::new();
+	for field in &input.fields {
+		let Some(fname) = &field.ident else {
+			return Err(se(
+				&field.ty,
+				"SlashArgs can only be derived for structs with named fields",
+			));
+		};
+		let name = fname.to_string();
+		let ty = unwrap_option(&field.ty);
+		entries.push(quote! {
+			(#name, <#ty as crate::fw::SlashArg>::KIND)
+		});
+	}
+	Ok(quote! {
+		impl crate::fw::SlashSchema for #ident {
+			fn slash_option_kinds() -> ::std::vec::Vec<(
+				&'static str,
+				::serenity::all::CommandOptionType,
+			)> {
+				::std::vec![ #(#entries),* ]
+			}
+		}
+	})
 }
 
 pub fn command(
@@ -529,14 +667,14 @@ pub fn command(
 }
 
 fn verify_command_func_sig(sig: &Signature) -> syn::Result<()> {
-	if let Some(kw_const) = sig.constness {
-		return Err(se(&kw_const, "executor function must not be const"));
+	if let Some(kw_const) = &sig.constness {
+		return Err(se(kw_const, "executor function must not be const"));
 	}
 	if sig.asyncness.is_none() {
 		return Err(se(&sig.ident, "executor function must be async"));
 	}
-	if let Some(kw_unsafe) = sig.unsafety {
-		return Err(se(&kw_unsafe, "executor function must not be unsafe"));
+	if let Some(kw_unsafe) = &sig.unsafety {
+		return Err(se(kw_unsafe, "executor function must not be unsafe"));
 	}
 	if let Some(abi) = &sig.abi {
 		return Err(se(abi, "executor function must not have an explicit ABI"));
@@ -553,38 +691,83 @@ fn verify_command_func_sig(sig: &Signature) -> syn::Result<()> {
 	Ok(())
 }
 
-fn verify_executor_signature(sig: &Signature) -> syn::Result<()> {
-	verify_command_func_sig(sig)?;
-	if sig.inputs.len() != 6 {
-		return Err(se(
-			&sig.inputs.span(),
-			"executor function must have exactly 6 parameters.\
-		\nExpected signature: \
-		`async fn cmd_name(this: &CommandData, ctx: &Context, msg: &Message, cmd: &Command, fw: &CommandFramework, args: &ArgMatches) -> anyhow::Result<()>`",
-		));
+/// Extracts the referenced type of a shared reference `&T`, or `None` for a
+/// non-reference type.
+fn reference_inner(ty: &syn::Type) -> Option<&syn::Type> {
+	match ty {
+		syn::Type::Reference(r) => Some(&r.elem),
+		_ => None,
 	}
-	for arg in &sig.inputs {
-		let FnArg::Typed(_arg) = arg else {
-			return Err(se(
-				arg,
-				"executor function must not have a receiver argument",
-			));
-		};
-	}
-	Ok(())
 }
 
 pub fn executor(
 	_attr: TokenStream,
 	item: TokenStream,
 ) -> syn::Result<TokenStream> {
-	let mut input: ItemFn = parse2(item)?;
-	verify_executor_signature(&input.sig)?;
+	let input: ItemFn = parse2(item)?;
+	verify_command_func_sig(&input.sig)?;
 	let fn_ident = &input.sig.ident;
-	let name = command_name(&mut input.attrs, fn_ident)?;
-	let CommandNames {
-		context_type_ident, ..
-	} = CommandNames::new(&name);
+
+	// collect the typed parameters; a receiver (`self`) is not allowed
+	let mut params = Vec::new();
+	for arg in &input.sig.inputs {
+		let FnArg::Typed(t) = arg else {
+			return Err(se(
+				arg,
+				"executor function must not have a receiver argument",
+			));
+		};
+		params.push(t);
+	}
+
+	// a leading parameter passed *by value* is the parsed argument struct; it is
+	// deserialized from the `ArgMatches` via `FromArgMatches`. Everything the
+	// handler otherwise takes is by shared reference, so this is unambiguous.
+	let (arg_parse, rest) = match params.split_first() {
+		Some((first, tail)) if reference_inner(&first.ty).is_none() => {
+			let arg_ty = &first.ty;
+			(
+				Some(quote! {
+					let __parsed_args =
+						<#arg_ty as ::clap::FromArgMatches>::from_arg_matches(
+							__args,
+						)?;
+				}),
+				tail,
+			)
+		}
+		_ => (None, params.as_slice()),
+	};
+
+	// remaining, in order: `state: &State`, `ctx: &Context`,
+	// `cctx: &CommandCtx`, then optionally `cmd: &Command` and
+	// `fw: &CommandFramework`
+	if !(3..=5).contains(&rest.len()) {
+		return Err(se(
+			&input.sig.inputs,
+			"expected signature: `async fn handler(args: Args, state: &State, \
+			 ctx: &Context, cctx: &CommandCtx, cmd: &Command, fw: &CommandFramework)`\
+			 \nNOTE: `args` is optional; `cmd` and `fw` are optional trailing \
+			 parameters",
+		));
+	}
+	let Some(state_ty) = reference_inner(&rest[0].ty) else {
+		return Err(se(
+			&rest[0],
+			"the state parameter must be a shared reference `&State`",
+		));
+	};
+
+	let pass_args = arg_parse
+		.is_some()
+		.then(|| quote! { __parsed_args, });
+	let pass_extra = match rest.len() - 3 {
+		0 => quote! {},
+		1 => quote! { __cmd, },
+		2 => quote! { __cmd, __fw, },
+		_ => unreachable!("rest length checked to be 3..=5"),
+	};
+
 	let res = quote! {
 		// the executor is required to be async (it is called in an async
 		// context via the trait), even if a given handler never awaits
@@ -592,16 +775,19 @@ pub fn executor(
 		#input
 
 		#[::serenity::async_trait]
-		impl crate::fw::CommandExecutor for #context_type_ident {
+		impl crate::fw::CommandExecutor for #state_ty {
 			async fn execute(
 				&self,
-				ctx: &::serenity::all::Context,
-				msg: &::serenity::all::Message,
-				cmd: &crate::fw::Command,
-				fw: &crate::fw::CommandFramework,
-				args: &::clap::ArgMatches
+				__ctx: &::serenity::all::Context,
+				__cctx: &crate::fw::CommandCtx<'_>,
+				__cmd: &crate::fw::Command,
+				__fw: &crate::fw::CommandFramework,
+				__args: &::clap::ArgMatches,
 			) -> ::anyhow::Result<()> {
-				#fn_ident(self, ctx, msg, cmd, fw, args).await
+				#arg_parse
+				#fn_ident(
+					#pass_args self, __ctx, __cctx, #pass_extra
+				).await
 			}
 		}
 	};

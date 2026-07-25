@@ -5,6 +5,7 @@ dist-ssr
 *.local
 count.txt
 .env
+.bot.config.json
 .nitro
 .tanstack
 .wrangler

@@ -1,0 +1,7 @@
+{
+    "$schema": "./crates/bot_config/bot.config.schema.json",
+    "token": "bot token",
+    "home_guild_id": "guild id",
+    "use_ansi_clap_errors": true,
+    "bot_owners": []
+}

@@ -1,8 +1,9 @@
 mod cmds;
 mod fw;
 
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, fmt::Debug, sync::Arc};
 
+use derive_more::Deref;
 use serenity::{
 	Client,
 	all::{
@@ -23,6 +24,19 @@ struct Handler;
 
 struct ShardInfo(Arc<Mutex<HashMap<ShardId, ShardRunnerInfo>>>);
 
+#[derive(Deref)]
+struct BotConfig(Arc<bot_config::Config>);
+
+impl Debug for BotConfig {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		<bot_config::Config as Debug>::fmt(&self.0, f)
+	}
+}
+
+impl TypeMapKey for BotConfig {
+	type Value = BotConfig;
+}
+
 impl TypeMapKey for ShardInfo {
 	type Value = ShardInfo;
 }
@@ -40,11 +54,16 @@ impl EventHandler for Handler {
 }
 
 #[tokio::main]
-pub async fn run(token: &str) {
+pub async fn run(config: bot_config::Config) {
 	let intents = GatewayIntents::all();
 	let handler = Handler;
-	let cmds = fw::CommandFramework::new(&cmds::ROOT_CMD).with_prefix(";");
-	let mut client = Client::builder(token, intents)
+	// when set, slash commands register to this guild (instant); otherwise
+	// they are built for global registration but not auto-pushed
+	let guild = config.home_guild_id;
+	let cmds = fw::CommandFramework::new(&cmds::ROOT_CMD)
+		.with_prefix(";")
+		.with_guild(guild);
+	let mut client = Client::builder(&config.token, intents)
 		.event_handler(handler)
 		.event_handler(cmds)
 		.await
@@ -55,6 +74,11 @@ pub async fn run(token: &str) {
 		.write()
 		.await
 		.insert::<ShardInfo>(ShardInfo(runners));
+	client
+		.data
+		.write()
+		.await
+		.insert::<BotConfig>(BotConfig(Arc::new(config)));
 
 	if let Err(e) = client.start().await {
 		error!("Client error: {:?}", e);

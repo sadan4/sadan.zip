@@ -1,4 +1,8 @@
-use std::{borrow::Cow, sync::OnceLock, time::Instant};
+use std::{
+	borrow::Cow,
+	sync::{Arc, OnceLock},
+	time::Instant,
+};
 
 use anyhow::{Context as _, Result, bail};
 use bitflags::bitflags;
@@ -6,64 +10,83 @@ use clap::{ArgMatches, CommandFactory, FromArgMatches};
 use futures_core::future::BoxFuture;
 use itertools::Itertools;
 use serenity::{
-	all::{Context, EventHandler, Message},
+	all::{
+		Context,
+		CreateInteractionResponse,
+		CreateInteractionResponseMessage,
+		EventHandler,
+		GuildId,
+		Interaction,
+		Message,
+		ReactionType,
+		prelude::{TypeMap, TypeMapKey},
+	},
 	async_trait,
 	futures::future,
 };
 use shlex::Shlex;
-use tokio::sync::OnceCell;
+use tokio::sync::{Mutex, OnceCell, RwLock};
 use tracing::{error, info};
 
+mod ctx;
+mod slash;
+
+pub use check::{Check, OWNER, Status};
+pub use ctx::CommandCtx;
+pub use slash::{SlashArg, SlashSchema, SlashSchemaFn};
+
 use crate::{
-	fw::check::Check,
+	BotConfig,
 	util::{MESSAGE_RECEIVE_TIME, REFERENCED_USER, get_ref_user},
 };
 
-mod check {
-	use anyhow::Result;
-	use futures_core::future::BoxFuture;
-	use serenity::all::{Context, Message};
-
-	pub enum Reason {
-		Unknown,
-		User(String),
-		Log(String),
-		UserAndLog { user: String, log: String },
-	}
-
-	pub enum Status {
-		Pass,
-		Fail(Reason),
-	}
-
-	pub type CheckResult = Result<Status>;
-
-	pub type CheckFn = for<'fut> fn(
-		&'fut Context,
-		&'fut Message,
-		&'fut super::Command,
-		&'fut super::CommandFramework,
-	) -> BoxFuture<'fut, CheckResult>;
-
-	pub struct Check {
-		pub name: &'static str,
-		pub func: CheckFn,
-		pub check_for_help: bool,
-		pub hide_check: bool,
-	}
-}
+mod check;
 
 pub struct CommandFramework {
 	root_cmd: &'static Command,
 	prefixes: Vec<Cow<'static, str>>,
+	/// When set, slash commands are registered to this guild (instant
+	/// propagation); otherwise they are registered globally.
+	guild: Option<GuildId>,
+	data: Arc<Mutex<TypeMap>>,
 }
 
 impl CommandFramework {
-	pub const fn new(root_cmd: &'static Command) -> Self {
+	pub fn new(root_cmd: &'static Command) -> Self {
 		Self {
 			root_cmd,
 			prefixes: Vec::new(),
+			guild: None,
+			data: Arc::new(Mutex::new(TypeMap::new())),
 		}
+	}
+
+	pub async fn get_data<T>(&self) -> Option<T::Value>
+	where
+		T: TypeMapKey,
+		T::Value: Clone,
+	{
+		self.data
+			.lock()
+			.await
+			.get::<T>()
+			.cloned()
+	}
+
+	pub async fn set_data<T>(&self, value: T::Value)
+	where
+		T: TypeMapKey,
+	{
+		self.data
+			.lock()
+			.await
+			.insert::<T>(value);
+	}
+	/// Register slash commands to a single guild (instant propagation, ideal
+	/// for development) instead of globally.
+	pub fn with_guild(mut self, guild: impl Into<Option<GuildId>>) -> Self {
+		self.guild = guild.into();
+		self
 	}
 
 	pub fn with_prefixes<T, I>(mut self, prefixes: I) -> Self
@@ -107,18 +130,34 @@ impl CommandFramework {
 		&self,
 		msg: &str,
 	) -> Result<(&Command, ArgMatches)> {
-		let root_cmd = self
-			.root_cmd
-			.parser
-			.get(self.root_cmd)
-			.clone();
 		let mut parser = Shlex::new(msg);
 		let components = parser.by_ref().collect_vec();
 		if parser.had_error {
 			bail!("Failed to tokenize message content");
 		}
+		self.match_command_tokens(components)
+	}
+
+	/// Resolve an already-tokenized command line (the multicall argv: leading
+	/// token is the top-level command name) to a command and its parsed
+	/// arguments. This is the shared back-end for both prefix text (after
+	/// shlex tokenization) and slash invocations (tokens synthesized from the
+	/// interaction options).
+	pub fn match_command_tokens<I, T>(
+		&self,
+		tokens: I,
+	) -> Result<(&Command, ArgMatches)>
+	where
+		I: IntoIterator<Item = T>,
+		T: Into<std::ffi::OsString> + Clone,
+	{
+		let root_cmd = self
+			.root_cmd
+			.parser
+			.get(self.root_cmd)
+			.clone();
 		let matches = root_cmd
-			.try_get_matches_from(&components)
+			.try_get_matches_from(tokens)
 			.context("Failed to find matching command")?;
 		let (cmd, arg_matches) =
 			Self::walk_command_tree(self.root_cmd, &matches)
@@ -126,63 +165,142 @@ impl CommandFramework {
 		Ok((cmd, arg_matches.clone()))
 	}
 
+	/// Resolve `content` to a command, enforce that it is invocable in the
+	/// current context, and run its executor with the given [`CommandCtx`].
 	async fn execute_command_inner(
 		&self,
 		ctx: &Context,
-		msg: &Message,
-		prefix: &str,
+		cctx: &CommandCtx<'_>,
+		content: &str,
+		required: Availability,
 	) -> Result<()> {
 		let (cmd, args) = self
-			.find_matching_command(&msg.content[prefix.len()..])
+			.find_matching_command(content)
 			.context("Invalid command")?;
+		if !cmd.availability.contains(required) {
+			bail!("command is not available in this context");
+		}
+		if let Status::Fail(reason) = self.run_checks(ctx, cctx, cmd).await? {
+			self.handle_check_failure(ctx, cctx, cmd, &reason)
+				.await?;
+			return Ok(());
+		}
 		let e = &cmd.executor;
-		e.execute(ctx, msg, cmd, self, &args)
+		e.execute(ctx, cctx, cmd, self, &args)
 			.await
 			.with_context(|| {
 				format!("Failed to execute command {}", cmd.names[0])
 			})?;
 		Ok(())
 	}
+
+	/// Run every check gating `cmd` in order, short-circuiting on the first
+	/// failure. A check erroring (as opposed to cleanly failing) aborts
+	/// dispatch and surfaces through the normal error path.
+	async fn run_checks(
+		&self,
+		ctx: &Context,
+		cctx: &CommandCtx<'_>,
+		cmd: &Command,
+	) -> Result<Status> {
+		for check in cmd.checks {
+			match (check.func)(ctx, cctx, cmd, self)
+				.await
+				.with_context(|| format!("check `{}` errored", check.name))?
+			{
+				Status::Pass => {}
+				fail @ Status::Fail(_) => return Ok(fail),
+			}
+		}
+		Ok(Status::Pass)
+	}
+
+	/// A check refused the invocation: log the operator-facing reason and, when
+	/// one is provided, tell the invoking user why.
+	async fn handle_check_failure(
+		&self,
+		ctx: &Context,
+		cctx: &CommandCtx<'_>,
+		_: &Command,
+		check: &Check,
+	) -> Result<()> {
+		match cctx {
+			CommandCtx::Prefix { msg } => {
+				if let Err(e) = msg
+					.react(ctx, ReactionType::Unicode(String::from("❌")))
+					.await
+				{
+					info!(%msg.channel_id, ?msg.guild_id, %msg.id, "Failed to react, {e:?}");
+				}
+			}
+			CommandCtx::Application { interaction } => {
+				let failed_msg = if check.name == OWNER.name {
+					"Only the bot owner can use this command.".into()
+				} else {
+					format!("Check `{}` failed for this command.", check.name)
+				};
+				let res = CreateInteractionResponse::Message(
+					CreateInteractionResponseMessage::new()
+						.ephemeral(true)
+						.content(failed_msg),
+				);
+				if let Err(e) = interaction
+					.create_response(ctx, res)
+					.await
+				{
+					info!(
+						"Failed to respond to interaction with check failure message: {:?}",
+						e
+					);
+				}
+			}
+		}
+		Ok(())
+	}
+
+	/// Eagerly construct the session context of every command (recursively)
+	/// flagged `#[early_init]`, so their first invocation pays no init cost.
+	async fn preload_eager_commands(&self, cmd: &Command) -> Result<()> {
+		if cmd
+			.flags
+			.contains(CommandFlags::EAGER_INIT)
+		{
+			cmd.executor
+				.ensure_init(self)
+				.await
+				.with_context(|| {
+					format!("failed to eagerly init command {}", cmd.names[0])
+				})?;
+		}
+		for sub in cmd.sub_cmds {
+			Box::pin(self.preload_eager_commands(sub)).await?;
+		}
+		Ok(())
+	}
+
+	async fn should_use_ansi(ctx: &Context) -> bool {
+		let lock = ctx.data.read().await;
+		let config = lock.get::<BotConfig>().unwrap();
+		config.use_ansi_clap_errors
+	}
+
 	pub async fn execute_command(&self, ctx: &Context, msg: &Message) -> () {
 		for prefix in &self.prefixes {
 			if msg.content.starts_with(prefix.as_ref()) {
+				let cctx = CommandCtx::Prefix { msg };
+				let content = &msg.content[prefix.len()..];
 				if let Err(e) = self
-					.execute_command_inner(ctx, msg, prefix)
+					.execute_command_inner(
+						ctx,
+						&cctx,
+						content,
+						Availability::PREFIX,
+					)
 					.await
 				{
 					if let Some(e) = e.downcast_ref::<clap::Error>() {
-						let mut rendered = format!("{}", e.render().ansi());
-						// FIXME: slice the bytes instead of popping/removing to avoid O(n) copy operations
-						while rendered.bytes().next_back() == Some(b'\n') {
-							rendered.pop();
-						}
-						while rendered.bytes().next() == Some(b'\n') {
-							rendered.remove(0);
-						}
-						const HEADER: &str = "```ansi\n";
-						const FOOTER: &str = "\n```";
-						const MAX_LEN: usize = 2000;
-						// resets any style left open by the cut, then marks the
-						// message as incomplete
-						const ELLIPSIS: &str = "\u{1b}[0m…";
-						// they are all ansi only
-						const MAX_RENDERED_CODEPOINTS: usize =
-							MAX_LEN - HEADER.len() - FOOTER.len();
-						if rendered.chars().count() > MAX_RENDERED_CODEPOINTS {
-							let budget = MAX_RENDERED_CODEPOINTS
-								- ELLIPSIS.chars().count();
-							rendered.truncate(ansi_truncation_point(
-								&rendered, budget,
-							));
-							rendered.push_str(ELLIPSIS);
-						}
-						let mut msg_content =
-							String::with_capacity(MAX_LEN.min(
-								HEADER.len() + rendered.len() + FOOTER.len(),
-							));
-						msg_content.push_str(HEADER);
-						msg_content.push_str(&rendered);
-						msg_content.push_str(FOOTER);
+						let use_ansi = Self::should_use_ansi(ctx).await;
+						let msg_content = render_clap_error(e, use_ansi);
 						if let Err(e) = msg
 							.reply_ping(&ctx.http, msg_content)
 							.await
@@ -201,6 +319,24 @@ impl CommandFramework {
 	}
 }
 
+/// Render a clap parse/usage error into a Discord-ready, length-capped ANSI
+/// code block.
+fn render_clap_error(e: &clap::Error, use_ansi: bool) -> String {
+	let mut rendered = if use_ansi {
+		format!("{}", e.render().ansi())
+	} else {
+		format!("{}", e.render())
+	};
+	// FIXME: slice the bytes instead of popping/removing to avoid O(n) copy operations
+	while rendered.bytes().next_back() == Some(b'\n') {
+		rendered.pop();
+	}
+	while rendered.bytes().next() == Some(b'\n') {
+		rendered.remove(0);
+	}
+	crate::util::wrap_code_block(&rendered, "ansi")
+}
+
 #[async_trait]
 impl EventHandler for CommandFramework {
 	async fn message(&self, ctx: Context, msg: Message) -> () {
@@ -211,50 +347,35 @@ impl EventHandler for CommandFramework {
 			.scope(ref_user, MESSAGE_RECEIVE_TIME.scope(handler_timestamp, fut))
 			.await;
 	}
-}
 
-/// Returns the byte index at which `s` can be truncated so that what remains
-/// is at most `max` codepoints long.
-///
-/// A cut that would land inside an ANSI escape sequence is moved back to the
-/// start of that sequence, so the tail of a sequence is never left behind to
-/// be rendered as literal text.
-fn ansi_truncation_point(s: &str, max: usize) -> usize {
-	/// Where in an escape sequence the scanner currently is.
-	enum State {
-		Text,
-		/// An escape has been seen, but not the byte that says what kind of
-		/// sequence it introduces.
-		Escape,
-		/// Inside a control sequence, waiting on its final byte.
-		Csi,
-	}
-	let mut state = State::Text;
-	// the start of the escape sequence being scanned, if any
-	let mut escape_start = 0;
-	for (count, (idx, ch)) in s.char_indices().enumerate() {
-		if count == max {
-			return match state {
-				State::Text => idx,
-				State::Escape | State::Csi => escape_start,
-			};
+	async fn ready(&self, ctx: Context, _ready: serenity::all::Ready) -> () {
+		if let Err(e) = self.register_slash_commands(&ctx).await {
+			error!("Failed to register slash commands: {:?}", e);
 		}
-		state = match state {
-			State::Text if ch == '\u{1b}' => {
-				escape_start = idx;
-				State::Escape
-			}
-			State::Escape if ch == '[' => State::Csi,
-			// a control sequence ends on a final byte in this range;
-			// everything before it is a parameter or intermediate byte
-			State::Csi if matches!(ch, '\u{40}'..='\u{7e}') => State::Text,
-			State::Csi => State::Csi,
-			// anything other than a `[` after the escape is a two character
-			// sequence, which this character terminates
-			State::Text | State::Escape => State::Text,
-		};
+		if let Err(e) = self
+			.preload_eager_commands(self.root_cmd)
+			.await
+		{
+			error!("Failed to preload eager commands: {:?}", e);
+		}
 	}
-	s.len()
+
+	async fn interaction_create(
+		&self,
+		ctx: Context,
+		interaction: Interaction,
+	) -> () {
+		let Interaction::Command(command) = interaction else {
+			return;
+		};
+		let handler_timestamp = Instant::now();
+		let fut = self.handle_interaction(&ctx, &command);
+		// a slash command has no referenced message, so `FROM_REPLY`-style
+		// defaults have nothing to resolve against
+		REFERENCED_USER
+			.scope(None, MESSAGE_RECEIVE_TIME.scope(handler_timestamp, fut))
+			.await;
+	}
 }
 
 bitflags! {
@@ -276,6 +397,19 @@ bitflags! {
 	}
 }
 
+bitflags! {
+	/// The invocation front-ends a command is exposed through. Commands default
+	/// to being available both ways; `#[prefix_only]` / `#[slash_only]` narrow
+	/// this.
+	#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+	pub struct Availability: u8 {
+		/// Invocable as prefix text (e.g. `;ping`).
+		const PREFIX = 1 << 0;
+		/// Invocable as a Discord application (slash) command.
+		const SLASH = 1 << 1;
+	}
+}
+
 #[async_trait]
 #[diagnostic::on_unimplemented(
 	message = "the trait bound `{Self}: bot::fw::CommandExecutor` is not satisfied",
@@ -285,17 +419,19 @@ pub trait CommandExecutor {
 	async fn execute(
 		&self,
 		ctx: &Context,
-		msg: &Message,
+		cctx: &CommandCtx<'_>,
 		cmd: &Command,
 		fw: &CommandFramework,
 		args: &ArgMatches,
 	) -> Result<()>;
 }
 
-type ExecutorFactory =
-	for<'fut> fn(
-		&'fut CommandFramework,
-	) -> BoxFuture<'fut, Box<dyn CommandExecutor + Send + Sync>>;
+type ExecutorFactory = for<'fut> fn(
+	&'fut CommandFramework,
+) -> BoxFuture<
+	'fut,
+	Result<Box<dyn CommandExecutor + Send + Sync>>,
+>;
 pub struct OpaqueExecutor(
 	OnceCell<Box<dyn CommandExecutor + Send + Sync>>,
 	ExecutorFactory,
@@ -305,31 +441,40 @@ impl OpaqueExecutor {
 	pub async fn execute(
 		&self,
 		ctx: &Context,
-		msg: &Message,
+		cctx: &CommandCtx<'_>,
 		cmd: &Command,
 		fw: &CommandFramework,
 		args: &ArgMatches,
 	) -> Result<()> {
 		let executor = self
 			.0
-			.get_or_init(|| (self.1)(fw))
-			.await;
+			.get_or_try_init(|| (self.1)(fw))
+			.await?;
 		executor
-			.execute(ctx, msg, cmd, fw, args)
+			.execute(ctx, cctx, cmd, fw, args)
+			.await?;
+		Ok(())
+	}
+	/// Force the session context to be constructed now (if not already),
+	/// discarding the executor handle. Used to honor `#[early_init]`.
+	pub async fn ensure_init(&self, fw: &CommandFramework) -> Result<()> {
+		self.0
+			.get_or_try_init(|| (self.1)(fw))
 			.await?;
 		Ok(())
 	}
 	pub const fn from_const(factory: ExecutorFactory) -> Self {
 		Self(OnceCell::const_new(), factory)
 	}
-	pub const fn __todo() -> Self {
+
+	pub fn dummy_executor() -> impl CommandExecutor + Send + Sync + 'static {
 		struct Todo;
 		#[async_trait]
 		impl CommandExecutor for Todo {
 			async fn execute(
 				&self,
 				_: &Context,
-				&_: &Message,
+				_: &CommandCtx<'_>,
 				_: &Command,
 				_: &CommandFramework,
 				_: &ArgMatches,
@@ -337,9 +482,12 @@ impl OpaqueExecutor {
 				bail!("CommandExecutor not implemented for this command")
 			}
 		}
+		Todo
+	}
+
+	pub const fn __todo() -> Self {
 		Self::from_const(|_| {
-			Box::pin(future::ready(Box::new(Todo)
-				as Box<dyn CommandExecutor + Send + Sync + 'static>))
+			Box::pin(future::ready(Ok(Box::new(Self::dummy_executor()) as Box<dyn CommandExecutor + Send + Sync>)))
 		})
 	}
 }
@@ -353,6 +501,11 @@ pub struct Command {
 	pub sub_cmds: &'static [&'static Self],
 	pub executor: OpaqueExecutor,
 	pub flags: CommandFlags,
+	pub availability: Availability,
+	/// Native Discord option types for this command's arguments, when they opt
+	/// into typing via `#[slash_args]`; `None` means all options register as
+	/// `String` and are re-parsed by clap.
+	pub slash_schema: Option<SlashSchemaFn>,
 }
 
 type ParserFactoryFn = for<'fut> fn(&'fut Command) -> clap::Command;

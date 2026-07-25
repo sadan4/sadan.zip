@@ -3,14 +3,9 @@ use derive_more::From;
 use indicatif::MultiProgress;
 use miette::{Result, bail};
 use reporter::{
-	Cli,
-	cmds,
-	err::printer::GraphicalReportHandler,
-	util::MultiProgressWrapper,
-	vc,
+	Cli, cmds, install_miette_hook, util::MultiProgressWrapper, vc,
 };
 use std::{io, process, sync::LazyLock};
-use terminal_size::{Width, terminal_size};
 use tracing::error;
 use tracing_subscriber::util::SubscriberInitExt;
 
@@ -73,17 +68,7 @@ fn install_tracing() {
 
 fn main() {
 	install_tracing();
-	miette::set_hook(Box::new(|_| {
-		Box::new(
-			GraphicalReportHandler::new()
-				.with_width(
-					terminal_size()
-						.map_or(80, |(Width(width), _)| width as usize),
-				)
-				.with_cause_chain(),
-		)
-	}))
-	.expect("Failed to set miette hook");
+	install_miette_hook();
 	async_main();
 }
 

@@ -78,3 +78,97 @@ pub fn get_ref_user(msg: &Message) -> Option<UserId> {
 			.id,
 	)
 }
+
+/// Discord's maximum message length, in characters.
+const MAX_MESSAGE_LEN: usize = 2000;
+
+/// Wrap `text` in a Discord code block tagged with `lang` (e.g. `"ansi"`, or
+/// `""` for an untagged block), truncating the content when necessary so the
+/// whole message stays within Discord's 2000-character limit.
+///
+/// Only an `ansi`-tagged block renders escape sequences, so ANSI-aware
+/// handling is applied only then: the cut never lands inside a sequence (see
+/// [`ansi_truncation_point`]) and an ANSI reset precedes the ellipsis so no
+/// open style leaks past it. Any other `lang` is truncated on a plain
+/// codepoint boundary with a bare ellipsis, since an escape byte would render
+/// literally there.
+pub fn wrap_code_block(text: &str, lang: &str) -> String {
+	const FOOTER: &str = "\n```";
+	debug_assert!(lang.is_ascii(), "Discord code block tags must be ASCII");
+	let header = format!("```{lang}\n");
+	let max_body = MAX_MESSAGE_LEN - header.len() - FOOTER.len();
+	let is_ansi = lang == "ansi";
+	// an ANSI reset closes any style left open by the cut; in a non-ansi block
+	// it would render as literal garbage, so use a bare ellipsis there
+	let ellipsis = if is_ansi { "\u{1b}[0m…" } else { "…" };
+	let mut body = text.to_owned();
+	if body.chars().count() > max_body {
+		let budget = max_body - ellipsis.chars().count();
+		let cut = if is_ansi {
+			ansi_truncation_point(&body, budget)
+		} else {
+			codepoint_truncation_point(&body, budget)
+		};
+		body.truncate(cut);
+		body.push_str(ellipsis);
+	}
+	let mut out = String::with_capacity(
+		MAX_MESSAGE_LEN.min(header.len() + body.len() + FOOTER.len()),
+	);
+	out.push_str(&header);
+	out.push_str(&body);
+	out.push_str(FOOTER);
+	out
+}
+
+/// Returns the byte index at which `s` can be truncated so that what remains
+/// is at most `max` codepoints long.
+fn codepoint_truncation_point(s: &str, max: usize) -> usize {
+	s.char_indices()
+		.nth(max)
+		.map_or(s.len(), |(idx, _)| idx)
+}
+
+/// Returns the byte index at which `s` can be truncated so that what remains
+/// is at most `max` codepoints long.
+///
+/// A cut that would land inside an ANSI escape sequence is moved back to the
+/// start of that sequence, so the tail of a sequence is never left behind to
+/// be rendered as literal text.
+pub fn ansi_truncation_point(s: &str, max: usize) -> usize {
+	/// Where in an escape sequence the scanner currently is.
+	enum State {
+		Text,
+		/// An escape has been seen, but not the byte that says what kind of
+		/// sequence it introduces.
+		Escape,
+		/// Inside a control sequence, waiting on its final byte.
+		Csi,
+	}
+	let mut state = State::Text;
+	// the start of the escape sequence being scanned, if any
+	let mut escape_start = 0;
+	for (count, (idx, ch)) in s.char_indices().enumerate() {
+		if count == max {
+			return match state {
+				State::Text => idx,
+				State::Escape | State::Csi => escape_start,
+			};
+		}
+		state = match state {
+			State::Text if ch == '\u{1b}' => {
+				escape_start = idx;
+				State::Escape
+			}
+			State::Escape if ch == '[' => State::Csi,
+			// a control sequence ends on a final byte in this range;
+			// everything before it is a parameter or intermediate byte
+			State::Csi if matches!(ch, '\u{40}'..='\u{7e}') => State::Text,
+			State::Csi => State::Csi,
+			// anything other than a `[` after the escape is a two character
+			// sequence, which this character terminates
+			State::Text | State::Escape => State::Text,
+		};
+	}
+	s.len()
+}

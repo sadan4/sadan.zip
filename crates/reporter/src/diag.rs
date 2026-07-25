@@ -137,6 +137,33 @@ impl ReporterError {
 		}
 	}
 
+	pub fn cause_span(&self) -> SourceSpan {
+		match self {
+			Self::ReplaceMatchNotFound {
+				match_span: span, ..
+			}
+			| Self::ReplaceMatchAmbiguous {
+				match_span: span, ..
+			}
+			| Self::ReplaceSyntaxError {
+				replace_span: span, ..
+			}
+			| Self::FindAmbiguous {
+				find_span: span, ..
+			}
+			| Self::FindAmbiguousRecoverable {
+				find_span: span, ..
+			}
+			| Self::FindNotFound {
+				find_span: span, ..
+			}
+			| Self::BadRegexSyntax {
+				regex_span: span, ..
+			} => *span,
+			Self::NoWarn(i) => i.cause_span(),
+		}
+	}
+
 	pub const fn module_id(&self) -> Option<ModuleId> {
 		match self {
 			Self::FindNotFound { .. }

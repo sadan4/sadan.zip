@@ -2,12 +2,13 @@ use std::time::Instant;
 
 use anyhow::{Context as _, Result};
 use macros::command;
-use serenity::all::{Context, EditMessage, Message};
+use serenity::all::Context;
 
-use crate::{ShardInfo, util::MESSAGE_RECEIVE_TIME};
+use crate::{ShardInfo, fw::CommandCtx, util::MESSAGE_RECEIVE_TIME};
 
+/// Check the bot's gateway and API latency.
 #[command]
-async fn ping(ctx: &Context, msg: &Message) -> Result<()> {
+async fn ping(ctx: &Context, cctx: &CommandCtx<'_>) -> Result<()> {
 	use std::fmt::Write as _;
 	let handler_start = Instant::now();
 	let thinking_duration = handler_start - MESSAGE_RECEIVE_TIME.get();
@@ -30,10 +31,13 @@ async fn ping(ctx: &Context, msg: &Message) -> Result<()> {
 	let after_truncate_len = r.len();
 	writeln!(r, "API latency: ...")?;
 	let send_start = Instant::now();
-	let mut send_msg = msg.reply_ping(ctx, r.clone()).await?;
+	let mut reply = cctx.reply(ctx, r.clone()).await?;
 	let send_duration = send_start.elapsed();
 	r.truncate(after_truncate_len);
 	writeln!(r, "API latency: {send_duration:.2?}")?;
-	send_msg.edit(ctx, EditMessage::new().content(r)).await.context("Failed to edit message")?;
+	reply
+		.edit(ctx, r)
+		.await
+		.context("Failed to edit message")?;
 	Ok(())
 }

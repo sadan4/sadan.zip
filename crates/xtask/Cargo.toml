@@ -20,6 +20,8 @@ serde_json.workspace = true
 rmp-serde.workspace = true
 smol_str.workspace = true
 serde.workspace = true
+schemars.workspace = true
+bot_config.workspace = true
 
 [lints]
 workspace = true

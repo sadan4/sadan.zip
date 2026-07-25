@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Config",
+  "description": "Bot config. Read from `.bot.config.json`",
+  "type": "object",
+  "properties": {
+    "bot_owners": {
+      "description": "Users who can use owner-only commands",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "home_guild_id": {
+      "type": "string"
+    },
+    "token": {
+      "description": "The bot token",
+      "type": "string"
+    },
+    "use_ansi_clap_errors": {
+      "description": "If true, clap errors will be rendered in an ANSI codeblock\n\nif false, they will just use plain text",
+      "type": "boolean"
+    },
+    "vencord_path": {
+      "description": "The path of the vencord repo, used for testing PRs",
+      "type": "string"
+    }
+  },
+  "required": [
+    "token",
+    "home_guild_id",
+    "use_ansi_clap_errors",
+    "bot_owners",
+    "vencord_path"
+  ]
+}
