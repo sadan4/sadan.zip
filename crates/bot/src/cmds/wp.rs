@@ -1,6 +1,5 @@
 use std::{
 	fmt::Write as _,
-	iter,
 	path::{Path, PathBuf},
 	sync::Arc,
 	time::Instant,
@@ -8,6 +7,7 @@ use std::{
 
 use anyhow::{Context as _, Result};
 use clap::{Parser, ValueEnum};
+use derive_more::Display;
 use discord_scraper::{NoProgress, make_reqwest_client, scrape_full_bundle};
 use explorer_server_core::Channel;
 use explorer_types::{FullBundle, ModuleId};
@@ -19,7 +19,7 @@ use git2::{
 	build::CheckoutBuilder,
 };
 use itertools::Itertools;
-use macros::{SlashArgs, command};
+use macros::{SlashArgs, SlashChoices, command};
 use memchr::memmem::Finder;
 use miette::{Diagnostic, Severity};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator as _};
@@ -38,10 +38,7 @@ use serenity::all::{
 	CreateEmbedFooter,
 	prelude::TypeMapKey,
 };
-use tokio::{
-	sync::{Mutex, RwLock},
-	try_join,
-};
+use tokio::sync::{Mutex, RwLock};
 use tracing::{debug, info, instrument, warn};
 
 use crate::{
@@ -71,11 +68,23 @@ async fn register_wp_ctx(
 	Ok(OpaqueExecutor::dummy_executor())
 }
 
-#[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(
+	ValueEnum, Display, SlashChoices, Clone, Copy, Debug, PartialEq, Eq, Hash,
+)]
 enum BranchArg {
 	Canary,
 	Stable,
 	Both,
+}
+
+impl BranchArg {
+	const fn wants_stable(self) -> bool {
+		matches!(self, Self::Stable | Self::Both)
+	}
+
+	const fn wants_canary(self) -> bool {
+		matches!(self, Self::Canary | Self::Both)
+	}
 }
 
 #[derive(Parser, SlashArgs)]
@@ -84,6 +93,9 @@ struct FindModuleFactoryArgs {
 	#[arg()]
 	/// The query string. it will be canonicalized
 	query: String,
+	/// Which branch(es) to search
+	#[arg(long, default_value = "both")]
+	branch: BranchArg,
 }
 
 #[derive(Clone)]
@@ -115,55 +127,67 @@ async fn find_module_factory(
 	let canray_finder = stable_finder.clone();
 	let stable_build = Arc::clone(&state.stable_build);
 	let canary_build = Arc::clone(&state.canary_build);
-	let stable_fut = tokio::task::spawn_blocking(move || {
-		collect_module_matches(
-			&stable_build.blocking_read().modules,
-			&stable_finder,
-		)
+	let stable_fut = args.branch.wants_stable().then(|| {
+		tokio::task::spawn_blocking(move || {
+			collect_module_matches(
+				&stable_build.blocking_read().modules,
+				&stable_finder,
+			)
+		})
 	});
-	let canary_fut = tokio::task::spawn_blocking(move || {
-		collect_module_matches(
-			&canary_build.blocking_read().modules,
-			&canray_finder,
-		)
+	let canary_fut = args.branch.wants_canary().then(|| {
+		tokio::task::spawn_blocking(move || {
+			collect_module_matches(
+				&canary_build.blocking_read().modules,
+				&canray_finder,
+			)
+		})
 	});
-	let (stable_matches, canary_matches) = try_join!(stable_fut, canary_fut)
-		.context("Failed to join module search tasks")?;
 	let mut r = String::new();
-	write!(
-		r,
-		"Stable matches (build number: {}): ",
-		state
-			.stable_build
-			.read()
+	if let Some(stable_fut) = stable_fut {
+		let stable_matches = stable_fut
 			.await
-			.metadata
-			.build_number
-	)
-	.unwrap();
-	for (i, id) in stable_matches.iter().enumerate() {
-		if i != 0 {
-			r.push_str(", ");
+			.context("Failed to join stable module search task")?;
+		write!(
+			r,
+			"Stable matches (build number: {}): ",
+			state
+				.stable_build
+				.read()
+				.await
+				.metadata
+				.build_number
+		)
+		.unwrap();
+		for (i, id) in stable_matches.iter().enumerate() {
+			if i != 0 {
+				r.push_str(", ");
+			}
+			write!(r, "{id}").unwrap();
 		}
-		write!(r, "{id}").unwrap();
+		writeln!(r).unwrap();
 	}
-	writeln!(r).unwrap();
-	write!(
-		r,
-		"Canary matches (build number: {}): ",
-		state
-			.canary_build
-			.read()
+	if let Some(canary_fut) = canary_fut {
+		let canary_matches = canary_fut
 			.await
-			.metadata
-			.build_number
-	)
-	.unwrap();
-	for (i, id) in canary_matches.iter().enumerate() {
-		if i != 0 {
-			r.push_str(", ");
+			.context("Failed to join canary module search task")?;
+		write!(
+			r,
+			"Canary matches (build number: {}): ",
+			state
+				.canary_build
+				.read()
+				.await
+				.metadata
+				.build_number
+		)
+		.unwrap();
+		for (i, id) in canary_matches.iter().enumerate() {
+			if i != 0 {
+				r.push_str(", ");
+			}
+			write!(r, "{id}").unwrap();
 		}
-		write!(r, "{id}").unwrap();
 	}
 
 	cctx.reply(ctx, r)
@@ -256,15 +280,45 @@ fn collect_module_matches(
 
 #[derive(Parser, SlashArgs)]
 struct TestPrArgs {
-	pr_number: u64,
+	#[arg(long, short, default_value = "both")]
+	branch: BranchArg,
+	/// Pass a number to test the corresponding PR.
+	///
+	/// Pass a string to test the corresponding branch.
+	target: String,
 }
 
 static REPO_LOCK: Mutex<()> = Mutex::const_new(());
 const FETCH_HEAD: &str = "FETCH_HEAD";
 
+#[derive(Debug, Display, Clone, Copy)]
+enum PrTestTarget<'a> {
+	#[display("branch `{_0}`")]
+	Branch(&'a str),
+	#[display("pr {_0}")]
+	Pr(u64),
+}
+
+impl<'a> PrTestTarget<'a> {
+	/// A bare number selects a PR; anything else is treated as a branch name.
+	fn parse(target: &'a str) -> Self {
+		target
+			.parse::<u64>()
+			.map_or(Self::Branch(target), Self::Pr)
+	}
+
+	/// The git refspec to fetch for this target.
+	fn refspec(self) -> String {
+		match self {
+			Self::Pr(pr_num) => format!("refs/pull/{pr_num}/head"),
+			Self::Branch(branch) => format!("refs/heads/{branch}"),
+		}
+	}
+}
+
 /// blocking by proxy of libgit2
 #[instrument]
-fn checkout_pr(repo_dir: &Path, pr_num: u64) -> Result<()> {
+fn checkout_pr(repo_dir: &Path, target: PrTestTarget<'_>) -> Result<()> {
 	let repo = Repository::open(repo_dir).with_context(|| {
 		format!("Failed to open repo at {}", repo_dir.display())
 	})?;
@@ -286,8 +340,8 @@ fn checkout_pr(repo_dir: &Path, pr_num: u64) -> Result<()> {
 	fo.remote_callbacks(cbs);
 	debug!("Fetching remote");
 	remote
-		.fetch(&[format!("refs/pull/{pr_num}/head")], Some(&mut fo), None)
-		.with_context(|| format!("Failed to fetch {pr_num}"))?;
+		.fetch(&[target.refspec()], Some(&mut fo), None)
+		.with_context(|| format!("Failed to fetch {target}"))?;
 	debug!("Fetched remote");
 	let commit = repo
 		.find_reference(FETCH_HEAD)
@@ -307,60 +361,26 @@ fn checkout_pr(repo_dir: &Path, pr_num: u64) -> Result<()> {
 	Ok(())
 }
 
-#[command]
-#[arg_parser = TestPrArgs]
-#[slash_args]
-async fn test_pr(
-	args: TestPrArgs,
-	ctx: &Context,
-	cctx: &CommandCtx<'_>,
-	_: &Command,
-	fw: &CommandFramework,
-) -> Result<()> {
-	let dur = Instant::now();
-	cctx.defer(ctx)
-		.await
-		.context("Failed to defer")?;
-	let venord_dir = ctx
-		.data
-		.read()
-		.await
-		.get::<BotConfig>()
-		.unwrap()
-		.vencord_path
-		.clone();
-	let plugins = {
-		_ = REPO_LOCK.lock().await;
-		let opts = tokio::task::spawn_blocking(move || {
-			let repo_dir = PathBuf::from(venord_dir);
-			checkout_pr(&repo_dir, args.pr_number)
-				.context("Failed to checkout pr")?;
-			anyhow::Ok(reporter::vc::VencordOpts {
-				plugin_dirs: reporter::vc::infer_plugin_dirs(repo_dir.as_ref())
-					.context("Failed to infer plugin dirs")?,
-				vencord_dir: repo_dir,
-			})
-		})
-		.await
-		.context("Join Error")??;
-		reporter::vc::collect_patches(opts, Stage::hidden())
-			.await
-			.context("Failed to collect patches")?
+/// Run the static patch report for `plugins` against a single branch's bundle
+/// and render the result into an embed.
+async fn report_pr_branch(
+	channel: Channel,
+	build: &Arc<RwLock<FullBundle>>,
+	plugins: Arc<Vec<Plugin>>,
+	target: PrTestTarget<'_>,
+	dur: Instant,
+) -> Result<CreateEmbed> {
+	let (build_hash, build_number, modules) = {
+		let build = build.read().await;
+		(
+			build.metadata.build_hash.clone(),
+			build.metadata.build_number,
+			Arc::new(build.modules.clone()),
+		)
 	};
-	let stable_build = fw
-		.get_data::<WebpackContext>()
-		.await
-		.context("Loading discord bundles, please wait")?
-		.stable_build;
-	let stable_build = stable_build.read().await;
-	let stable_build_hash = stable_build.metadata.build_hash.clone();
-	let stable_build_number = stable_build.metadata.build_number;
-	let stable_build_modules = Arc::new(stable_build.modules.clone());
-	drop(stable_build);
-	let plugins = Arc::new(plugins);
 	let mut rx = reporter::reporter::report_broken_patches(
-		Channel::Stable,
-		stable_build_modules,
+		channel,
+		modules,
 		plugins.clone(),
 	);
 	let mut errs: Vec<ReporterError> = Vec::new();
@@ -401,8 +421,8 @@ async fn test_pr(
 	}
 	let mut embed = CreateEmbed::new()
 		.title(format!(
-			"Broken patches for pr {} (build number: {})",
-			args.pr_number, stable_build_number
+			"Broken {channel:?} patches for {target} (build number: \
+			 {build_number})",
 		))
 		.footer(CreateEmbedFooter::new(format!(
 			"Tested in {:?}",
@@ -430,7 +450,7 @@ async fn test_pr(
 			let title = format!("`{plugin_path}` {reason}");
 			let mut cause = String::new();
 			if let Some(mid) = err.module_id() {
-				let module_link = debug_module_url(mid, &stable_build_hash);
+				let module_link = debug_module_url(mid, &build_hash);
 				writeln!(cause, "Module [`{mid}`]({module_link})").unwrap();
 			}
 			let source_span = err.cause_span();
@@ -442,9 +462,84 @@ async fn test_pr(
 		});
 		embed = embed.fields(fields_iter);
 	}
+	Ok(embed)
+}
+
+#[command]
+#[arg_parser = TestPrArgs]
+#[slash_args]
+async fn test_pr(
+	args: TestPrArgs,
+	ctx: &Context,
+	cctx: &CommandCtx<'_>,
+	_: &Command,
+	fw: &CommandFramework,
+) -> Result<()> {
+	let dur = Instant::now();
+	cctx.defer(ctx)
+		.await
+		.context("Failed to defer")?;
+	let venord_dir = ctx
+		.data
+		.read()
+		.await
+		.get::<BotConfig>()
+		.unwrap()
+		.vencord_path
+		.clone();
+	let target = PrTestTarget::parse(&args.target);
+	let plugins = {
+		_ = REPO_LOCK.lock().await;
+		let checkout_target = args.target.clone();
+		let opts = tokio::task::spawn_blocking(move || {
+			let repo_dir = PathBuf::from(venord_dir);
+			checkout_pr(&repo_dir, PrTestTarget::parse(&checkout_target))
+				.context("Failed to checkout target")?;
+			anyhow::Ok(reporter::vc::VencordOpts {
+				plugin_dirs: reporter::vc::infer_plugin_dirs(repo_dir.as_ref())
+					.context("Failed to infer plugin dirs")?,
+				vencord_dir: repo_dir,
+			})
+		})
+		.await
+		.context("Join Error")??;
+		reporter::vc::collect_patches(opts, Stage::hidden())
+			.await
+			.context("Failed to collect patches")?
+	};
+	let state = fw
+		.get_data::<WebpackContext>()
+		.await
+		.context("Loading discord bundles, please wait")?;
+	let plugins = Arc::new(plugins);
+	let mut embeds = Vec::new();
+	if args.branch.wants_stable() {
+		embeds.push(
+			report_pr_branch(
+				Channel::Stable,
+				&state.stable_build,
+				plugins.clone(),
+				target,
+				dur,
+			)
+			.await?,
+		);
+	}
+	if args.branch.wants_canary() {
+		embeds.push(
+			report_pr_branch(
+				Channel::Canary,
+				&state.canary_build,
+				plugins.clone(),
+				target,
+				dur,
+			)
+			.await?,
+		);
+	}
 	let elapsed = dur.elapsed();
-	info!("Tested PR {} in {:?}", args.pr_number, elapsed);
-	cctx.followup_embed(ctx, iter::once(embed))
+	info!("Tested {target} in {:?}", elapsed);
+	cctx.followup_embed(ctx, embeds)
 		.await
 		.context("Failed to follup up with embed")?;
 	Ok(())

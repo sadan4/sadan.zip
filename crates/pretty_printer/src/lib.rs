@@ -10,7 +10,6 @@ use crate::{
 mod formatted_content_builder;
 mod indent_cache;
 mod javascript_formatter;
-mod unicode;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct FormattedContent {

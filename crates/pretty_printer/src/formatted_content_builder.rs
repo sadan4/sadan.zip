@@ -4,11 +4,11 @@ use std::hint::likely;
 
 use derive_more::Debug;
 use oxc::allocator::Allocator;
+use unicode_ident::is_xid_continue;
 
 use crate::{
 	formatted_content_builder::rope::Rope,
 	indent_cache::INDENT_CACHE,
-	unicode::{interval::interval_contains, tables::id_continue},
 };
 
 #[derive(Debug)]
@@ -199,26 +199,7 @@ impl<'a> FormattedContentBuilder<'a> {
 }
 
 fn is_valid_ident_char(c: char) -> bool {
-	const ZWNJ: u32 = '\u{200C}' as u32;
-	const ZWJ: u32 = '\u{200D}' as u32;
-	const ASCII_IDENT_START_TABLE: [bool; 128] = {
-		let mut table = [false; 128];
-		let mut i = 0;
-		while i < 128 {
-			table[i] = matches!(i as u8 as char, 'a'..='z' | 'A'..='Z' | '0'..='9' | '$' | '_');
-			i += 1;
-		}
-		table
-	};
-	let c = c as u32;
-	// TODO: is the lookup table worth it?
-	if c < ASCII_IDENT_START_TABLE.len() as u32 {
-		ASCII_IDENT_START_TABLE[c as usize]
-	} else if matches!(c, ZWJ | ZWNJ) {
-		true
-	} else {
-		interval_contains(id_continue(), c)
-	}
+	is_xid_continue(c)
 }
 #[cfg(test)]
 mod tests {
@@ -226,6 +207,14 @@ mod tests {
 
 	use Allocator as A;
 	use FormattedContentBuilder as F;
+
+	#[test]
+	fn zwj_and_zwnj_are_xid_continue() {
+		const ZWJ: char = '\u{200D}';
+		const ZWNJ: char = '\u{200C}';
+		assert!(is_xid_continue(ZWJ));
+		assert!(is_xid_continue(ZWNJ));
+	}
 
 	#[test]
 	fn add_a_token() {

@@ -175,7 +175,7 @@ fn slash_schema(
 	};
 	Ok(quote! {
 		::std::option::Option::Some(
-			<#parser as crate::fw::SlashSchema>::slash_option_kinds
+			<#parser as crate::fw::SlashSchema>::slash_options
 				as crate::fw::SlashSchemaFn
 		)
 	})
@@ -474,7 +474,7 @@ fn command_struct(
 		#group_dead_code
 		#st
 
-		pub static #cmd_ident: crate::fw::Command = crate::fw::Command {
+		pub(crate) static #cmd_ident: crate::fw::Command = crate::fw::Command {
 			checks: &[#(#checks),*],
 			names: &[#name],
 			parser: #parser,
@@ -592,7 +592,7 @@ fn command_func(
 		pub struct #struct_ident;
 		pub type #context_type_ident = #struct_ident;
 		#executor_impl
-		pub static #cmd_ident: crate::fw::Command = crate::fw::Command {
+		pub(crate) static #cmd_ident: crate::fw::Command = crate::fw::Command {
 			checks: &[#(#checks),*],
 			names: &[#name],
 			parser: #parser,
@@ -640,16 +640,45 @@ pub fn slash_args_derive(item: TokenStream) -> syn::Result<TokenStream> {
 		let name = fname.to_string();
 		let ty = unwrap_option(&field.ty);
 		entries.push(quote! {
-			(#name, <#ty as crate::fw::SlashArg>::KIND)
+			crate::fw::SlashOption {
+				name: #name,
+				kind: <#ty as crate::fw::SlashArg>::KIND,
+				choices: <#ty as crate::fw::SlashArg>::choices(),
+			}
 		});
 	}
 	Ok(quote! {
 		impl crate::fw::SlashSchema for #ident {
-			fn slash_option_kinds() -> ::std::vec::Vec<(
-				&'static str,
-				::serenity::all::CommandOptionType,
-			)> {
+			fn slash_options() -> ::std::vec::Vec<crate::fw::SlashOption> {
 				::std::vec![ #(#entries),* ]
+			}
+		}
+	})
+}
+
+/// Derive `SlashArg` for a clap `ValueEnum`: register it as a `String` Discord
+/// option whose choices are the enum's variants, so Discord shows a picker and
+/// clap re-parses the chosen value.
+pub fn slash_choices_derive(item: TokenStream) -> syn::Result<TokenStream> {
+	let input: syn::ItemEnum = parse2(item)?;
+	let ident = &input.ident;
+	Ok(quote! {
+		impl crate::fw::SlashArg for #ident {
+			const KIND: ::serenity::all::CommandOptionType =
+				::serenity::all::CommandOptionType::String;
+
+			fn choices()
+			-> ::std::vec::Vec<(::std::string::String, ::std::string::String)>
+			{
+				<Self as ::clap::ValueEnum>::value_variants()
+					.iter()
+					.filter_map(|v| ::clap::ValueEnum::to_possible_value(v))
+					.map(|pv| {
+						let name =
+							::std::string::ToString::to_string(pv.get_name());
+						(name.clone(), name)
+					})
+					.collect()
 			}
 		}
 	})

@@ -34,7 +34,7 @@ mod slash;
 
 pub use check::{Check, OWNER, Status};
 pub use ctx::CommandCtx;
-pub use slash::{SlashArg, SlashSchema, SlashSchemaFn};
+pub use slash::{SlashArg, SlashOption, SlashSchema, SlashSchemaFn};
 
 use crate::{
 	BotConfig,

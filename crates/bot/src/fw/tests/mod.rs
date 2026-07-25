@@ -32,20 +32,18 @@ fn never_cuts_inside_a_two_character_escape() {
 }
 
 mod command_framework {
+	use super::*;
 	use std::{
 		future,
 		sync::atomic::{AtomicU64, Ordering},
 	};
 
 	use anyhow::Result;
-	use clap::{ArgMatches, FromArgMatches, Parser};
+	use clap::{FromArgMatches, Parser};
 	use macros::{command, executor};
 	use serenity::all::{Context, UserId};
 
-	use crate::{
-		fw::{Command, CommandCtx, CommandFlags, CommandFramework},
-		util::{FROM_REPLY, REFERENCED_USER, UserArg},
-	};
+	use crate::util::{FROM_REPLY, REFERENCED_USER, UserArg};
 
 	#[derive(Parser)]
 	struct EchoArgs {
@@ -340,8 +338,8 @@ mod slash {
 	use std::collections::HashMap;
 
 	use anyhow::Result;
-	use clap::{FromArgMatches, Parser};
-	use macros::{SlashArgs, command};
+	use clap::{FromArgMatches, Parser, ValueEnum};
+	use macros::{SlashArgs, SlashChoices, command};
 	use serenity::all::{Context, ResolvedValue};
 
 	use crate::{
@@ -420,8 +418,51 @@ mod slash {
 		Ok(())
 	}
 
+	#[derive(ValueEnum, SlashChoices, Clone, Copy)]
+	enum PickColor {
+		Red,
+		Green,
+		Blue,
+	}
+
+	#[derive(Parser, SlashArgs)]
+	struct ChoiceArgs {
+		#[arg(long)]
+		color: PickColor,
+	}
+
+	/// Pick a color from a fixed choice list.
 	#[command]
-	#[sub_cmds(echo, greet, slashonly, prefixonly, native)]
+	#[arg_parser = ChoiceArgs]
+	#[slash_args]
+	async fn choice(
+		_a: ChoiceArgs,
+		_c: &Context,
+		_x: &CommandCtx<'_>,
+	) -> Result<()> {
+		Ok(())
+	}
+
+	#[derive(Parser)]
+	struct ReorderArgs {
+		#[arg(long)]
+		opt: Option<String>,
+		required: String,
+	}
+
+	/// Declares an optional option before a required one.
+	#[command]
+	#[arg_parser = ReorderArgs]
+	async fn reorder(
+		_a: ReorderArgs,
+		_c: &Context,
+		_x: &CommandCtx<'_>,
+	) -> Result<()> {
+		Ok(())
+	}
+
+	#[command]
+	#[sub_cmds(echo, greet, slashonly, prefixonly, native, choice, reorder)]
 	#[group]
 	#[root]
 	struct SlashRoot;
@@ -544,6 +585,52 @@ mod slash {
 		// `#[slash_args]` promotes the `UserArg` field to a native User picker
 		// (type 6) instead of the default String (type 3)
 		assert_eq!(who["type"], 6);
+	}
+
+	#[test]
+	fn value_enum_registers_string_choices() {
+		let cmds = fw().build_slash_commands();
+		let json = serde_json::to_value(&cmds).unwrap();
+		let choice = json
+			.as_array()
+			.unwrap()
+			.iter()
+			.find(|c| c["name"] == "choice")
+			.unwrap();
+		let color = choice["options"]
+			.as_array()
+			.unwrap()
+			.iter()
+			.find(|o| o["name"] == "color")
+			.unwrap();
+		// a `ValueEnum` maps to a String option (type 3) carrying its variants
+		// as fixed choices
+		assert_eq!(color["type"], 3);
+		let choices = color["choices"].as_array().unwrap();
+		let values: Vec<&str> = choices
+			.iter()
+			.map(|c| c["value"].as_str().unwrap())
+			.collect();
+		assert_eq!(values, vec!["red", "green", "blue"]);
+	}
+
+	#[test]
+	fn required_options_are_ordered_before_optional() {
+		let cmds = fw().build_slash_commands();
+		let json = serde_json::to_value(&cmds).unwrap();
+		let reorder = json
+			.as_array()
+			.unwrap()
+			.iter()
+			.find(|c| c["name"] == "reorder")
+			.unwrap();
+		let options = reorder["options"].as_array().unwrap();
+		// Discord requires required options first, so `required` is emitted
+		// before the optional `opt` despite the reverse declaration order
+		assert_eq!(options[0]["name"], "required");
+		assert_eq!(options[0]["required"], true);
+		assert_eq!(options[1]["name"], "opt");
+		assert_eq!(options[1]["required"], false);
 	}
 
 	#[test]

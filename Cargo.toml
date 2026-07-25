@@ -115,6 +115,7 @@ schemars = "1.2.1"
 async-scoped = { version = "0.9.0", features = ["tokio", "use-tokio"] }
 strip-ansi-escapes = "0.2.1"
 git2 = { version = "0.21.0", features = ["https", "ssh"] }
+unicode-ident = "1.0.24"
 
 
 [profile.release]

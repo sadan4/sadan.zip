@@ -42,3 +42,11 @@ pub fn slash_args(item: TokenStream) -> TokenStream {
 		.unwrap_or_else(|e| e.to_compile_error())
 		.into()
 }
+
+#[expect(missing_docs)]
+#[proc_macro_derive(SlashChoices)]
+pub fn slash_choices(item: TokenStream) -> TokenStream {
+	command::slash_choices_derive(item.into())
+		.unwrap_or_else(|e| e.to_compile_error())
+		.into()
+}

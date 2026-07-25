@@ -61,8 +61,8 @@ pub async fn run(config: bot_config::Config) {
 	// they are built for global registration but not auto-pushed
 	let guild = config.home_guild_id;
 	let cmds = fw::CommandFramework::new(&cmds::ROOT_CMD);
-	cmds.with_prefix(";");
-	cmds.with_guild(guild);
+	cmds.with_prefix(";").await;
+	cmds.with_guild(guild).await;
 	let mut client = Client::builder(&config.token, intents)
 		.event_handler(handler)
 		.event_handler(cmds.clone())

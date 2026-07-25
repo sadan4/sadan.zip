@@ -7,6 +7,7 @@ use crate::fw::CommandCtx;
 
 mod ping;
 mod wp;
+mod wolfram;
 
 #[command]
 #[sub_cmds(ping::ping, dev::dev, obliterate, wp::webpack)]
