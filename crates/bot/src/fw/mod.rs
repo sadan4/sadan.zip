@@ -7,7 +7,7 @@ use std::{
 use anyhow::{Context as _, Result, bail};
 use bitflags::bitflags;
 use clap::{ArgMatches, CommandFactory, FromArgMatches};
-use derive_more::{Deref, DerefMut, From};
+use derive_more::{Deref, DerefMut};
 use futures_core::future::BoxFuture;
 use itertools::Itertools;
 use serenity::{
@@ -26,7 +26,7 @@ use serenity::{
 	futures::future,
 };
 use shlex::Shlex;
-use tokio::sync::{Mutex, OnceCell, RwLock};
+use tokio::sync::{OnceCell, RwLock};
 use tracing::{error, info};
 
 mod ctx;

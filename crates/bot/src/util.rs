@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use anyhow::{Result, anyhow, bail};
 use derive_more::{Deref, Display, From, Into};
-use serenity::all::{Context, Message, UserId};
+use serenity::all::{Message, UserId};
 use tokio::task_local;
 
 #[derive(

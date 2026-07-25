@@ -6,11 +6,9 @@
 //! [`CommandCtx::as_message`] / [`CommandCtx::as_interaction`] provide escape
 //! hatches for handlers that are deliberately restricted to one mode.
 
-use std::sync::Once;
 
 use anyhow::{Context as _, Result};
 use serenity::all::{
-	Attachment,
 	CacheHttp,
 	ChannelId,
 	CommandInteraction,
@@ -24,7 +22,6 @@ use serenity::all::{
 	EditInteractionResponse,
 	EditMessage,
 	Message,
-	MessageReference,
 	User,
 };
 

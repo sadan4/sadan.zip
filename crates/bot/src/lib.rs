@@ -34,11 +34,11 @@ impl Debug for BotConfig {
 }
 
 impl TypeMapKey for BotConfig {
-	type Value = BotConfig;
+	type Value = Self;
 }
 
 impl TypeMapKey for ShardInfo {
-	type Value = ShardInfo;
+	type Value = Self;
 }
 
 #[async_trait]
