@@ -3,7 +3,11 @@ use derive_more::From;
 use indicatif::MultiProgress;
 use miette::{Result, bail};
 use reporter::{
-	Cli, cmds, install_miette_hook, util::MultiProgressWrapper, vc,
+	Cli,
+	cmds,
+	install_miette_hook,
+	util::MultiProgressWrapper,
+	vc,
 };
 use std::{io, process, sync::LazyLock};
 use tracing::error;

@@ -442,13 +442,14 @@ fn command_struct(
 		is_group && take_flag_attr(&mut st.attrs, "root").is_some();
 	let early_init = take_flag_attr(&mut st.attrs, "early_init");
 	if let Some(attr) = &early_init
-		&& init.is_none() {
-			return Err(se(
-				attr,
-				"`#[early_init]` requires `#[init = path]`: only stateful \
+		&& init.is_none()
+	{
+		return Err(se(
+			attr,
+			"`#[early_init]` requires `#[init = path]`: only stateful \
 				 commands have session context to pre-load",
-			));
-		}
+		));
+	}
 	let availability = availability(&mut st.attrs)?;
 	let slash_schema = slash_schema(&mut st.attrs, arg_parser.as_ref())?;
 	let desc = command_desc(&st.attrs);

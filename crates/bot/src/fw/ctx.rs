@@ -6,7 +6,6 @@
 //! [`CommandCtx::as_message`] / [`CommandCtx::as_interaction`] provide escape
 //! hatches for handlers that are deliberately restricted to one mode.
 
-
 use anyhow::{Context as _, Result};
 use serenity::all::{
 	CacheHttp,

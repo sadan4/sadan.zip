@@ -61,7 +61,10 @@ impl Stage {
 		Self(bar)
 	}
 	pub fn hidden() -> Self {
-		Self(ProgressBar::with_draw_target(None, ProgressDrawTarget::hidden()))
+		Self(ProgressBar::with_draw_target(
+			None,
+			ProgressDrawTarget::hidden(),
+		))
 	}
 	#[must_use]
 	pub fn and_attach(self, target: &MultiProgressWrapper) -> Self {

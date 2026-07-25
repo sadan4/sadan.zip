@@ -17,7 +17,9 @@ use miette::SourceCode;
 use terminal_size::{Width, terminal_size};
 
 use crate::{
-	err::printer::GraphicalReportHandler, fetcher::FetchOpts, vc::{Plugin, VencordOpts},
+	err::printer::GraphicalReportHandler,
+	fetcher::FetchOpts,
+	vc::{Plugin, VencordOpts},
 };
 
 #[derive(Parser, Clone)]
