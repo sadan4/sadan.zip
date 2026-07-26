@@ -1,7 +1,32 @@
-use anyhow::{Result, bail};
+mod board;
+
+use std::time::Duration;
+
+use anyhow::{Context as _, Result, bail};
+use arrayvec::ArrayVec;
 use clap::Parser;
 use macros::{SlashArgs, command};
-use serenity::all::Context;
+use serenity::{
+	all::{
+		ActionRow,
+		ActionRowComponent,
+		ButtonKind,
+		ButtonStyle,
+		Context,
+		CreateActionRow,
+		CreateAllowedMentions,
+		CreateButton,
+		CreateInteractionResponse,
+		CreateInteractionResponseMessage,
+		CreateMessage,
+		EditMessage,
+		Message,
+		MessageReference,
+	},
+	futures::StreamExt as _,
+};
+use tokio::{select, time::sleep};
+use tracing::info;
 
 use crate::{
 	BotConfig,
@@ -12,7 +37,7 @@ use crate::{
 /// Developer and debugging commands.
 #[command]
 #[group]
-#[sub_cmds(ref_user, panic, error, register, show_config)]
+#[sub_cmds(ref_user, panic, error, register, show_config, board::board)]
 struct Dev;
 
 /// Register all commands globally (overwrites the global command set;

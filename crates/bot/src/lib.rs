@@ -24,7 +24,7 @@ struct Handler;
 
 struct ShardInfo(Arc<Mutex<HashMap<ShardId, ShardRunnerInfo>>>);
 
-#[derive(Deref, Clone)]
+#[derive(Deref, Default, Clone)]
 struct BotConfig(Arc<bot_config::Config>);
 
 impl Debug for BotConfig {
@@ -53,16 +53,19 @@ impl EventHandler for Handler {
 	}
 }
 
+const USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"));
+
 #[tokio::main]
 pub async fn run(config: bot_config::Config) {
 	let intents = GatewayIntents::all();
 	let handler = Handler;
 	// when set, slash commands register to this guild (instant); otherwise
 	// they are built for global registration but not auto-pushed
+	let config = BotConfig(Arc::new(config));
 	let guild = config.home_guild_id;
-	let cmds = fw::CommandFramework::new(&cmds::ROOT_CMD);
+	let cmds = fw::CommandFramework::new(&cmds::ROOT_CMD, config.clone()).expect("Failed to make command framework");
 	cmds.with_prefix(";").await;
-	cmds.with_guild(guild).await;
+	cmds.with_guild(guild);
 	let mut client = Client::builder(&config.token, intents)
 		.event_handler(handler)
 		.event_handler(cmds.clone())
@@ -79,7 +82,7 @@ pub async fn run(config: bot_config::Config) {
 		.data
 		.write()
 		.await
-		.insert::<BotConfig>(BotConfig(Arc::new(config)));
+		.insert::<BotConfig>(config);
 
 	if let Err(e) = client.start().await {
 		error!("Client error: {:?}", e);

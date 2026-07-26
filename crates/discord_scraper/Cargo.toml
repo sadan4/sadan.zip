@@ -23,6 +23,7 @@ explorer_server_core.workspace = true
 dashmap.workspace = true
 bytes.workspace = true
 miette_ctx.workspace = true
+digest.workspace = true
 
 [lints]
 workspace = true

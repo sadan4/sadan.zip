@@ -148,7 +148,7 @@ mod command_framework {
 	struct TestRoot;
 
 	fn fw() -> CommandFramework {
-		CommandFramework::new(&TEST_ROOT_CMD)
+		CommandFramework::new(&TEST_ROOT_CMD, BotConfig::default()).unwrap()
 	}
 
 	#[test]
@@ -335,6 +335,7 @@ mod command_framework {
 }
 
 mod slash {
+	use super::*;
 	use std::collections::HashMap;
 
 	use anyhow::Result;
@@ -348,8 +349,7 @@ mod slash {
 			CommandCtx,
 			CommandFramework,
 			slash::render_arg_tokens,
-		},
-		util::UserArg,
+		}, util::UserArg,
 	};
 
 	#[derive(Parser)]
@@ -468,7 +468,7 @@ mod slash {
 	struct SlashRoot;
 
 	fn fw() -> CommandFramework {
-		CommandFramework::new(&SLASH_ROOT_CMD)
+		CommandFramework::new(&SLASH_ROOT_CMD, BotConfig::default()).unwrap()
 	}
 
 	fn json_names(cmds: &[serenity::all::CreateCommand]) -> Vec<String> {

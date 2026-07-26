@@ -1,13 +1,13 @@
 use derive_more::Debug;
 use schemars::{JsonSchema, Schema, SchemaGenerator};
 use serde::{Deserialize, Serialize};
-use serenity::all::{GuildId, UserId};
+use serenity::all::{EmojiId, GuildId, ReactionType, UserId};
 
 fn wrap_schema<T: ?Sized + JsonSchema>(g: &mut SchemaGenerator) -> Schema {
 	g.subschema_for::<T>()
 }
 
-#[derive(Serialize, Default, Deserialize, Debug, JsonSchema)]
+#[derive(Serialize, Default, Clone, Deserialize, Debug, JsonSchema)]
 /// Bot config. Read from `.bot.config.json`
 pub struct Config {
 	#[debug("REDACTED")]
@@ -28,6 +28,36 @@ pub struct Config {
 	pub build_archive_url: String,
 	/// If true, cache local builds for faster startup time.
 	pub use_local_build_cache: bool,
+	/// The emojis available for the bot to access
+	pub emojis: Emojis
+}
+
+#[derive(Serialize, Deserialize, Default, Clone, Debug, JsonSchema)]
+pub struct Emojis {
+	/// A 1x1 transparent image
+	pub empty: EmojiDef,
+}
+
+/// an emoji available for the bot to access
+#[derive(Serialize, Default, Deserialize, Clone, Debug, JsonSchema)]
+pub struct EmojiDef {
+	#[schemars(schema_with = "wrap_schema::<String>")]
+	id: EmojiId,
+	#[serde(default)]
+	#[schemars(schema_with = "wrap_schema::<Option<bool>>")]
+	animated: bool,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	name: Option<String>,
+}
+
+impl From<EmojiDef> for ReactionType {
+	fn from(value: EmojiDef) -> Self {
+		Self::Custom {
+			id: value.id,
+			animated: value.animated,
+			name: value.name,
+		}
+	}
 }
 
 #[cfg(test)]

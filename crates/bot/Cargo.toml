@@ -5,11 +5,11 @@ edition.workspace = true
 
 [dependencies]
 anyhow.workspace = true
-serenity = {workspace = true, features = ["default"]}
+serenity = {workspace = true, features = ["default", "collector"]}
 # serenity 0.12 is built against reqwest 0.12 and enables its `rustls-tls`
 # feature, which was removed in reqwest 0.13. Pin a local 0.12 so cargo does
 # not unify serenity onto the workspace's 0.13.
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream"] }
 tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
@@ -42,6 +42,9 @@ git_hash.workspace = true
 demangler.workspace = true
 zxcvbn.workspace = true
 yaml_serde.workspace = true
+sha1.workspace = true
+arrayvec.workspace = true
+smallvec.workspace = true
 
 [lints]
 workspace = true

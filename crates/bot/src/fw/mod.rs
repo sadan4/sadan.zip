@@ -10,6 +10,7 @@ use clap::{ArgMatches, CommandFactory, FromArgMatches};
 use derive_more::{Deref, DerefMut};
 use futures_core::future::BoxFuture;
 use itertools::Itertools;
+use reqwest_middleware::ClientWithMiddleware;
 use serenity::{
 	all::{
 		Context,
@@ -50,19 +51,26 @@ pub struct CommandFrameworkInner {
 	/// propagation); otherwise they are registered globally.
 	guild: OnceLock<Option<GuildId>>,
 	data: OnceLock<Arc<RwLock<TypeMap>>>,
+	pub http: Arc<ClientWithMiddleware>,
+	pub config: BotConfig,
 }
 
 #[derive(Clone, Deref, DerefMut)]
 pub struct CommandFramework(Arc<CommandFrameworkInner>);
 
 impl CommandFramework {
-	pub fn new(root_cmd: &'static Command) -> Self {
-		Self(Arc::new(CommandFrameworkInner {
+	pub fn new(root_cmd: &'static Command, config: BotConfig) -> Result<Self> {
+		Ok(Self(Arc::new(CommandFrameworkInner {
 			root_cmd,
 			prefixes: RwLock::const_new(Vec::new()),
 			guild: OnceLock::new(),
 			data: OnceLock::new(),
-		}))
+			http: discord_scraper::make_reqwest_client_with_ua(
+				crate::USER_AGENT,
+			)
+			.context("Failed to make reqwest client")?,
+			config,
+		})))
 	}
 
 	/// This is a clone of [`serenity::all::Context::data`] and [`serenity::Client::data`]
@@ -89,14 +97,14 @@ impl CommandFramework {
 	}
 	/// Register slash commands to a single guild (instant propagation, ideal
 	/// for development) instead of globally.
-	pub async fn with_guild(&self, guild: impl Into<Option<GuildId>>) {
+	pub fn with_guild(&self, guild: impl Into<Option<GuildId>>) {
 		self.guild
 			.set(guild.into())
 			.expect("guild can only be set once");
 	}
 
 	pub fn init_data(&self, data: Arc<RwLock<TypeMap>>) {
-		if let Err(_) = self.data.set(data) {
+		if self.data.set(data).is_err() {
 			panic!("data can only be set once");
 		}
 	}

@@ -15,6 +15,10 @@
       "description": "The url for the build archive",
       "type": "string"
     },
+    "emojis": {
+      "description": "The emojis available for the bot to access",
+      "$ref": "#/$defs/Emojis"
+    },
     "home_guild_id": {
       "type": "string"
     },
@@ -42,6 +46,45 @@
     "bot_owners",
     "vencord_path",
     "build_archive_url",
-    "use_local_build_cache"
-  ]
+    "use_local_build_cache",
+    "emojis"
+  ],
+  "$defs": {
+    "EmojiDef": {
+      "description": "an emoji available for the bot to access",
+      "type": "object",
+      "properties": {
+        "animated": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "id"
+      ]
+    },
+    "Emojis": {
+      "type": "object",
+      "properties": {
+        "empty": {
+          "description": "A 1x1 transparent image",
+          "$ref": "#/$defs/EmojiDef"
+        }
+      },
+      "required": [
+        "empty"
+      ]
+    }
+  }
 }
