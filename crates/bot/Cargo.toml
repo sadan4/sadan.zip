@@ -36,6 +36,12 @@ rayon.workspace = true
 oxc-miette.workspace = true
 strip-ansi-escapes.workspace = true
 git2.workspace = true
+qalc.workspace = true
+cxx.workspace = true
+git_hash.workspace = true
+demangler.workspace = true
+zxcvbn.workspace = true
+yaml_serde.workspace = true
 
 [lints]
 workspace = true

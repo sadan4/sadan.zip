@@ -5,12 +5,24 @@ use serenity::all::Context;
 
 use crate::fw::CommandCtx;
 
+mod demangler;
 mod ping;
-mod wp;
+mod qalc;
 mod wolfram;
+mod wp;
+mod password;
 
 #[command]
-#[sub_cmds(ping::ping, dev::dev, obliterate, wp::webpack)]
+#[sub_cmds[
+	ping::ping,
+	dev::dev,
+	obliterate,
+	wp::webpack,
+	qalc::qalc,
+	version,
+	demangler::demangle,
+	password::password,
+]]
 #[group]
 #[root]
 struct Root;
@@ -36,3 +48,12 @@ async fn obliterate(
 }
 
 mod dev;
+
+#[command]
+async fn version(ctx: &Context, cctx: &CommandCtx<'_>) -> Result<()> {
+	let ver_str = format!("Commit: {}\nBuilt with rust!", git_hash::GIT_HASH);
+	cctx.reply(ctx, ver_str)
+		.await
+		.context("Failed to respond to interaction")?;
+	Ok(())
+}

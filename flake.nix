@@ -48,15 +48,21 @@
 								wasm-bindgen-cli
 								msgpack-tools
 								mold
-								clang_21
-                                pkg-config
-                                openssl
-                                libgit2
+								pkg-config
+								openssl
+								libgit2
+								libqalculate.dev
+								llvmPackages_latest.clang-tools
+								llvmPackages_latest.clang
+								llvmPackages_latest.libclang
+								llvmPackages_latest.libllvm
+								libiberty
 							];
 							hardeningDisable = ["all"];
 							shellHook = ''
 								export CC_wasm32_unknown_unknown="${clang-unwrapped}/bin/clang";
 								export CFLAGS_wasm32_unknown_unknown="-I ${clang-unwrapped.lib}/lib/clang/21/include";
+								export LIBCLANG_PATH="${pkgs.llvmPackages_latest.libclang.lib}/lib";
 							'';
 						};
 				});

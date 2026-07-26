@@ -85,6 +85,8 @@ miette_ctx = { path = "crates/miette_ctx" }
 git_hash = { path = "crates/git_hash" }
 bot_config = { path = "crates/bot_config" }
 reporter = { path = "crates/reporter" }
+qalc = { path = "crates/qalc" }
+demangler = { path = "crates/demangler" }
 tower-lsp = "0.20.0"
 tokio-tungstenite = "0.30.0"
 futures-util = "0.3.31"
@@ -116,6 +118,11 @@ async-scoped = { version = "0.9.0", features = ["tokio", "use-tokio"] }
 strip-ansi-escapes = "0.2.1"
 git2 = { version = "0.21.0", features = ["https", "ssh"] }
 unicode-ident = "1.0.24"
+cxx = "1.0"
+cxx-build = "1.0"
+bindgen = "0.72.1"
+zxcvbn = {version= "3.1.1", features = ["ser"]}
+yaml_serde = "0.10.4"
 
 
 [profile.release]

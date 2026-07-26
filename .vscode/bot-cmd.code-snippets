@@ -1,0 +1,60 @@
+{
+	"Bot command (simple)": {
+		"scope": "rust",
+		"prefix": "bot-cmd",
+		"description": "Scaffold a simple bot slash command",
+		"body": [
+			"use anyhow::{Context as _, Result};",
+			"use macros::command;",
+			"use serenity::all::Context;",
+			"",
+			"use crate::fw::CommandCtx;",
+			"",
+			"/// ${2:Short description of the command.}",
+			"#[command]",
+			"async fn ${1:name}(ctx: &Context, cctx: &CommandCtx<'_>) -> Result<()> {",
+			"\tcctx.reply(ctx, ${3:\"...\"})",
+			"\t\t.await",
+			"\t\t.context(\"Failed to respond to interaction\")?;",
+			"\tOk(())",
+			"}",
+			"$0"
+		]
+	},
+	"Bot command (with args)": {
+		"scope": "rust",
+		"prefix": "bot-cmd-args",
+		"description": "Scaffold a bot slash command with a clap arg parser",
+		"body": [
+			"use anyhow::{Context as _, Result};",
+			"use clap::Parser;",
+			"use macros::{SlashArgs, command};",
+			"use serenity::all::Context;",
+			"",
+			"use crate::fw::CommandCtx;",
+			"",
+			"#[derive(Parser, SlashArgs)]",
+			"struct ${2:Name}Args {",
+			"\t/// ${4:Argument description.}",
+			"\t#[arg()]",
+			"\t${3:arg}: String,",
+			"}",
+			"",
+			"/// ${5:Short description of the command.}",
+			"#[command]",
+			"#[arg_parser = ${2:Name}Args]",
+			"#[slash_args]",
+			"async fn ${1:name}(",
+			"\targs: ${2:Name}Args,",
+			"\tctx: &Context,",
+			"\tcctx: &CommandCtx<'_>,",
+			") -> Result<()> {",
+			"\tcctx.reply(ctx, format!(\"{}\", args.${3:arg}))",
+			"\t\t.await",
+			"\t\t.context(\"Failed to respond to interaction\")?;",
+			"\tOk(())",
+			"}",
+			"$0"
+		]
+	}
+}

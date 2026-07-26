@@ -159,6 +159,30 @@ impl<'a> CommandCtx<'a> {
 		}
 	}
 
+	pub async fn followup_text(
+		&self,
+		c: impl CacheHttp,
+		txt: impl Into<String>,
+	) -> Result<ReplyHandle<'a>> {
+		match self {
+			CommandCtx::Prefix { msg } => {
+				let sent = msg.reply_ping(c, txt).await?;
+				Ok(ReplyHandle::Prefix {
+					msg: Box::new(sent),
+				})
+			}
+			CommandCtx::Application { interaction } => {
+				interaction
+					.create_followup(
+						c,
+						CreateInteractionResponseFollowup::new().content(txt),
+					)
+					.await?;
+				Ok(ReplyHandle::Application { interaction })
+			}
+		}
+	}
+
 	/// Send embeds as the reply to a command that has already [`defer`]red,
 	/// one embed per message.
 	///

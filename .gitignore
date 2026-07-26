@@ -35,3 +35,6 @@ builds
 # nix
 result*
 /VencordCompanion_OLD
+
+# clang compilation database
+compile_commands.json

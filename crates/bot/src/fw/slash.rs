@@ -21,6 +21,8 @@ use serenity::all::{
 	CreateInteractionResponse,
 	CreateInteractionResponseFollowup,
 	CreateInteractionResponseMessage,
+	InstallationContext,
+	InteractionContext,
 	ResolvedOption,
 	ResolvedValue,
 };
@@ -234,7 +236,20 @@ fn build_second_level(node: &Command) -> Option<CreateCommandOption> {
 fn build_top_command(node: &Command) -> CreateCommand {
 	let name = node.names[0];
 	let mut cc = CreateCommand::new(name)
-		.description(clamp_desc(node.desc.unwrap_or(name)));
+		.description(clamp_desc(node.desc.unwrap_or(name)))
+		// Without an explicit context set, Discord scopes the command to
+		// guilds only. `BotDm` allows DMs with the bot; `PrivateChannel`
+		// allows group DMs / other private channels, which requires the
+		// `User` installation context to be offered.
+		.contexts(vec![
+			InteractionContext::Guild,
+			InteractionContext::BotDm,
+			InteractionContext::PrivateChannel,
+		])
+		.integration_types(vec![
+			InstallationContext::Guild,
+			InstallationContext::User,
+		]);
 	if node.sub_cmds.is_empty() {
 		// leaf command: its clap args become options directly
 		cc = cc.set_options(build_arg_options(node));
