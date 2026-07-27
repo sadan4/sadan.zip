@@ -1,7 +1,7 @@
 use derive_more::Debug;
 use schemars::{JsonSchema, Schema, SchemaGenerator};
 use serde::{Deserialize, Serialize};
-use serenity::all::{EmojiId, GuildId, ReactionType, UserId};
+use serenity::{all::{EmojiId, GuildId, ReactionType, UserId}, small_fixed_array::FixedString};
 
 fn wrap_schema<T: ?Sized + JsonSchema>(g: &mut SchemaGenerator) -> Schema {
 	g.subschema_for::<T>()
@@ -29,7 +29,10 @@ pub struct Config {
 	/// If true, cache local builds for faster startup time.
 	pub use_local_build_cache: bool,
 	/// The emojis available for the bot to access
-	pub emojis: Emojis
+	pub emojis: Emojis,
+	/// The API key for `WolframAplha`, used for the wolfram command
+	#[debug("REDACTED")]
+	pub wolfram_api_key: String,
 }
 
 #[derive(Serialize, Deserialize, Default, Clone, Debug, JsonSchema)]
@@ -47,7 +50,8 @@ pub struct EmojiDef {
 	#[schemars(schema_with = "wrap_schema::<Option<bool>>")]
 	animated: bool,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
-	name: Option<String>,
+	#[schemars(schema_with = "wrap_schema::<Option<String>>")]
+	name: Option<FixedString<u8>>,
 }
 
 impl From<EmojiDef> for ReactionType {

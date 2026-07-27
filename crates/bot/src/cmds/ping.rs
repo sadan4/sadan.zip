@@ -4,7 +4,7 @@ use anyhow::{Context as _, Result};
 use macros::command;
 use serenity::all::Context;
 
-use crate::{ShardInfo, fw::CommandCtx, util::MESSAGE_RECEIVE_TIME};
+use crate::{fw::CommandCtx, util::MESSAGE_RECEIVE_TIME};
 
 /// Check the bot's gateway and API latency.
 #[command]
@@ -12,14 +12,7 @@ async fn ping(ctx: &Context, cctx: &CommandCtx<'_>) -> Result<()> {
 	use std::fmt::Write as _;
 	let handler_start = Instant::now();
 	let thinking_duration = handler_start - MESSAGE_RECEIVE_TIME.get();
-	let gateway_latency = {
-		let lock1 = ctx.data.read().await;
-		let shard_map = lock1
-			.get::<ShardInfo>()
-			.context("ShardInfo not found")?;
-		let lock2 = shard_map.0.lock().await;
-		lock2[&ctx.shard_id].latency
-	};
+	let gateway_latency = ctx.runner_info.read().latency;
 	let mut r = String::new();
 	writeln!(r, "Pong 🏓")?;
 	writeln!(r, "Thinking time: {thinking_duration:.2?}")?;

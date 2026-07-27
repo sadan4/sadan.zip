@@ -1,7 +1,8 @@
+mod event_handler;
+
 use std::{
 	borrow::Cow,
 	sync::{Arc, OnceLock},
-	time::Instant,
 };
 
 use anyhow::{Context as _, Result, bail};
@@ -18,13 +19,12 @@ use serenity::{
 		CreateInteractionResponseMessage,
 		EventHandler,
 		GuildId,
-		Interaction,
 		Message,
 		ReactionType,
-		prelude::{TypeMap, TypeMapKey},
 	},
 	async_trait,
 	futures::future,
+	small_fixed_array::FixedString,
 };
 use shlex::Shlex;
 use tokio::sync::{OnceCell, RwLock};
@@ -37,10 +37,7 @@ pub use check::{Check, OWNER, Status};
 pub use ctx::CommandCtx;
 pub use slash::{SlashArg, SlashOption, SlashSchema, SlashSchemaFn};
 
-use crate::{
-	BotConfig,
-	util::{MESSAGE_RECEIVE_TIME, REFERENCED_USER, get_ref_user},
-};
+use crate::{BotConfig, cmds::wp::WebpackContext};
 
 mod check;
 
@@ -50,63 +47,48 @@ pub struct CommandFrameworkInner {
 	/// When set, slash commands are registered to this guild (instant
 	/// propagation); otherwise they are registered globally.
 	guild: OnceLock<Option<GuildId>>,
-	data: OnceLock<Arc<RwLock<TypeMap>>>,
 	pub http: Arc<ClientWithMiddleware>,
 	pub config: BotConfig,
+	wp_context: OnceLock<Arc<crate::cmds::wp::WebpackContext>>,
 }
 
 #[derive(Clone, Deref, DerefMut)]
 pub struct CommandFramework(Arc<CommandFrameworkInner>);
 
 impl CommandFramework {
+	pub fn handler(&self) -> Arc<dyn EventHandler + Send + Sync> {
+		Arc::new(self.clone()) as _
+	}
 	pub fn new(root_cmd: &'static Command, config: BotConfig) -> Result<Self> {
 		Ok(Self(Arc::new(CommandFrameworkInner {
 			root_cmd,
 			prefixes: RwLock::const_new(Vec::new()),
 			guild: OnceLock::new(),
-			data: OnceLock::new(),
 			http: discord_scraper::make_reqwest_client_with_ua(
 				crate::USER_AGENT,
 			)
 			.context("Failed to make reqwest client")?,
 			config,
+			wp_context: OnceLock::new(),
 		})))
 	}
 
-	/// This is a clone of [`serenity::all::Context::data`] and [`serenity::Client::data`]
-	pub async fn get_data<T>(&self) -> Option<T::Value>
-	where
-		T: TypeMapKey,
-		T::Value: Clone,
-	{
-		self.data
-			.get()?
-			.read()
-			.await
-			.get::<T>()
-			.cloned()
+	pub async fn init_wp_ctx(&self, ctx: WebpackContext) {
+		self.wp_context
+			.set(Arc::new(ctx))
+			.expect("cannot init webpack context more than once");
 	}
 
-	pub async fn set_data<T>(&self, value: T::Value)
-	where
-		T: TypeMapKey,
-	{
-		if let Some(data) = self.data.get() {
-			data.write().await.insert::<T>(value);
-		}
+	pub fn get_wp_ctx(&self) -> Option<Arc<WebpackContext>> {
+		self.wp_context.get().map(Arc::clone)
 	}
+
 	/// Register slash commands to a single guild (instant propagation, ideal
 	/// for development) instead of globally.
 	pub fn with_guild(&self, guild: impl Into<Option<GuildId>>) {
 		self.guild
 			.set(guild.into())
 			.expect("guild can only be set once");
-	}
-
-	pub fn init_data(&self, data: Arc<RwLock<TypeMap>>) {
-		if self.data.set(data).is_err() {
-			panic!("data can only be set once");
-		}
 	}
 
 	pub async fn with_prefixes<T, I>(&self, prefixes: I)
@@ -209,7 +191,7 @@ impl CommandFramework {
 			return Ok(());
 		}
 		let e = &cmd.executor;
-		e.execute(ctx, cctx, cmd, self, &args)
+		e.execute(ctx, cctx, self, &args)
 			.await
 			.with_context(|| {
 				format!("Failed to execute command {}", cmd.names[0])
@@ -242,17 +224,17 @@ impl CommandFramework {
 	/// one is provided, tell the invoking user why.
 	async fn handle_check_failure(
 		&self,
-		ctx: &Context,
+		c: &Context,
 		cctx: &CommandCtx<'_>,
 		_: &Command,
 		check: &Check,
 	) -> Result<()> {
+		fn react_x() -> ReactionType {
+			ReactionType::Unicode(FixedString::from_static_trunc("❌"))
+		}
 		match cctx {
 			CommandCtx::Prefix { msg } => {
-				if let Err(e) = msg
-					.react(ctx, ReactionType::Unicode(String::from("❌")))
-					.await
-				{
+				if let Err(e) = msg.react(&c.http, react_x()).await {
 					info!(%msg.channel_id, ?msg.guild_id, %msg.id, "Failed to react, {e:?}");
 				}
 			}
@@ -268,7 +250,7 @@ impl CommandFramework {
 						.content(failed_msg),
 				);
 				if let Err(e) = interaction
-					.create_response(ctx, res)
+					.create_response(&c.http, res)
 					.await
 				{
 					info!(
@@ -301,12 +283,6 @@ impl CommandFramework {
 		Ok(())
 	}
 
-	async fn should_use_ansi(ctx: &Context) -> bool {
-		let lock = ctx.data.read().await;
-		let config = lock.get::<BotConfig>().unwrap();
-		config.use_ansi_clap_errors
-	}
-
 	pub async fn execute_command(&self, ctx: &Context, msg: &Message) -> () {
 		for prefix in self.prefixes.read().await.iter() {
 			if msg.content.starts_with(prefix.as_ref()) {
@@ -322,7 +298,7 @@ impl CommandFramework {
 					.await
 				{
 					if let Some(e) = e.downcast_ref::<clap::Error>() {
-						let use_ansi = Self::should_use_ansi(ctx).await;
+						let use_ansi = self.config.use_ansi_clap_errors;
 						let msg_content = render_clap_error(e, use_ansi);
 						if let Err(e) = msg
 							.reply_ping(&ctx.http, msg_content)
@@ -358,47 +334,6 @@ fn render_clap_error(e: &clap::Error, use_ansi: bool) -> String {
 		rendered.remove(0);
 	}
 	crate::util::wrap_code_block(&rendered, "ansi")
-}
-
-#[async_trait]
-impl EventHandler for CommandFramework {
-	async fn message(&self, ctx: Context, msg: Message) -> () {
-		let handler_timestamp = Instant::now();
-		let ref_user = get_ref_user(&msg);
-		let fut = self.execute_command(&ctx, &msg);
-		REFERENCED_USER
-			.scope(ref_user, MESSAGE_RECEIVE_TIME.scope(handler_timestamp, fut))
-			.await;
-	}
-
-	async fn ready(&self, ctx: Context, _ready: serenity::all::Ready) -> () {
-		if let Err(e) = self.register_slash_commands(&ctx).await {
-			error!("Failed to register slash commands: {:?}", e);
-		}
-		if let Err(e) = self
-			.preload_eager_commands(self.root_cmd)
-			.await
-		{
-			error!("Failed to preload eager commands: {:?}", e);
-		}
-	}
-
-	async fn interaction_create(
-		&self,
-		ctx: Context,
-		interaction: Interaction,
-	) -> () {
-		let Interaction::Command(command) = interaction else {
-			return;
-		};
-		let handler_timestamp = Instant::now();
-		let fut = self.handle_interaction(&ctx, &command);
-		// a slash command has no referenced message, so `FROM_REPLY`-style
-		// defaults have nothing to resolve against
-		REFERENCED_USER
-			.scope(None, MESSAGE_RECEIVE_TIME.scope(handler_timestamp, fut))
-			.await;
-	}
 }
 
 bitflags! {
@@ -443,7 +378,6 @@ pub trait CommandExecutor {
 		&self,
 		ctx: &Context,
 		cctx: &CommandCtx<'_>,
-		cmd: &Command,
 		fw: &CommandFramework,
 		args: &ArgMatches,
 	) -> Result<()>;
@@ -465,7 +399,6 @@ impl OpaqueExecutor {
 		&self,
 		ctx: &Context,
 		cctx: &CommandCtx<'_>,
-		cmd: &Command,
 		fw: &CommandFramework,
 		args: &ArgMatches,
 	) -> Result<()> {
@@ -474,7 +407,7 @@ impl OpaqueExecutor {
 			.get_or_try_init(|| (self.1)(fw))
 			.await?;
 		executor
-			.execute(ctx, cctx, cmd, fw, args)
+			.execute(ctx, cctx, fw, args)
 			.await?;
 		Ok(())
 	}
@@ -498,7 +431,6 @@ impl OpaqueExecutor {
 				&self,
 				_: &Context,
 				_: &CommandCtx<'_>,
-				_: &Command,
 				_: &CommandFramework,
 				_: &ArgMatches,
 			) -> Result<()> {

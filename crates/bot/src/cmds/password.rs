@@ -7,7 +7,7 @@ use sha1::{Digest as _, Sha1};
 use std::{fmt::Write as _, num::NonZeroU64};
 use tracing::error;
 
-use crate::fw::{Command, CommandCtx, CommandFramework};
+use crate::fw::{CommandCtx, CommandFramework};
 
 #[derive(Parser, SlashArgs)]
 struct PasswordArgs {
@@ -66,7 +66,6 @@ async fn password(
 	args: PasswordArgs,
 	ctx: &Context,
 	cctx: &CommandCtx<'_>,
-	_: &Command,
 	fw: &CommandFramework,
 ) -> Result<()> {
 	cctx.defer(ctx)

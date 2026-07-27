@@ -6,11 +6,11 @@ use serenity::all::Context;
 use crate::fw::CommandCtx;
 
 mod demangler;
+mod password;
 mod ping;
 mod qalc;
 mod wolfram;
-mod wp;
-mod password;
+pub mod wp;
 
 #[command]
 #[sub_cmds[
@@ -22,6 +22,7 @@ mod password;
 	version,
 	demangler::demangle,
 	password::password,
+	wolfram::wolfram,
 ]]
 #[group]
 #[root]

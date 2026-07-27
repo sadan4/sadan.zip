@@ -131,12 +131,10 @@ mod command_framework {
 	#[executor]
 	async fn counter(
 		this: &Counter,
-		ctx: &Context,
-		cctx: &CommandCtx<'_>,
-		cmd: &Command,
-		fw: &CommandFramework,
+		_ctx: &Context,
+		_cctx: &CommandCtx<'_>,
+		_fw: &CommandFramework,
 	) -> Result<()> {
-		let _ = (ctx, cctx, cmd, fw);
 		this.n.fetch_add(1, Ordering::Relaxed);
 		Ok(())
 	}
@@ -349,7 +347,8 @@ mod slash {
 			CommandCtx,
 			CommandFramework,
 			slash::render_arg_tokens,
-		}, util::UserArg,
+		},
+		util::UserArg,
 	};
 
 	#[derive(Parser)]

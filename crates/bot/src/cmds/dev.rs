@@ -1,36 +1,12 @@
 mod board;
 
-use std::time::Duration;
-
-use anyhow::{Context as _, Result, bail};
-use arrayvec::ArrayVec;
+use anyhow::{Result, bail};
 use clap::Parser;
 use macros::{SlashArgs, command};
-use serenity::{
-	all::{
-		ActionRow,
-		ActionRowComponent,
-		ButtonKind,
-		ButtonStyle,
-		Context,
-		CreateActionRow,
-		CreateAllowedMentions,
-		CreateButton,
-		CreateInteractionResponse,
-		CreateInteractionResponseMessage,
-		CreateMessage,
-		EditMessage,
-		Message,
-		MessageReference,
-	},
-	futures::StreamExt as _,
-};
-use tokio::{select, time::sleep};
-use tracing::info;
+use serenity::all::Context;
 
 use crate::{
-	BotConfig,
-	fw::{Command, CommandCtx, CommandFramework},
+	fw::{CommandCtx, CommandFramework},
 	util::{self, FROM_REPLY, REFERENCED_USER, UserArg},
 };
 
@@ -47,7 +23,6 @@ struct Dev;
 async fn register(
 	ctx: &Context,
 	cctx: &CommandCtx<'_>,
-	_cmd: &Command,
 	fw: &CommandFramework,
 ) -> Result<()> {
 	fw.register_global_commands(ctx).await?;
@@ -59,11 +34,12 @@ async fn register(
 /// Show the loaded bot config (token redacted).
 #[command]
 #[checks(crate::fw::OWNER)]
-async fn show_config(ctx: &Context, cctx: &CommandCtx<'_>) -> Result<()> {
-	let lock = ctx.data.read().await;
-	let config = lock.get::<BotConfig>().unwrap();
-	let dbg_repr = format!("{config:#?}");
-	drop(lock);
+async fn show_config(
+	ctx: &Context,
+	cctx: &CommandCtx<'_>,
+	fw: &CommandFramework,
+) -> Result<()> {
+	let dbg_repr = format!("{:#?}", fw.config);
 	let guh = util::wrap_code_block(&dbg_repr, "ron");
 	cctx.reply(ctx, guh).await?;
 	Ok(())

@@ -9,7 +9,6 @@
 use anyhow::{Context as _, Result};
 use serenity::all::{
 	CacheHttp,
-	ChannelId,
 	CommandInteraction,
 	CreateAllowedMentions,
 	CreateAttachment,
@@ -20,6 +19,7 @@ use serenity::all::{
 	CreateMessage,
 	EditInteractionResponse,
 	EditMessage,
+	GenericChannelId,
 	Message,
 	User,
 };
@@ -46,13 +46,13 @@ impl<'a> CommandCtx<'a> {
 	pub async fn defer(&self, c: impl CacheHttp) -> Result<()> {
 		match self {
 			CommandCtx::Prefix { msg } => {
-				msg.react(c, '💭')
+				msg.react(c.http(), '💭')
 					.await
 					.context("Failed to react to message")?;
 			}
 			CommandCtx::Application { interaction } => {
 				interaction
-					.defer(c)
+					.defer(c.http())
 					.await
 					.context("Failed to defer interaction")?;
 			}
@@ -69,7 +69,7 @@ impl<'a> CommandCtx<'a> {
 	}
 
 	/// The channel the command was invoked in.
-	pub const fn channel_id(&self) -> ChannelId {
+	pub const fn channel_id(&self) -> GenericChannelId {
 		match self {
 			Self::Prefix { msg } => msg.channel_id,
 			Self::Application { interaction } => interaction.channel_id,
@@ -99,13 +99,14 @@ impl<'a> CommandCtx<'a> {
 	/// should be reworked to defer first (not yet supported).
 	pub async fn reply(
 		&self,
-		cache_http: impl CacheHttp,
+		c: impl CacheHttp,
 		content: impl Into<String>,
 	) -> Result<ReplyHandle<'a>> {
+		let content: String = content.into();
 		match self {
 			Self::Prefix { msg } => {
 				let sent = msg
-					.reply_ping(cache_http, content)
+					.reply_ping(c.http(), content)
 					.await?;
 				Ok(ReplyHandle::Prefix {
 					msg: Box::new(sent),
@@ -114,7 +115,7 @@ impl<'a> CommandCtx<'a> {
 			Self::Application { interaction } => {
 				interaction
 					.create_response(
-						cache_http,
+						c.http(),
 						CreateInteractionResponse::Message(
 							CreateInteractionResponseMessage::new()
 								.content(content),
@@ -127,10 +128,10 @@ impl<'a> CommandCtx<'a> {
 	}
 
 	/// Send the command's initial reply as one or more embeds.
-	pub async fn reply_embed(
+	pub async fn reply_embed<'b>(
 		&self,
 		c: impl CacheHttp,
-		embeds: impl IntoIterator<Item = CreateEmbed>,
+		embeds: impl IntoIterator<Item = CreateEmbed<'b>>,
 	) -> Result<ReplyHandle<'a>> {
 		let embeds: Vec<CreateEmbed> = embeds.into_iter().collect();
 		match self {
@@ -143,7 +144,7 @@ impl<'a> CommandCtx<'a> {
 					);
 				let sent = msg
 					.channel_id
-					.send_message(c, cm)
+					.send_message(c.http(), cm)
 					.await?;
 				Ok(ReplyHandle::Prefix {
 					msg: Box::new(sent),
@@ -152,7 +153,10 @@ impl<'a> CommandCtx<'a> {
 			CommandCtx::Application { interaction } => {
 				let cm = CreateInteractionResponseMessage::new().embeds(embeds);
 				interaction
-					.create_response(c, CreateInteractionResponse::Message(cm))
+					.create_response(
+						c.http(),
+						CreateInteractionResponse::Message(cm),
+					)
 					.await?;
 				Ok(ReplyHandle::Application { interaction })
 			}
@@ -164,9 +168,10 @@ impl<'a> CommandCtx<'a> {
 		c: impl CacheHttp,
 		txt: impl Into<String>,
 	) -> Result<ReplyHandle<'a>> {
+		let txt: String = txt.into();
 		match self {
 			CommandCtx::Prefix { msg } => {
-				let sent = msg.reply_ping(c, txt).await?;
+				let sent = msg.reply_ping(c.http(), txt).await?;
 				Ok(ReplyHandle::Prefix {
 					msg: Box::new(sent),
 				})
@@ -174,7 +179,7 @@ impl<'a> CommandCtx<'a> {
 			CommandCtx::Application { interaction } => {
 				interaction
 					.create_followup(
-						c,
+						c.http(),
 						CreateInteractionResponseFollowup::new().content(txt),
 					)
 					.await?;
@@ -192,10 +197,10 @@ impl<'a> CommandCtx<'a> {
 	/// deferred response and the rest are sent as followups.
 	///
 	/// [`defer`]: CommandCtx::defer
-	pub async fn followup_embed(
+	pub async fn followup_embed<'b>(
 		&self,
 		c: impl CacheHttp,
-		embeds: impl IntoIterator<Item = CreateEmbed>,
+		embeds: impl IntoIterator<Item = CreateEmbed<'b>>,
 	) -> Result<ReplyHandle<'a>> {
 		let mut embeds = embeds.into_iter();
 		let Some(first) = embeds.next() else {
@@ -208,7 +213,7 @@ impl<'a> CommandCtx<'a> {
 		};
 		match self {
 			CommandCtx::Prefix { msg } => {
-				let mk = |e: CreateEmbed| {
+				let mk = |e: CreateEmbed<'b>| -> CreateMessage<'b> {
 					CreateMessage::new()
 						.embed(e)
 						.reference_message(*msg)
@@ -218,11 +223,11 @@ impl<'a> CommandCtx<'a> {
 				};
 				let sent = msg
 					.channel_id
-					.send_message(&c, mk(first))
+					.send_message(c.http(), mk(first))
 					.await?;
 				for e in embeds {
 					msg.channel_id
-						.send_message(&c, mk(e))
+						.send_message(c.http(), mk(e))
 						.await?;
 				}
 				Ok(ReplyHandle::Prefix {
@@ -232,14 +237,14 @@ impl<'a> CommandCtx<'a> {
 			CommandCtx::Application { interaction } => {
 				interaction
 					.edit_response(
-						&c,
+						c.http(),
 						EditInteractionResponse::new().embed(first),
 					)
 					.await?;
 				for e in embeds {
 					interaction
 						.create_followup(
-							&c,
+							c.http(),
 							CreateInteractionResponseFollowup::new().embed(e),
 						)
 						.await?;
@@ -249,10 +254,10 @@ impl<'a> CommandCtx<'a> {
 		}
 	}
 
-	pub async fn reply_file(
+	pub async fn reply_file<'b>(
 		&self,
 		c: impl CacheHttp,
-		file: CreateAttachment,
+		file: CreateAttachment<'b>,
 		txt: impl Into<Option<String>>,
 	) -> Result<ReplyHandle<'a>> {
 		match self {
@@ -268,7 +273,7 @@ impl<'a> CommandCtx<'a> {
 				}
 				let msg = msg
 					.channel_id
-					.send_message(c, cm)
+					.send_message(c.http(), cm)
 					.await?;
 				Ok(ReplyHandle::Prefix { msg: Box::new(msg) })
 			}
@@ -279,7 +284,10 @@ impl<'a> CommandCtx<'a> {
 					cm = cm.content(txt);
 				}
 				interaction
-					.create_response(c, CreateInteractionResponse::Message(cm))
+					.create_response(
+						c.http(),
+						CreateInteractionResponse::Message(cm),
+					)
 					.await?;
 				Ok(ReplyHandle::Application { interaction })
 			}
@@ -291,19 +299,20 @@ impl ReplyHandle<'_> {
 	/// Replace the content of the reply produced by [`CommandCtx::reply`].
 	pub async fn edit(
 		&mut self,
-		cache_http: impl CacheHttp,
+		c: impl CacheHttp,
 		content: impl Into<String>,
 	) -> Result<()> {
+		let content: String = content.into();
 		match self {
 			Self::Prefix { msg } => {
-				msg.edit(cache_http, EditMessage::new().content(content))
+				msg.edit(c, EditMessage::new().content(content))
 					.await
 					.context("failed to edit reply message")?;
 			}
 			Self::Application { interaction } => {
 				interaction
 					.edit_response(
-						cache_http,
+						c.http(),
 						EditInteractionResponse::new().content(content),
 					)
 					.await

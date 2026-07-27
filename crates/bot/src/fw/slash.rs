@@ -139,7 +139,7 @@ fn default_kind(arg: &Arg) -> CommandOptionType {
 /// Discord requires every required option to precede the optional ones, so the
 /// output is stably reordered required-first (clap declaration order is
 /// otherwise preserved).
-fn build_arg_options(node: &Command) -> Vec<CreateCommandOption> {
+fn build_arg_options<'a>(node: &'a Command) -> Vec<CreateCommandOption<'a>> {
 	let clap_cmd = node.parser.get(node);
 	let native: HashMap<&str, SlashOption> = node
 		.slash_schema
@@ -166,7 +166,10 @@ fn build_arg_options(node: &Command) -> Vec<CreateCommandOption> {
 			.required(required);
 		if let Some(native) = native {
 			for (choice_name, choice_value) in &native.choices {
-				opt = opt.add_string_choice(choice_name, choice_value);
+				opt = opt.add_string_choice(
+					choice_name.clone(),
+					choice_value.clone(),
+				);
 			}
 		}
 		out.push((required, opt));
@@ -183,7 +186,7 @@ fn build_arg_options(node: &Command) -> Vec<CreateCommandOption> {
 /// Build a second-level option (subcommand or subcommand-group) for a child of
 /// a top-level command. Returns `None` when the node cannot be represented
 /// (e.g. it would nest deeper than Discord's command→group→subcommand limit).
-fn build_second_level(node: &Command) -> Option<CreateCommandOption> {
+fn build_second_level(node: &Command) -> Option<CreateCommandOption<'_>> {
 	let name = node.names[0];
 	let desc = clamp_desc(node.desc.unwrap_or(name));
 	if node.sub_cmds.is_empty() {
@@ -233,7 +236,7 @@ fn build_second_level(node: &Command) -> Option<CreateCommandOption> {
 }
 
 /// Build a top-level [`CreateCommand`] for a direct child of the root.
-fn build_top_command(node: &Command) -> CreateCommand {
+fn build_top_command(node: &Command) -> CreateCommand<'_> {
 	let name = node.names[0];
 	let mut cc = CreateCommand::new(name)
 		.description(clamp_desc(node.desc.unwrap_or(name)))
@@ -241,15 +244,17 @@ fn build_top_command(node: &Command) -> CreateCommand {
 		// guilds only. `BotDm` allows DMs with the bot; `PrivateChannel`
 		// allows group DMs / other private channels, which requires the
 		// `User` installation context to be offered.
-		.contexts(vec![
-			InteractionContext::Guild,
-			InteractionContext::BotDm,
-			InteractionContext::PrivateChannel,
-		])
-		.integration_types(vec![
-			InstallationContext::Guild,
-			InstallationContext::User,
-		]);
+		.contexts(
+			vec![
+				InteractionContext::Guild,
+				InteractionContext::BotDm,
+				InteractionContext::PrivateChannel,
+			]
+			.into(),
+		)
+		.integration_types(
+			vec![InstallationContext::Guild, InstallationContext::User].into(),
+		);
 	if node.sub_cmds.is_empty() {
 		// leaf command: its clap args become options directly
 		cc = cc.set_options(build_arg_options(node));
@@ -280,7 +285,7 @@ fn render_value(value: &ResolvedValue) -> Result<String> {
 		ResolvedValue::Number(n) => n.to_string(),
 		ResolvedValue::Boolean(b) => b.to_string(),
 		ResolvedValue::User(user, _) => user.id.to_string(),
-		ResolvedValue::Channel(channel) => channel.id.to_string(),
+		ResolvedValue::Channel(channel) => channel.id().to_string(),
 		ResolvedValue::Role(role) => role.id.to_string(),
 		_ => bail!("unsupported slash option value type"),
 	})
@@ -340,7 +345,7 @@ fn descend<'a>(
 		path.push(name.to_owned());
 		opts = match value {
 			ResolvedValue::SubCommand(inner)
-			| ResolvedValue::SubCommandGroup(inner) => inner,
+			| ResolvedValue::SubCommandGroup(inner) => inner.into(),
 			_ => unreachable!("matched as sub-command above"),
 		};
 	}
@@ -370,7 +375,7 @@ impl CommandFramework {
 			Some(guild) => {
 				let count = commands.len();
 				guild
-					.set_commands(&ctx.http, commands)
+					.set_commands(&ctx.http, &commands)
 					.await
 					.context("failed to set guild slash commands")?;
 				info!("Registered {count} slash command(s) to guild {guild}");
@@ -393,7 +398,7 @@ impl CommandFramework {
 	pub async fn register_global_commands(&self, ctx: &Context) -> Result<()> {
 		let commands = self.build_slash_commands();
 		let count = commands.len();
-		serenity::all::Command::set_global_commands(&ctx.http, commands)
+		serenity::all::Command::set_global_commands(&ctx.http, &commands)
 			.await
 			.context("failed to set global slash commands")?;
 		info!("Registered {count} global slash command(s)");
@@ -401,7 +406,7 @@ impl CommandFramework {
 	}
 
 	/// Build the Discord command set from the (slash-available) top-level nodes.
-	pub(super) fn build_slash_commands(&self) -> Vec<CreateCommand> {
+	pub(super) fn build_slash_commands(&self) -> Vec<CreateCommand<'static>> {
 		self.root_cmd
 			.sub_cmds
 			.iter()
@@ -433,7 +438,7 @@ impl CommandFramework {
 		&self,
 		interaction: &CommandInteraction,
 	) -> Result<Vec<String>> {
-		let mut path = vec![interaction.data.name.clone()];
+		let mut path = vec![interaction.data.name.to_string()];
 		let leaf_opts = descend(interaction.data.options(), &mut path);
 
 		let Some(node) = self.resolve_node(&path) else {
@@ -472,7 +477,7 @@ impl CommandFramework {
 			return Ok(());
 		}
 		cmd.executor
-			.execute(ctx, cctx, cmd, self, &args)
+			.execute(ctx, cctx, self, &args)
 			.await
 			.with_context(|| {
 				format!("Failed to execute command {}", cmd.names[0])
@@ -495,7 +500,7 @@ impl CommandFramework {
 			Err(e) => {
 				let content =
 					if let Some(clap_err) = e.downcast_ref::<clap::Error>() {
-						let use_ansi = Self::should_use_ansi(ctx).await;
+						let use_ansi = self.config.use_ansi_clap_errors;
 						render_clap_error(clap_err, use_ansi)
 					} else {
 						error!("Failed to execute slash command: {:?}", e);

@@ -1,6 +1,7 @@
-use std::{mem, time::Duration};
+use std::{borrow::Cow, mem, time::Duration};
 
 use anyhow::{Context as _, Result, bail};
+use arrayvec::ArrayVec;
 use macros::command;
 use serenity::{
 	all::{
@@ -8,10 +9,13 @@ use serenity::{
 		ActionRowComponent,
 		ButtonKind,
 		ButtonStyle,
+		Component,
+		ComponentInteractionCollector,
 		Context,
 		CreateActionRow,
 		CreateAllowedMentions,
 		CreateButton,
+		CreateComponent,
 		CreateInteractionResponse,
 		CreateInteractionResponseMessage,
 		CreateMessage,
@@ -20,17 +24,24 @@ use serenity::{
 	},
 	futures::StreamExt as _,
 };
-use tokio::{select, time::sleep};
 use tracing::info;
 
-use crate::fw::{Command, CommandCtx, CommandFramework};
+use crate::fw::{CommandCtx, CommandFramework};
 
 const STYLE_ON: ButtonStyle = ButtonStyle::Success;
 const STYLE_OFF: ButtonStyle = ButtonStyle::Secondary;
+#[allow(clippy::octal_escapes)]
+static BUTTON_IDS: &[&[&str]] = &[
+	&["0\00", "0\01", "0\02", "0\03", "0\04"],
+	&["1\00", "1\01", "1\02", "1\03", "1\04"],
+	&["2\00", "2\01", "2\02", "2\03", "2\04"],
+	&["3\00", "3\01", "3\02", "3\03", "3\04"],
+	&["4\00", "4\01", "4\02", "4\03", "4\04"],
+];
 
-fn mk_btn(r: u8, c: u8, e: &bot_config::EmojiDef) -> CreateButton {
-	let id = format!("{r}\0{c}");
-	CreateButton::new(id)
+fn mk_btn(r: u8, c: u8, e: &bot_config::EmojiDef) -> CreateButton<'static> {
+	let id = BUTTON_IDS[r as usize][c as usize];
+	CreateButton::new(Cow::Borrowed(id))
 		.style(STYLE_OFF)
 		.emoji(e.clone())
 }
@@ -59,20 +70,20 @@ fn flip_btn(c: &mut ActionRowComponent) -> Result<()> {
 	Ok(())
 }
 
-fn convert_rows(rows: Vec<ActionRow>) -> Vec<CreateActionRow> {
+fn convert_rows(rows: Vec<ActionRow>) -> Vec<CreateComponent<'static>> {
 	rows.into_iter()
 		.map(|r| {
-			CreateActionRow::Buttons(
-				r.components
-					.into_iter()
-					.map(|c| {
-						let ActionRowComponent::Button(btn) = c else {
-							panic!("component is not a button. got: {c:?}");
-						};
-						CreateButton::from(btn)
-					})
-					.collect(),
-			)
+			let btns = r
+				.components
+				.into_iter()
+				.map(|c| {
+					let ActionRowComponent::Button(btn) = c else {
+						panic!("component is not a button. got: {c:?}");
+					};
+					CreateButton::from(btn)
+				})
+				.collect::<Vec<_>>();
+			CreateComponent::ActionRow(CreateActionRow::Buttons(btns.into()))
 		})
 		.collect()
 }
@@ -81,22 +92,26 @@ fn convert_rows(rows: Vec<ActionRow>) -> Vec<CreateActionRow> {
 async fn board(
 	ctx: &Context,
 	cctx: &CommandCtx<'_>,
-	_: &Command,
 	fw: &CommandFramework,
 ) -> Result<()> {
-	let mut rows = Vec::with_capacity(5);
+	const TIMEOUT_DUR: Duration = Duration::from_mins(1);
+
+	let mut rows: Vec<CreateComponent> = Vec::with_capacity(5);
+
 	let emoji = &fw.config.emojis.empty;
 	for r in 0..5 {
 		let mut row = Vec::with_capacity(5);
 		for c in 0..5 {
 			row.push(mk_btn(r, c, emoji));
 		}
-		rows.push(CreateActionRow::Buttons(row));
+		rows.push(CreateComponent::ActionRow(CreateActionRow::Buttons(
+			row.into(),
+		)));
 	}
 	let i_msg = match cctx {
 		CommandCtx::Prefix { msg } => {
 			let cm = CreateMessage::new()
-				.components(rows)
+				.components(&*rows)
 				.reference_message(MessageReference::from(*msg))
 				.allowed_mentions(
 					CreateAllowedMentions::new().replied_user(true),
@@ -104,7 +119,7 @@ async fn board(
 
 			let res = msg
 				.channel_id
-				.send_message(ctx, cm)
+				.send_message(&ctx.http, cm)
 				.await;
 			let res: Result<Message> =
 				res.context("Failed to send board message");
@@ -112,36 +127,38 @@ async fn board(
 		}
 		CommandCtx::Application { interaction } => {
 			let cr = CreateInteractionResponse::Message(
-				CreateInteractionResponseMessage::new().components(rows),
+				CreateInteractionResponseMessage::new().components(&*rows),
 			);
 			interaction
-				.create_response(ctx, cr)
+				.create_response(&ctx.http, cr)
 				.await
 				.context("Failed to create board interaction response")?;
 			interaction
-				.get_response(ctx)
+				.get_response(&ctx.http)
 				.await
 				.context("Failed to get board interaction response")?
 		}
 	};
 
-	let mut events = i_msg
-		.await_component_interactions(ctx)
+	let mut events = ComponentInteractionCollector::new(ctx)
+		.message_id(i_msg.id)
+		.timeout(TIMEOUT_DUR)
 		.stream();
 
-	const TIMEOUT_DUR: Duration = Duration::from_mins(1);
-
-	while let Some(mut i) = select! {
-		e = events.next() => e,
-		() = sleep(TIMEOUT_DUR) => None,
-	} {
+	while let Some(mut i) = events.next().await {
 		let (r, c) = parse_board_id(&i.data.custom_id)
 			.context("Failed to get board row/col")?;
-		let mut rows = mem::take(&mut i.message.components);
-		flip_btn(&mut rows[r as usize].components[c as usize])
-			.context("Failed to flip button")?;
+		let mut rows: Vec<ActionRow> = mem::take(&mut i.message.components)
+			.into_iter()
+			.filter_map(|comp| match comp {
+				Component::ActionRow(ar) => Some(ar),
+				_ => None,
+			})
+			.collect();
+		let comps: &mut [ActionRowComponent] = &mut rows[r as usize].components;
+		flip_btn(&mut comps[c as usize]).context("Failed to flip button")?;
 		i.create_response(
-			ctx,
+			&ctx.http,
 			CreateInteractionResponse::UpdateMessage(
 				CreateInteractionResponseMessage::new()
 					.components(convert_rows(rows)),

@@ -3,8 +3,6 @@ use futures_core::future::BoxFuture;
 use serenity::all::Context;
 use tracing::info;
 
-use crate::BotConfig;
-
 use super::{CommandCtx, CommandFramework};
 
 pub enum Status {
@@ -35,16 +33,17 @@ pub const OWNER: Check = Check {
 };
 
 fn is_owner<'fut>(
-	ctx: &'fut Context,
+	_ctx: &'fut Context,
 	cctx: &'fut CommandCtx<'fut>,
 	_cmd: &'fut super::Command,
-	_fw: &'fut CommandFramework,
+	fw: &'fut CommandFramework,
 ) -> BoxFuture<'fut, CheckResult> {
 	Box::pin(async move {
-		let lock = ctx.data.read().await;
-		let config = lock.get::<BotConfig>().unwrap();
 		let author = cctx.author();
-		let is_owner = config.bot_owners.contains(&author.id);
+		let is_owner = fw
+			.config
+			.bot_owners
+			.contains(&author.id);
 		Ok(if is_owner {
 			Status::Pass
 		} else {

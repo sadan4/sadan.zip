@@ -31,25 +31,15 @@ use reporter::{
 	vc::Plugin,
 };
 use reqwest_middleware::ClientWithMiddleware;
-use serenity::all::{
-	Color,
-	Context,
-	CreateEmbed,
-	CreateEmbedFooter,
-	prelude::TypeMapKey,
-};
+use serenity::all::{Color, Context, CreateEmbed, CreateEmbedFooter};
 use tokio::sync::{Mutex, RwLock};
 use tracing::{debug, info, instrument, warn};
 
-use crate::{
-	BotConfig,
-	fw::{
-		Command,
-		CommandCtx,
-		CommandExecutor,
-		CommandFramework,
-		OpaqueExecutor,
-	},
+use crate::fw::{
+	CommandCtx,
+	CommandExecutor,
+	CommandFramework,
+	OpaqueExecutor,
 };
 
 #[command]
@@ -98,15 +88,11 @@ struct FindModuleFactoryArgs {
 	branch: BranchArg,
 }
 
-#[derive(Clone)]
-struct WebpackContext {
+#[derive(Clone, Debug)]
+pub struct WebpackContext {
 	stable_build: Arc<RwLock<FullBundle>>,
 	canary_build: Arc<RwLock<FullBundle>>,
 	client: Arc<ClientWithMiddleware>,
-}
-
-impl TypeMapKey for WebpackContext {
-	type Value = Self;
 }
 
 #[command]
@@ -116,12 +102,10 @@ async fn find_module_factory(
 	args: FindModuleFactoryArgs,
 	ctx: &Context,
 	cctx: &CommandCtx<'_>,
-	_: &Command,
 	fw: &CommandFramework,
 ) -> Result<()> {
 	let state = fw
-		.get_data::<WebpackContext>()
-		.await
+		.get_wp_ctx()
 		.context("Failed to get webpack context")?;
 	let stable_finder = Finder::new(&args.query).into_owned();
 	let canray_finder = stable_finder.clone();
@@ -239,11 +223,7 @@ async fn init_webpack_context(fw: &CommandFramework) -> Result<()> {
 	let client =
 		make_reqwest_client().context("Failed to make reqwest client")?;
 	let client1 = client.clone();
-	let use_cache = fw
-		.get_data::<BotConfig>()
-		.await
-		.unwrap()
-		.use_local_build_cache;
+	let use_cache = fw.config.use_local_build_cache;
 	let stable_fut =
 		tokio::spawn(scrape_branch(client.clone(), Channel::Stable, use_cache));
 	let canary_fut =
@@ -259,7 +239,7 @@ async fn init_webpack_context(fw: &CommandFramework) -> Result<()> {
 		canary_build: Arc::new(RwLock::new(canary_build)),
 		client,
 	};
-	fw.set_data::<WebpackContext>(ctx).await;
+	fw.init_wp_ctx(ctx).await;
 	Ok(())
 }
 fn collect_module_matches(
@@ -369,7 +349,7 @@ async fn report_pr_branch(
 	plugins: Arc<Vec<Plugin>>,
 	target: PrTestTarget<'_>,
 	dur: Instant,
-) -> Result<CreateEmbed> {
+) -> Result<CreateEmbed<'static>> {
 	let (build_hash, build_number, modules) = {
 		let build = build.read().await;
 		(
@@ -472,21 +452,13 @@ async fn test_pr(
 	args: TestPrArgs,
 	ctx: &Context,
 	cctx: &CommandCtx<'_>,
-	_: &Command,
 	fw: &CommandFramework,
 ) -> Result<()> {
 	let dur = Instant::now();
 	cctx.defer(ctx)
 		.await
 		.context("Failed to defer")?;
-	let venord_dir = ctx
-		.data
-		.read()
-		.await
-		.get::<BotConfig>()
-		.unwrap()
-		.vencord_path
-		.clone();
+	let venord_dir = fw.config.vencord_path.clone();
 	let target = PrTestTarget::parse(&args.target);
 	let plugins = {
 		_ = REPO_LOCK.lock().await;
@@ -508,8 +480,7 @@ async fn test_pr(
 			.context("Failed to collect patches")?
 	};
 	let state = fw
-		.get_data::<WebpackContext>()
-		.await
+		.get_wp_ctx()
 		.context("Loading discord bundles, please wait")?;
 	let plugins = Arc::new(plugins);
 	let mut embeds = Vec::new();

@@ -512,9 +512,8 @@ fn make_executor_impl_for_command_func(
 		};
 	let pass_extra_args = match extra_args {
 		0 => quote! {},
-		1 => quote! { __cmd, },
-		2 => quote! { __cmd, __fw, },
-		_ => unreachable!("extra_args must be 0, 1, or 2"),
+		1 => quote! { __fw, },
+		_ => unreachable!("extra_args must be 0 or 1"),
 	};
 	let res = quote! {
 		#[::serenity::async_trait]
@@ -523,7 +522,6 @@ fn make_executor_impl_for_command_func(
 				&self,
 				__ctx: &::serenity::all::Context,
 				__cctx: &crate::fw::CommandCtx<'_>,
-				__cmd: &crate::fw::Command,
 				__fw: &crate::fw::CommandFramework,
 				__args: &::clap::ArgMatches,
 			) -> ::anyhow::Result<()> {
@@ -545,19 +543,19 @@ fn command_func(
 	let checks = checks(&mut func.attrs)?;
 	let parser = arg_parser(&mut func.attrs)?;
 	let min_args = 2 + u8::from(parser.is_some());
-	let max_args = 4 + u8::from(parser.is_some());
+	let max_args = 3 + u8::from(parser.is_some());
 	if !(min_args..=max_args).contains(&(func.sig.inputs.len() as u8)) {
 		let err = if parser.is_some() {
 			se(
 				&func.sig.inputs,
-				"expected signature: `async fn cmd_name(args: &CommandArguments, ctx: &Context, msg: &Message, cmd: &Command, fw: &CommandFramework\
-		    \nNOTE: the last two parameters are optional and can be omitted",
+				"expected signature: `async fn cmd_name(args: &CommandArguments, ctx: &Context, msg: &Message, fw: &CommandFramework\
+		    \nNOTE: the last parameter is optional and can be omitted",
 			)
 		} else {
 			se(
 				&func.sig.inputs,
-				"expected signature: `async fn cmd_name(ctx: &Context, msg: &Message, cmd: &Command, fw: &CommandFramework\
-		    \nNOTE: the last two parameters are optional and can be omitted",
+				"expected signature: `async fn cmd_name(ctx: &Context, msg: &Message, fw: &CommandFramework\
+		    \nNOTE: the last parameter is optional and can be omitted",
 			)
 		};
 		return Err(err);
@@ -769,15 +767,14 @@ pub fn executor(
 	};
 
 	// remaining, in order: `state: &State`, `ctx: &Context`,
-	// `cctx: &CommandCtx`, then optionally `cmd: &Command` and
-	// `fw: &CommandFramework`
-	if !(3..=5).contains(&rest.len()) {
+	// `cctx: &CommandCtx`, then optionally `fw: &CommandFramework`
+	if !(3..=4).contains(&rest.len()) {
 		return Err(se(
 			&input.sig.inputs,
 			"expected signature: `async fn handler(args: Args, state: &State, \
-			 ctx: &Context, cctx: &CommandCtx, cmd: &Command, fw: &CommandFramework)`\
-			 \nNOTE: `args` is optional; `cmd` and `fw` are optional trailing \
-			 parameters",
+			 ctx: &Context, cctx: &CommandCtx, fw: &CommandFramework)`\
+			 \nNOTE: `args` is optional; `fw` is an optional trailing \
+			 parameter",
 		));
 	}
 	let Some(state_ty) = reference_inner(&rest[0].ty) else {
@@ -792,9 +789,8 @@ pub fn executor(
 		.then(|| quote! { __parsed_args, });
 	let pass_extra = match rest.len() - 3 {
 		0 => quote! {},
-		1 => quote! { __cmd, },
-		2 => quote! { __cmd, __fw, },
-		_ => unreachable!("rest length checked to be 3..=5"),
+		1 => quote! { __fw, },
+		_ => unreachable!("rest length checked to be 3..=4"),
 	};
 
 	let res = quote! {
@@ -809,7 +805,6 @@ pub fn executor(
 				&self,
 				__ctx: &::serenity::all::Context,
 				__cctx: &crate::fw::CommandCtx<'_>,
-				__cmd: &crate::fw::Command,
 				__fw: &crate::fw::CommandFramework,
 				__args: &::clap::ArgMatches,
 			) -> ::anyhow::Result<()> {
