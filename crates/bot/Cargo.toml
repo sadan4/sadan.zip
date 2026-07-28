@@ -44,6 +44,8 @@ sha1.workspace = true
 arrayvec.workspace = true
 smallvec.workspace = true
 serde.workspace = true
+tempfile.workspace = true
+thiserror.workspace = true
 
 [lints]
 workspace = true

@@ -1,4 +1,5 @@
 mod board;
+mod paige;
 
 use anyhow::{Result, bail};
 use clap::Parser;
@@ -13,7 +14,15 @@ use crate::{
 /// Developer and debugging commands.
 #[command]
 #[group]
-#[sub_cmds(ref_user, panic, error, register, show_config, board::board)]
+#[sub_cmds(
+	ref_user,
+	panic,
+	error,
+	register,
+	show_config,
+	board::board,
+	paige::paige
+)]
 struct Dev;
 
 /// Register all commands globally (overwrites the global command set;

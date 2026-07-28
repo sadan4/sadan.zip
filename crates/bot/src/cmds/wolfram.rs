@@ -1,11 +1,17 @@
+use std::{borrow::Cow, io::Write};
+
 use anyhow::{Context as _, Result, bail};
 use clap::Parser;
 use macros::{SlashArgs, command};
 use serde::Serialize;
 use serenity::all::{CommandOptionType, Context};
-use tracing::info;
+use tokio::{fs, io::AsyncWriteExt};
+use tracing::{error, info};
 
-use crate::fw::{CommandCtx, CommandFramework, SlashOption, SlashSchema};
+use crate::{
+	fw::{CommandCtx, CommandFramework, SlashOption, SlashSchema},
+	util::mktemp,
+};
 
 #[derive(Parser)]
 struct QalcArgs {
@@ -35,105 +41,12 @@ enum WAOutput {
 	Json,
 }
 
-mod model {
-	use serde::Deserialize;
-	use super::*;
+mod model;
 
-	#[derive(Deserialize, Debug)]
-	#[serde(deny_unknown_fields)]
-	pub struct Response {
-		#[serde(rename = "queryresult")]
-		pub query_result: QueryResult,
-	}
-
-	#[derive(Deserialize, Debug)]
-	#[serde(deny_unknown_fields)]
-	pub struct QueryResult {
-		pub pods: Vec<Pod>,
-		pub success: bool,
-		pub error: bool,
-		pub numpods: usize,
-		pub datatypes: String,
-		#[serde(rename = "parsetiming")]
-		pub parse_timing: f64,
-		#[serde(rename = "parsetimedout")]
-		pub parse_timedout: bool,
-		id: String,
-		#[serde(rename = "kernelId")]
-		kernel_id: String,
-		#[serde(rename = "processId")]
-		process_id: u32,
-		version: String,
-		#[serde(rename = "inputstring")]
-		input_string: String,
-		#[serde(rename = "sbsallowed")]
-		sbs_allowed: bool,
-		#[serde(rename = "parentId")]
-		parent_id: String,
-		#[serde(rename = "requestId")]
-		request_id: String,
-	}
-
-	#[derive(Deserialize, Debug)]
-	#[serde(deny_unknown_fields)]
-	pub struct Image {
-		pub alt: String,
-		#[serde(rename = "colorinvertable")]
-		pub color_invertable: bool,
-		#[serde(rename = "contenttype")]
-		pub content_type: String,
-		pub height: u64,
-		pub src: String,
-		pub themes: String,
-		pub title: String,
-		#[serde(rename = "type")]
-		pub type_: String,
-		pub width: u64,
-	}
-
-	#[derive(Deserialize, Debug)]
-	#[serde(deny_unknown_fields)]
-	pub struct ExpressionTypes {
-		pub name: String,
-	}
-
-	#[derive(Deserialize, Debug)]
-	#[serde(deny_unknown_fields)]
-	pub struct Subpod {
-		pub img: Image,
-		pub plaintext: String,
-		pub title: String,
-	}
-
-	#[derive(Deserialize, Debug)]
-	#[serde(deny_unknown_fields)]
-	pub struct Pod {
-		pub error: bool,
-		#[serde(rename = "expressiontypes")]
-		pub expression_types: ExpressionTypes,
-		pub id: String,
-		#[serde(rename = "numsubpods")]
-		pub num_subpods: usize,
-		pub position: i64,
-		pub scanner: String,
-		pub subpods: Vec<Subpod>,
-	}
-
-	#[cfg(test)]
-	mod tests {
-		use super::*;
-		fn de(j: &str) -> Response {
-			serde_json::from_str(j).unwrap()
-		}
-		#[test]
-		fn test_de() {
-			let j = include_str!("./wolfram.json");
-			_ = de(j);
-		}
-	}
-}
-
-async fn query_api(fw: &CommandFramework, query: String) -> Result<()> {
+async fn query_api(
+	fw: &CommandFramework,
+	query: String,
+) -> Result<model::Response> {
 	#[derive(Serialize)]
 	struct WAQueryOpts<'a> {
 		appid: &'a str,
@@ -160,11 +73,28 @@ async fn query_api(fw: &CommandFramework, query: String) -> Result<()> {
 		.bytes()
 		.await
 		.context("Failed to read response from Wolfram Alpha API")?;
-	tokio::fs::write("wolfram.json", &r).await.unwrap();
-	let r: model::Response = serde_json::from_slice(&r)
-		.context("Failed to parse response from Wolfram Alpha API")?;
-	info!("Wolfram Alpha API response: {r:#?}");
-	bail!("TODO");
+	tokio::fs::write("wolfram.json", &r)
+		.await
+		.unwrap();
+	match serde_json::from_slice(&r) {
+		Ok(r) => Ok(r),
+		Err(e) => {
+			const MSG: &str = "Failed to parse response from Wolfram Alpha API";
+			let (mut tmp_file, path) = mktemp("wolfram_response_", ".json")
+				.await
+				.context(
+					"Failed to make temp file for Wolfram Alpha API response",
+				)?;
+			tmp_file
+				.write_all(&r)
+				.await
+				.context("Failed to write api response")?;
+			Err(anyhow::Error::from(e).context(format!(
+				"{MSG}. Wrote response to {}",
+				path.display()
+			)))
+		}
+	}
 }
 
 /// Query Wolfram Alpha for an expression and return the result.
@@ -177,9 +107,27 @@ async fn wolfram(
 	cctx: &CommandCtx<'_>,
 	fw: &CommandFramework,
 ) -> Result<()> {
-	let query = args.expr.join(" ");
-	query_api(fw, query)
+	cctx.defer(ctx)
 		.await
-		.context("Failed to query Wolfram Alpha API")?;
+		.context("Failed to defer command")?;
+	let query = args.expr.join(" ");
+	let r = match query_api(fw, query)
+		.await
+		.context("Failed to query Wolfram Alpha API")
+	{
+		Ok(r) => r,
+		Err(e) => {
+			let mut msg = format!("```\n{e:?}");
+			while msg.ends_with('\n') {
+				msg.pop();
+			}
+			msg.push_str("\n```");
+			error!("Failed to query Wolfram Alpha API: {e:?}");
+			cctx.followup_text(ctx, Cow::Owned(msg))
+				.await
+				.context("Failed to send error message")?;
+			return Ok(());
+		}
+	};
 	todo!()
 }

@@ -471,6 +471,8 @@ dependencies = [
  "smol_str",
  "strip-ansi-escapes",
  "strum 0.28.0",
+ "tempfile",
+ "thiserror 2.0.18",
  "tokio",
  "tokio-scoped",
  "tracing",
@@ -4244,7 +4246,7 @@ dependencies = [
 [[package]]
 name = "serenity"
 version = "0.12.5"
-source = "git+https://github.com/serenity-rs/serenity?branch=next#08e10be33fc600fcd3f7fa84283db81568cb7042"
+source = "git+https://github.com/sadan4/serenity?branch=next#e3bcc0dab579a8033c3ed3b18a23c75a6c72ab94"
 dependencies = [
  "aformat",
  "arrayvec",

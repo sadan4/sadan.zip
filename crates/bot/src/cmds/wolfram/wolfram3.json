@@ -1,0 +1,139 @@
+{
+    "queryresult": {
+        "success": true,
+        "error": false,
+        "numpods": 3,
+        "datatypes": "",
+        "parsetiming": 0.054,
+        "parsetimedout": false,
+        "id": "FPuEZ4waIMc=6:eJxTTMoPSmNkYGAoZgESHvk5KWnMIB4bkHDNK8ksqQwWBjIDivLTixJzczPz0n0S89JLE9NTg7mB4j7+/r5WVubmZrlGaQwwU3wyi0sAh+wU2w==",
+        "kernelId": "341",
+        "processId": 534423,
+        "version": "2.6",
+        "inputstring": "loom",
+        "sbsallowed": false,
+        "parentId": "94b90caf-df7f-495f-b9b7-a1a924666440",
+        "requestId": "94b90caf-df7f-495f-b9b7-a1a924666440",
+        "pods": [
+            {
+                "title": "Input interpretation",
+                "scanner": "Identity",
+                "id": "Input",
+                "position": 1,
+                "error": false,
+                "numsubpods": 1,
+                "subpods": [
+                    {
+                        "title": "",
+                        "img": {
+                            "src": "https://public5c.wolframalpha.com/files/GIF_2i4hi3bsj.gif",
+                            "alt": "LOOM (programming language)",
+                            "title": "LOOM (programming language)",
+                            "width": 217,
+                            "height": 22,
+                            "type": "Default",
+                            "themes": "1,2,3,4,5,6,7,8,9,10,11,12",
+                            "colorinvertable": true,
+                            "contenttype": "image/gif"
+                        },
+                        "plaintext": "LOOM (programming language)"
+                    }
+                ],
+                "expressiontypes": {
+                    "name": "Default"
+                }
+            },
+            {
+                "title": "Wikipedia summary",
+                "scanner": "Data",
+                "id": "WikipediaSummary:ProgrammingLanguageData",
+                "position": 1200,
+                "error": false,
+                "numsubpods": 1,
+                "subpods": [
+                    {
+                        "title": "",
+                        "img": {
+                            "src": "https://public5c.wolframalpha.com/files/GIF_2ib2hbk94.gif",
+                            "alt": "Loom is a knowledge representation language developed by researchers in the artificial intelligence research group at the University of Southern California's Information Sciences Institute. The leader of the Loom project and primary architect for Loom was Robert MacGregor. The research was primarily sponsored by the Defense Advanced Research Projects Agency (DARPA).",
+                            "title": "Loom is a knowledge representation language developed by researchers in the artificial intelligence research group at the University of Southern California's Information Sciences Institute. The leader of the Loom project and primary architect for Loom was Robert MacGregor. The research was primarily sponsored by the Defense Advanced Research Projects Agency (DARPA).",
+                            "width": 539,
+                            "height": 73,
+                            "type": "Default",
+                            "themes": "1,2,3,4,5,6,7,8,9,10,11,12",
+                            "colorinvertable": true,
+                            "contenttype": "image/gif"
+                        },
+                        "plaintext": "Loom is a knowledge representation language developed by researchers in the artificial intelligence research group at the University of Southern California's Information Sciences Institute. The leader of the Loom project and primary architect for Loom was Robert MacGregor. The research was primarily sponsored by the Defense Advanced Research Projects Agency (DARPA).",
+                        "infos": {
+                            "links": {
+                                "url": "https://en.wikipedia.org/wiki?curid=1604673",
+                                "text": "Full entry"
+                            }
+                        }
+                    }
+                ],
+                "expressiontypes": {
+                    "name": "Default"
+                }
+            },
+            {
+                "title": "Wikipedia page hits history",
+                "scanner": "Data",
+                "id": "PopularityPod:WikipediaStatsData",
+                "position": 5000,
+                "error": false,
+                "numsubpods": 1,
+                "subpods": [
+                    {
+                        "title": "",
+                        "img": {
+                            "src": "https://public5c.wolframalpha.com/files/GIF_2irkxdin7.gif",
+                            "alt": "Wikipedia page hits history",
+                            "title": "",
+                            "width": 548,
+                            "height": 186,
+                            "type": "TimeSeriesPlot_1",
+                            "themes": "1,2,3,4,5,6,7,8,9,10,11,12",
+                            "colorinvertable": true,
+                            "contenttype": "image/gif"
+                        },
+                        "plaintext": ""
+                    }
+                ],
+                "expressiontypes": {
+                    "name": "Default"
+                },
+                "states": [
+                    {
+                        "name": "Log scale",
+                        "input": "PopularityPod:WikipediaStatsData__Log scale"
+                    }
+                ]
+            }
+        ],
+        "assumptions": [
+            {
+                "type": "Clash",
+                "word": "loom",
+                "template": "Assuming \"${word}\" is ${desc1}. Use as ${desc2} instead",
+                "count": 2,
+                "values": [
+                    {
+                        "name": "ProgrammingLanguage",
+                        "desc": "a programming language",
+                        "input": "%2AC.loom-_%2AProgrammingLanguage-"
+                    },
+                    {
+                        "name": "Word",
+                        "desc": "a word",
+                        "input": "%2AC.loom-_%2AWord-"
+                    }
+                ]
+            }
+        ],
+        "timing": 1.011,
+        "timedout": "",
+        "timedoutpods": ""
+    }
+}

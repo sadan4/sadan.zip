@@ -41,6 +41,10 @@ use crate::{BotConfig, cmds::wp::WebpackContext};
 
 mod check;
 
+mod paigeinator;
+
+pub use paigeinator::{Paigeinator, PaigeinatorError, PaigeinatorFlags};
+
 pub struct CommandFrameworkInner {
 	root_cmd: &'static Command,
 	prefixes: RwLock<Vec<Cow<'static, str>>>,

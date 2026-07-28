@@ -1,9 +1,10 @@
-use std::str::FromStr;
+use std::{path::PathBuf, str::FromStr};
 
-use anyhow::{Result, anyhow, bail};
+use anyhow::{Context as _, Result, anyhow, bail};
 use derive_more::{Deref, Display, From, Into};
 use serenity::all::{Message, UserId};
-use tokio::task_local;
+use smol_str::SmolStr;
+use tokio::{fs, task_local};
 
 #[derive(
 	Debug,
@@ -171,4 +172,22 @@ pub fn ansi_truncation_point(s: &str, max: usize) -> usize {
 		};
 	}
 	s.len()
+}
+
+pub async fn mktemp(prefix: &str, suffix: &str) -> Result<(fs::File, PathBuf)> {
+	let prefix = SmolStr::from(prefix);
+	let suffix = SmolStr::from(suffix);
+	tokio::task::spawn_blocking(move || {
+		let (std_file, path) = tempfile::Builder::new()
+			.prefix(&prefix)
+			.suffix(&suffix)
+			.tempfile()
+			.context("Failed to create temp file")?
+			.keep()
+			.context("Failed to persist temp file")?;
+		let file = tokio::fs::File::from_std(std_file);
+		anyhow::Ok((file, path))
+	})
+	.await
+	.context("Join Error")?
 }

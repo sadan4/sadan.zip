@@ -91,7 +91,7 @@ tower-lsp = "0.20.0"
 tokio-tungstenite = "0.30.0"
 futures-util = "0.3.31"
 dashmap = "6.1.0"
-tempfile = "3.13.0"
+tempfile = "3.27.0"
 notify = "8.2.0"
 rustc-hash = "2.1.2"
 clearscreen = "4.0.6"
@@ -108,7 +108,7 @@ smallvec = "1.15.2"
 rangemap = "1.7.1"
 hashbrown = "0.17.1"
 bstr = "1.12.3"
-serenity = { git = "https://github.com/serenity-rs/serenity", default-features = false, branch = "next" }
+serenity = { git = "https://github.com/sadan4/serenity", default-features = false, branch = "next" }
 tokio-scoped = "0.2.0"
 strum = { version = "0.28.0", features = ["derive", "phf"] }
 futures-core = "0.3.31"

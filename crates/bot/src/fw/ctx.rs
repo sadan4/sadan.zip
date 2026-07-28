@@ -6,6 +6,8 @@
 //! [`CommandCtx::as_message`] / [`CommandCtx::as_interaction`] provide escape
 //! hatches for handlers that are deliberately restricted to one mode.
 
+use std::borrow::Cow;
+
 use anyhow::{Context as _, Result};
 use serenity::all::{
 	CacheHttp,
@@ -163,12 +165,12 @@ impl<'a> CommandCtx<'a> {
 		}
 	}
 
-	pub async fn followup_text(
+	pub async fn followup_text<'b>(
 		&self,
 		c: impl CacheHttp,
-		txt: impl Into<String>,
+		txt: impl Into<Cow<'b, str>>,
 	) -> Result<ReplyHandle<'a>> {
-		let txt: String = txt.into();
+		let txt = txt.into();
 		match self {
 			CommandCtx::Prefix { msg } => {
 				let sent = msg.reply_ping(c.http(), txt).await?;

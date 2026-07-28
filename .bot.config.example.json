@@ -3,5 +3,15 @@
     "token": "bot token",
     "home_guild_id": "guild id",
     "use_ansi_clap_errors": true,
-    "bot_owners": []
+    "bot_owners": [],
+    "vencord_path": "/path/to/vencord/dir",
+    "build_archive_url": "https://example.com/",
+    "emojis": {
+        "empty": {
+            "id": "0",
+            "animated": false,
+            "name": "your name here"
+        }
+    },
+    "use_local_build_cache": true
 }

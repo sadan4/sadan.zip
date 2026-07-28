@@ -24,6 +24,7 @@ use serenity::{
 	},
 	futures::StreamExt as _,
 };
+use tokio::{select, time::sleep};
 use tracing::info;
 
 use crate::fw::{CommandCtx, CommandFramework};
@@ -142,10 +143,14 @@ async fn board(
 
 	let mut events = ComponentInteractionCollector::new(ctx)
 		.message_id(i_msg.id)
-		.timeout(TIMEOUT_DUR)
 		.stream();
 
-	while let Some(mut i) = events.next().await {
+	// use a select instead of ComponentInteractionCollector::timeout
+	// because we want to timeout after DUR of no interactions, not after we've been running for DUR
+	while let Some(mut i) = select! {
+		e = events.next() => e,
+		() = sleep(TIMEOUT_DUR) => None,
+	} {
 		let (r, c) = parse_board_id(&i.data.custom_id)
 			.context("Failed to get board row/col")?;
 		let mut rows: Vec<ActionRow> = mem::take(&mut i.message.components)
