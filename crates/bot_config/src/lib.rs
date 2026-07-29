@@ -2,12 +2,13 @@ use derive_more::Debug;
 use schemars::{JsonSchema, Schema, SchemaGenerator};
 use serde::{Deserialize, Serialize};
 use serenity::{all::{EmojiId, GuildId, ReactionType, UserId}, small_fixed_array::FixedString};
+use typesize::derive::TypeSize;
 
 fn wrap_schema<T: ?Sized + JsonSchema>(g: &mut SchemaGenerator) -> Schema {
 	g.subschema_for::<T>()
 }
 
-#[derive(Serialize, Default, Clone, Deserialize, Debug, JsonSchema)]
+#[derive(Serialize, Default, Clone, Deserialize, Debug, JsonSchema, TypeSize)]
 /// Bot config. Read from `.bot.config.json`
 pub struct Config {
 	#[debug("REDACTED")]
@@ -35,14 +36,14 @@ pub struct Config {
 	pub wolfram_api_key: String,
 }
 
-#[derive(Serialize, Deserialize, Default, Clone, Debug, JsonSchema)]
+#[derive(Serialize, Deserialize, Default, Clone, Debug, JsonSchema, TypeSize)]
 pub struct Emojis {
 	/// A 1x1 transparent image
 	pub empty: EmojiDef,
 }
 
 /// an emoji available for the bot to access
-#[derive(Serialize, Default, Deserialize, Clone, Debug, JsonSchema)]
+#[derive(Serialize, Default, Deserialize, Clone, Debug, JsonSchema, TypeSize)]
 pub struct EmojiDef {
 	#[schemars(schema_with = "wrap_schema::<String>")]
 	id: EmojiId,
@@ -75,5 +76,15 @@ mod tests {
 		};
 		let dbg_repr = format!("{cfg:?}");
 		assert!(!dbg_repr.contains("MyToken"));
+	}
+
+	#[test]
+	fn doesnt_print_wolfram_key() {
+		let cfg: Config = Config {
+			wolfram_api_key: String::from("MyWolframKey"),
+			..Config::default()
+		};
+		let dbg_repr = format!("{cfg:?}");
+		assert!(!dbg_repr.contains("MyWolframKey"));
 	}
 }

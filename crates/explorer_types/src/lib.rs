@@ -2,6 +2,7 @@ use derive_more::{Deref, Display, From, Into};
 use jiff::{Timestamp, Zoned, tz::TimeZone};
 use oxc_span::Span;
 use serde::{Deserialize, Serialize};
+use typesize::derive::TypeSize;
 use std::{
 	collections::HashMap,
 	time::{Duration, SystemTime},
@@ -9,7 +10,7 @@ use std::{
 
 pub type TModuleId = u32;
 
-#[derive(Serialize, Deserialize, Default, Debug, Clone)]
+#[derive(Serialize, Deserialize, Default, Debug, Clone, TypeSize)]
 #[serde(rename_all = "camelCase")]
 pub struct BundleMetadata {
 	pub build_hash: String,
@@ -19,7 +20,7 @@ pub struct BundleMetadata {
 	pub env_var_text: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, TypeSize)]
 #[serde(rename_all = "camelCase")]
 pub enum ExportName {
 	Default,
@@ -27,13 +28,13 @@ pub enum ExportName {
 	Named(String),
 }
 
-#[derive(Serialize, Deserialize, Debug, Default)]
+#[derive(Serialize, Deserialize, Debug, Default, TypeSize)]
 #[serde(rename_all = "camelCase")]
 pub struct KeyModules {
 	pub flux_dispatcher_class: Vec<(ModuleId, ExportName)>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Default)]
+#[derive(Serialize, Deserialize, Debug, Default, TypeSize)]
 #[serde(rename_all = "camelCase")]
 pub struct DepInfo {
 	pub key_modules: KeyModules,
@@ -44,7 +45,7 @@ pub type ModuleSources = HashMap<String, Vec<ModuleId>>;
 
 pub type Modules = HashMap<ModuleId, String>;
 
-#[derive(Serialize, Deserialize, Debug, Default)]
+#[derive(Serialize, Deserialize, Debug, Default, TypeSize)]
 #[serde(rename_all = "camelCase")]
 pub struct FullBundle {
 	pub metadata: BundleMetadata,
@@ -53,7 +54,7 @@ pub struct FullBundle {
 	pub modules: HashMap<ModuleId, String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Default)]
+#[derive(Serialize, Deserialize, Debug, Default, TypeSize)]
 #[serde(rename_all = "camelCase")]
 pub struct BuildList {
 	/// array of zstd compressed msgpack serialized [`BundleMetadata`]
@@ -75,6 +76,7 @@ pub struct BuildList {
 	Serialize,
 	Deserialize,
 	Display,
+	TypeSize,
 )]
 pub struct ModuleId(pub u32);
 
@@ -92,7 +94,7 @@ impl TryFrom<f64> for ModuleId {
 }
 
 /// Information about a module's dependents
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TypeSize)]
 #[serde(rename_all = "camelCase")]
 pub struct IncomingModuleDeps {
 	/// The modules that require this module synchronously
@@ -102,7 +104,7 @@ pub struct IncomingModuleDeps {
 }
 
 /// Information about a module's dependencies
-#[derive(Default, Clone, Debug)]
+#[derive(Default, Clone, Debug, TypeSize)]
 pub struct OutgoingModuleDeps {
 	/// The modules that this module requires synchronously
 	pub sync: Vec<ModuleId>,
@@ -110,14 +112,15 @@ pub struct OutgoingModuleDeps {
 	pub lazy: Vec<ModuleId>,
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, TypeSize)]
 pub struct SpannedId {
 	pub id: ModuleId,
+	#[typesize(with = std::mem::size_of_val)]
 	pub span: Span,
 }
 
 /// Information about a module's dependencies with source locations
-#[derive(Default, Clone, Debug)]
+#[derive(Default, Clone, Debug, TypeSize)]
 pub struct OutgoingModuleDepsWithLocs {
 	/// The modules that this module requires synchronously
 	pub sync: Vec<SpannedId>,
@@ -184,7 +187,7 @@ impl BundleMetadata {
 	}
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, TypeSize)]
 /// the results of querying for the builds before and after a given timestamp
 pub struct TimestampQueryResults {
 	pub before: Option<BundleMetadata>,

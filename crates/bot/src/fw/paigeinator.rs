@@ -1,6 +1,6 @@
-use std::{assert_matches, borrow::Cow, debug_assert_matches, time::Duration};
+use std::{borrow::Cow, debug_assert_matches, time::Duration};
 
-use anyhow::{Context as _, Result};
+use anyhow::Result;
 use bitflags::bitflags;
 use futures_core::Stream;
 use itertools::Itertools as _;
@@ -8,7 +8,6 @@ use serenity::{
 	all::{
 		ButtonStyle,
 		CacheHttp,
-		CommandInteraction,
 		ComponentInteraction,
 		ComponentInteractionCollector,
 		Context,
@@ -26,8 +25,6 @@ use serenity::{
 		EditMessage,
 		Message,
 		MessageFlags,
-		MessageId,
-		MessageReference,
 		ReactionType,
 		UserId,
 	},
@@ -71,14 +68,6 @@ pub enum PaigeinatorError {
 		starting_page: usize,
 		num_pages: usize,
 	},
-	#[error(
-		"Paigeinator has FORK_ON_OTHER_INTERACTION flag set but no creator was set"
-	)]
-	ForkOnOtherInteractionNoCreator,
-	#[error(
-		"PaigeinatorFlags::PING_ON_REPLY is set but there is no user to ping"
-	)]
-	NoUserToPing,
 	#[error("Serenity Error: {0}")]
 	Serenity(
 		#[from]
@@ -139,10 +128,11 @@ impl<'a> Paigeinator<'a> {
 		self.flags &= !flags;
 		self
 	}
-	pub fn with_creator(mut self, creator: UserId) -> Self {
+	pub const fn with_creator(mut self, creator: UserId) -> Self {
 		self.creator = Some(creator);
 		self
 	}
+
 	pub fn starting_page(mut self, page: usize) -> Self {
 		if cfg!(debug_assertions) && page >= self.pages.len() {
 			warn!(
@@ -250,6 +240,17 @@ impl<'a> Paigeinator<'a> {
 			}
 		} {
 			warn!("Failed to finalize paigeinator content: {e:?}");
+		}
+		while let Some(res) = self.forks.join_next().await {
+			match res {
+				Ok(Ok(())) => todo!(),
+				Ok(Err(e)) => {
+					error!("Forked paigeinator failed: {e:?}");
+				}
+				Err(e) => {
+					error!("Forked paigeinator task failed to join: {e:?}");
+				}
+			}
 		}
 		Ok(())
 	}

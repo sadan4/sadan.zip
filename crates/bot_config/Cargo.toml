@@ -8,6 +8,7 @@ serde.workspace = true
 derive_more.workspace = true
 schemars.workspace = true
 serenity.workspace = true
+typesize.workspace = true
 
 [lints]
 workspace = true

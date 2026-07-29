@@ -1,4 +1,4 @@
-use std::{path::PathBuf, str::FromStr};
+use std::{fmt::Display, path::PathBuf, str::FromStr};
 
 use anyhow::{Context as _, Result, anyhow, bail};
 use derive_more::{Deref, Display, From, Into};
@@ -190,4 +190,47 @@ pub async fn mktemp(prefix: &str, suffix: &str) -> Result<(fs::File, PathBuf)> {
 	})
 	.await
 	.context("Join Error")?
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, From, Into)]
+pub struct FormatBytes(pub usize);
+
+impl Display for FormatBytes {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		fn calc(n: usize, d: usize) -> f64 {
+			let a = n / d;
+			let b = n % d;
+			(b as f64 / d as f64) + a as f64
+		}
+		const KIB: usize = 1024;
+		const MIB: usize = 1024 * KIB;
+		const GIB: usize = 1024 * MIB;
+		let v = self.0;
+		if v > GIB {
+			write!(f, "{:.2} GiB", calc(v, GIB))
+		} else if v > MIB {
+			write!(f, "{:.2} MiB", calc(v, MIB))
+		} else if v > KIB {
+			write!(f, "{:.2} KiB", calc(v, KIB))
+		} else {
+			write!(f, "{} B", v)
+		}
+	}
+}
+
+pub async fn rss_bytes() -> Result<u64> {
+	#[cfg(target_os = "windows")]
+	compile_error!("TODO: implement rss_bytes for windows");
+	// proc_pid_statm(5)
+	let r_pages: u64 = fs::read_to_string("/proc/self/statm")
+		.await
+		.unwrap()
+		.split_whitespace()
+		.nth(1)
+		.unwrap()
+		.parse()
+		.unwrap();
+	// SAFETY: sysconf is safe
+	let page_size = unsafe { libc::sysconf(libc::_SC_PAGESIZE) } as u64;
+	Ok(r_pages * page_size)
 }

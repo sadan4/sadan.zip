@@ -454,6 +454,7 @@ dependencies = [
  "git2",
  "git_hash",
  "itertools 0.15.0",
+ "libc",
  "macros",
  "memchr",
  "oxc-miette",
@@ -477,6 +478,7 @@ dependencies = [
  "tokio-scoped",
  "tracing",
  "tracing-subscriber",
+ "typesize",
  "yaml_serde",
  "zxcvbn",
 ]
@@ -489,6 +491,7 @@ dependencies = [
  "schemars",
  "serde",
  "serenity",
+ "typesize",
 ]
 
 [[package]]
@@ -1133,6 +1136,7 @@ dependencies = [
  "once_cell",
  "parking_lot_core",
  "serde",
+ "typesize",
 ]
 
 [[package]]
@@ -1420,6 +1424,7 @@ dependencies = [
  "jiff",
  "oxc_span",
  "serde",
+ "typesize",
 ]
 
 [[package]]
@@ -1430,6 +1435,7 @@ checksum = "a8855baff5d450715f5d34c1d291a8c77363bd5a20ddacf560d7d6ea2a07f2c3"
 dependencies = [
  "hashbrown 0.15.5",
  "serde",
+ "typesize",
 ]
 
 [[package]]
@@ -2289,9 +2295,9 @@ checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
 
 [[package]]
 name = "libc"
-version = "0.2.186"
+version = "0.2.189"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "68ab91017fe16c622486840e4c83c9a37afeff978bd239b5293d61ece587de66"
+checksum = "3eaf3ede3fee6db1a4c2ee091bf8a8b4dccdc6d17f656fb07896ee72867612f2"
 
 [[package]]
 name = "libgit2-sys"
@@ -4395,6 +4401,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f47eb472ef0994fb63d68ce4851eef89fa0faaf0dc4088c941b4015ce32c083f"
 dependencies = [
  "serde",
+ "typesize",
 ]
 
 [[package]]
@@ -5145,6 +5152,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a313188364f7e10138257cb288c64e9b0e282510abefc91c796799559fa14762"
 dependencies = [
  "chrono",
+ "hashbrown 0.15.5",
  "nonmax",
  "parking_lot",
  "secrecy",

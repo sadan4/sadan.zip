@@ -5,7 +5,7 @@ use std::{
 
 use anyhow::{Context as _, Result};
 use clap::Parser;
-use macros::{SlashArgs, command, executor};
+use macros::{command, executor};
 use serenity::all::{CommandOptionType, Context};
 use tokio::{
 	select,

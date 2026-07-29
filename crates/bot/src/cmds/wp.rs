@@ -1,8 +1,5 @@
 use std::{
-	fmt::Write as _,
-	path::{Path, PathBuf},
-	sync::Arc,
-	time::Instant,
+	fmt::Write as _, mem, path::{Path, PathBuf}, sync::Arc, time::Instant,
 };
 
 use anyhow::{Context as _, Result};
@@ -34,6 +31,7 @@ use reqwest_middleware::ClientWithMiddleware;
 use serenity::all::{Color, Context, CreateEmbed, CreateEmbedFooter};
 use tokio::sync::{Mutex, RwLock};
 use tracing::{debug, info, instrument, warn};
+use typesize::{TypeSize, derive::TypeSize};
 
 use crate::fw::{
 	CommandCtx,
@@ -88,10 +86,19 @@ struct FindModuleFactoryArgs {
 	branch: BranchArg,
 }
 
-#[derive(Clone, Debug)]
+fn size_arc_rwlock<T: TypeSize>(e: &Arc<RwLock<T>>) -> usize {
+	const ARC_OVERHEAD: usize = mem::size_of::<Arc<()>>();
+	const RWLOCK_OVERHEAD: usize = mem::size_of::<RwLock<()>>();
+	ARC_OVERHEAD + RWLOCK_OVERHEAD + e.blocking_read().get_size()
+}
+
+#[derive(Clone, Debug, TypeSize)]
 pub struct WebpackContext {
+	#[typesize(with = size_arc_rwlock)]
 	stable_build: Arc<RwLock<FullBundle>>,
+	#[typesize(with = size_arc_rwlock)]
 	canary_build: Arc<RwLock<FullBundle>>,
+	#[typesize(skip)]
 	client: Arc<ClientWithMiddleware>,
 }
 

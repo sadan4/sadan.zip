@@ -6,9 +6,14 @@ use std::{fmt::Debug, sync::Arc};
 use derive_more::Deref;
 use serenity::{Client, all::GatewayIntents};
 use tracing::error;
+use typesize::{TypeSize, derive::TypeSize};
 
-#[derive(Deref, Default, Clone)]
-struct BotConfig(Arc<bot_config::Config>);
+fn size_of_arc<T: TypeSize>(e: &Arc<T>) -> usize {
+	std::mem::size_of::<Arc<()>>() + e.get_size()
+}
+
+#[derive(Deref, Default, Clone, TypeSize)]
+struct BotConfig(#[typesize(with = size_of_arc)] Arc<bot_config::Config>);
 
 impl Debug for BotConfig {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

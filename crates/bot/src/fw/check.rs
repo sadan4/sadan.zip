@@ -35,7 +35,7 @@ pub const OWNER: Check = Check {
 fn is_owner<'fut>(
 	_ctx: &'fut Context,
 	cctx: &'fut CommandCtx<'fut>,
-	_cmd: &'fut super::Command,
+	cmd: &'fut super::Command,
 	fw: &'fut CommandFramework,
 ) -> BoxFuture<'fut, CheckResult> {
 	Box::pin(async move {
@@ -48,8 +48,8 @@ fn is_owner<'fut>(
 			Status::Pass
 		} else {
 			info!(
-				"owner check failed for user `{}` (id {})",
-				author.name, author.id
+				"owner check failed for user `{}` (id {}), command: `{}`",
+				author.name, author.id, cmd.names[0],
 			);
 			Status::Fail(OWNER)
 		})

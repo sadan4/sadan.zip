@@ -1,15 +1,32 @@
-use std::{borrow::Cow, io::Write};
+use std::{
+	borrow::Cow,
+	debug_assert_matches,
+	fmt::Write as _,
+	io::Write,
+	mem,
+	sync::LazyLock,
+};
 
-use anyhow::{Context as _, Result, bail};
+use anyhow::{Context as _, Result};
 use clap::Parser;
 use macros::{SlashArgs, command};
+use memchr::memmem::Finder;
 use serde::Serialize;
-use serenity::all::{CommandOptionType, Context};
+use serenity::all::{
+	CommandOptionType,
+	Context,
+	CreateContainerComponent,
+	CreateMediaGallery,
+	CreateMediaGalleryItem,
+	CreateSeparator,
+	CreateTextDisplay,
+	CreateUnfurledMediaItem,
+};
 use tokio::{fs, io::AsyncWriteExt};
 use tracing::{error, info};
 
 use crate::{
-	fw::{CommandCtx, CommandFramework, SlashOption, SlashSchema},
+	fw::{CommandCtx, CommandFramework, Paigeinator, SlashOption, SlashSchema},
 	util::mktemp,
 };
 
@@ -97,6 +114,97 @@ async fn query_api(
 	}
 }
 
+static INPUT_POD_ID: &str = "Input";
+
+static CODEBLOCK_FINDER: LazyLock<Finder<'static>> =
+	LazyLock::new(|| Finder::new(b"```"));
+
+fn cleanblocks(txt: &mut str) {
+	// SAFETY: This is safe. we only ever replace single ascii bytes with other single ascii bytes
+	// which will never create invalid UTF-8
+	let bts = unsafe { txt.as_bytes_mut() };
+	let f = &*CODEBLOCK_FINDER;
+	while let Some(pos) = f.find(bts) {
+		debug_assert_eq!(&bts[pos..pos + 3], b"```");
+		bts[pos] = b'\'';
+		bts[pos + 1] = b'\'';
+		bts[pos + 2] = b'\'';
+		debug_assert_eq!(&bts[pos..pos + 3], b"'''");
+	}
+}
+
+fn build_ui(
+	d: model::Response,
+) -> Vec<Cow<'static, [CreateContainerComponent<'static>]>> {
+	#[derive(Debug)]
+	struct OutData {
+		title: String,
+		desc: String,
+		image: Option<String>,
+		id: String,
+	}
+	let mut outdata = Vec::new();
+	let mut input = None;
+	for mut pod in d.query_result.pods {
+		let mut od = OutData {
+			id: pod.id,
+			title: pod.title,
+			image: pod
+				.subpods
+				.first_mut()
+				.map(|sp| mem::take(&mut sp.img.src)),
+			desc: String::new(),
+		};
+		for sp in pod.subpods {
+			writeln!(od.desc, "{}", sp.plaintext).unwrap();
+		}
+		while od.desc.ends_with('\n') {
+			od.desc.pop();
+		}
+		cleanblocks(&mut od.desc);
+		od.desc.insert_str(0, "```\n");
+		od.desc.push_str("\n```");
+		if od.id == INPUT_POD_ID {
+			debug_assert_matches!(input, None, "Multiple input pods found");
+			input = Some(od);
+		} else {
+			outdata.push(od);
+		}
+	}
+	let mut cpts = Vec::new();
+	for mut d in outdata {
+		let mut page = Vec::new();
+		if let Some(i) = &input {
+			page.push(CreateContainerComponent::TextDisplay(
+				CreateTextDisplay::new(i.desc.clone()),
+			));
+			page.push(CreateContainerComponent::Separator(
+				CreateSeparator::new(),
+			));
+		}
+		d.title.insert_str(0, "## ");
+		page.push(CreateContainerComponent::TextDisplay(
+			CreateTextDisplay::new(d.title),
+		));
+		d.desc.truncate(1000);
+		cleanblocks(&mut d.desc);
+		d.desc.insert_str(0, "```\n");
+		d.desc.push_str("\n```");
+		page.push(CreateContainerComponent::TextDisplay(
+			CreateTextDisplay::new(d.desc),
+		));
+		if let Some(i) = d.image {
+			page.push(CreateContainerComponent::MediaGallery(
+				CreateMediaGallery::new(vec![CreateMediaGalleryItem::new(
+					CreateUnfurledMediaItem::new(i),
+				)]),
+			));
+		}
+		cpts.push(page.into());
+	}
+	cpts
+}
+
 /// Query Wolfram Alpha for an expression and return the result.
 #[command]
 #[arg_parser = QalcArgs]
@@ -129,5 +237,12 @@ async fn wolfram(
 			return Ok(());
 		}
 	};
-	todo!()
+	let pages = build_ui(r);
+	Paigeinator::new()
+		.with_pages(pages)
+		.with_creator(cctx.author().id)
+		.run(ctx, cctx)
+		.await
+		.context("Paigeinator failed for wa")?;
+	Ok(())
 }
