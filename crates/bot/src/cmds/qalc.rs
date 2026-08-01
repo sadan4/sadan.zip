@@ -54,6 +54,7 @@ impl Qalc {
 		let mut qalc = qalc.as_mut().unwrap();
 		qalc.as_mut()
 			.allow_impure_expressions(false);
+		qalc.as_mut().enable_sandboxing();
 		if !qalc.as_mut().load_exchange_rates() {
 			warn!("Failed to load exchange rates");
 		}

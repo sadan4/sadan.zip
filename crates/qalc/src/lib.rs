@@ -21,6 +21,7 @@ pub mod ffi {
 		fn use_twos_complement_for_hex(self: Pin<&mut Qalculator>, use_: bool);
 		fn get_twos_complement_for_hex(self: &Qalculator) -> bool;
 		fn allow_impure_expressions(self: Pin<&mut Qalculator>, allow: bool);
+		fn enable_sandboxing(self: Pin<&mut Qalculator>);
 		fn calculate_and_print(
 			self: Pin<&mut Qalculator>,
 			expr: &str,

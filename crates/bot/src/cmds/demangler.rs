@@ -22,6 +22,19 @@ impl SlashSchema for DemanglerArgs {
 	}
 }
 
+fn demangle_string(s: String) -> String {
+	let llvm_res = demangler::ffi::demangle_all(&s);
+	(!llvm_res.is_null())
+		.then(|| {
+			llvm_res
+				.to_str()
+				.expect("Demangled output is not UTF-8")
+				.to_string()
+		})
+		.or_else(|| swift_demangler::demangle(&s))
+		.unwrap_or(s)
+}
+
 #[command]
 #[arg_parser = DemanglerArgs]
 #[slash_args]
@@ -36,17 +49,7 @@ async fn demangle(
 	let mut res = args
 		.expr
 		.into_iter()
-		.map(|s| {
-			let demangled = demangler::ffi::demangle_all(&s);
-			if demangled.is_null() {
-				s
-			} else {
-				demangled
-					.to_str()
-					.expect("demangled output is not utf8")
-					.to_string()
-			}
-		})
+		.map(demangle_string)
 		.join(" ");
 	// ```\n{...}\n```
 	const MAX_LEN: usize = 2000 - 8;

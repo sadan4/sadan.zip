@@ -2,14 +2,13 @@ use std::{
 	borrow::Cow,
 	debug_assert_matches,
 	fmt::Write as _,
-	io::Write,
 	mem,
 	sync::LazyLock,
 };
 
 use anyhow::{Context as _, Result};
 use clap::Parser;
-use macros::{SlashArgs, command};
+use macros::command;
 use memchr::memmem::Finder;
 use serde::Serialize;
 use serenity::all::{
@@ -22,8 +21,8 @@ use serenity::all::{
 	CreateTextDisplay,
 	CreateUnfurledMediaItem,
 };
-use tokio::{fs, io::AsyncWriteExt};
-use tracing::{error, info};
+use tokio::io::AsyncWriteExt;
+use tracing::error;
 
 use crate::{
 	fw::{CommandCtx, CommandFramework, Paigeinator, SlashOption, SlashSchema},
@@ -187,12 +186,38 @@ fn build_ui(
 			CreateTextDisplay::new(d.title),
 		));
 		d.desc.truncate(1000);
-		cleanblocks(&mut d.desc);
-		d.desc.insert_str(0, "```\n");
-		d.desc.push_str("\n```");
-		page.push(CreateContainerComponent::TextDisplay(
-			CreateTextDisplay::new(d.desc),
-		));
+		const CODE_FENCE: &str = "```";
+		if d.desc.ends_with(CODE_FENCE) {
+			d.desc
+				.truncate(d.desc.len() - CODE_FENCE.len());
+		}
+		if d.desc.starts_with(CODE_FENCE) {
+			d.desc.drain(..CODE_FENCE.len());
+		}
+		while d
+			.desc
+			.as_bytes()
+			.last()
+			.is_some_and(u8::is_ascii_whitespace)
+		{
+			d.desc.pop();
+		}
+		while d
+			.desc
+			.as_bytes()
+			.first()
+			.is_some_and(u8::is_ascii_whitespace)
+		{
+			d.desc.drain(..1);
+		}
+		if !d.desc.is_empty() {
+			cleanblocks(&mut d.desc);
+			d.desc.insert_str(0, "```\n");
+			d.desc.push_str("\n```");
+			page.push(CreateContainerComponent::TextDisplay(
+				CreateTextDisplay::new(d.desc),
+			));
+		}
 		if let Some(i) = d.image {
 			page.push(CreateContainerComponent::MediaGallery(
 				CreateMediaGallery::new(vec![CreateMediaGalleryItem::new(

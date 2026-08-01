@@ -43,7 +43,7 @@ mod check;
 
 mod paigeinator;
 
-pub use paigeinator::{Paigeinator, PaigeinatorError, PaigeinatorFlags};
+pub use paigeinator::{Paigeinator, PaigeinatorFlags};
 
 pub struct CommandFrameworkInner {
 	root_cmd: &'static Command,
@@ -77,7 +77,7 @@ impl CommandFramework {
 		})))
 	}
 
-	pub async fn init_wp_ctx(&self, ctx: WebpackContext) {
+	pub fn init_wp_ctx(&self, ctx: WebpackContext) {
 		self.wp_context
 			.set(Arc::new(ctx))
 			.expect("cannot init webpack context more than once");

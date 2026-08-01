@@ -11,6 +11,9 @@ mod ping;
 mod qalc;
 mod wolfram;
 pub mod wp;
+mod userinfo;
+mod chmod;
+mod loss;
 
 #[command]
 #[sub_cmds[
@@ -23,6 +26,9 @@ pub mod wp;
 	demangler::demangle,
 	password::password,
 	wolfram::wolfram,
+	userinfo::user_info,
+	chmod::chmod,
+	loss::loss,
 ]]
 #[group]
 #[root]

@@ -5,7 +5,7 @@ use std::{
 use anyhow::{Context as _, Result};
 use clap::{Parser, ValueEnum};
 use derive_more::Display;
-use discord_scraper::{NoProgress, make_reqwest_client, scrape_full_bundle};
+use discord_scraper::{NoProgress, scrape_full_bundle};
 use explorer_server_core::Channel;
 use explorer_types::{FullBundle, ModuleId};
 use git2::{
@@ -33,12 +33,12 @@ use tokio::sync::{Mutex, RwLock};
 use tracing::{debug, info, instrument, warn};
 use typesize::{TypeSize, derive::TypeSize};
 
-use crate::fw::{
+use crate::{fw::{
 	CommandCtx,
 	CommandExecutor,
 	CommandFramework,
 	OpaqueExecutor,
-};
+}, util::trim_heap};
 
 #[command]
 #[group]
@@ -98,8 +98,6 @@ pub struct WebpackContext {
 	stable_build: Arc<RwLock<FullBundle>>,
 	#[typesize(with = size_arc_rwlock)]
 	canary_build: Arc<RwLock<FullBundle>>,
-	#[typesize(skip)]
-	client: Arc<ClientWithMiddleware>,
 }
 
 #[command]
@@ -208,7 +206,7 @@ async fn scrape_branch(
 		info!("Using cached bundle for {channel:?} branch");
 		return Ok(bundle);
 	}
-	let bundle = scrape_full_bundle(
+	let mut bundle = scrape_full_bundle(
 		html.text.as_ref(),
 		channel,
 		html.build_hash,
@@ -224,17 +222,17 @@ async fn scrape_branch(
 	{
 		warn!("Failed to write bundle to cache: {err:?}");
 	}
+	// FullBundle::shrink_to_fit saves ~75MB of ram per bundle
+	bundle.shrink_to_fit();
 	Ok(bundle)
 }
 async fn init_webpack_context(fw: &CommandFramework) -> Result<()> {
-	let client =
-		make_reqwest_client().context("Failed to make reqwest client")?;
-	let client1 = client.clone();
+	let client = fw.http.clone();
 	let use_cache = fw.config.use_local_build_cache;
 	let stable_fut =
 		tokio::spawn(scrape_branch(client.clone(), Channel::Stable, use_cache));
 	let canary_fut =
-		tokio::spawn(scrape_branch(client1, Channel::Canary, use_cache));
+		tokio::spawn(scrape_branch(client, Channel::Canary, use_cache));
 	let stable_build = stable_fut
 		.await
 		.context("Join error")??;
@@ -244,9 +242,11 @@ async fn init_webpack_context(fw: &CommandFramework) -> Result<()> {
 	let ctx = WebpackContext {
 		stable_build: Arc::new(RwLock::new(stable_build)),
 		canary_build: Arc::new(RwLock::new(canary_build)),
-		client,
 	};
-	fw.init_wp_ctx(ctx).await;
+	fw.init_wp_ctx(ctx);
+	// This does not include the hacks for ram savings in scrape_branch
+	// we do ~5GiB of allocation per bundle here, this releases ~600MiB of ram to the system per bundle
+	trim_heap();
 	Ok(())
 }
 fn collect_module_matches(

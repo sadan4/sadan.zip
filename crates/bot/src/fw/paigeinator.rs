@@ -162,7 +162,7 @@ impl<'a> Paigeinator<'a> {
 		self.pages.push(page.into());
 		self
 	}
-	pub fn with_timeout(mut self, timeout: Duration) -> Self {
+	pub const fn with_timeout(mut self, timeout: Duration) -> Self {
 		self.timeout = Some(timeout);
 		self
 	}

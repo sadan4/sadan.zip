@@ -2,11 +2,11 @@ use derive_more::{Deref, Display, From, Into};
 use jiff::{Timestamp, Zoned, tz::TimeZone};
 use oxc_span::Span;
 use serde::{Deserialize, Serialize};
-use typesize::derive::TypeSize;
 use std::{
 	collections::HashMap,
 	time::{Duration, SystemTime},
 };
+use typesize::derive::TypeSize;
 
 pub type TModuleId = u32;
 
@@ -34,11 +34,34 @@ pub struct KeyModules {
 	pub flux_dispatcher_class: Vec<(ModuleId, ExportName)>,
 }
 
+impl KeyModules {
+	pub fn shrink_to_fit(&mut self) {
+		let Self {
+			flux_dispatcher_class,
+		} = self;
+		flux_dispatcher_class.shrink_to_fit();
+	}
+}
+
 #[derive(Serialize, Deserialize, Debug, Default, TypeSize)]
 #[serde(rename_all = "camelCase")]
 pub struct DepInfo {
 	pub key_modules: KeyModules,
 	pub module_deps: HashMap<ModuleId, IncomingModuleDeps>,
+}
+
+impl DepInfo {
+	pub fn shrink_to_fit(&mut self) {
+		let Self {
+			key_modules,
+			module_deps,
+		} = self;
+		key_modules.shrink_to_fit();
+		module_deps.shrink_to_fit();
+		for v in module_deps.values_mut() {
+			v.shrink_to_fit();
+		}
+	}
 }
 
 pub type ModuleSources = HashMap<String, Vec<ModuleId>>;
@@ -52,6 +75,27 @@ pub struct FullBundle {
 	pub dep_info: DepInfo,
 	pub module_sources: HashMap<String, Vec<ModuleId>>,
 	pub modules: HashMap<ModuleId, String>,
+}
+
+impl FullBundle {
+	pub fn shrink_to_fit(&mut self) {
+		let Self {
+			metadata,
+			dep_info,
+			module_sources,
+			modules,
+		} = self;
+		metadata.shrink_to_fit();
+		dep_info.shrink_to_fit();
+		module_sources.shrink_to_fit();
+		for v in module_sources.values_mut() {
+			v.shrink_to_fit();
+		}
+		modules.shrink_to_fit();
+		for v in modules.values_mut() {
+			v.shrink_to_fit();
+		}
+	}
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, TypeSize)]
@@ -164,6 +208,12 @@ impl OutgoingModuleDeps {
 }
 
 impl IncomingModuleDeps {
+	pub fn shrink_to_fit(&mut self) {
+		let Self { sync, lazy } = self;
+		sync.shrink_to_fit();
+		lazy.shrink_to_fit();
+	}
+
 	pub const fn new() -> Self {
 		Self {
 			sync: Vec::new(),
@@ -173,6 +223,18 @@ impl IncomingModuleDeps {
 }
 
 impl BundleMetadata {
+	pub fn shrink_to_fit(&mut self) {
+		let Self {
+			build_hash,
+			build_number: _,
+			first_seen: _,
+			entry_point: _,
+			env_var_text,
+		} = self;
+		build_hash.shrink_to_fit();
+		env_var_text.shrink_to_fit();
+	}
+
 	pub fn first_seen_as_time(&self) -> SystemTime {
 		SystemTime::UNIX_EPOCH + Duration::from_millis(self.first_seen)
 	}

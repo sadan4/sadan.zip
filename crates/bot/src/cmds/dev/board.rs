@@ -1,7 +1,6 @@
 use std::{borrow::Cow, mem, time::Duration};
 
 use anyhow::{Context as _, Result, bail};
-use arrayvec::ArrayVec;
 use macros::command;
 use serenity::{
 	all::{

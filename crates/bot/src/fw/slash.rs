@@ -143,7 +143,7 @@ fn default_kind(arg: &Arg) -> CommandOptionType {
 /// Discord requires every required option to precede the optional ones, so the
 /// output is stably reordered required-first (clap declaration order is
 /// otherwise preserved).
-fn build_arg_options<'a>(node: &'a Command) -> Vec<CreateCommandOption<'a>> {
+fn build_arg_options(node: &Command) -> Vec<CreateCommandOption<'_>> {
 	let clap_cmd = node.parser.get(node);
 	let native: HashMap<&str, SlashOption> = node
 		.slash_schema
@@ -508,7 +508,7 @@ impl CommandFramework {
 						render_clap_error(clap_err, use_ansi)
 					} else {
 						error!("Failed to execute slash command: {:?}", e);
-						format!("command failed: {e}")
+						format!("command failed: {e:?}")
 					};
 				// the handler may already have responded; try an initial
 				// response first, then fall back to a followup

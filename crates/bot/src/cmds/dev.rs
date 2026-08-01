@@ -3,12 +3,10 @@ mod paige;
 
 use std::{fmt::Write as _, sync::Arc};
 
-use anyhow::{Result, bail};
-use async_scoped::TokioScope;
+use anyhow::{Context as _, Result, bail};
 use clap::Parser;
 use macros::{SlashArgs, command};
-use serenity::all::Context;
-use tokio::task::block_in_place;
+use serenity::all::{Context, Mentionable};
 use typesize::TypeSize;
 
 use crate::{
@@ -34,7 +32,13 @@ use crate::{
 	show_config,
 	board::board,
 	paige::paige,
-	prof_heap
+	prof_heap,
+	stop,
+	exit,
+	abort,
+	segfault,
+	trim,
+	ping_user
 )]
 struct Dev;
 
@@ -156,5 +160,79 @@ async fn prof_heap(
 	writeln!(msg, "RSS: {}", FormatBytes(rss))?;
 	msg.push_str("```");
 	cctx.reply(ctx, msg).await?;
+	Ok(())
+}
+
+#[command]
+#[checks(crate::fw::OWNER)]
+/// Run [`libc::malloc_trim`]
+async fn trim(c: &Context, cc: &CommandCtx<'_>) -> Result<()> {
+	cc.defer(c).await?;
+	tokio::task::spawn_blocking(|| {
+		// SAFETY: safe
+		unsafe { libc::malloc_trim(0) };
+	})
+	.await?;
+	cc.followup_text(c, "Trimmed Heap")
+		.await?;
+	Ok(())
+}
+
+#[command]
+#[checks(crate::fw::OWNER)]
+/// Gracefully stop the bot process.
+async fn stop(c: &Context, cctx: &CommandCtx<'_>) -> Result<()> {
+	_ = cctx.reply(&c, "Exiting...").await;
+	c.shutdown_all();
+	Ok(())
+}
+
+#[command]
+#[checks(crate::fw::OWNER)]
+/// exit the bot process
+async fn exit(c: &Context, cctx: &CommandCtx<'_>) -> Result<()> {
+	_ = cctx.reply(&c, "Killing...").await;
+	std::process::exit(1);
+}
+
+#[command]
+#[checks(crate::fw::OWNER)]
+/// abort the bot process
+async fn abort(c: &Context, cctx: &CommandCtx<'_>) -> Result<()> {
+	_ = cctx.reply(&c, "Terminating...").await;
+	std::process::abort();
+}
+
+#[command]
+#[checks(crate::fw::OWNER)]
+/// abort the bot process (via segfault)
+async fn segfault(c: &Context, cctx: &CommandCtx<'_>) -> Result<()> {
+	_ = cctx.reply(&c, "Segfaulting...").await;
+	// SAFETY: this is a segfault lol
+	unsafe {
+		let p: *mut i32 = std::ptr::null_mut();
+		*p = 0;
+	};
+	Ok(())
+}
+
+#[derive(Parser, SlashArgs)]
+struct PingUserArgs {
+	#[arg(default_value = FROM_REPLY)]
+	user: UserArg,
+}
+
+#[command]
+#[checks(crate::fw::OWNER)]
+#[arg_parser = PingUserArgs]
+#[slash_args]
+async fn ping_user(
+	user: PingUserArgs,
+	ctx: &Context,
+	cctx: &CommandCtx<'_>,
+) -> Result<()> {
+	cctx.reply(ctx, format!("{}", user.user.mention()))
+		.await
+		.context("Failed to send ping")?;
 	Ok(())
 }

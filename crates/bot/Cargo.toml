@@ -6,15 +6,11 @@ edition.workspace = true
 [dependencies]
 anyhow.workspace = true
 serenity = {workspace = true, features = ["default", "collector", "unstable", "typesize"]}
-reqwest.workspace = true
 tokio.workspace = true
 libc.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
-tokio-scoped.workspace = true
-strum.workspace = true
 futures-core.workspace = true
-dashmap.workspace = true
 clap.workspace = true
 bitflags.workspace = true
 macros.workspace = true
@@ -33,21 +29,19 @@ async-scoped.workspace = true
 memchr.workspace = true
 rayon.workspace = true
 oxc-miette.workspace = true
-strip-ansi-escapes.workspace = true
 git2.workspace = true
 qalc.workspace = true
 cxx.workspace = true
 git_hash.workspace = true
 demangler.workspace = true
 zxcvbn.workspace = true
-yaml_serde.workspace = true
 sha1.workspace = true
 arrayvec.workspace = true
-smallvec.workspace = true
 serde.workspace = true
 tempfile.workspace = true
 thiserror.workspace = true
 typesize.workspace = true
+swift-demangler.workspace = true
 
 [lints]
 workspace = true

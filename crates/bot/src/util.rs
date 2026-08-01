@@ -1,10 +1,11 @@
-use std::{fmt::Display, path::PathBuf, str::FromStr};
+use std::{fmt::Display, path::PathBuf, str::FromStr, time::Instant};
 
 use anyhow::{Context as _, Result, anyhow, bail};
 use derive_more::{Deref, Display, From, Into};
 use serenity::all::{Message, UserId};
 use smol_str::SmolStr;
 use tokio::{fs, task_local};
+use tracing::info;
 
 #[derive(
 	Debug,
@@ -192,38 +193,44 @@ pub async fn mktemp(prefix: &str, suffix: &str) -> Result<(fs::File, PathBuf)> {
 	.context("Join Error")?
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, From, Into)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, From, Into, Deref)]
 pub struct FormatBytes(pub usize);
+
+pub const KIB: usize = 1024;
+pub const MIB: usize = 1024 * KIB;
+pub const GIB: usize = 1024 * MIB;
+
+#[allow(clippy::cast_precision_loss)]
+fn calc_byte_fmt(n: usize, d: usize) -> f64 {
+	let a = n / d;
+	let b = n % d;
+	(b as f64 / d as f64) + a as f64
+}
 
 impl Display for FormatBytes {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		fn calc(n: usize, d: usize) -> f64 {
-			let a = n / d;
-			let b = n % d;
-			(b as f64 / d as f64) + a as f64
-		}
-		const KIB: usize = 1024;
-		const MIB: usize = 1024 * KIB;
-		const GIB: usize = 1024 * MIB;
 		let v = self.0;
 		if v > GIB {
-			write!(f, "{:.2} GiB", calc(v, GIB))
+			write!(f, "{:.2} GiB", calc_byte_fmt(v, GIB))
 		} else if v > MIB {
-			write!(f, "{:.2} MiB", calc(v, MIB))
+			write!(f, "{:.2} MiB", calc_byte_fmt(v, MIB))
 		} else if v > KIB {
-			write!(f, "{:.2} KiB", calc(v, KIB))
+			write!(f, "{:.2} KiB", calc_byte_fmt(v, KIB))
 		} else {
-			write!(f, "{} B", v)
+			write!(f, "{v} B")
 		}
 	}
 }
 
 pub async fn rss_bytes() -> Result<u64> {
+	Ok(tokio::task::spawn_blocking(rss_bytes_block).await?)
+}
+
+pub fn rss_bytes_block() -> u64 {
 	#[cfg(target_os = "windows")]
 	compile_error!("TODO: implement rss_bytes for windows");
 	// proc_pid_statm(5)
-	let r_pages: u64 = fs::read_to_string("/proc/self/statm")
-		.await
+	let r_pages: u64 = std::fs::read_to_string("/proc/self/statm")
 		.unwrap()
 		.split_whitespace()
 		.nth(1)
@@ -232,5 +239,19 @@ pub async fn rss_bytes() -> Result<u64> {
 		.unwrap();
 	// SAFETY: sysconf is safe
 	let page_size = unsafe { libc::sysconf(libc::_SC_PAGESIZE) } as u64;
-	Ok(r_pages * page_size)
+	r_pages * page_size
+}
+
+/// see [`libc::malloc_trim`]
+pub fn trim_heap() {
+	tokio::task::spawn_blocking(|| {
+		let start = Instant::now();
+		let before = FormatBytes(rss_bytes_block() as usize);
+		// SAFETY: safe
+		unsafe { libc::malloc_trim(0) };
+		let after = FormatBytes(rss_bytes_block() as usize);
+		let dur = start.elapsed();
+		let delta = FormatBytes(before.abs_diff(*after));
+		info!("trim_heap: RSS {before} -> {after} Δ{delta} in {dur:.2?}");
+	});
 }

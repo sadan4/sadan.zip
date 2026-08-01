@@ -14,6 +14,7 @@ use serenity::all::{
 	CommandInteraction,
 	CreateAllowedMentions,
 	CreateAttachment,
+	CreateComponent,
 	CreateEmbed,
 	CreateInteractionResponse,
 	CreateInteractionResponseFollowup,
@@ -23,6 +24,8 @@ use serenity::all::{
 	EditMessage,
 	GenericChannelId,
 	Message,
+	MessageFlags,
+	MessageId,
 	User,
 };
 
@@ -292,6 +295,51 @@ impl<'a> CommandCtx<'a> {
 					)
 					.await?;
 				Ok(ReplyHandle::Application { interaction })
+			}
+		}
+	}
+
+	/// Reply with a set of components.
+	pub async fn reply_components<'b>(
+		&self,
+		c: impl CacheHttp,
+		cmpts: impl Into<Cow<'b, [CreateComponent<'b>]>>,
+	) -> Result<MessageId> {
+		let cmpts = cmpts.into();
+		match self {
+			CommandCtx::Prefix { msg } => {
+				let cm = CreateMessage::new()
+					.components(cmpts)
+					.reference_message(*msg)
+					.flags(MessageFlags::IS_COMPONENTS_V2)
+					.allowed_mentions(
+						CreateAllowedMentions::new()
+							.all_users(true)
+							.all_roles(true)
+							.replied_user(true),
+					);
+				let sent = msg
+					.channel_id
+					.send_message(c.http(), cm)
+					.await?;
+				Ok(sent.id)
+			}
+			CommandCtx::Application { interaction } => {
+				interaction
+					.create_response(
+						c.http(),
+						CreateInteractionResponse::Message(
+							CreateInteractionResponseMessage::new()
+								.flags(MessageFlags::IS_COMPONENTS_V2)
+								.components(cmpts),
+						),
+					)
+					.await?;
+				let sent_msg = interaction
+					.get_response(c.http())
+					.await
+					.context("Failed to get interaction response")?;
+				Ok(sent_msg.id)
 			}
 		}
 	}
