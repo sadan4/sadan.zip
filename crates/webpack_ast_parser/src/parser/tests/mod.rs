@@ -877,6 +877,67 @@ mod export_parsing {
 			}
 			"#);
 		}
+		
+		#[test]
+		fn seq_expr_enum_export_style_3() {
+			let alloc = Allocator::new();
+			let p = parse_!(alloc, "test_data/wp/wreq.d/enums5.js");
+			let map = p.dbg_export_map();
+			assert_debug_snapshot!(map, @r#"
+			{
+			    "A": ExportMap(
+			        {
+			            "NOTICE": "notice"(
+			                [
+			                    "[10:6->10:12) NOTICE",
+			                    "[10:15->10:23) \\\"notice\\\"",
+			                ],
+			            ),
+			            "OVERLAY": "overlay"(
+			                [
+			                    "[9:6->9:13) OVERLAY",
+			                    "[9:16->9:25) \\\"overlay\\\"",
+			                ],
+			            ),
+			            "POPOUT_WINDOW": "popout window"(
+			                [
+			                    "[8:6->8:19) POPOUT_WINDOW",
+			                    "[8:22->8:37) \\\"popout window\\\"",
+			                ],
+			            ),
+			            "PREMIUM_UPSELL_TOOLTIP": "premium upsell tooltip"(
+			                [
+			                    "[11:6->11:28) PREMIUM_UPSELL_TOOLTIP",
+			                    "[11:31->11:55) \\\"premium upsell tooltip\\\"",
+			                ],
+			            ),
+			            "QUICK_SWITCHER": "quick switcher"(
+			                [
+			                    "[7:30->7:44) QUICK_SWITCHER",
+			                    "[7:47->7:63) \\\"quick switcher\\\"",
+			                ],
+			            ),
+			            "XBOX_PERKS_CONNECTION_FOOTER": "xbox perks connection footer"(
+			                [
+			                    "[12:6->12:34) XBOX_PERKS_CONNECTION_FOOTER",
+			                    "[12:37->12:67) \\\"xbox perks connection footer\\\"",
+			                ],
+			            ),
+			            "XBOX_PERKS_MODAL": "xbox perks modal"(
+			                [
+			                    "[13:6->13:22) XBOX_PERKS_MODAL",
+			                    "[13:25->13:43) \\\"xbox perks modal\\\"",
+			                ],
+			            ),
+			            "SYM_CJS_DEFAULT": [
+			                "[5:8->5:9) A",
+			                "[7:11->7:12) r",
+			            ],
+			        },
+			    ),
+			}
+			"#);
+		}
 
 		#[test]
 		fn object_freeze_enum_export() {
