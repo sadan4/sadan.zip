@@ -9,6 +9,7 @@ use oxc::{
 		AssignmentTarget,
 		ComputedMemberExpression,
 		Expression,
+		LogicalOperator,
 		MemberExpression,
 		StaticMemberExpression,
 	},
@@ -37,14 +38,20 @@ impl<'ast> EnumIIFEState1_2<'_, 'ast> {
 	) -> Option<SymbolId> {
 		match obj.get_inner_expression() {
 			Expression::Identifier(id) => self.p.sym_id_of(id.as_ref()),
-			// `(e = {})` in `(e = {}).KEY = val`
+			// `(e = {})` in `(e = {}).KEY = val`, or the namespace-style
+			// `(e = r || {})` where the object is seeded from an existing
+			// binding when present.
 			Expression::AssignmentExpression(assign) => {
-				if !assign
-					.right
-					.as_object_expression()?
-					.properties
-					.is_empty()
-				{
+				let obj = match assign.right.get_inner_expression() {
+					Expression::ObjectExpression(o) => o.as_ref(),
+					Expression::LogicalExpression(l)
+						if l.operator == LogicalOperator::Or =>
+					{
+						l.right.as_object_expression()?
+					}
+					_ => return None,
+				};
+				if !obj.properties.is_empty() {
 					return None;
 				}
 				match &assign.left {
