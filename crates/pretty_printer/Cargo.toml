@@ -14,7 +14,7 @@ oxc = { workspace = true, features = ["ast_visit", "semantic"] }
 derive_more.workspace = true
 clap.workspace = true
 clap_complete.workspace = true
-unicode-ident = "1.0.24"
+unicode-ident.workspace = true
 
 [dev-dependencies]
 insta.workspace = true
