@@ -1,11 +1,44 @@
+pub mod avatar;
+pub mod skia;
+
 use std::{fmt::Display, path::PathBuf, str::FromStr, time::Instant};
 
 use anyhow::{Context as _, Result, anyhow, bail};
+use bytes::Bytes;
 use derive_more::{Deref, Display, From, Into};
 use serenity::all::{Message, UserId};
 use smol_str::SmolStr;
 use tokio::{fs, task_local};
 use tracing::info;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ImageFormat {
+	Png,
+	Webp,
+}
+
+impl ImageFormat {
+	pub const fn from_content_type(content_type: &[u8]) -> Option<Self> {
+		match content_type {
+			b"image/png" => Some(Self::Png),
+			b"image/webp" => Some(Self::Webp),
+			_ => None,
+		}
+	}
+	pub fn ext(self) -> &'static str {
+		match self {
+			Self::Png => ".png",
+			Self::Webp => ".webp",
+		}
+	}
+}
+#[derive(Debug, Clone)]
+/// O(1) clone, refcounted bytes and format
+pub struct Image {
+	pub bytes: Bytes,
+	pub format: ImageFormat,
+}
+
 
 #[derive(
 	Debug,

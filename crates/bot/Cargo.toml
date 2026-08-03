@@ -42,6 +42,11 @@ tempfile.workspace = true
 thiserror.workspace = true
 typesize.workspace = true
 swift-demangler.workspace = true
+skia-safe.workspace = true
+bytes.workspace = true
+gif.workspace = true
+mini-moka.workspace = true
+url.workspace = true
 
 [lints]
 workspace = true

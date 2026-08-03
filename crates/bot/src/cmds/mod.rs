@@ -14,6 +14,11 @@ pub mod wp;
 mod userinfo;
 mod chmod;
 mod loss;
+mod hammer;
+mod ffmpreg;
+mod randomvnc;
+mod anti;
+mod select;
 
 #[command]
 #[sub_cmds[
@@ -29,6 +34,11 @@ mod loss;
 	userinfo::user_info,
 	chmod::chmod,
 	loss::loss,
+	hammer::hammer,
+	ffmpreg::ffmpreg,
+	anti::anti,
+	select::select,
+	select::show,
 ]]
 #[group]
 #[root]

@@ -1,3 +1,5 @@
+use std::{fmt::Display, path::PathBuf};
+
 use derive_more::Debug;
 use schemars::{JsonSchema, Schema, SchemaGenerator};
 use serde::{Deserialize, Serialize};
@@ -29,11 +31,86 @@ pub struct Config {
 	pub build_archive_url: String,
 	/// If true, cache local builds for faster startup time.
 	pub use_local_build_cache: bool,
-	/// The emojis available for the bot to access
-	pub emojis: Emojis,
 	/// The API key for `WolframAplha`, used for the wolfram command
 	#[debug("REDACTED")]
 	pub wolfram_api_key: String,
+	/// Assets used in the bot, such as images and videos
+	pub assets: Assets,
+}
+
+
+#[derive(Serialize, Default, Clone, Deserialize, Debug, JsonSchema, TypeSize)]
+/// Assets used in the bot, such as images and videos
+pub struct Assets {
+	/// The emojis available for the bot to access
+	pub emojis: Emojis,
+	/// The GIF templates available for the bot to use
+	pub gif_templates:  GifTemplates,
+}
+
+/// the gif templates available for the bot to use
+#[derive(Serialize, Default, Clone, Deserialize, Debug, JsonSchema, TypeSize)]
+pub struct GifTemplates {
+	pub hammer: GifTemplate,
+}
+
+/// a GIF template
+#[derive(Serialize, Default, Clone, Deserialize, Debug, JsonSchema, TypeSize)]
+pub struct GifTemplate {
+	/// Path to the data.json file for the GIF template
+	/// It should follow the schema in [`GifTemplateData`]
+	pub data_path: PathBuf,
+	/// Path to dir with frames
+	pub frames_path: PathBuf,
+}
+
+#[derive(Serialize, Default, Clone, Deserialize, Debug, JsonSchema, TypeSize)]
+pub struct GifTemplateData {
+	/// The number of frames in the GIF template
+	/// should match the number of frames in the [`frames path`](GifTemplate::frames_path)
+	pub num_frames: u32,
+	/// Delay between frames in milliseconds
+	pub delay: u32,
+	/// Width of final GIF in pixels
+	pub width: u32,
+	/// Height of final GIF in pixels
+	pub height: u32,
+	/// Images to inject into the GIF template, with their position and size
+	pub injection: Vec<GifTemplateInjection>,
+	/// prefix for the frame files, e.g. `frame_` for `frame_0.png`, `frame_1.png`, etc.
+	pub frame_prefix: String,
+	/// the type of the frame files, e.g. `png` for `frame_0.png`, `frame_1.png`, etc.
+	pub file_type: FrameType,
+	/// Quality of the GIF, in the range [1, 30]
+	///
+	/// 1 is the best quality, 30 is the fastest
+	pub gif_quality: u8,
+}
+
+/// the type of frames
+#[derive(Serialize, Default, Clone, Deserialize, Debug, JsonSchema, TypeSize)]
+pub enum FrameType {
+	#[default]
+	Unknown,
+	/// Png frames
+	Png,
+}
+
+impl FrameType {
+	pub fn ext(&self) -> impl Display + 'static {
+		match self {
+			Self::Unknown => "",
+			Self::Png => ".png",
+		}
+	}
+}
+
+#[derive(Serialize, Default, Clone, Deserialize, Debug, JsonSchema, TypeSize)]
+pub struct GifTemplateInjection {
+	pub x: u32,
+	pub y: u32,
+	pub width: u32,
+	pub height: u32,
 }
 
 #[derive(Serialize, Deserialize, Default, Clone, Debug, JsonSchema, TypeSize)]

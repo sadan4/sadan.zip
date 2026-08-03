@@ -238,7 +238,7 @@ fn filter_export_value(
 /// `keys` is iterated, and the looked up in `map`
 ///
 /// If a key points to a map and [`ExportMap::cjs_default`] is
-/// [`Some`](Option::Some)[`(ExportValue::Range)`](ExportValue::Range),
+/// <code>[Some](Option::Some)[(ExportValue::Range)](ExportValue::Range)</code>,
 ///  that range is returned immediately.
 pub fn get_nested_export_from_map<'m, T>(
 	keys: &[ExportMapKey],

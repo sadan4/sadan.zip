@@ -1,24 +1,15 @@
 mod board;
 mod paige;
-
-use std::{fmt::Write as _, sync::Arc};
+mod prof_heap;
 
 use anyhow::{Context as _, Result, bail};
 use clap::Parser;
 use macros::{SlashArgs, command};
 use serenity::all::{Context, Mentionable};
-use typesize::TypeSize;
 
 use crate::{
 	fw::{CommandCtx, CommandFramework},
-	util::{
-		self,
-		FROM_REPLY,
-		FormatBytes,
-		REFERENCED_USER,
-		UserArg,
-		rss_bytes,
-	},
+	util::{self, FROM_REPLY, REFERENCED_USER, UserArg},
 };
 
 /// Developer and debugging commands.
@@ -32,7 +23,7 @@ use crate::{
 	show_config,
 	board::board,
 	paige::paige,
-	prof_heap,
+	prof_heap::prof_heap,
 	stop,
 	exit,
 	abort,
@@ -120,47 +111,6 @@ async fn error(
 		bail!("intentional command error: {msg}");
 	}
 	bail!("intentional command error");
-}
-
-#[command]
-async fn prof_heap(
-	ctx: &Context,
-	cctx: &CommandCtx<'_>,
-	fw: &CommandFramework,
-) -> Result<()> {
-	let mut msg = String::new();
-	msg.push_str("```\n");
-	// Cache
-	{
-		let strong_count = Arc::strong_count(&ctx.cache);
-		let weak_count = Arc::weak_count(&ctx.cache);
-		let size = FormatBytes(ctx.cache.get_size());
-		writeln!(msg, "Cache {size} {strong_count} strong {weak_count} weak")?;
-	};
-	// Conifg
-	{
-		let strong_count = Arc::strong_count(&fw.config);
-		let weak_count = Arc::weak_count(&fw.config);
-		let size = FormatBytes(fw.config.get_size());
-		writeln!(msg, "Config {size} {strong_count} strong {weak_count} weak")?;
-	};
-	// Webpack Context
-	if let Some(ctx) = fw.get_wp_ctx() {
-		let strong_count = Arc::strong_count(&ctx) - 1;
-		let weak_count = Arc::weak_count(&ctx);
-		let size = FormatBytes(
-			tokio::task::spawn_blocking(move || ctx.get_size()).await?,
-		);
-		writeln!(
-			msg,
-			"WebpackContext {size} {strong_count} strong {weak_count} weak",
-		)?;
-	}
-	let rss = rss_bytes().await? as usize;
-	writeln!(msg, "RSS: {}", FormatBytes(rss))?;
-	msg.push_str("```");
-	cctx.reply(ctx, msg).await?;
-	Ok(())
 }
 
 #[command]

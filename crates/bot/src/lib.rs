@@ -1,5 +1,6 @@
 mod cmds;
 mod fw;
+mod util;
 
 use std::{fmt::Debug, sync::Arc};
 
@@ -13,7 +14,7 @@ fn size_of_arc<T: TypeSize>(e: &Arc<T>) -> usize {
 }
 
 #[derive(Deref, Default, Clone, TypeSize)]
-struct BotConfig(#[typesize(with = size_of_arc)] Arc<bot_config::Config>);
+pub struct BotConfig(#[typesize(with = size_of_arc)] Arc<bot_config::Config>);
 
 impl Debug for BotConfig {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -50,4 +51,3 @@ pub async fn run(config: bot_config::Config) {
 		error!("Client error: {:?}", e);
 	}
 }
-mod util;

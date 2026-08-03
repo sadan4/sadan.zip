@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "GifTemplateData",
+  "type": "object",
+  "properties": {
+    "delay": {
+      "description": "Delay between frames in milliseconds",
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0
+    },
+    "file_type": {
+      "description": "the type of the frame files, e.g. `png` for `frame_0.png`, `frame_1.png`, etc.",
+      "$ref": "#/$defs/FrameType"
+    },
+    "frame_prefix": {
+      "description": "prefix for the frame files, e.g. `frame_` for `frame_0.png`, `frame_1.png`, etc.",
+      "type": "string"
+    },
+    "gif_quality": {
+      "description": "Quality of the GIF, in the range [1, 30]\n\n1 is the best quality, 30 is the fastest",
+      "type": "integer",
+      "format": "uint8",
+      "maximum": 255,
+      "minimum": 0
+    },
+    "height": {
+      "description": "Height of final GIF in pixels",
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0
+    },
+    "injection": {
+      "description": "Images to inject into the GIF template, with their position and size",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/GifTemplateInjection"
+      }
+    },
+    "num_frames": {
+      "description": "The number of frames in the GIF template\nshould match the number of frames in the [`frames path`](GifTemplate::frames_path)",
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0
+    },
+    "width": {
+      "description": "Width of final GIF in pixels",
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0
+    }
+  },
+  "required": [
+    "num_frames",
+    "delay",
+    "width",
+    "height",
+    "injection",
+    "frame_prefix",
+    "file_type",
+    "gif_quality"
+  ],
+  "$defs": {
+    "FrameType": {
+      "description": "the type of frames",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "Unknown"
+          ]
+        },
+        {
+          "description": "Png frames",
+          "type": "string",
+          "const": "Png"
+        }
+      ]
+    },
+    "GifTemplateInjection": {
+      "type": "object",
+      "properties": {
+        "height": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "width": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "x": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "y": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "x",
+        "y",
+        "width",
+        "height"
+      ]
+    }
+  }
+}

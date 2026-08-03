@@ -98,7 +98,7 @@ async fn board(
 
 	let mut rows: Vec<CreateComponent> = Vec::with_capacity(5);
 
-	let emoji = &fw.config.emojis.empty;
+	let emoji = &fw.config.assets.emojis.empty;
 	for r in 0..5 {
 		let mut row = Vec::with_capacity(5);
 		for c in 0..5 {

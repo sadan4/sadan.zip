@@ -299,6 +299,36 @@ impl<'a> CommandCtx<'a> {
 		}
 	}
 
+	pub async fn followup_file(
+		&self,
+		c: impl CacheHttp,
+		file: CreateAttachment<'_>,
+	) -> Result<ReplyHandle<'a>> {
+		match self {
+			CommandCtx::Prefix { msg } => {
+				let cm = CreateMessage::new()
+					.add_file(file)
+					.reference_message(*msg)
+					.allowed_mentions(
+						CreateAllowedMentions::new().replied_user(true),
+					);
+				let msg = msg
+					.channel_id
+					.send_message(c.http(), cm)
+					.await?;
+				Ok(ReplyHandle::Prefix { msg: Box::new(msg) })
+			}
+			CommandCtx::Application { interaction } => {
+				let cm =
+					CreateInteractionResponseFollowup::new().add_file(file);
+				interaction
+					.create_followup(c.http(), cm)
+					.await?;
+				Ok(ReplyHandle::Application { interaction })
+			}
+		}
+	}
+
 	/// Reply with a set of components.
 	pub async fn reply_components<'b>(
 		&self,

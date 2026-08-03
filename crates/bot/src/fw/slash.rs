@@ -291,6 +291,8 @@ fn render_value(value: &ResolvedValue) -> Result<String> {
 		ResolvedValue::User(user, _) => user.id.to_string(),
 		ResolvedValue::Channel(channel) => channel.id().to_string(),
 		ResolvedValue::Role(role) => role.id.to_string(),
+		// FIXME: Properly handle attachments
+		ResolvedValue::Attachment(_) => "attachment_value".to_string(),
 		_ => bail!("unsupported slash option value type"),
 	})
 }
@@ -319,15 +321,13 @@ pub(super) fn render_arg_tokens(
 			continue;
 		}
 		let rendered = render_value(value)?;
-		if arg.is_positional() {
-			arg_tokens.push(rendered);
-		} else {
+		if !arg.is_positional() {
 			let long = arg
 				.get_long()
 				.unwrap_or_else(|| arg.get_id().as_str());
 			arg_tokens.push(format!("--{long}"));
-			arg_tokens.push(rendered);
 		}
+		arg_tokens.push(rendered);
 	}
 	Ok(arg_tokens)
 }

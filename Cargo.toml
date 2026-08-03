@@ -44,7 +44,7 @@ oxc_traverse = { version = "0.140.0", default-features = false }
 oxc_ecmascript = { version = "0.140.0", default-features = false }
 oxc_allocator = { version = "0.140.0", default-features = false }
 oxc-miette = { version = "3.0.0", default-features = false, features = [
-    "serde",
+  "serde",
 ] }
 regress = "0.11.1"
 derive_more = { version = "2.1.1", features = ["full"] }
@@ -63,10 +63,10 @@ smol_str = { version = "0.3.6", features = ["std", "serde"] }
 proc-macro2 = { version = "1.0.32", default-features = false }
 quote = { version = "1.0", default-features = false }
 syn = { version = "2.0", default-features = false, features = [
-    "full",
-    "parsing",
-    "printing",
-    "proc-macro",
+  "full",
+  "parsing",
+  "printing",
+  "proc-macro",
 ] }
 reqwest-retry = "0.9.1"
 reqwest-middleware = { version = "0.5.1", features = ["query"] }
@@ -122,6 +122,13 @@ sha1 = "0.11.0"
 typesize = "0.1.15"
 libc = "0.2.189"
 swift-demangler = "0.1.1"
+skia-safe = { version = "0.99.0", features = ["webp-decode", "webp-encode"] }
+gif = "0.14.2"
+mini-moka = "0.10"
+url = "2.5.8"
+
+[patch.crates-io]
+typesize = { git = "https://github.com/sadan4/typesize", branch = "feat/pathbuf-impl" }
 
 
 [profile.release]
@@ -184,6 +191,7 @@ opt-level = 3
 # unused_crate_dependencies = "deny"
 [workspace.lints.clippy]
 pedantic = { priority = -1, level = "warn" }
+nursery = { priority = -1, level = "warn" }
 #TODO: add safety docs later
 missing_safety_doc = "deny"
 undocumented_unsafe_blocks = "deny"
@@ -206,32 +214,7 @@ manual_assert = "allow"
 
 
 # Nursery
-clear_with_drain = "warn"
-coerce_container_to_any = "warn"
-collection_is_never_read = "warn"
-debug_assert_with_mut_call = "warn"
-derive_partial_eq_without_eq = "warn"
-equatable_if_let = "warn"
-fallible_impl_from = "warn"
-iter_on_empty_collections = "warn"
-iter_on_single_items = "warn"
-# iter_with_drain = "warn"
-large_stack_frames = "warn"
-literal_string_with_formatting_args = "warn"
-missing_const_for_fn = "warn"
-needless_collect = "warn"
-needless_pass_by_ref_mut = "warn"
-needless_type_cast = "warn"
-non_send_fields_in_send_ty = "warn"
-nonstandard_macro_braces = "warn"
-or_fun_call = "warn"
-path_buf_push_overwrite = "warn"
-read_zero_byte_vec = "warn"
-redundant_clone = "warn"
-redundant_pub_crate = "warn"
-search_is_some = "warn"
-set_contains_or_insert = "warn"
-significant_drop_in_scrutinee = "warn"
+debug_assert_with_mut_call = "deny"
 # too damn noisy
 cast_possible_wrap = "allow"
 # it doesnt take types into account, so two names
@@ -239,18 +222,10 @@ cast_possible_wrap = "allow"
 similar_names = "allow"
 # love to enable this, however it is very broken rust-lang/rust-clippy#11279
 significant_drop_tightening = "allow"
-single_option_map = "warn"
-string_lit_as_bytes = "warn"
-suspicious_operation_groupings = "warn"
-trait_duplication_in_bounds = "warn"
-type_repetition_in_bounds = "warn"
-uninhabited_references = "warn"
-unnecessary_struct_initialization = "warn"
-unused_peekable = "warn"
-unused_rounding = "warn"
-use_self = "warn"
-useless_let_if_seq = "warn"
-while_float = "warn"
+# completely broken
+# https://github.com/rust-lang/rust-clippy/issues/8539
+iter_with_drain = "allow"
+too_long_first_doc_paragraph = "allow"
 #restriction
 # allow_attributes = "warn"
 # love to set this up, but no auto-fixes

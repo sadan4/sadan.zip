@@ -1,0 +1,18 @@
+{
+    "$schema": "../../../../../crates/bot_config/gif_template.schema.json",
+    "delay": 50,
+    "num_frames": 30,
+    "width": 493,
+    "height": 498,
+    "injection": [
+        {
+            "x": 260,
+            "y": 310,
+            "width": 110,
+            "height": 110
+        }
+    ],
+    "file_type": "Png",
+    "frame_prefix": "frame-",
+    "gif_quality": 30
+}

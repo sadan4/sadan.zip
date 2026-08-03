@@ -1,10 +1,21 @@
+mod check;
+mod ctx;
 mod event_handler;
+pub mod gif_templates;
+mod image_cache;
+mod paigeinator;
+mod slash;
 
 use std::{
 	borrow::Cow,
 	sync::{Arc, OnceLock},
 };
 
+use crate::{
+	BotConfig,
+	cmds::wp::WebpackContext,
+	fw::{gif_templates::GifTemplates, image_cache::ImageCache},
+};
 use anyhow::{Context as _, Result, bail};
 use bitflags::bitflags;
 use clap::{ArgMatches, CommandFactory, FromArgMatches};
@@ -27,22 +38,12 @@ use serenity::{
 	small_fixed_array::FixedString,
 };
 use shlex::Shlex;
+pub use slash::{SlashArg, SlashOption, SlashSchema, SlashSchemaFn};
 use tokio::sync::{OnceCell, RwLock};
 use tracing::{error, info};
 
-mod ctx;
-mod slash;
-
 pub use check::{Check, OWNER, Status};
 pub use ctx::CommandCtx;
-pub use slash::{SlashArg, SlashOption, SlashSchema, SlashSchemaFn};
-
-use crate::{BotConfig, cmds::wp::WebpackContext};
-
-mod check;
-
-mod paigeinator;
-
 pub use paigeinator::{Paigeinator, PaigeinatorFlags};
 
 pub struct CommandFrameworkInner {
@@ -53,12 +54,15 @@ pub struct CommandFrameworkInner {
 	guild: OnceLock<Option<GuildId>>,
 	pub http: Arc<ClientWithMiddleware>,
 	pub config: BotConfig,
+	gif_templates: OnceCell<GifTemplates>,
 	wp_context: OnceLock<Arc<crate::cmds::wp::WebpackContext>>,
+	pub image_cache: ImageCache,
 }
 
 #[derive(Clone, Deref, DerefMut)]
 pub struct CommandFramework(Arc<CommandFrameworkInner>);
 
+#[expect(clippy::multiple_inherent_impl)]
 impl CommandFramework {
 	pub fn handler(&self) -> Arc<dyn EventHandler + Send + Sync> {
 		Arc::new(self.clone()) as _
@@ -73,7 +77,9 @@ impl CommandFramework {
 			)
 			.context("Failed to make reqwest client")?,
 			config,
+			gif_templates: OnceCell::const_new(),
 			wp_context: OnceLock::new(),
+			image_cache: ImageCache::new(),
 		})))
 	}
 
