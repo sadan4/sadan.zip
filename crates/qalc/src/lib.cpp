@@ -1,4 +1,5 @@
 #include "lib.hpp"
+#include <libqalculate/util.h>
 #include <memory>
 
 std::unique_ptr<Qalculator> Qalculator::create() {
@@ -63,6 +64,16 @@ void Qalculator::enable_sandboxing() {
         std::make_unique<DisabledFunction<LoadFunction>>();
     m_calculator->addFunction(m_disabled_load_function.get());
   }
+  if (!m_disabled_command_function) {
+    m_disabled_command_function =
+        std::make_unique<DisabledFunction<CommandFunction>>();
+    m_calculator->addFunction(m_disabled_command_function.get());
+  }
+  if (!m_disabled_plot_function) {
+    m_disabled_plot_function =
+        std::make_unique<DisabledFunction<PlotFunction>>();
+    m_calculator->addFunction(m_disabled_plot_function.get());
+  }
 }
 
 void Qalculator::set_timeout_ms(int ms) { m_timeout_ms = ms; }
@@ -79,4 +90,8 @@ rust::String Qalculator::calculate_and_print(rust::Str expr) {
       std::move(expr_str), m_timeout_ms, m_eval_opts, m_print_opts, nullptr);
 
   return rust::String(result);
+}
+
+rust::String Qalculator::get_package_data_dir() noexcept {
+  return ::getPackageDataDir();
 }

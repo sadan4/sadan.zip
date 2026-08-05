@@ -1,10 +1,10 @@
 #pragma once
+#include "rust/cxx.h"
+#include <format>
 #include <libqalculate/BuiltinFunctions.h>
 #include <libqalculate/Calculator.h>
 #include <libqalculate/Function.h>
 #include <memory>
-#include <format>
-#include "rust/cxx.h"
 
 template <class Base> class DisabledFunction : public Base {
   std::string error_msg() const {
@@ -36,11 +36,15 @@ struct Qalculator {
   void set_timeout_ms(int ms);
   int get_timeout_ms() const;
   rust::String calculate_and_print(rust::Str expr);
+  static rust::String get_package_data_dir() noexcept;
 
 private:
   std::unique_ptr<Calculator> m_calculator;
   std::unique_ptr<DisabledFunction<ExportFunction>> m_disabled_export_function;
   std::unique_ptr<DisabledFunction<LoadFunction>> m_disabled_load_function;
+  std::unique_ptr<DisabledFunction<CommandFunction>>
+      m_disabled_command_function;
+  std::unique_ptr<DisabledFunction<PlotFunction>> m_disabled_plot_function;
   EvaluationOptions m_eval_opts = [] {
     EvaluationOptions eo = default_user_evaluation_options;
     eo.parse_options.twos_complement = true;
@@ -50,6 +54,5 @@ private:
   int m_timeout_ms = 10'000;
   bool m_allow_impure_expressions = false;
 };
-
 
 std::unique_ptr<Qalculator> create_qalculator();

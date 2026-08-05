@@ -8,6 +8,8 @@ pub mod ffi {
 
 		#[Self = "Qalculator"]
 		fn create() -> UniquePtr<Qalculator>;
+		#[Self = "Qalculator"]
+		fn get_package_data_dir() -> String;
 
 		/// underlying api takes int
 		fn set_timeout_ms(self: Pin<&mut Qalculator>, timeout_ms: i32);

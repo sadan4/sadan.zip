@@ -2,6 +2,7 @@ use anyhow::{Context as _, Result};
 use macros::command;
 use serenity::{
 	all::{
+		CacheHttp,
 		CommandDataOption,
 		CommandDataOptionValue,
 		CommandOptionType,
@@ -44,6 +45,7 @@ impl SlashSchema for SelectArgs {
 #[command]
 #[arg_parser = SelectArgs]
 #[slash_args]
+#[expect(clippy::too_many_lines)] // FIXME: refactor
 async fn select(
 	args: SelectArgs,
 	ctx: &Context,
@@ -55,7 +57,164 @@ async fn select(
 		.context("Failed to defer interaction")?;
 	match cctx {
 		CommandCtx::Prefix { msg } => {
-			todo!()
+			let reply_text = 'm: {
+				if let Some(maybe_url) = args.image {
+					let url = match Url::parse(&maybe_url) {
+						Ok(u) => u,
+						Err(e) => {
+							break 'm format!("Invalid URL: {e}");
+						}
+					};
+					// we return false on parse errors, so this must come after the parse check
+					if !is_url_trusted(&maybe_url) {
+						break 'm format!("Untrusted URL: {maybe_url}");
+					}
+					fw.image_cache
+						.launch_dl_for_user(
+							async {
+								let res = fw
+									.http
+									.get(url.clone())
+									.send()
+									.await
+									.with_context(|| {
+										format!(
+											"Failed to send request to {url}"
+										)
+									})?;
+								let content_type = res
+									.headers()
+									.get("content-type")
+									.context(
+										"Response missing content-type header",
+									)?;
+								let format = ImageFormat::from_content_type(
+									content_type.as_bytes(),
+								)
+								.with_context(|| {
+									format!(
+										"Unsupported content-type: {}",
+										String::from_utf8_lossy(
+											content_type.as_bytes()
+										)
+									)
+								})?;
+								let bytes = res.bytes().await.context(
+									"Failed to read bytes from response",
+								)?;
+								anyhow::Ok(Image { bytes, format })
+							},
+							msg.author.id,
+							Some(maybe_url),
+						)
+						.await
+						.context("Failed to download image")?;
+					format!("Selected image from URL: {url}")
+				} else {
+					// try to search for attachments on the current message
+					let cmd_atms_len = msg.attachments.len();
+					let a = if cmd_atms_len == 1 {
+						&msg.attachments[0]
+					} else if cmd_atms_len > 1 {
+						break 'm format!(
+							"Message has {cmd_atms_len} attachments, ambiguous which to select."
+						);
+					} else if let Some(ref_msg) =
+						msg.referenced_message.as_ref()
+					{
+						// check referenced message for attachments
+						match ref_msg.attachments.as_slice() {
+							[single] => single,
+							l @ [_, ..] => {
+								break 'm format!(
+									"Referenced message has {len} attachments, ambiguous which to select.",
+									len = l.len()
+								);
+							}
+							[] => {
+								break 'm "Message nor referenced message has no attached images, and no image URL was provided.".to_string();
+							}
+						}
+					} else {
+						break 'm "Message has no attached images, and no image URL was provided.".to_string();
+					};
+					let a_fmt = match a.content_type.as_deref() {
+						None => {
+							break 'm format!(
+								"Attachment {} has no content type, cannot determine if it is an image.",
+								a.filename
+							);
+						}
+						Some(ct) => {
+							match ImageFormat::from_content_type(ct.as_bytes())
+							{
+								Some(fmt) => fmt,
+								None => {
+									break 'm format!(
+										"Attachment {} has content type {}, which is not a supported image format.",
+										a.filename, ct
+									);
+								}
+							}
+						}
+					};
+					let url = if is_url_trusted(&a.url) {
+						&a.url
+					} else {
+						&a.proxy_url
+					};
+					fw.image_cache
+						.launch_dl_for_user(
+							async {
+								let res = fw
+									.http
+									.get(url.as_str())
+									.send()
+									.await
+									.context(
+										"Failed to send request to attachment URL",
+									)?;
+								let content_type = res
+									.headers()
+									.get("content-type")
+									.context(
+										"Response missing content-type header",
+									)?;
+								let format = ImageFormat::from_content_type(
+									content_type.as_bytes(),
+								)
+								.with_context(|| {
+									format!(
+										"Unsupported content-type: {}",
+										String::from_utf8_lossy(
+											content_type.as_bytes()
+										)
+									)
+								})?;
+								if format != a_fmt {
+									warn!(
+										?url,
+										"Attachment content type {:?} does not match expected format {:?}",
+										format,
+										a_fmt
+									);
+								}
+								let bytes = res.bytes().await.context(
+									"Failed to read bytes from attachment response",
+								)?;
+								anyhow::Ok(Image { bytes, format })
+							},
+							msg.author.id,
+							Some(a.url.to_string()),
+						)
+						.await
+						.context("Failed to download image")?;
+					String::new()
+				}
+			};
+			msg.reply_ping(&ctx.http, reply_text)
+				.await
+				.context("Failed to reply to select command")?;
 		}
 		CommandCtx::Application { interaction } => {
 			let msg = 'm: {
@@ -117,7 +276,7 @@ async fn select(
 								anyhow::Ok(image)
 							},
 							interaction.user.id,
-							Some(attachment.proxy_url.to_string()),
+							Some(attachment.url.to_string()),
 						)
 						.await?;
 					format!("Selected attachment: {}", attachment.filename)

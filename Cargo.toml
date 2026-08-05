@@ -121,11 +121,14 @@ zxcvbn = { version = "3.1.1", features = ["ser"] }
 sha1 = "0.11.0"
 typesize = "0.1.15"
 libc = "0.2.189"
+seccompiler = "0.5"
 swift-demangler = "0.1.1"
 skia-safe = { version = "0.99.0", features = ["webp-decode", "webp-encode"] }
 gif = "0.14.2"
 mini-moka = "0.10"
 url = "2.5.8"
+ipc-channel = {version = "0.22.0", features = ["async"]}
+nix = "0.31.3"
 
 [patch.crates-io]
 typesize = { git = "https://github.com/sadan4/typesize", branch = "feat/pathbuf-impl" }
