@@ -39,6 +39,7 @@ mod select;
 	anti::anti,
 	select::select,
 	select::show,
+	randomvnc::random_vnc,
 ]]
 #[group]
 #[root]

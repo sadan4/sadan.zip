@@ -89,9 +89,6 @@ async fn query_api(
 		.bytes()
 		.await
 		.context("Failed to read response from Wolfram Alpha API")?;
-	tokio::fs::write("wolfram.json", &r)
-		.await
-		.unwrap();
 	match serde_json::from_slice(&r) {
 		Ok(r) => Ok(r),
 		Err(e) => {
