@@ -74,6 +74,7 @@ pub fn find_return_expr<'a, 'ast>(
 
 	let ret = func
 		.body()
+		.expect("unreachable: func is checked above to never have a expr body")
 		.statements
 		.last()?
 		.as_return_statement()?

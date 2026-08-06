@@ -58,7 +58,6 @@ use ast_parser::{
 		MemberExpressionExt,
 		ObjectExpressionExt as _,
 		PropertyKeyExt,
-		StatementExt,
 	},
 	parse_for_traverse,
 	sym_id::GetSymId,
@@ -1178,13 +1177,14 @@ impl<'ast> VencordAstParser<'ast> {
 		func: &'ast ArrowFunctionExpression<'ast>,
 	) -> Option<&'ast Expression<'ast>> {
 		// TODO: use CFG to get return value of arrow function that might have a body
-		if func.expression
-			&& let Some(body) =
-				func.body.statements[0].as_expression_statement()
-		{
-			Some(&body.expression)
-		} else if let [Statement::ReturnStatement(ret)] =
-			func.body.statements.as_slice()
+		if let Some(expr) = func.get_expression() {
+			Some(expr)
+		} else if let [Statement::ReturnStatement(ret)] = func
+			.body
+			.as_function_body()
+			.expect("we just checked it's not a expr body")
+			.statements
+			.as_slice()
 		{
 			ret.argument.as_ref()
 		} else {
@@ -1262,7 +1262,7 @@ impl<'ast> VencordAstParser<'ast> {
 		let f_ret =
 			Self::get_arrow_single_return_value(f).ok_or_else(|| {
 				err(
-					f.body.as_ref(),
+					&f.body,
 					"replace function does not have a single return value",
 				)
 			})?;

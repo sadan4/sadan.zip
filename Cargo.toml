@@ -38,11 +38,11 @@ clap = { version = "4.6.0", features = ["derive"] }
 clap_complete = "4.6.0"
 itertools = "0.15.0"
 xxhash-rust = { version = "0.8.15", features = ["xxh64"] }
-oxc = { version = "0.142.0", default-features = false }
-oxc_span = { version = "0.142.0", default-features = false }
-oxc_traverse = { version = "0.142.0", default-features = false }
-oxc_ecmascript = { version = "0.142.0", default-features = false }
-oxc_allocator = { version = "0.142.0", default-features = false }
+oxc = { version = "0.143.0", default-features = false }
+oxc_span = { version = "0.143.0", default-features = false }
+oxc_traverse = { version = "0.143.0", default-features = false }
+oxc_ecmascript = { version = "0.143.0", default-features = false }
+oxc_allocator = { version = "0.143.0", default-features = false }
 oxc-miette = { version = "3.0.0", default-features = false, features = [
   "serde",
 ] }

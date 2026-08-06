@@ -365,7 +365,7 @@ impl<'ast> WebpackMainChunkParser<'ast> {
 	}
 
 	fn get_entrypoint_id_2(&self) -> Option<ModuleId> {
-		let entry_call = self
+		let af = &self
 			.prog
 			.body
 			.first()?
@@ -375,11 +375,19 @@ impl<'ast> WebpackMainChunkParser<'ast> {
 			.callee
 			.get_inner_expression()
 			.as_arrow_function_expression()?
-			.body
-			.statements
-			.last()?
-			.as_expression_statement()?
-			.expression
+			.body;
+		let entry_call = af
+			.as_expression()
+			.or_else(|| {
+				Some(
+					&af.as_function_body()
+						.unwrap()
+						.statements
+						.last()?
+						.as_expression_statement()?
+						.expression,
+				)
+			})?
 			.get_inner_expression()
 			.as_sequence_expression()?
 			.expressions

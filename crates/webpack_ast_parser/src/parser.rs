@@ -2288,7 +2288,7 @@ impl<'ast> WebpackAstParser<'ast> {
 				Span::new(full_span.start, body_span.start)
 			}
 			AstKind::ArrowFunctionExpression(func) => {
-				let body_span = func.body.as_ref().span();
+				let body_span = func.body.span();
 				let full_span = func.span();
 				debug_assert!(
 					full_span.start <= body_span.start
@@ -2600,7 +2600,14 @@ impl<'ast> WebpackAstParser<'ast> {
 					return ret;
 				}
 			}
-			if node.body().statements.len() == 1 {
+			// function () {return;} || () => {return;} || () => void 0
+			if node
+				.body()
+				.is_some_and(|b| b.statements.len() == 1)
+				|| node
+					.as_arrow()
+					.is_some_and(ArrowFunctionExpression::is_expression)
+			{
 				let Some(ident) = find_return_identifier(node) else {
 					break 'wrapper_func_check;
 				};

@@ -140,6 +140,8 @@ make_impl!(ImportDefaultSpecifier);
 make_impl!(ImportNamespaceSpecifier);
 make_impl!(WithClause);
 make_impl!(ImportAttribute);
+make_impl!(ExportDeclaration);
+make_impl!(ExportFromDeclaration);
 make_impl!(ExportNamedDeclaration);
 make_impl!(ExportDefaultDeclaration);
 make_impl!(ExportAllDeclaration);
@@ -403,6 +405,8 @@ impl<'ast> IntoAstKind<'ast> for &'ast Statement<'ast> {
 			Statement::ExportNamedDeclaration(e) => e.into_ast_kind(),
 			Statement::TSExportAssignment(e) => e.into_ast_kind(),
 			Statement::TSNamespaceExportDeclaration(e) => e.into_ast_kind(),
+			Statement::ExportFromDeclaration(e) => e.into_ast_kind(),
+			Statement::ExportDeclaration(e) => e.into_ast_kind(),
 		}
 	}
 }

@@ -1,13 +1,15 @@
 use super::util::Ctx;
 use ast_parser::exts::{BindingPatternExt as _, ExpressionExt as _};
 use oxc::{
-	allocator::{CloneIn, GetAllocator as _}, ast::ast::{
+	allocator::{CloneIn, GetAllocator as _},
+	ast::ast::{
 		Expression,
 		IdentifierReference,
 		Program,
 		VariableDeclaration,
 		VariableDeclarator,
-	}, semantic::{ReferenceId, SymbolId},
+	},
+	semantic::{ReferenceId, SymbolId},
 };
 use oxc_ecmascript::constant_evaluation::IsLiteralValue;
 use oxc_traverse::{Traverse, TraverseCtx};
@@ -48,11 +50,10 @@ impl<'ast, State> Traverse<'ast, State> for InlineConstantsPass<'ast> {
 		// this does not cover `let foo = 1; export { foo };`, but it should be good enough for what we need it for
 		// that case can probably be covered by iterating over the root
 		// and looking for exports because they can only be at the top level
-		if !node.kind.is_const()
-			&& ctx
-				.parent()
-				.is_export_named_declaration()
-		{
+		// oxc 0.143 splits `export <decl>` (ExportDeclaration) from
+		// `export { x }` (ExportNamedDeclaration); a declaration-form export
+		// parents to ExportDeclaration now.
+		if !node.kind.is_const() && ctx.parent().is_export_declaration() {
 			return;
 		}
 		for i in (0..node.declarations.len()).rev() {
