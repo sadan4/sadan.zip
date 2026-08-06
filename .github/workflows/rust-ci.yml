@@ -11,17 +11,25 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Nix cache
+        uses: DeterminateSystems/magic-nix-cache-action@main
+
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: clippy
 
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
 
       - name: Run clippy
-        run: cargo clippy --all-targets --all-features
+        run: nix develop --command cargo clippy --all-targets --all-features
 
       - name: Install cargo-nextest
         uses: taiki-e/install-action@nextest
 
       - name: Run tests
-        run: cargo nextest run --all-targets --all-features
+        run: nix develop --command cargo nextest run --all-targets --all-features

@@ -218,6 +218,8 @@ items_after_statements = "allow"
 option_if_let_else = "allow"
 # panic has a different error message / connotation compared to assert
 manual_assert = "allow"
+# no different than div/0
+unchecked_time_subtraction = "allow"
 
 
 # Nursery

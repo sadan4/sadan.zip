@@ -71,9 +71,7 @@ impl Runnable for Command {
 		fs::create_dir_all(STAGE_DIR)
 			.with_context(|| format!("Failed to create {STAGE_DIR}"))?;
 		self.stage_bin(WORKER_BIN)?;
-		info!(
-			"Done. copied to `{STAGE_DIR}/{WORKER_BIN}`"
-		);
+		info!("Done. copied to `{STAGE_DIR}/{WORKER_BIN}`");
 		Ok(())
 	}
 }
