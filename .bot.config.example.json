@@ -6,6 +6,7 @@
     "bot_owners": [],
     "vencord_path": "/path/to/vencord/dir",
     "build_archive_url": "https://example.com/",
+    "qalc_worker_path": "/path/to/qalc_sbox_worker",
     "emojis": {
         "empty": {
             "id": "0",

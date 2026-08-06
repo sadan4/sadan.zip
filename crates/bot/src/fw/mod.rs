@@ -22,6 +22,7 @@ use clap::{ArgMatches, CommandFactory, FromArgMatches};
 use derive_more::{Deref, DerefMut};
 use futures_core::future::BoxFuture;
 use itertools::Itertools;
+use qalc_sbox::Sandbox;
 use reqwest_middleware::ClientWithMiddleware;
 use serenity::{
 	all::{
@@ -56,6 +57,7 @@ pub struct CommandFrameworkInner {
 	pub config: BotConfig,
 	gif_templates: OnceCell<GifTemplates>,
 	wp_context: OnceLock<Arc<crate::cmds::wp::WebpackContext>>,
+	qalc_worker: OnceLock<Sandbox>,
 	pub image_cache: ImageCache,
 }
 
@@ -79,8 +81,19 @@ impl CommandFramework {
 			config,
 			gif_templates: OnceCell::const_new(),
 			wp_context: OnceLock::new(),
+			qalc_worker: OnceLock::new(),
 			image_cache: ImageCache::new(),
 		})))
+	}
+
+	pub fn init_qalc_worker(&self, sbox: Sandbox) {
+		self.qalc_worker
+			.set(sbox)
+			.expect("cannot init qalc worker more than once");
+	}
+
+	pub fn get_qalc_worker(&self) -> Option<Sandbox> {
+		self.qalc_worker.get().cloned()
 	}
 
 	pub fn init_wp_ctx(&self, ctx: WebpackContext) {
@@ -101,16 +114,16 @@ impl CommandFramework {
 			.expect("guild can only be set once");
 	}
 
-	pub async fn with_prefixes<T, I>(&self, prefixes: I)
-	where
-		T: Into<Cow<'static, str>>,
-		I: Iterator<Item = T>,
-	{
-		self.prefixes
-			.write()
-			.await
-			.extend(prefixes.map(Into::into));
-	}
+	// pub async fn with_prefixes<T, I>(&self, prefixes: I)
+	// where
+	// 	T: Into<Cow<'static, str>>,
+	// 	I: Iterator<Item = T>,
+	// {
+	// 	self.prefixes
+	// 		.write()
+	// 		.await
+	// 		.extend(prefixes.map(Into::into));
+	// }
 
 	pub async fn with_prefix<T>(&self, prefix: T)
 	where

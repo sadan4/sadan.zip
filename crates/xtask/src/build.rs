@@ -3,6 +3,7 @@ use clap::{Args, Subcommand};
 
 use crate::Runnable;
 
+pub mod bot;
 pub mod client;
 pub mod extension;
 pub mod server;
@@ -20,6 +21,7 @@ impl Runnable for Command {
 			Target::Server(c) => c.run(),
 			Target::Client(c) => c.run(),
 			Target::Extension(c) => c.run(),
+			Target::Bot(c) => c.run(),
 		}
 	}
 }
@@ -32,4 +34,6 @@ enum Target {
 	Client(client::Command),
 	/// Build the `VencordCompanion` `VSCode` extension
 	Extension(extension::Command),
+	/// Build the Discord bot and its qalc sandbox worker
+	Bot(bot::Command),
 }

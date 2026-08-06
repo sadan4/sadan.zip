@@ -3,14 +3,12 @@ use std::{fmt::Write as _, sync::Arc};
 use anyhow::{Context as _, Result};
 use macros::command;
 use serenity::all::Context;
+use tracing::debug;
 use typesize::TypeSize;
 
 use crate::{
 	fw::{CommandCtx, CommandFramework},
-	util::{
-		FormatBytes,
-		rss_bytes,
-	},
+	util::{FormatBytes, rss_bytes},
 };
 
 #[command]
@@ -56,9 +54,19 @@ async fn prof_heap(
 			"WebpackContext {size} {strong_count} strong {weak_count} weak",
 		)?;
 	}
+	// Qalc sandbox worker (separate process, so report its own RSS)
+	if let Some(sbox) = fw.get_qalc_worker() {
+		match sbox.memory_usage() {
+			Ok(rss) => {
+				writeln!(msg, "QalcWorker RSS {}", FormatBytes(rss as usize))?;
+			}
+			Err(e) => writeln!(msg, "QalcWorker RSS unavailable: {e}")?,
+		}
+	}
 	let rss = rss_bytes().await? as usize;
 	writeln!(msg, "RSS: {}", FormatBytes(rss))?;
 	msg.push_str("```");
+	debug!("Heap profile:\n{}", msg);
 	cctx.reply(ctx, msg).await?;
 	Ok(())
 }

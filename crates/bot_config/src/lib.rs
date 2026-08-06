@@ -3,14 +3,19 @@ use std::{fmt::Display, path::PathBuf};
 use derive_more::Debug;
 use schemars::{JsonSchema, Schema, SchemaGenerator};
 use serde::{Deserialize, Serialize};
-use serenity::{all::{EmojiId, GuildId, ReactionType, UserId}, small_fixed_array::FixedString};
+use serenity::{
+	all::{EmojiId, GuildId, ReactionType, UserId},
+	small_fixed_array::FixedString,
+};
 use typesize::derive::TypeSize;
 
 fn wrap_schema<T: ?Sized + JsonSchema>(g: &mut SchemaGenerator) -> Schema {
 	g.subschema_for::<T>()
 }
 
-#[derive(Serialize, Default, Clone, Deserialize, Debug, JsonSchema, TypeSize)]
+#[derive(
+	Serialize, Default, Clone, Deserialize, Debug, JsonSchema, TypeSize,
+)]
 /// Bot config. Read from `.bot.config.json`
 pub struct Config {
 	#[debug("REDACTED")]
@@ -34,28 +39,36 @@ pub struct Config {
 	/// The API key for `WolframAplha`, used for the wolfram command
 	#[debug("REDACTED")]
 	pub wolfram_api_key: String,
+	/// Path to the standalone qalc sandbox worker binary. Spawned as a fresh
+	/// process (instead of forking the bot) so its memory footprint stays small.
+	pub qalc_worker_path: PathBuf,
 	/// Assets used in the bot, such as images and videos
 	pub assets: Assets,
 }
 
-
-#[derive(Serialize, Default, Clone, Deserialize, Debug, JsonSchema, TypeSize)]
+#[derive(
+	Serialize, Default, Clone, Deserialize, Debug, JsonSchema, TypeSize,
+)]
 /// Assets used in the bot, such as images and videos
 pub struct Assets {
 	/// The emojis available for the bot to access
 	pub emojis: Emojis,
 	/// The GIF templates available for the bot to use
-	pub gif_templates:  GifTemplates,
+	pub gif_templates: GifTemplates,
 }
 
 /// the gif templates available for the bot to use
-#[derive(Serialize, Default, Clone, Deserialize, Debug, JsonSchema, TypeSize)]
+#[derive(
+	Serialize, Default, Clone, Deserialize, Debug, JsonSchema, TypeSize,
+)]
 pub struct GifTemplates {
 	pub hammer: GifTemplate,
 }
 
 /// a GIF template
-#[derive(Serialize, Default, Clone, Deserialize, Debug, JsonSchema, TypeSize)]
+#[derive(
+	Serialize, Default, Clone, Deserialize, Debug, JsonSchema, TypeSize,
+)]
 pub struct GifTemplate {
 	/// Path to the data.json file for the GIF template
 	/// It should follow the schema in [`GifTemplateData`]
@@ -64,7 +77,9 @@ pub struct GifTemplate {
 	pub frames_path: PathBuf,
 }
 
-#[derive(Serialize, Default, Clone, Deserialize, Debug, JsonSchema, TypeSize)]
+#[derive(
+	Serialize, Default, Clone, Deserialize, Debug, JsonSchema, TypeSize,
+)]
 pub struct GifTemplateData {
 	/// The number of frames in the GIF template
 	/// should match the number of frames in the [`frames path`](GifTemplate::frames_path)
@@ -88,7 +103,9 @@ pub struct GifTemplateData {
 }
 
 /// the type of frames
-#[derive(Serialize, Default, Clone, Deserialize, Debug, JsonSchema, TypeSize)]
+#[derive(
+	Serialize, Default, Clone, Deserialize, Debug, JsonSchema, TypeSize,
+)]
 pub enum FrameType {
 	#[default]
 	Unknown,
@@ -105,7 +122,9 @@ impl FrameType {
 	}
 }
 
-#[derive(Serialize, Default, Clone, Deserialize, Debug, JsonSchema, TypeSize)]
+#[derive(
+	Serialize, Default, Clone, Deserialize, Debug, JsonSchema, TypeSize,
+)]
 pub struct GifTemplateInjection {
 	pub x: u32,
 	pub y: u32,
@@ -113,14 +132,18 @@ pub struct GifTemplateInjection {
 	pub height: u32,
 }
 
-#[derive(Serialize, Deserialize, Default, Clone, Debug, JsonSchema, TypeSize)]
+#[derive(
+	Serialize, Deserialize, Default, Clone, Debug, JsonSchema, TypeSize,
+)]
 pub struct Emojis {
 	/// A 1x1 transparent image
 	pub empty: EmojiDef,
 }
 
 /// an emoji available for the bot to access
-#[derive(Serialize, Default, Deserialize, Clone, Debug, JsonSchema, TypeSize)]
+#[derive(
+	Serialize, Default, Deserialize, Clone, Debug, JsonSchema, TypeSize,
+)]
 pub struct EmojiDef {
 	#[schemars(schema_with = "wrap_schema::<String>")]
 	id: EmojiId,

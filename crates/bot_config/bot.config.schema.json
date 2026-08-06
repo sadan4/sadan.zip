@@ -22,6 +22,10 @@
     "home_guild_id": {
       "type": "string"
     },
+    "qalc_worker_path": {
+      "description": "Path to the standalone qalc sandbox worker binary. Spawned as a fresh\nprocess (instead of forking the bot) so its memory footprint stays small.",
+      "type": "string"
+    },
     "token": {
       "description": "The bot token",
       "type": "string"
@@ -52,6 +56,7 @@
     "build_archive_url",
     "use_local_build_cache",
     "wolfram_api_key",
+    "qalc_worker_path",
     "assets"
   ],
   "$defs": {

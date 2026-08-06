@@ -16,13 +16,6 @@ pub struct ImageCache {
 	dl_cache: Cache<String, CacheEntry>,
 }
 
-fn new_cache() -> Cache<UserId, CacheEntry> {
-	Cache::builder()
-		.max_capacity(2048)
-		.time_to_idle(Duration::from_mins(5))
-		.build()
-}
-
 impl ImageCache {
 	pub(super) fn new() -> Self {
 		Self {

@@ -50,7 +50,15 @@ private:
     eo.parse_options.twos_complement = true;
     return eo;
   }();
-  PrintOptions m_print_opts = default_print_options;
+  PrintOptions m_print_opts = [] {
+    PrintOptions po = default_print_options;
+    // Collapse uncertainty intervals (e.g. atomic weights) to their common
+    // significant digits instead of printing `interval(lo, hi)`.
+    po.interval_display = INTERVAL_DISPLAY_SIGNIFICANT_DIGITS;
+    // Use `e` for scientific notation exponents, not `E`.
+    po.lower_case_e = true;
+    return po;
+  }();
   int m_timeout_ms = 10'000;
   bool m_allow_impure_expressions = false;
 };

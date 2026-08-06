@@ -1,18 +1,12 @@
-use std::{
-	future::{self, Ready},
-	time::Duration,
-};
+use std::{future, time::Duration};
 
-use anyhow::{Context as _, Result};
+use anyhow::{Context as _, Result, anyhow};
 use clap::Parser;
 use macros::{command, executor};
+use qalc_sbox::Sandbox;
 use serenity::all::{CommandOptionType, Context};
-use tokio::{
-	select,
-	sync::{mpsc, oneshot},
-	time::sleep,
-};
-use tracing::{debug, warn};
+use tokio::time::timeout;
+use tracing::debug;
 
 use crate::fw::{CommandCtx, CommandFramework, SlashOption, SlashSchema};
 
@@ -33,92 +27,66 @@ impl SlashSchema for QalcArgs {
 	}
 }
 
-struct QalcPacket {
-	expr: String,
-	tx: oneshot::Sender<Result<String, cxx::Exception>>,
-}
-
 #[command]
 #[arg_parser = QalcArgs]
 #[init = Qalc::new]
+#[early_init]
 #[slash_args]
-struct Qalc {
-	tx: mpsc::Sender<QalcPacket>,
-}
+struct Qalc;
 
 impl Qalc {
-	const CHANNEL_SIZE: usize = 256;
+	const TIMEOUT_DUR: Duration = Duration::from_secs(20);
 
-	fn qalc_thread(mut rx: mpsc::Receiver<QalcPacket>) {
-		let mut qalc = qalc::ffi::Qalculator::create();
-		let mut qalc = qalc.as_mut().unwrap();
-		qalc.as_mut()
-			.allow_impure_expressions(false);
-		qalc.as_mut().enable_sandboxing();
-		if !qalc.as_mut().load_exchange_rates() {
-			warn!("Failed to load exchange rates");
-		}
-		if !qalc.as_mut().load_global_defs() {
-			warn!("Failed to load global defs");
-		}
-		if !qalc.as_mut().load_local_defs() {
-			warn!("Failed to load local defs");
-		}
-		while let Some(QalcPacket { expr, tx }) = rx.blocking_recv() {
-			let res = qalc.as_mut().calculate_and_print(&expr);
-			match tx.send(res) {
-				Ok(()) => {}
-				Err(_) => {
-					warn!(
-						"Failed to send qalc result to channel, receiver dropped"
-					);
+	/// Spawn the sandboxed qalculate worker and stash it on the framework so
+	/// every invocation shares the one child process.
+	///
+	/// Stays `async` because the `#[init]` factory awaits it; the body itself
+	/// does not need to await.
+	#[allow(clippy::unused_async)]
+	fn new(fw: &CommandFramework) -> impl Future<Output = Result<Self>> {
+		future::ready('f: {
+			let sbox = match Sandbox::try_new_exec(&fw.config.qalc_worker_path)
+				.context("Failed to spawn qalc sandbox worker")
+			{
+				Ok(s) => s,
+				Err(e) => {
+					break 'f Err(e);
 				}
-			}
-		}
-		warn!("qalc thread exiting, channel closed");
+			};
+			fw.init_qalc_worker(sbox);
+			anyhow::Ok(Self)
+		})
 	}
+}
 
-	fn new(_: &CommandFramework) -> Ready<Result<Self>> {
-		let (tx, rx) = mpsc::channel(Self::CHANNEL_SIZE);
-		tokio::task::spawn_blocking(move || Self::qalc_thread(rx));
-		future::ready(Ok(Self { tx }))
-	}
-
-	async fn run(&self, expr: String) -> Result<String> {
-		const TIMEOUT_DUR: Duration = Duration::from_secs(20);
-		let (tx, rx) = oneshot::channel();
-		self.tx
-			.send(QalcPacket { expr, tx })
-			.await
-			.context("Failed to send qalc packet")?;
-		let timeout = sleep(TIMEOUT_DUR);
-		let res: Option<
-			Result<Result<String, cxx::Exception>, oneshot::error::RecvError>,
-		> = select! {
-			res = rx => Some(res),
-			() = timeout => None,
-		};
-		let res = res
-			.context("qalc timeout after 20s")?
-			.context("Failed to recv qalc result")?
-			.context("qalc failed to evaluate expression")?;
-		Ok(res)
-	}
+async fn run(sbox: &Sandbox, expr: String) -> Result<String> {
+	let res = timeout(Qalc::TIMEOUT_DUR, sbox.eval(expr))
+		.await
+		.context("qalc timeout after 20s")?
+		// outer error: the request could not be round-tripped to the sandbox
+		.map_err(|e| anyhow!("qalc sandbox unavailable: {e}"))?
+		// inner error: libqalculate reported an evaluation failure
+		.map_err(|e| anyhow!("qalc failed to evaluate expression: {e}"))?;
+	Ok(res)
 }
 
 #[executor]
 async fn qalc(
 	args: QalcArgs,
-	state: &Qalc,
+	_state: &Qalc,
 	ctx: &Context,
 	cctx: &CommandCtx<'_>,
+	fw: &CommandFramework,
 ) -> Result<()> {
 	cctx.defer(ctx)
 		.await
 		.context("Failed to defer interaction")?;
+	let sbox = fw
+		.get_qalc_worker()
+		.context("qalc worker is not initialized")?;
 	let expr = args.expr.join(" ");
 	debug!("Evaluating expression: {}", expr);
-	let mut res = state.run(expr).await?;
+	let mut res = run(&sbox, expr).await?;
 	res.insert_str(0, "```\n");
 	if !res.ends_with('\n') {
 		res.push('\n');

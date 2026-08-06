@@ -1,0 +1,22 @@
+[package]
+name = "qalc_sbox"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+qalc.workspace = true
+serde.workspace = true
+ipc-channel.workspace = true
+libc.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+anyhow.workspace = true
+nix = {workspace = true, features = ["sched", "mount", "fs", "user"]}
+tokio = { workspace = true, features = ["sync"] }
+oneshot.workspace = true
+
+[target.'cfg(target_os = "linux")'.dependencies]
+seccompiler.workspace = true
+
+[lints]
+workspace = true

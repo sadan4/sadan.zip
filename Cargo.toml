@@ -86,6 +86,7 @@ git_hash = { path = "crates/git_hash" }
 bot_config = { path = "crates/bot_config" }
 reporter = { path = "crates/reporter" }
 qalc = { path = "crates/qalc" }
+qalc_sbox = { path = "crates/qalc_sbox" }
 demangler = { path = "crates/demangler" }
 tower-lsp = "0.20.0"
 tokio-tungstenite = "0.30.0"
@@ -127,8 +128,11 @@ skia-safe = { version = "0.99.0", features = ["webp-decode", "webp-encode"] }
 gif = "0.14.2"
 mini-moka = "0.10"
 url = "2.5.8"
-ipc-channel = {version = "0.22.0", features = ["async"]}
+ipc-channel = { version = "0.22.0", features = ["async"] }
 nix = "0.31.3"
+pyo3 = { version = "0.29.2" }
+futures = "0.3.33"
+oneshot = { version = "0.2.1", features = ["async", "std"] }
 
 [patch.crates-io]
 typesize = { git = "https://github.com/sadan4/typesize", branch = "feat/pathbuf-impl" }
