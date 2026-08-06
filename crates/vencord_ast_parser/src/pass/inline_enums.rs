@@ -4,7 +4,6 @@ use derive_more::{Deref, DerefMut};
 use oxc::{
 	allocator::{Allocator, CloneIn, GetAllocator},
 	ast::{
-		AstBuilder,
 		ast::{
 			Expression,
 			IdentifierReference,
@@ -12,7 +11,7 @@ use oxc::{
 			Str,
 			TSEnumMemberName,
 		},
-		builder::GetAstBuilder,
+		builder::{AstBuilder, GetAstBuilder},
 	},
 	minifier::PropertyReadSideEffects,
 	semantic::{ReferenceId, SymbolId},
@@ -135,27 +134,19 @@ enum EnumValue<'ast> {
 
 impl<'new> CloneIn<'new> for EnumValue<'_> {
 	type Cloned = EnumValue<'new>;
-
-	fn clone_in(&self, alloc: &'new Allocator) -> Self::Cloned {
-		match self {
-			EnumValue::Number(n) => EnumValue::Number(*n),
-			EnumValue::String(s) => EnumValue::String(s.clone_in(alloc)),
-			EnumValue::Computed(e) => EnumValue::Computed(e.clone_in(alloc)),
-		}
-	}
-
-	fn clone_in_with_semantic_ids(
+	fn clone_in_impl(
 		&self,
+		with_semantic_ids: oxc::allocator::CloneInSemanticIds,
 		allocator: &'new Allocator,
 	) -> Self::Cloned {
 		match self {
 			EnumValue::Number(n) => EnumValue::Number(*n),
 			EnumValue::String(s) => {
-				EnumValue::String(s.clone_in_with_semantic_ids(allocator))
+				EnumValue::String(s.clone_in_impl(with_semantic_ids, allocator))
 			}
-			EnumValue::Computed(e) => {
-				EnumValue::Computed(e.clone_in_with_semantic_ids(allocator))
-			}
+			EnumValue::Computed(e) => EnumValue::Computed(
+				e.clone_in_impl(with_semantic_ids, allocator),
+			),
 		}
 	}
 }

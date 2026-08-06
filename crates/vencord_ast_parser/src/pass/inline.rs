@@ -1,15 +1,13 @@
 use super::util::Ctx;
 use ast_parser::exts::{BindingPatternExt as _, ExpressionExt as _};
 use oxc::{
-	allocator::CloneIn,
-	ast::ast::{
+	allocator::{CloneIn, GetAllocator as _}, ast::ast::{
 		Expression,
 		IdentifierReference,
 		Program,
 		VariableDeclaration,
 		VariableDeclarator,
-	},
-	semantic::{ReferenceId, SymbolId},
+	}, semantic::{ReferenceId, SymbolId},
 };
 use oxc_ecmascript::constant_evaluation::IsLiteralValue;
 use oxc_traverse::{Traverse, TraverseCtx};
@@ -60,12 +58,12 @@ impl<'ast, State> Traverse<'ast, State> for InlineConstantsPass<'ast> {
 		for i in (0..node.declarations.len()).rev() {
 			if let Some(sym_id) = should_inline(&node.declarations[i], ctx) {
 				// should never be None because we check it in should_inline
-				let decl = ctx.ast.allocator.alloc(
+				let decl = ctx.ast.allocator().alloc(
 					node.declarations[i]
 						.init
 						.as_ref()
 						.unwrap()
-						.clone_in_with_semantic_ids(ctx.ast.allocator),
+						.clone_in_with_semantic_ids(ctx.ast.allocator()),
 				);
 				ctx.scoping()
 					.get_resolved_reference_ids(sym_id)
@@ -92,7 +90,7 @@ impl<'ast, State> Traverse<'ast, State> for InlineConstantsPass<'ast> {
 			return;
 		};
 		if let Some(lit_expr) = self.marks.remove(&ref_id) {
-			*node = lit_expr.clone_in(ctx.ast.allocator);
+			*node = lit_expr.clone_in(ctx.ast.allocator());
 		}
 	}
 	fn exit_program(

@@ -68,7 +68,8 @@ make_impl!(StaticMemberExpression);
 make_impl!(PrivateFieldExpression);
 make_impl!(CallExpression);
 make_impl!(NewExpression);
-make_impl!(MetaProperty);
+make_impl_no_lt!(ImportMeta);
+make_impl_no_lt!(NewTarget);
 make_impl!(SpreadElement);
 make_impl!(UpdateExpression);
 make_impl!(UnaryExpression);
@@ -260,7 +261,8 @@ impl<'ast> IntoAstKind<'ast> for &'ast Expression<'ast> {
 			Expression::StringLiteral(e) => e.into_ast_kind(),
 			Expression::TemplateLiteral(e) => e.into_ast_kind(),
 			Expression::Identifier(e) => e.into_ast_kind(),
-			Expression::MetaProperty(e) => e.into_ast_kind(),
+			Expression::ImportMeta(e) => e.into_ast_kind(),
+			Expression::NewTarget(e) => e.into_ast_kind(),
 			Expression::Super(e) => e.into_ast_kind(),
 			Expression::ArrayExpression(e) => e.into_ast_kind(),
 			Expression::ArrowFunctionExpression(e) => e.into_ast_kind(),
@@ -312,7 +314,8 @@ impl<'ast> IntoAstKind<'ast> for &'ast PropertyKey<'ast> {
 			PropertyKey::StringLiteral(e) => e.into_ast_kind(),
 			PropertyKey::TemplateLiteral(e) => e.into_ast_kind(),
 			PropertyKey::Identifier(e) => e.into_ast_kind(),
-			PropertyKey::MetaProperty(e) => e.into_ast_kind(),
+			PropertyKey::ImportMeta(e) => e.into_ast_kind(),
+			PropertyKey::NewTarget(e) => e.into_ast_kind(),
 			PropertyKey::Super(e) => e.into_ast_kind(),
 			PropertyKey::ArrayExpression(e) => e.into_ast_kind(),
 			PropertyKey::ArrowFunctionExpression(e) => e.into_ast_kind(),

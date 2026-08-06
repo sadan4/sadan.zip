@@ -71,7 +71,6 @@ use oxc::{
 		Vec as OxcVec,
 	},
 	ast::{
-		AstBuilder,
 		AstKind,
 		ast::{
 			Argument,
@@ -90,7 +89,7 @@ use oxc::{
 			StringLiteral,
 			TemplateLiteral,
 		},
-		builder::GetAstBuilder,
+		builder::{AstBuilder, GetAstBuilder},
 	},
 	minifier::PropertyReadSideEffects,
 	semantic::{Semantic, SymbolId},

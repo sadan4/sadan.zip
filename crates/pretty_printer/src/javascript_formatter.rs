@@ -344,6 +344,7 @@ impl<'a> JavaScriptFormatter<'a> {
 			| N::IdentifierName(_)
 			| N::IdentifierReference(_) => &[F::Token],
 			N::PrivateIdentifier(_) => &[F::Token],
+			N::ImportMeta(_) | N::NewTarget(_) => &[F::Token],
 			N::ReturnStatement(n) => {
 				if tk == TK::Semicolon {
 					&[F::Token]

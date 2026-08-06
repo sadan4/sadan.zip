@@ -4,7 +4,6 @@ use itertools::Itertools;
 use oxc::{
 	allocator::{Allocator, Dummy, GetAllocator, StringBuilder},
 	ast::{
-		AstBuilder,
 		ast::{
 			BigintBase,
 			Expression,
@@ -14,7 +13,7 @@ use oxc::{
 			TemplateElementValue,
 			TemplateLiteral,
 		},
-		builder::GetAstBuilder,
+		builder::{AstBuilder, GetAstBuilder},
 	},
 	minifier::PropertyReadSideEffects,
 	semantic::IsGlobalReference,
@@ -53,7 +52,7 @@ impl<'a, 'ast: 'a, State> Ctx<'a, 'ast, State> {
 			ConstantValue::BigInt(n) => {
 				let str_repr = self
 					.ast
-					.allocator
+					.allocator()
 					.alloc_str(&n.to_string());
 				Expression::new_big_int_literal(
 					span,
@@ -77,7 +76,7 @@ impl<'a, 'ast: 'a, State> Ctx<'a, 'ast, State> {
 
 	/// A quick shortcut to get access to the [`Allocator`]
 	pub fn a(&self) -> &'ast Allocator {
-		self.ast.allocator
+		self.ast.allocator()
 	}
 
 	/// Evalualate a template that only has literal values
@@ -125,7 +124,7 @@ impl<'a, 'ast: 'a, State> Ctx<'a, 'ast, State> {
 	/// }
 	/// ```
 	pub fn dummy<T: Dummy<'ast>>(&self) -> T {
-		T::dummy(self.ast.allocator)
+		T::dummy(self.ast.allocator())
 	}
 	pub fn take<T: Dummy<'ast>>(&self, node: &mut T) -> T {
 		mem::replace(node, self.dummy())
@@ -173,7 +172,7 @@ impl<'a, 'ast: 'a, State> MayHaveSideEffectsContext<'ast>
 
 impl<'a, 'ast: 'a, State> GetAllocator<'ast> for Ctx<'a, 'ast, State> {
 	fn allocator(&self) -> &'ast Allocator {
-		self.ast.allocator
+		self.ast.allocator()
 	}
 }
 

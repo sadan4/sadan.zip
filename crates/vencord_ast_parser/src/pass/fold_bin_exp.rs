@@ -55,7 +55,7 @@ mod fold_template {
 	use crate::pass::util::{Ctx, empty_template_element_value};
 	use ast_parser::exts::ExpressionExt as _;
 	use oxc::{
-		ast::ast::{
+		allocator::GetAllocator, ast::ast::{
 			Expression,
 			IdentifierReference,
 			Str,
@@ -63,8 +63,7 @@ mod fold_template {
 			TemplateElement,
 			TemplateElementValue,
 			TemplateLiteral,
-		},
-		span::Span,
+		}, span::Span,
 	};
 	use std::mem;
 	use tracing::warn;
@@ -81,11 +80,11 @@ mod fold_template {
 		let q1 = &mut right.quasis[0];
 		let new_q1_raw = ctx
 			.ast
-			.allocator
+			.allocator()
 			.alloc_concat_strs_array([left_val, q1.value.raw.as_str()]);
 		let new_q1_val = ctx
 			.ast
-			.allocator
+			.allocator()
 			.alloc_concat_strs_array([
 				left_val,
 				q1.value.cooked.unwrap().as_str(),
@@ -119,11 +118,11 @@ mod fold_template {
 		let q = &mut left.quasis[last_idx];
 		let new_q_raw = ctx
 			.ast
-			.allocator
+			.allocator()
 			.alloc_concat_strs_array([q.value.raw.as_str(), right_val]);
 		let new_q_val = ctx
 			.ast
-			.allocator
+			.allocator()
 			.alloc_concat_strs_array([
 				q.value.cooked.unwrap().as_str(),
 				right_val,
@@ -210,14 +209,14 @@ mod fold_template {
 		let right_joiner = &mut right.quasis[0];
 		let joiner_raw = ctx
 			.ast
-			.allocator
+			.allocator()
 			.alloc_concat_strs_array([
 				left_joiner.value.raw.as_str(),
 				right_joiner.value.raw.as_str(),
 			]);
 		let joiner_cooked = ctx
 			.ast
-			.allocator
+			.allocator()
 			.alloc_concat_strs_array([
 				left_joiner
 					.value
