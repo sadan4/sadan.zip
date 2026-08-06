@@ -113,7 +113,6 @@ serenity = { git = "https://github.com/sadan4/serenity", default-features = fals
 futures-core = "0.3.31"
 shlex = "1.3.0"
 schemars = "1.2.1"
-async-scoped = { version = "0.9.0", features = ["tokio", "use-tokio"] }
 git2 = { version = "0.21.0", features = ["https", "ssh"] }
 unicode-ident = "1.0.24"
 cxx = "1.0"
@@ -131,7 +130,6 @@ url = "2.5.8"
 ipc-channel = { version = "0.22.0", features = ["async"] }
 nix = "0.31.3"
 pyo3 = { version = "0.29.2" }
-futures = "0.3.33"
 oneshot = { version = "0.2.1", features = ["async", "std"] }
 
 [patch.crates-io]

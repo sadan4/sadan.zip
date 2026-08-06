@@ -158,17 +158,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "async-scoped"
-version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4042078ea593edffc452eef14e99fdb2b120caa4ad9618bcdeabc4a023b98740"
-dependencies = [
- "futures",
- "pin-project",
- "tokio",
-]
-
-[[package]]
 name = "async-trait"
 version = "0.1.89"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -459,12 +448,10 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "arrayvec",
- "async-scoped",
  "bitflags 2.13.1",
  "bot_config",
  "bytes",
  "clap",
- "cxx",
  "demangler",
  "derive_more",
  "discord_scraper",

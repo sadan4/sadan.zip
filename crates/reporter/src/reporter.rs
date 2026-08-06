@@ -135,7 +135,6 @@ pub enum PatchStatus {
 	Error,
 }
 
-#[expect(clippy::multiple_inherent_impl)]
 impl<'a> ReporterState<'a> {
 	fn run(mut self) {
 		let start_time = Instant::now();

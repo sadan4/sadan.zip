@@ -25,7 +25,7 @@ impl ImageFormat {
 			_ => None,
 		}
 	}
-	pub fn ext(self) -> &'static str {
+	pub const fn ext(self) -> &'static str {
 		match self {
 			Self::Png => ".png",
 			Self::Webp => ".webp",

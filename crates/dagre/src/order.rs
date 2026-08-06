@@ -227,21 +227,21 @@ pub fn order(
 		#[cfg(feature = "profile")]
 		{
 			t_sweep += t0.elapsed().as_nanos();
-		}
+		};
 		#[cfg(feature = "profile")]
 		let t1 = std::time::Instant::now();
 		layering = util::build_layer_matrix(graph);
 		#[cfg(feature = "profile")]
 		{
 			t_layer += t1.elapsed().as_nanos();
-		}
+		};
 		#[cfg(feature = "profile")]
 		let t2 = std::time::Instant::now();
 		let cc = cross_count(graph, &layering) as f64;
 		#[cfg(feature = "profile")]
 		{
 			t_cc += t2.elapsed().as_nanos();
-		}
+		};
 		#[cfg(feature = "profile")]
 		let t3 = std::time::Instant::now();
 		if cc < best_cc {
@@ -257,7 +257,7 @@ pub fn order(
 		#[cfg(feature = "profile")]
 		{
 			t_clone += t3.elapsed().as_nanos();
-		}
+		};
 		i += 1;
 	}
 	#[cfg(feature = "profile")]

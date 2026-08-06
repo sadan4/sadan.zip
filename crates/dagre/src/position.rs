@@ -631,7 +631,7 @@ pub fn position_x(
 			#[cfg(feature = "profile")]
 			{
 				t_va += tx.elapsed().as_nanos();
-			}
+			};
 			#[cfg(feature = "profile")]
 			let ty = std::time::Instant::now();
 			let mut xs = horizontal_compaction(
@@ -644,7 +644,7 @@ pub fn position_x(
 			#[cfg(feature = "profile")]
 			{
 				t_hc += ty.elapsed().as_nanos();
-			}
+			};
 			if horiz == "r" {
 				for v in xs.values_mut() {
 					*v = -*v;

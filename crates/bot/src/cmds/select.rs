@@ -1,15 +1,11 @@
 use anyhow::{Context as _, Result};
 use macros::command;
-use serenity::{
-	all::{
-		CacheHttp,
-		CommandDataOption,
-		CommandDataOptionValue,
-		CommandOptionType,
-		Context,
-		CreateAttachment,
-	},
-	small_fixed_array::FixedString,
+use serenity::all::{
+	CommandDataOption,
+	CommandDataOptionValue,
+	CommandOptionType,
+	Context,
+	CreateAttachment,
 };
 use tracing::warn;
 use url::Url;

@@ -1,3 +1,4 @@
+#![allow(clippy::suboptimal_flops)]
 //! Port of test/order/sort-test.ts.
 
 use dagre::{
