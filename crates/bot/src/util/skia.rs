@@ -1,6 +1,16 @@
 use std::{debug_assert_matches, f32};
 
-use skia_safe::{Path, PathBuilder, Point, scalar};
+use anyhow::{Result, bail};
+use skia_safe::{
+	AlphaType,
+	ColorType,
+	ImageInfo,
+	Path,
+	PathBuilder,
+	Point,
+	Surface,
+	scalar,
+};
 use tracing::warn;
 
 pub fn mk_circle(center: Point, radius: scalar) -> Path {
@@ -105,4 +115,33 @@ mod tests {
 		let output2 = leg_45(input / 2.);
 		assert_eq!(output, output2);
 	}
+}
+
+/// Captures a frame as RGBA8888 with the given alpha handling.
+///
+/// out has it's size adjusted if needed; however, it's not zeroed
+pub fn capture_frame(
+	s: &mut Surface,
+	out: &mut Vec<u8>,
+	alpha: AlphaType,
+) -> Result<()> {
+	let w = s.width();
+	let h = s.height();
+	let info = ImageInfo::new((w, h), ColorType::RGBA8888, alpha, None);
+	let mrb = info.min_row_bytes();
+	let needed_len = h as usize * mrb;
+	out.reserve_exact(out.len().saturating_sub(needed_len));
+	out.resize(needed_len, 0);
+	let pixels = s.read_pixels(&info, out, mrb, (0, 0));
+	if !pixels {
+		bail!("Failed to read pixels from surface");
+	}
+	Ok(())
+}
+
+/// Captures a frame for a gif (premultiplied alpha).
+///
+/// out has it's size adjusted if needed; however, it's not zeroed
+pub fn capture_gif_frame(s: &mut Surface, out: &mut Vec<u8>) -> Result<()> {
+	capture_frame(s, out, AlphaType::Premul)
 }

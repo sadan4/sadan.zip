@@ -46,6 +46,7 @@ bytes.workspace = true
 gif.workspace = true
 mini-moka.workspace = true
 url.workspace = true
+webp.workspace = true
 
 [lints]
 workspace = true

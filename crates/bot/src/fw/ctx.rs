@@ -23,11 +23,14 @@ use serenity::all::{
 	EditInteractionResponse,
 	EditMessage,
 	GenericChannelId,
+	Http,
 	Message,
 	MessageFlags,
 	MessageId,
 	User,
 };
+
+use crate::util;
 
 /// How a command was invoked.
 pub enum CommandCtx<'a> {
@@ -259,6 +262,18 @@ impl<'a> CommandCtx<'a> {
 		}
 	}
 
+	pub async fn followup_image(
+		&self,
+		c: &Http,
+		image: &util::Image,
+	) -> Result<ReplyHandle<'a>> {
+		let file = CreateAttachment::bytes(
+			image.bytes.clone(),
+			image.format.generic_file_name(),
+		);
+		self.followup_file(c, file, None).await
+	}
+
 	pub async fn reply_file<'b>(
 		&self,
 		c: impl CacheHttp,
@@ -303,15 +318,20 @@ impl<'a> CommandCtx<'a> {
 		&self,
 		c: impl CacheHttp,
 		file: CreateAttachment<'_>,
+		text: impl Into<Option<String>>,
 	) -> Result<ReplyHandle<'a>> {
+		let text = text.into();
 		match self {
 			CommandCtx::Prefix { msg } => {
-				let cm = CreateMessage::new()
+				let mut cm = CreateMessage::new()
 					.add_file(file)
 					.reference_message(*msg)
 					.allowed_mentions(
 						CreateAllowedMentions::new().replied_user(true),
 					);
+				if let Some(text) = text {
+					cm = cm.content(text);
+				}
 				let msg = msg
 					.channel_id
 					.send_message(c.http(), cm)
@@ -319,8 +339,11 @@ impl<'a> CommandCtx<'a> {
 				Ok(ReplyHandle::Prefix { msg: Box::new(msg) })
 			}
 			CommandCtx::Application { interaction } => {
-				let cm =
+				let mut cm =
 					CreateInteractionResponseFollowup::new().add_file(file);
+				if let Some(text) = text {
+					cm = cm.content(text);
+				}
 				interaction
 					.create_followup(c.http(), cm)
 					.await?;

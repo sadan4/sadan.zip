@@ -2,12 +2,12 @@ use std::{fmt::Debug, sync::Arc, time::Duration};
 
 use mini_moka::sync::Cache;
 use serenity::all::UserId;
-use tokio::sync::OnceCell;
+use tokio::sync::{SetOnce};
 use tracing::{error, warn};
 
 use crate::util::Image;
 
-type CacheEntry = Arc<OnceCell<Image>>;
+type CacheEntry = Arc<SetOnce<Image>>;
 /// Cheap to clone, internals are refcounted
 #[derive(Debug, Clone)]
 pub struct ImageCache {
@@ -94,7 +94,7 @@ impl ImageCache {
 		}
 	}
 	pub fn update_user_entry(&self, user: UserId, image: Image) {
-		let entry = Arc::new(OnceCell::new_with(Some(image)));
+		let entry = Arc::new(SetOnce::new_with(Some(image)));
 		self.cache.insert(user, entry);
 	}
 	pub fn get_user_entry(&self, user: UserId) -> Option<CacheEntry> {

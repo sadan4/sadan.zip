@@ -1,6 +1,6 @@
-mod cmds;
+pub mod cmds;
 mod fw;
-mod util;
+pub mod util;
 
 use std::{fmt::Debug, sync::Arc};
 
@@ -24,6 +24,32 @@ impl Debug for BotConfig {
 
 const USER_AGENT: &str =
 	concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"));
+
+pub fn install_tracing() {
+	use tracing_subscriber::{
+		EnvFilter,
+		layer::SubscriberExt as _,
+		util::SubscriberInitExt as _,
+	};
+
+	let filter_layer = EnvFilter::try_from_default_env()
+		.or_else(|_| {
+			EnvFilter::builder().parse(if cfg!(debug_assertions) {
+				"debug,h2=info,hyper=info,rustls=info,reqwest::retry=debug,reqwest::connect=info"
+			} else {
+				"info"
+			})
+		})
+		.unwrap();
+	tracing_subscriber::registry()
+		.with(
+			tracing_subscriber::fmt::layer()
+				.with_ansi_sanitization(false)
+				.with_ansi(true),
+		)
+		.with(filter_layer)
+		.init();
+}
 
 #[tokio::main]
 pub async fn run(config: bot_config::Config) {

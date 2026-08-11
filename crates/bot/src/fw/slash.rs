@@ -80,6 +80,10 @@ impl SlashArg for u8 {
 	const KIND: CommandOptionType = CommandOptionType::Integer;
 }
 
+impl SlashArg for i16 {
+	const KIND: CommandOptionType = CommandOptionType::Integer;
+}
+
 /// A single native Discord option derived from a clap parser field: its
 /// argument name, the Discord option kind, and any fixed choices.
 pub struct SlashOption {

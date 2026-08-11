@@ -54,6 +54,7 @@ bitflags = { version = "2.11.0", features = ["serde"] }
 owo-colors = "4.3.0"
 unicode-width = "0.2.2"
 textwrap = "0.16.2"
+landlock = "0.4.7"
 terminal_size = "0.4.4"
 syntect = { version = "5.3.0", default-features = false }
 memchr = "2.8.0"
@@ -125,11 +126,13 @@ seccompiler = "0.5"
 swift-demangler = "0.1.1"
 skia-safe = { version = "0.99.0", features = ["webp-decode", "webp-encode"] }
 gif = "0.14.2"
+webp = { version = "0.3.1", default-features = false }
 mini-moka = "0.10"
 url = "2.5.8"
 ipc-channel = { version = "0.22.0", features = ["async"] }
 nix = "0.31.3"
 pyo3 = { version = "0.29.2" }
+pyo3-stub-gen = { version = "0.23", default-features = false }
 oneshot = { version = "0.2.1", features = ["async", "std"] }
 
 [patch.crates-io]
@@ -160,6 +163,7 @@ debug = true
 split-debuginfo = "off"
 strip = false
 
+# reporter does a lot of string chunching
 [profile.dev.package.regex]
 opt-level = 3
 
@@ -173,22 +177,16 @@ opt-level = 3
 [profile.dev.package.insta]
 opt-level = 3
 
-[profile.dev.package.similar]
+# faster dev builds
+[profile.dev.package.'*']
 opt-level = 3
+
 
 # During testing, we parse large javascript files, up to 20mb!
 # Compile oxc with -O3 so the tests run 2-4x faster
 [profile.test.package.oxc_allocator]
 opt-level = 3
-[profile.test.package.oxc_ast]
-opt-level = 3
-[profile.test.package.oxc_parser]
-opt-level = 3
-[profile.test.package.oxc_semantic]
-opt-level = 3
 [profile.test.package.oxc_span]
-opt-level = 3
-[profile.test.package.oxc_syntax]
 opt-level = 3
 
 [workspace.lints.rust]
@@ -224,6 +222,7 @@ unchecked_time_subtraction = "allow"
 debug_assert_with_mut_call = "deny"
 # too damn noisy
 cast_possible_wrap = "allow"
+cast_precision_loss = "allow"
 # it doesnt take types into account, so two names
 # with different types will still trigger the lint
 similar_names = "allow"

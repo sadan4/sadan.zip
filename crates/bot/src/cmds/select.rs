@@ -1,5 +1,5 @@
 use anyhow::{Context as _, Result};
-use macros::command;
+use macros::{SlashArgs, command};
 use serenity::all::{
 	CommandDataOption,
 	CommandDataOptionValue,
@@ -12,7 +12,7 @@ use url::Url;
 
 use crate::{
 	fw::{CommandCtx, CommandFramework, SlashOption, SlashSchema},
-	util::{Image, ImageFormat},
+	util::{Image, ImageFormat, UserArg},
 };
 
 use clap::Parser;
@@ -285,6 +285,77 @@ async fn select(
 				.context("Failed to send followup message")?;
 		}
 	}
+	Ok(())
+}
+
+#[derive(Parser, SlashArgs)]
+struct SelectUserArgs {
+	/// The user to select the avatar of
+	#[arg()]
+	target: UserArg,
+}
+
+#[command]
+#[arg_parser = SelectUserArgs]
+#[slash_args]
+/// selects a users global avatar to be used for your next image command
+async fn select_user(
+	args: SelectUserArgs,
+	ctx: &Context,
+	cctx: &CommandCtx<'_>,
+	fw: &CommandFramework,
+) -> Result<()> {
+	cctx.defer(ctx)
+		.await
+		.context("Failed to defer interaction")?;
+	let user = ctx
+		.http
+		.get_user(*args.target)
+		.await
+		.context("Failed to get user obj")?;
+	// TODO: Update to face() when we support gifs
+	let avatar_url = user.static_face();
+	let url = Url::parse(&avatar_url).context("Failed to parse avatar url")?;
+	fw.image_cache
+		.launch_dl_for_user(
+			async {
+				let res = fw
+					.http
+					.get(url)
+					.send()
+					.await
+					.context("Failed to send request for avatar url")?;
+				let content_type = res
+					.headers()
+					.get("content-type")
+					.context("Response missing content-type")?;
+				let format =
+					ImageFormat::from_content_type(content_type.as_bytes())
+						.with_context(|| {
+							format!(
+								"Unsupported content-type: {}",
+								String::from_utf8_lossy(
+									content_type.as_bytes()
+								)
+							)
+						})?;
+				let bytes = res
+					.bytes()
+					.await
+					.context("Failed to read bytes from response")?;
+				if format != ImageFormat::Webp {
+					warn!("Avatar content type {:?} is not Webp", format);
+				}
+				anyhow::Ok(Image { bytes, format })
+			},
+			cctx.author().id,
+			Some(avatar_url),
+		)
+		.await
+		.context("Failed to download avatar")?;
+	cctx.followup_text(ctx, format!("Selected avatar of user {}", user.name))
+		.await
+		.context("Failed to send followup message")?;
 	Ok(())
 }
 

@@ -1,0 +1,3 @@
+# Stub package tree emitted by the `stub_gen` bin; staged into dist/ by xtask.
+/python/
+/dist/

@@ -19,6 +19,7 @@ mod ffmpreg;
 mod randomvnc;
 mod anti;
 mod select;
+pub mod image;
 
 #[command]
 #[sub_cmds[
@@ -38,8 +39,17 @@ mod select;
 	ffmpreg::ffmpreg,
 	anti::anti,
 	select::select,
+	select::select_user,
 	select::show,
 	randomvnc::random_vnc,
+	image::clip_to_circle,
+	image::rotate,
+	image::blur,
+	image::spin_clip,
+	image::spin,
+	image::invert,
+	image::avg_color,
+	image::monochrome,
 ]]
 #[group]
 #[root]

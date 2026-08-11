@@ -57,7 +57,7 @@ use ast_parser::{
 		ImportDeclarationExt as _,
 		MemberExpressionExt,
 		ObjectExpressionExt as _,
-		PropertyKeyExt,
+		PropertyKeyExt as _,
 	},
 	parse_for_traverse,
 	sym_id::GetSymId,
@@ -99,7 +99,7 @@ use oxc_ecmascript::{
 	constant_evaluation::{ConstantEvaluation, ConstantEvaluationCtx},
 	side_effects::MayHaveSideEffectsContext,
 };
-use tracing::{debug, trace, warn};
+use tracing::{debug, instrument, trace, warn};
 
 pub struct VencordAstParser<'ast> {
 	pub(crate) alloc: &'ast Allocator,
@@ -125,6 +125,7 @@ const FIND_IMPORT_SOURCE: &str = "@webpack";
 // TODO: get webpack finds
 /// Public API
 impl<'ast> VencordAstParser<'ast> {
+	#[instrument(skip(alloc, source))]
 	pub fn try_new(
 		alloc: &'ast Allocator,
 		source: &'ast str,

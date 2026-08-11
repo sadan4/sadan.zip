@@ -20,7 +20,18 @@ use ipc_channel::{
 	IpcError,
 	ipc::{self, IpcOneShotServer, IpcReceiver, IpcSender},
 };
+use landlock::{
+	ABI,
+	Access,
+	AccessFs,
+	Ruleset,
+	RulesetAttr,
+	RulesetCreatedAttr,
+	RulesetStatus,
+	path_beneath_rules,
+};
 use nix::{
+	errno::Errno,
 	fcntl::{OFlag, open},
 	mount::{MntFlags, MsFlags, mount, umount2},
 	sched::{CloneFlags, unshare},
@@ -187,13 +198,42 @@ fn bind_allowed_paths(paths: &[&str], jail_dir: &Path) -> anyhow::Result<()> {
 	Ok(())
 }
 
+/// Confine the current process's filesystem view before the seccomp filter is
+/// installed.
+///
+/// Prefers a mount-namespace jail (`unshare` + `pivot_root`) which hides
+/// everything except the whitelisted paths. If the namespace unshare is denied
+/// with `EPERM` (e.g. Docker's default seccomp profile blocks
+/// `unshare(CLONE_NEWUSER)`), falls back to a Landlock ruleset that restricts
+/// filesystem access to the same whitelist.
 #[cfg(target_os = "linux")]
 fn enter_sandbox(allow_paths: &[&str]) -> anyhow::Result<()> {
 	// Detach ourselves from the parent mount namespace
 	// we have to pass CLONE_NEWUSER because CLONE_NEWNS requires CAP_SYS_ADMIN, which we might not have
-	unshare(CloneFlags::CLONE_NEWNS | CloneFlags::CLONE_NEWUSER)
-		.context("unshare(CLONE_NEWNS)")?;
+	// CLONE_FILES to close all fds
 
+	match unshare(
+		CloneFlags::CLONE_NEWNS
+			| CloneFlags::CLONE_NEWUSER
+			| CloneFlags::CLONE_FILES,
+	) {
+		Ok(()) => enter_sandbox_namespaces(allow_paths),
+		// Docker blocks unshare(2) vis seccomp, so fall back to landlock
+		Err(Errno::EPERM) => {
+			warn!(
+				"unshare(CLONE_NEWNS | CLONE_NEWUSER | CLONE_FILES) denied (EPERM); falling back to Landlock filesystem sandbox"
+			);
+			enter_sandbox_landlock(allow_paths)
+		}
+		Err(e) => {
+			Err(e).context("unshare(CLONE_NEWNS | CLONE_NEWUSER | CLONE_FILES)")
+		}
+	}
+}
+
+/// sandbox via [`pivot_root`] + bind-mounts
+#[cfg(target_os = "linux")]
+fn enter_sandbox_namespaces(allow_paths: &[&str]) -> anyhow::Result<()> {
 	// use PID to create a unique dir and make it easy to find
 	let mut jail_dir = env::temp_dir();
 	let pid = process::id();
@@ -222,6 +262,36 @@ fn enter_sandbox(allow_paths: &[&str]) -> anyhow::Result<()> {
 	umount2(c"/old_root", MntFlags::MNT_DETACH)
 		.context("Failed to umount old root")?;
 	fs::remove_dir("/old_root").context("Failed to remove old root dir")?;
+	Ok(())
+}
+
+/// Filesystem confinement via Landlock, used when the namespace unshare is
+/// denied. Grants read-only access to the whitelisted paths and denies all
+/// other filesystem access. Unlike the mount-namespace jail this does not
+/// change the filesystem view, so unlisted paths remain visible but are
+/// inaccessible.
+///
+/// Requires Landlock support in the running kernel (Linux 5.13+). Uses
+/// best-effort ABI compatibility, but bails if the ruleset ends up entirely
+/// unenforced rather than running the worker without a filesystem sandbox.
+#[cfg(target_os = "linux")]
+fn enter_sandbox_landlock(allow_paths: &[&str]) -> anyhow::Result<()> {
+	let abi = ABI::V5;
+	let status = Ruleset::default()
+		.handle_access(AccessFs::from_all(abi))
+		.context("landlock: handle_access")?
+		.create()
+		.context("landlock: create ruleset")?
+		.add_rules(path_beneath_rules(allow_paths, AccessFs::from_read(abi)))
+		.context("landlock: add read rules for whitelisted paths")?
+		.restrict_self()
+		.context("landlock: restrict_self")?;
+
+	if status.ruleset == RulesetStatus::NotEnforced {
+		anyhow::bail!(
+			"Landlock is unsupported by the running kernel; refusing to run the worker without a filesystem sandbox"
+		);
+	}
 	Ok(())
 }
 
@@ -623,5 +693,110 @@ impl Sandbox {
 			.send(SandboxMessage::Eval { content, tx })
 			.map_err(Error::Send)?;
 		rx.recv().map_err(Error::OneshotRecv)
+	}
+}
+
+#[cfg(all(test, target_os = "linux"))]
+mod landlock_tests {
+	use std::{env, fs, io::ErrorKind, process};
+
+	use super::enter_sandbox_landlock;
+
+	/// Whether the running kernel exposes Landlock, gleaned from securityfs.
+	/// If securityfs is not mounted we cannot tell, so the caller skips.
+	fn landlock_available() -> Option<bool> {
+		let lsm = fs::read_to_string("/sys/kernel/security/lsm").ok()?;
+		Some(lsm.split(',').any(|m| m == "landlock"))
+	}
+
+	// Child exit codes for the forked probe.
+	const OK: i32 = 0;
+	const APPLY_FAILED: i32 = 12;
+	const ALLOWED_READ_FAILED: i32 = 10;
+	const DENIED_READ_LEAKED: i32 = 11;
+	const DENIED_READ_WRONG_ERR: i32 = 13;
+
+	fn child_probe(
+		allow_dir: &str,
+		allowed_file: &str,
+		denied_file: &str,
+	) -> ! {
+		let code = if enter_sandbox_landlock(&[allow_dir]).is_err() {
+			APPLY_FAILED
+		} else if fs::read(allowed_file).is_err() {
+			ALLOWED_READ_FAILED
+		} else {
+			match fs::read(denied_file) {
+				Ok(_) => DENIED_READ_LEAKED,
+				Err(e) if e.kind() == ErrorKind::PermissionDenied => OK,
+				Err(_) => DENIED_READ_WRONG_ERR,
+			}
+		};
+		// SAFETY: _exit terminates the child immediately without running
+		// atexit handlers, which is required after fork(2).
+		unsafe { libc::_exit(code) }
+	}
+
+	#[test]
+	fn landlock_blocks_non_whitelisted_paths() {
+		match landlock_available() {
+			Some(true) => {}
+			Some(false) => {
+				eprintln!("skipping: kernel has no Landlock support");
+				return;
+			}
+			None => {
+				eprintln!("skipping: cannot determine Landlock support");
+				return;
+			}
+		}
+
+		let base =
+			env::temp_dir().join(format!("landlock-test.{}", process::id()));
+		let allow_dir = base.join("allowed");
+		let deny_dir = base.join("denied");
+		fs::create_dir_all(&allow_dir).unwrap();
+		fs::create_dir_all(&deny_dir).unwrap();
+		let allowed_file = allow_dir.join("ok.txt");
+		let denied_file = deny_dir.join("secret.txt");
+		fs::write(&allowed_file, b"ok").unwrap();
+		fs::write(&denied_file, b"secret").unwrap();
+
+		let allow_s = allow_dir.to_str().unwrap().to_owned();
+		let allowed_s = allowed_file
+			.to_str()
+			.unwrap()
+			.to_owned();
+		let denied_s = denied_file.to_str().unwrap().to_owned();
+
+		// Landlock restriction is per-process and irreversible, so run the
+		// probe in a forked child to avoid confining the test runner.
+		// SAFETY: fork(2); the child only performs Landlock syscalls,
+		// read(2), and _exit(2). At test entry the process is effectively
+		// single-threaded.
+		let pid = unsafe { libc::fork() };
+		assert!(pid >= 0, "fork failed");
+		if pid == 0 {
+			child_probe(&allow_s, &allowed_s, &denied_s);
+		}
+
+		let mut status: libc::c_int = 0;
+		// SAFETY: valid pid from fork, valid status pointer.
+		let w = unsafe { libc::waitpid(pid, &raw mut status, 0) };
+		assert_eq!(w, pid, "waitpid failed");
+
+		let _ = fs::remove_dir_all(&base);
+
+		assert!(
+			libc::WIFEXITED(status),
+			"child killed by signal, raw status {status}"
+		);
+		let code = libc::WEXITSTATUS(status);
+		assert_eq!(
+			code, OK,
+			"child probe failed with code {code} (10=allowed read blocked, \
+			 11=denied read LEAKED, 12=landlock apply failed, 13=denied read \
+			 failed with wrong error)"
+		);
 	}
 }

@@ -37,11 +37,6 @@ struct Qalc;
 impl Qalc {
 	const TIMEOUT_DUR: Duration = Duration::from_secs(20);
 
-	/// Spawn the sandboxed qalculate worker and stash it on the framework so
-	/// every invocation shares the one child process.
-	///
-	/// Stays `async` because the `#[init]` factory awaits it; the body itself
-	/// does not need to await.
 	#[allow(clippy::unused_async)]
 	fn new(fw: &CommandFramework) -> impl Future<Output = Result<Self>> {
 		future::ready('f: {

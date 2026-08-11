@@ -25,7 +25,13 @@ use skia_safe::{
 use tracing::debug;
 
 use crate::{
-	fw::{CommandCtx, CommandFramework, gif_templates::GifTemplate}, util::{UserArg, avatar::download_avatar, Image as BotImage},
+	fw::{CommandCtx, CommandFramework, gif_templates::GifTemplate},
+	util::{
+		Image as BotImage,
+		UserArg,
+		avatar::download_avatar,
+		skia::capture_gif_frame,
+	},
 };
 
 #[derive(Parser, SlashArgs)]
@@ -68,23 +74,10 @@ fn gen_frames(avatar: &BotImage, tmpl: &GifTemplate) -> Result<Vec<Vec<u8>>> {
 		c.draw_image(&img, (0, 0), None);
 		c.draw_image_rect(&avatar_img, None, injection_rect, &injection_paint);
 
-		let info = ImageInfo::new(
-			ISize { width, height },
-			ColorType::RGBA8888,
-			AlphaType::Premul,
-			None,
-		);
-		let mut pix_buf =
-			vec![0u8; info.height() as usize * info.min_row_bytes()];
-		let pixels = surface.read_pixels(
-			&info,
-			&mut pix_buf,
-			info.min_row_bytes(),
-			(0, 0),
-		);
-		if !pixels {
-			bail!("Failed to read pixels from surface");
-		}
+		let mut pix_buf = Vec::new();
+
+		capture_gif_frame(&mut surface, &mut pix_buf)
+			.context("Failed to capture gif frame")?;
 		frames.push(pix_buf);
 	}
 	Ok(frames)
@@ -154,10 +147,7 @@ async fn hammer(
 	let avatar = download_avatar(&pfp, fw)
 		.await
 		.context("Failed to download avatar")?;
-	debug!(
-		"downloaded avatar in {:.2?}",
-		download_start.elapsed()
-	);
+	debug!("downloaded avatar in {:.2?}", download_start.elapsed());
 	let tmpl = &fw
 		.get_gif_templates()
 		.await

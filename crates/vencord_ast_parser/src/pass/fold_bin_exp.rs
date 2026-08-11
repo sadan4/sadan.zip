@@ -5,7 +5,7 @@ use oxc_ecmascript::constant_evaluation::{
 	ConstantValue,
 	binary_operation_evaluate_value,
 };
-use oxc_traverse::Traverse;
+use oxc_traverse::{Traverse, TraverseCtx};
 
 pub struct FoldBinaryExpressionsPass;
 
@@ -55,7 +55,8 @@ mod fold_template {
 	use crate::pass::util::{Ctx, empty_template_element_value};
 	use ast_parser::exts::ExpressionExt as _;
 	use oxc::{
-		allocator::GetAllocator, ast::ast::{
+		allocator::GetAllocator,
+		ast::ast::{
 			Expression,
 			IdentifierReference,
 			Str,
@@ -63,7 +64,8 @@ mod fold_template {
 			TemplateElement,
 			TemplateElementValue,
 			TemplateLiteral,
-		}, span::Span,
+		},
+		span::Span,
 	};
 	use std::mem;
 	use tracing::warn;
@@ -256,37 +258,33 @@ mod fold_template {
 		span: Span,
 		ctx: &Ctx<'_, 'ast, State>,
 	) -> Option<Expression<'ast>> {
-		if let Some(left_str) = left.as_string_literal() {
-			let right = right.as_template_literal_mut().expect(
-				"left is a string literal, so right must be a template literal",
-			);
-			Some(string_template(left_str, right, span, ctx))
-		} else if let Some(right_str) = right.as_string_literal() {
-			let left = left.as_template_literal_mut().expect(
-				"right is a string literal, so left must be a template literal",
-			);
-			Some(template_string(left, right_str, span, ctx))
-		} else if let Some(left_id) = left.as_identifier_mut() {
-			let right = right.as_template_literal_mut().expect(
-				"left is an identifier, so right must be a template literal",
-			);
-			Some(ident_template(left_id, right, span, ctx))
-		} else if let Some(right_id) = right.as_identifier_mut() {
-			let left = left.as_template_literal_mut().expect(
-				"right is an identifier, so left must be a template literal",
-			);
-			Some(template_ident(left, right_id, span, ctx))
-		} else if let Some(left) = left.as_template_literal_mut()
-			&& let Some(right) = right.as_template_literal_mut()
-		{
-			Some(template_template(left, right, span, ctx))
-		} else {
-			warn!(
-				"unhandled bin exp fold case: left:{}, right:{}",
-				left.dbg_name(),
-				right.dbg_name(),
-			);
-			None
+		use Expression as E;
+		match (left, right) {
+			(E::StringLiteral(left), E::TemplateLiteral(right)) => {
+				Some(string_template(left, right, span, ctx))
+			}
+			(E::TemplateLiteral(left), E::StringLiteral(right)) => {
+				Some(template_string(left, right, span, ctx))
+			}
+			(E::Identifier(left), E::TemplateLiteral(right)) => {
+				Some(ident_template(left, right, span, ctx))
+			}
+			(E::TemplateLiteral(left), E::Identifier(right)) => {
+				Some(template_ident(left, right, span, ctx))
+			}
+			(E::TemplateLiteral(left), E::TemplateLiteral(right)) => {
+				Some(template_template(left, right, span, ctx))
+			}
+			// we can't handle new expressions rn, and theres nothing that needs them
+			(E::NewExpression(_), _) | (_, E::NewExpression(_)) => None,
+			(left, right) => {
+				warn!(
+					"unhandled bin exp fold case: left:{}, right:{}",
+					left.dbg_name(),
+					right.dbg_name(),
+				);
+				None
+			}
 		}
 	}
 }
@@ -297,7 +295,7 @@ impl<'ast, State> Traverse<'ast, State> for FoldBinaryExpressionsPass {
 	fn exit_expression(
 		&mut self,
 		expr_node: &mut Expression<'ast>,
-		ctx: &mut oxc_traverse::TraverseCtx<'ast, State>,
+		ctx: &mut TraverseCtx<'ast, State>,
 	) {
 		let Some(node) = expr_node.as_binary_expression_mut() else {
 			return;

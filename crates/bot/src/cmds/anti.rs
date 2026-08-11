@@ -1,18 +1,19 @@
-use std::{f32};
+use std::f32;
 
 use crate::{
 	fw::{CommandCtx, CommandFramework},
 	util::{
+		Image as BotImage,
+		ImageFormat,
 		UserArg,
 		avatar::download_avatar,
-		Image as BotImage,
 		skia::{mk_circle, mk_diagonal_line, mk_x_path},
 	},
 };
 use anyhow::{Context as _, Result, bail};
 use clap::{Parser, ValueEnum};
 use macros::{SlashArgs, SlashChoices, command};
-use serenity::all::{Context, CreateAttachment};
+use serenity::all::Context;
 use skia_safe::{
 	Canvas,
 	ClipOp,
@@ -40,7 +41,7 @@ struct AntiArgs {
 	style: AntiStyle,
 	/// The user to use the avatar of
 	#[arg()]
-	target: UserArg,
+	target: Option<UserArg>,
 }
 
 /// The default width ratio of ❌ in twemoji
@@ -133,24 +134,41 @@ async fn anti(
 	cctx.defer(ctx)
 		.await
 		.context("Failed to defer interaction")?;
-	let user = ctx
-		.http
-		.get_user(*args.target)
-		.await
-		.context("Failed to get user")?;
-	let avatar_url = user
-		.avatar_url()
-		.context("User has no avatar")?;
-	let avatar = download_avatar(&avatar_url, fw)
-		.await
-		.context("Failed to download avatar")?;
-	let webp = tokio::task::spawn_blocking(move || make_anti(&avatar, args))
+	let image = match args.target {
+		Some(id) => {
+			let user = ctx
+				.http
+				.get_user(*id)
+				.await
+				.context("Failed to get user")?;
+			let avatar_url = user
+				.avatar_url()
+				.context("User has no avatar")?;
+
+			download_avatar(&avatar_url, fw)
+				.await
+				.context("Failed to download avatar")?
+		}
+		None => fw
+			.image_cache
+			.get_user_entry(cctx.author().id)
+			.context("No image selected!")?
+			.wait()
+			.await
+			.clone(),
+	};
+	let bytes = tokio::task::spawn_blocking(move || make_anti(&image, args))
 		.await
 		.context("Join Error")?
-		.context("Failed to make anti image")?;
-	let filename = format!("anti_{user}.webp", user = user.display_name());
-	let file = CreateAttachment::bytes(webp, filename);
-	cctx.followup_file(ctx, file)
+		.context("Failed to make anti image")?
+		.into();
+	let image = BotImage {
+		bytes,
+		format: ImageFormat::Webp,
+	};
+	fw.image_cache
+		.update_user_entry(cctx.author().id, image.clone());
+	cctx.followup_image(&ctx.http, &image)
 		.await
 		.context("Failed to upload anti-user image")?;
 	Ok(())

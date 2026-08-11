@@ -1,12 +1,19 @@
 pub mod avatar;
 pub mod skia;
 
-use std::{fmt::Display, path::PathBuf, str::FromStr, time::Instant};
+use std::{
+	fmt::Display,
+	os::unix::ffi::OsStrExt,
+	path::{Path, PathBuf},
+	str::FromStr,
+	time::Instant,
+};
 
 use anyhow::{Context as _, Result, anyhow, bail};
 use bytes::Bytes;
 use derive_more::{Deref, Display, From, Into};
 use serenity::all::{Message, UserId};
+use skia_safe::{EncodedImageFormat, Surface};
 use smol_str::SmolStr;
 use tokio::{fs, task_local};
 use tracing::info;
@@ -31,6 +38,22 @@ impl ImageFormat {
 			Self::Webp => ".webp",
 		}
 	}
+
+	/// gets a generic name for the image format, e.g. "image.png" or "image.webp"
+	pub const fn generic_file_name(self) -> &'static str {
+		match self {
+			Self::Png => "image.png",
+			Self::Webp => "image.webp",
+		}
+	}
+
+	pub fn from_path(path: &Path) -> Option<Self> {
+		match path.extension()?.as_bytes() {
+			b"png" => Some(Self::Png),
+			b"webp" => Some(Self::Webp),
+			_ => None,
+		}
+	}
 }
 #[derive(Debug, Clone)]
 /// O(1) clone, refcounted bytes and format
@@ -39,6 +62,38 @@ pub struct Image {
 	pub format: ImageFormat,
 }
 
+impl Image {
+	pub fn take_snapshot(s: &mut Surface) -> Result<Self> {
+		let sk_img = s.image_snapshot();
+		let data = sk_img
+			.encode(None, EncodedImageFormat::WEBP, None)
+			.context("Failed to encode image")?;
+		struct D(skia_safe::Data);
+		impl AsRef<[u8]> for D {
+			fn as_ref(&self) -> &[u8] {
+				&self.0
+			}
+		}
+		let bytes = Bytes::from_owner(D(data));
+		Ok(Self {
+			bytes,
+			format: ImageFormat::Webp,
+		})
+	}
+
+	pub async fn from_path(path: &Path) -> Result<Self> {
+		let format = ImageFormat::from_path(path).with_context(|| {
+			format!("Unsupported image format for {}", path.display())
+		})?;
+		let bytes = fs::read(path)
+			.await
+			.with_context(|| {
+				format!("Failed to read image from {}", path.display())
+			})?
+			.into();
+		Ok(Self { bytes, format })
+	}
+}
 
 #[derive(
 	Debug,

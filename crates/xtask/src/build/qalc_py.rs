@@ -1,4 +1,8 @@
-use std::{env, path::PathBuf, process};
+use std::{
+	env,
+	path::{Path, PathBuf},
+	process,
+};
 
 use anyhow::{Context, Result, bail};
 use clap::Args;
@@ -24,6 +28,12 @@ const PACKAGE: &str = "qalc_sbox_py";
 const LIB_NAME: &str = "libqalc_sbox_py.so";
 /// Name the module must have for `import qalc_sbox_py` to work.
 const MODULE_NAME: &str = "qalc_sbox_py.so";
+/// Cargo bin target that emits the `.pyi` stub via `pyo3-stub-gen`.
+const STUB_BIN: &str = "stub_gen";
+/// Package tree `stub_gen` writes, relative to the crate dir. Mixed layout
+/// (`python-source = "python"` in `pyproject.toml`) puts the nested
+/// `qalc_sbox_py.qalc_sandbox` stubs under here.
+const STUB_PKG: &str = "python/qalc_sbox_py";
 
 #[derive(Args, Debug)]
 pub struct Command {
@@ -45,7 +55,6 @@ impl Command {
 		info!("Building builder image {IMAGE_TAG}");
 		process::Command::new("docker")
 			.args(["build", "-t", IMAGE_TAG, "-f", DOCKERFILE])
-			.arg("--build-arg")
 			.arg(CONTEXT)
 			.run()
 			.with_context(
@@ -53,16 +62,14 @@ impl Command {
 			)
 	}
 
-	#[instrument(skip(self))]
-	fn build_module(&self) -> Result<()> {
+	/// A `docker run` invocation into the builder image, set up with the
+	/// workspace bind-mount and the container-local `target/`/`CARGO_HOME`.
+	/// The in-container argv is appended by the caller.
+	fn container_cmd() -> Result<process::Command> {
 		let root = env::current_dir()?;
 		let root = root
 			.to_str()
 			.with_context(|| "workspace path is not valid UTF-8")?;
-		info!(
-			"Building {PACKAGE} in container ({} profile)",
-			self.profile()
-		);
 		let mut cmd = process::Command::new("docker");
 		cmd.args(["run", "--rm"])
 			.arg("-v")
@@ -74,11 +81,55 @@ impl Command {
 				"-e",
 				&format!("CARGO_HOME=/work/{CONTAINER_TARGET}/.cargo-home"),
 			])
-			.arg(IMAGE_TAG)
-			.args(["cargo", "build", "-p", PACKAGE])
-			.arg_if(!self.debug, "--release");
+			.arg(IMAGE_TAG);
+		Ok(cmd)
+	}
+
+	#[instrument(skip(self))]
+	fn build_module(&self) -> Result<()> {
+		info!(
+			"Building {PACKAGE} in container ({} profile)",
+			self.profile()
+		);
+		// `extension-module` must be on here (no libpython linkage in the
+		// `.so`) but OFF for `stub_gen` below, so build the lib on its own.
+		let mut cmd = Self::container_cmd()?;
+		cmd.args([
+			"cargo",
+			"build",
+			"-p",
+			PACKAGE,
+			"--lib",
+			"--features",
+			"extension-module",
+		])
+		.arg_if(!self.debug, "--release");
 		cmd.run()
 			.with_context(|| "cargo build inside container failed")
+	}
+
+	/// Build and run the `stub_gen` bin in the container, emitting the `.pyi`.
+	/// Built without `extension-module` so it links libpython and can run.
+	#[instrument(skip(self))]
+	fn gen_stub(&self) -> Result<()> {
+		info!(
+			"Building {STUB_BIN} in container ({} profile)",
+			self.profile()
+		);
+		let mut build = Self::container_cmd()?;
+		build
+			.args(["cargo", "build", "-p", PACKAGE, "--bin", STUB_BIN])
+			.arg_if(!self.debug, "--release");
+		build.run().with_context(
+			|| "cargo build --bin stub_gen inside container failed",
+		)?;
+
+		info!("Generating stubs under {STUB_PKG}");
+		let bin = format!("{CONTAINER_TARGET}/{}/{STUB_BIN}", self.profile());
+		let mut run = Self::container_cmd()?;
+		run.arg(bin);
+		run.run()
+			.with_context(|| "running stub_gen inside container failed")
 	}
 
 	#[instrument(skip(self))]
@@ -99,6 +150,38 @@ impl Command {
 		})?;
 		Ok(dst)
 	}
+
+	/// Copy the generated stub package tree into the output dir, next to the
+	/// module, as `qalc_sbox_py/` (`__init__.pyi` + `qalc_sandbox/`).
+	#[instrument(skip(self))]
+	fn stage_stub(&self) -> Result<PathBuf> {
+		let src = PathBuf::from(CONTEXT).join(STUB_PKG);
+		if !src.exists() {
+			bail!("expected stub package {} not found", src.display());
+		}
+		let dst = self.out.join("qalc_sbox_py");
+		fs::rm_rf_if_exists(&dst)?;
+		copy_tree(&src, &dst).with_context(|| {
+			format!("failed to copy {} -> {}", src.display(), dst.display())
+		})?;
+		Ok(dst)
+	}
+}
+
+/// Recursively copy `src` into `dst`, creating dirs as needed.
+fn copy_tree(src: &Path, dst: &Path) -> Result<()> {
+	fs::create_dir_all(dst)?;
+	for entry in std::fs::read_dir(src)? {
+		let entry = entry?;
+		let from = entry.path();
+		let to = dst.join(entry.file_name());
+		if entry.file_type()?.is_dir() {
+			copy_tree(&from, &to)?;
+		} else {
+			fs::copy(&from, &to)?;
+		}
+	}
+	Ok(())
 }
 
 impl Runnable for Command {
@@ -108,7 +191,13 @@ impl Runnable for Command {
 		Self::build_image()?;
 		self.build_module()?;
 		let out = self.stage_module()?;
-		info!("Done. module at `{}`", out.display());
+		self.gen_stub()?;
+		let stub = self.stage_stub()?;
+		info!(
+			"Done. module at `{}`, stub at `{}`",
+			out.display(),
+			stub.display()
+		);
 		Ok(())
 	}
 }

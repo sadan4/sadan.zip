@@ -206,6 +206,23 @@ interface QuickPickRequest {
 }
 
 async function handleQuickPick(req: QuickPickRequest): Promise<void> {
+    let selected: string | null;
+
+    if (req.allowFreeText) {
+        // Free-text entry (e.g. a module id) — the item list is only a hint and
+        // can be empty (no client) or huge (every known module), neither of
+        // which a QuickPick surfaces the typed value reliably from. Ask for the
+        // value directly.
+        selected = (await window.showInputBox({ placeHolder: req.placeholder }))
+            ?? null;
+    } else {
+        selected = await pickFromQuickPick(req);
+    }
+
+    client?.sendRequest(QUICK_PICK_RESPONSE_METHOD, { nonce: req.nonce, selected });
+}
+
+async function pickFromQuickPick(req: QuickPickRequest): Promise<string | null> {
     const qp = window.createQuickPick();
     qp.placeholder    = req.placeholder ?? "";
     qp.canSelectMany  = false;
@@ -228,17 +245,18 @@ async function handleQuickPick(req: QuickPickRequest): Promise<void> {
         });
     }
 
-    const selected = await new Promise<string | null>((resolve) => {
+    return await new Promise<string | null>((resolve) => {
         qp.onDidAccept(() => {
-            const v = qp.value || qp.selectedItems[0]?.label || null;
+            // A highlighted list item wins; otherwise fall back to whatever
+            // free text the user typed.
+            const active = qp.selectedItems[0]?.label || qp.activeItems[0]?.label;
+            const v = active || (req.allowFreeText ? qp.value : "") || null;
             qp.dispose();
             resolve(v);
         });
         qp.onDidHide(() => resolve(null));
         qp.show();
     });
-
-    client?.sendRequest(QUICK_PICK_RESPONSE_METHOD, { nonce: req.nonce, selected });
 }
 
 // ---------------------------------------------------------------------------

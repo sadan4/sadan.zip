@@ -17,6 +17,7 @@ oneshot.workspace = true
 
 [target.'cfg(target_os = "linux")'.dependencies]
 seccompiler.workspace = true
+landlock.workspace = true
 
 [lints]
 workspace = true

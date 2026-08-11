@@ -1,4 +1,5 @@
 use pyo3::pymodule;
+use pyo3_stub_gen::define_stub_info_gatherer;
 
 #[pymodule]
 mod qalc_sbox_py {
@@ -8,9 +9,11 @@ mod qalc_sbox_py {
 	mod qalc_sandbox {
 		use anyhow::{Context, anyhow};
 		use pyo3::{PyResult, Python, pyclass, pymethods};
+		use pyo3_stub_gen::derive::{gen_stub_pyclass, gen_stub_pymethods};
 		use qalc_sbox::Sandbox;
 
-		#[pyclass]
+		#[gen_stub_pyclass]
+		#[pyclass(module = "qalc_sbox_py.qalc_sandbox")]
 		#[derive(Debug)]
 		/// A sandboxed wrapper around libqalculate's Calculator
 		///
@@ -20,6 +23,7 @@ mod qalc_sbox_py {
 			inner: Sandbox,
 		}
 
+		#[gen_stub_pymethods]
 		#[pymethods]
 		impl Qalculator {
 			/// `fork(2)` the current process to create the sandbox
@@ -83,3 +87,5 @@ mod qalc_sbox_py {
 		}
 	}
 }
+
+define_stub_info_gatherer!(stub_info);

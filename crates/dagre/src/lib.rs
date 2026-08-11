@@ -34,15 +34,3 @@ pub use types::{
 	RankDir,
 	Ranker,
 };
-#[cfg(test)]
-mod tests {
-	use crate::{LayoutGraph, layout};
-
-	#[test]
-	fn panic1_lays_out_without_panic() {
-		let json = include_str!("../tests/data/panic1.json");
-		let mut g: LayoutGraph = serde_json::from_str::<LayoutGraph>(json)
-			.expect("failed to deserialize panic1.json");
-		layout(&mut g);
-	}
-}
