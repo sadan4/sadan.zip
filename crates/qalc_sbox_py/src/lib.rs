@@ -3,7 +3,20 @@ use pyo3_stub_gen::define_stub_info_gatherer;
 
 #[pymodule]
 mod qalc_sbox_py {
-	use pyo3::pymodule;
+	use pyo3::{Bound, PyResult, pymodule, types::PyModule};
+
+	/// Register the `qalc_sbox_py.tracing_subscriber` submodule so Python can
+	/// drive the Rust `tracing` subscriber via its `Tracing` context manager.
+	#[pymodule_init]
+	fn init(m: &Bound<'_, PyModule>) -> PyResult<()> {
+		pyo3_tracing_subscriber::add_submodule(
+			"qalc_sbox_py",
+			"tracing_subscriber",
+			m.py(),
+			m,
+		)?;
+		Ok(())
+	}
 
 	#[pymodule]
 	mod qalc_sandbox {

@@ -18,7 +18,7 @@ const IMAGE_TAG: &str = "sadanzip-qalc-sbox-py-builder";
 /// Path to the builder Dockerfile, relative to the workspace root.
 const DOCKERFILE: &str = "crates/qalc_sbox_py/Dockerfile";
 /// Docker build context (kept tiny; the Dockerfile does no `COPY`).
-const CONTEXT: &str = "crates/qalc_sbox_py";
+pub const CONTEXT: &str = "crates/qalc_sbox_py";
 /// Target dir used inside the container, kept separate from the host's
 /// nix-linked `target/` so the two never clobber each other.
 const CONTAINER_TARGET: &str = "target/docker";
@@ -39,10 +39,10 @@ const STUB_PKG: &str = "python/qalc_sbox_py";
 pub struct Command {
 	/// Build in debug mode instead of the default release profile.
 	#[arg(long, default_value_t = false)]
-	debug: bool,
+	pub(crate) debug: bool,
 	/// Directory the built module is copied into.
 	#[arg(long, default_value = "crates/qalc_sbox_py/dist")]
-	out: PathBuf,
+	pub(crate) out: PathBuf,
 }
 
 impl Command {
@@ -65,7 +65,7 @@ impl Command {
 	/// A `docker run` invocation into the builder image, set up with the
 	/// workspace bind-mount and the container-local `target/`/`CARGO_HOME`.
 	/// The in-container argv is appended by the caller.
-	fn container_cmd() -> Result<process::Command> {
+	pub(crate) fn container_cmd() -> Result<process::Command> {
 		let root = env::current_dir()?;
 		let root = root
 			.to_str()
@@ -81,6 +81,11 @@ impl Command {
 				"-e",
 				&format!("CARGO_HOME=/work/{CONTAINER_TARGET}/.cargo-home"),
 			])
+			// `stub_gen` (via `pyo3-stub-gen`) reads `CARGO_MANIFEST_DIR` at
+			// *runtime* — eagerly, in an `unwrap_or` arg — so it panics when the
+			// binary is run directly (no cargo) with the var unset. `cargo build`
+			// overrides this per-crate, so setting it here is safe for all uses.
+			.args(["-e", &format!("CARGO_MANIFEST_DIR=/work/{CONTEXT}")])
 			.arg(IMAGE_TAG);
 		Ok(cmd)
 	}

@@ -133,6 +133,8 @@ ipc-channel = { version = "0.22.0", features = ["async"] }
 nix = "0.31.3"
 pyo3 = { version = "0.29.2" }
 pyo3-stub-gen = { version = "0.23", default-features = false }
+pyo3-tracing-subscriber = { version = "0.9.0" }
+pyo3-tracing-subscriber-build = { version = "0.9.0" }
 oneshot = { version = "0.2.1", features = ["async", "std"] }
 
 [patch.crates-io]
