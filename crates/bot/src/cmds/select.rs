@@ -413,7 +413,7 @@ pub fn root_domain_name(name: &str) -> &str {
 	}
 }
 
-const TRUSTED_DOMAINS: &[&str] = &["cdn.discordapp.com"];
+const TRUSTED_DOMAINS: &[&str] = &["discordapp.com"];
 
 pub fn is_url_trusted(url: &str) -> bool {
 	let Ok(parsed) = Url::parse(url) else {
@@ -433,6 +433,13 @@ pub fn is_url_trusted(url: &str) -> bool {
 #[cfg(test)]
 mod tests {
 	use super::*;
+
+	#[macros::test]
+	fn works() {
+		assert!(is_url_trusted(
+			"https://cdn.discordapp.com/attachments/840431753902292992/1536877397519900752/bump.png?ex=6a7d001d&is=6a7bae9d&hm=1501b630fef94669374f1df5e3285a77caf612829eb12c082bb3794cabd2e75e&"
+		));
+	}
 
 	#[test]
 	fn root_domain_name_strips_subdomains() {

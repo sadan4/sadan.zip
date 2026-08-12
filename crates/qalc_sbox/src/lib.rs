@@ -221,7 +221,7 @@ fn enter_sandbox(allow_paths: &[&str]) -> anyhow::Result<()> {
 		// Docker blocks unshare(2) vis seccomp, so fall back to landlock
 		Err(Errno::EPERM) => {
 			warn!(
-				"unshare(CLONE_NEWNS | CLONE_NEWUSER | CLONE_FILES) denied (EPERM); falling back to Landlock filesystem sandbox"
+				"unshare(CLONE_NEWNS | CLONE_NEWUSER | CLONE_FILES) denied (EPERM); falling back to Landlock fs sandbox"
 			);
 			enter_sandbox_landlock(allow_paths)
 		}
