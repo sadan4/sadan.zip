@@ -72,8 +72,15 @@
 								# skia-bindings source build needs clang (gcc rejects skia's --target= flags)
 								export CC="${clang}/bin/clang";
 								export CXX="${clang}/bin/clang++";
-								# clang wrapper links -lstdc++; test binaries need it at runtime
-								export LD_LIBRARY_PATH="${pkgs.stdenv.cc.cc.lib}/lib''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}";
+								# runtime libs for cargo-built test binaries (no nix rpath):
+								# libstdc++ (clang -lstdc++), libqalculate, skia's C deps
+								export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath [
+									pkgs.stdenv.cc.cc.lib
+									pkgs.libqalculate
+									pkgs.fontconfig
+									pkgs.libpng
+									pkgs.freetype
+								]}''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}";
 							'';
 						};
 				});
