@@ -217,7 +217,25 @@ fn enter_sandbox(allow_paths: &[&str]) -> anyhow::Result<()> {
 			| CloneFlags::CLONE_NEWUSER
 			| CloneFlags::CLONE_FILES,
 	) {
-		Ok(()) => enter_sandbox_namespaces(allow_paths),
+		Ok(()) => {
+			// The user namespace was created, but on some hosts the namespace
+			// has its capabilities stripped (e.g. GitHub Actions runners with
+			// apparmor_restrict_unprivileged_userns=1), so the mount/pivot_root
+			// jail setup fails with EACCES even though unshare(2) succeeded.
+			// Fall back to the Landlock fs sandbox in that case, matching the
+			// behaviour when unshare(2) itself is denied.
+			let jail = configure_userns_mapping()
+				.and_then(|()| enter_sandbox_namespaces(allow_paths));
+			match jail {
+				Ok(()) => Ok(()),
+				Err(e) => {
+					warn!(
+						"user-namespace jail setup failed ({e:#}); falling back to Landlock fs sandbox"
+					);
+					enter_sandbox_landlock(allow_paths)
+				}
+			}
+		}
 		// Docker blocks unshare(2) vis seccomp, so fall back to landlock
 		Err(Errno::EPERM) => {
 			warn!(
@@ -229,6 +247,28 @@ fn enter_sandbox(allow_paths: &[&str]) -> anyhow::Result<()> {
 			Err(e).context("unshare(CLONE_NEWNS | CLONE_NEWUSER | CLONE_FILES)")
 		}
 	}
+}
+
+/// A freshly `unshare`d user namespace has no uid/gid mapping, so the process
+/// runs as the overflow (nobody) id: `mount(2)` and path resolution then fail
+/// with `EACCES`. Map the current uid/gid to root inside the namespace so the
+/// bind mounts and `pivot_root` below are permitted. This is what
+/// bubblewrap/crun do and is required whenever the job runs as an unprivileged
+/// user (e.g. GitHub Actions runners run as uid 1001, not root).
+#[cfg(target_os = "linux")]
+fn configure_userns_mapping() -> anyhow::Result<()> {
+	// SAFETY: `geteuid`/`getegid` are always-successful syscalls with no
+	// preconditions and no memory safety implications.
+	let (uid, gid) = unsafe { (libc::geteuid(), libc::getegid()) };
+	// `setgroups` must be denied before writing `gid_map` in an unprivileged
+	// user namespace (kernel requirement since Linux 3.19).
+	fs::write("/proc/self/setgroups", "deny")
+		.context("write /proc/self/setgroups")?;
+	fs::write("/proc/self/uid_map", format!("0 {uid} 1"))
+		.context("write /proc/self/uid_map")?;
+	fs::write("/proc/self/gid_map", format!("0 {gid} 1"))
+		.context("write /proc/self/gid_map")?;
+	Ok(())
 }
 
 /// sandbox via [`pivot_root`] + bind-mounts
