@@ -26,10 +26,13 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Run clippy
-        run: nix develop --command cargo clippy --all-targets --all-features
+        # qalc_sbox_py is excluded: --all-features enables pyo3/extension-module
+        # (no libpython linkage), which breaks linking its stub_gen bin + tests.
+        # That crate is built/tested via its own Dockerfile/wheel workflow.
+        run: nix develop --command cargo clippy --all-targets --all-features --workspace --exclude qalc_sbox_py
 
       - name: Install cargo-nextest
         uses: taiki-e/install-action@nextest
 
       - name: Run tests
-        run: nix develop --command cargo nextest run --all-targets --all-features
+        run: nix develop --command cargo nextest run --all-targets --all-features --workspace --exclude qalc_sbox_py
