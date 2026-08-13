@@ -234,6 +234,21 @@ fn enter_sandbox(allow_paths: &[&str]) -> anyhow::Result<()> {
 /// sandbox via [`pivot_root`] + bind-mounts
 #[cfg(target_os = "linux")]
 fn enter_sandbox_namespaces(allow_paths: &[&str]) -> anyhow::Result<()> {
+	// Mounts inherited into the new namespace are shared+locked. Recursively
+	// make the whole tree private so our bind mounts don't propagate to the
+	// host and so pivot_root's "new root and its parent must not be shared"
+	// requirement holds. Without this, the bind mount / pivot_root below
+	// intermittently fails with EACCES on hosts where / is mounted rshared
+	// (e.g. GitHub Actions runners).
+	mount(
+		M_NONE,
+		"/",
+		M_NONE,
+		MsFlags::MS_REC | MsFlags::MS_PRIVATE,
+		M_NONE,
+	)
+	.context("make mount tree private")?;
+
 	// use PID to create a unique dir and make it easy to find
 	let mut jail_dir = env::temp_dir();
 	let pid = process::id();
