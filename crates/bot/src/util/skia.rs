@@ -103,20 +103,6 @@ pub fn mk_x_path(p_width: scalar, (w, h): (scalar, scalar)) -> Path {
 	Path::from(pb)
 }
 
-#[cfg(test)]
-mod tests {
-	use super::*;
-
-	#[test]
-	#[expect(clippy::float_cmp)]
-	fn delta_45_communicative() {
-		let input = f32::consts::TAU * 2.;
-		let output = leg_45(input) / 2.;
-		let output2 = leg_45(input / 2.);
-		assert_eq!(output, output2);
-	}
-}
-
 /// Captures a frame as RGBA8888 with the given alpha handling.
 ///
 /// out has it's size adjusted if needed; however, it's not zeroed
@@ -144,4 +130,17 @@ pub fn capture_frame(
 /// out has it's size adjusted if needed; however, it's not zeroed
 pub fn capture_gif_frame(s: &mut Surface, out: &mut Vec<u8>) -> Result<()> {
 	capture_frame(s, out, AlphaType::Premul)
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn delta_45_communicative() {
+		let input = f32::consts::TAU * 2.;
+		let output = leg_45(input) / 2.;
+		let output2 = leg_45(input / 2.);
+		assert_eq!(output, output2);
+	}
 }

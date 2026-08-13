@@ -1,5 +1,5 @@
 use core::f32;
-use std::{mem, time::Instant};
+use std::time::Instant;
 
 use anyhow::{Context as _, Result, anyhow};
 use bytes::Bytes;
@@ -12,7 +12,6 @@ use tracing::debug;
 use webp::{AnimEncoder, AnimFrame, WebPConfig};
 
 use crate::{
-	cmds::hammer,
 	fw::{CommandCtx, CommandFramework},
 	util::{self, skia::capture_frame},
 };

@@ -741,7 +741,6 @@ fn collect_replacement_ranges(
 				start + needle.len(),
 				substitute_self(s, plugin_name),
 			));
-			Ok(())
 		}
 		Match::Regex(mr) => {
 			let flags = mr.flags;
@@ -782,9 +781,9 @@ fn collect_replacement_ranges(
 				)?;
 				ranges.push((m.start(), m.end(), txt));
 			}
-			Ok(())
 		}
 	}
+	Ok(())
 }
 
 /// Evaluate one replacement against regex match `m` and resolve `$self`.

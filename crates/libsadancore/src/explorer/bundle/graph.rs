@@ -108,7 +108,7 @@ impl Bundle {
 		// probe down
 		while depth != 0 {
 			depth -= 1;
-			debug_assert!(new_q.is_empty());
+			debug_assert_eq!(new_q, []);
 			for m_id in q.drain(..) {
 				let parser = self
 					.inner
@@ -132,14 +132,14 @@ impl Bundle {
 		// reset depth
 		depth = init_depth;
 		// reset queue
-		debug_assert!(new_q.is_empty());
+		debug_assert_eq!(new_q, []);
 		q.clear();
 		q.push(module_id);
 		console_log!("probing up");
 		// probe up
 		while depth != 0 {
 			depth -= 1;
-			debug_assert!(new_q.is_empty());
+			debug_assert_eq!(new_q, []);
 			for m_id in q.drain(..) {
 				let Some(incoming) = self
 					.inner

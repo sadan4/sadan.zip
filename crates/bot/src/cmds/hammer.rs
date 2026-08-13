@@ -12,12 +12,9 @@ use serenity::all::{
 	CreateMessage,
 };
 use skia_safe::{
-	AlphaType,
-	ColorType,
 	Data,
 	ISize,
 	Image,
-	ImageInfo,
 	Paint,
 	Rect,
 	surfaces,

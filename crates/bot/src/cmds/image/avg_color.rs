@@ -55,9 +55,9 @@ fn calc_avg_color(image: &util::Image) -> Result<((u8, u8, u8), util::Image)> {
 		Rect::from_iwh(100, 100),
 		&Paint::new(
 			Color4f {
-				r: avg_color.0 as f32 / 255.0,
-				g: avg_color.1 as f32 / 255.0,
-				b: avg_color.2 as f32 / 255.0,
+				r: f32::from(avg_color.0) / 255.0,
+				g: f32::from(avg_color.1) / 255.0,
+				b: f32::from(avg_color.2) / 255.0,
 				a: 1.0,
 			},
 			None,

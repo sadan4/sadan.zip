@@ -422,7 +422,7 @@ export default definePlugin({
 		let uri = Url::parse("file:///x.ts").unwrap();
 		let src = "export const x = 1;";
 		let lenses = patch_code_lenses(src, &uri).unwrap_or_default();
-		assert!(lenses.is_empty());
+		assert_eq!(lenses, []);
 	}
 
 	#[test]
@@ -477,7 +477,7 @@ const b = findComponentLazy(/baz/i);
 		let src = "const a = findByProps(\"foo\");";
 		let uri = Url::parse("file:///x.ts").unwrap();
 		let lenses = patch_code_lenses(src, &uri).unwrap_or_default();
-		assert!(lenses.is_empty());
+		assert_eq!(lenses, []);
 	}
 
 	#[test]
