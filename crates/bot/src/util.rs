@@ -1,0 +1,345 @@
+pub mod avatar;
+pub mod skia;
+
+use std::{
+	fmt::Display,
+	os::unix::ffi::OsStrExt,
+	path::{Path, PathBuf},
+	str::FromStr,
+	time::Instant,
+};
+
+use anyhow::{Context as _, Result, anyhow, bail};
+use bytes::Bytes;
+use derive_more::{Deref, Display, From, Into};
+use serenity::all::{Message, UserId};
+use skia_safe::{EncodedImageFormat, Surface};
+use smol_str::SmolStr;
+use tokio::{fs, task_local};
+use tracing::info;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ImageFormat {
+	Png,
+	Webp,
+}
+
+impl ImageFormat {
+	pub const fn from_content_type(content_type: &[u8]) -> Option<Self> {
+		match content_type {
+			b"image/png" => Some(Self::Png),
+			b"image/webp" => Some(Self::Webp),
+			_ => None,
+		}
+	}
+	pub const fn ext(self) -> &'static str {
+		match self {
+			Self::Png => ".png",
+			Self::Webp => ".webp",
+		}
+	}
+
+	/// gets a generic name for the image format, e.g. "image.png" or "image.webp"
+	pub const fn generic_file_name(self) -> &'static str {
+		match self {
+			Self::Png => "image.png",
+			Self::Webp => "image.webp",
+		}
+	}
+
+	pub fn from_path(path: &Path) -> Option<Self> {
+		match path.extension()?.as_bytes() {
+			b"png" => Some(Self::Png),
+			b"webp" => Some(Self::Webp),
+			_ => None,
+		}
+	}
+}
+#[derive(Debug, Clone)]
+/// O(1) clone, refcounted bytes and format
+pub struct Image {
+	pub bytes: Bytes,
+	pub format: ImageFormat,
+}
+
+impl Image {
+	pub fn take_snapshot(s: &mut Surface) -> Result<Self> {
+		let sk_img = s.image_snapshot();
+		let data = sk_img
+			.encode(None, EncodedImageFormat::WEBP, None)
+			.context("Failed to encode image")?;
+		struct D(skia_safe::Data);
+		impl AsRef<[u8]> for D {
+			fn as_ref(&self) -> &[u8] {
+				&self.0
+			}
+		}
+		let bytes = Bytes::from_owner(D(data));
+		Ok(Self {
+			bytes,
+			format: ImageFormat::Webp,
+		})
+	}
+
+	pub async fn from_path(path: &Path) -> Result<Self> {
+		let format = ImageFormat::from_path(path).with_context(|| {
+			format!("Unsupported image format for {}", path.display())
+		})?;
+		let bytes = fs::read(path)
+			.await
+			.with_context(|| {
+				format!("Failed to read image from {}", path.display())
+			})?
+			.into();
+		Ok(Self { bytes, format })
+	}
+}
+
+#[derive(
+	Debug,
+	Copy,
+	Clone,
+	PartialEq,
+	Eq,
+	Hash,
+	PartialOrd,
+	Ord,
+	From,
+	Into,
+	Deref,
+	Display,
+)]
+pub struct UserArg(pub UserId);
+
+const USER_MENTION_START: &str = "<@";
+const USER_MENTION_END: &str = ">";
+
+/// Sentinel `default_value` for a `UserArg`: when the user omits the argument,
+/// clap substitutes this string, and `FromStr` resolves it from
+/// `REFERENCED_USER`.
+pub const FROM_REPLY: &str = "\u{0}FROM_REPLY";
+
+task_local! {
+	pub static REFERENCED_USER: Option<UserId>;
+	pub static MESSAGE_RECEIVE_TIME: std::time::Instant;
+}
+
+impl UserArg {
+	pub fn from_mention(mention: &str) -> Result<Self> {
+		if mention.starts_with(USER_MENTION_START)
+			&& mention.ends_with(USER_MENTION_END)
+		{
+			let id: u64 = mention[USER_MENTION_START.len()
+				..mention.len() - USER_MENTION_END.len()]
+				.parse()?;
+			Ok(Self(UserId::new(id)))
+		} else {
+			Err(anyhow!("not a mention"))
+		}
+	}
+}
+
+impl FromStr for UserArg {
+	type Err = anyhow::Error;
+
+	fn from_str(s: &str) -> Result<Self> {
+		if s == FROM_REPLY {
+			match REFERENCED_USER.try_with(|u| *u) {
+				Ok(Some(id)) => Ok(Self(id)),
+				Ok(None) | Err(_) => {
+					bail!("no user given and no referenced message")
+				}
+			}
+		} else if let Ok(user) = Self::from_mention(s) {
+			Ok(user)
+		} else if let Ok(id) = s.parse() {
+			Ok(Self(UserId::new(id)))
+		} else {
+			bail!("not a mention or user id, nor was there a referenced user");
+		}
+	}
+}
+
+pub fn get_ref_user(msg: &Message) -> Option<UserId> {
+	Some(
+		msg.referenced_message
+			.as_ref()?
+			.author
+			.id,
+	)
+}
+
+/// Discord's maximum message length, in characters.
+const MAX_MESSAGE_LEN: usize = 2000;
+
+/// Wrap `text` in a Discord code block tagged with `lang` (e.g. `"ansi"`, or
+/// `""` for an untagged block), truncating the content when necessary so the
+/// whole message stays within Discord's 2000-character limit.
+///
+/// Only an `ansi`-tagged block renders escape sequences, so ANSI-aware
+/// handling is applied only then: the cut never lands inside a sequence (see
+/// [`ansi_truncation_point`]) and an ANSI reset precedes the ellipsis so no
+/// open style leaks past it. Any other `lang` is truncated on a plain
+/// codepoint boundary with a bare ellipsis, since an escape byte would render
+/// literally there.
+pub fn wrap_code_block(text: &str, lang: &str) -> String {
+	const FOOTER: &str = "\n```";
+	debug_assert!(lang.is_ascii(), "Discord code block tags must be ASCII");
+	let header = format!("```{lang}\n");
+	let max_body = MAX_MESSAGE_LEN - header.len() - FOOTER.len();
+	let is_ansi = lang == "ansi";
+	// an ANSI reset closes any style left open by the cut; in a non-ansi block
+	// it would render as literal garbage, so use a bare ellipsis there
+	let ellipsis = if is_ansi { "\u{1b}[0m…" } else { "…" };
+	let mut body = text.to_owned();
+	if body.chars().count() > max_body {
+		let budget = max_body - ellipsis.chars().count();
+		let cut = if is_ansi {
+			ansi_truncation_point(&body, budget)
+		} else {
+			codepoint_truncation_point(&body, budget)
+		};
+		body.truncate(cut);
+		body.push_str(ellipsis);
+	}
+	let mut out = String::with_capacity(
+		MAX_MESSAGE_LEN.min(header.len() + body.len() + FOOTER.len()),
+	);
+	out.push_str(&header);
+	out.push_str(&body);
+	out.push_str(FOOTER);
+	out
+}
+
+/// Returns the byte index at which `s` can be truncated so that what remains
+/// is at most `max` codepoints long.
+fn codepoint_truncation_point(s: &str, max: usize) -> usize {
+	s.char_indices()
+		.nth(max)
+		.map_or(s.len(), |(idx, _)| idx)
+}
+
+/// Returns the byte index at which `s` can be truncated so that what remains
+/// is at most `max` codepoints long.
+///
+/// A cut that would land inside an ANSI escape sequence is moved back to the
+/// start of that sequence, so the tail of a sequence is never left behind to
+/// be rendered as literal text.
+pub fn ansi_truncation_point(s: &str, max: usize) -> usize {
+	/// Where in an escape sequence the scanner currently is.
+	enum State {
+		Text,
+		/// An escape has been seen, but not the byte that says what kind of
+		/// sequence it introduces.
+		Escape,
+		/// Inside a control sequence, waiting on its final byte.
+		Csi,
+	}
+	let mut state = State::Text;
+	// the start of the escape sequence being scanned, if any
+	let mut escape_start = 0;
+	for (count, (idx, ch)) in s.char_indices().enumerate() {
+		if count == max {
+			return match state {
+				State::Text => idx,
+				State::Escape | State::Csi => escape_start,
+			};
+		}
+		state = match state {
+			State::Text if ch == '\u{1b}' => {
+				escape_start = idx;
+				State::Escape
+			}
+			State::Escape if ch == '[' => State::Csi,
+			// a control sequence ends on a final byte in this range;
+			// everything before it is a parameter or intermediate byte
+			State::Csi if matches!(ch, '\u{40}'..='\u{7e}') => State::Text,
+			State::Csi => State::Csi,
+			// anything other than a `[` after the escape is a two character
+			// sequence, which this character terminates
+			State::Text | State::Escape => State::Text,
+		};
+	}
+	s.len()
+}
+
+pub async fn mktemp(prefix: &str, suffix: &str) -> Result<(fs::File, PathBuf)> {
+	let prefix = SmolStr::from(prefix);
+	let suffix = SmolStr::from(suffix);
+	tokio::task::spawn_blocking(move || {
+		let (std_file, path) = tempfile::Builder::new()
+			.prefix(&prefix)
+			.suffix(&suffix)
+			.tempfile()
+			.context("Failed to create temp file")?
+			.keep()
+			.context("Failed to persist temp file")?;
+		let file = tokio::fs::File::from_std(std_file);
+		anyhow::Ok((file, path))
+	})
+	.await
+	.context("Join Error")?
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, From, Into, Deref)]
+pub struct FormatBytes(pub usize);
+
+pub const KIB: usize = 1024;
+pub const MIB: usize = 1024 * KIB;
+pub const GIB: usize = 1024 * MIB;
+
+#[allow(clippy::cast_precision_loss)]
+fn calc_byte_fmt(n: usize, d: usize) -> f64 {
+	let a = n / d;
+	let b = n % d;
+	(b as f64 / d as f64) + a as f64
+}
+
+impl Display for FormatBytes {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		let v = self.0;
+		if v > GIB {
+			write!(f, "{:.2} GiB", calc_byte_fmt(v, GIB))
+		} else if v > MIB {
+			write!(f, "{:.2} MiB", calc_byte_fmt(v, MIB))
+		} else if v > KIB {
+			write!(f, "{:.2} KiB", calc_byte_fmt(v, KIB))
+		} else {
+			write!(f, "{v} B")
+		}
+	}
+}
+
+pub async fn rss_bytes() -> Result<u64> {
+	Ok(tokio::task::spawn_blocking(rss_bytes_block).await?)
+}
+
+pub fn rss_bytes_block() -> u64 {
+	#[cfg(target_os = "windows")]
+	compile_error!("TODO: implement rss_bytes for windows");
+	// proc_pid_statm(5)
+	let r_pages: u64 = std::fs::read_to_string("/proc/self/statm")
+		.unwrap()
+		.split_whitespace()
+		.nth(1)
+		.unwrap()
+		.parse()
+		.unwrap();
+	// SAFETY: sysconf is safe
+	let page_size = unsafe { libc::sysconf(libc::_SC_PAGESIZE) } as u64;
+	r_pages * page_size
+}
+
+/// see [`libc::malloc_trim`]
+pub fn trim_heap() {
+	tokio::task::spawn_blocking(|| {
+		let start = Instant::now();
+		let before = FormatBytes(rss_bytes_block() as usize);
+		// SAFETY: safe
+		unsafe { libc::malloc_trim(0) };
+		let after = FormatBytes(rss_bytes_block() as usize);
+		let dur = start.elapsed();
+		let delta = FormatBytes(before.abs_diff(*after));
+		info!("trim_heap: RSS {before} -> {after} Δ{delta} in {dur:.2?}");
+	});
+}

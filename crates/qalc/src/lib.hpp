@@ -1,0 +1,66 @@
+#pragma once
+#include "rust/cxx.h"
+#include <format>
+#include <libqalculate/BuiltinFunctions.h>
+#include <libqalculate/Calculator.h>
+#include <libqalculate/Function.h>
+#include <memory>
+
+template <class Base> class DisabledFunction : public Base {
+  std::string error_msg() const {
+    const std::string name = this->name();
+    return std::format("function {} is disabled", name);
+  }
+
+public:
+  DisabledFunction() : Base() {}
+  int calculate(MathStructure &, const MathStructure &,
+                const EvaluationOptions &) override {
+    const std::string msg = error_msg();
+    throw std::runtime_error(msg);
+  }
+};
+struct Qalculator {
+  static std::unique_ptr<Qalculator> create();
+  bool load_exchange_rates();
+  bool load_global_defs();
+  bool load_local_defs();
+  void init_everything();
+  void use_twos_complement_for_bin(bool use);
+  bool get_twos_complement_for_bin() const;
+  void use_twos_complement_for_hex(bool use);
+  bool get_twos_complement_for_hex() const;
+  void allow_impure_expressions(bool allow);
+  bool get_allow_impure_expressions() const;
+  void enable_sandboxing();
+  void set_timeout_ms(int ms);
+  int get_timeout_ms() const;
+  rust::String calculate_and_print(rust::Str expr);
+  static rust::String get_package_data_dir() noexcept;
+
+private:
+  std::unique_ptr<Calculator> m_calculator;
+  std::unique_ptr<DisabledFunction<ExportFunction>> m_disabled_export_function;
+  std::unique_ptr<DisabledFunction<LoadFunction>> m_disabled_load_function;
+  std::unique_ptr<DisabledFunction<CommandFunction>>
+      m_disabled_command_function;
+  std::unique_ptr<DisabledFunction<PlotFunction>> m_disabled_plot_function;
+  EvaluationOptions m_eval_opts = [] {
+    EvaluationOptions eo = default_user_evaluation_options;
+    eo.parse_options.twos_complement = true;
+    return eo;
+  }();
+  PrintOptions m_print_opts = [] {
+    PrintOptions po = default_print_options;
+    // Collapse uncertainty intervals (e.g. atomic weights) to their common
+    // significant digits instead of printing `interval(lo, hi)`.
+    po.interval_display = INTERVAL_DISPLAY_SIGNIFICANT_DIGITS;
+    // Use `e` for scientific notation exponents, not `E`.
+    po.lower_case_e = true;
+    return po;
+  }();
+  int m_timeout_ms = 10'000;
+  bool m_allow_impure_expressions = false;
+};
+
+std::unique_ptr<Qalculator> create_qalculator();

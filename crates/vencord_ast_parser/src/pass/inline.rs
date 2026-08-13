@@ -1,7 +1,7 @@
 use super::util::Ctx;
 use ast_parser::exts::{BindingPatternExt as _, ExpressionExt as _};
 use oxc::{
-	allocator::CloneIn,
+	allocator::{CloneIn, GetAllocator as _},
 	ast::ast::{
 		Expression,
 		IdentifierReference,
@@ -50,22 +50,21 @@ impl<'ast, State> Traverse<'ast, State> for InlineConstantsPass<'ast> {
 		// this does not cover `let foo = 1; export { foo };`, but it should be good enough for what we need it for
 		// that case can probably be covered by iterating over the root
 		// and looking for exports because they can only be at the top level
-		if !node.kind.is_const()
-			&& ctx
-				.parent()
-				.is_export_named_declaration()
-		{
+		// oxc 0.143 splits `export <decl>` (ExportDeclaration) from
+		// `export { x }` (ExportNamedDeclaration); a declaration-form export
+		// parents to ExportDeclaration now.
+		if !node.kind.is_const() && ctx.parent().is_export_declaration() {
 			return;
 		}
 		for i in (0..node.declarations.len()).rev() {
 			if let Some(sym_id) = should_inline(&node.declarations[i], ctx) {
 				// should never be None because we check it in should_inline
-				let decl = ctx.ast.allocator.alloc(
+				let decl = ctx.ast.allocator().alloc(
 					node.declarations[i]
 						.init
 						.as_ref()
 						.unwrap()
-						.clone_in_with_semantic_ids(ctx.ast.allocator),
+						.clone_in_with_semantic_ids(ctx.ast.allocator()),
 				);
 				ctx.scoping()
 					.get_resolved_reference_ids(sym_id)
@@ -92,7 +91,7 @@ impl<'ast, State> Traverse<'ast, State> for InlineConstantsPass<'ast> {
 			return;
 		};
 		if let Some(lit_expr) = self.marks.remove(&ref_id) {
-			*node = lit_expr.clone_in(ctx.ast.allocator);
+			*node = lit_expr.clone_in(ctx.ast.allocator());
 		}
 	}
 	fn exit_program(

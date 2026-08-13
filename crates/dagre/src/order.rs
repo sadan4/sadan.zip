@@ -227,21 +227,21 @@ pub fn order(
 		#[cfg(feature = "profile")]
 		{
 			t_sweep += t0.elapsed().as_nanos();
-		}
+		};
 		#[cfg(feature = "profile")]
 		let t1 = std::time::Instant::now();
 		layering = util::build_layer_matrix(graph);
 		#[cfg(feature = "profile")]
 		{
 			t_layer += t1.elapsed().as_nanos();
-		}
+		};
 		#[cfg(feature = "profile")]
 		let t2 = std::time::Instant::now();
 		let cc = cross_count(graph, &layering) as f64;
 		#[cfg(feature = "profile")]
 		{
 			t_cc += t2.elapsed().as_nanos();
-		}
+		};
 		#[cfg(feature = "profile")]
 		let t3 = std::time::Instant::now();
 		if cc < best_cc {
@@ -257,7 +257,7 @@ pub fn order(
 		#[cfg(feature = "profile")]
 		{
 			t_clone += t3.elapsed().as_nanos();
-		}
+		};
 		i += 1;
 	}
 	#[cfg(feature = "profile")]
@@ -554,7 +554,7 @@ fn two_layer_cross_count(
 			index = (index - 1) >> 1;
 			tree[index] += weight;
 		}
-		cc += weight * weight_sum;
+		cc = weight.mul_add(weight_sum, cc);
 	}
 	cc as u64
 }
@@ -664,13 +664,13 @@ fn resolve_conflicts_impl(
 		if let (Some(b), Some(w)) = (m[target].barycenter, m[target].weight)
 			&& w != 0.0
 		{
-			sum += b * w;
+			sum = b.mul_add(w, sum);
 			weight += w;
 		}
 		if let (Some(b), Some(w)) = (m[source].barycenter, m[source].weight)
 			&& w != 0.0
 		{
-			sum += b * w;
+			sum = b.mul_add(w, sum);
 			weight += w;
 		}
 		let source_vs = mem::take(&mut m[source].vs);
@@ -784,7 +784,7 @@ fn sort_impl(entries: Vec<ResolvedEntry>, bias_right: bool) -> SortResult {
 		vs_index += entry.vs.len();
 		let bc = entry.barycenter.unwrap();
 		let w = entry.weight.unwrap_or(0.0);
-		sum += bc * w;
+		sum = bc.mul_add(w, sum);
 		weight += w;
 		vs.push(entry.vs);
 		vs_index = consume_unsortable(&mut vs, &mut unsortable, vs_index);

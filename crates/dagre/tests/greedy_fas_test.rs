@@ -76,14 +76,14 @@ fn clone_graph(
 fn empty_set_for_empty_graph() {
 	let g = mk();
 	let fas = greedy_fas(&g, default_weight_fn);
-	assert!(fas.is_empty());
+	assert_eq!(fas, []);
 }
 
 #[test]
 fn empty_set_for_single_node() {
 	let mut g = mk();
 	g.set_node("a", NodeLabel::default());
-	assert!(greedy_fas(&g, default_weight_fn).is_empty());
+	assert_eq!(greedy_fas(&g, default_weight_fn), []);
 }
 
 #[test]
@@ -93,7 +93,7 @@ fn empty_set_for_acyclic_graph() {
 	g.set_edge_default("b", "c");
 	g.set_edge_default("b", "d");
 	g.set_edge_default("a", "e");
-	assert!(greedy_fas(&g, default_weight_fn).is_empty());
+	assert_eq!(greedy_fas(&g, default_weight_fn), []);
 }
 
 #[test]

@@ -1,0 +1,149 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Config",
+  "description": "Bot config. Read from `.bot.config.json`",
+  "type": "object",
+  "properties": {
+    "assets": {
+      "description": "Assets used in the bot, such as images and videos",
+      "$ref": "#/$defs/Assets"
+    },
+    "bot_owners": {
+      "description": "Users who can use owner-only commands",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "build_archive_url": {
+      "description": "The url for the build archive",
+      "type": "string"
+    },
+    "home_guild_id": {
+      "type": "string"
+    },
+    "qalc_worker_path": {
+      "description": "Path to the standalone qalc sandbox worker binary. Spawned as a fresh\nprocess (instead of forking the bot) so its memory footprint stays small.",
+      "type": "string"
+    },
+    "token": {
+      "description": "The bot token",
+      "type": "string"
+    },
+    "use_ansi_clap_errors": {
+      "description": "If true, clap errors will be rendered in an ANSI codeblock\n\nif false, they will just use plain text",
+      "type": "boolean"
+    },
+    "use_local_build_cache": {
+      "description": "If true, cache local builds for faster startup time.",
+      "type": "boolean"
+    },
+    "vencord_path": {
+      "description": "The path of the vencord repo, used for testing PRs",
+      "type": "string"
+    },
+    "wolfram_api_key": {
+      "description": "The API key for `WolframAplha`, used for the wolfram command",
+      "type": "string"
+    }
+  },
+  "required": [
+    "token",
+    "home_guild_id",
+    "use_ansi_clap_errors",
+    "bot_owners",
+    "vencord_path",
+    "build_archive_url",
+    "use_local_build_cache",
+    "wolfram_api_key",
+    "qalc_worker_path",
+    "assets"
+  ],
+  "$defs": {
+    "Assets": {
+      "description": "Assets used in the bot, such as images and videos",
+      "type": "object",
+      "properties": {
+        "emojis": {
+          "description": "The emojis available for the bot to access",
+          "$ref": "#/$defs/Emojis"
+        },
+        "gif_templates": {
+          "description": "The GIF templates available for the bot to use",
+          "$ref": "#/$defs/GifTemplates"
+        }
+      },
+      "required": [
+        "emojis",
+        "gif_templates"
+      ]
+    },
+    "EmojiDef": {
+      "description": "an emoji available for the bot to access",
+      "type": "object",
+      "properties": {
+        "animated": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": false
+        },
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "id"
+      ]
+    },
+    "Emojis": {
+      "type": "object",
+      "properties": {
+        "empty": {
+          "description": "A 1x1 transparent image",
+          "$ref": "#/$defs/EmojiDef"
+        }
+      },
+      "required": [
+        "empty"
+      ]
+    },
+    "GifTemplate": {
+      "description": "a GIF template",
+      "type": "object",
+      "properties": {
+        "data_path": {
+          "description": "Path to the data.json file for the GIF template\nIt should follow the schema in [`GifTemplateData`]",
+          "type": "string"
+        },
+        "frames_path": {
+          "description": "Path to dir with frames",
+          "type": "string"
+        }
+      },
+      "required": [
+        "data_path",
+        "frames_path"
+      ]
+    },
+    "GifTemplates": {
+      "description": "the gif templates available for the bot to use",
+      "type": "object",
+      "properties": {
+        "hammer": {
+          "$ref": "#/$defs/GifTemplate"
+        }
+      },
+      "required": [
+        "hammer"
+      ]
+    }
+  }
+}

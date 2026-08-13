@@ -14,7 +14,7 @@ use oxc::{
 			BreakStatement,
 			ContinueStatement,
 			DoWhileStatement,
-			ExportNamedDeclaration,
+			ExportFromDeclaration,
 			Expression,
 			ForInStatement,
 			ForOfStatement,
@@ -239,9 +239,11 @@ fn stmt_id(stmt: &Statement) -> NodeId {
 		Statement::TSGlobalDeclaration(n) => n.node_id(),
 		Statement::TSImportEqualsDeclaration(n) => n.node_id(),
 		Statement::ImportDeclaration(n) => n.node_id(),
+		Statement::ExportDeclaration(n) => n.node_id(),
 		Statement::ExportAllDeclaration(n) => n.node_id(),
 		Statement::ExportDefaultDeclaration(n) => n.node_id(),
 		Statement::ExportNamedDeclaration(n) => n.node_id(),
+		Statement::ExportFromDeclaration(n) => n.node_id(),
 		Statement::TSExportAssignment(n) => n.node_id(),
 		Statement::TSNamespaceExportDeclaration(n) => n.node_id(),
 	}
@@ -344,6 +346,7 @@ impl<'a> JavaScriptFormatter<'a> {
 			| N::IdentifierName(_)
 			| N::IdentifierReference(_) => &[F::Token],
 			N::PrivateIdentifier(_) => &[F::Token],
+			N::ImportMeta(_) | N::NewTarget(_) => &[F::Token],
 			N::ReturnStatement(n) => {
 				if tk == TK::Semicolon {
 					&[F::Token]
@@ -604,9 +607,8 @@ impl<'a> JavaScriptFormatter<'a> {
 			{
 				&[F::Space, F::Token, F::Space]
 			}
-			N::ExportNamedDeclaration(ExportNamedDeclaration {
-				source: Some(source),
-				..
+			N::ExportFromDeclaration(ExportFromDeclaration {
+				source, ..
 			})
 			| N::ImportDeclaration(ImportDeclaration { source, .. })
 				if tk == TK::RCurly =>
@@ -627,13 +629,12 @@ impl<'a> JavaScriptFormatter<'a> {
 		// `line_pos_cache` is sorted ascending, so the line containing `pos`
 		// is the last entry whose first-char position is `<= pos`.
 		debug_assert!(
-			!self.line_pos_cache.is_empty()
-				&& self.line_pos_cache[0] <= pos,
+			!self.line_pos_cache.is_empty() && self.line_pos_cache[0] <= pos,
 			"pos precedes the first line"
 		);
 		self.line_pos_cache
-			.partition_point(|&first_char_pos| first_char_pos <= pos)
-			as u32 - 1
+			.partition_point(|&first_char_pos| first_char_pos <= pos) as u32
+			- 1
 	}
 
 	fn push(
@@ -698,10 +699,8 @@ impl<'a> JavaScriptFormatter<'a> {
 			N::BlockStatement(_) | N::FunctionBody(_) => {
 				let parent = self.nodes.parent_kind(node.node_id());
 				let grand_parent = self.nodes.parent_kind(parent.node_id());
-				if let N::ArrowFunctionExpression(ArrowFunctionExpression {
-					expression: true,
-					..
-				}) = parent
+				if let N::ArrowFunctionExpression(p) = parent
+					&& p.is_expression()
 				{
 					return &[];
 				}
@@ -767,7 +766,7 @@ impl<'a> JavaScriptFormatter<'a> {
 					.is_some_and(|fb| {
 						let gp = self.nodes.parent_kind(fb.node_id());
 						gp.as_arrow_function_expression()
-							.is_some_and(|gp| gp.expression)
+							.is_some_and(ArrowFunctionExpression::is_expression)
 					}) =>
 			{
 				&[]

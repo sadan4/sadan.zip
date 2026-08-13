@@ -1,0 +1,13 @@
+[package]
+name = "demangler"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+cxx.workspace = true
+
+[build-dependencies]
+cxx-build.workspace = true
+
+[lints]
+workspace = true

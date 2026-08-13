@@ -165,7 +165,7 @@ pub async fn execute_command(
 			// vscode-languageclient and VSCode itself to pop their own
 			// generic "Request workspace/executeCommand failed" notification,
 			// which doubles up with our friendly message.
-			tracing::debug!(?e, command = %params.command, "executeCommand failed");
+			tracing::error!(?e, command = %params.command, "executeCommand failed");
 			backend
 				.client
 				.show_message(MessageType::ERROR, e.to_string())
@@ -182,7 +182,10 @@ pub fn on_quick_pick_response(
 ) -> LspResult<Value> {
 	#[derive(Deserialize)]
 	struct Resp {
-		nonce: u64,
+		// The nonce is round-tripped through the editor as a string (see
+		// `client_ext::QuickPickParams`), so it comes back as a JSON string,
+		// not a number.
+		nonce: String,
 		selected: Option<String>,
 	}
 	let resp: Resp = serde_json::from_value(params).map_err(|e| LspError {
@@ -190,10 +193,19 @@ pub fn on_quick_pick_response(
 		message: e.to_string().into(),
 		data: None,
 	})?;
+	let nonce = resp
+		.nonce
+		.parse()
+		.map_err(|e| LspError {
+			code: tower_lsp::jsonrpc::ErrorCode::InvalidParams,
+			message: format!("invalid quickPick nonce {:?}: {e}", resp.nonce)
+				.into(),
+			data: None,
+		})?;
 	backend
 		.state
 		.quick_picks
-		.resolve(resp.nonce, resp.selected);
+		.resolve(nonce, resp.selected);
 	Ok(Value::Null)
 }
 

@@ -1,3 +1,4 @@
+#![allow(clippy::suboptimal_flops)]
 //! Port of test/util-test.ts.
 //!
 //! The JS tests use dynamic `{foo: "bar"}` labels. Where that doesn't

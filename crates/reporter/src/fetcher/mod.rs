@@ -153,12 +153,12 @@ fn make_cache_key(mut build_hash: String) -> String {
 	build_hash
 }
 
-struct IndexResponse {
-	text: ByteStr,
-	build_hash: String,
+pub struct IndexResponse {
+	pub text: ByteStr,
+	pub build_hash: String,
 }
 
-async fn fetch_index(
+pub async fn fetch_index(
 	client: &ClientWithMiddleware,
 	channel: Channel,
 ) -> Result<IndexResponse> {

@@ -1,0 +1,18 @@
+{
+    "$schema": "./crates/bot_config/bot.config.schema.json",
+    "token": "bot token",
+    "home_guild_id": "guild id",
+    "use_ansi_clap_errors": true,
+    "bot_owners": [],
+    "vencord_path": "/path/to/vencord/dir",
+    "build_archive_url": "https://example.com/",
+    "qalc_worker_path": "/path/to/qalc_sbox_worker",
+    "emojis": {
+        "empty": {
+            "id": "0",
+            "animated": false,
+            "name": "your name here"
+        }
+    },
+    "use_local_build_cache": true
+}

@@ -57,8 +57,7 @@ use ast_parser::{
 		ImportDeclarationExt as _,
 		MemberExpressionExt,
 		ObjectExpressionExt as _,
-		PropertyKeyExt,
-		StatementExt,
+		PropertyKeyExt as _,
 	},
 	parse_for_traverse,
 	sym_id::GetSymId,
@@ -71,7 +70,6 @@ use oxc::{
 		Vec as OxcVec,
 	},
 	ast::{
-		AstBuilder,
 		AstKind,
 		ast::{
 			Argument,
@@ -90,7 +88,7 @@ use oxc::{
 			StringLiteral,
 			TemplateLiteral,
 		},
-		builder::GetAstBuilder,
+		builder::{AstBuilder, GetAstBuilder},
 	},
 	minifier::PropertyReadSideEffects,
 	semantic::{Semantic, SymbolId},
@@ -101,7 +99,7 @@ use oxc_ecmascript::{
 	constant_evaluation::{ConstantEvaluation, ConstantEvaluationCtx},
 	side_effects::MayHaveSideEffectsContext,
 };
-use tracing::{debug, trace, warn};
+use tracing::{debug, instrument, trace, warn};
 
 pub struct VencordAstParser<'ast> {
 	pub(crate) alloc: &'ast Allocator,
@@ -127,6 +125,7 @@ const FIND_IMPORT_SOURCE: &str = "@webpack";
 // TODO: get webpack finds
 /// Public API
 impl<'ast> VencordAstParser<'ast> {
+	#[instrument(skip(alloc, source))]
 	pub fn try_new(
 		alloc: &'ast Allocator,
 		source: &'ast str,
@@ -1179,13 +1178,14 @@ impl<'ast> VencordAstParser<'ast> {
 		func: &'ast ArrowFunctionExpression<'ast>,
 	) -> Option<&'ast Expression<'ast>> {
 		// TODO: use CFG to get return value of arrow function that might have a body
-		if func.expression
-			&& let Some(body) =
-				func.body.statements[0].as_expression_statement()
-		{
-			Some(&body.expression)
-		} else if let [Statement::ReturnStatement(ret)] =
-			func.body.statements.as_slice()
+		if let Some(expr) = func.get_expression() {
+			Some(expr)
+		} else if let [Statement::ReturnStatement(ret)] = func
+			.body
+			.as_function_body()
+			.expect("we just checked it's not a expr body")
+			.statements
+			.as_slice()
 		{
 			ret.argument.as_ref()
 		} else {
@@ -1263,7 +1263,7 @@ impl<'ast> VencordAstParser<'ast> {
 		let f_ret =
 			Self::get_arrow_single_return_value(f).ok_or_else(|| {
 				err(
-					f.body.as_ref(),
+					&f.body,
 					"replace function does not have a single return value",
 				)
 			})?;

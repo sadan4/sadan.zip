@@ -11,17 +11,33 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Nix cache
+        uses: DeterminateSystems/magic-nix-cache-action@main
+
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: clippy
 
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
+        with:
+          # Save the target dir even when the job fails, so red iterations
+          # don't pay the full cold rebuild (skia-safe compiles from source,
+          # ~10 min) every run. Without this the cache only populates on green.
+          cache-on-failure: true
 
       - name: Run clippy
-        run: cargo clippy --all-targets --all-features
+        # qalc_sbox_py is excluded: --all-features enables pyo3/extension-module
+        # (no libpython linkage), which breaks linking its stub_gen bin + tests.
+        # That crate is built/tested via its own Dockerfile/wheel workflow.
+        run: nix develop --command cargo clippy --all-targets --all-features --workspace --exclude qalc_sbox_py
 
       - name: Install cargo-nextest
         uses: taiki-e/install-action@nextest
 
       - name: Run tests
-        run: cargo nextest run --all-targets --all-features
+        run: nix develop --command cargo nextest run --all-targets --all-features --workspace --exclude qalc_sbox_py

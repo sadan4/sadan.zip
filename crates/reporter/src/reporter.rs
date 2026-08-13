@@ -65,12 +65,20 @@ pub fn report_broken_patches(
 ) -> mpsc::Receiver<Msg> {
 	const BUFFER_SIZE: usize = 0x4000;
 	let (tx, rx) = mpsc::channel(BUFFER_SIZE);
-	task::spawn_blocking(move || {
+	let handle = task::spawn_blocking(move || {
 		let start = Instant::now();
 		run_reporter(channel, &target_build, &plugins, &tx);
 		let duration = start.elapsed();
 		tx.blocking_send(Msg::Done(duration))
 			.unwrap();
+	});
+
+	task::spawn(async move {
+		if let Err(e) = handle.await {
+			error!("Reporter thread panicked: {e:?}");
+		} else {
+			debug!("Reporter thread finished successfully");
+		}
 	});
 
 	rx
@@ -127,7 +135,6 @@ pub enum PatchStatus {
 	Error,
 }
 
-#[expect(clippy::multiple_inherent_impl)]
 impl<'a> ReporterState<'a> {
 	fn run(mut self) {
 		let start_time = Instant::now();

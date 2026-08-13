@@ -22,7 +22,7 @@ tar = "0.4.44"
 tokio = { version = "1.49.0", features = ["macros", "rt-multi-thread"] }
 tokio-stream = { version = "0.1.18", default-features = false }
 tokio-util = { version = "0.7.18", default-features = false }
-reqwest = "0.13.2"
+reqwest = { version = "0.13.2", features = ["stream", "query"] }
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 rmp-serde = "1.3.1"
@@ -38,13 +38,13 @@ clap = { version = "4.6.0", features = ["derive"] }
 clap_complete = "4.6.0"
 itertools = "0.15.0"
 xxhash-rust = { version = "0.8.15", features = ["xxh64"] }
-oxc = { version = "0.140.0", default-features = false }
-oxc_span = { version = "0.140.0", default-features = false }
-oxc_traverse = { version = "0.140.0", default-features = false }
-oxc_ecmascript = { version = "0.140.0", default-features = false }
-oxc_allocator = { version = "0.140.0", default-features = false }
+oxc = { version = "0.143.0", default-features = false }
+oxc_span = { version = "0.143.0", default-features = false }
+oxc_traverse = { version = "0.143.0", default-features = false }
+oxc_ecmascript = { version = "0.143.0", default-features = false }
+oxc_allocator = { version = "0.143.0", default-features = false }
 oxc-miette = { version = "3.0.0", default-features = false, features = [
-    "serde",
+  "serde",
 ] }
 regress = "0.11.1"
 derive_more = { version = "2.1.1", features = ["full"] }
@@ -54,6 +54,7 @@ bitflags = { version = "2.11.0", features = ["serde"] }
 owo-colors = "4.3.0"
 unicode-width = "0.2.2"
 textwrap = "0.16.2"
+landlock = "0.4.7"
 terminal_size = "0.4.4"
 syntect = { version = "5.3.0", default-features = false }
 memchr = "2.8.0"
@@ -63,13 +64,13 @@ smol_str = { version = "0.3.6", features = ["std", "serde"] }
 proc-macro2 = { version = "1.0.32", default-features = false }
 quote = { version = "1.0", default-features = false }
 syn = { version = "2.0", default-features = false, features = [
-    "full",
-    "parsing",
-    "printing",
-    "proc-macro",
+  "full",
+  "parsing",
+  "printing",
+  "proc-macro",
 ] }
 reqwest-retry = "0.9.1"
-reqwest-middleware = "0.5.1"
+reqwest-middleware = { version = "0.5.1", features = ["query"] }
 bytes = "1.11.1"
 macros = { path = "crates/macros" }
 explorer_types = { path = "crates/explorer_types" }
@@ -83,11 +84,16 @@ dagre = { path = "crates/dagre", features = ["serde"] }
 discord_scraper = { path = "crates/discord_scraper" }
 miette_ctx = { path = "crates/miette_ctx" }
 git_hash = { path = "crates/git_hash" }
+bot_config = { path = "crates/bot_config" }
+reporter = { path = "crates/reporter" }
+qalc = { path = "crates/qalc" }
+qalc_sbox = { path = "crates/qalc_sbox" }
+demangler = { path = "crates/demangler" }
 tower-lsp = "0.20.0"
 tokio-tungstenite = "0.30.0"
 futures-util = "0.3.31"
 dashmap = "6.1.0"
-tempfile = "3.13.0"
+tempfile = "3.27.0"
 notify = "8.2.0"
 rustc-hash = "2.1.2"
 clearscreen = "4.0.6"
@@ -104,6 +110,35 @@ smallvec = "1.15.2"
 rangemap = "1.7.1"
 hashbrown = "0.17.1"
 bstr = "1.12.3"
+serenity = { git = "https://github.com/sadan4/serenity", default-features = false, branch = "next" }
+futures-core = "0.3.31"
+shlex = "1.3.0"
+schemars = "1.2.1"
+git2 = { version = "0.21.0", features = ["https", "ssh"] }
+unicode-ident = "1.0.24"
+cxx = "1.0"
+cxx-build = "1.0"
+zxcvbn = { version = "3.1.1", features = ["ser"] }
+sha1 = "0.11.0"
+typesize = "0.1.15"
+libc = "0.2.189"
+seccompiler = "0.5"
+swift-demangler = "0.1.1"
+skia-safe = { version = "0.99.0", features = ["webp-decode", "webp-encode"] }
+gif = "0.14.2"
+webp = { version = "0.3.1", default-features = false }
+mini-moka = "0.10"
+url = "2.5.8"
+ipc-channel = { version = "0.22.0", features = ["async"] }
+nix = "0.31.3"
+pyo3 = { version = "0.29.2" }
+pyo3-stub-gen = { version = "0.23", default-features = false }
+pyo3-tracing-subscriber = { version = "0.9.0" }
+pyo3-tracing-subscriber-build = { version = "0.9.0" }
+oneshot = { version = "0.2.1", features = ["async", "std"] }
+
+[patch.crates-io]
+typesize = { git = "https://github.com/sadan4/typesize", branch = "feat/pathbuf-impl" }
 
 
 [profile.release]
@@ -130,6 +165,7 @@ debug = true
 split-debuginfo = "off"
 strip = false
 
+# reporter does a lot of string chunching
 [profile.dev.package.regex]
 opt-level = 3
 
@@ -143,22 +179,16 @@ opt-level = 3
 [profile.dev.package.insta]
 opt-level = 3
 
-[profile.dev.package.similar]
+# faster dev builds
+[profile.dev.package.'*']
 opt-level = 3
+
 
 # During testing, we parse large javascript files, up to 20mb!
 # Compile oxc with -O3 so the tests run 2-4x faster
 [profile.test.package.oxc_allocator]
 opt-level = 3
-[profile.test.package.oxc_ast]
-opt-level = 3
-[profile.test.package.oxc_parser]
-opt-level = 3
-[profile.test.package.oxc_semantic]
-opt-level = 3
 [profile.test.package.oxc_span]
-opt-level = 3
-[profile.test.package.oxc_syntax]
 opt-level = 3
 
 [workspace.lints.rust]
@@ -166,6 +196,7 @@ opt-level = 3
 # unused_crate_dependencies = "deny"
 [workspace.lints.clippy]
 pedantic = { priority = -1, level = "warn" }
+nursery = { priority = -1, level = "warn" }
 #TODO: add safety docs later
 missing_safety_doc = "deny"
 undocumented_unsafe_blocks = "deny"
@@ -185,54 +216,24 @@ items_after_statements = "allow"
 option_if_let_else = "allow"
 # panic has a different error message / connotation compared to assert
 manual_assert = "allow"
+# no different than div/0
+unchecked_time_subtraction = "allow"
 
 
 # Nursery
-clear_with_drain = "warn"
-coerce_container_to_any = "warn"
-collection_is_never_read = "warn"
-debug_assert_with_mut_call = "warn"
-derive_partial_eq_without_eq = "warn"
-equatable_if_let = "warn"
-fallible_impl_from = "warn"
-iter_on_empty_collections = "warn"
-iter_on_single_items = "warn"
-# iter_with_drain = "warn"
-large_stack_frames = "warn"
-literal_string_with_formatting_args = "warn"
-missing_const_for_fn = "warn"
-needless_collect = "warn"
-needless_pass_by_ref_mut = "warn"
-needless_type_cast = "warn"
-non_send_fields_in_send_ty = "warn"
-nonstandard_macro_braces = "warn"
-or_fun_call = "warn"
-path_buf_push_overwrite = "warn"
-read_zero_byte_vec = "warn"
-redundant_clone = "warn"
-redundant_pub_crate = "warn"
-search_is_some = "warn"
-set_contains_or_insert = "warn"
-significant_drop_in_scrutinee = "warn"
+debug_assert_with_mut_call = "deny"
 # too damn noisy
 cast_possible_wrap = "allow"
+cast_precision_loss = "allow"
 # it doesnt take types into account, so two names
 # with different types will still trigger the lint
 similar_names = "allow"
 # love to enable this, however it is very broken rust-lang/rust-clippy#11279
 significant_drop_tightening = "allow"
-single_option_map = "warn"
-string_lit_as_bytes = "warn"
-suspicious_operation_groupings = "warn"
-trait_duplication_in_bounds = "warn"
-type_repetition_in_bounds = "warn"
-uninhabited_references = "warn"
-unnecessary_struct_initialization = "warn"
-unused_peekable = "warn"
-unused_rounding = "warn"
-use_self = "warn"
-useless_let_if_seq = "warn"
-while_float = "warn"
+# completely broken
+# https://github.com/rust-lang/rust-clippy/issues/8539
+iter_with_drain = "allow"
+too_long_first_doc_paragraph = "allow"
 #restriction
 # allow_attributes = "warn"
 # love to set this up, but no auto-fixes

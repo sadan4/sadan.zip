@@ -11,6 +11,7 @@ use dagre::{
 	graph::{Edge, Graph, GraphOpts, NodeId, alg},
 	types::{EdgeLabel, GraphLabel, NodeLabel},
 };
+use smol_str::SmolStr;
 
 fn mk_graph(
 	acyclicer: Option<&str>,
@@ -179,6 +180,6 @@ fn greedy_breaks_at_low_weight_edges() {
 	);
 	acyclic::run(&mut g);
 	let cycles = alg::find_cycles(&g);
-	assert!(cycles.is_empty());
+	assert_eq!(cycles, [] as [Vec<SmolStr>; 0]);
 	assert!(!g.has_edge("c", "d"), "greedy should reverse c->d");
 }

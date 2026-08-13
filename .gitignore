@@ -5,6 +5,7 @@ dist-ssr
 *.local
 count.txt
 .env
+.bot.config.json
 .nitro
 .tanstack
 .wrangler
@@ -34,3 +35,7 @@ builds
 # nix
 result*
 /VencordCompanion_OLD
+
+# clang compilation database
+compile_commands.json
+/heaptrack.*

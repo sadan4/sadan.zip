@@ -1,3 +1,4 @@
+#![allow(clippy::suboptimal_flops)]
 //! Port of test/order/resolve-conflicts-test.ts.
 
 use std::string::ToString;

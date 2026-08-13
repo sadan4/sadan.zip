@@ -1,0 +1,12 @@
+# Only used by `pyo3-stub-gen` (the `stub_gen` bin reads `module-name` to know
+# the root module and where to emit the `.pyi`). This crate is NOT built with
+# maturin; the real build lives in xtask/src/build/qalc_py.rs.
+[project]
+name = "qalc_sbox_py"
+version = "0.1.0"
+
+[tool.maturin]
+module-name = "qalc_sbox_py"
+# Nested submodule (`qalc_sbox_py.qalc_sandbox`) requires mixed layout; stubs
+# are emitted under this dir as a package tree.
+python-source = "python"

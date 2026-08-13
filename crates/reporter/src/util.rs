@@ -60,6 +60,12 @@ impl Stage {
 		bar.enable_steady_tick(Duration::from_millis(1000 / 20));
 		Self(bar)
 	}
+	pub fn hidden() -> Self {
+		Self(ProgressBar::with_draw_target(
+			None,
+			ProgressDrawTarget::hidden(),
+		))
+	}
 	#[must_use]
 	pub fn and_attach(self, target: &MultiProgressWrapper) -> Self {
 		target.add(self.0.clone());

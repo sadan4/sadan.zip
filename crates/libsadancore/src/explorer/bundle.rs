@@ -797,7 +797,8 @@ impl Bundle {
 	pub fn get_module_dependencies(&self, module_id: u32) -> Result<JsValue> {
 		let m_id = ModuleId(module_id);
 		let parser = self.inner.get_or_make_parser(m_id)?;
-		static DEFAULT: OutgoingModuleDepsWithLocs = OutgoingModuleDepsWithLocs::new();
+		static DEFAULT: OutgoingModuleDepsWithLocs =
+			OutgoingModuleDepsWithLocs::new();
 		let deps = parser
 			.get_modules_that_this_module_requires()
 			.unwrap_or(&DEFAULT);

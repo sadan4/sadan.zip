@@ -655,4 +655,15 @@ _()";
 		_()
 		");
 	}
+
+	#[test]
+	fn formats_new_target() {
+		let source = "function foo(){console.log(new.target);}";
+		let out = format2(source).unwrap();
+		assert_snapshot!(out, @"
+		function foo() {
+		  console.log(new.target);
+		}
+		");
+	}
 }

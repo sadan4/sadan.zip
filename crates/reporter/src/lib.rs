@@ -1,4 +1,4 @@
-mod cache;
+pub mod cache;
 pub mod cmds;
 pub mod diag;
 pub mod err;
@@ -14,8 +14,10 @@ use clap_complete::Shell;
 use derive_more::{From, Into};
 use explorer_server_core::Channel;
 use miette::SourceCode;
+use terminal_size::{Width, terminal_size};
 
 use crate::{
+	err::printer::GraphicalReportHandler,
 	fetcher::FetchOpts,
 	vc::{Plugin, VencordOpts},
 };
@@ -36,7 +38,7 @@ pub struct Cli {
 	/// Do not print reporter warnings, only print errors.
 	///
 	/// This is not the same thing as a patch being noWarn
-	#[arg(long, default_value_t = false)]
+	#[arg(long, default_value_t)]
 	pub no_warnings: bool,
 	/// Generate shell completions
 	#[arg(long, value_enum)]
@@ -70,7 +72,7 @@ impl From<Branch> for Channel {
 }
 
 #[derive(From, Into)]
-pub struct SourceWrapper(Arc<Vec<Plugin>>, u16);
+pub struct SourceWrapper(pub Arc<Vec<Plugin>>, pub u16);
 
 impl SourceCode for SourceWrapper {
 	fn read_span<'a>(
@@ -89,4 +91,18 @@ impl SourceCode for SourceWrapper {
 			.entry_point
 			.to_str()
 	}
+}
+
+pub fn install_miette_hook() {
+	miette::set_hook(Box::new(|_| {
+		Box::new(
+			GraphicalReportHandler::new()
+				.with_width(
+					terminal_size()
+						.map_or(80, |(Width(width), _)| width as usize),
+				)
+				.with_cause_chain(),
+		)
+	}))
+	.expect("Failed to set miette hook");
 }

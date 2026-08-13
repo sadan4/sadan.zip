@@ -1,0 +1,28 @@
+[package]
+name = "qalc_sbox_py"
+version = "0.1.0"
+edition.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "stub_gen"
+doc = false
+
+[features]
+# Build the cdylib as a Python extension module (no libpython linkage).
+# Enabled only for the `.so` build; the `stub_gen` bin must build WITHOUT it
+# so it links libpython.
+extension-module = ["pyo3/extension-module"]
+
+[dependencies]
+anyhow = {workspace = true}
+pyo3 = {workspace = true, features = ["anyhow", "lock_api"]}
+pyo3-stub-gen = { workspace = true, features = ["infer_signature"] }
+pyo3-tracing-subscriber = { workspace = true }
+pyo3-tracing-subscriber-build = { workspace = true }
+qalc_sbox.workspace = true
+
+[lints]
+workspace = true
