@@ -136,6 +136,7 @@ pyo3-stub-gen = { version = "0.23", default-features = false }
 pyo3-tracing-subscriber = { version = "0.9.0" }
 pyo3-tracing-subscriber-build = { version = "0.9.0" }
 oneshot = { version = "0.2.1", features = ["async", "std"] }
+phf = { version = "0.14.0", features = ["macros"] }
 
 [patch.crates-io]
 typesize = { git = "https://github.com/sadan4/typesize", branch = "feat/pathbuf-impl" }
