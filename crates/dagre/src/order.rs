@@ -98,7 +98,7 @@ pub fn barycenter(
 						.node(&e.v)
 						.and_then(|n| n.order)
 						.unwrap_or(0) as f64;
-					sum += edge_w * order;
+					sum = edge_w.mul_add(order, sum);
 					weight += edge_w;
 				}
 				BarycenterEntry {
@@ -581,7 +581,7 @@ fn barycenter_impl(
 						.node(&e.v)
 						.and_then(|n| n.order)
 						.unwrap_or(0) as f64;
-					sum += edge_w * order;
+					sum = edge_w.mul_add(order, sum);
 					weight += edge_w;
 				}
 			}
