@@ -365,7 +365,7 @@ mod tests {
 		let client = cc();
 		let resp = client.execute(req).await.unwrap();
 		let text = resp.text().await.unwrap();
-		fs::write("app.html", &text).unwrap();
+		// fs::write("app.html", &text).unwrap();
 		let parsed = parse::parse(&text).unwrap();
 		mapping!(TEST_MAPPING, "ds:5", 1, 2);
 		dbg!(
