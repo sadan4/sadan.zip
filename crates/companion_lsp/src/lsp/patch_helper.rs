@@ -17,6 +17,7 @@
 
 use std::{
 	panic,
+	str::FromStr,
 	sync::{
 		Arc,
 		atomic::{AtomicU64, Ordering},
@@ -25,20 +26,20 @@ use std::{
 
 use anyhow::{Context, Result, anyhow, bail};
 use dashmap::DashMap;
+use deno_tower_lsp::{
+	Client,
+	lsp_types::{
+		MessageType,
+		Uri,
+		notification::Notification,
+		request::Request,
+	},
+};
 use oxc::{allocator::Allocator, ast::ast::RegExpFlags};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use smol_str::SmolStr;
 use tokio::sync::Mutex;
-use tower_lsp::{
-	Client,
-	lsp_types::{
-		MessageType,
-		Url,
-		notification::Notification,
-		request::Request,
-	},
-};
 use vencord_ast_parser::{Match, Patch, Replacer, VencordAstParser};
 
 use crate::{
@@ -106,7 +107,7 @@ pub struct Registry {
 	/// helpers at once (one per patch), so this is a list, not a single slot —
 	/// keying by source alone would make opening a second patch clobber the
 	/// first.
-	by_source: DashMap<Url, Vec<HelperHandle>>,
+	by_source: DashMap<Uri, Vec<HelperHandle>>,
 }
 
 impl Registry {
@@ -118,14 +119,14 @@ impl Registry {
 		)
 	}
 
-	fn get_all(&self, src: &Url) -> Vec<HelperHandle> {
+	fn get_all(&self, src: &Uri) -> Vec<HelperHandle> {
 		self.by_source
 			.get(src)
 			.map(|e| e.value().clone())
 			.unwrap_or_default()
 	}
 
-	fn push(&self, src: &Url, handle: HelperHandle) {
+	fn push(&self, src: &Uri, handle: HelperHandle) {
 		self.by_source
 			.entry(src.clone())
 			.or_default()
@@ -134,7 +135,7 @@ impl Registry {
 
 	/// Drop one helper by id, removing the source key entirely once its last
 	/// helper is gone.
-	fn remove_entry(&self, src: &Url, id: &str) {
+	fn remove_entry(&self, src: &Uri, id: &str) {
 		let now_empty = if let Some(mut e) = self.by_source.get_mut(src) {
 			e.value_mut().retain(|h| h.id != id);
 			e.value().is_empty()
@@ -149,7 +150,7 @@ impl Registry {
 	}
 
 	/// Remove and return every helper for a source (used on source close).
-	fn take_all(&self, src: &Url) -> Vec<HelperHandle> {
+	fn take_all(&self, src: &Uri) -> Vec<HelperHandle> {
 		self.by_source
 			.remove(src)
 			.map(|(_, v)| v)
@@ -171,13 +172,13 @@ pub async fn open(backend: &Backend, args: Vec<Value>) -> Result<Value> {
 		.context("openPatchHelper requires {uri, patchIndex}")?;
 	let arg: OpenArg = serde_json::from_value(first.clone())
 		.context("expected {uri, patchIndex}")?;
-	let url = Url::parse(&arg.uri)
+	let url = Uri::from_str(&arg.uri)
 		.with_context(|| format!("invalid uri {:?}", arg.uri))?;
 
 	let doc = backend
 		.state
 		.get_document(&url)
-		.with_context(|| format!("no open document for {url}"))?;
+		.with_context(|| format!("no open document for {}", *url))?;
 
 	// Resolve the patch up front (cheap, no Discord round-trip) so we can key
 	// the helper by the patch's identity — find + occurrence — rather than by
@@ -243,7 +244,7 @@ struct PatchIdResponse {
 /// so a repeat "Open in Patch Helper" refocuses instead of duplicating.
 async fn find_existing(
 	state: &SharedState,
-	url: &Url,
+	url: &Uri,
 	extracted: &ExtractedPatch,
 ) -> Option<HelperHandle> {
 	for h in state.patch_helpers.get_all(url) {
@@ -266,7 +267,7 @@ async fn find_existing(
 pub async fn on_source_change(
 	client: Client,
 	state: SharedState,
-	source_uri: Url,
+	source_uri: Uri,
 ) {
 	let handles = state.patch_helpers.get_all(&source_uri);
 	if handles.is_empty() {
@@ -283,7 +284,7 @@ pub async fn on_source_change(
 		if let Err(e) =
 			relocate_and_push(&state, &client, &doc, &source_uri, &handle).await
 		{
-			tracing::debug!(?e, %source_uri, id = %handle.id, "patch helper update failed");
+			tracing::debug!(?e, source_uri =% &*source_uri, id = %handle.id, "patch helper update failed");
 			client
 				.show_message(MessageType::WARNING, format!("PatchHelper: {e}"))
 				.await;
@@ -298,7 +299,7 @@ pub async fn on_source_change(
 pub async fn on_source_close(
 	client: &Client,
 	state: &SharedState,
-	source_uri: &Url,
+	source_uri: &Uri,
 ) {
 	// Drop every helper tracking this source and tell the editor to close each
 	// matching virtual document.
@@ -349,7 +350,7 @@ async fn relocate_and_push(
 	state: &SharedState,
 	client: &Client,
 	doc: &Document,
-	source_uri: &Url,
+	source_uri: &Uri,
 	handle: &HelperHandle,
 ) -> Result<()> {
 	let (last_find, find_type, occurrence) = {
@@ -895,7 +896,7 @@ struct PatchHelperUpdateParams {
 
 async fn send_open(
 	client: &Client,
-	source_uri: &Url,
+	source_uri: &Uri,
 	patch_id: &str,
 	module_content: &str,
 ) -> Result<()> {

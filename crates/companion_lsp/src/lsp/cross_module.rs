@@ -29,11 +29,11 @@ use std::{
 };
 
 use anyhow::{Context, Result};
+use deno_tower_lsp::lsp_types::Uri;
 use explorer_types::{IncomingModuleDeps, ModuleId};
 use miette_ctx::into_anyhow;
 use oxc::allocator::Allocator;
 use smol_str::SmolStr;
-use tower_lsp::lsp_types::Url;
 use webpack_ast_parser::{
 	WebpackAstParser,
 	bundle::{IModuleCache, IModuleDepProvider},
@@ -231,14 +231,13 @@ impl CrossModuleCtx {
 			.map(String::as_str)
 	}
 
-	pub fn module_file_uri(&self, id: ModuleId) -> Option<Url> {
-		Url::from_file_path(
+	pub fn module_file_uri(&self, id: ModuleId) -> Option<Uri> {
+		Uri::from_file_path(
 			self.inner
 				.data
 				.root
 				.join(format!("{id}.js")),
 		)
-		.ok()
 	}
 }
 
@@ -281,8 +280,7 @@ impl Inner {
 
 impl IModuleCache<'static> for Inner {
 	fn get_module_filepath(&self, id: ModuleId) -> Option<SmolStr> {
-		let uri = Url::from_file_path(self.data.root.join(format!("{id}.js")))
-			.ok()?;
+		let uri = Uri::from_file_path(self.data.root.join(format!("{id}.js")))?;
 		Some(uri.to_string().into())
 	}
 

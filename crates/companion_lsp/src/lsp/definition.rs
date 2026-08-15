@@ -9,10 +9,9 @@
 //! once per session, invalidated on download / purge) so the disk scan
 //! isn't repeated per request.
 
-use std::{mem, path::PathBuf, sync::Arc};
+use std::{mem, path::PathBuf, str::FromStr, sync::Arc};
 
-use oxc::{allocator::Allocator, span::Span};
-use tower_lsp::{
+use deno_tower_lsp::{
 	jsonrpc::Result as LspResult,
 	lsp_types::{
 		GotoDefinitionParams,
@@ -20,9 +19,10 @@ use tower_lsp::{
 		Location,
 		Position,
 		Range,
-		Url,
+		Uri,
 	},
 };
+use oxc::{allocator::Allocator, span::Span};
 use vencord_ast_parser::VencordAstParser;
 use webpack_ast_parser::{WebpackAstParser, bundle};
 
@@ -206,7 +206,7 @@ fn definition_to_lsp_location(
 	def: &bundle::Definition<'_>,
 ) -> Option<Location> {
 	let uri = match &def.location {
-		bundle::Location::Path(s) => Url::parse(s).ok()?,
+		bundle::Location::Path(s) => Uri::from_str(s).ok()?,
 		// Inline locations point at a parser source we don't have a URI
 		// for directly — recover one via the module id.
 		bundle::Location::Inline(_) => ctx.module_file_uri(def.module_id)?,
@@ -244,7 +244,6 @@ mod tests {
 
 	use super::*;
 	use tempfile::TempDir;
-	use tower_lsp::lsp_types::Url;
 
 	#[test]
 	fn direct_module_id_resolves_to_cached_path() {
@@ -266,7 +265,7 @@ mod tests {
 			.expect("expected at least one definition");
 		assert_eq!(locs.len(), 1);
 		let expected_uri =
-			Url::from_file_path(tmp.path().join("42.js")).unwrap();
+			Uri::from_file_path(tmp.path().join("42.js")).unwrap();
 		assert_eq!(locs[0].uri, expected_uri);
 	}
 

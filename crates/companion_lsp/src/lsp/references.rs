@@ -3,13 +3,13 @@
 //! `SessionState` (built once per session, invalidated on download /
 //! purge) to avoid re-scanning `.modules/` on every request.
 
-use std::{mem, path::PathBuf, sync::Arc};
+use std::{mem, path::PathBuf, str::FromStr, sync::Arc};
 
-use oxc::span::Span;
-use tower_lsp::{
+use deno_tower_lsp::{
 	jsonrpc::Result as LspResult,
-	lsp_types::{Location, Position, Range, ReferenceParams, Url},
+	lsp_types::{Location, Position, Range, ReferenceParams, Uri},
 };
+use oxc::span::Span;
 use webpack_ast_parser::{WebpackAstParser, bundle};
 
 use crate::{
@@ -155,7 +155,7 @@ fn reference_to_lsp(
 	r: &bundle::Reference<'_>,
 ) -> Option<Location> {
 	let uri = match &r.location {
-		bundle::Location::Path(s) => Url::parse(s).ok()?,
+		bundle::Location::Path(s) => Uri::from_str(s).ok()?,
 		// Inline locations point at a parser source we don't have a URI
 		// for directly — recover one via the module id.
 		bundle::Location::Inline(_) => ctx.module_file_uri(r.module_id)?,

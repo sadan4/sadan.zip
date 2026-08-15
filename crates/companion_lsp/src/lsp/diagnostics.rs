@@ -1,13 +1,13 @@
 use std::{sync::mpsc, time::Duration};
 
-use oxc::{ast::ast::RegExpFlags, span::Span};
-use tower_lsp::lsp_types::{
+use deno_tower_lsp::lsp_types::{
 	Diagnostic,
 	DiagnosticSeverity,
 	Position,
 	Range,
-	Url,
+	Uri,
 };
+use oxc::{ast::ast::RegExpFlags, span::Span};
 use vencord_ast_parser::{
 	VencordAstParser,
 	diag::{ParserDiagnostic, Severity},
@@ -34,8 +34,8 @@ pub const DEBOUNCE: Duration = Duration::from_millis(1_500);
 /// if a newer document version arrives or no Discord client is connected.
 pub fn schedule(
 	backend_state: crate::state::SharedState,
-	client: tower_lsp::Client,
-	uri: Url,
+	client: deno_tower_lsp::Client,
+	uri: Uri,
 ) {
 	tokio::spawn(async move {
 		let Some(start_version) = backend_state
@@ -68,7 +68,7 @@ pub fn schedule(
 					.await;
 			}
 			Err(e) => {
-				tracing::debug!(?e, %uri, "diagnostics run failed");
+				tracing::debug!(?e, uri =% &*uri, "diagnostics run failed");
 			}
 		}
 	});

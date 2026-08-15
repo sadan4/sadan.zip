@@ -5,7 +5,7 @@ use std::sync::{
 
 use dashmap::DashMap;
 use tokio::sync::{RwLock, oneshot};
-use tower_lsp::lsp_types::Url;
+use deno_tower_lsp::lsp_types::Uri;
 use vencord_ast_parser::Patch;
 
 use crate::{
@@ -50,7 +50,7 @@ impl QuickPickPending {
 /// In-memory representation of a text document the editor has opened.
 #[derive(Debug, Clone)]
 pub struct Document {
-	pub uri: Url,
+	pub uri: Uri,
 	pub version: i32,
 	pub language_id: String,
 	pub text: String,
@@ -67,13 +67,13 @@ pub struct CachedPatches {
 
 #[derive(Default)]
 pub struct SessionState {
-	pub documents: DashMap<Url, Document>,
+	pub documents: DashMap<Uri, Document>,
 	/// Per-document cache of parsed patches, keyed by URL.
 	/// `textDocument/documentHighlight` fires on every cursor movement, so
 	/// re-parsing the whole file each request is wasteful; entries are reused
 	/// while the document version is unchanged, overwritten on a version bump,
 	/// and removed on close. See [`crate::lsp::get_patches`].
-	pub patch_cache: DashMap<Url, CachedPatches>,
+	pub patch_cache: DashMap<Uri, CachedPatches>,
 	/// Bridge owns its own per-field locking; no outer `RwLock` here.
 	pub discord: DiscordBridge,
 	pub module_cache: RwLock<ModuleCache>,
@@ -97,7 +97,7 @@ impl SessionState {
 		Self::default()
 	}
 
-	pub fn get_document(&self, uri: &Url) -> Option<Document> {
+	pub fn get_document(&self, uri: &Uri) -> Option<Document> {
 		self.documents
 			.get(uri)
 			.map(|entry| entry.value().clone())

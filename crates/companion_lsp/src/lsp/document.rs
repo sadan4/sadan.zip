@@ -1,4 +1,4 @@
-use tower_lsp::lsp_types::{
+use deno_tower_lsp::lsp_types::{
 	DidChangeTextDocumentParams,
 	DidCloseTextDocumentParams,
 	DidOpenTextDocumentParams,

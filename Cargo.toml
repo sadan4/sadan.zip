@@ -63,7 +63,7 @@ regex = "1.12.3"
 smol_str = { version = "0.3.6", features = ["std", "serde"] }
 proc-macro2 = { version = "1.0.32", default-features = false }
 quote = { version = "1.0", default-features = false }
-syn = { version = "2.0", default-features = false, features = [
+syn = { version = "3", default-features = false, features = [
   "full",
   "parsing",
   "printing",
@@ -91,7 +91,7 @@ reporter = { path = "crates/reporter" }
 qalc = { path = "crates/qalc" }
 qalc_sbox = { path = "crates/qalc_sbox" }
 demangler = { path = "crates/demangler" }
-tower-lsp = "0.20.0"
+deno_tower_lsp = "0.5.0"
 tokio-tungstenite = "0.30.0"
 futures-util = "0.3.31"
 dashmap = "6.1.0"
@@ -114,7 +114,7 @@ hashbrown = "0.17.1"
 bstr = "1.12.3"
 serenity = { git = "https://github.com/sadan4/serenity", default-features = false, branch = "next" }
 futures-core = "0.3.31"
-shlex = "1.3.0"
+shlex = "2"
 schemars = "1.2.1"
 git2 = { version = "0.21.0", features = ["https", "ssh"] }
 unicode-ident = "1.0.24"

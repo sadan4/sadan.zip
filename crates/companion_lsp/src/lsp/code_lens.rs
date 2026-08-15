@@ -1,10 +1,10 @@
+use deno_tower_lsp::{
+	jsonrpc::Result as LspResult,
+	lsp_types::{CodeLens, CodeLensParams, Command, Position, Range, Uri},
+};
 use oxc::{allocator::Allocator, span::Span};
 use serde::Serialize;
 use serde_json::Value;
-use tower_lsp::{
-	jsonrpc::Result as LspResult,
-	lsp_types::{CodeLens, CodeLensParams, Command, Position, Range},
-};
 use vencord_ast_parser::{FindArg, FindUse, VencordAstParser};
 
 use crate::{
@@ -46,10 +46,7 @@ pub async fn code_lens(
 ///   object literal, dispatching to `vencord.disablePlugin` with the
 ///   appropriate `enabled` flag. We can't read the live plugin state
 ///   from disk, so we emit both buttons and let the user pick.
-fn patch_code_lenses(
-	source: &str,
-	uri: &tower_lsp::lsp_types::Url,
-) -> Option<Vec<CodeLens>> {
+fn patch_code_lenses(source: &str, uri: &Uri) -> Option<Vec<CodeLens>> {
 	let alloc = Allocator::default();
 	let parser = VencordAstParser::try_new(&alloc, source, None).ok()?;
 	// LSP never runs patches through `regress` — it only uses the patches'
@@ -270,8 +267,9 @@ fn make_plugin_lens(
 
 #[cfg(test)]
 mod tests {
+	use std::str::FromStr as _;
+
 	use super::*;
-	use tower_lsp::lsp_types::Url;
 
 	const PLUGIN_SOURCE: &str = r#"import definePlugin from "@utils/types";
 
@@ -292,7 +290,7 @@ export default definePlugin({
 
 	#[test]
 	fn emits_two_lenses_per_patch_plus_plugin_pair() {
-		let uri = Url::parse("file:///test/MyPlugin/index.ts").unwrap();
+		let uri = Uri::from_str("file:///test/MyPlugin/index.ts").unwrap();
 		let lenses = patch_code_lenses(PLUGIN_SOURCE, &uri).unwrap();
 		assert_eq!(lenses.len(), 6, "expected 2 patches x 2 + plugin x 2");
 		let titles: Vec<_> = lenses
@@ -320,7 +318,7 @@ export default definePlugin({
 
 	#[test]
 	fn plugin_lens_carries_name_and_enabled_flag() {
-		let uri = Url::parse("file:///x.ts").unwrap();
+		let uri = Uri::from_str("file:///x.ts").unwrap();
 		let lenses = patch_code_lenses(PLUGIN_SOURCE, &uri).unwrap();
 		let enable = lenses
 			.iter()
@@ -350,7 +348,7 @@ export default definePlugin({
 
 	#[test]
 	fn lens_command_carries_uri_and_patch_index() {
-		let uri = Url::parse("file:///x.ts").unwrap();
+		let uri = Uri::from_str("file:///x.ts").unwrap();
 		let lenses = patch_code_lenses(PLUGIN_SOURCE, &uri).unwrap();
 		let first_cmd = lenses[0].command.as_ref().unwrap();
 		assert_eq!(first_cmd.command, vencord_ext::CMD_TEST_PATCH);
@@ -361,7 +359,7 @@ export default definePlugin({
 
 	#[test]
 	fn lens_range_covers_whole_patch_object() {
-		let uri = Url::parse("file:///x.ts").unwrap();
+		let uri = Uri::from_str("file:///x.ts").unwrap();
 		let lenses = patch_code_lenses(PLUGIN_SOURCE, &uri).unwrap();
 		// Both lenses for the same patch share the patch object's range.
 		assert_eq!(lenses[0].range, lenses[1].range);
@@ -393,7 +391,7 @@ export default definePlugin({
     ],
 });
 "##;
-		let uri = Url::parse("file:///x.ts").unwrap();
+		let uri = Uri::from_str("file:///x.ts").unwrap();
 		let lenses = patch_code_lenses(src, &uri).unwrap_or_default();
 		let indices: Vec<_> = lenses
 			.iter()
@@ -419,7 +417,7 @@ export default definePlugin({
 
 	#[test]
 	fn no_lenses_when_no_define_plugin() {
-		let uri = Url::parse("file:///x.ts").unwrap();
+		let uri = Uri::from_str("file:///x.ts").unwrap();
 		let src = "export const x = 1;";
 		let lenses = patch_code_lenses(src, &uri).unwrap_or_default();
 		assert_eq!(lenses, []);
@@ -431,7 +429,7 @@ export default definePlugin({
 const a = findByProps("foo", "bar");
 const b = findComponentLazy(/baz/i);
 "#;
-		let uri = Url::parse("file:///x.ts").unwrap();
+		let uri = Uri::from_str("file:///x.ts").unwrap();
 		let lenses = patch_code_lenses(src, &uri).unwrap_or_default();
 		let titles: Vec<_> = lenses
 			.iter()
@@ -475,7 +473,7 @@ const b = findComponentLazy(/baz/i);
 	#[test]
 	fn no_find_lenses_when_no_webpack_import() {
 		let src = "const a = findByProps(\"foo\");";
-		let uri = Url::parse("file:///x.ts").unwrap();
+		let uri = Uri::from_str("file:///x.ts").unwrap();
 		let lenses = patch_code_lenses(src, &uri).unwrap_or_default();
 		assert_eq!(lenses, []);
 	}
@@ -484,7 +482,7 @@ const b = findComponentLazy(/baz/i);
 	fn plugin_lenses_emit_even_without_patches() {
 		// A plugin with no patches should still get the Enable/Disable pair —
 		// they don't depend on patch metadata.
-		let uri = Url::parse("file:///x.ts").unwrap();
+		let uri = Uri::from_str("file:///x.ts").unwrap();
 		let src = r#"import definePlugin from "@utils/types";
 export default definePlugin({ name: "P" });
 "#;

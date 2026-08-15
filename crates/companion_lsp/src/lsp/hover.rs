@@ -1,8 +1,6 @@
 use std::{fmt::Write as _, sync::LazyLock};
 
-use oxc::allocator::Allocator;
-use regex::Regex;
-use tower_lsp::{
+use deno_tower_lsp::{
 	jsonrpc::Result as LspResult,
 	lsp_types::{
 		Hover,
@@ -14,6 +12,8 @@ use tower_lsp::{
 		Range,
 	},
 };
+use oxc::allocator::Allocator;
+use regex::Regex;
 use vencord_ast_parser::hash::hash_message_key;
 use webpack_ast_parser::WebpackAstParser;
 
@@ -210,12 +210,14 @@ fn make_hover(token: &IntlToken, value: Option<&str>) -> Hover {
 
 #[cfg(test)]
 mod tests {
+	use std::str::FromStr;
+
 	use super::*;
-	use tower_lsp::lsp_types::Url;
+	use deno_tower_lsp::lsp_types::Uri;
 
 	fn doc(language_id: &str, text: &str) -> Document {
 		Document {
-			uri: Url::parse("file:///t").unwrap(),
+			uri: Uri::from_str("file:///t").unwrap(),
 			version: 1,
 			language_id: language_id.into(),
 			text: text.into(),

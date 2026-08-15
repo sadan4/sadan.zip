@@ -90,6 +90,7 @@ fn try_test(attr: TokenStream, input: ItemFn) -> syn::Result<Tokens> {
 		vis,
 		sig,
 		block,
+		modifiers: _,
 	} = input;
 
 	let (attribute_args, ignored_attrs) = parse_attrs(attrs)?;

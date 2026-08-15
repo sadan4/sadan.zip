@@ -1,9 +1,10 @@
 use std::{future, sync::Arc};
 
-use oxc::allocator::Allocator;
-use tower_lsp::{
+use deno_tower_lsp::{
+	CancellationToken,
 	Client,
 	LanguageServer,
+	async_trait,
 	jsonrpc::Result as LspResult,
 	lsp_types::{
 		CodeLens,
@@ -32,9 +33,11 @@ use tower_lsp::{
 		ServerInfo,
 		TextDocumentSyncCapability,
 		TextDocumentSyncKind,
+		Uri,
 		WorkDoneProgressOptions,
 	},
 };
+use oxc::allocator::Allocator;
 use vencord_ast_parser::{Patch, VencordAstParser};
 
 use crate::{
@@ -69,12 +72,13 @@ impl Backend {
 	pub fn on_quick_pick_response(
 		&self,
 		params: serde_json::Value,
+		_token: CancellationToken,
 	) -> impl Future<Output = LspResult<serde_json::Value>> {
 		future::ready(commands::on_quick_pick_response(self, params))
 	}
 }
 
-#[tower_lsp::async_trait]
+#[async_trait(?Send)]
 impl LanguageServer for Backend {
 	async fn initialize(
 		&self,
@@ -88,12 +92,14 @@ impl LanguageServer for Backend {
 			.workspace_folders
 			.as_ref()
 			.and_then(|f| f.first())
-			.and_then(|f| f.uri.to_file_path().ok())
+			.and_then(|f| f.uri.to_file_path())
 			.or_else(|| {
+				// we use it as a fallback
+				#[expect(deprecated)]
 				params
 					.root_uri
 					.as_ref()
-					.and_then(|u| u.to_file_path().ok())
+					.and_then(Uri::to_file_path)
 			});
 
 		if let Some(root) = workspace_root {
@@ -157,6 +163,7 @@ impl LanguageServer for Backend {
 	async fn goto_definition(
 		&self,
 		params: GotoDefinitionParams,
+		_token: CancellationToken,
 	) -> LspResult<Option<GotoDefinitionResponse>> {
 		definition::goto_definition(self, params).await
 	}
@@ -164,17 +171,23 @@ impl LanguageServer for Backend {
 	async fn references(
 		&self,
 		params: ReferenceParams,
+		_token: CancellationToken,
 	) -> LspResult<Option<Vec<Location>>> {
 		references::references(self, params).await
 	}
 
-	async fn hover(&self, params: HoverParams) -> LspResult<Option<Hover>> {
+	async fn hover(
+		&self,
+		params: HoverParams,
+		_token: CancellationToken,
+	) -> LspResult<Option<Hover>> {
 		hover::hover(self, params).await
 	}
 
 	async fn document_highlight(
 		&self,
 		params: DocumentHighlightParams,
+		_token: CancellationToken,
 	) -> LspResult<Option<Vec<DocumentHighlight>>> {
 		hl::document_highlight(self, params).await
 	}
@@ -182,6 +195,7 @@ impl LanguageServer for Backend {
 	async fn code_lens(
 		&self,
 		params: CodeLensParams,
+		_token: CancellationToken,
 	) -> LspResult<Option<Vec<CodeLens>>> {
 		code_lens::code_lens(self, params).await
 	}
@@ -189,16 +203,14 @@ impl LanguageServer for Backend {
 	async fn execute_command(
 		&self,
 		params: ExecuteCommandParams,
+		_token: CancellationToken,
 	) -> LspResult<Option<serde_json::Value>> {
 		commands::execute_command(self, params).await
 	}
 }
 
 /// Helper used by hover/definition/etc. — fetches the document or returns None.
-pub fn get_doc(
-	state: &SharedState,
-	uri: &tower_lsp::lsp_types::Url,
-) -> Option<Document> {
+pub fn get_doc(state: &SharedState, uri: &Uri) -> Option<Document> {
 	state.get_document(uri)
 }
 

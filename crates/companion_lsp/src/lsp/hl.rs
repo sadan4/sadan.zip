@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
-use oxc::span::Span;
-use tokio::task;
-use tower_lsp::{
+use deno_tower_lsp::{
 	jsonrpc::Result as LspResult,
 	lsp_types::{self, DocumentHighlight, DocumentHighlightParams},
 };
+use oxc::span::Span;
+use tokio::task;
 use vencord_ast_parser::{Match, MatchRegex, Patch, Replacement};
 
 use crate::{Backend, lsp};

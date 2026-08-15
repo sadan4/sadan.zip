@@ -1,17 +1,18 @@
 use std::{
 	path::{Path, PathBuf},
+	str::FromStr,
 	sync::Arc,
 };
 
 use anyhow::{Context, Result, anyhow};
+use deno_tower_lsp::{
+	jsonrpc::{Error as LspError, ErrorCode, Result as LspResult},
+	lsp_types::{ExecuteCommandParams, MessageType, Uri},
+};
 use futures_util::{StreamExt, stream};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::sync::mpsc;
-use tower_lsp::{
-	jsonrpc::{Error as LspError, Result as LspResult},
-	lsp_types::{ExecuteCommandParams, MessageType},
-};
 
 use crate::{
 	discord_bridge::messages::{
@@ -189,7 +190,7 @@ pub fn on_quick_pick_response(
 		selected: Option<String>,
 	}
 	let resp: Resp = serde_json::from_value(params).map_err(|e| LspError {
-		code: tower_lsp::jsonrpc::ErrorCode::InvalidParams,
+		code: ErrorCode::InvalidParams,
 		message: e.to_string().into(),
 		data: None,
 	})?;
@@ -197,7 +198,7 @@ pub fn on_quick_pick_response(
 		.nonce
 		.parse()
 		.map_err(|e| LspError {
-			code: tower_lsp::jsonrpc::ErrorCode::InvalidParams,
+			code: ErrorCode::InvalidParams,
 			message: format!("invalid quickPick nonce {:?}: {e}", resp.nonce)
 				.into(),
 			data: None,
@@ -247,12 +248,14 @@ fn resolve_patch_data(backend: &Backend, args: &[Value]) -> Result<PatchData> {
 		.context("testPatch requires at least one argument")?;
 
 	if let Ok(lens) = serde_json::from_value::<LensArg>(first.clone()) {
-		let url = tower_lsp::lsp_types::Url::parse(&lens.uri)
+		let url = Uri::from_str(&lens.uri)
 			.with_context(|| format!("invalid uri {:?}", lens.uri))?;
 		let doc = backend
 			.state
 			.get_document(&url)
-			.with_context(|| format!("no open document for {url}"))?;
+			.with_context(|| {
+				format!("no open document for {}", url.as_ref())
+			})?;
 		let mut wire = crate::lsp::diagnostics::extract_patches(&doc.text);
 		if lens.patch_index >= wire.len() {
 			anyhow::bail!(
@@ -576,10 +579,9 @@ async fn cmd_extract_module(
 	let id = resolve_module_id(backend, &args, "Module ID to extract").await?;
 	let payload = bridge_extract_by_id(backend, id).await?;
 	let path = save_to_cache(backend, &payload).await?;
-	let uri =
-		tower_lsp::lsp_types::Url::from_file_path(&path).map_err(|()| {
-			anyhow::anyhow!("could not URI-encode {}", path.display())
-		})?;
+	let uri = Uri::from_file_path(&path).with_context(|| {
+		anyhow::anyhow!("could not URI-encode {}", path.display())
+	})?;
 	client_ext::request_show_document(&backend.client, uri, true)
 		.await
 		.map_err(|e| anyhow::anyhow!("showDocument: {e:?}"))?;
@@ -606,10 +608,9 @@ async fn cmd_extract_find(
 		.await?;
 	let payload: ExtractModuleData = frame.parse_data()?;
 	let path = save_to_cache(backend, &payload).await?;
-	let uri =
-		tower_lsp::lsp_types::Url::from_file_path(&path).map_err(|()| {
-			anyhow::anyhow!("could not URI-encode {}", path.display())
-		})?;
+	let uri = Uri::from_file_path(&path).with_context(|| {
+		anyhow::anyhow!("could not URI-encode {}", path.display())
+	})?;
 	client_ext::request_show_document(&backend.client, uri, true)
 		.await
 		.map_err(|e| anyhow::anyhow!("showDocument: {e:?}"))?;
@@ -653,14 +654,12 @@ async fn cmd_diff_module(backend: &Backend, args: Vec<Value>) -> Result<Value> {
 	tokio::fs::write(&src_path, &payload.source).await?;
 	tokio::fs::write(&pat_path, &payload.patched).await?;
 
-	let left =
-		tower_lsp::lsp_types::Url::from_file_path(&src_path).map_err(|()| {
-			anyhow::anyhow!("could not URI-encode {}", src_path.display())
-		})?;
-	let right =
-		tower_lsp::lsp_types::Url::from_file_path(&pat_path).map_err(|()| {
-			anyhow::anyhow!("could not URI-encode {}", pat_path.display())
-		})?;
+	let left = Uri::from_file_path(&src_path).with_context(|| {
+		anyhow::anyhow!("could not URI-encode {}", src_path.display())
+	})?;
+	let right = Uri::from_file_path(&pat_path).with_context(|| {
+		anyhow::anyhow!("could not URI-encode {}", pat_path.display())
+	})?;
 	client_ext::request_show_diff(
 		&backend.client,
 		left,

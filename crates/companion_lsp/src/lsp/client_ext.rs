@@ -12,9 +12,7 @@ use std::{
 };
 
 use anyhow::{Result, anyhow};
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use tower_lsp::{
+use deno_tower_lsp::{
 	Client,
 	jsonrpc::Result as LspResult,
 	lsp_types::{
@@ -22,7 +20,7 @@ use tower_lsp::{
 		ProgressParamsValue,
 		ProgressToken,
 		ShowDocumentParams,
-		Url,
+		Uri,
 		WorkDoneProgress,
 		WorkDoneProgressBegin,
 		WorkDoneProgressCreateParams,
@@ -32,6 +30,8 @@ use tower_lsp::{
 		request::{Request, ShowDocument, WorkDoneProgressCreate},
 	},
 };
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 use crate::{state::SharedState, vencord_ext};
 
@@ -104,7 +104,7 @@ pub async fn request_quick_pick(
 /// Standard LSP `window/showDocument` — opens a file URI in the editor.
 pub async fn request_show_document(
 	client: &Client,
-	uri: Url,
+	uri: Uri,
 	take_focus: bool,
 ) -> LspResult<()> {
 	client
@@ -136,8 +136,8 @@ struct ShowDiffParams {
 /// diff view of two URIs.
 pub async fn request_show_diff(
 	client: &Client,
-	left: Url,
-	right: Url,
+	left: Uri,
+	right: Uri,
 	title: &str,
 ) -> Result<()> {
 	struct ShowDiff;

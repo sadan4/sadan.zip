@@ -23,7 +23,7 @@ futures-util.workspace = true
 dashmap.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
-tower-lsp.workspace = true
+deno_tower_lsp = { workspace = true }
 oxc.workspace = true
 ast_parser.workspace = true
 vencord_ast_parser.workspace = true

@@ -1,7 +1,7 @@
 use std::{io, sync::Arc};
 
 use companion_lsp::{Backend, SessionState, discord_bridge, vencord_ext};
-use tower_lsp::{LspService, Server};
+use deno_tower_lsp::{LspService, Server};
 
 #[tokio::main]
 async fn main() {
@@ -16,7 +16,7 @@ async fn main() {
 		}
 	});
 
-	let (service, socket) =
+	let (service, socket, pending) =
 		LspService::build(|client| Backend::new(client, session.clone()))
 			.custom_method(
 				vencord_ext::QUICK_PICK_RESPONSE_METHOD,
@@ -26,7 +26,7 @@ async fn main() {
 
 	let stdin = tokio::io::stdin();
 	let stdout = tokio::io::stdout();
-	Server::new(stdin, stdout, socket)
+	Server::new(stdin, stdout, socket, pending)
 		.serve(service)
 		.await;
 }

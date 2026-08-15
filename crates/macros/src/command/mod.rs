@@ -3,24 +3,7 @@ use std::fmt::Display;
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use syn::{
-	Attribute,
-	Expr,
-	ExprLit,
-	FnArg,
-	Ident,
-	ItemFn,
-	ItemStruct,
-	Lit,
-	Meta,
-	PatPath,
-	Path,
-	PathArguments,
-	Signature,
-	Token,
-	parse::{Parse, ParseStream, discouraged::Speculative},
-	parse2,
-	punctuated::Punctuated,
-	spanned::Spanned,
+	Attribute, Expr, ExprLit, FnArg, Ident, ItemFn, ItemStruct, Lit, Meta, PatPath, Path, PathArguments, Safety, Signature, Token, parse::{Parse, ParseStream, discouraged::Speculative}, parse2, punctuated::Punctuated, spanned::Spanned,
 };
 
 fn find_list_attr(attrs: &[Attribute], key: &str) -> Option<usize> {
@@ -700,8 +683,8 @@ fn verify_command_func_sig(sig: &Signature) -> syn::Result<()> {
 	if sig.asyncness.is_none() {
 		return Err(se(&sig.ident, "executor function must be async"));
 	}
-	if let Some(kw_unsafe) = &sig.unsafety {
-		return Err(se(kw_unsafe, "executor function must not be unsafe"));
+	if sig.safety != Safety::Default {
+		return Err(se(&sig.safety, "executor function must not be unsafe"));
 	}
 	if let Some(abi) = &sig.abi {
 		return Err(se(abi, "executor function must not have an explicit ABI"));
