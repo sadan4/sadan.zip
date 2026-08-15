@@ -1,7 +1,7 @@
-use reqwest::Url;
+use url::Url;
 use serde::{Deserialize, Serialize};
 
-use crate::mapping;
+use crate::{mapping, mapping::Mapping};
 
 #[derive(Serialize, Deserialize, Default, Debug, Clone, PartialEq)]
 pub struct AppItem {
@@ -58,21 +58,22 @@ pub struct AppItemCategory {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct IAppItemFullDetail {
 	pub app_id: String,
-	pub url: String,
+	pub url: Url,
 	pub title: String,
 	pub description: String,
 	pub description_html: String,
 	pub summary: String,
 	pub installs: String,
-	pub min_installs: u32,
-	pub max_installs: u32,
-	pub score: u32,
+	pub min_installs: f64,
+	pub max_installs: f64,
+	pub score: f64,
 	pub score_text: String,
-	pub ratings: u32,
-	pub reviews: u32,
+	/// number of ratings, not the average score
+	pub ratings: f64,
+	pub reviews: f64,
 	pub histogram: [f32; 5],
-	pub price: u32,
-	pub original_price: Option<u32>,
+	pub price: f64,
+	pub original_price: Option<f64>,
 	pub discount_end_date: Option<String>,
 	pub free: bool,
 	pub currency: String,
@@ -80,7 +81,8 @@ pub struct IAppItemFullDetail {
 	pub available: bool,
 	pub offers_iap: bool,
 	pub iap_range: String,
-	pub size: String,
+	// forgotten about in js
+	// pub size: String,
 	pub android_version: String,
 	pub android_version_text: String,
 	pub developer: String,
@@ -88,7 +90,7 @@ pub struct IAppItemFullDetail {
 	pub developer_internal_id: String,
 	pub developer_email: String,
 	pub developer_website: String,
-	pub developer_address: String,
+	pub developer_address: Option<String>,
 	pub developer_legal_name: String,
 	pub developer_legal_email: String,
 	pub developer_legal_address: String,
@@ -101,15 +103,81 @@ pub struct IAppItemFullDetail {
 	pub screenshots: Vec<String>,
 	pub video: String,
 	pub video_image: String,
+	pub preview_video: String,
 	pub content_rating: String,
-	pub content_rating_description: String,
+	pub content_rating_description: serde_json::Value,
 	pub ad_supported: bool,
 	pub released: String,
 	pub updated: u32,
 	pub version: String,
 	pub recent_changes: String,
 	pub comments: Vec<String>,
-	pub has_early_access: bool,
 	pub preregister: bool,
-	pub is_available_in_play_pass: bool,
+	// pub early_access_enabled: bool,
+	// pub is_available_in_play_pass: bool,
+}
+
+impl IAppItemFullDetail {
+	mapping!(TITLE, "ds:5", 1, 2, 0, 0);
+	mapping!(DESCRIPTION, "ds:5", 1, 2);
+	mapping!(DESCRIPTION_HTML, "ds:5", 1, 2);
+	mapping!(SUMMARY, "ds:5", 1, 2, 73, 0, 1);
+	mapping!(INSTALLS, "ds:5", 1, 2, 13, 0);
+	mapping!(MIN_INSTALLS, "ds:5", 1, 2, 13, 1);
+	mapping!(MAX_INSTALLS, "ds:5", 1, 2, 13, 2);
+	mapping!(SCORE, "ds:5", 1, 2, 51, 0, 1);
+	mapping!(SCORE_TEXT, "ds:5", 1, 2, 51, 0, 0);
+	mapping!(RATINGS, "ds:5", 1, 2, 51, 2, 1);
+	mapping!(REVIEWS, "ds:5", 1, 2, 51, 3, 1);
+	mapping!(HISTOGRAM, "ds:5", 1, 2, 51, 1);
+	mapping!(PRICE, "ds:5", 1, 2, 57, 0, 0, 0, 0, 1, 0, 0);
+	mapping!(ORIGINAL_PRICE, "ds:5", 1, 2, 57, 0, 0, 0, 0, 1, 0, 0);
+	mapping!(DISCOUNT_END_DATE, "ds:5", 1, 2, 57, 0, 0, 0, 0, 14, 1);
+	pub const FREE: Mapping = Self::PRICE;
+	mapping!(CURRENCY, "ds:5", 1, 2, 57, 0, 0, 0, 0, 1, 0, 1);
+	mapping!(PRICE_TEXT, "ds:5", 1, 2, 57, 0, 0, 0, 0, 1, 0, 2);
+	mapping!(AVAILABLE, "ds:5", 1, 2, 18, 0);
+	mapping!(IAP_RANGE, "ds:5", 1, 2, 19, 0);
+	mapping!(ANDROID_VERSION, "ds:5", 1, 2, 140, 1, 1, 0, 0, 1);
+	mapping!(ANDROID_VERSION_FALLBACK, "ds:5", 1, 2, 0x0, "141", 1, 1, 0, 0, 1);
+	pub const ANDROID_VERSION_TEXT: Mapping = Self::ANDROID_VERSION;
+	pub const ANDROID_VERSION_TEXT_FALLBACK: Mapping = Self::ANDROID_VERSION_FALLBACK;
+	mapping!(ANDROID_MAX_VERSION, "ds:5", 1, 2, 140, 1, 1, 0, 1, 1);
+	mapping!(ANDROID_MAX_VERSION_FALLBACK, "ds:5", 1, 2, 0x0, "141", 1, 1, 0, 1, 1);
+	mapping!(DEVELOPER, "ds:5", 1, 2, 68, 0);
+	mapping!(DEVELOPER_ID, "ds:5", 1, 2, 68, 1, 4, 2);
+	mapping!(DEVELOPER_EMAIL, "ds:5", 1, 2, 69, 1, 0);
+	mapping!(DEVELOPER_WEBSITE, "ds:5", 1, 2, 69, 0, 5, 2);
+	mapping!(DEVELOPER_ADDRESS, "ds:5", 1, 2, 69, 2, 0);
+	mapping!(DEVELOPER_LEGAL_NAME, "ds:5", 1, 2, 69, 4, 0);
+	mapping!(DEVELOPER_LEGAL_EMAIL, "ds:5", 1, 2, 69, 4, 1, 0);
+	mapping!(DEVELOPER_LEGAL_ADDRESS, "ds:5", 1, 2, 69, 4, 2, 0);
+	mapping!(DEVELOPER_LEGAL_PHONE_NUMBER, "ds:5", 1, 2, 69, 4, 3);
+	mapping!(PRIVACY_POLICY, "ds:5", 1, 2, 99, 0, 5, 2);
+	mapping!(DEVELOPER_INTERNAL_ID, "ds:5", 1, 2, 68, 1, 4, 2);
+	mapping!(GENRE, "ds:5", 1, 2, 79, 0, 0, 0);
+	mapping!(GENRE_ID, "ds:5", 1, 2, 79, 0, 0, 2);
+	mapping!(CATEGORIES, "ds:5", 1, 2, 118);
+	mapping!(ICON, "ds:5", 1, 2, 95, 0, 3, 2);
+	mapping!(HEADER_IMAGE, "ds:5", 1, 2, 96, 0, 3, 2);
+	mapping!(SCREENSHOTS, "ds:5", 1, 2, 78, 0);
+	// called on each screenshot element
+	mapping!(SCREENSHOT_MAP, 3, 2);
+	mapping!(VIDEO, "ds:5", 1, 2, 100, 0, 0, 3, 2);
+	mapping!(VIDEO_IMAGE, "ds:5", 1, 2, 100, 1, 0, 3, 2);
+	mapping!(PREVIEW_VIDEO, "ds:5", 1, 2, 100, 1, 2, 0, 2);
+	mapping!(CONTENT_RATING, "ds:5", 1, 2, 9, 0);
+	mapping!(CONTENT_RATING_DESCRIPTION, "ds:5", 1, 2, 9, 2, 1);
+	mapping!(AD_SUPPORTED, "ds:5", 1, 2, 48, 0);
+	mapping!(RELEASED, "ds:5", 1, 2, 10, 0);
+	mapping!(UPDATED, "ds:5", 1, 2, 145, 0, 1, 0);
+	mapping!(UPDATED_FALLBACK, "ds:5", 1, 2, 0x0, "146", 0, 1, 0);
+	mapping!(VERSION, "ds:5", 1, 2, 140, 0, 0, 0);
+	mapping!(VERSION_FALLBACK, "ds:5", 1, 2, 0x0, "141", 0, 0, 0);
+	mapping!(RECENT_CHANGES, "ds:5", 1, 2, 144, 1, 1);
+	mapping!(RECENT_CHANGES_FALLBACK, "ds:5", 1, 2, 0x0, "145", 1, 1);
+	// TODO: Comments
+	mapping!(PREREGISTER, "ds:5", 1, 2, 18, 0);
+	mapping!(EARLY_ACCESS_ENABLED, "ds:5", 1, 2, 18, 2);
+	mapping!(IS_AVAILABLE_IN_PLAY_PASS, "ds:5", 1, 2, 62);
 }

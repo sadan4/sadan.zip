@@ -1354,6 +1354,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "discord_mobile_scraper"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bytes",
+ "play_store_api",
+ "regress",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "discord_scraper"
 version = "0.1.0"
 dependencies = [
@@ -3795,12 +3809,24 @@ name = "play_store_api"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "ast_parser",
+ "derive_more",
+ "html_parser",
+ "itertools 0.15.0",
+ "macros",
+ "oxc",
+ "oxc-miette",
+ "oxc_allocator",
  "phf 0.14.0",
  "reqwest",
  "serde",
  "serde_json",
+ "smol_str",
+ "thiserror 2.0.18",
  "tokio",
  "tracing",
+ "tracing-subscriber",
+ "url",
 ]
 
 [[package]]

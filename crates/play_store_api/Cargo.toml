@@ -11,6 +11,20 @@ phf.workspace = true
 anyhow.workspace = true
 tracing.workspace = true
 tokio.workspace = true
+html_parser.workspace = true
+itertools.workspace = true
+oxc.workspace = true
+oxc_allocator.workspace = true
+ast_parser.workspace = true
+thiserror.workspace = true
+derive_more.workspace = true
+oxc-miette.workspace = true
+smol_str.workspace = true
+macros.workspace = true
+url.workspace = true
+
+[dev-dependencies]
+tracing-subscriber.workspace = true
 
 [lints]
 workspace = true

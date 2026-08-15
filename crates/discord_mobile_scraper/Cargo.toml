@@ -1,0 +1,19 @@
+[package]
+name = "discord_mobile_scraper"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+play_store_api.workspace = true
+regress.workspace = true
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+reqwest = {workspace = true, features = ["json"] }
+bytes.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+
+[lints]
+workspace = true

@@ -41,7 +41,7 @@ xxhash-rust = { version = "0.8.15", features = ["xxh64"] }
 oxc = { version = "0.143.0", default-features = false }
 oxc_span = { version = "0.143.0", default-features = false }
 oxc_traverse = { version = "0.143.0", default-features = false }
-oxc_ecmascript = { version = "0.143.0", default-features = false }
+oxc_ecmascript = { version = "0.143.0", default-features = false, features = ["constant_evaluation"] }
 oxc_allocator = { version = "0.143.0", default-features = false }
 oxc-miette = { version = "3.0.0", default-features = false, features = [
   "serde",
@@ -82,6 +82,8 @@ webpack_chunk_parser = { path = "crates/webpack_chunk_parser" }
 pretty_printer = { path = "crates/pretty_printer" }
 dagre = { path = "crates/dagre", features = ["serde"] }
 discord_scraper = { path = "crates/discord_scraper" }
+discord_mobile_scraper = { path = "crates/discord_mobile_scraper" }
+play_store_api = { path = "crates/play_store_api" }
 miette_ctx = { path = "crates/miette_ctx" }
 git_hash = { path = "crates/git_hash" }
 bot_config = { path = "crates/bot_config" }
@@ -128,7 +130,7 @@ skia-safe = { version = "0.99.0", features = ["webp-decode", "webp-encode"] }
 gif = "0.14.2"
 webp = { version = "0.3.1", default-features = false }
 mini-moka = "0.10"
-url = "2.5.8"
+url = { version = "2.5.8", features = ["serde"] }
 ipc-channel = { version = "0.22.0", features = ["async"] }
 nix = "0.31.3"
 pyo3 = { version = "0.29.2" }

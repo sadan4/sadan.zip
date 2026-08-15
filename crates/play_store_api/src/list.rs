@@ -73,7 +73,7 @@ impl Options {
 		debug!("initial request url: {}", url);
 		url
 	}
-	async fn parse_response(&self, res: Response) -> Result<Vec<I>> {
+	pub async fn parse_response(&self, res: Response) -> Result<Vec<I>> {
 		let body = res
 			.bytes()
 			.await
@@ -184,18 +184,9 @@ mod mappings {}
 
 #[cfg(test)]
 mod tests {
-	use reqwest::{Client, redirect};
-
-	use crate::constants::{category, collection};
+	use crate::{cc, constants::{category, collection}};
 
 	use super::*;
-
-	fn cc() -> Client {
-		Client::builder()
-			.redirect(redirect::Policy::limited(constants::MAX_REDIRECTS))
-			.build()
-			.unwrap()
-	}
 
 	#[tokio::test]
 	async fn fetch_valid_top_free_apps() {
