@@ -4,8 +4,8 @@ use std::sync::{
 };
 
 use dashmap::DashMap;
-use tokio::sync::{RwLock, oneshot};
 use deno_tower_lsp::lsp_types::Uri;
+use tokio::sync::{RwLock, oneshot};
 use vencord_ast_parser::Patch;
 
 use crate::{

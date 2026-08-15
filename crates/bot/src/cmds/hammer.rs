@@ -11,14 +11,7 @@ use serenity::all::{
 	CreateInteractionResponseFollowup,
 	CreateMessage,
 };
-use skia_safe::{
-	Data,
-	ISize,
-	Image,
-	Paint,
-	Rect,
-	surfaces,
-};
+use skia_safe::{Data, ISize, Image, Paint, Rect, surfaces};
 use tracing::debug;
 
 use crate::{

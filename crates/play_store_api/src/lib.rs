@@ -1,6 +1,6 @@
 pub mod constants;
-mod mapping;
 pub mod diag;
+mod mapping;
 pub mod model;
 mod parse_json;
 // endpoints

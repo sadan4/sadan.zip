@@ -1,5 +1,9 @@
 use std::{
-	fmt::Write as _, mem, path::{Path, PathBuf}, sync::Arc, time::Instant,
+	fmt::Write as _,
+	mem,
+	path::{Path, PathBuf},
+	sync::Arc,
+	time::Instant,
 };
 
 use anyhow::{Context as _, Result};
@@ -33,12 +37,10 @@ use tokio::sync::{Mutex, RwLock};
 use tracing::{debug, info, instrument, warn};
 use typesize::{TypeSize, derive::TypeSize};
 
-use crate::{fw::{
-	CommandCtx,
-	CommandExecutor,
-	CommandFramework,
-	OpaqueExecutor,
-}, util::trim_heap};
+use crate::{
+	fw::{CommandCtx, CommandExecutor, CommandFramework, OpaqueExecutor},
+	util::trim_heap,
+};
 
 #[command]
 #[group]

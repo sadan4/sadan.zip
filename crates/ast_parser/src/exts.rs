@@ -2,11 +2,53 @@ use anyhow::Result;
 use derive_more::{From, TryUnwrap};
 use itertools::Itertools as _;
 use oxc::{
-	allocator::Box as OxcBox, ast::{
-		AstKind, ast::{
-			Argument, ArrayExpression, ArrayExpressionElement, ArrowFunctionBody, ArrowFunctionExpression, AssignmentExpression, AssignmentTarget, BigIntLiteral, BinaryExpression, BindingIdentifier, BindingPattern, CallExpression, ComputedMemberExpression, ConditionalExpression, Expression, ExpressionStatement, Function, FunctionBody, IdentifierName, IdentifierReference, ImportDeclaration, ImportDeclarationSpecifier, MemberExpression, ModuleDeclaration, NumericLiteral, ObjectExpression, ObjectProperty, PrivateFieldExpression, PrivateIdentifier, PropertyKey, ReturnStatement, SequenceExpression, SpreadElement, Statement, StaticMemberExpression, Str, StringLiteral, TaggedTemplateExpression, TemplateLiteral,
+	allocator::Box as OxcBox,
+	ast::{
+		AstKind,
+		ast::{
+			Argument,
+			ArrayExpression,
+			ArrayExpressionElement,
+			ArrowFunctionBody,
+			ArrowFunctionExpression,
+			AssignmentExpression,
+			AssignmentTarget,
+			BigIntLiteral,
+			BinaryExpression,
+			BindingIdentifier,
+			BindingPattern,
+			CallExpression,
+			ComputedMemberExpression,
+			ConditionalExpression,
+			Expression,
+			ExpressionStatement,
+			Function,
+			FunctionBody,
+			IdentifierName,
+			IdentifierReference,
+			ImportDeclaration,
+			ImportDeclarationSpecifier,
+			MemberExpression,
+			ModuleDeclaration,
+			NumericLiteral,
+			ObjectExpression,
+			ObjectProperty,
+			PrivateFieldExpression,
+			PrivateIdentifier,
+			PropertyKey,
+			ReturnStatement,
+			SequenceExpression,
+			SpreadElement,
+			Statement,
+			StaticMemberExpression,
+			Str,
+			StringLiteral,
+			TaggedTemplateExpression,
+			TemplateLiteral,
 		},
-	}, semantic::{NodeId, ScopeId, SymbolId}, span::{GetSpan, Span},
+	},
+	semantic::{NodeId, ScopeId, SymbolId},
+	span::{GetSpan, Span},
 };
 use oxc_ecmascript::{GlobalContext, constant_evaluation::IsLiteralValue};
 use std::borrow::Cow;
@@ -448,7 +490,7 @@ impl<'a, 'ast> Functionish<'a, 'ast> {
 		}
 	}
 	/// Panics if this is called on a function with no body (typescript declaration)
-	/// 
+	///
 	/// Returns none if called on an arrow function with an expression body
 	pub fn body(&self) -> Option<&'a FunctionBody<'ast>> {
 		match self {

@@ -21,8 +21,8 @@ async fn main() -> Result<()> {
 		.await
 		.context("Failed to load image")?;
 	let start = Instant::now();
-	let bytes =
-		bot::cmds::image::spin_image_no_clip(&image).context("Failed to spin image")?;
+	let bytes = bot::cmds::image::spin_image_no_clip(&image)
+		.context("Failed to spin image")?;
 	info!(
 		"Spun image in {:?}, {}",
 		start.elapsed(),

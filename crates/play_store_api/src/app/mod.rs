@@ -374,8 +374,7 @@ mod tests {
 				.unwrap()
 				.len()
 		);
-		opts
-			.handle_parsed_html(&parsed)
+		opts.handle_parsed_html(&parsed)
 			.unwrap();
 	}
 }

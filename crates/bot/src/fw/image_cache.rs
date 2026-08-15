@@ -2,7 +2,7 @@ use std::{fmt::Debug, sync::Arc, time::Duration};
 
 use mini_moka::sync::Cache;
 use serenity::all::UserId;
-use tokio::sync::{SetOnce};
+use tokio::sync::SetOnce;
 use tracing::{error, warn};
 
 use crate::util::Image;

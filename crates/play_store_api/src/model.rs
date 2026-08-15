@@ -1,5 +1,5 @@
-use url::Url;
 use serde::{Deserialize, Serialize};
+use url::Url;
 
 use crate::{mapping, mapping::Mapping};
 
@@ -139,11 +139,36 @@ impl IAppItemFullDetail {
 	mapping!(AVAILABLE, "ds:5", 1, 2, 18, 0);
 	mapping!(IAP_RANGE, "ds:5", 1, 2, 19, 0);
 	mapping!(ANDROID_VERSION, "ds:5", 1, 2, 140, 1, 1, 0, 0, 1);
-	mapping!(ANDROID_VERSION_FALLBACK, "ds:5", 1, 2, 0x0, "141", 1, 1, 0, 0, 1);
+	mapping!(
+		ANDROID_VERSION_FALLBACK,
+		"ds:5",
+		1,
+		2,
+		0x0,
+		"141",
+		1,
+		1,
+		0,
+		0,
+		1
+	);
 	pub const ANDROID_VERSION_TEXT: Mapping = Self::ANDROID_VERSION;
-	pub const ANDROID_VERSION_TEXT_FALLBACK: Mapping = Self::ANDROID_VERSION_FALLBACK;
+	pub const ANDROID_VERSION_TEXT_FALLBACK: Mapping =
+		Self::ANDROID_VERSION_FALLBACK;
 	mapping!(ANDROID_MAX_VERSION, "ds:5", 1, 2, 140, 1, 1, 0, 1, 1);
-	mapping!(ANDROID_MAX_VERSION_FALLBACK, "ds:5", 1, 2, 0x0, "141", 1, 1, 0, 1, 1);
+	mapping!(
+		ANDROID_MAX_VERSION_FALLBACK,
+		"ds:5",
+		1,
+		2,
+		0x0,
+		"141",
+		1,
+		1,
+		0,
+		1,
+		1
+	);
 	mapping!(DEVELOPER, "ds:5", 1, 2, 68, 0);
 	mapping!(DEVELOPER_ID, "ds:5", 1, 2, 68, 1, 4, 2);
 	mapping!(DEVELOPER_EMAIL, "ds:5", 1, 2, 69, 1, 0);

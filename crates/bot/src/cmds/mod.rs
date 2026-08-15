@@ -5,21 +5,21 @@ use serenity::all::Context;
 
 use crate::fw::CommandCtx;
 
+mod anti;
+mod chmod;
 mod demangler;
+mod ffmpreg;
+mod hammer;
+pub mod image;
+mod loss;
 mod password;
 mod ping;
 mod qalc;
+mod randomvnc;
+mod select;
+mod userinfo;
 mod wolfram;
 pub mod wp;
-mod userinfo;
-mod chmod;
-mod loss;
-mod hammer;
-mod ffmpreg;
-mod randomvnc;
-mod anti;
-mod select;
-pub mod image;
 
 #[command]
 #[sub_cmds[

@@ -877,7 +877,7 @@ mod export_parsing {
 			}
 			"#);
 		}
-		
+
 		#[test]
 		fn seq_expr_enum_export_style_3() {
 			let alloc = Allocator::new();

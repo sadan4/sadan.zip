@@ -112,7 +112,7 @@ pub fn parse_with_tokens<'ast>(
 }
 
 /// Parse a program without running semantic analysis
-/// 
+///
 /// only syntax errors are reported
 pub fn parse_no_sema<'ast>(
 	alloc: &'ast Allocator,

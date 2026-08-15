@@ -184,7 +184,10 @@ mod mappings {}
 
 #[cfg(test)]
 mod tests {
-	use crate::{cc, constants::{category, collection}};
+	use crate::{
+		cc,
+		constants::{category, collection},
+	};
 
 	use super::*;
 
