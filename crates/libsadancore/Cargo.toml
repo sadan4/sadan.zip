@@ -29,6 +29,7 @@ dagre.workspace = true
 miette_ctx.workspace = true
 regress.workspace = true
 memchr.workspace = true
+vencord_ast_parser.workspace = true
 
 [dev-dependencies]
 serde_json.workspace = true
