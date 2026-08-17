@@ -36,6 +36,7 @@ use pretty_printer::{FormattedContent, format_with_alloc};
 use regress::Regex;
 use serde::Serialize;
 use smol_str::{SmolStr, format_smolstr};
+use vencord_ast_parser::patches::{canonicalize_intl, canonicalize_regex_ident};
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 use webpack_ast_parser::{
 	WebpackAstParser,
@@ -483,7 +484,7 @@ fn formatted_search_position(
 	let mappings = mappings
 		.get(&module_id)
 		.with_context(|| {
-			anyhow!("Module source mapping not found for {module_id}")
+			format!("Module source mapping not found for {module_id}")
 		})?;
 	let formatted_index = find_formatted_pos(mappings, raw_index);
 	let formatted_index =
@@ -508,7 +509,7 @@ fn formatted_search_result_info(
 	let mappings = mappings
 		.get(&module_id)
 		.with_context(|| {
-			anyhow!("Module source mapping not found for {module_id}")
+			format!("Module source mapping not found for {module_id}")
 		})?;
 	let formatted_index = find_formatted_pos(mappings, raw_index);
 	let formatted_index =
@@ -599,6 +600,13 @@ impl Bundle {
 	#[wasm_bindgen(skip_typescript)]
 	pub fn search_modules(&self, query: &str, regex: bool) -> Result<JsValue> {
 		let query = query.trim();
+		let query = canonicalize_intl(query, regex, None)
+			.context("Failed to canonicalize intl")?;
+		let query = if regex {
+			canonicalize_regex_ident(&query)
+		} else {
+			query
+		};
 		if query.is_empty() {
 			return search_results_to_js(&BundleSearchResults::new());
 		}
@@ -613,7 +621,7 @@ impl Bundle {
 
 		let mut results = BundleSearchResults::new();
 		let pattern = if regex {
-			Some(Regex::new(query).context("Invalid search regex")?)
+			Some(Regex::new(&query).context("Invalid search regex")?)
 		} else {
 			None
 		};
