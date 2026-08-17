@@ -392,7 +392,7 @@ bitflags! {
 }
 
 // regression: https://github.com/rust-lang/rust-clippy/issues/17529
-#[expect(clippy::double_must_use)]
+#[allow(clippy::double_must_use)]
 #[async_trait]
 #[diagnostic::on_unimplemented(
 	message = "the trait bound `{Self}: bot::fw::CommandExecutor` is not satisfied",

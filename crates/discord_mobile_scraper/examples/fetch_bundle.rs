@@ -9,9 +9,8 @@ use discord_mobile_scraper::{
 
 #[tokio::main]
 async fn main() -> Result<()> {
-	let out_path = match env::args().nth(1) {
-		Some(p) => p,
-		None => bail!("usage: fetch_bundle <output-path>"),
+	let Some(out_path) = env::args().nth(1) else {
+		bail!("usage: fetch_bundle <output-path>");
 	};
 
 	let version = get_latest_version()

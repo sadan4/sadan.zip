@@ -5165,7 +5165,7 @@ dependencies = [
 [[package]]
 name = "serenity"
 version = "0.12.5"
-source = "git+https://github.com/sadan4/serenity?branch=next#89e202456071daee8bdf82b19039b01cc2211007"
+source = "git+https://github.com/serenity-rs/serenity?branch=next#37b9f433ada8b9ccc5f93f04826403b175855f86"
 dependencies = [
  "aformat",
  "arrayvec",
@@ -6154,7 +6154,7 @@ dependencies = [
 [[package]]
 name = "typesize"
 version = "0.1.15"
-source = "git+https://github.com/sadan4/typesize?branch=feat%2Fpathbuf-impl#260bf3d51b0afa20046352dd67e8ddb0ed78eb6b"
+source = "git+https://github.com/GnomedDev/typesize?branch=master#4e032bc507cc693d3f66aac905ed7df8473f9df7"
 dependencies = [
  "chrono",
  "hashbrown 0.15.5",
@@ -6170,7 +6170,7 @@ dependencies = [
 [[package]]
 name = "typesize-derive"
 version = "0.1.11"
-source = "git+https://github.com/sadan4/typesize?branch=feat%2Fpathbuf-impl#260bf3d51b0afa20046352dd67e8ddb0ed78eb6b"
+source = "git+https://github.com/GnomedDev/typesize?branch=master#4e032bc507cc693d3f66aac905ed7df8473f9df7"
 dependencies = [
  "proc-macro2",
  "quote",
