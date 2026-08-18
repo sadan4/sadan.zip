@@ -1,0 +1,10 @@
+[package]
+name = "rn_ast_parser"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+hbc-decomp.workspace = true
+
+[lints]
+workspace = true
