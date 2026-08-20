@@ -132,7 +132,7 @@ export function Select<T extends PropertyKey>({
         handleChange: onChange,
     });
 
-    // FIXME: facebook/react#34775
+    // FIXME: react/react#34775
     const {
         refs: {
             floating: floatingRef,

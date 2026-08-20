@@ -130,8 +130,7 @@ function NodeObjectProp({ node }: ObjectProp<Node>) {
                         <SingleProp
                             key={prop}
                             node={{
-                                // NOTE: bug in react compiler
-                                // facebook/react#35203
+                                // react/react#35203
                                 [prop]: () => {
                                     return invokeNodeMethod(node, prop, sourceFile);
                                 },
