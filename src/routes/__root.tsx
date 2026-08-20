@@ -8,7 +8,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { type AnyRouteMatch, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 
-import rootCssFontUrl from "../assets/comicsans.otf?url";
+import rootCssFontUrl from "../assets/ComicShannsMono-Regular.woff2?url";
 import rootCss from "../index.css?url";
 
 import { useEffect, useState } from "react";
