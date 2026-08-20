@@ -157,7 +157,6 @@ export function SnowCanvas({
                     animate(ctx, snowColor);
                 } else {
                     // react/react#37058
-                    // oxlint-disable-next-line react/react-compiler
                     animationFrameRef.current = requestAnimationFrame(time);
                 }
             });
