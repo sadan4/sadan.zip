@@ -21,6 +21,7 @@ rustPlatform.buildRustPackage (finalAttrs: {
 
 		cargoLock = {
 			lockFile = ../Cargo.lock;
+			outputHashes = import ./cargo-output-hashes.nix;
 		};
 
 		strictDeps = true;

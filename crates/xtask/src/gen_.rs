@@ -10,6 +10,7 @@ mod discord_intl;
 mod indent_cache;
 mod monaco_editor;
 mod monaco_themes;
+mod nix_cargo_hashes;
 mod syntax;
 mod ts_api;
 mod types;
@@ -34,6 +35,7 @@ impl Runnable for Command {
 			Target::Client(c) => c.run(),
 			Target::DiscordIntl(c) => c.run(),
 			Target::BotConfig(c) => c.run(),
+			Target::NixCargoHashes(c) => c.run(),
 		}
 	}
 }
@@ -61,4 +63,7 @@ enum Target {
 	DiscordIntl(discord_intl::Command),
 	/// Generate the JSON schema for the bot config (`bot_config::Config`)
 	BotConfig(bot_config::Command),
+	/// Generate `nix/cargo-output-hashes.nix` from the git dependencies in
+	/// `Cargo.lock`
+	NixCargoHashes(nix_cargo_hashes::Command),
 }
