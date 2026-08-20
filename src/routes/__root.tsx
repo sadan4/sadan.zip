@@ -1,12 +1,11 @@
+import { Devtools } from "@/components/Devtools";
 import { LayerContext } from "@/components/Layer/context";
 import { ToastContainer } from "@/components/Toast";
 import { NotFoundPage } from "@/routes/-404";
 import { installF8Break, uninstallF8Break } from "@/utils/devtools";
 import { assert } from "@/utils/error";
-import { TanStackDevtools } from "@tanstack/react-devtools";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { type AnyRouteMatch, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
-import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 
 import rootCssFontUrl from "../assets/ComicShannsMono-Regular.woff2?url";
 import rootCss from "../index.css?url";
@@ -137,17 +136,7 @@ function RootComponent({ children }: { children: React.ReactNode; }) {
                             {children}
                         </ToastContainer>
                     </LayerContext>
-                    <TanStackDevtools
-                        config={{
-                            position: "bottom-right",
-                        }}
-                        plugins={[
-                            {
-                                name: "Tanstack Router",
-                                render: <TanStackRouterDevtoolsPanel />,
-                            },
-                        ]}
-                    />
+                    <Devtools />
                 </QueryClientProvider>
                 <Scripts />
             </body>
