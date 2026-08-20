@@ -1,12 +1,15 @@
+import amy88x31 from "./88x31/amy.png?url";
 import elissa88x31 from "./88x31/elissa.png?url";
 import i3vie88x31 from "./88x31/i3vie.png?url";
 import mugman88x31 from "./88x31/mugman.gif?url";
 import nin088x31 from "./88x31/nin0.png?url";
+import paige88x31 from "./88x31/paige.gif?url";
 import rushii88x31 from "./88x31/rushii.webp?url";
 import vee88x31 from "./88x31/vee.gif?url";
 import wing88x31 from "./88x31/wing.gif?url";
 import worf88x31 from "./88x31/worf.gif?url";
 import zoot88x31 from "./88x31/zoot.png?url";
+import amyAvatar from "./avatars/amy.png?url";
 import cookieAvatar from "./avatars/cookie.png?url";
 import elissaAvatar from "./avatars/elissa.jpeg?url";
 import fresAvatar from "./avatars/fres.png?url";
@@ -15,6 +18,7 @@ import krstlskllAvatar from "./avatars/krstlskll.avif?url";
 import maddieAvatar from "./avatars/maddie.png?url";
 import mugmanAvatar from "./avatars/mugman.jpeg?url";
 import nin0Avatar from "./avatars/nin0.png?url";
+import paigeAvatar from "./avatars/paige.png?url";
 import rushiiAvatar from "./avatars/rushii.png?url";
 import sqaaakoiAvatar from "./avatars/sqaaakoi.png?url";
 import veeAvatar from "./avatars/vee.png?url";
@@ -133,5 +137,19 @@ export const friends: Friend[] = [
         url: "https://rushii.dev",
         avatarUrl: rushiiAvatar,
         _88x31url: rushii88x31,
+    },
+    {
+        name: "paige",
+        discordId: "1375697625864601650",
+        url: "https://paige.moe",
+        avatarUrl: paigeAvatar,
+        _88x31url: paige88x31,
+    },
+    {
+        name: "amy",
+        discordId: "603229858612510720",
+        url: "https://amy.rip",
+        avatarUrl: amyAvatar,
+        _88x31url: amy88x31,
     },
 ];

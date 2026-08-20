@@ -169,6 +169,23 @@ const config = defineConfig(async ({ command, isSsrBuild }) => {
         },
         optimizeDeps: {
         },
+        environments: {
+            ssr: {
+                optimizeDeps: {
+                    // the dep scanner crawls the dynamic devtools import in
+                    // src/components/Devtools.tsx even though the branch is dead in the
+                    // ssr build. the devtools are solid based, and solid resolves to its
+                    // server build under the worker condition, which is missing exports
+                    // the devtools use, so prebundling them for ssr fails
+                    exclude: [
+                        "@tanstack/devtools",
+                        "@tanstack/devtools-ui",
+                        "@tanstack/react-devtools",
+                        "@tanstack/react-router-devtools",
+                    ],
+                },
+            },
+        },
     } satisfies UserConfig;
 });
 
