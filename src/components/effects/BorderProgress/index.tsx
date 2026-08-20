@@ -2,7 +2,7 @@ import { useRect } from "@/hooks/rect";
 import { useResizeObserver } from "@/hooks/resizeObserver";
 import { single } from "@/utils/array";
 import cn from "@/utils/cn";
-import { makeBorderPath } from "@/utils/dom/path";
+import { compilePath, makeBorderPath } from "@/utils/dom/path";
 import type { TOmit } from "@/utils/types";
 import { animated, type SpringValue, to } from "@react-spring/web";
 
@@ -52,9 +52,9 @@ export function BorderProgress({
     const updateBorderLength = useCallback(() => {
         if (wrapper) {
             const child = single(wrapper.children);
-            const [length, path] = makeBorderPath(child);
+            const [length, pathIR] = makeBorderPath(child);
+            const path = compilePath(pathIR);
 
-            // oxlint-disable-next-line react/react-compiler
             setBorderLen(length);
             borderRef.current?.setAttribute("d", path);
             maskRef.current?.setAttribute("d", path);

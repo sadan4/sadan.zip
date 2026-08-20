@@ -1,8 +1,13 @@
 import { ellipseCircumference } from "@/utils/math";
 
-import { parseCSSValue, PercentReference } from "./css";
+import * as ir from "./ir";
+import { parseCSSValue, PercentReference } from "../css";
 
-export function makeBorderPath(element: Element): [length: number, path: string] {
+export function compilePath(path: ir.PathNode[]): string {
+    return path.flat().join(" ");
+}
+
+export function makeBorderPath(element: Element): [length: number, path: ir.PathNode[]] {
     const { width, height } = element.getBoundingClientRect();
     const style = getComputedStyle(element);
     const [topLeftA, topLeftB] = normalizeRadius(style.borderTopLeftRadius);
@@ -21,26 +26,29 @@ export function makeBorderPath(element: Element): [length: number, path: string]
 
     return [rectLength, path];
 
-    function makePath(): string {
+    function makePath(): ir.PathNode[] {
         if (isSquare) {
-            return `M ${width / 2} 0`
-              + ` H ${width}`
-              + ` V ${height}`
-              + " H 0"
-              + " V 0"
-              + " Z";
+            return [
+                ir.moveAbs(width / 2, 0),
+                ir.hLineAbs(width),
+                ir.vLineAbs(height),
+                ir.hLineAbs(0),
+                ir.vLineAbs(0),
+                ir.closePath(),
+            ];
         }
-
-        return `M ${width / 2} 0`
-          + ` H ${width - topRightA}`
-          + ` A ${topRightA} ${topRightB} 0 0 1 ${width} ${topRightB}`
-          + ` V ${height - bottomRightB}`
-          + ` A ${bottomRightA} ${bottomRightB} 0 0 1 ${width - bottomRightA} ${height}`
-          + ` H ${bottomLeftA}`
-          + ` A ${bottomLeftA} ${bottomLeftB} 0 0 1 0 ${height - bottomLeftB}`
-          + ` V ${topLeftB}`
-          + ` A ${topLeftA} ${topLeftB} 0 0 1 ${topLeftA} 0`
-          + " Z";
+        return [
+            ir.moveAbs(width / 2, 0),
+            ir.hLineAbs(width - topRightA),
+            ir.arcAbs(topRightA, topRightB, 0, false, true, width, topRightB),
+            ir.vLineAbs(height - bottomRightB),
+            ir.arcAbs(bottomRightA, bottomRightB, 0, false, true, width - bottomRightA, height),
+            ir.hLineAbs(bottomLeftA),
+            ir.arcAbs(bottomLeftA, bottomLeftB, 0, false, true, 0, height - bottomLeftB),
+            ir.vLineAbs(topLeftB),
+            ir.arcAbs(topLeftA, topLeftB, 0, false, true, topLeftA, 0),
+            ir.closePath(),
+        ];
     }
 
     /**
