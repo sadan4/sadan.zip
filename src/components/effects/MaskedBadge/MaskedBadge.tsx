@@ -10,6 +10,5 @@ export interface MaskedBadgeProps extends PropsWithChildren {
     position?: BadgePosition;
 }
 
-export function MaskedBadge({ children }: MaskedBadgeProps) {
-
+export function MaskedBadge({ children: _ }: MaskedBadgeProps) {
 }
