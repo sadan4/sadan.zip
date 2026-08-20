@@ -14,12 +14,15 @@ import { NBSP } from "@/utils/constants";
 import { assert } from "@/utils/error";
 import { createFileRoute } from "@tanstack/react-router";
 
-import defaultJson from "./defaultJson.txt?raw";
-import defaultSource from "./defaultSource.txt?raw";
+import _defaultJson from "./defaultJson.txt?raw";
+import _defaultSource from "./defaultSource.txt?raw";
 import * as styles from "./styles.module.scss";
 
 import { AlertCircleIcon, BracesIcon, FileIcon } from "lucide-react";
 import { Fragment, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
+
+const defaultJson = import.meta.env.SSR ? "" : _defaultJson;
+const defaultSource = import.meta.env.SSR ? "" : _defaultSource;
 
 interface Token {
     kind: string;
@@ -41,6 +44,7 @@ interface RawToken extends Omit<Token, "contents"> {
 
 export const Route = createFileRoute("/_/vis/")({
     component: Vis,
+    ssr: false,
 });
 
 const knownColors: Record<string, string> = {
