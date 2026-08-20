@@ -141,6 +141,7 @@ export default function Avatar({ round = false, ...props }: AvatarProps) {
                             onMouseOver={preloadFriends}
                             className={cn("max-h-max max-w-sm select-none", round && "rounded-full", props.className)}
                             draggable={false}
+                            fetchPriority="high"
                         />
                     </BorderHoldRounded>
                 </Shadow>
