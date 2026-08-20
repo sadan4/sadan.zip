@@ -2594,7 +2594,7 @@ dependencies = [
  "serde-wasm-bindgen",
  "serde_json",
  "smol_str",
- "thiserror 2.0.20",
+ "thiserror 2.0.18",
  "vencord_ast_parser",
  "wasm-bindgen",
  "wasm-bindgen-futures",

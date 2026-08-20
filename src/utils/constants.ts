@@ -69,3 +69,10 @@ export const EMPTY_MAP = /* @__PURE__ */ Object.freeze(new Map<never, never>());
 export const EMPTY_ARRAY = /* @__PURE__ */ Object.freeze([]);
 export const EMPTY_NULL_OBJECT = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.create(null));
 export const NOOP = /* @__PURE__ */ Object.freeze(() => { });
+
+/**
+ * do nothing
+ * 
+ * @see {@link https://doc.rust-lang.org/std/hint/fn.black_box.html|std::hint::black_box}
+ */
+export function blackBox(_value: unknown): void {}

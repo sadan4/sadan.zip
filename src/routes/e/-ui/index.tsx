@@ -119,7 +119,7 @@ function ModuleViewer() {
             codeEditor.editor.setSelection(range);
             codeEditor.editor.revealRangeInCenter(range);
         }
-    }, [isPlaceholderData, moduleId, sl, sc, el, ec, codeEditor]);
+    }, [isPlaceholderData, /* moduleId, */ sl, sc, el, ec, codeEditor]);
 
     return (
         <MonacoCodeEditor

@@ -42,7 +42,7 @@ export function useEventHandler<K extends keyof AllEventMaps, E extends HTMLElem
         const el = element ?? window;
 
         function wrappedHandler(this: E, ev: AllEventMaps[K]) {
-            // oxlint-disable-next-line react/react-compiler
+            // oxlint-disable-next-line react/todo
             handlerRef.current.call(this, ev);
         }
 

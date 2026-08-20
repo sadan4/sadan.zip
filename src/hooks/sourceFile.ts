@@ -74,8 +74,7 @@ export function useSourceFile(
     }, [language, scriptTarget]);
 
     return [sourceFile, { reparseCount }];
-
-    // eslint-disable-next-line react/react-compiler
+    // oxlint-disable-next-line react/todo
     function reducer(state: TS.SourceFile, action: Update): TS.SourceFile {
         const filename = `file${extensionForLanguage(languageRef.current)}`;
         const newCode = codeRef.current;

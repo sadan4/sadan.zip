@@ -1,5 +1,6 @@
 import { useRectFromRef } from "@/hooks/rect";
 import { cn } from "@/utils/cn";
+import { blackBox } from "@/utils/constants";
 
 import { DEFAULT_SIZE_MAP, HIDE_THRESHOLD, Side, SidebarStateStoreContext, useSidebarStateStore } from "./store";
 import { type ResizeHandleAPI, VerticalResizeHandle } from "../ResizeHandle";
@@ -47,10 +48,11 @@ export function ResizableSidebar({
     }, [contentRef, store]);
 
     useEffect(() => {
+        blackBox(side);
         store.getState().setSidebarApi({
             // FIXME: this is cursed as all hell
             // also makes react compiler unhappy
-            // oxlint-disable-next-line react/react-compiler
+            // oxlint-disable-next-line react/todo
             get current() {
                 if (!sidebarApiRef.current) {
                     return null;
@@ -71,7 +73,7 @@ export function ResizableSidebar({
         return () => {
             store.getState().setSidebarApi();
         };
-    }, [side, sidebarApiRef, store]);
+    }, [side, store]);
 
 
     return (

@@ -1,2 +1,10 @@
 export * from "./enum";
-export * from "./TabBar";
+export type {
+    Tab,
+    TabBarProps,
+    TabRowItemProps,
+} from "./TabBar";
+export {
+    TabBar,
+} from "./TabBar";
+

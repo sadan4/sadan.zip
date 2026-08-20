@@ -90,7 +90,7 @@ function MonacoCodeEditorInner({
     }
 
     useImperativeHandle(_ref, () => ({
-        // oxlint-disable-next-line react/react-compiler
+        // oxlint-disable-next-line react/todo
         get editor() {
             return editorRef.current!;
         },
@@ -162,7 +162,7 @@ function MonacoCodeEditorInner({
             }
         };
         // TODO: look into what deps are needed here
-        // eslint-disable-next-line react-x/exhaustive-deps
+        // oxlint-disable-next-line react/exhaustive-effect-dependencies
     }, [ref]);
 
     useEffect(() => {
@@ -195,6 +195,7 @@ function MonacoCodeEditorInner({
 
     useLayoutEffect(() => {
         editorRef.current?.layout();
+        // oxlint-disable-next-line react/exhaustive-effect-dependencies -- we need to layout on style change
     }, [style]);
 
     useResizeObserver(ref, () => {

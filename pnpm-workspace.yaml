@@ -1,20 +1,18 @@
 packages:
   - "packages/*"
 
+allowBuilds:
+  '@parcel/watcher': false
+  '@swc/core': false
+  '@vscode/vsce-sign': false
+  core-js: false
+  esbuild: false
+  keytar: false
+  sharp: false
+  workerd: false
+
 ignoredBuiltDependencies:
   - core-js
-
-onlyBuiltDependencies:
-  - '@parcel/watcher'
-  - '@swc/core'
-  - '@vscode/vsce-sign'
-  - esbuild
-  - keytar
-  - less
-  - netlify-cli
-  - sharp
-  - unix-dgram
-  - workerd
 
 patchedDependencies:
   '@tanstack/start-plugin-core': patches/@tanstack__start-plugin-core.patch

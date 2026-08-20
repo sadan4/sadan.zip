@@ -1,5 +1,6 @@
 import { useForceUpdater } from "@/hooks/forceUpdater";
 import { useResizeObserver } from "@/hooks/resizeObserver";
+import { blackBox } from "@/utils/constants";
 import { measureRect } from "@/utils/dom/rect";
 import { animated, useSpringValue } from "@react-spring/web";
 
@@ -19,6 +20,7 @@ export function AnimateHeight({ children, animateInitialHeight = false, show = t
     useResizeObserver(el, updateHeight);
 
     useEffect(() => {
+        blackBox(dep);
         if (el) {
             const { height: h } = measureRect(el);
 

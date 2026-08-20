@@ -754,7 +754,7 @@ const styleRules: RuleMap = {
 // TODO: move to oxcs react rules where possible
 const eslintReactRules: DummyRuleMap = {
     // react-x rules
-    "react-x/exhaustive-deps": "error",
+    "react-x/exhaustive-deps": "allow", // done with react/exhaustive-effect-dependencies
     "react-x/rules-of-hooks": "error",
     "react-x/set-state-in-effect": "off", // too noisy
     "react-x/unsupported-syntax": "warn",
@@ -814,6 +814,28 @@ const eslintReactRules: DummyRuleMap = {
     "react-naming-convention/context-name": "error",
     "react-naming-convention/id-name": "warn",
     "react-naming-convention/ref-name": "error",
+    // compiler rules
+    "react-hooks/exhaustive-deps": "allow", // done with react/exhaustive-effect-dependencies
+    "react/error-boundaries": "error",
+    "react/exhaustive-effect-dependencies": "error",
+    "react/globals": "error",
+    "react/preserve-manual-memoization": "error",
+    "react/incompatible-library": "warn",
+    "react/todo": "warn",
+    "react/syntax": "error",
+    "react/immutability": "error",
+    "react/refs": "error",
+    "react/purity": "error",
+    "react/set-state-in-render": "error",
+    // way too noisy and it's often fine
+    "react/set-state-in-effect": "allow",
+    "react/only-export-components": [
+        "warn",
+        {
+            allowConstantExport: true,
+            customHOCs: ["createFileRoute", "createRootRoute", "animated", "createLink"],
+        },
+    ],
 };
 
 const oxcRules: DummyRuleMap = {
@@ -865,6 +887,14 @@ export default defineConfig({
             compilationMode: "infer",
         },
     },
+    extends: [
+        {
+            plugins: ["react"],
+            categories: {
+                correctness: "error",
+            },
+        },
+    ],
     overrides: [
         {
             files: [
@@ -899,14 +929,6 @@ export default defineConfig({
                 ...styleRules,
                 ...eslintReactRules,
                 ...oxcRules,
-                // React Compiler / Rules of React (experimental) -- replaces the
-                // former eslint-plugin-react-hooks v7 react-hooks/* rules.
-                "react/react-compiler": [
-                    "warn",
-                    {
-                        reportAllBailouts: true,
-                    },
-                ],
                 "unused-imports/no-unused-imports": "error",
                 "unused-imports/no-unused-vars": [
                     "warn",
@@ -929,13 +951,6 @@ export default defineConfig({
                     },
                 ],
                 "simple-import-sort/exports": "error",
-                "react/only-export-components": [
-                    "warn",
-                    {
-                        allowConstantExport: true,
-                        customHOCs: ["createFileRoute", "createRootRoute", "animated", "createLink"],
-                    },
-                ],
                 "tailwindcss/classnames-order": [
                     "error",
                     tailwindCallees,

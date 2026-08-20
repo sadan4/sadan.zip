@@ -10,8 +10,7 @@ const vscodeOniguruma = import.meta.env.SSR ? (_vscodeOniguruma as any).default 
 export const loadOnigasmPromise = makeLazy(async () => {
     if (import.meta.env.SSR) {
         if (IS_CLOUDFLARE) {
-            // @ts-expect-error cloudflare/vite-plugin handles this import
-            const { default: onigWasmModule } = await import("vscode-oniguruma/release/onig.wasm") as { default: WebAssembly.Module; };
+            const { default: onigWasmModule } = await import("vscode-oniguruma/release/onig.wasm");
 
             return vscodeOniguruma.loadWASM({
                 async instantiator(importObject) {

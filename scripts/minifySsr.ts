@@ -117,5 +117,3 @@ function main() {
 }
 
 main();
-
-export { };

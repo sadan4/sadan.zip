@@ -211,7 +211,6 @@ function DefaultRenderMarkers({
                 PercentReference.WIDTH,
             );
 
-            // oxlint-disable-next-line react/react-compiler
             setContainerWidth(width);
             setContainerHeight(height);
             setThumbWidth(thumbWidth);
@@ -219,6 +218,7 @@ function DefaultRenderMarkers({
             setContainerWidth(0);
             setThumbWidth(0);
         }
+        // oxlint-disable-next-line react/exhaustive-effect-dependencies
     }, [container, dep]);
 
     return (

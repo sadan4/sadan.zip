@@ -1,4 +1,4 @@
-// eslint-disable react/react-compiler
+// eslint-disable react/refs
 import { shallowEqual } from "@/utils/obj";
 
 import { useRef } from "react";

@@ -14,7 +14,7 @@ function useRectMapper<T extends keyof DOMRect>(keys: T[]): (rect: DOMRect) => P
             return rect;
         }
         return pick(rect, keys);
-    // eslint-disable-next-line react/react-compiler react-x/exhaustive-deps
+        // oxlint-disable-next-line react/use-memo
     }, keys);
 }
 
@@ -49,9 +49,9 @@ export function useRect(
                 return;
             }
 
+            // oxlint-disable-next-line react/exhaustive-effect-dependencies
             setSize(newRect);
         }
-    // eslint-disable-next-line react-x/exhaustive-deps
     }, [el, mapper, ...extraDeps]);
 
     useEventHandler("scrollend", () => {
@@ -142,9 +142,9 @@ export function useRectFromRef(
                 return;
             }
 
+            // oxlint-disable-next-line react/exhaustive-effect-dependencies
             setSize(newRect);
         }
-    // eslint-disable-next-line react-x/exhaustive-deps
     }, [ref, mapper, ...extraDeps]);
 
     useEventHandler("scrollend", () => {
@@ -265,7 +265,7 @@ export function useFragmentRect<T extends keyof DOMRect>(
                 observer.disconnect();
             };
         }
-        // eslint-disable-next-line react-x/exhaustive-deps
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies
     }, [fragmentRef, setSize, ...extraDeps]);
 
     useEventHandler("scrollend", updateSizeIfNeeded, scroller);
