@@ -10,27 +10,22 @@
 
 import { Route as rootRouteImport } from "./routes/__root";
 import { Route as RouteImport } from "./routes/_";
-import { Route as AstViewerIndexRouteImport } from "./routes/ast-viewer/index";
 import { Route as IndexRouteImport } from "./routes/_/index";
-import { Route as Char123TabChar125RouteImport } from "./routes/_/{-$tab}";
-import { Route as MinkyRouteImport } from "./routes/_/minky";
-import { Route as DownloadRamRouteImport } from "./routes/_/download-ram";
-import { Route as DemanglerRouteImport } from "./routes/_/demangler";
 import { Route as ComponentsRouteImport } from "./routes/_/components";
-import { Route as VisIndexRouteImport } from "./routes/_/vis/index";
-import { Route as EIndexRouteImport } from "./routes/_/e/index";
-import { Route as DiscordIntlIndexRouteImport } from "./routes/_/discord-intl/index";
+import { Route as DemanglerRouteImport } from "./routes/_/demangler";
+import { Route as DownloadRamRouteImport } from "./routes/_/download-ram";
+import { Route as MinkyRouteImport } from "./routes/_/minky";
+import { Route as Char123TabChar125RouteImport } from "./routes/_/{-$tab}";
+import { Route as AstViewerIndexRouteImport } from "./routes/ast-viewer/index";
 import { Route as R88x31IndexRouteImport } from "./routes/_/88x31/index";
 import { Route as R88x31LangRouteImport } from "./routes/_/88x31/$lang";
+import { Route as DiscordIntlIndexRouteImport } from "./routes/_/discord-intl/index";
+import { Route as EIndexRouteImport } from "./routes/_/e/index";
+import { Route as VisIndexRouteImport } from "./routes/_/vis/index";
 import { Route as EViewChar123BuildHashChar125Char123ModuleIdChar125RouteImport } from "./routes/e/view.{-$buildHash}.{-$moduleId}";
 
 const Route = RouteImport.update({
   id: "/_",
-  getParentRoute: () => rootRouteImport,
-} as any);
-const AstViewerIndexRoute = AstViewerIndexRouteImport.update({
-  id: "/ast-viewer/",
-  path: "/ast-viewer/",
   getParentRoute: () => rootRouteImport,
 } as any);
 const IndexRoute = IndexRouteImport.update({
@@ -38,19 +33,9 @@ const IndexRoute = IndexRouteImport.update({
   path: "/",
   getParentRoute: () => Route,
 } as any);
-const Char123TabChar125Route = Char123TabChar125RouteImport.update({
-  id: "/{-$tab}",
-  path: "/{-$tab}",
-  getParentRoute: () => Route,
-} as any);
-const MinkyRoute = MinkyRouteImport.update({
-  id: "/minky",
-  path: "/minky",
-  getParentRoute: () => Route,
-} as any);
-const DownloadRamRoute = DownloadRamRouteImport.update({
-  id: "/download-ram",
-  path: "/download-ram",
+const ComponentsRoute = ComponentsRouteImport.update({
+  id: "/components",
+  path: "/components",
   getParentRoute: () => Route,
 } as any);
 const DemanglerRoute = DemanglerRouteImport.update({
@@ -58,25 +43,25 @@ const DemanglerRoute = DemanglerRouteImport.update({
   path: "/demangler",
   getParentRoute: () => Route,
 } as any);
-const ComponentsRoute = ComponentsRouteImport.update({
-  id: "/components",
-  path: "/components",
+const DownloadRamRoute = DownloadRamRouteImport.update({
+  id: "/download-ram",
+  path: "/download-ram",
   getParentRoute: () => Route,
 } as any);
-const VisIndexRoute = VisIndexRouteImport.update({
-  id: "/vis/",
-  path: "/vis/",
+const MinkyRoute = MinkyRouteImport.update({
+  id: "/minky",
+  path: "/minky",
   getParentRoute: () => Route,
 } as any);
-const EIndexRoute = EIndexRouteImport.update({
-  id: "/e/",
-  path: "/e/",
+const Char123TabChar125Route = Char123TabChar125RouteImport.update({
+  id: "/{-$tab}",
+  path: "/{-$tab}",
   getParentRoute: () => Route,
 } as any);
-const DiscordIntlIndexRoute = DiscordIntlIndexRouteImport.update({
-  id: "/discord-intl/",
-  path: "/discord-intl/",
-  getParentRoute: () => Route,
+const AstViewerIndexRoute = AstViewerIndexRouteImport.update({
+  id: "/ast-viewer/",
+  path: "/ast-viewer/",
+  getParentRoute: () => rootRouteImport,
 } as any);
 const R88x31IndexRoute = R88x31IndexRouteImport.update({
   id: "/88x31/",
@@ -86,6 +71,21 @@ const R88x31IndexRoute = R88x31IndexRouteImport.update({
 const R88x31LangRoute = R88x31LangRouteImport.update({
   id: "/88x31/$lang",
   path: "/88x31/$lang",
+  getParentRoute: () => Route,
+} as any);
+const DiscordIntlIndexRoute = DiscordIntlIndexRouteImport.update({
+  id: "/discord-intl/",
+  path: "/discord-intl/",
+  getParentRoute: () => Route,
+} as any);
+const EIndexRoute = EIndexRouteImport.update({
+  id: "/e/",
+  path: "/e/",
+  getParentRoute: () => Route,
+} as any);
+const VisIndexRoute = VisIndexRouteImport.update({
+  id: "/vis/",
+  path: "/vis/",
   getParentRoute: () => Route,
 } as any);
 const EViewChar123BuildHashChar125Char123ModuleIdChar125Route =
@@ -206,46 +206,11 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof RouteImport;
       parentRoute: typeof rootRouteImport;
     };
-    "/ast-viewer/": {
-      id: "/ast-viewer/";
-      path: "/ast-viewer";
-      fullPath: "/ast-viewer/";
-      preLoaderRoute: typeof AstViewerIndexRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
     "/_/": {
       id: "/_/";
       path: "/";
       fullPath: "/";
       preLoaderRoute: typeof IndexRouteImport;
-      parentRoute: typeof Route;
-    };
-    "/_/{-$tab}": {
-      id: "/_/{-$tab}";
-      path: "/{-$tab}";
-      fullPath: "/{-$tab}";
-      preLoaderRoute: typeof Char123TabChar125RouteImport;
-      parentRoute: typeof Route;
-    };
-    "/_/minky": {
-      id: "/_/minky";
-      path: "/minky";
-      fullPath: "/minky";
-      preLoaderRoute: typeof MinkyRouteImport;
-      parentRoute: typeof Route;
-    };
-    "/_/download-ram": {
-      id: "/_/download-ram";
-      path: "/download-ram";
-      fullPath: "/download-ram";
-      preLoaderRoute: typeof DownloadRamRouteImport;
-      parentRoute: typeof Route;
-    };
-    "/_/demangler": {
-      id: "/_/demangler";
-      path: "/demangler";
-      fullPath: "/demangler";
-      preLoaderRoute: typeof DemanglerRouteImport;
       parentRoute: typeof Route;
     };
     "/_/components": {
@@ -255,26 +220,40 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof ComponentsRouteImport;
       parentRoute: typeof Route;
     };
-    "/_/vis/": {
-      id: "/_/vis/";
-      path: "/vis";
-      fullPath: "/vis/";
-      preLoaderRoute: typeof VisIndexRouteImport;
+    "/_/demangler": {
+      id: "/_/demangler";
+      path: "/demangler";
+      fullPath: "/demangler";
+      preLoaderRoute: typeof DemanglerRouteImport;
       parentRoute: typeof Route;
     };
-    "/_/e/": {
-      id: "/_/e/";
-      path: "/e";
-      fullPath: "/e/";
-      preLoaderRoute: typeof EIndexRouteImport;
+    "/_/download-ram": {
+      id: "/_/download-ram";
+      path: "/download-ram";
+      fullPath: "/download-ram";
+      preLoaderRoute: typeof DownloadRamRouteImport;
       parentRoute: typeof Route;
     };
-    "/_/discord-intl/": {
-      id: "/_/discord-intl/";
-      path: "/discord-intl";
-      fullPath: "/discord-intl/";
-      preLoaderRoute: typeof DiscordIntlIndexRouteImport;
+    "/_/minky": {
+      id: "/_/minky";
+      path: "/minky";
+      fullPath: "/minky";
+      preLoaderRoute: typeof MinkyRouteImport;
       parentRoute: typeof Route;
+    };
+    "/_/{-$tab}": {
+      id: "/_/{-$tab}";
+      path: "/{-$tab}";
+      fullPath: "/{-$tab}";
+      preLoaderRoute: typeof Char123TabChar125RouteImport;
+      parentRoute: typeof Route;
+    };
+    "/ast-viewer/": {
+      id: "/ast-viewer/";
+      path: "/ast-viewer";
+      fullPath: "/ast-viewer/";
+      preLoaderRoute: typeof AstViewerIndexRouteImport;
+      parentRoute: typeof rootRouteImport;
     };
     "/_/88x31/": {
       id: "/_/88x31/";
@@ -288,6 +267,27 @@ declare module "@tanstack/react-router" {
       path: "/88x31/$lang";
       fullPath: "/88x31/$lang";
       preLoaderRoute: typeof R88x31LangRouteImport;
+      parentRoute: typeof Route;
+    };
+    "/_/discord-intl/": {
+      id: "/_/discord-intl/";
+      path: "/discord-intl";
+      fullPath: "/discord-intl/";
+      preLoaderRoute: typeof DiscordIntlIndexRouteImport;
+      parentRoute: typeof Route;
+    };
+    "/_/e/": {
+      id: "/_/e/";
+      path: "/e";
+      fullPath: "/e/";
+      preLoaderRoute: typeof EIndexRouteImport;
+      parentRoute: typeof Route;
+    };
+    "/_/vis/": {
+      id: "/_/vis/";
+      path: "/vis";
+      fullPath: "/vis/";
+      preLoaderRoute: typeof VisIndexRouteImport;
       parentRoute: typeof Route;
     };
     "/e/view/{-$buildHash}/{-$moduleId}": {

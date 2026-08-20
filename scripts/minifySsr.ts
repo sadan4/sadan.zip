@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { CircularDependencyRspackPlugin, type ExternalItemFunctionData, type ExternalItemValue, optimize, rspack, SourceMapDevToolPlugin } from "@rspack/core";
 
-import { move } from "fs-extra";
+import { copy, move } from "fs-extra";
 import { rm } from "node:fs/promises";
 import { builtinModules } from "node:module";
 import { join, relative, resolve } from "node:path";
@@ -103,7 +103,9 @@ function main() {
         console.log(stats?.toString("normal"));
 
         await move(ssrTempOutput, ssrEntry, { overwrite: true });
-        await move(ssrTempOutputMap, ssrEntryMap, { overwrite: true });
+        // copy instead of move so that either resolving via appending `.map` to the filename or
+        // reading the `sourceMappingURL` comment will work
+        await copy(ssrTempOutputMap, ssrEntryMap, { overwrite: true });
         await rm(ssrJsDir, { recursive: true });
 
 

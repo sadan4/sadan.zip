@@ -83,9 +83,10 @@
     "zoomable",
     "zoot"
   ],
-  "typescript.tsdk": "node_modules/typescript/lib",
+  "js/ts.tsdk.path": "node_modules/typescript/lib",
   "css.lint.unknownAtRules": "ignore",
-  "typescript.tsserver.experimental.enableProjectDiagnostics": true,
+  "js/ts.tsserver.experimental.enableProjectDiagnostics": true,
+  "js/ts.experimental.useTsgo": true,
   "scss.showErrors": true,
   "scss.format.spaceAroundSelectorSeparator": true,
   "eslint.lintTask.enable": true,
