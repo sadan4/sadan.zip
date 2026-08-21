@@ -7,15 +7,21 @@ export function compilePath(path: ir.PathNode[]): string {
     return path.flat().join(" ");
 }
 
+function filterNan(value: number): number {
+    return isNaN(value) ? Infinity : value;
+}
+
 export function makeBorderPath(element: Element): [length: number, path: ir.PathNode[]] {
     const { width, height } = element.getBoundingClientRect();
     const style = getComputedStyle(element);
-    const [topLeftA, topLeftB] = normalizeRadius(style.borderTopLeftRadius);
-    const [topRightA, topRightB] = normalizeRadius(style.borderTopRightRadius);
-    const [bottomRightA, bottomRightB] = normalizeRadius(style.borderBottomRightRadius);
-    const [bottomLeftA, bottomLeftB] = normalizeRadius(style.borderBottomLeftRadius);
+    let [topLeftA, topLeftB] = parseRadius(style.borderTopLeftRadius);
+    let [topRightA, topRightB] = parseRadius(style.borderTopRightRadius);
+    let [bottomRightA, bottomRightB] = parseRadius(style.borderBottomRightRadius);
+    let [bottomLeftA, bottomLeftB] = parseRadius(style.borderBottomLeftRadius);
     let isSquare = true;
     let rectLength = 2 * (width + height);
+
+    normalizeRadii();
 
     rectLength += calcRadiusDelta(topLeftA, topLeftB);
     rectLength += calcRadiusDelta(topRightA, topRightB);
@@ -66,7 +72,51 @@ export function makeBorderPath(element: Element): [length: number, path: ir.Path
         return delta;
     }
 
-    function normalizeRadius(radius: string): [a: number, b: number] {
+    /**
+     * normalize the radii according to https://drafts.csswg.org/css-backgrounds/#corner-overlap
+     * 
+     * this prevents producing invalid paths when the radii are too large for the box size
+     * eg: border-radius: 999999px; to fully round a small rectangle
+     */
+    function normalizeRadii(): void {
+        // Let f = min(L_i/S_i)
+        // where i ∈ {top, right, bottom, left}
+        // S_i is the sum of the two corresponding radii of the corners on side i,
+        const S_top = topLeftA + topRightA;
+        const S_right = topRightB + bottomRightB;
+        const S_bottom = bottomRightA + bottomLeftA;
+        const S_left = bottomLeftB + topLeftB;
+        // and L_top = L_bottom = the width of the box,
+        const L_top = width;
+        const L_bottom = width;
+        // and Lleft = Lright = the height of the box
+        const L_left = height;
+        const L_right = height;
+
+        const values = [
+            L_top / S_top,
+            L_right / S_right,
+            L_bottom / S_bottom,
+            L_left / S_left,
+        ].map(filterNan);
+
+        // Let f = min(L_i/S_i)
+        const f = Math.min(1, ...values);
+
+        // If f < 1, then all corner radii are reduced by multiplying them by f.
+        if (f < 1) {
+            topLeftA *= f;
+            topLeftB *= f;
+            topRightA *= f;
+            topRightB *= f;
+            bottomRightA *= f;
+            bottomRightB *= f;
+            bottomLeftA *= f;
+            bottomLeftB *= f;
+        }
+    }
+
+    function parseRadius(radius: string): [a: number, b: number] {
         if (!radius) {
             return [0, 0];
         }
@@ -78,8 +128,8 @@ export function makeBorderPath(element: Element): [length: number, path: ir.Path
             [a, b] = radius.split(" ");
         }
 
-        const parsedA: number = Math.min(parseCSSValue(a, element, PercentReference.WIDTH), width / 2);
-        const parsedB: number = Math.min(parseCSSValue(b, element, PercentReference.HEIGHT), height / 2);
+        const parsedA: number = parseCSSValue(a, element, PercentReference.WIDTH);
+        const parsedB: number = parseCSSValue(b, element, PercentReference.HEIGHT);
 
         return [parsedA, parsedB];
     }

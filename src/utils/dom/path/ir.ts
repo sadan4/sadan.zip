@@ -20,26 +20,137 @@ export enum PathCmd {
     CLOSE_PATH = "Z",
 }
 
-export type PathNode = [PathCmd, ...number[]];
+export type MoveAbsNode = readonly [cmd: PathCmd.MOVE_ABS, x: number, y: number];
+export type MoveRelNode = readonly [cmd: PathCmd.MOVE_REL, dx: number, dy: number];
+
+export type LineAbsNode = readonly [cmd: PathCmd.LINE_ABS, x: number, y: number];
+export type LineRelNode = readonly [cmd: PathCmd.LINE_REL, dx: number, dy: number];
+
+export type HLineAbsNode = readonly [cmd: PathCmd.H_LINE_ABS, x: number];
+export type HLineRelNode = readonly [cmd: PathCmd.H_LINE_REL, dx: number];
+
+export type VLineAbsNode = readonly [cmd: PathCmd.V_LINE_ABS, y: number];
+export type VLineRelNode = readonly [cmd: PathCmd.V_LINE_REL, dy: number];
+
+export type CubicAbsNode = readonly [
+    cmd: PathCmd.CUBIC_ABS,
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+    x: number,
+    y: number,
+];
+export type CubicRelNode = readonly [
+    cmd: PathCmd.CUBIC_REL,
+    dx1: number,
+    dy1: number,
+    dx2: number,
+    dy2: number,
+    dx: number,
+    dy: number,
+];
+
+export type CubicSmoothAbsNode = readonly [
+    cmd: PathCmd.CUBIC_SMOOTH_ABS,
+    x2: number,
+    y2: number,
+    x: number,
+    y: number,
+];
+export type CubicSmoothRelNode = readonly [
+    cmd: PathCmd.CUBIC_SMOOTH_REL,
+    dx2: number,
+    dy2: number,
+    dx: number,
+    dy: number,
+];
+
+export type QuadAbsNode = readonly [
+    cmd: PathCmd.QUAD_ABS,
+    x1: number,
+    y1: number,
+    x: number,
+    y: number,
+];
+export type QuadRelNode = readonly [
+    cmd: PathCmd.QUAD_REL,
+    dx1: number,
+    dy1: number,
+    dx: number,
+    dy: number,
+];
+
+export type QuadSmoothAbsNode = readonly [cmd: PathCmd.QUAD_SMOOTH_ABS, x: number, y: number];
+export type QuadSmoothRelNode = readonly [cmd: PathCmd.QUAD_SMOOTH_REL, dx: number, dy: number];
+
+export type ArcAbsNode = readonly [
+    cmd: PathCmd.ARC_ABS,
+    rx: number,
+    ry: number,
+    angle: number,
+    largeArcFlag: number,
+    sweepFlag: number,
+    x: number,
+    y: number,
+];
+export type ArcRelNode = readonly [
+    cmd: PathCmd.ARC_REL,
+    rx: number,
+    ry: number,
+    angle: number,
+    largeArcFlag: number,
+    sweepFlag: number,
+    dx: number,
+    dy: number,
+];
+
+export type ClosePathNode = readonly [cmd: PathCmd.CLOSE_PATH];
+
+export type PathNode
+    = | MoveAbsNode
+      | MoveRelNode
+      | LineAbsNode
+      | LineRelNode
+      | HLineAbsNode
+      | HLineRelNode
+      | VLineAbsNode
+      | VLineRelNode
+      | CubicAbsNode
+      | CubicRelNode
+      | CubicSmoothAbsNode
+      | CubicSmoothRelNode
+      | QuadAbsNode
+      | QuadRelNode
+      | QuadSmoothAbsNode
+      | QuadSmoothRelNode
+      | ArcAbsNode
+      | ArcRelNode
+      | ClosePathNode;
+
+/**
+ * Narrow {@link PathNode} to the variant produced by the command {@link C}.
+ */
+export type PathNodeOf<C extends PathCmd> = Extract<PathNode, readonly [C, ...number[]]>;
 
 /**
  * Move the _current point_ to the coordinate {@link x},{@link y}.
  */
-export function moveAbs(x: number, y: number): PathNode {
+export function moveAbs(x: number, y: number): MoveAbsNode {
     return [PathCmd.MOVE_ABS, x, y];
 }
 /**
  * Move the _current point_ by shifting the last known position
  * of the path by {@link dx} along the x-axis and by {@link dy} along the y-axis.
  */
-export function moveRel(dx: number, dy: number): PathNode {
+export function moveRel(dx: number, dy: number): MoveRelNode {
     return [PathCmd.MOVE_REL, dx, dy];
 }
 
 /**
  * Draw a line from the _current point_ to the end point specified by {@link x},{@link y}.
  */
-export function lineAbs(x: number, y: number): PathNode {
+export function lineAbs(x: number, y: number): LineAbsNode {
     return [PathCmd.LINE_ABS, x, y];
 }
 
@@ -47,14 +158,14 @@ export function lineAbs(x: number, y: number): PathNode {
  * Draw a line from the _current point_ to the end point,
  * which is the current point shifted by {@link dx} along the x-axis and {@link dy} along the y-axis.
  */
-export function lineRel(dx: number, dy: number): PathNode {
+export function lineRel(dx: number, dy: number): LineRelNode {
     return [PathCmd.LINE_REL, dx, dy];
 }
 /**
  * Draw a horizontal line from the _current point_ to the end point,
  * which is specified by the {@link x} parameter and the current point's y coordinate.
  */
-export function hLineAbs(x: number): PathNode {
+export function hLineAbs(x: number): HLineAbsNode {
     return [PathCmd.H_LINE_ABS, x];
 }
 
@@ -62,7 +173,7 @@ export function hLineAbs(x: number): PathNode {
  * Draw a horizontal line from the _current point_ to the end point,
  * which is specified by the current point shifted by {@link dx} along the x-axis and the current point's y coordinate.
  */
-export function hLineRel(dx: number): PathNode {
+export function hLineRel(dx: number): HLineRelNode {
     return [PathCmd.H_LINE_REL, dx];
 }
 
@@ -70,7 +181,7 @@ export function hLineRel(dx: number): PathNode {
  * Draw a vertical line from the _current point_ to the end point,
  * which is specified by the {@link y} parameter and the current point's x coordinate.
  */
-export function vLineAbs(y: number): PathNode {
+export function vLineAbs(y: number): VLineAbsNode {
     return [PathCmd.V_LINE_ABS, y];
 }
 
@@ -78,7 +189,7 @@ export function vLineAbs(y: number): PathNode {
  * Draw a vertical line from the _current point_ to the end point,
  * which is specified by the current point shifted by {@link dy} along the y-axis and the current point's x coordinate.
  */
-export function vLineRel(dy: number): PathNode {
+export function vLineRel(dy: number): VLineRelNode {
     return [PathCmd.V_LINE_REL, dy];
 }
 
@@ -100,7 +211,7 @@ export function cubicAbs(
     y2: number,
     x: number,
     y: number,
-): PathNode {
+): CubicAbsNode {
     return [PathCmd.CUBIC_ABS, x1, y1, x2, y2, x, y];
 }
 
@@ -110,7 +221,7 @@ export function cubicAbs(
  * The start control point is the current point (starting point of the curve)
  * shifted by {@link dx1} along the x-axis and {@link dy1} along the y-axis.
  * The end control point is the current point (starting point of the curve)
- * shifted by {@link dx2} along the x-axis and {@link dy2} along the y-axis. 
+ * shifted by {@link dx2} along the x-axis and {@link dy2} along the y-axis.
  */
 export function cubicRel(
     dx1: number,
@@ -119,7 +230,7 @@ export function cubicRel(
     dy2: number,
     dx: number,
     dy: number,
-): PathNode {
+): CubicRelNode {
     return [PathCmd.CUBIC_REL, dx1, dy1, dx2, dy2, dx, dy];
 }
 
@@ -135,7 +246,7 @@ export function cubicSmoothAbs(
     y2: number,
     x: number,
     y: number,
-): PathNode {
+): CubicSmoothAbsNode {
     return [PathCmd.CUBIC_SMOOTH_ABS, x2, y2, x, y];
 }
 
@@ -152,7 +263,7 @@ export function cubicSmoothRel(
     dy2: number,
     dx: number,
     dy: number,
-): PathNode {
+): CubicSmoothRelNode {
     return [PathCmd.CUBIC_SMOOTH_REL, dx2, dy2, dx, dy];
 }
 
@@ -165,7 +276,7 @@ export function quadAbs(
     y1: number,
     x: number,
     y: number,
-): PathNode {
+): QuadAbsNode {
     return [PathCmd.QUAD_ABS, x1, y1, x, y];
 }
 
@@ -179,7 +290,7 @@ export function quadRel(
     dy1: number,
     dx: number,
     dy: number,
-): PathNode {
+): QuadRelNode {
     return [PathCmd.QUAD_REL, dx1, dy1, dx, dy];
 }
 
@@ -192,7 +303,7 @@ export function quadRel(
 export function quadSmoothAbs(
     x: number,
     y: number,
-): PathNode {
+): QuadSmoothAbsNode {
     return [PathCmd.QUAD_SMOOTH_ABS, x, y];
 }
 
@@ -206,20 +317,20 @@ export function quadSmoothAbs(
 export function quadSmoothRel(
     dx: number,
     dy: number,
-): PathNode {
+): QuadSmoothRelNode {
     return [PathCmd.QUAD_SMOOTH_REL, dx, dy];
 }
 /**
  * Draw an Arc curve from the current point to the coordinate {@link x},{@link y}.
  *
  *  The center of the ellipse used to draw the arc is determined automatically based on the other parameters of the command:
- * 
+ *
  * - {@link rx} and {@link ry} are the two radii of the ellipse;
  * - {@link angle} represents a rotation (in degrees) of the ellipse relative to the x-axis;
  * - {@link largeArcFlag} and {@link sweepFlag} allow to choose which arc must be drawn as 4 possible arcs can be drawn out of the other parameters.
  *   - {@link largeArcFlag} allows to choose one of the large arc (`true`) or small arc (`false`),
  *   - {@link sweepFlag} allows to choose one of the clockwise turning arc (`true`) or counterclockwise turning arc (`false`)
- * 
+ *
  * The coordinate {@link x},{@link y} becomes the new current point for the next command.
  */
 export function arcAbs(
@@ -230,7 +341,7 @@ export function arcAbs(
     sweepFlag: boolean,
     x: number,
     y: number,
-): PathNode {
+): ArcAbsNode {
     return [PathCmd.ARC_ABS, rx, ry, angle, +largeArcFlag, +sweepFlag, x, y];
 }
 
@@ -244,7 +355,7 @@ export function arcAbs(
  * - {@link largeArcFlag} and {@link sweepFlag} allow to choose which arc must be drawn as 4 possible arcs can be drawn out of the other parameters.
  *   - {@link largeArcFlag} allows to choose one of the large arc (`true`) or small arc (`false`),
  *   - {@link sweepFlag} allows to choose one of the clockwise turning arc (`true`) or counterclockwise turning arc (`false`)
- * 
+ *
  * The current point gets its X and Y coordinates shifted by {@link dx} and {@link dy} for the next command.
  */
 export function arcRel(
@@ -255,10 +366,10 @@ export function arcRel(
     sweepFlag: boolean,
     dx: number,
     dy: number,
-): PathNode {
+): ArcRelNode {
     return [PathCmd.ARC_REL, rx, ry, angle, +largeArcFlag, +sweepFlag, dx, dy];
 }
 
-export function closePath(): PathNode {
+export function closePath(): ClosePathNode {
     return [PathCmd.CLOSE_PATH];
 }
