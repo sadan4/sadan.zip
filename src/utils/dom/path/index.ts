@@ -1,6 +1,7 @@
 import { ellipseCircumference } from "@/utils/math";
 
 import * as ir from "./ir";
+import { offsetPath } from "./transform";
 import { parseCSSValue, PercentReference } from "../css";
 
 export function compilePath(path: ir.PathNode[]): string {
@@ -11,8 +12,17 @@ function filterNan(value: number): number {
     return isNaN(value) ? Infinity : value;
 }
 
-export function makeBorderPath(element: Element): [length: number, path: ir.PathNode[]] {
-    const { width, height } = element.getBoundingClientRect();
+/**
+ * Build the path that traces the border box of {@link element}, honouring its border radii.
+ *
+ * @param outset grow the path by this many pixels on every edge, staying concentric with the box.
+ * The returned path is still expressed relative to the element's border box origin,
+ * so an outset path starts at `-outset,-outset`.
+ */
+export function makeBorderPath(element: Element, outset = 0): [length: number, path: ir.PathNode[]] {
+    const { width: boxWidth, height: boxHeight } = element.getBoundingClientRect();
+    const width = boxWidth + (2 * outset);
+    const height = boxHeight + (2 * outset);
     const style = getComputedStyle(element);
     let [topLeftA, topLeftB] = parseRadius(style.borderTopLeftRadius);
     let [topRightA, topRightB] = parseRadius(style.borderTopRightRadius);
@@ -22,13 +32,15 @@ export function makeBorderPath(element: Element): [length: number, path: ir.Path
     let rectLength = 2 * (width + height);
 
     normalizeRadii();
+    outsetRadii();
 
     rectLength += calcRadiusDelta(topLeftA, topLeftB);
     rectLength += calcRadiusDelta(topRightA, topRightB);
     rectLength += calcRadiusDelta(bottomRightA, bottomRightB);
     rectLength += calcRadiusDelta(bottomLeftA, bottomLeftB);
 
-    const path = makePath();
+    // makePath draws in the outset box's own space, shift it back onto the element's border box
+    const path = outset ? offsetPath(makePath(), -outset, -outset) : makePath();
 
     return [rectLength, path];
 
@@ -87,11 +99,11 @@ export function makeBorderPath(element: Element): [length: number, path: ir.Path
         const S_bottom = bottomRightA + bottomLeftA;
         const S_left = bottomLeftB + topLeftB;
         // and L_top = L_bottom = the width of the box,
-        const L_top = width;
-        const L_bottom = width;
+        const L_top = boxWidth;
+        const L_bottom = boxWidth;
         // and Lleft = Lright = the height of the box
-        const L_left = height;
-        const L_right = height;
+        const L_left = boxHeight;
+        const L_right = boxHeight;
 
         const values = [
             L_top / S_top,
@@ -114,6 +126,33 @@ export function makeBorderPath(element: Element): [length: number, path: ir.Path
             bottomLeftA *= f;
             bottomLeftB *= f;
         }
+    }
+
+    /**
+     * grow every rounded corner so the outset path stays concentric with the box.
+     *
+     * square corners are left square, matching how css nests the radii of an outer box.
+     *
+     * this cannot break the corner overlap invariant normalizeRadii just established:
+     * each side's radii sum grows by at most 2 * outset, and its length grows by exactly that.
+     */
+    function outsetRadii(): void {
+        if (!outset) {
+            return;
+        }
+
+        [topLeftA, topLeftB] = outsetCorner(topLeftA, topLeftB);
+        [topRightA, topRightB] = outsetCorner(topRightA, topRightB);
+        [bottomRightA, bottomRightB] = outsetCorner(bottomRightA, bottomRightB);
+        [bottomLeftA, bottomLeftB] = outsetCorner(bottomLeftA, bottomLeftB);
+    }
+
+    function outsetCorner(a: number, b: number): [a: number, b: number] {
+        if (!a && !b) {
+            return [0, 0];
+        }
+
+        return [Math.max(0, a + outset), Math.max(0, b + outset)];
     }
 
     function parseRadius(radius: string): [a: number, b: number] {

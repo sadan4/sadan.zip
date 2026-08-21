@@ -1,0 +1,43 @@
+@layer components {
+    // hide it without display: none
+    .mask-host {
+        position: absolute;
+        width: 0;
+        height: 0;
+        overflow: hidden;
+
+        > .mask {
+            > .body {
+                fill: white;
+            }
+
+            > .hole {
+                fill: black;
+            }
+        }
+    }
+
+    .badge {
+        position: absolute;
+
+        &.bottom-right {
+            bottom: 0;
+            right: 0;
+        }
+
+        &.top-right {
+            top: 0;
+            right: 0;
+        }
+
+        &.bottom-left {
+            bottom: 0;
+            left: 0;
+        }
+
+        &.top-left {
+            top: 0;
+            left: 0;
+        }
+    }
+}
