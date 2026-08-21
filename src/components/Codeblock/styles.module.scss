@@ -66,8 +66,11 @@
             justify-content: flex-end;
             align-items: flex-start;
             box-sizing: content-box;
-            min-width: 1ch;
-            padding-inline: 1ch calc($max-digits * 1ch + 1ch);
+
+            // don't shift the code when the line number changes width
+            width: calc($max-digits * 1ch);
+            padding-inline: 1ch;
+            padding-right: 2ch;
             color: $num;
             opacity: 1;
             user-select: none;
