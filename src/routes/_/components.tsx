@@ -1,5 +1,6 @@
 import { Boilerplate } from "@/components/Boilerplate";
 import { Button } from "@/components/Button";
+import { BadgePosition, MaskedBadge } from "@/components/effects/MaskedBadge";
 import { Input } from "@/components/Input";
 import { Box } from "@/components/layout/Box";
 import { HorizontalLine } from "@/components/Lines/HorizontalLine";
@@ -259,6 +260,79 @@ function SliderExample() {
     );
 }
 
+interface BadgeExample {
+    position: BadgePosition;
+    label: string;
+}
+
+const badgePositions: BadgeExample[] = [
+    {
+        position: BadgePosition.TOP_LEFT,
+        label: "7",
+    },
+    {
+        position: BadgePosition.TOP_RIGHT,
+        label: "8",
+    },
+    {
+        position: BadgePosition.BOTTOM_LEFT,
+        label: "9",
+    },
+    {
+        position: BadgePosition.BOTTOM_RIGHT,
+        label: "10",
+    },
+];
+
+function MaskedBadgeExample() {
+    return (
+        <>
+            <Text
+                size="xl"
+                center
+            >
+                Masked Badge
+            </Text>
+            <div className="flex flex-wrap gap-8">
+                {badgePositions.map(({ position, label }) => (
+                    <div
+                        className="flex size-24 items-center justify-center gap-4 bg-linear-270 from-green-800 to-white"
+                        key={position}
+                    >
+                        <MaskedBadge
+                            position={position}
+                            renderMask={() => (
+                                <div className="h-lh rounded-full bg-red-500 px-2">
+                                    {label}
+                                </div>
+                            )}
+                        >
+                            <div className="h-20 w-20 bg-blue-500" />
+                        </MaskedBadge>
+                    </div>
+                ))}
+                {badgePositions.map(({ position, label }) => (
+                    <div
+                        className="flex size-24 items-center justify-center gap-4 bg-linear-270 from-green-800 to-white"
+                        key={position}
+                    >
+                        <MaskedBadge
+                            position={position}
+                            renderMask={() => (
+                                <div className="h-lh rounded-full bg-red-500 px-2">
+                                    {label}
+                                </div>
+                            )}
+                        >
+                            <div className="h-20 w-20 rounded-full bg-blue-500" />
+                        </MaskedBadge>
+                    </div>
+                ))}
+            </div>
+        </>
+    );
+}
+
 function Components() {
     return (
         <>
@@ -278,6 +352,8 @@ function Components() {
                     <ToastExample />
                     <HorizontalLine className="my-4" />
                     <SliderExample />
+                    <HorizontalLine className="my-4" />
+                    <MaskedBadgeExample />
                 </Box>
             </div>
         </>

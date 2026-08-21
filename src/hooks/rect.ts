@@ -6,7 +6,7 @@ import { measureFragmentRect } from "@/utils/react";
 import { useEventHandler } from "./eventListener";
 import { useResizeObserver, useResizeObserverFromRef } from "./resizeObserver";
 
-import { type FragmentInstance, type RefObject, use, useCallback, useEffect, useRef, useState } from "react";
+import { type FragmentInstance, type RefObject, use, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 function useRectMapper<T extends keyof DOMRect>(keys: T[]): (rect: DOMRect) => Pick<DOMRect, T> {
     return useCallback((rect) => {
@@ -132,7 +132,7 @@ export function useRectFromRef(
         _setSize(newSize);
     }
 
-    useEffect(() => {
+    useLayoutEffect(() => {
         const el = ref.current;
 
         if (el) {
