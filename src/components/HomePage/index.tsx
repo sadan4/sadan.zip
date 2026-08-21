@@ -120,7 +120,7 @@ export function HomePage({ tab }: HomePageProps) {
             <Boilerplate />
             <div className="flex flex-col items-center pt-52">
                 <Avatar
-                    className="h-52 ff:w-52"
+                    className="size-52"
                     round
                 />
                 <Name />
