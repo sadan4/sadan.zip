@@ -17,14 +17,14 @@
         }
 
         > .overlay-container {
-            $margin: 2.5%;
+            // must be a fixed length: a percentage `top`/`height` resolves
+            // against the wrapper's height, so tall codeblocks push the
+            // overlay far down instead of keeping it in the corner
+            $margin: 0.75rem;
 
             position: absolute;
             pointer-events: none;
-            top: $margin;
-            left: $margin;
-            width: calc(100% - 2 * $margin);
-            height: calc(100% - 2 * $margin);
+            inset: $margin;
             display: flex;
             align-items: flex-end;
             justify-content: flex-start;

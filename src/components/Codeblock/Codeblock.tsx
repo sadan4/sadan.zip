@@ -98,7 +98,6 @@ function CodeblockInner({
                 });
             });
         } else {
-            // oxlint-disable-next-line react/react-compiler
             setHtml(highlightToHtml());
             setLineNumberColor(shiki.getLineNumberColor(theme));
         }
