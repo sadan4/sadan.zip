@@ -46,7 +46,18 @@ export interface SchemaObject extends SchemaBase {
     type: "object";
     properties: Record<string, AnySchema>;
     required?: string[];
-    additionalProperties?: boolean;
+    /**
+     * the schema for properties whose name matches the regex, keyed by that regex
+     *
+     * comes from a numeric index signature, because json object keys are always strings
+     */
+    patternProperties?: Record<string, AnySchema>;
+    /**
+     * `false` forbids properties not listed above, a schema constrains them
+     *
+     * comes from a string index signature
+     */
+    additionalProperties?: AnySchema | boolean;
 }
 
 export interface SchemaArray extends SchemaBase { 

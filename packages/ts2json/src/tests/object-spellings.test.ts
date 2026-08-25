@@ -101,6 +101,36 @@ describe("ts2json", () => {
               }
             `);
         });
+        it("handles Record with literal keys and an undefined value", () => {
+            const input = dedent/*ts*/`
+                export default interface Foo {
+                    bar: Record<"a" | "b", string | undefined>;
+                }
+            `;
+            expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "bar": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "a": {
+                        "type": "string",
+                      },
+                      "b": {
+                        "type": "string",
+                      },
+                    },
+                    "type": "object",
+                  },
+                },
+                "required": [
+                  "bar",
+                ],
+                "type": "object",
+              }
+            `);
+        });
         it("handles a mapped type over literal keys", () => {
             const input = dedent/*ts*/`
                 export default interface Foo {
@@ -213,38 +243,221 @@ describe("ts2json", () => {
               }
             `);
         });
-        it.todo("handles an interface with an index signature alongside known properties", () => {
+        it("handles an interface with an index signature alongside known properties", () => {
             const input = dedent/*ts*/`
                 export default interface Foo {
                     known: number;
                     [key: string]: number;
                 }
             `;
-            expect(handleDefaultExport(input)).toMatchInlineSnapshot();
+            expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
+              {
+                "additionalProperties": {
+                  "type": "number",
+                },
+                "properties": {
+                  "known": {
+                    "type": "number",
+                  },
+                },
+                "required": [
+                  "known",
+                ],
+                "type": "object",
+              }
+            `);
         });
-        it.todo("handles a string index signature", () => {
+        it("handles a string index signature", () => {
             const input = dedent/*ts*/`
                 export default interface Foo {
                     bar: { [key: string]: number };
                 }
             `;
-            expect(handleDefaultExport(input)).toMatchInlineSnapshot();
+            expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "bar": {
+                    "additionalProperties": {
+                      "type": "number",
+                    },
+                    "properties": {},
+                    "type": "object",
+                  },
+                },
+                "required": [
+                  "bar",
+                ],
+                "type": "object",
+              }
+            `);
         });
-        it.todo("handles a number index signature", () => {
+        it("handles a number index signature", () => {
             const input = dedent/*ts*/`
                 export default interface Foo {
                     bar: { [key: number]: string };
                 }
             `;
-            expect(handleDefaultExport(input)).toMatchInlineSnapshot();
+            expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "bar": {
+                    "additionalProperties": false,
+                    "patternProperties": {
+                      "^-?\\d+$": {
+                        "type": "string",
+                      },
+                    },
+                    "properties": {},
+                    "type": "object",
+                  },
+                },
+                "required": [
+                  "bar",
+                ],
+                "type": "object",
+              }
+            `);
         });
-        it.todo("handles Record with a string key", () => {
+        it("handles Record with a string key", () => {
             const input = dedent/*ts*/`
                 export default interface Foo {
                     bar: Record<string, number>;
                 }
             `;
-            expect(handleDefaultExport(input)).toMatchInlineSnapshot();
+            expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "bar": {
+                    "additionalProperties": {
+                      "type": "number",
+                    },
+                    "properties": {},
+                    "type": "object",
+                  },
+                },
+                "required": [
+                  "bar",
+                ],
+                "type": "object",
+              }
+            `);
+        });
+        it("handles both index signatures at once", () => {
+            const input = dedent/*ts*/`
+                export default interface Foo {
+                    bar: { [key: string]: string | number, [key: number]: number };
+                }
+            `;
+            expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "bar": {
+                    "additionalProperties": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                        },
+                        {
+                          "type": "number",
+                        },
+                      ],
+                    },
+                    "patternProperties": {
+                      "^-?\\d+$": {
+                        "type": "number",
+                      },
+                    },
+                    "properties": {},
+                    "type": "object",
+                  },
+                },
+                "required": [
+                  "bar",
+                ],
+                "type": "object",
+              }
+            `);
+        });
+        it("handles an index signature of objects", () => {
+            const input = dedent/*ts*/`
+                interface Item {
+                    id: number;
+                }
+                export default interface Foo {
+                    bar: Record<string, Item>;
+                }
+            `;
+            expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "bar": {
+                    "additionalProperties": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "type": "number",
+                        },
+                      },
+                      "required": [
+                        "id",
+                      ],
+                      "type": "object",
+                    },
+                    "properties": {},
+                    "type": "object",
+                  },
+                },
+                "required": [
+                  "bar",
+                ],
+                "type": "object",
+              }
+            `);
+        });
+        it("handles an index signature with a nullable value", () => {
+            const input = dedent/*ts*/`
+                export default interface Foo {
+                    bar: Record<string, string | null>;
+                }
+            `;
+            expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "bar": {
+                    "additionalProperties": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                    },
+                    "properties": {},
+                    "type": "object",
+                  },
+                },
+                "required": [
+                  "bar",
+                ],
+                "type": "object",
+              }
+            `);
+        });
+        it("throws on an index signature with an unsupported key type", () => {
+            const input = dedent/*ts*/`
+                export default interface Foo {
+                    bar: { [key: symbol]: string };
+                }
+            `;
+            expect(() => handleDefaultExport(input)).toThrowErrorMatchingInlineSnapshot(`[Error: index signature on { [key: symbol]: string; } has an unsupported key type symbol]`);
         });
     });
 });

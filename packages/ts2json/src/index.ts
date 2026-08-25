@@ -51,6 +51,11 @@ function makeFlagHumanizer<E extends RuntimeEnum>(enumObj: E): (v: number) => st
     }
 }
 
+/**
+ * a numeric index signature only allows keys that stringify to a number
+ */
+const NUMERIC_KEY_PATTERN = "^-?\\d+$";
+
 const humanizeTypeFlags = makeFlagHumanizer(TypeFlags);
 const humanizeSymbolFlags = makeFlagHumanizer(SymbolFlags);
 
@@ -172,6 +177,17 @@ export class Analyzer {
             // @deprecated tag could have empty string value
             if (this.#isDeprecated(prop) != null) { 
                 schema.deprecated = true;
+            }
+        }
+        for (const { keyType, type: valueType } of this.#c.getIndexInfosOfType(type)) { 
+            const schema = this.#getSchemaForNullishType(valueType);
+            if (keyType.flags & TypeFlags.String) { 
+                s.additionalProperties = schema;
+            } else if (keyType.flags & TypeFlags.Number) { 
+                s.patternProperties ??= {};
+                s.patternProperties[NUMERIC_KEY_PATTERN] = schema;
+            } else { 
+                error(`index signature on ${this.#c.typeToString(type)} has an unsupported key type ${this.#c.typeToString(keyType)}`);
             }
         }
         if (!s.required.length) { 
