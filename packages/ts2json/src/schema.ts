@@ -16,7 +16,7 @@ export interface SchemaBase {
     deprecated?: boolean;
 }
 
-export type AnySchema = SchemaIntersection | SchemaUnion | SchemaString | SchemaNumber | SchemaObject | SchemaArray | SchemaBoolean | SchemaNull;
+export type AnySchema = SchemaIntersection | SchemaUnion | SchemaString | SchemaNumber | SchemaObject | SchemaArray | SchemaTuple | SchemaBoolean | SchemaNull;
 
 export interface SchemaIntersection extends SchemaBase {
     type?: undefined;
@@ -52,6 +52,29 @@ export interface SchemaObject extends SchemaBase {
 export interface SchemaArray extends SchemaBase { 
     type: "array";
     items: AnySchema;
+}
+
+/**
+ * a fixed length (or fixed prefix) array
+ */
+export interface SchemaTuple extends SchemaBase { 
+    type: "array";
+    /**
+     * the schema of each element, by position
+     */
+    prefixItems: AnySchema[];
+    /**
+     * the schema of the elements after `prefixItems`
+     *
+     * `false` means there are none, ie: the tuple has no rest element
+     */
+    items: AnySchema | false;
+    /**
+     * the number of leading elements that are required
+     *
+     * omitted when zero
+     */
+    minItems?: number;
 }
 
 export interface SchemaBoolean extends SchemaBase { 

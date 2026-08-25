@@ -1,5 +1,5 @@
-import { __String, CompilerHost, CompilerOptions, createCompilerHost, createProgram, displayPartsToString, Extension, IndexKind, InternalSymbolName, Program, resolveModuleName, SourceFile, Symbol, SymbolFlags, TupleType, TupleTypeReference, Type, TypeChecker, TypeFlags } from "typescript";
-import { AnySchema, SchemaBase, SchemaIntersection, SchemaObject, SchemaUnion } from "./schema";
+import { __String, CompilerHost, CompilerOptions, createCompilerHost, createProgram, displayPartsToString, ElementFlags, Extension, IndexKind, InternalSymbolName, isIdentifier, resolveModuleName, SourceFile, Symbol, SymbolFlags, TupleTypeReference, Type, TypeChecker, TypeFlags } from "typescript";
+import { AnySchema, SchemaBase, SchemaIntersection, SchemaObject, SchemaTuple, SchemaUnion } from "./schema";
 import { createVirtualProgram, DEFAULT_COMPILER_OPTIONS } from "./program";
 import { popcnt } from "./utils";
 
@@ -160,19 +160,11 @@ export class Analyzer {
             // any is valid, the symbols are unique between them
             const decl = prop.valueDeclaration ?? prop.declarations?.[0] ?? this.#rootFile;
             const name = prop.getName();
-            let ty = this.#c.getTypeOfSymbolAtLocation(prop, decl);
-            const isOptional = this.#isJsonOptional(ty);
-            if (!isOptional) {
+            const ty = this.#c.getTypeOfSymbolAtLocation(prop, decl);
+            if (!this.#isJsonOptional(ty)) {
                 s.required.push(name);
             }
-            const wasNullable = this.#isNullable(ty);
-            if (wasNullable || isOptional) {
-                ty = this.#c.getNonNullableType(ty);
-            }
-            let schema = this.getSchemaForType(ty);
-            if (wasNullable) { 
-                schema = { anyOf: [schema, { type: "null" }] };
-            }
+            const schema = this.#getSchemaForNullishType(ty);
             if (jsDocIR.length) {
                 schema.description = jsDoc;
             }
@@ -184,6 +176,63 @@ export class Analyzer {
         }
         if (!s.required.length) { 
             delete s.required;
+        }
+        return s;
+    }
+
+    /**
+     * strips `undefined` and `null` off of `ty` before getting its schema
+     *
+     * a nullable type gets wrapped in an `anyOf` with `null`, an optional one does not,
+     * because optionality is expressed by the container (`required` / `minItems`)
+     */
+    #getSchemaForNullishType(ty: Type): AnySchema { 
+        const wasNullable = this.#isNullable(ty);
+        if (wasNullable || this.#isJsonOptional(ty)) {
+            ty = this.#c.getNonNullableType(ty);
+        }
+        const schema = this.getSchemaForType(ty);
+        return wasNullable ? { anyOf: [schema, { type: "null" }] } : schema;
+    }
+
+    /**
+     * json schema can only express a rest element at the end of a tuple,
+     * so `[string, ...number[], boolean]` is an error
+     */
+    #getSchemaForTupleType(tyRef: TupleTypeReference): SchemaTuple { 
+        const { elementFlags, labeledElementDeclarations } = tyRef.target;
+        const elems = this.#c.getTypeArguments(tyRef);
+        const s: SchemaTuple = {
+            type: "array",
+            prefixItems: [],
+            items: false,
+        };
+        let minItems = 0;
+        let sawNonRequired = false;
+        for (let i = 0; i < elems.length; i++) { 
+            const flags = elementFlags[i];
+            const schema = this.#getSchemaForNullishType(elems[i]);
+            // a tuple is either fully labeled or not labeled at all, but the array is sparse for rest params
+            const label = labeledElementDeclarations?.[i]?.name;
+            if (label && isIdentifier(label)) { 
+                schema.description = label.text;
+            }
+            // Variable is Rest | Variadic
+            if (flags & ElementFlags.Variable) { 
+                assert(i === elems.length - 1, `tuple type ${this.#c.typeToString(tyRef)} has elements after its rest element`);
+                s.items = schema;
+                break;
+            }
+            if (flags & ElementFlags.Optional) { 
+                sawNonRequired = true;
+            } else { 
+                assert(!sawNonRequired, `tuple type ${this.#c.typeToString(tyRef)} has a required element after an optional one`);
+                minItems++;
+            }
+            s.prefixItems.push(schema);
+        }
+        if (minItems) { 
+            s.minItems = minItems;
         }
         return s;
     }
@@ -204,13 +253,7 @@ export class Analyzer {
     public getSchemaForType(ty: Type): AnySchema {
         // must come before TypeFlags.Object, because arrays are objects
         if (this.#c.isTupleType(ty)) { 
-            const tyRef = ty as TupleTypeReference;
-            const target = tyRef.target;
-            const elems = this.#c.getTypeArguments(tyRef);
-            for (let i = 0; i < elems.length; i++) { 
-                const flags = target.elementFlags[i];
-            }
-            error("TODO: implement getSchemaForType for tuple types");
+            return this.#getSchemaForTupleType(ty as TupleTypeReference);
         }
         if (this.#c.isArrayLikeType(ty)) { 
             const elemType = this.#c.getIndexTypeOfType(ty, IndexKind.Number);

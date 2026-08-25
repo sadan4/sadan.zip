@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { popcnt } from "./utils";
+import { popcnt } from "../utils";
 
 it("popcnt", () => { 
     expect(popcnt(0)).toBe(0);
