@@ -1,0 +1,19 @@
+{
+    "name": "@sadan4/ts2json",
+    "description": "A library to turn TypeScript types into JSON schema",
+    "authors": "sadan",
+    "version": "1.0.0",
+    "type": "module",
+    "dependencies": {
+        "typescript": "catalog:"
+    },
+    "devDependencies": {
+        "vitest": "catalog:",
+        "@vitest/ui": "catalog:",
+        "esbuild": "0.28.2"
+    },
+    "scripts": {
+        "test": "vitest run",
+        "test:ui": "vitest --ui"
+    }
+}

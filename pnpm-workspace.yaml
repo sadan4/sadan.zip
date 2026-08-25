@@ -21,3 +21,8 @@ patchedDependencies:
   vite: patches/vite.patch
 
 verifyDepsBeforeRun: install
+
+catalog:
+  typescript: ^5.8.3
+  vitest: ^4.1.11
+  "@vitest/ui": ^4.1.11
