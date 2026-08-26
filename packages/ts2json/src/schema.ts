@@ -31,6 +31,10 @@ export interface SchemaUnion extends SchemaBase {
 export interface SchemaString extends SchemaBase { 
     type: "string";
     /**
+     * a semantic constraint on the string, eg: a `RegExp` is a `"regex"`
+     */
+    format?: "regex";
+    /**
      * the constant value of the string
      * 
      * if this is present, then the type is *only* this value
@@ -40,6 +44,14 @@ export interface SchemaString extends SchemaBase {
 
 export interface SchemaNumber extends SchemaBase { 
     type: "number";
+    /**
+     * the smallest allowed value, inclusive
+     */
+    minimum?: number;
+    /**
+     * the largest allowed value, inclusive
+     */
+    maximum?: number;
 }
 
 export interface SchemaObject extends SchemaBase { 

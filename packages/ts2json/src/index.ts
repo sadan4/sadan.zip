@@ -1,4 +1,4 @@
-import { __String, CompilerHost, CompilerOptions, createCompilerHost, createProgram, displayPartsToString, ElementFlags, Extension, IndexKind, InternalSymbolName, isIdentifier, resolveModuleName, SourceFile, Symbol, SymbolFlags, TupleTypeReference, Type, TypeChecker, TypeFlags } from "typescript";
+import { __String, CompilerHost, CompilerOptions, createCompilerHost, createProgram, displayPartsToString, ElementFlags, Extension, IndexKind, InternalSymbolName, isIdentifier, Program, resolveModuleName, SourceFile, Symbol, SymbolFlags, TupleTypeReference, Type, TypeChecker, TypeFlags } from "typescript";
 import { AnySchema, SchemaBase, SchemaIntersection, SchemaObject, SchemaTuple, SchemaUnion } from "./schema";
 import { createVirtualProgram, DEFAULT_COMPILER_OPTIONS } from "./program";
 import { popcnt } from "./utils";
@@ -51,6 +51,8 @@ function makeFlagHumanizer<E extends RuntimeEnum>(enumObj: E): (v: number) => st
     }
 }
 
+const BYTE_MAX = 255;
+
 /**
  * a numeric index signature only allows keys that stringify to a number
  */
@@ -70,15 +72,16 @@ export class Analyzer {
     // #host: CompilerHost;
     #c: TypeChecker;
     #rootFile: SourceFile;
-    // #program: Program;
-    private constructor(c: TypeChecker, rootFile: SourceFile) { 
-        this.#c = c;
+    #program: Program;
+    private constructor(program: Program, rootFile: SourceFile) { 
+        this.#c = program.getTypeChecker();
+        this.#program = program;
         this.#rootFile = rootFile;
     }
 
     public static createVirtual(tsCode: string): Analyzer { 
         const { program, rootFile } = createVirtualProgram(tsCode);
-        return new Analyzer(program.getTypeChecker(), rootFile);
+        return new Analyzer(program, rootFile);
     }
 
     public static createFromFile(filePath: string, options: CompilerOptions = DEFAULT_COMPILER_OPTIONS, host?: CompilerHost): Analyzer {
@@ -89,7 +92,7 @@ export class Analyzer {
         });
         const rootFile = program.getSourceFile(filePath);
         assert(rootFile, `file ${filePath} not found in program`);
-        return new Analyzer(program.getTypeChecker(), rootFile);
+        return new Analyzer(program, rootFile);
     }
 
     /**
@@ -253,6 +256,26 @@ export class Analyzer {
         return s;
     }
 
+    /**
+     * types declared in the default lib that have no structural json representation,
+     * eg: `RegExp`, whose properties are all methods
+     *
+     * returns undefined when `ty` is not one of them
+     */
+    #getSchemaForWellKnownType(ty: Type): AnySchema | undefined { 
+        const sym = ty.getSymbol();
+        const decl = sym?.declarations?.[0];
+        if (!decl || !this.#program.isSourceFileDefaultLibrary(decl.getSourceFile())) { 
+            return;
+        }
+        switch (sym.getName()) { 
+            // json has no regex literal, only the source text of one
+            case "RegExp": return { type: "string", format: "regex" };
+            // json has no binary type, so bytes are the numbers `Array.from` would give
+            case "Uint8Array": return { type: "array", items: { type: "number", minimum: 0, maximum: BYTE_MAX } };
+        }
+    }
+
     #booleanLiteralValue(ty: Type): boolean { 
         const strRepr = this.#c.typeToString(ty);
         assert(ty.flags & TypeFlags.BooleanLiteral, `Type ${strRepr} is not a boolean literal`);
@@ -283,7 +306,7 @@ export class Analyzer {
             return { type: "number" };
         }
         if (ty.flags & TypeFlags.Object) {
-            return this.#getSchemaForObjectType(ty);
+            return this.#getSchemaForWellKnownType(ty) ?? this.#getSchemaForObjectType(ty);
         }
         if (ty.flags & TypeFlags.Null) { 
             return { type: "null" };
