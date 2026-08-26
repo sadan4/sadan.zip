@@ -14,6 +14,7 @@ mod nix_cargo_hashes;
 mod syntax;
 mod ts_api;
 mod types;
+mod update_intl_mappings;
 
 #[derive(Args)]
 pub struct Command {
@@ -36,6 +37,7 @@ impl Runnable for Command {
 			Target::DiscordIntl(c) => c.run(),
 			Target::BotConfig(c) => c.run(),
 			Target::NixCargoHashes(c) => c.run(),
+			Target::UpdateIntlMappings(c) => c.run(),
 		}
 	}
 }
@@ -66,4 +68,6 @@ enum Target {
 	/// Generate `nix/cargo-output-hashes.nix` from the git dependencies in
 	/// `Cargo.lock`
 	NixCargoHashes(nix_cargo_hashes::Command),
+	/// Update discord intl mappings from url
+	UpdateIntlMappings(update_intl_mappings::Command),
 }

@@ -23,6 +23,7 @@ smol_str.workspace = true
 serde.workspace = true
 schemars.workspace = true
 bot_config.workspace = true
+reqwest = {workspace = true, features = ["blocking"]}
 
 [lints]
 workspace = true
