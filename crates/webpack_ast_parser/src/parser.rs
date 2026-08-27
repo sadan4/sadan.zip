@@ -633,6 +633,14 @@ impl<'ast> WebpackAstParser<'ast> {
 		Ok(Some((range, hover)))
 	}
 
+	/// Get the hashed Discord intl key the cursor at `pos` is sitting on, if
+	/// any.
+	///
+	/// Returns the [`Span`] of the key node (the identifier, or the string
+	/// literal *including* its quotes) and the hashed key itself. The key is
+	/// returned as written in the source; it is not resolved back to its
+	/// original message name — use [`crate::intl::resolve_unhashed_key`] for
+	/// that.
 	pub fn get_i18n_key_at(&self, pos: u32) -> Option<(Span, SmolStr)> {
 		let node = self.get_node_at(pos);
 		let key = match node {

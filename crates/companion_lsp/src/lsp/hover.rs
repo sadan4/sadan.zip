@@ -2,6 +2,7 @@ use std::{fmt::Write as _, sync::LazyLock};
 
 use oxc::allocator::Allocator;
 use regex::Regex;
+use smol_str::{SmolStr, ToSmolStr};
 use tower_lsp::{
 	jsonrpc::Result as LspResult,
 	lsp_types::{
@@ -15,7 +16,7 @@ use tower_lsp::{
 	},
 };
 use vencord_ast_parser::hash::hash_message_key;
-use webpack_ast_parser::WebpackAstParser;
+use webpack_ast_parser::{WebpackAstParser, intl::resolve_unhashed_key};
 
 use crate::{
 	lsp::{Backend, get_doc},
@@ -30,10 +31,12 @@ static VENCORD_INTL_RE: LazyLock<Regex> =
 /// Result of locating an i18n token under the cursor.
 struct IntlToken {
 	/// 6-char hashed key suitable for `i18n_lookup`.
-	hashed: String,
-	/// Source key when we have one (Vencord pattern); `None` for the webpack
-	/// path where the identifier IS the hash.
-	source: Option<String>,
+	hashed: SmolStr,
+	/// Source key when we have one: taken from the pattern itself on the
+	/// Vencord path, resolved out of the embedded key mapping on the webpack
+	/// path (where the identifier IS the hash). `None` when the hash is not in
+	/// the mapping.
+	source: Option<SmolStr>,
 	range: Range,
 }
 
@@ -125,20 +128,21 @@ fn locate_vencord_intl(text: &str, pos: Position) -> Option<IntlToken> {
 		.find_iter(text)
 		.find(|m| range_contains(m.start(), m.end(), offset))?;
 	let caps = VENCORD_INTL_RE.captures_at(text, m.start())?;
-	let source_key = caps.get(1)?.as_str();
+	let source_key = caps.get(1)?.as_str().to_smolstr();
 	let modifier = caps.get(2).map(|c| c.as_str());
 
 	let hashed = if modifier == Some("raw") {
-		source_key.to_owned()
+		source_key.clone()
 	} else {
-		hash_message_key(source_key)
+		hash_message_key(&source_key)
 			.iter()
-			.collect::<String>()
+			.copied()
+			.collect::<SmolStr>()
 	};
 
 	Some(IntlToken {
 		hashed,
-		source: Some(source_key.to_owned()),
+		source: Some(source_key.to_smolstr()),
 		range: byte_range_to_lsp(text, m.start(), m.end()),
 	})
 }
@@ -148,6 +152,9 @@ fn locate_vencord_intl(text: &str, pos: Position) -> Option<IntlToken> {
 /// on a 6-char identifier or string literal whose parent is a member
 /// expression — semantically equivalent to `i.t.HASH` / `i.t["HASH"]` without
 /// the regex false-positives (e.g. a 6-char variable name elsewhere).
+///
+/// The source key is recovered from the embedded key mapping when the hash is
+/// known; unmapped hashes still hover with the hash alone.
 fn locate_webpack_intl(text: &str, pos: Position) -> Option<IntlToken> {
 	let offset = ast_parser::get_offset_from_line_and_column(
 		text,
@@ -160,8 +167,8 @@ fn locate_webpack_intl(text: &str, pos: Position) -> Option<IntlToken> {
 	let (span, key) = parser.get_i18n_key_at(offset)?;
 
 	Some(IntlToken {
-		hashed: key.to_string(),
-		source: None,
+		source: resolve_unhashed_key(&key),
+		hashed: key,
 		range: byte_range_to_lsp(text, span.start as usize, span.end as usize),
 	})
 }
@@ -257,6 +264,19 @@ mod tests {
 		let t = locate_intl_token(&d, pos).unwrap();
 		assert_eq!(t.hashed, "AbCdEf");
 		assert!(t.source.is_none());
+	}
+
+	#[test]
+	fn webpack_intl_resolves_source_key_from_mapping() {
+		// `9RNkeF` is the hash of `APP_TAG`, which is in the embedded mapping.
+		let d = doc("javascript", r#"function _(i){return i.t["9RNkeF"]}"#);
+		let pos = Position {
+			line: 0,
+			character: 28,
+		};
+		let t = locate_intl_token(&d, pos).unwrap();
+		assert_eq!(t.hashed, "9RNkeF");
+		assert_eq!(t.source.as_deref(), Some("APP_TAG"));
 	}
 
 	#[test]

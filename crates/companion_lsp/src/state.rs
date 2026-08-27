@@ -4,6 +4,7 @@ use std::sync::{
 };
 
 use dashmap::DashMap;
+use smol_str::SmolStr;
 use tokio::sync::{RwLock, oneshot};
 use tower_lsp::lsp_types::Url;
 use vencord_ast_parser::Patch;
@@ -83,7 +84,7 @@ pub struct SessionState {
 	/// cache changes (download / purge).
 	pub cross_module_data: RwLock<Option<Arc<CrossModuleData>>>,
 	/// hashedKey -> localized string. Populated lazily by i18n hover.
-	pub i18n_cache: DashMap<String, String>,
+	pub i18n_cache: DashMap<SmolStr, String>,
 	/// Outstanding `QuickPick` round-trips waiting on the editor.
 	pub quick_picks: QuickPickPending,
 	/// Active Patch Helper sessions, indexed by the URI of the plugin
