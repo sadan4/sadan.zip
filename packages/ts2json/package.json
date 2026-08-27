@@ -10,7 +10,8 @@
     "devDependencies": {
         "vitest": "catalog:",
         "@vitest/ui": "catalog:",
-        "esbuild": "0.28.2"
+        "esbuild": "0.28.2",
+        "zod": "catalog:"
     },
     "scripts": {
         "test": "vitest run",
