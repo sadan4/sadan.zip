@@ -342,6 +342,10 @@ export class Analyzer {
         if (ty.isStringLiteral()) { 
             return { type: "string", const: ty.value };
         }
+        // this also covers numeric enum members, which are number literals with an extra flag
+        if (ty.isNumberLiteral()) { 
+            return { type: "number", const: ty.value };
+        }
         if (ty.flags & TypeFlags.Boolean) {
             assert(!(ty.flags & TypeFlags.BooleanLiteral), `Type ${this.#c.typeToString(ty)} is a boolean literal, not a boolean`);
             return { type: "boolean" };

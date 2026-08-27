@@ -52,6 +52,12 @@ export interface SchemaNumber extends SchemaBase {
      * the largest allowed value, inclusive
      */
     maximum?: number;
+    /**
+     * the constant value of the number
+     * 
+     * if this is present, then the type is *only* this value
+     */
+    const?: number;
 }
 
 export interface SchemaObject extends SchemaBase { 
