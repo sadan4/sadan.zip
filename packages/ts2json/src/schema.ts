@@ -16,7 +16,29 @@ export interface SchemaBase {
     deprecated?: boolean;
 }
 
-export type AnySchema = SchemaIntersection | SchemaUnion | SchemaString | SchemaNumber | SchemaObject | SchemaArray | SchemaTuple | SchemaBoolean | SchemaNull;
+export type AnySchema = SchemaIntersection | SchemaUnion | SchemaString | SchemaNumber | SchemaObject | SchemaArray | SchemaTuple | SchemaBoolean | SchemaNull | SchemaUnconstrained | SchemaNever;
+
+/**
+ * accepts any value, eg: `any` and `unknown`
+ *
+ * json schema spells this `true`, but an object can still carry a description
+ */
+export interface SchemaUnconstrained extends SchemaBase {
+    type?: undefined;
+}
+
+/**
+ * accepts no value, eg: `never`
+ *
+ * json schema spells this `false`, `not: {}` is the equivalent object form
+ */
+export interface SchemaNever extends SchemaBase {
+    type?: undefined;
+    /**
+     * the empty schema accepts everything, so its negation accepts nothing
+     */
+    not: Record<string, never>;
+}
 
 export interface SchemaIntersection extends SchemaBase {
     type?: undefined;

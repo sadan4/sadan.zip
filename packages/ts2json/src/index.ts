@@ -155,10 +155,20 @@ export class Analyzer {
     }
 
     /**
+     * `any` and `unknown` accept every value, so they constrain nothing
+     *
+     * every value includes `undefined` and `null`, but that does not make them
+     * optional or nullable, it makes them unconstrained
+     */
+    #isUnconstrained(ty: Type): boolean { 
+        return !!(ty.flags & (TypeFlags.Any | TypeFlags.Unknown));
+    }
+
+    /**
      * null is not considered optional
      */
     #isJsonOptional(ty: Type): boolean { 
-        return this.#c.isTypeAssignableTo(this.#c.getUndefinedType(), ty);
+        return !this.#isUnconstrained(ty) && this.#c.isTypeAssignableTo(this.#c.getUndefinedType(), ty);
     }
 
     /**
@@ -166,7 +176,9 @@ export class Analyzer {
      * A type is nullable if `null` is assignable to it **AND** it is not `null` itself
      */
     #isNullable(ty: Type): boolean {
-        return this.#c.isTypeAssignableTo(this.#c.getNullType(), ty) && !(ty.flags & TypeFlags.Null);
+        return !this.#isUnconstrained(ty)
+            && this.#c.isTypeAssignableTo(this.#c.getNullType(), ty)
+            && !(ty.flags & TypeFlags.Null);
     }
 
     /**
@@ -318,6 +330,13 @@ export class Analyzer {
      * handles primitives and objects
      */
     public getSchemaForType(ty: Type): AnySchema {
+        // must come first, because `any` and `never` are both assignable to `readonly any[]`
+        if (this.#isUnconstrained(ty)) { 
+            return {};
+        }
+        if (ty.flags & TypeFlags.Never) { 
+            return { not: {} };
+        }
         // must come before TypeFlags.Object, because arrays are objects
         if (this.#c.isTupleType(ty)) { 
             return this.#getSchemaForTupleType(ty as TupleTypeReference);
