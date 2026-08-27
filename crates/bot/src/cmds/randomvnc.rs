@@ -51,8 +51,7 @@ async fn random_vnc(
 	cctx: &CommandCtx<'_>,
 	fw: &CommandFramework,
 ) -> Result<()> {
-	cctx
-		.defer(c)
+	cctx.defer(c)
 		.await
 		.context("Failed to defer randomvnc")?;
 	let data = get_random_vnc(fw).await?;

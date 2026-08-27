@@ -1,6 +1,9 @@
 use anyhow::{Context as _, Result};
 
-use crate::{fw::CommandFramework, util::{Image, ImageFormat}};
+use crate::{
+	fw::CommandFramework,
+	util::{Image, ImageFormat},
+};
 
 pub async fn download_avatar(
 	url: &str,

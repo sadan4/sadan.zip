@@ -36,7 +36,10 @@ use pretty_printer::{FormattedContent, format_with_alloc};
 use regress::Regex;
 use serde::Serialize;
 use smol_str::{SmolStr, format_smolstr};
-use vencord_ast_parser::patches::{canonicalize_intl, canonicalize_regex_ident};
+use vencord_ast_parser::patches::{
+	canonicalize_intl,
+	canonicalize_regex_ident,
+};
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 use webpack_ast_parser::{
 	WebpackAstParser,

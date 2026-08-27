@@ -65,14 +65,14 @@ async fn user_info(
 	};
 	let avatar_url = author.face();
 	let banner_url = author.banner_url();
-	let top_section_cmpts = &[
-		CreateSectionComponent::TextDisplay(CreateTextDisplay::new(format!(
+	let top_section_cmpts = &[CreateSectionComponent::TextDisplay(
+		CreateTextDisplay::new(format!(
 			"# {name}\n{ping} ({username})",
 			name = author.display_name(),
 			ping = author.mention(),
 			username = author.name
-		))),
-	];
+		)),
+	)];
 	let top_section_accessory = CreateSectionAccessory::Thumbnail(
 		CreateThumbnail::new(CreateUnfurledMediaItem::new(&avatar_url)),
 	);

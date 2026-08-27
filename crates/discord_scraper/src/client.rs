@@ -8,7 +8,9 @@ static USER_AGENT: &str =
 	concat![env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION")];
 
 /// like [`make_reqwest_client`], but with a custom user agent
-pub fn make_reqwest_client_with_ua(ua: &str) -> Result<Arc<ClientWithMiddleware>> {
+pub fn make_reqwest_client_with_ua(
+	ua: &str,
+) -> Result<Arc<ClientWithMiddleware>> {
 	let retry_policy = ExponentialBackoff::builder().build_with_max_retries(3);
 	let retry_middleware =
 		RetryTransientMiddleware::new_with_policy(retry_policy);
