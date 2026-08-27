@@ -31,7 +31,7 @@ describe("ts2json", () => {
           }
         `);
         const zs = z.fromJSONSchema(output as any);
-        const parsed = zs.parse({ bar: "hello", baz: 42 });
+        expect(zs.parse({ bar: "hello", baz: 42 })).toEqual({ bar: "hello", baz: 42 });
         expect(() => zs.parse({ bar: "hello", baz: "not a number" })).toThrow(z.ZodError);
         expect(() => zs.parse({ bar: 123 })).toThrow(z.ZodError);
     });

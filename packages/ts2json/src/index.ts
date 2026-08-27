@@ -1,7 +1,6 @@
 import { __String, CompilerHost, CompilerOptions, createCompilerHost, createProgram, displayPartsToString, ElementFlags, Extension, IndexKind, InternalSymbolName, isIdentifier, Program, resolveModuleName, SourceFile, Symbol, SymbolFlags, TupleTypeReference, Type, TypeChecker, TypeFlags } from "typescript";
 import { AnySchema, SchemaBase, SchemaIntersection, SchemaObject, SchemaTuple, SchemaUnion } from "./schema";
 import { createVirtualProgram, DEFAULT_COMPILER_OPTIONS } from "./program";
-import { popcnt } from "./utils";
 
 function error(msg: string): never { 
     throw new Error(msg);

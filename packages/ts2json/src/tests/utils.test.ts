@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { expect, it } from "vitest";
 import { popcnt } from "../utils";
 
 it("popcnt", () => { 

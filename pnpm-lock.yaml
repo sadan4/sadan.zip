@@ -6,6 +6,9 @@ settings:
 
 catalogs:
   default:
+    '@types/node':
+      specifier: ^26.2.0
+      version: 26.2.0
     '@vitest/ui':
       specifier: ^4.1.11
       version: 4.1.11
@@ -114,7 +117,7 @@ importers:
         specifier: ^2.0.1
         version: 2.0.1
       zod:
-        specifier: ^4.3.6
+        specifier: 'catalog:'
         version: 4.4.3
       zustand:
         specifier: ^5.0.15
@@ -336,6 +339,9 @@ importers:
         specifier: 'catalog:'
         version: 5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319)
     devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 26.2.0
       '@vitest/ui':
         specifier: 'catalog:'
         version: 4.1.11(vitest@4.1.11)

@@ -1,0 +1,25 @@
+{
+    "compilerOptions": {
+        "module": "ESNext",
+        "moduleResolution": "bundler",
+        "target": "ESNext",
+        "lib": [
+            "ESNext"
+        ],
+        "types": [
+            "node"
+        ],
+        "strict": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "noEmit": true,
+        "skipLibCheck": true
+    },
+    "include": [
+        "src",
+        "vitest.config.ts"
+    ],
+    "exclude": [
+        "node_modules"
+    ]
+}

@@ -8,6 +8,7 @@
         "typescript": "catalog:"
     },
     "devDependencies": {
+        "@types/node": "catalog:",
         "vitest": "catalog:",
         "@vitest/ui": "catalog:",
         "esbuild": "0.28.2",
@@ -15,6 +16,7 @@
     },
     "scripts": {
         "test": "vitest run",
-        "test:ui": "vitest --ui"
+        "test:ui": "vitest --ui",
+        "typecheck": "tsc --noEmit -p ./tsconfig.json"
     }
 }
