@@ -2154,6 +2154,47 @@ impl<'ast> WebpackAstParser<'ast> {
 				// contextual keyword, used as a method/property name
 				| TK::Constructor
 				| TK::Super
+				// accessor keywords; minifiers keep these verbatim
+				| TK::Get
+				| TK::Set
+				| TK::Accessor
+				// `#foo` class members survive minification
+				| TK::PrivateIdentifier
+				// ts-only keywords; plain idents in the js we parse
+				| TK::Abstract
+				| TK::Any
+				| TK::As
+				| TK::Assert
+				| TK::Asserts
+				| TK::Boolean
+				| TK::Declare
+				| TK::Defer
+				| TK::Global
+				| TK::Implements
+				| TK::Infer
+				| TK::Interface
+				| TK::Intrinsic
+				| TK::KeyOf
+				| TK::Meta
+				| TK::Module
+				| TK::Namespace
+				| TK::Never
+				| TK::Number
+				| TK::Out
+				| TK::Override
+				| TK::Package
+				| TK::Private
+				| TK::Protected
+				| TK::Public
+				| TK::Readonly
+				| TK::Require
+				| TK::Satisfies
+				| TK::Source
+				| TK::Symbol
+				| TK::Unique
+				| TK::Unknown
+				| TK::Using
+				| TK::JSXText
 				// strings
 				| TK::Str
 				| TK::RegExp
@@ -2165,7 +2206,15 @@ impl<'ast> WebpackAstParser<'ast> {
 				TK::Decimal
 				| TK::Float
 				| TK::PositiveExponential
-				| TK::NegativeExponential => (tl.ilog2() * tl).min(1),
+				| TK::NegativeExponential
+				| TK::BigInt
+				| TK::Binary
+				| TK::BinaryBigInt
+				| TK::DecimalBigInt
+				| TK::Hex
+				| TK::HexBigInt
+				| TK::Octal
+				| TK::OctalBigInt => (tl.ilog2() * tl).min(1),
 				TK::Comma
 				| TK::LParen
 				| TK::RParen
@@ -2216,6 +2265,7 @@ impl<'ast> WebpackAstParser<'ast> {
 				| TK::Slash
 				| TK::Let
 				| TK::Bang => 1,
+				TK::Percent => 4,
 				TK::Null => {
 					debug_assert_eq!(tl, 4, "null token should be 4 bytes");
 					tl
