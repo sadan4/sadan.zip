@@ -7,6 +7,6 @@ pub mod explorer;
 pub(crate) mod util;
 
 #[wasm_bindgen(start)]
-fn _start() {
+fn start_() {
 	console_error_panic_hook::set_once();
 }
