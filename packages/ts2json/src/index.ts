@@ -182,6 +182,24 @@ export class Analyzer {
     }
 
     /**
+     * a function has no json representation, `JSON.stringify` drops the property entirely
+     */
+    #isCallable(ty: Type): boolean { 
+        const nonNullable = this.#c.getNonNullableType(ty);
+        return nonNullable.getCallSignatures().length > 0 || nonNullable.getConstructSignatures().length > 0;
+    }
+
+    /**
+     * a member keyed by a symbol, eg: `[Symbol.toPrimitive]()`
+     *
+     * the checker names these `__@toPrimitive@620`, which is not a key any json object can have
+     */
+    #isSymbolKeyed(prop: Symbol): boolean { 
+        // `__String` is branded to keep it apart from real identifiers, but it is a string
+        return (prop.escapedName as string).startsWith("__@");
+    }
+
+    /**
      * returns the text of the `\@deprecated` tag if present, otherwise undefined
      */
     #isDeprecated(sym: Symbol): string | undefined { 
@@ -201,14 +219,21 @@ export class Analyzer {
         // typescript can't do inference if we declare it in the obj literal
         s.required = [];
         for (const prop of this.#c.getPropertiesOfType(type)) {
-            const jsDocIR = prop.getDocumentationComment(this.#c);
-            const jsDoc = displayPartsToString(jsDocIR);
+            if (this.#isSymbolKeyed(prop)) { 
+                continue;
+            }
             // a property can have multiple declarations
             // eg: interface Base { foo: string | number } interface Derived extends Base { foo: string }
             // any is valid, the symbols are unique between them
             const decl = prop.valueDeclaration ?? prop.declarations?.[0] ?? this.#rootFile;
-            const name = prop.getName();
             const ty = this.#c.getTypeOfSymbolAtLocation(prop, decl);
+            // methods and function-valued properties never survive serialization
+            if (this.#isCallable(ty)) { 
+                continue;
+            }
+            const jsDocIR = prop.getDocumentationComment(this.#c);
+            const jsDoc = displayPartsToString(jsDocIR);
+            const name = prop.getName();
             if (!this.#isJsonOptional(ty)) {
                 s.required.push(name);
             }
@@ -313,6 +338,8 @@ export class Analyzer {
             case "RegExp": return { type: "string", format: "regex" };
             // json has no binary type, so bytes are the numbers `Array.from` would give
             case "Uint8Array": return { type: "array", items: { type: "number", minimum: 0, maximum: BYTE_MAX } };
+            // every member of Date is a method, `toJSON` serializes it to an iso string
+            case "Date": return { type: "string", format: "date-time" };
         }
     }
 

@@ -55,7 +55,7 @@ export interface SchemaString extends SchemaBase {
     /**
      * a semantic constraint on the string, eg: a `RegExp` is a `"regex"`
      */
-    format?: "regex";
+    format?: "regex" | "date-time";
     /**
      * the constant value of the string
      * 

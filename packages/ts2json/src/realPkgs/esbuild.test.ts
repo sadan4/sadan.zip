@@ -548,15 +548,9 @@ it("esbuild.d.ts", () => {
                 "name": {
                   "type": "string",
                 },
-                "setup": {
-                  "additionalProperties": false,
-                  "properties": {},
-                  "type": "object",
-                },
               },
               "required": [
                 "name",
-                "setup",
               ],
               "type": "object",
             },
