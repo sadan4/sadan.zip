@@ -30,24 +30,26 @@ export function createVirtualProgram(
     const sourceFile = createSourceFile(FILE_NAME, tsCode, options.target ?? ScriptTarget.ESNext, true, scriptKind);
     const { getSourceFile, fileExists, readFile } = host;
 
-    host.getSourceFile = function (fileName) {
+    // eslint-disable typescript/no-unnecessary-condition -- this can be null as these are not bound functions
+    host.getSourceFile = function (fileName, ...args) {
         if (fileName === FILE_NAME) {
             return sourceFile;
         }
-        return getSourceFile.apply(this ?? host, arguments as any);
+        return getSourceFile.call(this ?? host, fileName, ...args);
     };
-    host.fileExists = function (fileName) {
+    host.fileExists = function (fileName, ...args) {
         if (fileName === FILE_NAME) {
             return true;
         }
-        return fileExists.apply(this ?? host, arguments as any);
+        return fileExists.call(this ?? host, fileName, ...args);
     };
-    host.readFile = function (fileName) {
+    host.readFile = function (fileName, ...args) {
         if (fileName === FILE_NAME) {
             return tsCode;
         }
-        return readFile.apply(this ?? host, arguments as any);
+        return readFile.call(this ?? host, fileName, ...args);
     };
+    // eslint-enable typescript/no-unnecessary-condition
     host.writeFile = function (fileName) {
         console.warn(`writeFile called for ${fileName}, but this is a virtual program. Ignoring.`);
     };

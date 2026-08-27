@@ -22,7 +22,19 @@ export interface SchemaBase {
     deprecated?: boolean;
 }
 
-export type AnySchema = SchemaIntersection | SchemaUnion | SchemaString | SchemaNumber | SchemaObject | SchemaArray | SchemaTuple | SchemaBoolean | SchemaNull | SchemaUnconstrained | SchemaNever | SchemaRef;
+export type AnySchema =
+  | SchemaIntersection
+  | SchemaUnion
+  | SchemaString
+  | SchemaNumber
+  | SchemaObject
+  | SchemaArray
+  | SchemaTuple
+  | SchemaBoolean
+  | SchemaNull
+  | SchemaUnconstrained
+  | SchemaNever
+  | SchemaRef;
 
 /**
  * a reference to a schema in the root's `$defs`, eg: `#/$defs/Foo`

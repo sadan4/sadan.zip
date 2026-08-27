@@ -154,7 +154,11 @@ export class Analyzer {
         return new Analyzer(program, rootFile);
     }
 
-    public static createFromFile(filePath: string, options: CompilerOptions = DEFAULT_COMPILER_OPTIONS, host?: CompilerHost): Analyzer {
+    public static createFromFile(
+        filePath: string,
+        options: CompilerOptions = DEFAULT_COMPILER_OPTIONS,
+        host?: CompilerHost,
+    ): Analyzer {
         const program = createProgram({
             options,
             rootNames: [filePath],
@@ -173,7 +177,11 @@ export class Analyzer {
      * @param containingFile the file the module is resolved relative to.
      * defaults to a fake file in the current working directory
      */
-    public static createFromModule(moduleName: string, containingFile?: string, options: CompilerOptions = DEFAULT_COMPILER_OPTIONS): Analyzer {
+    public static createFromModule(
+        moduleName: string,
+        containingFile?: string,
+        options: CompilerOptions = DEFAULT_COMPILER_OPTIONS,
+    ): Analyzer {
         const host = createCompilerHost(options, true);
         // the file doesn't need to exist, only its directory is used to walk up looking for node_modules
         const from = containingFile ?? `${host.getCurrentDirectory()}/__ts2json__.ts`;
@@ -671,6 +679,7 @@ export class Analyzer {
                 type: "string",
                 format: "date-time",
             };
+            default: return;
         }
     }
 

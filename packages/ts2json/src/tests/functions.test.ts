@@ -53,7 +53,7 @@ describe("ts2json", () => {
             const when = out.properties.when as SchemaObject;
 
             // eg: `__@toPrimitive@620`, which is not a real key
-            expect(Object.keys(when.properties ?? {}).filter((k) => k.startsWith("__@"))).toEqual([]);
+            expect(Object.keys(when.properties).filter((k) => k.startsWith("__@"))).toEqual([]);
         });
     });
 });
