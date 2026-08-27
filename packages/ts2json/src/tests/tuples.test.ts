@@ -12,6 +12,7 @@ describe("ts2json", () => {
             `;
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
                 "additionalProperties": false,
                 "properties": {
                   "bar": {
@@ -43,6 +44,7 @@ describe("ts2json", () => {
             `;
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
                 "additionalProperties": false,
                 "properties": {
                   "bar": {
@@ -74,6 +76,7 @@ describe("ts2json", () => {
             `;
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
                 "additionalProperties": false,
                 "properties": {
                   "bar": {
@@ -104,6 +107,7 @@ describe("ts2json", () => {
             `;
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
                 "additionalProperties": false,
                 "properties": {
                   "bar": {
@@ -135,6 +139,7 @@ describe("ts2json", () => {
             `;
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
                 "additionalProperties": false,
                 "properties": {
                   "bar": {
@@ -167,6 +172,7 @@ describe("ts2json", () => {
             `;
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
                 "additionalProperties": false,
                 "properties": {
                   "bar": {
@@ -190,6 +196,7 @@ describe("ts2json", () => {
             `;
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
                 "additionalProperties": false,
                 "properties": {
                   "bar": {
@@ -231,6 +238,7 @@ describe("ts2json", () => {
             `;
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
                 "additionalProperties": false,
                 "properties": {
                   "bar": {
@@ -283,6 +291,7 @@ describe("ts2json", () => {
             `;
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
                 "additionalProperties": false,
                 "properties": {
                   "bar": {
@@ -335,6 +344,7 @@ describe("ts2json", () => {
             `;
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
                 "additionalProperties": false,
                 "properties": {
                   "bar": {

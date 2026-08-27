@@ -14,6 +14,7 @@ describe("ts2json", () => {
         const output = handleDefaultExport(input);
         expect(output).toMatchInlineSnapshot(`
           {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
             "additionalProperties": false,
             "properties": {
               "bar": {
@@ -47,6 +48,7 @@ describe("ts2json", () => {
         const output = handleDefaultExport(input);
         expect(output).toMatchInlineSnapshot(`
           {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
             "additionalProperties": false,
             "properties": {
               "foo": {
@@ -69,6 +71,7 @@ describe("ts2json", () => {
         const output = handleDefaultExport(input);
         expect(output).toMatchInlineSnapshot(`
           {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
             "additionalProperties": false,
             "properties": {
               "bar": {
@@ -104,6 +107,7 @@ describe("ts2json", () => {
         const output = handleDefaultExport(input);
         expect(output).toMatchInlineSnapshot(`
           {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
             "additionalProperties": false,
             "properties": {
               "baz": {

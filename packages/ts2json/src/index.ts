@@ -13,6 +13,19 @@ function assert<T>(value: T, msg: string): asserts value {
 }
 
 /**
+ * `obj[key] = value` sets the prototype instead of a key when `key` is `__proto__`,
+ * which silently drops the property
+ */
+function setKey<T>(obj: Record<string, T>, key: string, value: T): void { 
+    Object.defineProperty(obj, key, {
+        value,
+        writable: true,
+        enumerable: true,
+        configurable: true,
+    });
+}
+
+/**
  * enum at runtime
  */
 type RuntimeEnum = Record<string, string | number>;
@@ -175,7 +188,7 @@ export class Analyzer {
             if (jsDocIR.length) {
                 schema.description = jsDoc;
             }
-            s.properties[name] = schema;
+            setKey(s.properties, name, schema);
             // @deprecated tag could have empty string value
             if (this.#isDeprecated(prop) != null) { 
                 schema.deprecated = true;
@@ -348,7 +361,8 @@ export class Analyzer {
             error(`Symbol ${sym.getName()} is a variable, not an type`);
         }
         if (sym.flags & SymbolFlags.Interface) { 
-            return this.#getSchemaForInterface(sym);
+            // a symbol is only resolved at the root, nested types go through getSchemaForType
+            return { $schema: this.$schema, ...this.#getSchemaForInterface(sym) };
         }
         error(`TODO: implement getSchemaForSymbol for ${sym.getName()} with flags ${humanizeSymbolFlags(sym.flags)}`);
     }

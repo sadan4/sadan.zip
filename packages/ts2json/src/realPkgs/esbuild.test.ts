@@ -10,6 +10,7 @@ it("esbuild.d.ts", () => {
     const jsonSchema = analyzer.getSchemaForSymbol(schema);
     expect(jsonSchema).toMatchInlineSnapshot(`
       {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
           "absPaths": {
