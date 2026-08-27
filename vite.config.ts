@@ -1,9 +1,10 @@
 import babel from "@rolldown/plugin-babel";
-import omt from "@surma/rollup-plugin-off-main-thread";
 import tailwindcss from "@tailwindcss/vite";
 import { devtools } from "@tanstack/devtools-vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import viteReact, { reactCompilerPreset } from "@vitejs/plugin-react";
+
+import { omt } from "./scripts/vite-plugin-omt.ts";
 
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";

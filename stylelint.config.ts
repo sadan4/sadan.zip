@@ -2,7 +2,7 @@ import type { Config } from "stylelint";
 
 export default {
     extends: ["stylelint-config-standard"],
-    ignoreFiles: ["./dist/**/*"],
+    ignoreFiles: ["./dist/**/*", "./target/**/*"],
     overrides: [
         {
             files: "*.scss",
