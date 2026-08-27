@@ -325,7 +325,7 @@ export class Analyzer {
         if (this.#c.isArrayLikeType(ty)) { 
             const elemType = this.#c.getIndexTypeOfType(ty, IndexKind.Number);
             assert(elemType, `Array-like type ${this.#c.typeToString(ty)} has no index type`);
-            return { type: "array", items: this.getSchemaForType(elemType) };
+            return { type: "array", items: this.#getSchemaForNullishType(elemType) };
         }
         if (ty.flags & TypeFlags.String) {
             return { type: "string" };

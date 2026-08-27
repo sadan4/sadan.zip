@@ -246,7 +246,7 @@ describe("ts2json", () => {
                 }
             `;
             expect((handleDefaultExport(input) as any).properties.bar.items).toEqual({
-                anyOf: [{ type: "null" }, { type: "string" }],
+                anyOf: [{ type: "string" }, { type: "null" }],
             });
         });
     });
