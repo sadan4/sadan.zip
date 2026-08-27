@@ -63,6 +63,22 @@ function makeFlagHumanizer<E extends RuntimeEnum>(enumObj: E): (v: number) => st
     }
 }
 
+/**
+ * the extensions module resolution lands on when a module actually ships types
+ *
+ * anything else (`.js`, `.jsx`, `.mjs`, `.cjs`, `.json`) has no type information to read
+ */
+// `ResolvedModuleFull.extension` is typed as a plain string, not `Extension`
+const TYPED_EXTENSIONS: ReadonlySet<string> = new Set<string>([
+    Extension.Dts,
+    Extension.Dmts,
+    Extension.Dcts,
+    Extension.Ts,
+    Extension.Tsx,
+    Extension.Mts,
+    Extension.Cts,
+]);
+
 const BYTE_MAX = 255;
 
 /**
@@ -119,9 +135,9 @@ export class Analyzer {
         const from = containingFile ?? `${host.getCurrentDirectory()}/__ts2json__.ts`;
         const { resolvedModule } = resolveModuleName(moduleName, from, options, host);
         assert(resolvedModule, `could not resolve module ${moduleName} from ${from}`);
-        // resolution only finds js when there are no types for the module
+        // resolution only lands on a runtime file when there are no types for the module
         assert(
-            resolvedModule.extension !== Extension.Js && resolvedModule.extension !== Extension.Jsx,
+            TYPED_EXTENSIONS.has(resolvedModule.extension),
             `module ${moduleName} resolved to ${resolvedModule.resolvedFileName}, which has no type declarations`
         );
         return Analyzer.createFromFile(resolvedModule.resolvedFileName, options, host);

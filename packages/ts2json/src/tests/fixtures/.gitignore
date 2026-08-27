@@ -1,0 +1,3 @@
+# checked-in module resolution fixtures, not installed dependencies
+!no-types/node_modules/
+!no-types/node_modules/**
