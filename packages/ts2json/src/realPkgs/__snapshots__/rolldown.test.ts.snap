@@ -1,0 +1,5040 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`rolldown.d.ts 1`] = `
+{
+  "$defs": {
+    "AddonFunction": {
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object",
+    },
+    "AddonHookFunction": {
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object",
+    },
+    "And": {
+      "additionalProperties": false,
+      "properties": {
+        "args": {
+          "items": {
+            "$ref": "#/$defs/FilterExpression",
+          },
+          "type": "array",
+        },
+        "kind": {
+          "const": "and",
+          "type": "string",
+        },
+      },
+      "required": [
+        "kind",
+        "args",
+      ],
+      "type": "object",
+    },
+    "Anonymous": {
+      "anyOf": [
+        {
+          "const": false,
+          "type": "boolean",
+        },
+        {
+          "$ref": "#/$defs/BuiltinPlugin",
+        },
+        {
+          "$ref": "#/$defs/ParallelPlugin",
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "type": "string",
+            },
+          },
+          "required": [
+            "name",
+          ],
+          "type": "object",
+        },
+        {
+          "$ref": "#/$defs/Anonymous_2",
+        },
+        {
+          "$ref": "#/$defs/Plugin",
+        },
+        {
+          "$ref": "#/$defs/Promise",
+        },
+      ],
+    },
+    "Anonymous_2": {
+      "items": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/Anonymous",
+          },
+          {
+            "type": "null",
+          },
+        ],
+      },
+      "type": "array",
+    },
+    "Anonymous_3": {
+      "anyOf": [
+        {
+          "const": false,
+          "type": "boolean",
+        },
+        {
+          "$ref": "#/$defs/BuiltinPlugin",
+        },
+        {
+          "$ref": "#/$defs/OutputPlugin",
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "type": "string",
+            },
+          },
+          "required": [
+            "name",
+          ],
+          "type": "object",
+        },
+        {
+          "$ref": "#/$defs/Anonymous_4",
+        },
+        {
+          "$ref": "#/$defs/Promise_2",
+        },
+      ],
+    },
+    "Anonymous_4": {
+      "items": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/Anonymous_3",
+          },
+          {
+            "type": "null",
+          },
+        ],
+      },
+      "type": "array",
+    },
+    "BuiltinPlugin": {
+      "additionalProperties": false,
+      "properties": {
+        "_options": {},
+        "enforce": {
+          "anyOf": [
+            {
+              "const": "pre",
+              "type": "string",
+            },
+            {
+              "const": "post",
+              "type": "string",
+            },
+          ],
+          "description": "Vite-specific option to control plugin ordering",
+        },
+        "name": {
+          "anyOf": [
+            {
+              "const": "builtin:bundle-analyzer",
+              "type": "string",
+            },
+            {
+              "const": "builtin:esm-external-require",
+              "type": "string",
+            },
+            {
+              "const": "builtin:isolated-declaration",
+              "type": "string",
+            },
+            {
+              "const": "builtin:replace",
+              "type": "string",
+            },
+            {
+              "const": "builtin:vite-alias",
+              "type": "string",
+            },
+            {
+              "const": "builtin:vite-build-import-analysis",
+              "type": "string",
+            },
+            {
+              "const": "builtin:vite-dynamic-import-vars",
+              "type": "string",
+            },
+            {
+              "const": "builtin:vite-import-glob",
+              "type": "string",
+            },
+            {
+              "const": "builtin:vite-json",
+              "type": "string",
+            },
+            {
+              "const": "builtin:vite-load-fallback",
+              "type": "string",
+            },
+            {
+              "const": "builtin:vite-manifest",
+              "type": "string",
+            },
+            {
+              "const": "builtin:vite-module-preload-polyfill",
+              "type": "string",
+            },
+            {
+              "const": "builtin:vite-react-refresh-wrapper",
+              "type": "string",
+            },
+            {
+              "const": "builtin:vite-reporter",
+              "type": "string",
+            },
+            {
+              "const": "builtin:vite-resolve",
+              "type": "string",
+            },
+            {
+              "const": "builtin:vite-transform",
+              "type": "string",
+            },
+            {
+              "const": "builtin:vite-web-worker-post",
+              "type": "string",
+            },
+            {
+              "const": "builtin:oxc-runtime",
+              "type": "string",
+            },
+          ],
+        },
+      },
+      "required": [
+        "name",
+        "_options",
+      ],
+      "type": "object",
+    },
+    "ChunkFileNamesFunction": {
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object",
+    },
+    "CodeSplittingGroup": {
+      "additionalProperties": false,
+      "properties": {
+        "entriesAware": {
+          "description": "When \`false\` (default), all matching modules are merged into a single chunk.
+Every entry that uses any of these modules must load the entire chunk — even
+modules it doesn't need.
+
+When \`true\`, matching modules are grouped by which entries actually import them.
+Modules shared by the same set of entries go into the same chunk, while modules
+shared by a different set go into a separate chunk. This way, each entry only
+loads the code it actually uses.
+
+Example: entries A, B, C all match a \`"vendor"\` group.
+- \`moduleX\` is used by A, B, C
+- \`moduleY\` is used by A, B only
+
+With \`entriesAware: false\` → one \`vendor.js\` chunk with both modules; C loads \`moduleY\` unnecessarily.
+With \`entriesAware: true\`  → \`vendor.js\` (moduleX, loaded by all) + \`vendor2.js\` (moduleY, loaded by A and B only).",
+          "type": "boolean",
+        },
+        "entriesAwareMergeThreshold": {
+          "description": "Size threshold in bytes for merging small \`entriesAware\` subgroups into the
+closest neighboring subgroup.
+
+This option only works when {@linkcode CodeSplittingGroup.entriesAwareentriesAware}
+is \`true\`. Set to \`0\` to disable subgroup merging.",
+          "type": "number",
+        },
+        "includeDependenciesRecursively": {
+          "description": "Whether to include captured modules' dependencies.
+
+Enabling this option reduces the chance of generating circular chunks.
+
+If you want to disable this behavior, it's recommended to both set
+- {@linkcode InputOptions.preserveEntrySignaturespreserveEntrySignatures}: \`false | 'allow-extension'\`
+- {@linkcode OutputOptions.strictExecutionOrderstrictExecutionOrder}: \`true\`
+
+to avoid generating invalid chunks.",
+          "type": "boolean",
+        },
+        "maxModuleSize": {
+          "description": "Controls whether a module can only be captured if its size in bytes is smaller than or equal to this value.",
+          "type": "number",
+        },
+        "maxSize": {
+          "description": "If the accumulated size in bytes of the captured modules by this group is larger than this value, this group will be split into multiple groups that each has size close to this value.",
+          "type": "number",
+        },
+        "minModuleSize": {
+          "description": "Controls whether a module can only be captured if its size in bytes is larger than or equal to this value.",
+          "type": "number",
+        },
+        "minShareCount": {
+          "description": "Controls if a module should be captured based on how many entry chunks reference it.",
+          "type": "number",
+        },
+        "minSize": {
+          "description": "Minimum size in bytes of the desired chunk. If the accumulated size of the captured modules by this group is smaller than this value, it will be ignored. Modules in this group will fall back to the \`automatic chunking\` if they are not captured by any other group.",
+          "type": "number",
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string",
+            },
+            {
+              "additionalProperties": false,
+              "properties": {},
+              "type": "object",
+            },
+          ],
+          "description": "Name of the group. It will be also used as the name of the chunk and replace the \`[name]\` placeholder in the {@linkcode OutputOptions.chunkFileNamesoutput.chunkFileNames} option.
+
+For example,
+
+\`\`\`js
+import { defineConfig } from 'rolldown';
+
+export default defineConfig({
+  output: {
+    codeSplitting: {
+      groups: [
+        {
+          name: 'libs',
+          test: /node_modules/,
+        },
+      ],
+    },
+  },
+});
+\`\`\`
+will create a chunk named \`libs-[hash].js\` in the end.
+
+It's ok to have the same name for different groups. Rolldown will deduplicate the chunk names if necessary.
+
+#### Dynamic \`name()\`
+
+If \`name\` is a function, it will be called with the module id as the argument. The function should return a string or \`null\`. If it returns \`null\`, the module will be ignored by this group.
+
+Notice, each returned new name will be treated as a separate group.
+
+For example,
+
+\`\`\`js
+import { defineConfig } from 'rolldown';
+
+export default defineConfig({
+  output: {
+    codeSplitting: {
+      groups: [
+        {
+          name: (moduleId) => moduleId.includes('node_modules') ? 'libs' : 'app',
+          minSize: 100 * 1024,
+        },
+      ],
+    },
+  },
+});
+\`\`\`
+
+:::warning
+Constraints like \`minSize\`, \`maxSize\`, etc. are applied separately for different names returned by the function.
+:::",
+        },
+        "priority": {
+          "description": "Priority of the group. Group with higher priority will be chosen first to match modules and create chunks. When converting the group to a chunk, modules of that group will be removed from other groups.
+
+If two groups have the same priority, the group whose index is smaller will be chosen.",
+          "type": "number",
+        },
+        "tags": {
+          "description": "Filter modules by tags. Only modules that have **all** specified tags
+are captured by this group. Combines with \`test\` and other filters —
+a module must match all criteria.
+
+Built-in tags: \`'$initial'\` (module is statically imported by a user-defined entry or part of its dependency chain).",
+          "items": {
+            "const": "$initial",
+            "type": "string",
+          },
+          "type": "array",
+        },
+        "test": {
+          "anyOf": [
+            {
+              "type": "string",
+            },
+            {
+              "format": "regex",
+              "type": "string",
+            },
+            {
+              "additionalProperties": false,
+              "properties": {},
+              "type": "object",
+            },
+          ],
+          "description": "Controls which modules are captured in this group.
+
+- If \`test\` is a string, the module whose id contains the string will be captured.
+- If \`test\` is a regular expression, the module whose id matches the regular expression will be captured.
+- If \`test\` is a function, modules for which \`test(id)\` returns \`true\` will be captured.
+- If \`test\` is empty, any module will be considered as matched.
+
+:::warning
+When using regular expression, it's recommended to use \`[\\\\/]\` to match the path separator instead of \`/\` to avoid potential issues on Windows.
+- ✅ Recommended: \`/node_modules[\\\\/]react/\`
+- ❌ Not recommended: \`/node_modules/react/\`
+:::",
+        },
+      },
+      "required": [
+        "name",
+      ],
+      "type": "object",
+    },
+    "FilterExpression": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/And",
+        },
+        {
+          "$ref": "#/$defs/Or",
+        },
+        {
+          "$ref": "#/$defs/Not",
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "id",
+              "type": "string",
+            },
+            "params": {
+              "$ref": "#/$defs/IdParams",
+            },
+            "pattern": {
+              "$ref": "#/$defs/StringOrRegExp_2",
+            },
+          },
+          "required": [
+            "kind",
+            "pattern",
+            "params",
+          ],
+          "type": "object",
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "importerId",
+              "type": "string",
+            },
+            "params": {
+              "$ref": "#/$defs/IdParams",
+            },
+            "pattern": {
+              "$ref": "#/$defs/StringOrRegExp_2",
+            },
+          },
+          "required": [
+            "kind",
+            "pattern",
+            "params",
+          ],
+          "type": "object",
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "moduleType",
+              "type": "string",
+            },
+            "pattern": {
+              "anyOf": [
+                {
+                  "const": "js",
+                  "type": "string",
+                },
+                {
+                  "const": "jsx",
+                  "type": "string",
+                },
+                {
+                  "const": "ts",
+                  "type": "string",
+                },
+                {
+                  "const": "tsx",
+                  "type": "string",
+                },
+                {
+                  "const": "json",
+                  "type": "string",
+                },
+                {
+                  "const": "text",
+                  "type": "string",
+                },
+                {
+                  "const": "base64",
+                  "type": "string",
+                },
+                {
+                  "const": "dataurl",
+                  "type": "string",
+                },
+                {
+                  "const": "binary",
+                  "type": "string",
+                },
+                {
+                  "const": "empty",
+                  "type": "string",
+                },
+                {
+                  "allOf": [
+                    {
+                      "type": "string",
+                    },
+                    {
+                      "properties": {},
+                      "type": "object",
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+          "required": [
+            "kind",
+            "pattern",
+          ],
+          "type": "object",
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "code",
+              "type": "string",
+            },
+            "pattern": {
+              "$ref": "#/$defs/StringOrRegExp_2",
+            },
+          },
+          "required": [
+            "kind",
+            "pattern",
+          ],
+          "type": "object",
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "key": {
+              "type": "string",
+            },
+            "kind": {
+              "const": "query",
+              "type": "string",
+            },
+            "pattern": {
+              "anyOf": [
+                {
+                  "type": "string",
+                },
+                {
+                  "const": false,
+                  "type": "boolean",
+                },
+                {
+                  "const": true,
+                  "type": "boolean",
+                },
+                {
+                  "format": "regex",
+                  "type": "string",
+                },
+              ],
+            },
+          },
+          "required": [
+            "kind",
+            "key",
+            "pattern",
+          ],
+          "type": "object",
+        },
+      ],
+    },
+    "GeneralHookFilter": {
+      "anyOf": [
+        {
+          "type": "string",
+        },
+        {
+          "format": "regex",
+          "type": "string",
+        },
+        {
+          "items": {
+            "$ref": "#/$defs/StringOrRegExp",
+          },
+          "type": "array",
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "exclude": {
+              "$ref": "#/$defs/MaybeArray",
+            },
+            "include": {
+              "$ref": "#/$defs/MaybeArray",
+            },
+          },
+          "type": "object",
+        },
+      ],
+    },
+    "IdParams": {
+      "additionalProperties": false,
+      "properties": {
+        "cleanUrl": {
+          "type": "boolean",
+        },
+      },
+      "type": "object",
+    },
+    "MaybeArray": {
+      "anyOf": [
+        {
+          "type": "string",
+        },
+        {
+          "format": "regex",
+          "type": "string",
+        },
+        {
+          "items": {
+            "$ref": "#/$defs/StringOrRegExp",
+          },
+          "type": "array",
+        },
+      ],
+    },
+    "MaybeArray_2": {
+      "anyOf": [
+        {
+          "format": "regex",
+          "type": "string",
+        },
+        {
+          "items": {
+            "format": "regex",
+            "type": "string",
+          },
+          "type": "array",
+        },
+      ],
+    },
+    "ModuleType_2": {
+      "anyOf": [
+        {
+          "const": "js",
+          "type": "string",
+        },
+        {
+          "const": "jsx",
+          "type": "string",
+        },
+        {
+          "const": "ts",
+          "type": "string",
+        },
+        {
+          "const": "tsx",
+          "type": "string",
+        },
+        {
+          "const": "json",
+          "type": "string",
+        },
+        {
+          "const": "text",
+          "type": "string",
+        },
+        {
+          "const": "base64",
+          "type": "string",
+        },
+        {
+          "const": "dataurl",
+          "type": "string",
+        },
+        {
+          "const": "binary",
+          "type": "string",
+        },
+        {
+          "const": "empty",
+          "type": "string",
+        },
+        {
+          "allOf": [
+            {
+              "type": "string",
+            },
+            {
+              "properties": {},
+              "type": "object",
+            },
+          ],
+        },
+      ],
+    },
+    "Not": {
+      "additionalProperties": false,
+      "properties": {
+        "expr": {
+          "$ref": "#/$defs/FilterExpression",
+        },
+        "kind": {
+          "const": "not",
+          "type": "string",
+        },
+      },
+      "required": [
+        "kind",
+        "expr",
+      ],
+      "type": "object",
+    },
+    "ObjectHook": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {},
+          "type": "object",
+        },
+        {
+          "allOf": [
+            {
+              "properties": {},
+              "type": "object",
+            },
+            {
+              "properties": {
+                "order": {
+                  "anyOf": [
+                    {
+                      "anyOf": [
+                        {
+                          "const": "pre",
+                          "type": "string",
+                        },
+                        {
+                          "const": "post",
+                          "type": "string",
+                        },
+                      ],
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+              },
+              "type": "object",
+            },
+          ],
+        },
+      ],
+    },
+    "ObjectHook_2": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {},
+          "type": "object",
+        },
+        {
+          "allOf": [
+            {
+              "properties": {},
+              "type": "object",
+            },
+            {
+              "properties": {
+                "order": {
+                  "anyOf": [
+                    {
+                      "anyOf": [
+                        {
+                          "const": "pre",
+                          "type": "string",
+                        },
+                        {
+                          "const": "post",
+                          "type": "string",
+                        },
+                      ],
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+              },
+              "type": "object",
+            },
+            {
+              "properties": {
+                "sequential": {
+                  "deprecated": true,
+                  "type": "boolean",
+                },
+              },
+              "type": "object",
+            },
+          ],
+        },
+      ],
+    },
+    "ObjectHook_3": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {},
+          "type": "object",
+        },
+        {
+          "allOf": [
+            {
+              "properties": {},
+              "type": "object",
+            },
+            {
+              "properties": {
+                "order": {
+                  "anyOf": [
+                    {
+                      "anyOf": [
+                        {
+                          "const": "pre",
+                          "type": "string",
+                        },
+                        {
+                          "const": "post",
+                          "type": "string",
+                        },
+                      ],
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+              },
+              "type": "object",
+            },
+            {
+              "properties": {
+                "filter": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "code": {
+                          "$ref": "#/$defs/GeneralHookFilter",
+                          "description": "A filter based on the module's code.
+
+Only available for {@linkcode Plugin.transformtransform} hook.",
+                        },
+                      },
+                      "type": "object",
+                    },
+                    {
+                      "items": {
+                        "$ref": "#/$defs/TopLevelFilterExpression",
+                      },
+                      "type": "array",
+                    },
+                  ],
+                },
+              },
+              "type": "object",
+            },
+          ],
+        },
+      ],
+    },
+    "ObjectHook_4": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {},
+          "type": "object",
+        },
+        {
+          "allOf": [
+            {
+              "properties": {},
+              "type": "object",
+            },
+            {
+              "properties": {
+                "order": {
+                  "anyOf": [
+                    {
+                      "anyOf": [
+                        {
+                          "const": "pre",
+                          "type": "string",
+                        },
+                        {
+                          "const": "post",
+                          "type": "string",
+                        },
+                      ],
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+              },
+              "type": "object",
+            },
+          ],
+        },
+      ],
+    },
+    "ObjectHook_5": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {},
+          "type": "object",
+        },
+        {
+          "allOf": [
+            {
+              "properties": {},
+              "type": "object",
+            },
+            {
+              "properties": {
+                "order": {
+                  "anyOf": [
+                    {
+                      "anyOf": [
+                        {
+                          "const": "pre",
+                          "type": "string",
+                        },
+                        {
+                          "const": "post",
+                          "type": "string",
+                        },
+                      ],
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+              },
+              "type": "object",
+            },
+          ],
+        },
+      ],
+    },
+    "ObjectHook_6": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {},
+          "type": "object",
+        },
+        {
+          "allOf": [
+            {
+              "properties": {},
+              "type": "object",
+            },
+            {
+              "properties": {
+                "order": {
+                  "anyOf": [
+                    {
+                      "anyOf": [
+                        {
+                          "const": "pre",
+                          "type": "string",
+                        },
+                        {
+                          "const": "post",
+                          "type": "string",
+                        },
+                      ],
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+              },
+              "type": "object",
+            },
+            {
+              "properties": {
+                "sequential": {
+                  "deprecated": true,
+                  "type": "boolean",
+                },
+              },
+              "type": "object",
+            },
+          ],
+        },
+      ],
+    },
+    "ObjectHook_7": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {},
+          "type": "object",
+        },
+        {
+          "allOf": [
+            {
+              "properties": {},
+              "type": "object",
+            },
+            {
+              "properties": {
+                "order": {
+                  "anyOf": [
+                    {
+                      "anyOf": [
+                        {
+                          "const": "pre",
+                          "type": "string",
+                        },
+                        {
+                          "const": "post",
+                          "type": "string",
+                        },
+                      ],
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+              },
+              "type": "object",
+            },
+          ],
+        },
+      ],
+    },
+    "ObjectHook_8": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {},
+          "type": "object",
+        },
+        {
+          "allOf": [
+            {
+              "properties": {},
+              "type": "object",
+            },
+            {
+              "properties": {
+                "order": {
+                  "anyOf": [
+                    {
+                      "anyOf": [
+                        {
+                          "const": "pre",
+                          "type": "string",
+                        },
+                        {
+                          "const": "post",
+                          "type": "string",
+                        },
+                      ],
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+              },
+              "type": "object",
+            },
+            {
+              "properties": {
+                "sequential": {
+                  "deprecated": true,
+                  "type": "boolean",
+                },
+              },
+              "type": "object",
+            },
+          ],
+        },
+      ],
+    },
+    "ObjectHook_9": {
+      "anyOf": [
+        {
+          "type": "string",
+        },
+        {
+          "$ref": "#/$defs/AddonHookFunction",
+        },
+        {
+          "allOf": [
+            {
+              "properties": {
+                "handler": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                    },
+                    {
+                      "$ref": "#/$defs/AddonHookFunction",
+                    },
+                  ],
+                },
+              },
+              "required": [
+                "handler",
+              ],
+              "type": "object",
+            },
+            {
+              "properties": {
+                "order": {
+                  "anyOf": [
+                    {
+                      "anyOf": [
+                        {
+                          "const": "pre",
+                          "type": "string",
+                        },
+                        {
+                          "const": "post",
+                          "type": "string",
+                        },
+                      ],
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+              },
+              "type": "object",
+            },
+          ],
+        },
+      ],
+    },
+    "Or": {
+      "additionalProperties": false,
+      "properties": {
+        "args": {
+          "items": {
+            "$ref": "#/$defs/FilterExpression",
+          },
+          "type": "array",
+        },
+        "kind": {
+          "const": "or",
+          "type": "string",
+        },
+      },
+      "required": [
+        "kind",
+        "args",
+      ],
+      "type": "object",
+    },
+    "OutputPlugin": {
+      "additionalProperties": false,
+      "properties": {
+        "augmentChunkHash": {
+          "$ref": "#/$defs/ObjectHook_4",
+          "description": "Can be used to augment the hash of individual chunks. Called for each Rolldown output chunk.
+
+Returning a falsy value will not modify the hash.
+Truthy values will be used as an additional source for hash calculation.",
+        },
+        "banner": {
+          "$ref": "#/$defs/ObjectHook_9",
+          "description": "A hook equivalent to {@linkcode OutputOptions.banneroutput.banner} option.",
+        },
+        "footer": {
+          "$ref": "#/$defs/ObjectHook_9",
+          "description": "A hook equivalent to {@linkcode OutputOptions.footeroutput.footer} option.",
+        },
+        "generateBundle": {
+          "$ref": "#/$defs/ObjectHook_7",
+          "description": "Called at the end of {@linkcode RolldownBuild.generatebundle.generate()} or
+immediately before the files are written in
+{@linkcode RolldownBuild.writebundle.write()}.
+
+To modify the files after they have been written, use the {@linkcode writeBundle} hook.",
+        },
+        "intro": {
+          "$ref": "#/$defs/ObjectHook_9",
+          "description": "A hook equivalent to {@linkcode OutputOptions.introoutput.intro} option.",
+        },
+        "meta": {
+          "$ref": "#/$defs/PluginMeta",
+          "description": "Descriptive metadata about the plugin, such as the npm package it ships in.
+
+This does not affect bundling; it is informational and intended to be
+surfaced by tooling that inspects a build. See {@linkcode PluginMeta}.",
+        },
+        "name": {
+          "description": "The name of the plugin, for use in error messages and logs.",
+          "type": "string",
+        },
+        "outputOptions": {
+          "$ref": "#/$defs/ObjectHook",
+          "description": "Replaces or manipulates the output options object passed to
+{@linkcode RolldownBuild.generatebundle.generate()} or
+{@linkcode RolldownBuild.writebundle.write()}.
+
+Returning null does not replace anything.
+
+If you just need to read the output options, it is recommended to use
+the {@linkcode renderStart} hook as this hook has access to the output options
+after the transformations from all \`outputOptions\` hooks have been taken into account.",
+        },
+        "outro": {
+          "$ref": "#/$defs/ObjectHook_9",
+          "description": "A hook equivalent to {@linkcode OutputOptions.outrooutput.outro} option.",
+        },
+        "renderChunk": {
+          "$ref": "#/$defs/ObjectHook_3",
+          "description": "Can be used to transform individual chunks. Called for each Rolldown output chunk file.
+
+Returning null will apply no transformations. If you change code in this hook and want to support source maps, you need to return a map describing your changes, see [Source Code Transformations section](https://rolldown.rs/apis/plugin-api/transformations#source-code-transformations).
+
+\`chunk\` is mutable and changes applied in this hook will propagate to other plugins and
+to the generated bundle.
+That means if you add or remove imports or exports in this hook, you should update
+{@linkcode RenderedChunk.importsimports}, {@linkcode RenderedChunk.importedBindings importedBindings} and/or {@linkcode RenderedChunk.exportsexports} accordingly.",
+        },
+        "renderError": {
+          "$ref": "#/$defs/ObjectHook_6",
+          "description": "Called when Rolldown encounters an error during
+{@linkcode RolldownBuild.generatebundle.generate()} or
+{@linkcode RolldownBuild.writebundle.write()}.
+
+To get notified when generation completes successfully, use the
+{@linkcode generateBundle} hook.",
+        },
+        "renderStart": {
+          "$ref": "#/$defs/ObjectHook_2",
+          "description": "Called initially each time {@linkcode RolldownBuild.generatebundle.generate()} or
+{@linkcode RolldownBuild.writebundle.write()} is called.
+
+To get notified when generation has completed, use the {@linkcode generateBundle} and
+{@linkcode renderError} hooks.
+
+This is the recommended hook to use when you need access to the output options passed to
+{@linkcode RolldownBuild.generatebundle.generate()} or
+{@linkcode RolldownBuild.writebundle.write()} as it takes the transformations by all outputOptions hooks into account and also contains the right default values for unset options.
+
+It also receives the input options passed to {@linkcode rolldownrolldown()} so that
+plugins that can be used as output plugins, i.e. plugins that only use generate phase hooks,
+can get access to them.",
+        },
+        "resolveFileUrl": {
+          "$ref": "#/$defs/ObjectHook_5",
+        },
+        "version": {
+          "description": "The version of the plugin, for use in inter-plugin communication scenarios.",
+          "type": "string",
+        },
+        "writeBundle": {
+          "$ref": "#/$defs/ObjectHook_8",
+          "description": "Called only at the end of {@linkcode RolldownBuild.writebundle.write()} once
+all files have been written.",
+        },
+      },
+      "required": [
+        "name",
+      ],
+      "type": "object",
+    },
+    "ParallelPlugin": {
+      "additionalProperties": false,
+      "properties": {
+        "_parallel": {
+          "additionalProperties": false,
+          "properties": {
+            "fileUrl": {
+              "type": "string",
+            },
+            "options": {},
+          },
+          "required": [
+            "fileUrl",
+            "options",
+          ],
+          "type": "object",
+        },
+      },
+      "required": [
+        "_parallel",
+      ],
+      "type": "object",
+    },
+    "Plugin": {
+      "additionalProperties": false,
+      "properties": {
+        "api": {
+          "description": "Used for inter-plugin communication.",
+        },
+        "augmentChunkHash": {
+          "$ref": "#/$defs/ObjectHook_4",
+          "description": "Can be used to augment the hash of individual chunks. Called for each Rolldown output chunk.
+
+Returning a falsy value will not modify the hash.
+Truthy values will be used as an additional source for hash calculation.",
+        },
+        "banner": {
+          "$ref": "#/$defs/ObjectHook_9",
+          "description": "A hook equivalent to {@linkcode OutputOptions.banneroutput.banner} option.",
+        },
+        "buildEnd": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {},
+              "type": "object",
+            },
+            {
+              "allOf": [
+                {
+                  "properties": {},
+                  "type": "object",
+                },
+                {
+                  "properties": {
+                    "order": {
+                      "anyOf": [
+                        {
+                          "anyOf": [
+                            {
+                              "const": "pre",
+                              "type": "string",
+                            },
+                            {
+                              "const": "post",
+                              "type": "string",
+                            },
+                          ],
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                    },
+                  },
+                  "type": "object",
+                },
+                {
+                  "properties": {
+                    "sequential": {
+                      "deprecated": true,
+                      "type": "boolean",
+                    },
+                  },
+                  "type": "object",
+                },
+              ],
+            },
+          ],
+          "description": "Called when Rolldown has finished bundling, but before Output Generation Hooks.
+If an error occurred during the build, it is passed on to this hook.",
+        },
+        "buildStart": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {},
+              "type": "object",
+            },
+            {
+              "allOf": [
+                {
+                  "properties": {},
+                  "type": "object",
+                },
+                {
+                  "properties": {
+                    "order": {
+                      "anyOf": [
+                        {
+                          "anyOf": [
+                            {
+                              "const": "pre",
+                              "type": "string",
+                            },
+                            {
+                              "const": "post",
+                              "type": "string",
+                            },
+                          ],
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                    },
+                  },
+                  "type": "object",
+                },
+                {
+                  "properties": {
+                    "sequential": {
+                      "deprecated": true,
+                      "type": "boolean",
+                    },
+                  },
+                  "type": "object",
+                },
+              ],
+            },
+          ],
+          "description": "Called on each {@linkcode rolldownrolldown()} build.
+
+This is the recommended hook to use when you need access to the options passed to {@linkcode rolldownrolldown()} as it takes the transformations by all options hooks into account and also contains the right default values for unset options.",
+        },
+        "closeBundle": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {},
+              "type": "object",
+            },
+            {
+              "allOf": [
+                {
+                  "properties": {},
+                  "type": "object",
+                },
+                {
+                  "properties": {
+                    "order": {
+                      "anyOf": [
+                        {
+                          "anyOf": [
+                            {
+                              "const": "pre",
+                              "type": "string",
+                            },
+                            {
+                              "const": "post",
+                              "type": "string",
+                            },
+                          ],
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                    },
+                  },
+                  "type": "object",
+                },
+                {
+                  "properties": {
+                    "sequential": {
+                      "deprecated": true,
+                      "type": "boolean",
+                    },
+                  },
+                  "type": "object",
+                },
+              ],
+            },
+          ],
+          "description": "Can be used to clean up any external service that may be running.
+
+Rolldown's CLI will make sure this hook is called after each run, but it is the responsibility
+of users of the JavaScript API to manually call
+{@linkcode RolldownBuild.closebundle.close()} once they are done generating bundles.
+For that reason, any plugin relying on this feature should carefully mention this in
+its documentation.
+
+If a plugin wants to retain resources across builds in watch mode, they can check for
+{@linkcode PluginContextMeta.watchModethis.meta.watchMode} in this hook and perform
+the necessary cleanup for watch mode in closeWatcher.",
+        },
+        "closeWatcher": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {},
+              "type": "object",
+            },
+            {
+              "allOf": [
+                {
+                  "properties": {},
+                  "type": "object",
+                },
+                {
+                  "properties": {
+                    "order": {
+                      "anyOf": [
+                        {
+                          "anyOf": [
+                            {
+                              "const": "pre",
+                              "type": "string",
+                            },
+                            {
+                              "const": "post",
+                              "type": "string",
+                            },
+                          ],
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                    },
+                  },
+                  "type": "object",
+                },
+                {
+                  "properties": {
+                    "sequential": {
+                      "deprecated": true,
+                      "type": "boolean",
+                    },
+                  },
+                  "type": "object",
+                },
+              ],
+            },
+          ],
+          "description": "Notifies a plugin when the watcher process will close so that all open resources can be closed too.
+
+This hook cannot be used by output plugins.",
+        },
+        "footer": {
+          "$ref": "#/$defs/ObjectHook_9",
+          "description": "A hook equivalent to {@linkcode OutputOptions.footeroutput.footer} option.",
+        },
+        "generateBundle": {
+          "$ref": "#/$defs/ObjectHook_7",
+          "description": "Called at the end of {@linkcode RolldownBuild.generatebundle.generate()} or
+immediately before the files are written in
+{@linkcode RolldownBuild.writebundle.write()}.
+
+To modify the files after they have been written, use the {@linkcode writeBundle} hook.",
+        },
+        "intro": {
+          "$ref": "#/$defs/ObjectHook_9",
+          "description": "A hook equivalent to {@linkcode OutputOptions.introoutput.intro} option.",
+        },
+        "load": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {},
+              "type": "object",
+            },
+            {
+              "allOf": [
+                {
+                  "properties": {},
+                  "type": "object",
+                },
+                {
+                  "properties": {
+                    "order": {
+                      "anyOf": [
+                        {
+                          "anyOf": [
+                            {
+                              "const": "pre",
+                              "type": "string",
+                            },
+                            {
+                              "const": "post",
+                              "type": "string",
+                            },
+                          ],
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                    },
+                  },
+                  "type": "object",
+                },
+                {
+                  "properties": {
+                    "filter": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "$ref": "#/$defs/TopLevelFilterExpression",
+                          },
+                          "type": "array",
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "id": {
+                              "$ref": "#/$defs/GeneralHookFilter",
+                              "description": "A filter based on the module \`id\`.
+
+If the value is a string, it is treated as a glob pattern.
+The string type is not available for {@linkcode Plugin.resolveIdresolveId} hook.
+
+If the value is a regular expression, it is tested after the \`id\`'s path separators are normalized to forward slashes (\`/\`).
+This keeps the filter portable across operating systems without requiring the regular expression to match both \`/\` and \`\\\`.",
+                            },
+                          },
+                          "type": "object",
+                        },
+                      ],
+                    },
+                  },
+                  "type": "object",
+                },
+              ],
+            },
+          ],
+          "description": "Defines a custom loader.
+
+Returning \`null\` defers to other \`load\` hooks or the built-in loading mechanism.
+
+You can use {@linkcode PluginContext.getModuleInfothis.getModuleInfo()} to find out the previous values of \`meta\`, \`moduleSideEffects\` inside this hook.",
+        },
+        "meta": {
+          "$ref": "#/$defs/PluginMeta",
+          "description": "Descriptive metadata about the plugin, such as the npm package it ships in.
+
+This does not affect bundling; it is informational and intended to be
+surfaced by tooling that inspects a build. See {@linkcode PluginMeta}.",
+        },
+        "moduleParsed": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {},
+              "type": "object",
+            },
+            {
+              "allOf": [
+                {
+                  "properties": {},
+                  "type": "object",
+                },
+                {
+                  "properties": {
+                    "order": {
+                      "anyOf": [
+                        {
+                          "anyOf": [
+                            {
+                              "const": "pre",
+                              "type": "string",
+                            },
+                            {
+                              "const": "post",
+                              "type": "string",
+                            },
+                          ],
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                    },
+                  },
+                  "type": "object",
+                },
+                {
+                  "properties": {
+                    "sequential": {
+                      "deprecated": true,
+                      "type": "boolean",
+                    },
+                  },
+                  "type": "object",
+                },
+              ],
+            },
+          ],
+          "description": "This hook is called each time a module has been fully parsed by Rolldown.
+
+This hook will wait until all imports are resolved so that the information in
+{@linkcode ModuleInfo.importedIdsmoduleInfo.importedIds},
+{@linkcode ModuleInfo.dynamicallyImportedIdsmoduleInfo.dynamicallyImportedIds}
+are complete and accurate. Note however that information about importing modules
+may be incomplete as additional importers could be discovered later.
+If you need this information, use the {@linkcode buildEnd} hook.",
+        },
+        "name": {
+          "description": "The name of the plugin, for use in error messages and logs.",
+          "type": "string",
+        },
+        "onLog": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {},
+              "type": "object",
+            },
+            {
+              "allOf": [
+                {
+                  "properties": {},
+                  "type": "object",
+                },
+                {
+                  "properties": {
+                    "order": {
+                      "anyOf": [
+                        {
+                          "anyOf": [
+                            {
+                              "const": "pre",
+                              "type": "string",
+                            },
+                            {
+                              "const": "post",
+                              "type": "string",
+                            },
+                          ],
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                    },
+                  },
+                  "type": "object",
+                },
+              ],
+            },
+          ],
+          "description": "A function that receives and filters logs and warnings generated by Rolldown and
+plugins before they are passed to the {@linkcode InputOptions.onLogonLog} option
+or printed to the console.
+
+If \`false\` is returned, the log will be filtered out.
+Otherwise, the log will be handed to the \`onLog\` hook of the next plugin,
+the {@linkcode InputOptions.onLogonLog} option, or printed to the console.
+Plugins can also change the log level of a log or turn a log into an error by passing
+the \`log\` object to {@linkcode MinimalPluginContext.errorthis.error},
+{@linkcode MinimalPluginContext.warnthis.warn},
+{@linkcode MinimalPluginContext.infothis.info} or
+{@linkcode MinimalPluginContext.debugthis.debug} and returning \`false\`.",
+        },
+        "options": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {},
+              "type": "object",
+            },
+            {
+              "allOf": [
+                {
+                  "properties": {},
+                  "type": "object",
+                },
+                {
+                  "properties": {
+                    "order": {
+                      "anyOf": [
+                        {
+                          "anyOf": [
+                            {
+                              "const": "pre",
+                              "type": "string",
+                            },
+                            {
+                              "const": "post",
+                              "type": "string",
+                            },
+                          ],
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                    },
+                  },
+                  "type": "object",
+                },
+              ],
+            },
+          ],
+          "description": "Replaces or manipulates the options object passed to {@linkcode rolldownrolldown()}.
+
+Returning \`null\` does not replace anything.
+
+If you just need to read the options, it is recommended to use
+the {@linkcode buildStart} hook as that hook has access to the options
+after the transformations from all \`options\` hooks have been taken into account.",
+        },
+        "outputOptions": {
+          "$ref": "#/$defs/ObjectHook",
+          "description": "Replaces or manipulates the output options object passed to
+{@linkcode RolldownBuild.generatebundle.generate()} or
+{@linkcode RolldownBuild.writebundle.write()}.
+
+Returning null does not replace anything.
+
+If you just need to read the output options, it is recommended to use
+the {@linkcode renderStart} hook as this hook has access to the output options
+after the transformations from all \`outputOptions\` hooks have been taken into account.",
+        },
+        "outro": {
+          "$ref": "#/$defs/ObjectHook_9",
+          "description": "A hook equivalent to {@linkcode OutputOptions.outrooutput.outro} option.",
+        },
+        "renderChunk": {
+          "$ref": "#/$defs/ObjectHook_3",
+          "description": "Can be used to transform individual chunks. Called for each Rolldown output chunk file.
+
+Returning null will apply no transformations. If you change code in this hook and want to support source maps, you need to return a map describing your changes, see [Source Code Transformations section](https://rolldown.rs/apis/plugin-api/transformations#source-code-transformations).
+
+\`chunk\` is mutable and changes applied in this hook will propagate to other plugins and
+to the generated bundle.
+That means if you add or remove imports or exports in this hook, you should update
+{@linkcode RenderedChunk.importsimports}, {@linkcode RenderedChunk.importedBindings importedBindings} and/or {@linkcode RenderedChunk.exportsexports} accordingly.",
+        },
+        "renderError": {
+          "$ref": "#/$defs/ObjectHook_6",
+          "description": "Called when Rolldown encounters an error during
+{@linkcode RolldownBuild.generatebundle.generate()} or
+{@linkcode RolldownBuild.writebundle.write()}.
+
+To get notified when generation completes successfully, use the
+{@linkcode generateBundle} hook.",
+        },
+        "renderStart": {
+          "$ref": "#/$defs/ObjectHook_2",
+          "description": "Called initially each time {@linkcode RolldownBuild.generatebundle.generate()} or
+{@linkcode RolldownBuild.writebundle.write()} is called.
+
+To get notified when generation has completed, use the {@linkcode generateBundle} and
+{@linkcode renderError} hooks.
+
+This is the recommended hook to use when you need access to the output options passed to
+{@linkcode RolldownBuild.generatebundle.generate()} or
+{@linkcode RolldownBuild.writebundle.write()} as it takes the transformations by all outputOptions hooks into account and also contains the right default values for unset options.
+
+It also receives the input options passed to {@linkcode rolldownrolldown()} so that
+plugins that can be used as output plugins, i.e. plugins that only use generate phase hooks,
+can get access to them.",
+        },
+        "resolveDynamicImport": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {},
+              "type": "object",
+            },
+            {
+              "allOf": [
+                {
+                  "properties": {},
+                  "type": "object",
+                },
+                {
+                  "properties": {
+                    "order": {
+                      "anyOf": [
+                        {
+                          "anyOf": [
+                            {
+                              "const": "pre",
+                              "type": "string",
+                            },
+                            {
+                              "const": "post",
+                              "type": "string",
+                            },
+                          ],
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                    },
+                  },
+                  "type": "object",
+                },
+              ],
+            },
+          ],
+          "deprecated": true,
+          "description": "Defines a custom resolver for dynamic imports.",
+        },
+        "resolveFileUrl": {
+          "$ref": "#/$defs/ObjectHook_5",
+        },
+        "resolveId": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {},
+              "type": "object",
+            },
+            {
+              "allOf": [
+                {
+                  "properties": {},
+                  "type": "object",
+                },
+                {
+                  "properties": {
+                    "order": {
+                      "anyOf": [
+                        {
+                          "anyOf": [
+                            {
+                              "const": "pre",
+                              "type": "string",
+                            },
+                            {
+                              "const": "post",
+                              "type": "string",
+                            },
+                          ],
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                    },
+                  },
+                  "type": "object",
+                },
+                {
+                  "properties": {
+                    "filter": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "$ref": "#/$defs/TopLevelFilterExpression",
+                          },
+                          "type": "array",
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "id": {
+                              "anyOf": [
+                                {
+                                  "format": "regex",
+                                  "type": "string",
+                                },
+                                {
+                                  "items": {
+                                    "format": "regex",
+                                    "type": "string",
+                                  },
+                                  "type": "array",
+                                },
+                                {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "exclude": {
+                                      "$ref": "#/$defs/MaybeArray_2",
+                                    },
+                                    "include": {
+                                      "$ref": "#/$defs/MaybeArray_2",
+                                    },
+                                  },
+                                  "type": "object",
+                                },
+                              ],
+                            },
+                          },
+                          "type": "object",
+                        },
+                      ],
+                    },
+                  },
+                  "type": "object",
+                },
+              ],
+            },
+          ],
+          "description": "Defines a custom resolver.
+
+A resolver can be useful for e.g. locating third-party dependencies.
+
+Returning \`null\` defers to other \`resolveId\` hooks and eventually the default resolution behavior.
+Returning \`false\` signals that \`source\` should be treated as an external module and not included in the bundle. If this happens for a relative import, the id will be renormalized the same way as when the {@linkcode InputOptions.external} option is used.
+If you return an object, then it is possible to resolve an import to a different id while excluding it from the bundle at the same time.
+
+Note that while \`resolveId\` will be called for each import of a module and can therefore
+resolve to the same \`id\` many times, values for \`external\`, \`meta\` or \`moduleSideEffects\`
+can only be set once before the module is loaded. The reason is that after this call,
+Rolldown will continue with the {@linkcode load} and {@linkcode transform} hooks for that
+module that may override these values and should take precedence if they do so.",
+        },
+        "transform": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {},
+              "type": "object",
+            },
+            {
+              "allOf": [
+                {
+                  "properties": {},
+                  "type": "object",
+                },
+                {
+                  "properties": {
+                    "order": {
+                      "anyOf": [
+                        {
+                          "anyOf": [
+                            {
+                              "const": "pre",
+                              "type": "string",
+                            },
+                            {
+                              "const": "post",
+                              "type": "string",
+                            },
+                          ],
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                    },
+                  },
+                  "type": "object",
+                },
+                {
+                  "properties": {
+                    "filter": {
+                      "anyOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "code": {
+                              "$ref": "#/$defs/GeneralHookFilter",
+                              "description": "A filter based on the module's code.
+
+Only available for {@linkcode Plugin.transformtransform} hook.",
+                            },
+                            "id": {
+                              "$ref": "#/$defs/GeneralHookFilter",
+                              "description": "A filter based on the module \`id\`.
+
+If the value is a string, it is treated as a glob pattern.
+The string type is not available for {@linkcode Plugin.resolveIdresolveId} hook.
+
+If the value is a regular expression, it is tested after the \`id\`'s path separators are normalized to forward slashes (\`/\`).
+This keeps the filter portable across operating systems without requiring the regular expression to match both \`/\` and \`\\\`.",
+                            },
+                            "moduleType": {
+                              "anyOf": [
+                                {
+                                  "items": {
+                                    "$ref": "#/$defs/ModuleType_2",
+                                  },
+                                  "type": "array",
+                                },
+                                {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "include": {
+                                      "items": {
+                                        "$ref": "#/$defs/ModuleType_2",
+                                      },
+                                      "type": "array",
+                                    },
+                                  },
+                                  "type": "object",
+                                },
+                              ],
+                              "description": "A filter based on the module's \`moduleType\`.
+
+Only available for {@linkcode Plugin.transformtransform} hook.",
+                            },
+                          },
+                          "type": "object",
+                        },
+                        {
+                          "items": {
+                            "$ref": "#/$defs/TopLevelFilterExpression",
+                          },
+                          "type": "array",
+                        },
+                      ],
+                    },
+                  },
+                  "type": "object",
+                },
+              ],
+            },
+          ],
+          "description": "Can be used to transform individual modules.
+
+Note that it's possible to return only properties and no code transformations.
+
+You can use {@linkcode PluginContext.getModuleInfothis.getModuleInfo()} to find out the previous values of \`meta\`, \`moduleSideEffects\` inside this hook.",
+        },
+        "version": {
+          "description": "The version of the plugin, for use in inter-plugin communication scenarios.",
+          "type": "string",
+        },
+        "watchChange": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {},
+              "type": "object",
+            },
+            {
+              "allOf": [
+                {
+                  "properties": {},
+                  "type": "object",
+                },
+                {
+                  "properties": {
+                    "order": {
+                      "anyOf": [
+                        {
+                          "anyOf": [
+                            {
+                              "const": "pre",
+                              "type": "string",
+                            },
+                            {
+                              "const": "post",
+                              "type": "string",
+                            },
+                          ],
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                    },
+                  },
+                  "type": "object",
+                },
+                {
+                  "properties": {
+                    "sequential": {
+                      "deprecated": true,
+                      "type": "boolean",
+                    },
+                  },
+                  "type": "object",
+                },
+              ],
+            },
+          ],
+          "description": "Notifies a plugin whenever Rolldown has detected a change to a monitored file in watch mode.
+
+If a build is currently running, this hook is called once the build finished.
+It will be called once for every file that changed.
+
+This hook cannot be used by output plugins.
+
+If you need to be notified immediately when a file changed, you can use the {@linkcode WatcherOptions.onInvalidatewatch.onInvalidate} option.",
+        },
+        "writeBundle": {
+          "$ref": "#/$defs/ObjectHook_8",
+          "description": "Called only at the end of {@linkcode RolldownBuild.writebundle.write()} once
+all files have been written.",
+        },
+      },
+      "required": [
+        "api",
+        "name",
+      ],
+      "type": "object",
+    },
+    "PluginMeta": {
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "description": "A short, human-readable description of what the plugin does.",
+          "type": "string",
+        },
+        "packageName": {
+          "description": "The name of the npm package the plugin ships in, e.g. \`@vitejs/plugin-vue\`.",
+          "type": "string",
+        },
+        "version": {
+          "description": "The version of the npm package the plugin ships in, e.g. \`5.0.0\`. The
+\`version\` field of that package's \`package.json\`.",
+          "type": "string",
+        },
+      },
+      "type": "object",
+    },
+    "Promise": {
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object",
+    },
+    "Promise_2": {
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object",
+    },
+    "Record": {
+      "additionalProperties": {
+        "type": "string",
+      },
+      "properties": {},
+      "type": "object",
+    },
+    "StringOrRegExp": {
+      "anyOf": [
+        {
+          "type": "string",
+        },
+        {
+          "format": "regex",
+          "type": "string",
+        },
+      ],
+    },
+    "StringOrRegExp_2": {
+      "anyOf": [
+        {
+          "type": "string",
+        },
+        {
+          "format": "regex",
+          "type": "string",
+        },
+      ],
+    },
+    "TopLevelFilterExpression": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "expr": {
+              "$ref": "#/$defs/FilterExpression",
+            },
+            "kind": {
+              "const": "include",
+              "type": "string",
+            },
+          },
+          "required": [
+            "kind",
+            "expr",
+          ],
+          "type": "object",
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "expr": {
+              "$ref": "#/$defs/FilterExpression",
+            },
+            "kind": {
+              "const": "exclude",
+              "type": "string",
+            },
+          },
+          "required": [
+            "kind",
+            "expr",
+          ],
+          "type": "object",
+        },
+      ],
+    },
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "allOf": [
+    {
+      "properties": {
+        "checks": {
+          "additionalProperties": false,
+          "description": "Controls which warnings are emitted during the build process. Each option can be set to \`true\` (emit warning) or \`false\` (suppress warning).",
+          "properties": {
+            "cannotCallNamespace": {
+              "description": "Whether to emit warnings when a namespace is called as a function.
+
+A module namespace object is an object and not a function. Calling it as a function will cause a runtime error.",
+              "type": "boolean",
+            },
+            "circularDependency": {
+              "description": "Whether to emit warnings when detecting circular dependency.
+
+Circular dependencies lead to a bigger bundle size and sometimes cause execution order issues and are better to avoid.",
+              "type": "boolean",
+            },
+            "commonJsVariableInEsm": {
+              "description": "Whether to emit warnings when a CommonJS variable is used in an ES module.
+
+CommonJS variables like \`module\` and \`exports\` are treated as global variables in ES modules and may not work as expected.",
+              "type": "boolean",
+            },
+            "configurationFieldConflict": {
+              "description": "Whether to emit warnings when a config value is overridden by another config value with a higher priority.",
+              "type": "boolean",
+            },
+            "couldNotCleanDirectory": {
+              "description": "Whether to emit warnings when Rolldown could not clean the output directory.
+
+See [\`output.cleanDir\`](https://rolldown.rs/reference/OutputOptions.cleanDir).",
+              "type": "boolean",
+            },
+            "duplicateShebang": {
+              "description": "Whether to emit warnings when both the code and postBanner contain shebang
+
+Having multiple shebangs in a file is a syntax error.",
+              "type": "boolean",
+            },
+            "emptyImportMeta": {
+              "description": "Whether to emit warnings when \`import.meta\` is not supported with the output format and is replaced with an empty object (\`{}\`).
+
+See [\`import.meta\` in Non-ESM Output Formats page](https://rolldown.rs/in-depth/non-esm-output-formats#import-meta) for more details.",
+              "type": "boolean",
+            },
+            "eval": {
+              "description": "Whether to emit warnings when detecting uses of direct \`eval\`s.
+
+See [Avoiding Direct \`eval\` in Troubleshooting page](https://rolldown.rs/guide/troubleshooting#avoiding-direct-eval) for more details.",
+              "type": "boolean",
+            },
+            "filenameConflict": {
+              "description": "Whether to emit warnings when files generated have the same name with different contents.",
+              "type": "boolean",
+            },
+            "importIsUndefined": {
+              "description": "Whether to emit warnings when an imported variable is not exported.
+
+If the code is importing a variable that is not exported by the imported module, the value will always be \`undefined\`. This might be a mistake in the code.",
+              "type": "boolean",
+            },
+            "ineffectiveDynamicImport": {
+              "description": "Whether to emit warnings when a module is dynamically imported but also statically imported, making the dynamic import ineffective for code splitting.",
+              "type": "boolean",
+            },
+            "invalidAnnotation": {
+              "description": "Whether to emit warnings when a \`#__PURE__\` / \`@__PURE__\` annotation has no effect due to its position.
+
+Annotations placed where they cannot annotate a call expression (e.g. before a non-call expression,
+before a statement declaration, or between an identifier and \`=\` in a variable declarator) are
+ignored by the parser. Matches Rollup's \`INVALID_ANNOTATION\` log code.
+
+By default, warnings are emitted only for local project files inside \`cwd\` and outside
+\`node_modules\`. Set this option to \`false\` to disable the warning entirely.",
+              "type": "boolean",
+            },
+            "largeBarrelModules": {
+              "description": "Whether to emit info logs when a barrel module has a very large number of re-exports (more than 5000).
+
+Such modules can significantly slow down module resolution. Consider using
+[\`@rolldown/plugin-transform-imports\`](https://github.com/rolldown/plugins/tree/main/packages/transform-imports)
+to rewrite barrel imports at the source level so the barrel file is never loaded.
+
+See [Large barrel modules](https://rolldown.rs/in-depth/lazy-barrel-optimization#large-barrel-modules) for more details.",
+              "type": "boolean",
+            },
+            "missingGlobalName": {
+              "description": "Whether to emit warnings when the \`output.globals\` option is missing when needed.
+
+See [\`output.globals\`](https://rolldown.rs/reference/OutputOptions.globals).",
+              "type": "boolean",
+            },
+            "missingNameOptionForIifeExport": {
+              "description": "Whether to emit warnings when the \`output.name\` option is missing when needed.
+
+See [\`output.name\`](https://rolldown.rs/reference/OutputOptions.name).",
+              "type": "boolean",
+            },
+            "mixedExports": {
+              "description": "Whether to emit warnings when the way to export values is ambiguous.
+
+See [\`output.exports\`](https://rolldown.rs/reference/OutputOptions.exports).",
+              "type": "boolean",
+            },
+            "pluginTimings": {
+              "description": "Whether to emit warnings when plugins take significant time during the build process.",
+              "type": "boolean",
+            },
+            "preferBuiltinFeature": {
+              "description": "Whether to emit warnings when a plugin that is covered by a built-in feature is used.
+
+Using built-in features is generally more performant than using plugins.",
+              "type": "boolean",
+            },
+            "sourcemapBroken": {
+              "description": "Whether to emit warnings when a plugin transforms code without generating a sourcemap.",
+              "type": "boolean",
+            },
+            "toleratedTransform": {
+              "description": "Whether to emit warnings when detecting tolerated transform.",
+              "type": "boolean",
+            },
+            "unresolvedEntry": {
+              "description": "Whether to emit warnings when an entrypoint cannot be resolved.",
+              "type": "boolean",
+            },
+            "unresolvedImport": {
+              "description": "Whether to emit warnings when an import cannot be resolved.",
+              "type": "boolean",
+            },
+            "unsupportedTsconfigOption": {
+              "description": "Whether to emit warnings when a tsconfig option or combination of options is not supported.",
+              "type": "boolean",
+            },
+          },
+          "type": "object",
+        },
+        "context": {
+          "description": "The value of \`this\` at the top level of each module. **Normally, you don't need to set this option.**",
+          "type": "string",
+        },
+        "cwd": {
+          "description": "The working directory to use when resolving relative paths in the configuration.",
+          "type": "string",
+        },
+        "devtools": {
+          "additionalProperties": false,
+          "description": "Devtools integration options.
+
+When enabled, Rolldown writes JSON-lines devtools output under
+\`node_modules/.rolldown/{session_id}/\`, resolved against {@linkcode cwd}.
+Consumers can parse the output with \`@rolldown/debug\` after
+\`await bundle.close()\` resolves.",
+          "properties": {
+            "sessionId": {
+              "type": "string",
+            },
+          },
+          "type": "object",
+        },
+        "experimental": {
+          "additionalProperties": false,
+          "description": "Experimental features that may change in future releases and can introduce behavior change without a major version bump.",
+          "properties": {
+            "attachDebugInfo": {
+              "anyOf": [
+                {
+                  "const": "none",
+                  "type": "string",
+                },
+                {
+                  "const": "simple",
+                  "type": "string",
+                },
+                {
+                  "const": "full",
+                  "type": "string",
+                },
+              ],
+              "description": "Attach debug information to the output bundle.
+
+Available modes:
+- \`none\`: No debug information is attached.
+- \`simple\`: Attach comments indicating which files the bundled code comes from. These comments could be removed by the minifier.
+- \`full\`: Attach detailed debug information to the output bundle. These comments are using legal comment syntax, so they won't be removed by the minifier.",
+            },
+            "chunkImportMap": {
+              "anyOf": [
+                {
+                  "const": false,
+                  "type": "boolean",
+                },
+                {
+                  "const": true,
+                  "type": "boolean",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "baseUrl": {
+                      "type": "string",
+                    },
+                    "fileName": {
+                      "type": "string",
+                    },
+                  },
+                  "type": "object",
+                },
+              ],
+              "description": "Enables automatic generation of a chunk import map asset during build.
+
+This map only includes chunks with hashed filenames, where keys are derived from the facade module
+name or primary chunk name. It produces stable and unique hash-based filenames, effectively preventing
+cascading cache invalidation caused by content hashes and maximizing browser cache reuse.
+
+The output defaults to \`importmap.json\` unless overridden via \`fileName\`. A base URL prefix
+(default \`"/"\`) can be applied to all paths. The resulting JSON is a valid import map and can be
+directly injected into HTML via \`<script type="importmap">\`.",
+            },
+            "chunkModulesOrder": {
+              "anyOf": [
+                {
+                  "const": "exec-order",
+                  "type": "string",
+                },
+                {
+                  "const": "module-id",
+                  "type": "string",
+                },
+              ],
+              "description": "Control which order should be used when rendering modules in a chunk.
+
+Available options:
+- \`exec-order\`: Almost equivalent to the topological order of the module graph, but specially handling when module graph has cycle.
+- \`module-id\`: This is more friendly for gzip compression, especially for some javascript static asset lib (e.g. icon library)
+
+> [!NOTE]
+> Try to sort the modules by their module id if possible (Since rolldown scope hoist all modules in the chunk, we only try to sort those modules by module id if we could ensure runtime behavior is correct after sorting).",
+            },
+            "chunkOptimization": {
+              "anyOf": [
+                {
+                  "const": false,
+                  "type": "boolean",
+                },
+                {
+                  "const": true,
+                  "type": "boolean",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "avoidRedundantChunkLoads": {
+                      "description": "Avoid emitting redundant chunk loads for dynamic entries.
+
+This pass can reduce dynamic-entry dependent chunks when the shared modules
+are guaranteed to be loaded by every importer of that dynamic entry.",
+                      "type": "boolean",
+                    },
+                    "mergeCommonChunks": {
+                      "description": "Merge common chunks into existing entry chunks when it is safe.
+
+This can reduce the number of emitted chunks by moving shared/common modules
+into an entry chunk that already depends on them. Rolldown only applies the
+merge when it does not create a circular chunk dependency or change strict
+entry export signatures. This pass also covers safe empty-facade cleanup.",
+                      "type": "boolean",
+                    },
+                  },
+                  "type": "object",
+                },
+              ],
+              "description": "Control chunk optimizations.
+
+\`true\` enables both common-chunk merging and redundant dynamic chunk-load avoidance.
+\`false\` disables all chunk optimizations. Use the object form to control
+\`mergeCommonChunks\` and \`avoidRedundantChunkLoads\` separately.
+
+These optimizations are automatically disabled when any module uses top-level await (TLA) or contains TLA dependencies,
+as they could affect execution order guarantees.",
+            },
+            "devMode": {
+              "anyOf": [
+                {
+                  "const": false,
+                  "type": "boolean",
+                },
+                {
+                  "const": true,
+                  "type": "boolean",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "host": {
+                      "type": "string",
+                    },
+                    "implement": {
+                      "type": "string",
+                    },
+                    "lazy": {
+                      "type": "boolean",
+                    },
+                    "port": {
+                      "type": "number",
+                    },
+                    "skipCommonRuntimeInjection": {
+                      "deprecated": true,
+                      "description": "Prevent Rolldown from prepending its common dev runtime to {@link implement }.",
+                      "type": "boolean",
+                    },
+                  },
+                  "type": "object",
+                },
+              ],
+              "description": "Dev mode related options.",
+            },
+            "incrementalBuild": {
+              "description": "Enable incremental build support. Required to be used with \`watch\` mode.",
+              "type": "boolean",
+            },
+            "lazyBarrel": {
+              "description": "Control whether to enable lazy barrel optimization.
+
+Lazy barrel optimization avoids compiling unused re-export modules in side-effect-free barrel modules,
+significantly improving build performance for large codebases with many barrel modules.
+
+This option is planned to be removed in the future. If you need to opt out, please open an issue
+describing your use case so we can address it before the option is gone.",
+              "type": "boolean",
+            },
+            "nativeMagicString": {
+              "description": "Use native Rust implementation of MagicString for source map generation.
+
+[MagicString](https://github.com/rich-harris/magic-string) is a JavaScript library commonly used by bundlers
+for string manipulation and source map generation. When enabled, rolldown will use a native Rust
+implementation of MagicString instead of the JavaScript version, providing significantly better performance
+during source map generation and code transformation.
+
+**Benefits**
+
+- **Improved Performance**: The native Rust implementation is typically faster than the JavaScript version,
+  especially for large codebases with extensive source maps.
+- **Background Processing**: Source map generation is performed asynchronously in a background thread,
+  allowing the main bundling process to continue without blocking. This parallel processing can significantly
+  reduce overall build times when working with JavaScript transform hooks.
+- **Better Integration**: Seamless integration with rolldown's native Rust architecture.",
+              "type": "boolean",
+            },
+            "onDemandWrapping": {
+              "description": "Under \`output.strictExecutionOrder\`, derive a conservative wrapping plan from predicted
+chunk execution hazards instead of wrapping every eligible module.",
+              "type": "boolean",
+            },
+            "resolveNewUrlToAsset": {
+              "description": "When enabled, \`new URL()\` calls will be transformed to a stable asset URL which includes the updated name and content hash.
+It is necessary to pass \`import.meta.url\` as the second argument to the
+\`new URL\` constructor, otherwise no transform will be applied.
+:::warning
+JavaScript and TypeScript files referenced via \`new URL('./file.js', import.meta.url)\` or \`new URL('./file.ts', import.meta.url)\` will **not** be transformed or bundled. The file will be copied as-is, meaning TypeScript files remain untransformed and dependencies are not resolved.
+
+The expected behavior for JS/TS files is still being discussed and may
+change in future releases. See [#7258](https://github.com/rolldown/rolldown/issues/7258) for more context.
+:::",
+              "type": "boolean",
+            },
+            "viteMode": {
+              "description": "Enable Vite compatible mode.",
+              "type": "boolean",
+            },
+          },
+          "type": "object",
+        },
+        "external": {
+          "anyOf": [
+            {
+              "type": "string",
+            },
+            {
+              "format": "regex",
+              "type": "string",
+            },
+            {
+              "items": {
+                "$ref": "#/$defs/StringOrRegExp",
+              },
+              "type": "array",
+            },
+            {
+              "additionalProperties": false,
+              "properties": {},
+              "type": "object",
+            },
+          ],
+          "description": "Specifies which modules should be treated as external and not bundled. External modules will be left as import statements in the output.",
+        },
+        "input": {
+          "anyOf": [
+            {
+              "type": "string",
+            },
+            {
+              "items": {
+                "type": "string",
+              },
+              "type": "array",
+            },
+            {
+              "$ref": "#/$defs/Record",
+            },
+          ],
+          "description": "Defines entries and location(s) of entry modules for the bundle. Relative paths are resolved based on the {@linkcode cwd} option.",
+        },
+        "logLevel": {
+          "anyOf": [
+            {
+              "const": "info",
+              "type": "string",
+            },
+            {
+              "const": "debug",
+              "type": "string",
+            },
+            {
+              "const": "warn",
+              "type": "string",
+            },
+            {
+              "const": "silent",
+              "type": "string",
+            },
+          ],
+          "description": "Controls the verbosity of console logging during the build.",
+        },
+        "makeAbsoluteExternalsRelative": {
+          "anyOf": [
+            {
+              "const": false,
+              "type": "boolean",
+            },
+            {
+              "const": true,
+              "type": "boolean",
+            },
+            {
+              "const": "ifRelativeSource",
+              "type": "string",
+            },
+          ],
+          "description": "Determines if absolute external paths should be converted to relative paths in the output.
+
+This does not only apply to paths that are absolute in the source but also to paths that are resolved to an absolute path by either a plugin or Rolldown core.",
+        },
+        "moduleTypes": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "const": "js",
+                "type": "string",
+              },
+              {
+                "const": "jsx",
+                "type": "string",
+              },
+              {
+                "const": "ts",
+                "type": "string",
+              },
+              {
+                "const": "tsx",
+                "type": "string",
+              },
+              {
+                "const": "json",
+                "type": "string",
+              },
+              {
+                "const": "text",
+                "type": "string",
+              },
+              {
+                "const": "base64",
+                "type": "string",
+              },
+              {
+                "const": "dataurl",
+                "type": "string",
+              },
+              {
+                "const": "binary",
+                "type": "string",
+              },
+              {
+                "const": "empty",
+                "type": "string",
+              },
+              {
+                "const": "css",
+                "type": "string",
+              },
+              {
+                "const": "asset",
+                "type": "string",
+              },
+              {
+                "const": "copy",
+                "type": "string",
+              },
+            ],
+          },
+          "description": "Maps file patterns to module types, controlling how files are processed.
+
+This is conceptually similar to [esbuild's \`loader\`](https://esbuild.github.io/api/#loader) option, allowing you to specify how each file extensions should be handled.
+
+See [the In-Depth Guide](https://rolldown.rs/in-depth/module-types) for more details.",
+          "properties": {},
+          "type": "object",
+        },
+        "optimization": {
+          "additionalProperties": false,
+          "description": "Configure optimization features for the bundler.",
+          "properties": {
+            "inlineConst": {
+              "anyOf": [
+                {
+                  "const": false,
+                  "type": "boolean",
+                },
+                {
+                  "const": true,
+                  "type": "boolean",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "mode": {
+                      "anyOf": [
+                        {
+                          "const": "all",
+                          "type": "string",
+                        },
+                        {
+                          "const": "smart",
+                          "type": "string",
+                        },
+                      ],
+                    },
+                    "pass": {
+                      "type": "number",
+                    },
+                  },
+                  "type": "object",
+                },
+              ],
+              "description": "Inline imported constant values during bundling instead of preserving variable references.
+
+When enabled, constant values from imported modules will be inlined at their usage sites,
+potentially reducing bundle size and improving runtime performance by eliminating variable lookups.
+
+**Options:**
+- \`true\`: equivalent to \`{ mode: 'all', pass: 1 }\`, enabling constant inlining for all eligible constants with a single pass.
+- \`false\`: Disable constant inlining
+- \`{ mode: 'smart' | 'all', pass?: number }\`:
+  - \`mode: 'smart'\`: Only inline constants in specific scenarios where it is likely to reduce bundle size and improve performance.
+    Smart mode inlines constants in these specific scenarios:
+    1. \`if (test) {} else {}\` - condition expressions in if statements
+    2. \`test ? a : b\` - condition expressions in ternary operators
+    3. \`test1 || test2\` - logical OR expressions
+    4. \`test1 && test2\` - logical AND expressions
+    5. \`test1 ?? test2\` - nullish coalescing expressions
+ - \`mode: 'all'\`: Inline all imported constants wherever they are used.
+ - \`pass\`: Number of passes to perform for inlining constants.",
+            },
+            "pifeForModuleWrappers": {
+              "description": "Use PIFE pattern for module wrappers.
+
+Enabling this option improves the start up performance of the generated bundle with the cost of a slight increase in bundle size.",
+              "type": "boolean",
+            },
+          },
+          "type": "object",
+        },
+        "platform": {
+          "anyOf": [
+            {
+              "const": "node",
+              "type": "string",
+            },
+            {
+              "const": "browser",
+              "type": "string",
+            },
+            {
+              "const": "neutral",
+              "type": "string",
+            },
+          ],
+          "description": "Expected platform where the code run.
+
+ When the platform is set to neutral:
+   - When bundling is enabled the default output format is set to esm, which uses the export syntax introduced with ECMAScript 2015 (i.e. ES6). You can change the output format if this default is not appropriate.
+   - The main fields setting is empty by default. If you want to use npm-style packages, you will likely have to configure this to be something else such as main for the standard main field used by node.
+   - The conditions setting does not automatically include any platform-specific values.",
+        },
+        "plugins": {
+          "anyOf": [
+            {
+              "anyOf": [
+                {
+                  "const": false,
+                  "type": "boolean",
+                },
+                {
+                  "$ref": "#/$defs/BuiltinPlugin",
+                },
+                {
+                  "$ref": "#/$defs/ParallelPlugin",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "name",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "items": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/$defs/Anonymous",
+                      },
+                      {
+                        "type": "null",
+                      },
+                    ],
+                  },
+                  "type": "array",
+                },
+                {
+                  "$ref": "#/$defs/Plugin",
+                },
+                {
+                  "$ref": "#/$defs/Promise",
+                },
+              ],
+            },
+            {
+              "type": "null",
+            },
+          ],
+          "description": "The list of plugins to use.
+
+Falsy plugins will be ignored, which can be used to easily activate or deactivate plugins. Nested plugins will be flattened. Async plugins will be awaited and resolved.
+
+See [Plugin API document](https://rolldown.rs/apis/plugin-api) for more details about creating plugins.",
+        },
+        "preserveEntrySignatures": {
+          "anyOf": [
+            {
+              "const": false,
+              "type": "boolean",
+            },
+            {
+              "const": "strict",
+              "type": "string",
+            },
+            {
+              "const": "allow-extension",
+              "type": "string",
+            },
+            {
+              "const": "exports-only",
+              "type": "string",
+            },
+          ],
+          "description": "Controls how entry chunk exports are preserved.
+
+This determines whether Rolldown needs to create facade chunks (additional wrapper chunks) to maintain the exact export signatures of entry modules, or whether it can combine entry modules with other chunks for optimization.",
+        },
+        "resolve": {
+          "additionalProperties": false,
+          "description": "Options for built-in module resolution feature.",
+          "properties": {
+            "alias": {
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                  },
+                  {
+                    "const": false,
+                    "type": "boolean",
+                  },
+                  {
+                    "items": {
+                      "type": "string",
+                    },
+                    "type": "array",
+                  },
+                ],
+              },
+              "description": "Substitute one package for another.
+
+One use case for this feature is replacing a node-only package with a browser-friendly package in third-party code that you don't control.",
+              "properties": {},
+              "type": "object",
+            },
+            "aliasFields": {
+              "description": "Fields in package.json to check for aliased paths.
+
+This option is expected to be used for \`browser\` field support.",
+              "items": {
+                "items": {
+                  "type": "string",
+                },
+                "type": "array",
+              },
+              "type": "array",
+            },
+            "conditionNames": {
+              "description": "Condition names to use when resolving exports in package.json.",
+              "items": {
+                "type": "string",
+              },
+              "type": "array",
+            },
+            "exportsFields": {
+              "description": "Fields in package.json to check for exports.",
+              "items": {
+                "items": {
+                  "type": "string",
+                },
+                "type": "array",
+              },
+              "type": "array",
+            },
+            "extensionAlias": {
+              "additionalProperties": {
+                "items": {
+                  "type": "string",
+                },
+                "type": "array",
+              },
+              "description": "Map of extensions to alternative extensions.
+
+With writing \`import './foo.js'\` in a file, you want to resolve it to \`foo.ts\` instead of \`foo.js\`.
+You can achieve this by setting: \`extensionAlias: { '.js': ['.ts', '.js'] }\`.",
+              "properties": {},
+              "type": "object",
+            },
+            "extensions": {
+              "description": "Extensions to try when resolving files. These are tried in order from first to last.",
+              "items": {
+                "type": "string",
+              },
+              "type": "array",
+            },
+            "mainFields": {
+              "description": "Fields in package.json to check for entry points.",
+              "items": {
+                "type": "string",
+              },
+              "type": "array",
+            },
+            "mainFiles": {
+              "description": "Filenames to try when resolving directories.",
+              "items": {
+                "type": "string",
+              },
+              "type": "array",
+            },
+            "modules": {
+              "description": "Directories to search for modules.",
+              "items": {
+                "type": "string",
+              },
+              "type": "array",
+            },
+            "symlinks": {
+              "description": "Whether to follow symlinks when resolving modules.",
+              "type": "boolean",
+            },
+            "tsconfigFilename": {
+              "deprecated": true,
+              "type": "string",
+            },
+          },
+          "type": "object",
+        },
+        "shimMissingExports": {
+          "description": "When \`true\`, creates shim variables for missing exports instead of throwing an error.",
+          "type": "boolean",
+        },
+        "transform": {
+          "additionalProperties": false,
+          "description": "Configure how the code is transformed. This process happens after the \`transform\` hook.",
+          "properties": {
+            "assumptions": {
+              "additionalProperties": false,
+              "description": "Set assumptions in order to produce smaller output.",
+              "properties": {
+                "ignoreFunctionLength": {
+                  "type": "boolean",
+                },
+                "noDocumentAll": {
+                  "type": "boolean",
+                },
+                "objectRestNoSymbols": {
+                  "type": "boolean",
+                },
+                "pureGetters": {
+                  "type": "boolean",
+                },
+                "setPublicClassFields": {
+                  "description": "When using public class fields, assume that they don't shadow any getter in the current class,
+in its subclasses or in its superclass. Thus, it's safe to assign them rather than using
+\`Object.defineProperty\`.
+
+For example:
+
+Input:
+\`\`\`js
+class Test {
+ field = 2;
+
+ static staticField = 3;
+}
+\`\`\`
+
+When \`set_public_class_fields\` is \`true\`, the output will be:
+\`\`\`js
+class Test {
+ constructor() {
+   this.field = 2;
+ }
+}
+Test.staticField = 3;
+\`\`\`
+
+Otherwise, the output will be:
+\`\`\`js
+import _defineProperty from "@oxc-project/runtime/helpers/defineProperty";
+class Test {
+  constructor() {
+    _defineProperty(this, "field", 2);
+  }
+}
+_defineProperty(Test, "staticField", 3);
+\`\`\`
+
+NOTE: For TypeScript, if you wanted behavior is equivalent to \`useDefineForClassFields: false\`, you should
+set both \`set_public_class_fields\` and [\`crate::TypeScriptOptions::remove_class_fields_without_initializer\`]
+to \`true\`.",
+                  "type": "boolean",
+                },
+              },
+              "type": "object",
+            },
+            "decorator": {
+              "additionalProperties": false,
+              "description": "Decorator plugin",
+              "properties": {
+                "emitDecoratorMetadata": {
+                  "description": "Enables emitting decorator metadata.
+
+This option the same as [emitDecoratorMetadata](https://www.typescriptlang.org/tsconfig/#emitDecoratorMetadata)
+in TypeScript, and it only works when \`legacy\` is true.",
+                  "type": "boolean",
+                },
+                "legacy": {
+                  "description": "Enables experimental support for decorators, which is a version of decorators that predates the TC39 standardization process.
+
+Decorators are a language feature which hasn’t yet been fully ratified into the JavaScript specification.
+This means that the implementation version in TypeScript may differ from the implementation in JavaScript when it it decided by TC39.",
+                  "type": "boolean",
+                },
+                "strictNullChecks": {
+                  "description": "Aligns nullable-union \`design:type\` emission with \`--strictNullChecks\`.
+
+When \`true\` (default), \`T | null\` and \`T | undefined\` emit \`Object\`, matching tsc strict.
+When \`false\`, \`null\` and \`undefined\` are elided from the union so the underlying
+primitive constructor is emitted, matching tsc with \`--strictNullChecks=false\`
+and \`babel-plugin-transform-typescript-metadata\`.",
+                  "type": "boolean",
+                },
+              },
+              "type": "object",
+            },
+            "define": {
+              "$ref": "#/$defs/Record",
+              "description": "Replace global variables or [property accessors](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Property_accessors) with the provided values.
+
+See Oxc's [\`define\` option](https://oxc.rs/docs/guide/usage/transformer/global-variable-replacement.html#define) for more details.",
+            },
+            "dropLabels": {
+              "description": "Remove labeled statements with these label names.
+
+Labeled statements are JavaScript statements prefixed with a label identifier.
+This option allows you to strip specific labeled statements from the output,
+which is useful for removing debug-only code in production builds.",
+              "items": {
+                "type": "string",
+              },
+              "type": "array",
+            },
+            "helpers": {
+              "additionalProperties": false,
+              "description": "Behaviour for runtime helpers.",
+              "properties": {
+                "mode": {
+                  "anyOf": [
+                    {
+                      "const": "Runtime",
+                      "type": "string",
+                    },
+                    {
+                      "const": "External",
+                      "type": "string",
+                    },
+                  ],
+                },
+              },
+              "type": "object",
+            },
+            "inject": {
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                  },
+                  {
+                    "items": false,
+                    "minItems": 2,
+                    "prefixItems": [
+                      {
+                        "type": "string",
+                      },
+                      {
+                        "type": "string",
+                      },
+                    ],
+                    "type": "array",
+                  },
+                ],
+              },
+              "description": "Inject import statements on demand.
+
+The API is aligned with \`@rollup/plugin-inject\`.
+
+See Oxc's [\`inject\` option](https://oxc.rs/docs/guide/usage/transformer/global-variable-replacement.html#inject) for more details.
+
+#### Supported patterns
+\`\`\`js
+{
+  // import { Promise } from 'es6-promise'
+  Promise: ['es6-promise', 'Promise'],
+
+  // import { Promise as P } from 'es6-promise'
+  P: ['es6-promise', 'Promise'],
+
+  // import $ from 'jquery'
+  $: 'jquery',
+
+  // import * as fs from 'node:fs'
+  fs: ['node:fs', '*'],
+
+  // Inject shims for property access pattern
+  'Object.assign': path.resolve( 'src/helpers/object-assign.js' ),
+}
+\`\`\`",
+              "properties": {},
+              "type": "object",
+            },
+            "jsx": {
+              "anyOf": [
+                {
+                  "const": false,
+                  "type": "boolean",
+                },
+                {
+                  "const": "react",
+                  "type": "string",
+                },
+                {
+                  "const": "react-jsx",
+                  "type": "string",
+                },
+                {
+                  "const": "preserve",
+                  "type": "string",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "development": {
+                      "description": "Emit development-specific information, such as \`__source\` and \`__self\`.",
+                      "type": "boolean",
+                    },
+                    "importSource": {
+                      "description": "Replaces the import source when importing functions.",
+                      "type": "string",
+                    },
+                    "pragma": {
+                      "description": "Replace the function used when compiling JSX expressions. It should be a
+qualified name (e.g. \`React.createElement\`) or an identifier (e.g.
+\`createElement\`).
+
+Only used for \`classic\` {@link runtime}.",
+                      "type": "string",
+                    },
+                    "pragmaFrag": {
+                      "description": "Replace the component used when compiling JSX fragments. It should be a
+valid JSX tag name.
+
+Only used for \`classic\` {@link runtime}.",
+                      "type": "string",
+                    },
+                    "pure": {
+                      "description": "Mark JSX elements and top-level React method calls as pure for tree shaking.",
+                      "type": "boolean",
+                    },
+                    "refresh": {
+                      "anyOf": [
+                        {
+                          "const": false,
+                          "type": "boolean",
+                        },
+                        {
+                          "const": true,
+                          "type": "boolean",
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "emitFullSignatures": {
+                              "type": "boolean",
+                            },
+                            "refreshReg": {
+                              "description": "Specify the identifier of the refresh registration variable.",
+                              "type": "string",
+                            },
+                            "refreshSig": {
+                              "description": "Specify the identifier of the refresh signature variable.",
+                              "type": "string",
+                            },
+                          },
+                          "type": "object",
+                        },
+                      ],
+                      "description": "Enable React Fast Refresh .
+
+Conforms to the implementation in {@link https://github.com/facebook/react/tree/v18.3.1/packages/react-refresh}",
+                    },
+                    "runtime": {
+                      "anyOf": [
+                        {
+                          "const": "classic",
+                          "type": "string",
+                        },
+                        {
+                          "const": "automatic",
+                          "type": "string",
+                        },
+                      ],
+                      "description": "Decides which runtime to use.
+
+- 'automatic' - auto-import the correct JSX factories
+- 'classic' - no auto-import",
+                    },
+                    "throwIfNamespace": {
+                      "description": "Toggles whether or not to throw an error if an XML namespaced tag name
+is used.
+
+Though the JSX spec allows this, it is disabled by default since React's
+JSX does not currently have support for it.",
+                      "type": "boolean",
+                    },
+                  },
+                  "type": "object",
+                },
+              ],
+              "description": "Controls how JSX syntax is transformed.
+
+- If set to \`false\`, an error will be thrown if JSX syntax is encountered.
+- If set to \`'react'\`, JSX syntax will be transformed to classic runtime React code.
+- If set to \`'react-jsx'\`, JSX syntax will be transformed to automatic runtime React code.
+- If set to \`'preserve'\`, JSX syntax will be preserved as-is.",
+            },
+            "plugins": {
+              "additionalProperties": false,
+              "description": "Third-party plugins to use.",
+              "properties": {
+                "styledComponents": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "cssProp": {
+                      "description": "Enables transformation of JSX \`css\` prop when using styled-components.
+
+**Note: This feature is not yet implemented in oxc.**",
+                      "type": "boolean",
+                    },
+                    "displayName": {
+                      "description": "Enhances the attached CSS class name on each component with richer output to help
+identify your components in the DOM without React DevTools.",
+                      "type": "boolean",
+                    },
+                    "fileName": {
+                      "description": "Controls whether the \`displayName\` of a component will be prefixed with the filename
+to make the component name as unique as possible.",
+                      "type": "boolean",
+                    },
+                    "meaninglessFileNames": {
+                      "description": "List of file names that are considered meaningless for component naming purposes.
+
+When the \`fileName\` option is enabled and a component is in a file with a name
+from this list, the directory name will be used instead of the file name for
+the component's display name.",
+                      "items": {
+                        "type": "string",
+                      },
+                      "type": "array",
+                    },
+                    "minify": {
+                      "description": "Minifies CSS content by removing all whitespace and comments from your CSS,
+keeping valuable bytes out of your bundles.",
+                      "type": "boolean",
+                    },
+                    "namespace": {
+                      "description": "Adds a namespace prefix to component identifiers to ensure class names are unique.
+
+Example: With \`namespace: "my-app"\`, generates \`componentId: "my-app__sc-3rfj0a-1"\`",
+                      "type": "string",
+                    },
+                    "pure": {
+                      "description": "Enables "pure annotation" to aid dead code elimination by bundlers.",
+                      "type": "boolean",
+                    },
+                    "ssr": {
+                      "description": "Adds a unique identifier to every styled component to avoid checksum mismatches
+due to different class generation on the client and server during server-side rendering.",
+                      "type": "boolean",
+                    },
+                    "topLevelImportPaths": {
+                      "description": "Import paths to be considered as styled-components imports at the top level.
+
+**Note: This feature is not yet implemented in oxc.**",
+                      "items": {
+                        "type": "string",
+                      },
+                      "type": "array",
+                    },
+                    "transpileTemplateLiterals": {
+                      "description": "Transpiles styled-components tagged template literals to a smaller representation
+than what Babel normally creates, helping to reduce bundle size.
+
+Disabled by default because Oxc does not down-level template literals, so this
+transform only increases output size.",
+                      "type": "boolean",
+                    },
+                  },
+                  "type": "object",
+                },
+                "taggedTemplateEscape": {
+                  "type": "boolean",
+                },
+              },
+              "type": "object",
+            },
+            "target": {
+              "anyOf": [
+                {
+                  "type": "string",
+                },
+                {
+                  "items": {
+                    "type": "string",
+                  },
+                  "type": "array",
+                },
+              ],
+              "description": "Sets the target environment for the generated JavaScript.
+
+The lowest target is \`es2015\`.
+
+Example:
+
+* \`'es2015'\`
+* \`['es2020', 'chrome58', 'edge16', 'firefox57', 'node12', 'safari11']\`",
+            },
+            "typescript": {
+              "additionalProperties": false,
+              "description": "Configure how TypeScript is transformed.
+
+\`typescript.declaration\` is evaluated before all transforms.",
+              "properties": {
+                "allowDeclareFields": {
+                  "deprecated": true,
+                  "description": "When enabled, type-only class fields are only removed if they are prefixed with the declare modifier:",
+                  "type": "boolean",
+                },
+                "allowNamespaces": {
+                  "type": "boolean",
+                },
+                "declaration": {
+                  "additionalProperties": false,
+                  "description": "Also generate a \`.d.ts\` declaration file for TypeScript files.
+
+The source file must be compliant with all
+[\`isolatedDeclarations\`](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-5.html#isolated-declarations)
+requirements.",
+                  "properties": {
+                    "sourcemap": {
+                      "type": "boolean",
+                    },
+                    "stripInternal": {
+                      "description": "Do not emit declarations for code that has an",
+                      "type": "boolean",
+                    },
+                  },
+                  "type": "object",
+                },
+                "jsxPragma": {
+                  "type": "string",
+                },
+                "jsxPragmaFrag": {
+                  "type": "string",
+                },
+                "onlyRemoveTypeImports": {
+                  "type": "boolean",
+                },
+                "optimizeConstEnums": {
+                  "description": "When true, optimize const enums by inlining their values at usage sites
+and removing the enum declaration.",
+                  "type": "boolean",
+                },
+                "optimizeEnums": {
+                  "description": "When true, optimize regular (non-const) enums by inlining their member
+accesses at usage sites when the member value is statically known.
+
+Non-exported enum declarations are also removed when all members are
+evaluable and no references to the enum as a runtime value exist
+(e.g., \`console.log(Foo)\`, \`typeof Foo\`, or passing the enum as an argument).",
+                  "type": "boolean",
+                },
+                "removeClassFieldsWithoutInitializer": {
+                  "description": "When enabled, class fields without initializers are removed.
+
+For example:
+\`\`\`ts
+class Foo {
+   x: number;
+   y: number = 0;
+}
+\`\`\`
+// transform into
+\`\`\`js
+class Foo {
+   x: number;
+}
+\`\`\`
+
+The option is used to align with the behavior of TypeScript's \`useDefineForClassFields: false\` option.
+When you want to enable this, you also need to set [\`crate::CompilerAssumptions::set_public_class_fields\`]
+to \`true\`. The \`set_public_class_fields: true\` + \`remove_class_fields_without_initializer: true\` is
+equivalent to \`useDefineForClassFields: false\` in TypeScript.
+
+When \`set_public_class_fields\` is true and class-properties plugin is enabled, the above example transforms into:
+
+\`\`\`js
+class Foo {
+  constructor() {
+    this.y = 0;
+  }
+}
+\`\`\`
+
+Defaults to \`false\`.",
+                  "type": "boolean",
+                },
+                "rewriteImportExtensions": {
+                  "anyOf": [
+                    {
+                      "const": false,
+                      "type": "boolean",
+                    },
+                    {
+                      "const": true,
+                      "type": "boolean",
+                    },
+                    {
+                      "const": "rewrite",
+                      "type": "string",
+                    },
+                    {
+                      "const": "remove",
+                      "type": "string",
+                    },
+                  ],
+                  "description": "Rewrite or remove TypeScript import/export declaration extensions.
+
+- When set to \`rewrite\`, it will change \`.ts\`, \`.mts\`, \`.cts\` extensions to \`.js\`, \`.mjs\`, \`.cjs\` respectively.
+- When set to \`remove\`, it will remove \`.ts\`/\`.mts\`/\`.cts\`/\`.tsx\` extension entirely.
+- When set to \`true\`, it's equivalent to \`rewrite\`.
+- When set to \`false\` or omitted, no changes will be made to the extensions.",
+                },
+              },
+              "type": "object",
+            },
+          },
+          "type": "object",
+        },
+        "treeshake": {
+          "anyOf": [
+            {
+              "const": false,
+              "type": "boolean",
+            },
+            {
+              "const": true,
+              "type": "boolean",
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "annotations": {
+                  "description": "Whether to respect \`/*@__PURE__*\\/\` annotations and other tree-shaking hints in the code.
+
+See [related Oxc documentation](https://oxc.rs/docs/guide/usage/minifier/dead-code-elimination#pure-annotations) for more details.",
+                  "type": "boolean",
+                },
+                "commonjs": {
+                  "description": "Whether to enable tree-shaking for CommonJS modules. When \`true\`, unused exports from CommonJS modules can be eliminated from the bundle, similar to ES modules. When disabled, CommonJS modules will always be included in their entirety.
+
+This option allows rolldown to analyze \`exports.property\` assignments in CommonJS modules and remove unused exports while preserving the module's side effects.",
+                  "type": "boolean",
+                },
+                "invalidImportSideEffects": {
+                  "description": "Whether to assume that invalid import statements might have side effects.
+
+See [related Oxc documentation](https://oxc.rs/docs/guide/usage/minifier/dead-code-elimination#ignoring-invalid-import-statement-side-effects) for more details.",
+                  "type": "boolean",
+                },
+                "manualPureFunctions": {
+                  "description": "Array of function names that should be considered pure (no side effects) even if they can't be automatically detected as pure.
+
+See [related Oxc documentation](https://oxc.rs/docs/guide/usage/minifier/dead-code-elimination#define-pure-functions) for more details.",
+                  "items": {
+                    "type": "string",
+                  },
+                  "type": "array",
+                },
+                "moduleSideEffects": {
+                  "anyOf": [
+                    {
+                      "const": false,
+                      "type": "boolean",
+                    },
+                    {
+                      "const": true,
+                      "type": "boolean",
+                    },
+                    {
+                      "items": {
+                        "type": "string",
+                      },
+                      "type": "array",
+                    },
+                    {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "external": {
+                            "type": "boolean",
+                          },
+                          "sideEffects": {
+                            "type": "boolean",
+                          },
+                          "test": {
+                            "format": "regex",
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "sideEffects",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {},
+                      "type": "object",
+                    },
+                    {
+                      "const": "no-external",
+                      "type": "string",
+                    },
+                  ],
+                  "description": "**Values:**
+
+- **\`true\`**: All modules are assumed to have side effects and will be included in the bundle even if none of their exports are used.
+- **\`false\`**: No modules have side effects. This enables aggressive tree-shaking, removing any modules whose exports are not used.
+- **\`string[]\`**: Array of module IDs that have side effects. Only modules in this list will be preserved if unused; all others can be tree-shaken when their exports are unused.
+- **\`'no-external'\`**: Assumes no external modules have side effects while preserving the default behavior for local modules.
+- **\`ModuleSideEffectsRule[]\`**: Array of rules with \`test\`, \`external\`, and \`sideEffects\` properties for fine-grained control.
+- **\`function\`**: Function that receives \`(id, external)\` and returns whether the module has side effects.
+
+**Important:** Setting this to \`false\` or using an array/string assumes that your modules and their dependencies have no side effects other than their exports. Only use this if you're certain that removing unused modules won't break your application.
+
+> [!NOTE]
+> **Performance: Prefer \`ModuleSideEffectsRule[]\` over functions**
+>
+> When possible, use rule-based configuration instead of functions. Rules are processed entirely in Rust, while JavaScript functions require runtime calls between Rust and JavaScript, which can hurt CPU utilization during builds.
+>
+> **Functions should be a last resort**: Only use the function signature when your logic cannot be expressed with patterns or simple string matching.
+>
+> **Rule advantages**: \`ModuleSideEffectsRule[]\` provides better performance by avoiding Rust-JavaScript runtime calls, clearer intent, and easier maintenance.",
+                },
+                "propertyReadSideEffects": {
+                  "anyOf": [
+                    {
+                      "const": false,
+                      "type": "boolean",
+                    },
+                    {
+                      "const": "always",
+                      "type": "string",
+                    },
+                  ],
+                  "description": "Controls whether reading properties from objects is considered to have side effects.
+
+Set to \`false\` for more aggressive tree-shaking behavior.
+
+See [related Oxc documentation](https://oxc.rs/docs/guide/usage/minifier/dead-code-elimination#ignoring-property-read-side-effects) for more details.",
+                },
+                "propertyWriteSideEffects": {
+                  "anyOf": [
+                    {
+                      "const": false,
+                      "type": "boolean",
+                    },
+                    {
+                      "const": "always",
+                      "type": "string",
+                    },
+                  ],
+                  "description": "Controls whether writing properties to objects is considered to have side effects.
+
+Set to \`false\` for more aggressive behavior.",
+                },
+                "unknownGlobalSideEffects": {
+                  "description": "Whether to assume that accessing unknown global properties might have side effects.
+
+See [related Oxc documentation](https://oxc.rs/docs/guide/usage/minifier/dead-code-elimination#ignoring-global-variable-access-side-effects) for more details.",
+                  "type": "boolean",
+                },
+              },
+              "type": "object",
+            },
+          ],
+          "description": "Controls tree-shaking (dead code elimination).
+
+See the [In-depth Dead Code Elimination Guide](https://rolldown.rs/in-depth/dead-code-elimination) for more details.
+
+When \`false\`, tree-shaking will be disabled.
+When \`true\`, it is equivalent to setting each options to the default value.",
+        },
+        "tsconfig": {
+          "anyOf": [
+            {
+              "type": "string",
+            },
+            {
+              "const": false,
+              "type": "boolean",
+            },
+            {
+              "const": true,
+              "type": "boolean",
+            },
+          ],
+          "description": "Configures TypeScript configuration file resolution and usage.",
+        },
+        "watch": {
+          "anyOf": [
+            {
+              "const": false,
+              "type": "boolean",
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "buildDelay": {
+                  "description": "Configures how long Rolldown will wait for further changes until it triggers
+a rebuild in milliseconds.
+
+Even if this value is set to 0, there's a small debounce timeout configured
+in the file system watcher. Setting this to a value greater than 0 will mean
+that Rolldown will only trigger a rebuild if there was no change for the
+configured number of milliseconds. If several configurations are watched,
+Rolldown will use the largest configured build delay.
+
+This option is useful if you use a tool that regenerates multiple source files
+very slowly. Rebuilding immediately after the first change could cause Rolldown
+to generate a broken intermediate build before generating a successful final
+build, which can be confusing and distracting.",
+                  "type": "number",
+                },
+                "clearScreen": {
+                  "description": "Whether to clear the screen when a rebuild is triggered.",
+                  "type": "boolean",
+                },
+                "exclude": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                    },
+                    {
+                      "format": "regex",
+                      "type": "string",
+                    },
+                    {
+                      "items": {
+                        "$ref": "#/$defs/StringOrRegExp",
+                      },
+                      "type": "array",
+                    },
+                  ],
+                  "description": "Filter to prevent files from being watched.
+
+Strings are treated as glob patterns.",
+                },
+                "include": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                    },
+                    {
+                      "format": "regex",
+                      "type": "string",
+                    },
+                    {
+                      "items": {
+                        "$ref": "#/$defs/StringOrRegExp",
+                      },
+                      "type": "array",
+                    },
+                  ],
+                  "description": "Filter to limit the file-watching to certain files.
+
+Strings are treated as glob patterns.
+Note that this only filters the module graph but does not allow adding
+additional watch files.",
+                },
+                "skipWrite": {
+                  "description": "Whether to skip the {@linkcode RolldownBuild.writebundle.write()} step when a rebuild is triggered.",
+                  "type": "boolean",
+                },
+                "watcher": {
+                  "additionalProperties": false,
+                  "description": "File watcher options for configuring how file changes are detected.",
+                  "properties": {
+                    "compareContentsForPolling": {
+                      "description": "Whether to compare file contents for poll-based watchers.
+When enabled, poll watchers will check file contents to determine if they actually changed.
+
+This option is only used when {@linkcode usePolling} is \`true\`.",
+                      "type": "boolean",
+                    },
+                    "debounceDelay": {
+                      "description": "Debounce delay in milliseconds for fs-level debounced watchers.
+Only used when {@linkcode useDebounce} is \`true\`.",
+                      "type": "number",
+                    },
+                    "debounceTickRate": {
+                      "description": "Tick rate in milliseconds for the debouncer's internal polling.
+Only used when {@linkcode useDebounce} is \`true\`.
+When undefined, auto-selects 1/4 of debounceDelay.",
+                      "type": "number",
+                    },
+                    "pollInterval": {
+                      "description": "Interval between each poll in milliseconds.
+
+This option is only used when {@linkcode usePolling} is \`true\`.",
+                      "type": "number",
+                    },
+                    "useDebounce": {
+                      "description": "Whether to use debounced event delivery at the filesystem level.
+This coalesces rapid filesystem events before they reach the build coordinator.",
+                      "type": "boolean",
+                    },
+                    "usePolling": {
+                      "description": "Whether to use polling-based file watching instead of native OS events.
+
+Polling is useful for environments where native FS events are unreliable,
+such as network mounts, Docker volumes, or WSL2.",
+                      "type": "boolean",
+                    },
+                  },
+                  "type": "object",
+                },
+              },
+              "type": "object",
+            },
+          ],
+          "description": "Watch mode related options.
+
+These options only take effect when running with the [\`--watch\`](/apis/cli#w-watch) flag, or using {@linkcode watchwatch()} API.",
+        },
+      },
+      "type": "object",
+    },
+    {
+      "properties": {
+        "output": {
+          "additionalProperties": false,
+          "properties": {
+            "advancedChunks": {
+              "additionalProperties": false,
+              "deprecated": true,
+              "properties": {
+                "groups": {
+                  "items": {
+                    "$ref": "#/$defs/CodeSplittingGroup",
+                  },
+                  "type": "array",
+                },
+                "includeDependenciesRecursively": {
+                  "type": "boolean",
+                },
+                "maxModuleSize": {
+                  "type": "number",
+                },
+                "maxSize": {
+                  "type": "number",
+                },
+                "minModuleSize": {
+                  "type": "number",
+                },
+                "minShareCount": {
+                  "type": "number",
+                },
+                "minSize": {
+                  "type": "number",
+                },
+              },
+              "type": "object",
+            },
+            "assetFileNames": {
+              "anyOf": [
+                {
+                  "type": "string",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {},
+                  "type": "object",
+                },
+              ],
+              "description": "The pattern to use for naming custom emitted assets to include in the build output, or a function that is called per asset with {@linkcode PreRenderedAsset} to return such a pattern.
+
+Patterns support the following placeholders:
+- \`[extname]\`: The file extension of the asset including a leading dot, e.g. \`.css\`.
+- \`[ext]\`: The file extension without a leading dot, e.g. css.
+- \`[hash]\`: A hash based on the content of the asset. You can also set a specific hash length via e.g. \`[hash:10]\`. By default, it will create a base-64 hash. If you need a reduced character set, see {@linkcode hashCharactersoutput.hashCharacters}.
+- \`[name]\`: The file name of the asset excluding any extension.
+
+Forward slashes (\`/\`) can be used to place files in sub-directories.
+
+See also {@linkcode chunkFileNamesoutput.chunkFileNames}, {@linkcode entryFileNamesoutput.entryFileNames}.",
+            },
+            "banner": {
+              "anyOf": [
+                {
+                  "type": "string",
+                },
+                {
+                  "$ref": "#/$defs/AddonFunction",
+                },
+              ],
+              "description": "A string to prepend to the bundle before {@linkcode Plugin.renderChunkrenderChunk} hook.
+
+See {@linkcode introoutput.intro}, {@linkcode postBanneroutput.postBanner} as well.",
+            },
+            "chunkFileNames": {
+              "anyOf": [
+                {
+                  "type": "string",
+                },
+                {
+                  "$ref": "#/$defs/ChunkFileNamesFunction",
+                },
+              ],
+              "description": "The pattern to use for naming shared chunks created when code-splitting, or a function that is called per chunk with {@linkcode PreRenderedChunk} to return such a pattern.
+
+Patterns support the following placeholders:
+- \`[format]\`: The rendering format defined in the output options. The value is any of {@linkcode InternalModuleFormat}.
+- \`[hash]\`: A hash based only on the content of the final generated chunk, including transformations in \`renderChunk\` and any referenced file hashes. You can also set a specific hash length via e.g. \`[hash:10]\`. By default, it will create a base-64 hash. If you need a reduced character set, see {@linkcode hashCharactersoutput.hashCharacters}.
+- \`[name]\`: The name of the chunk. This can be explicitly set via the {@linkcode codeSplittingoutput.codeSplitting} option or when the chunk is created by a plugin via \`this.emitFile\`. Otherwise, it will be derived from the chunk contents.
+
+Forward slashes (\`/\`) can be used to place files in sub-directories.
+
+See also {@linkcode assetFileNamesoutput.assetFileNames}, {@linkcode entryFileNamesoutput.entryFileNames}.",
+            },
+            "cleanDir": {
+              "description": "Clean output directory ({@linkcode diroutput.dir}) before emitting output.",
+              "type": "boolean",
+            },
+            "codeSplitting": {
+              "anyOf": [
+                {
+                  "const": false,
+                  "type": "boolean",
+                },
+                {
+                  "const": true,
+                  "type": "boolean",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "groups": {
+                      "description": "Groups to be used for code splitting.",
+                      "items": {
+                        "$ref": "#/$defs/CodeSplittingGroup",
+                      },
+                      "type": "array",
+                    },
+                    "includeDependenciesRecursively": {
+                      "description": "Global fallback of {@linkcode CodeSplittingGroup.includeDependenciesRecursivelygroup.includeDependenciesRecursively}, if it's not specified in the group.",
+                      "type": "boolean",
+                    },
+                    "maxModuleSize": {
+                      "description": "Global fallback of {@linkcode CodeSplittingGroup.maxModuleSizegroup.maxModuleSize}, if it's not specified in the group.",
+                      "type": "number",
+                    },
+                    "maxSize": {
+                      "description": "Global fallback of {@linkcode CodeSplittingGroup.maxSizegroup.maxSize}, if it's not specified in the group.",
+                      "type": "number",
+                    },
+                    "minModuleSize": {
+                      "description": "Global fallback of {@linkcode CodeSplittingGroup.minModuleSizegroup.minModuleSize}, if it's not specified in the group.",
+                      "type": "number",
+                    },
+                    "minShareCount": {
+                      "description": "Global fallback of {@linkcode CodeSplittingGroup.minShareCountgroup.minShareCount}, if it's not specified in the group.",
+                      "type": "number",
+                    },
+                    "minSize": {
+                      "description": "Global fallback of {@linkcode CodeSplittingGroup.minSizegroup.minSize}, if it's not specified in the group.",
+                      "type": "number",
+                    },
+                  },
+                  "type": "object",
+                },
+              ],
+              "description": "Controls how code splitting is performed.
+
+- \`true\`: Default behavior, automatic code splitting. **(default)**
+- \`false\`: Inline all dynamic imports into a single bundle (equivalent to deprecated \`inlineDynamicImports: true\`).
+- \`object\`: Advanced manual code splitting configuration.
+
+For deeper understanding, please refer to the in-depth [documentation](https://rolldown.rs/in-depth/manual-code-splitting).",
+            },
+            "comments": {
+              "anyOf": [
+                {
+                  "const": false,
+                  "type": "boolean",
+                },
+                {
+                  "const": true,
+                  "type": "boolean",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "annotation": {
+                      "description": "Comments that contain \`@__PURE__\`, \`@__NO_SIDE_EFFECTS__\` or \`@vite-ignore\`",
+                      "type": "boolean",
+                    },
+                    "jsdoc": {
+                      "description": "JSDoc comments",
+                      "type": "boolean",
+                    },
+                    "legal": {
+                      "description": "Comments that contain \`@license\`, \`@preserve\` or start with \`//!\` or \`/*!\`",
+                      "type": "boolean",
+                    },
+                  },
+                  "type": "object",
+                },
+              ],
+              "description": "Control which comments are preserved in the output.
+
+- \`true\`: Preserve legal, annotation, and JSDoc comments (default)
+- \`false\`: Strip all comments
+- Object: Granular control over comment categories
+
+Note: Regular line and block comments without these markers
+are always removed regardless of this option.
+
+When both \`legalComments\` and \`comments.legal\` are set, \`comments.legal\` takes priority.",
+            },
+            "dir": {
+              "description": "The directory in which all generated chunks are placed.
+
+The {@linkcode fileoutput.file} option can be used instead if only a single chunk is generated.",
+              "type": "string",
+            },
+            "dynamicImportInCjs": {
+              "description": "Whether to keep external dynamic imports as \`import(...)\` expressions in CommonJS output.
+
+If set to \`false\`, external dynamic imports will be rewritten to use \`require(...)\` calls.
+This may be necessary to support environments that do not support dynamic \`import()\` in CommonJS modules like old Node.js versions.",
+              "type": "boolean",
+            },
+            "entryFileNames": {
+              "anyOf": [
+                {
+                  "type": "string",
+                },
+                {
+                  "$ref": "#/$defs/ChunkFileNamesFunction",
+                },
+              ],
+              "description": "The pattern to use for chunks created from entry points, or a function that is called per entry chunk with {@linkcode PreRenderedChunk} to return such a pattern.
+
+Patterns support the following placeholders:
+- \`[format]\`: The rendering format defined in the output options. The value is any of {@linkcode InternalModuleFormat}.
+- \`[hash]\`: A hash based only on the content of the final generated chunk, including transformations in \`renderChunk\` and any referenced file hashes. You can also set a specific hash length via e.g. \`[hash:10]\`. By default, it will create a base-64 hash. If you need a reduced character set, see {@linkcode hashCharactersoutput.hashCharacters}.
+- \`[name]\`: The file name (without extension) of the entry point, unless the object form of input was used to define a different name.
+
+Forward slashes (\`/\`) can be used to place files in sub-directories. This pattern will also be used for every file when setting the {@linkcode preserveModulesoutput.preserveModules} option.
+
+See also {@linkcode assetFileNamesoutput.assetFileNames}, {@linkcode chunkFileNamesoutput.chunkFileNames}.",
+            },
+            "esModule": {
+              "anyOf": [
+                {
+                  "const": false,
+                  "type": "boolean",
+                },
+                {
+                  "const": true,
+                  "type": "boolean",
+                },
+                {
+                  "const": "if-default-prop",
+                  "type": "string",
+                },
+              ],
+              "description": "Whether to add a \`__esModule: true\` property when generating exports for non-ES {@link OutputOptions.formatformats}.
+
+This property signifies that the exported value is the namespace of an ES module and that the default export of this module corresponds to the \`.default\` property of the exported object.
+
+- \`true\`: Always add the property when using {@link OutputOptions.exportsnamed exports mode}, which is similar to what other tools do.
+- \`"if-default-prop"\`: Only add the property when using {@link OutputOptions.exportsnamed exports mode} and there also is a default export. The subtle difference is that if there is no default export, consumers of the CommonJS version of your library will get all named exports as default export instead of an error or \`undefined\`.
+- \`false\`: Never add the property even if the default export would become a property \`.default\`.",
+            },
+            "exports": {
+              "anyOf": [
+                {
+                  "const": "none",
+                  "type": "string",
+                },
+                {
+                  "const": "auto",
+                  "type": "string",
+                },
+                {
+                  "const": "named",
+                  "type": "string",
+                },
+                {
+                  "const": "default",
+                  "type": "string",
+                },
+              ],
+              "description": "Which exports mode to use.",
+            },
+            "extend": {
+              "description": "Whether to extend the global variable defined by the {@linkcode OutputOptions.namename} option in \`umd\` or \`iife\` {@link OutputOptions.formatformats}.
+
+When \`true\`, the global variable will be defined as \`global.name = global.name || {}\`.
+When \`false\`, the global defined by name will be overwritten like \`global.name = {}\`.",
+              "type": "boolean",
+            },
+            "externalLiveBindings": {
+              "description": "Whether to generate code to support live bindings for {@link InputOptions.externalexternal} imports.
+
+With the default value of \`true\`, Rolldown will generate code to support live bindings for external imports.
+
+When set to \`false\`, Rolldown will assume that exports from external modules do not change. This will allow Rolldown to generate smaller code. Note that this can cause issues when there are circular dependencies involving an external dependency.",
+              "type": "boolean",
+            },
+            "file": {
+              "description": "The file path for the single generated chunk.
+
+The {@linkcode diroutput.dir} option should be used instead if multiple chunks are generated.",
+              "type": "string",
+            },
+            "footer": {
+              "anyOf": [
+                {
+                  "type": "string",
+                },
+                {
+                  "$ref": "#/$defs/AddonFunction",
+                },
+              ],
+              "description": "A string to append to the bundle before {@linkcode Plugin.renderChunkrenderChunk} hook.
+
+See {@linkcode outrooutput.outro}, {@linkcode postFooteroutput.postFooter} as well.",
+            },
+            "format": {
+              "anyOf": [
+                {
+                  "const": "es",
+                  "type": "string",
+                },
+                {
+                  "const": "cjs",
+                  "type": "string",
+                },
+                {
+                  "const": "esm",
+                  "type": "string",
+                },
+                {
+                  "const": "module",
+                  "type": "string",
+                },
+                {
+                  "const": "commonjs",
+                  "type": "string",
+                },
+                {
+                  "const": "iife",
+                  "type": "string",
+                },
+                {
+                  "const": "umd",
+                  "type": "string",
+                },
+              ],
+              "description": "Expected format of generated code.
+
+- \`'es'\`, \`'esm'\` and \`'module'\` are the same format, all stand for ES module.
+- \`'cjs'\` and \`'commonjs'\` are the same format, all stand for CommonJS module.
+- \`'iife'\` stands for [Immediately Invoked Function Expression](https://developer.mozilla.org/en-US/docs/Glossary/IIFE).
+- \`'umd'\` stands for [Universal Module Definition](https://github.com/umdjs/umd).",
+            },
+            "generatedCode": {
+              "additionalProperties": false,
+              "description": "Which language features Rolldown can safely use in generated code.
+
+This will not transpile any user code but only change the code Rolldown uses in wrappers and helpers.",
+              "properties": {
+                "preset": {
+                  "anyOf": [
+                    {
+                      "const": "es5",
+                      "type": "string",
+                    },
+                    {
+                      "const": "es2015",
+                      "type": "string",
+                    },
+                  ],
+                  "description": "Allows choosing one of the presets listed above while overriding some options.
+
+\`\`\`js
+export default {
+  output: {
+    generatedCode: {
+      preset: 'es2015',
+      symbols: false
+    }
+  }
+};
+\`\`\`",
+                },
+                "profilerNames": {
+                  "description": "Whether to add readable names to internal variables for profiling purposes.
+
+When enabled, generated code will use descriptive variable names that correspond
+to the original module names, making it easier to profile and debug the bundled code.",
+                  "type": "boolean",
+                },
+                "symbols": {
+                  "description": "Whether to use Symbol.toStringTag for namespace objects.",
+                  "type": "boolean",
+                },
+              },
+              "type": "object",
+            },
+            "globals": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Record",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {},
+                  "type": "object",
+                },
+              ],
+              "description": "Specifies \`id: variableName\` pairs necessary for {@link InputOptions.externalexternal} imports in \`umd\` / \`iife\` {@link OutputOptions.formatformats}.",
+            },
+            "hashCharacters": {
+              "anyOf": [
+                {
+                  "const": "base64",
+                  "type": "string",
+                },
+                {
+                  "const": "base36",
+                  "type": "string",
+                },
+                {
+                  "const": "hex",
+                  "type": "string",
+                },
+              ],
+              "description": "Specify the character set that Rolldown is allowed to use in file hashes.
+
+- \`'base64'\`: Uses url-safe base64 characters (0-9, a-z, A-Z, -, _). This will produce the shortest hashes.
+- \`'base36'\`: Uses alphanumeric characters (0-9, a-z)
+- \`'hex'\`: Uses hexadecimal characters (0-9, a-f)",
+            },
+            "hoistTransitiveImports": {
+              "const": false,
+              "description": "This option is not implemented yet.",
+              "type": "boolean",
+            },
+            "inlineDynamicImports": {
+              "deprecated": true,
+              "type": "boolean",
+            },
+            "intro": {
+              "anyOf": [
+                {
+                  "type": "string",
+                },
+                {
+                  "$ref": "#/$defs/AddonFunction",
+                },
+              ],
+              "description": "A string to prepend inside any {@link OutputOptions.formatformat}-specific wrapper.
+
+See {@linkcode banneroutput.banner}, {@linkcode postBanneroutput.postBanner} as well.",
+            },
+            "keepNames": {
+              "description": "Keep \`name\` property of functions and classes after bundling.
+
+When enabled, the bundler will preserve the original \`name\` property value of functions and
+classes in the output. This is useful for debugging and some frameworks that rely on it for
+registration and binding purposes.",
+              "type": "boolean",
+            },
+            "legalComments": {
+              "anyOf": [
+                {
+                  "const": "none",
+                  "type": "string",
+                },
+                {
+                  "const": "inline",
+                  "type": "string",
+                },
+              ],
+              "deprecated": true,
+              "description": "Controls how legal comments are preserved in the output.
+
+- \`none\`: no legal comments
+- \`inline\`: preserve legal comments that contain \`@license\`, \`@preserve\` or starts with \`//!\` \`/*!\`",
+            },
+            "minify": {
+              "anyOf": [
+                {
+                  "const": false,
+                  "type": "boolean",
+                },
+                {
+                  "const": true,
+                  "type": "boolean",
+                },
+                {
+                  "const": "dce-only",
+                  "type": "string",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "codegen": {
+                      "anyOf": [
+                        {
+                          "const": false,
+                          "type": "boolean",
+                        },
+                        {
+                          "const": true,
+                          "type": "boolean",
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "legalComments": {
+                              "anyOf": [
+                                {
+                                  "const": "none",
+                                  "type": "string",
+                                },
+                                {
+                                  "const": "inline",
+                                  "type": "string",
+                                },
+                                {
+                                  "const": "eof",
+                                  "type": "string",
+                                },
+                                {
+                                  "const": "external",
+                                  "type": "string",
+                                },
+                                {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "linked": {
+                                      "type": "string",
+                                    },
+                                  },
+                                  "required": [
+                                    "linked",
+                                  ],
+                                  "type": "object",
+                                },
+                              ],
+                              "description": "How to handle legal comments (comments containing \`@license\`, \`@preserve\`, or starting with \`//!\`/\`/*!\`).
+
+* \`"none"\` - Do not preserve any legal comments.
+* \`"inline"\` - Preserve all legal comments inline.
+* \`"eof"\` - Move all legal comments to the end of the file.
+* \`"external"\` - Extract legal comments without linking.
+* \`{ linked: "path/to/legal.txt" }\` - Extract legal comments and add a link comment to the given path.",
+                            },
+                            "removeWhitespace": {
+                              "description": "Remove whitespace.",
+                              "type": "boolean",
+                            },
+                          },
+                          "type": "object",
+                        },
+                      ],
+                    },
+                    "compress": {
+                      "anyOf": [
+                        {
+                          "const": false,
+                          "type": "boolean",
+                        },
+                        {
+                          "const": true,
+                          "type": "boolean",
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "dropConsole": {
+                              "description": "Pass true to discard calls to \`console.*\`.",
+                              "type": "boolean",
+                            },
+                            "dropDebugger": {
+                              "description": "Remove \`debugger;\` statements.",
+                              "type": "boolean",
+                            },
+                            "dropLabels": {
+                              "description": "Set of label names to drop from the code.
+
+Labeled statements matching these names will be removed during minification.",
+                              "items": {
+                                "type": "string",
+                              },
+                              "type": "array",
+                            },
+                            "joinVars": {
+                              "description": "Join consecutive var, let and const statements.",
+                              "type": "boolean",
+                            },
+                            "keepNames": {
+                              "additionalProperties": false,
+                              "description": "Keep function / class names.",
+                              "properties": {
+                                "class": {
+                                  "description": "Keep class names so that \`Class.prototype.name\` is preserved.
+
+This does not guarantee that the \`undefined\` name is preserved.",
+                                  "type": "boolean",
+                                },
+                                "function": {
+                                  "description": "Keep function names so that \`Function.prototype.name\` is preserved.
+
+This does not guarantee that the \`undefined\` name is preserved.",
+                                  "type": "boolean",
+                                },
+                              },
+                              "required": [
+                                "function",
+                                "class",
+                              ],
+                              "type": "object",
+                            },
+                            "maxIterations": {
+                              "description": "Limit the maximum number of iterations for debugging purpose.",
+                              "type": "number",
+                            },
+                            "sequences": {
+                              "description": "Join consecutive simple statements using the comma operator.
+
+\`a; b\` -> \`a, b\`",
+                              "type": "boolean",
+                            },
+                            "target": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                },
+                                {
+                                  "items": {
+                                    "type": "string",
+                                  },
+                                  "type": "array",
+                                },
+                              ],
+                              "description": "Set desired EcmaScript standard version for output.
+
+Set \`esnext\` to enable all target highering.
+
+Example:
+
+* \`'es2015'\`
+* \`['es2020', 'chrome58', 'edge16', 'firefox57', 'node12', 'safari11']\`",
+                            },
+                            "treeshake": {
+                              "additionalProperties": false,
+                              "description": "Treeshake options.",
+                              "properties": {
+                                "annotations": {
+                                  "description": "Whether to respect the pure annotations.
+
+Pure annotations are comments that mark an expression as pure.
+For example:",
+                                  "type": "boolean",
+                                },
+                                "invalidImportSideEffects": {
+                                  "description": "Whether invalid import statements have side effects.
+
+Accessing a non-existing import name will throw an error.
+Also import statements that cannot be resolved will throw an error.",
+                                  "type": "boolean",
+                                },
+                                "manualPureFunctions": {
+                                  "description": "Whether to treat this function call as pure.
+
+This function is called for normal function calls, new calls, and
+tagged template calls.",
+                                  "items": {
+                                    "type": "string",
+                                  },
+                                  "type": "array",
+                                },
+                                "propertyReadSideEffects": {
+                                  "anyOf": [
+                                    {
+                                      "const": false,
+                                      "type": "boolean",
+                                    },
+                                    {
+                                      "const": true,
+                                      "type": "boolean",
+                                    },
+                                    {
+                                      "const": "always",
+                                      "type": "string",
+                                    },
+                                  ],
+                                  "description": "Whether property read accesses have side effects.",
+                                },
+                                "propertyWriteSideEffects": {
+                                  "description": "Whether property write accesses (assignments to member expressions) have side effects.
+
+When false, assignments like \`obj.prop = value\` are considered side-effect-free
+(assuming the object and value expressions themselves are side-effect-free).",
+                                  "type": "boolean",
+                                },
+                                "unknownGlobalSideEffects": {
+                                  "description": "Whether accessing a global variable has side effects.
+
+Accessing a non-existing global variable will throw an error.
+Global variable may be a getter that has side effects.",
+                                  "type": "boolean",
+                                },
+                              },
+                              "type": "object",
+                            },
+                            "unused": {
+                              "anyOf": [
+                                {
+                                  "const": false,
+                                  "type": "boolean",
+                                },
+                                {
+                                  "const": true,
+                                  "type": "boolean",
+                                },
+                                {
+                                  "const": "keep_assign",
+                                  "type": "string",
+                                },
+                              ],
+                              "description": "Pass \`true\` to drop unreferenced functions and variables.
+
+Simple direct variable assignments do not count as references unless set to \`keep_assign\`.",
+                            },
+                          },
+                          "type": "object",
+                        },
+                      ],
+                    },
+                    "mangle": {
+                      "anyOf": [
+                        {
+                          "const": false,
+                          "type": "boolean",
+                        },
+                        {
+                          "const": true,
+                          "type": "boolean",
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "debug": {
+                              "description": "Debug mangled names.",
+                              "type": "boolean",
+                            },
+                            "keepNames": {
+                              "anyOf": [
+                                {
+                                  "const": false,
+                                  "type": "boolean",
+                                },
+                                {
+                                  "const": true,
+                                  "type": "boolean",
+                                },
+                                {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "class": {
+                                      "description": "Preserve \`name\` property for classes.",
+                                      "type": "boolean",
+                                    },
+                                    "function": {
+                                      "description": "Preserve \`name\` property for functions.",
+                                      "type": "boolean",
+                                    },
+                                  },
+                                  "required": [
+                                    "function",
+                                    "class",
+                                  ],
+                                  "type": "object",
+                                },
+                              ],
+                              "description": "Preserve \`name\` property for functions and classes.",
+                            },
+                            "reserved": {
+                              "description": "Names that bindings must not be renamed to, and that bindings already
+carrying them keep. Equivalent to terser's \`mangle.reserved\`.
+
+Pass \`['exports', 'module']\` when minifying prebuilt CommonJS / UMD files
+that Node consumers \`import\` directly, so Node's cjs-module-lexer can still
+detect the mangled module's named exports.",
+                              "items": {
+                                "type": "string",
+                              },
+                              "type": "array",
+                            },
+                            "toplevel": {
+                              "description": "Pass \`true\` to mangle names declared in the top level scope.",
+                              "type": "boolean",
+                            },
+                          },
+                          "type": "object",
+                        },
+                      ],
+                    },
+                  },
+                  "type": "object",
+                },
+              ],
+              "description": "Control code minification
+
+Rolldown uses Oxc Minifier under the hood. See Oxc's [minification documentation](https://oxc.rs/docs/guide/usage/minifier#features) for more details.
+
+- \`true\`: Enable full minification including code compression and dead code elimination
+- \`false\`: Disable minification
+- \`'dce-only'\`: Only perform dead code elimination without code compression (default)
+- \`MinifyOptions\`: Fine-grained control over minification settings",
+            },
+            "minifyInternalExports": {
+              "description": "Whether to minify internal exports as single letter variables to allow for better minification.",
+              "type": "boolean",
+            },
+            "name": {
+              "description": "Specifies the global variable name that contains the exports of \`umd\` / \`iife\` {@link OutputOptions.formatformats}.",
+              "type": "string",
+            },
+            "outro": {
+              "anyOf": [
+                {
+                  "type": "string",
+                },
+                {
+                  "$ref": "#/$defs/AddonFunction",
+                },
+              ],
+              "description": "A string to append inside any {@link OutputOptions.formatformat}-specific wrapper.
+
+See {@linkcode footeroutput.footer}, {@linkcode postFooteroutput.postFooter} as well.",
+            },
+            "paths": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Record",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {},
+                  "type": "object",
+                },
+              ],
+              "description": "Maps {@link InputOptions.externalexternal} module IDs to paths.
+
+Allows customizing the path used when importing external dependencies.
+This is particularly useful for loading dependencies from CDNs or custom locations.
+
+- Object form: Maps module IDs to their replacement paths
+- Function form: Takes a module ID and returns its replacement path",
+            },
+            "plugins": {
+              "anyOf": [
+                {
+                  "anyOf": [
+                    {
+                      "const": false,
+                      "type": "boolean",
+                    },
+                    {
+                      "$ref": "#/$defs/BuiltinPlugin",
+                    },
+                    {
+                      "$ref": "#/$defs/OutputPlugin",
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "name": {
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "name",
+                      ],
+                      "type": "object",
+                    },
+                    {
+                      "items": {
+                        "anyOf": [
+                          {
+                            "$ref": "#/$defs/Anonymous_3",
+                          },
+                          {
+                            "type": "null",
+                          },
+                        ],
+                      },
+                      "type": "array",
+                    },
+                    {
+                      "$ref": "#/$defs/Promise_2",
+                    },
+                  ],
+                },
+                {
+                  "type": "null",
+                },
+              ],
+              "description": "The list of plugins to use only for this output.",
+            },
+            "polyfillRequire": {
+              "description": "Whether to add a polyfill for \`require()\` function in non-CommonJS formats.
+
+This option is useful when you want to inject your own \`require\` implementation.",
+              "type": "boolean",
+            },
+            "postBanner": {
+              "anyOf": [
+                {
+                  "type": "string",
+                },
+                {
+                  "$ref": "#/$defs/AddonFunction",
+                },
+              ],
+              "description": "A string to prepend to the bundle after {@linkcode Plugin.renderChunkrenderChunk} hook and minification.
+
+See {@linkcode banneroutput.banner}, {@linkcode introoutput.intro} as well.",
+            },
+            "postFooter": {
+              "anyOf": [
+                {
+                  "type": "string",
+                },
+                {
+                  "$ref": "#/$defs/AddonFunction",
+                },
+              ],
+              "description": "A string to append to the bundle after {@linkcode Plugin.renderChunkrenderChunk} hook and minification.
+
+See {@linkcode footeroutput.footer}, {@linkcode outrooutput.outro} as well.",
+            },
+            "preserveModules": {
+              "description": "Whether to use preserve modules mode.",
+              "type": "boolean",
+            },
+            "preserveModulesRoot": {
+              "description": "A directory path to input modules that should be stripped away from {@linkcode diroutput.dir} when using {@link OutputOptions.preserveModulespreserve modules mode}.",
+              "type": "string",
+            },
+            "sanitizeFileName": {
+              "anyOf": [
+                {
+                  "const": false,
+                  "type": "boolean",
+                },
+                {
+                  "const": true,
+                  "type": "boolean",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {},
+                  "type": "object",
+                },
+              ],
+              "description": "Whether to enable chunk name sanitization (removal of non-URL-safe characters like \`\\0\`, \`?\` and \`*\`).
+
+Set \`false\` to disable the sanitization. You can also provide a custom sanitization function.",
+            },
+            "sourcemap": {
+              "anyOf": [
+                {
+                  "const": false,
+                  "type": "boolean",
+                },
+                {
+                  "const": true,
+                  "type": "boolean",
+                },
+                {
+                  "const": "inline",
+                  "type": "string",
+                },
+                {
+                  "const": "hidden",
+                  "type": "string",
+                },
+              ],
+              "description": "Whether to generate sourcemaps.
+
+- \`false\`: No sourcemap will be generated.
+- \`true\`: A separate sourcemap file will be generated.
+- \`'inline'\`: The sourcemap will be appended to the output file as a data URL.
+- \`'hidden'\`: A separate sourcemap file will be generated, but the link to the sourcemap (\`//# sourceMappingURL\` comment) will not be included in the output file.",
+            },
+            "sourcemapBaseUrl": {
+              "description": "The base URL for the links to the sourcemap file in the output file.
+
+By default, relative URLs are generated. If this option is set, an absolute URL with that base URL will be generated. This is useful when deploying source maps to a different location than your code, such as a CDN or separate debugging server.",
+              "type": "string",
+            },
+            "sourcemapDebugIds": {
+              "description": "Whether to include [debug IDs](https://github.com/tc39/ecma426/blob/main/proposals/debug-id.md) in the sourcemap.
+
+When \`true\`, a unique debug ID will be emitted in source and sourcemaps which streamlines identifying sourcemaps across different builds.",
+              "type": "boolean",
+            },
+            "sourcemapExcludeSources": {
+              "description": "Whether to exclude the original source code from sourcemaps.
+
+When \`true\`, the \`sourcesContent\` field is omitted from the generated sourcemap,
+reducing the sourcemap file size. The sourcemap will still contain source file paths
+and mappings, so debugging works if the original files are available.",
+              "type": "boolean",
+            },
+            "sourcemapFileNames": {
+              "anyOf": [
+                {
+                  "type": "string",
+                },
+                {
+                  "$ref": "#/$defs/ChunkFileNamesFunction",
+                },
+              ],
+              "description": "The pattern to use for sourcemaps created from entry points, or a function that is called per entry chunk with {@linkcode PreRenderedChunk} to return such a pattern.
+
+Patterns support the following placeholders:
+- \`[format]\`: The rendering format defined in the output options. The value is any of {@linkcode InternalModuleFormat}.
+- \`[hash]\`: A hash based only on the content of the final generated sourcemap.  You can also set a specific hash length via e.g. \`[hash:10]\`. By default, it will create a base-64 hash. If you need a reduced character set, see {@linkcode hashCharactersoutput.hashCharacters}.
+- \`[chunkhash]\`: The same hash as the one used for the corresponding generated chunk (if any).
+- \`[name]\`: The name of the corresponding chunk.
+
+Forward slashes (\`/\`) can be used to place files in sub-directories. This pattern will also be used for every file when setting the {@linkcode preserveModulesoutput.preserveModules} option.
+
+See also {@linkcode assetFileNamesoutput.assetFileNames}, {@linkcode chunkFileNamesoutput.chunkFileNames}.",
+            },
+            "sourcemapIgnoreList": {
+              "anyOf": [
+                {
+                  "type": "string",
+                },
+                {
+                  "const": false,
+                  "type": "boolean",
+                },
+                {
+                  "const": true,
+                  "type": "boolean",
+                },
+                {
+                  "format": "regex",
+                  "type": "string",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {},
+                  "type": "object",
+                },
+              ],
+              "description": "Control which source files are included in the sourcemap ignore list.
+
+Files in the ignore list are excluded from debugger stepping and error stack traces.
+
+- \`false\`: Include no source files in the ignore list
+- \`true\`: Include all source files in the ignore list
+- \`string\`: Files containing this string in their path will be included in the ignore list
+- \`RegExp\`: Files matching this regular expression will be included in the ignore list
+- \`function\`: Custom function to determine if a source should be ignored
+
+:::tip Performance
+Using static values (\`boolean\`, \`string\`, or \`RegExp\`) is significantly more performant than functions.
+Calling JavaScript functions from Rust has extremely high overhead, so prefer static patterns when possible.
+:::",
+            },
+            "strict": {
+              "anyOf": [
+                {
+                  "const": false,
+                  "type": "boolean",
+                },
+                {
+                  "const": true,
+                  "type": "boolean",
+                },
+                {
+                  "const": "auto",
+                  "type": "string",
+                },
+              ],
+              "description": "Whether to always output \`"use strict"\` directive in non-ES module outputs.
+
+- \`true\` - Always emit \`"use strict"\` at the top of the output (not applicable for ESM format since ESM is always strict).
+- \`false\` - Never emit \`"use strict"\` in the output.
+- \`'auto'\` - Respect the \`"use strict"\` directives from the source code.
+
+See [In-depth directive guide](https://rolldown.rs/in-depth/directives) for more details.",
+            },
+            "strictExecutionOrder": {
+              "description": "Preserve source module execution order across generated chunks.
+
+When enabled, Rolldown wraps ESM modules so their bodies run in source order regardless of chunk placement. Interop wrappers for CommonJS and require-of-ESM modules are unchanged, and external modules are not affected. \`experimental.onDemandWrapping\` replaces wrap-all with a conservative plan derived from predicted chunk execution hazards.
+
+> [!WARNING]
+> Enabling this option increases bundle size because wrapped modules need runtime init helpers.",
+              "type": "boolean",
+            },
+            "topLevelVar": {
+              "description": "Whether to convert top-level \`let\` and \`const\` declarations into \`var\` declarations.
+
+Enabling this option can improve runtime performance of the generated code in
+certain environments by avoiding Temporal Dead Zone (TDZ) checks. Only declarations
+in the module's top-level scope are rewritten — declarations inside nested scopes
+(functions, blocks, etc.) are left as-is.
+
+Note:
+- Top-level \`class X {}\` declarations are always emitted as \`var X = class {}\` so
+  rolldown can hoist them alongside other top-level bindings; this transform is
+  independent of \`topLevelVar\`.
+- Top-level \`function\` declarations are never rewritten.",
+              "type": "boolean",
+            },
+            "virtualDirname": {
+              "description": "Specifies the directory name for "virtual" files that might be emitted by plugins when using {@link OutputOptions.preserveModulespreserve modules mode}.",
+              "type": "string",
+            },
+          },
+          "type": "object",
+        },
+        "write": {
+          "description": "Write the output to the file system",
+          "type": "boolean",
+        },
+      },
+      "type": "object",
+    },
+  ],
+}
+`;

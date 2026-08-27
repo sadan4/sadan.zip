@@ -99,6 +99,10 @@ const DEFS_PREFIX = "#/$defs/";
  * and no `$defs` entry can be named this
  */
 const DOCUMENT_ROOT = "";
+/**
+ * the `$defs` name a type that reaches itself falls back to when nothing named it
+ */
+const ANONYMOUS_DEF_NAME = "Anonymous";
 
 /**
  * the `$defs` name a reference points at, or undefined when it points elsewhere
@@ -138,6 +142,12 @@ export class Analyzer {
      * the names whose bodies are currently being built, innermost last
      */
     #defStack: string[] = [];
+    /**
+     * the types whose bodies are currently being built, hoisted or not
+     *
+     * hoisting alone cannot break a cycle that runs through an unnameable type
+     */
+    #building = new Set<Type>();
     #refCounts = new Map<string, number>();
     /**
      * the names each def references, keyed by the referencing def, {@link DOCUMENT_ROOT} for the root
@@ -331,8 +341,14 @@ export class Analyzer {
             return;
         }
 
-        // two declarations can share a name, and each instantiation of a generic interface
-        // is its own type, so the first claim keeps the bare name and the rest are suffixed
+        return this.#claimDefName(ty, base);
+    }
+
+    /**
+     * two declarations can share a name, and each instantiation of a generic interface
+     * is its own type, so the first claim keeps the bare name and the rest are suffixed
+     */
+    #claimDefName(ty: Type, base: string): string {
         let name = base;
 
         for (let i = 2; this.#usedDefNames.has(name); i++) {
@@ -341,6 +357,17 @@ export class Analyzer {
         this.#usedDefNames.add(name);
         this.#defNames.set(ty, name);
         return name;
+    }
+
+    /**
+     * a `$defs` key for a type that reaches itself but has no declared name
+     *
+     * `getNonNullableType` and friends hand back rebuilt unions that have lost their
+     * `aliasSymbol`, so a recursive type alias can arrive here with nothing to name it.
+     * a reference is the only thing that stops the walk, so it gets one anyway
+     */
+    #cycleDefName(ty: Type): string {
+        return this.#defNames.get(ty) ?? this.#claimDefName(ty, ANONYMOUS_DEF_NAME);
     }
 
     /**
@@ -535,6 +562,7 @@ export class Analyzer {
         this.#usedDefNames = new Set();
         this.#defs = new Map();
         this.#defStack = [];
+        this.#building = new Set();
         this.#refCounts = new Map();
         this.#refEdges = new Map();
     }
@@ -658,9 +686,18 @@ export class Analyzer {
      * the `$defs` those point at off the root, so call this on its own at your own risk
      */
     #getSchemaForType(ty: Type): AnySchema {
-        const name = this.#hoistableDefName(ty);
+        // a type already on the way down reaches itself, and only a reference stops that
+        const name = this.#hoistableDefName(ty) ?? (this.#building.has(ty) ? this.#cycleDefName(ty) : undefined);
 
-        return name ? this.#hoist(ty, name) : this.#buildSchemaForType(ty);
+        if (name) {
+            return this.#hoist(ty, name);
+        }
+        this.#building.add(ty);
+        try {
+            return this.#buildSchemaForType(ty);
+        } finally {
+            this.#building.delete(ty);
+        }
     }
 
     #buildSchemaForType(ty: Type): AnySchema {
@@ -741,6 +778,15 @@ export class Analyzer {
     }
 
     public getSchemaForSymbol(sym: Symbol): AnySchema {
+        // a re-export, eg: `export { type Foo } from "./bar"`, is an alias standing in
+        // for the real declaration and carries none of its flags
+        if (sym.flags & SymbolFlags.Alias) {
+            const aliased = this.#c.getAliasedSymbol(sym);
+
+            // an alias that cannot be followed resolves to itself
+            assert(aliased !== sym, `Symbol ${sym.getName()} is an alias that does not resolve`);
+            return this.getSchemaForSymbol(aliased);
+        }
         if (sym.flags & SymbolFlags.Variable) {
             error(`Symbol ${sym.getName()} is a variable, not an type`);
         }
@@ -748,6 +794,10 @@ export class Analyzer {
             // a symbol is only resolved at the root, nested types go through getSchemaForType
             this.#resetDefs();
             return this.#assembleRoot(this.#getSchemaForInterface(sym));
+        }
+        if (sym.flags & SymbolFlags.TypeAlias) {
+            this.#resetDefs();
+            return this.#assembleRoot(this.#getSchemaForType(this.#c.getDeclaredTypeOfSymbol(sym)));
         }
         error(`TODO: implement getSchemaForSymbol for ${sym.getName()} with flags ${humanizeSymbolFlags(sym.flags)}`);
     }
