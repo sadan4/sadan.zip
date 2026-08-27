@@ -222,5 +222,24 @@ describe("ts2json", () => {
               }
             `);
         });
+        it("handles an array whose element type includes undefined", () => {
+            const input = dedent/*ts*/`
+                export default interface Foo {
+                    bar: (string | undefined)[];
+                }
+            `;
+            // json has no undefined, so the element is just a string
+            expect(() => handleDefaultExport(input)).not.toThrow();
+        });
+        it("handles an array whose element type is nullable", () => {
+            const input = dedent/*ts*/`
+                export default interface Foo {
+                    bar: (string | null)[];
+                }
+            `;
+            expect((handleDefaultExport(input) as any).properties.bar.items).toEqual({
+                anyOf: [{ type: "null" }, { type: "string" }],
+            });
+        });
     });
 });
