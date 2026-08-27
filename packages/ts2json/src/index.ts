@@ -1,4 +1,4 @@
-import { __String, CompilerHost, CompilerOptions, createCompilerHost, createProgram, displayPartsToString, ElementFlags, Extension, IndexKind, InternalSymbolName, isIdentifier, Program, resolveModuleName, SourceFile, Symbol, SymbolFlags, TupleTypeReference, Type, TypeChecker, TypeFlags } from "typescript";
+import { __String, CompilerHost, CompilerOptions, createCompilerHost, createProgram, displayPartsToString, ElementFlags, Extension, IndexKind, InternalSymbolName, isClassDeclaration, isIdentifier, isInterfaceDeclaration, Program, resolveModuleName, SourceFile, Symbol, SymbolFlags, TupleTypeReference, Type, TypeChecker, TypeFlags } from "typescript";
 import { AnySchema, SchemaBase, SchemaIntersection, SchemaObject, SchemaTuple, SchemaUnion } from "./schema";
 import { createVirtualProgram, DEFAULT_COMPILER_OPTIONS } from "./program";
 
@@ -86,6 +86,21 @@ const BYTE_MAX = 255;
  */
 const NUMERIC_KEY_PATTERN = "^-?\\d+$";
 
+const DEFS_PREFIX = "#/$defs/";
+
+/**
+ * the reference graph needs a source for the references the root document makes itself,
+ * and no `$defs` entry can be named this
+ */
+const DOCUMENT_ROOT = "";
+
+/**
+ * the `$defs` name a reference points at, or undefined when it points elsewhere
+ */
+function defNameFromRef(ref: string): string | undefined { 
+    return ref.startsWith(DEFS_PREFIX) ? ref.slice(DEFS_PREFIX.length) : undefined;
+}
+
 const humanizeTypeFlags = makeFlagHumanizer(TypeFlags);
 const humanizeSymbolFlags = makeFlagHumanizer(SymbolFlags);
 
@@ -101,6 +116,26 @@ export class Analyzer {
     #c: TypeChecker;
     #rootFile: SourceFile;
     #program: Program;
+    /**
+     * the `$defs` name claimed by each type, by type identity
+     *
+     * the checker interns declared types, so the same interface is the same object every time
+     */
+    #defNames = new Map<Type, string>();
+    #usedDefNames = new Set<string>();
+    /**
+     * the body of each hoisted type, keyed by its `$defs` name
+     */
+    #defs = new Map<string, AnySchema>();
+    /**
+     * the names whose bodies are currently being built, innermost last
+     */
+    #defStack: string[] = [];
+    #refCounts = new Map<string, number>();
+    /**
+     * the names each def references, keyed by the referencing def, {@link DOCUMENT_ROOT} for the root
+     */
+    #refEdges = new Map<string, Set<string>>();
     private constructor(program: Program, rootFile: SourceFile) { 
         this.#c = program.getTypeChecker();
         this.#program = program;
@@ -151,7 +186,7 @@ export class Analyzer {
         assert(sym.flags & SymbolFlags.Interface, `Symbol ${sym.getName()} is not an interface`);
         const type = this.#c.getDeclaredTypeOfSymbol(sym);
         assert(type.isClassOrInterface(), `Symbol ${sym.getName()} is not a class or interface`);
-        return this.#getSchemaForObjectType(type);
+        return this.getSchemaForType(type);
     }
 
     /**
@@ -265,6 +300,219 @@ export class Analyzer {
     }
 
     /**
+     * the name `sym` was declared with
+     *
+     * `export default interface Tree {}` names the symbol `default`, but `Tree` is what a
+     * reader expects to see in `$defs`
+     */
+    #declaredNameOf(sym: Symbol): string | undefined { 
+        const name = sym.getName();
+        if (name !== InternalSymbolName.Default) { 
+            return name;
+        }
+        const decl = sym.declarations?.[0];
+        if (decl && (isInterfaceDeclaration(decl) || isClassDeclaration(decl))) { 
+            return decl.name?.text;
+        }
+        return name;
+    }
+
+    /**
+     * the `$defs` key for `ty`, or undefined when it has no declared name to hoist under
+     */
+    #defNameFor(ty: Type): string | undefined { 
+        const cached = this.#defNames.get(ty);
+        if (cached) { 
+            return cached;
+        }
+        // a type alias names the type it points at, which is the name worth hoisting under
+        const sym = ty.aliasSymbol ?? ty.getSymbol();
+        if (!sym) { 
+            return;
+        }
+        const base = this.#declaredNameOf(sym);
+        // an object literal type is named `__type`/`__object`, which nobody declared
+        if (!base || base === InternalSymbolName.Type || base === InternalSymbolName.Object) { 
+            return;
+        }
+        // two declarations can share a name, and each instantiation of a generic interface
+        // is its own type, so the first claim keeps the bare name and the rest are suffixed
+        let name = base;
+        for (let i = 2; this.#usedDefNames.has(name); i++) { 
+            name = `${base}_${i}`;
+        }
+        this.#usedDefNames.add(name);
+        this.#defNames.set(ty, name);
+        return name;
+    }
+
+    /**
+     * a member of an intersection is inlined rather than hoisted
+     *
+     * its `additionalProperties: false` has to come off or the other members' properties
+     * would be rejected, and a hoisted def is shared with sites that still need it
+     */
+    #getSchemaForIntersectionMember(ty: Type): AnySchema { 
+        // a type already being hoisted has to stay a reference,
+        // or an intersection that contains itself would never terminate
+        const hoisted = this.#defNames.get(ty);
+        if (hoisted && (this.#defs.has(hoisted) || this.#defStack.includes(hoisted))) { 
+            return this.#hoist(ty, hoisted);
+        }
+        if (ty.flags & TypeFlags.Object) { 
+            const wellKnown = this.#getSchemaForWellKnownType(ty);
+            if (!wellKnown) { 
+                const schema = this.#getSchemaForObjectType(ty);
+                delete schema.additionalProperties;
+                return schema;
+            }
+            return wellKnown;
+        }
+        return this.getSchemaForType(ty);
+    }
+
+    /**
+     * the `$defs` key to hoist `ty` under, or undefined when it should stay inline
+     *
+     * only a type whose body is worth repeating is hoisted, `type Id = string` is smaller
+     * written out than referenced
+     */
+    #hoistableDefName(ty: Type): string | undefined { 
+        // these have no body at all
+        if (this.#isUnconstrained(ty) || ty.flags & (TypeFlags.Never | TypeFlags.BooleanLike)) { 
+            return;
+        }
+        // an array or tuple is named after `Array`, which is not a name the author chose,
+        // so it is only worth hoisting when they gave it an alias of its own
+        if (this.#c.isTupleType(ty) || this.#c.isArrayLikeType(ty)) { 
+            return ty.aliasSymbol ? this.#defNameFor(ty) : undefined;
+        }
+        if (ty.flags & TypeFlags.Object) { 
+            // a well known type is already a primitive schema
+            return this.#getSchemaForWellKnownType(ty) ? undefined : this.#defNameFor(ty);
+        }
+        // every member of a union or intersection is written out, which is the bulk worth sharing
+        if (ty.isUnion() || ty.isIntersection()) { 
+            return this.#defNameFor(ty);
+        }
+        return;
+    }
+
+    /**
+     * builds `ty` into `$defs` and returns a reference to it
+     *
+     * the name is claimed before the body is built, so a type that refers back to itself
+     * finds the reference already there instead of recursing forever
+     */
+    #hoist(ty: Type, name: string): AnySchema { 
+        this.#refCounts.set(name, (this.#refCounts.get(name) ?? 0) + 1);
+        const from = this.#defStack.at(-1) ?? DOCUMENT_ROOT;
+        let edges = this.#refEdges.get(from);
+        if (!edges) { 
+            edges = new Set();
+            this.#refEdges.set(from, edges);
+        }
+        edges.add(name);
+        // on the stack means the body is still being built, ie: this is the back edge of a cycle
+        if (!this.#defs.has(name) && !this.#defStack.includes(name)) { 
+            this.#defStack.push(name);
+            const built = this.#buildSchemaForType(ty);
+            this.#defStack.pop();
+            this.#defs.set(name, built);
+        }
+        return { $ref: `${DEFS_PREFIX}${name}` };
+    }
+
+    /**
+     * every def that can reach itself through the reference graph
+     */
+    #cyclicDefNames(): ReadonlySet<string> { 
+        const cyclic = new Set<string>();
+        for (const start of this.#defs.keys()) { 
+            const seen = new Set<string>();
+            const stack = [...this.#refEdges.get(start) ?? []];
+            for (let name = stack.pop(); name != null; name = stack.pop()) { 
+                if (name === start) { 
+                    cyclic.add(start);
+                    break;
+                }
+                if (seen.has(name)) { 
+                    continue;
+                }
+                seen.add(name);
+                stack.push(...this.#refEdges.get(name) ?? []);
+            }
+        }
+        return cyclic;
+    }
+
+    /**
+     * replaces every reference to an inlinable def with that def's body
+     *
+     * inlinable defs are never part of a cycle, so this terminates
+     */
+    #inlineRefs(node: unknown, inlinable: ReadonlySet<string>): unknown { 
+        if (Array.isArray(node)) { 
+            return node.map(n => this.#inlineRefs(n, inlinable));
+        }
+        if (typeof node !== "object" || node === null) { 
+            return node;
+        }
+        const out: Record<string, unknown> = {};
+        for (const [key, value] of Object.entries(node)) { 
+            setKey(out, key, this.#inlineRefs(value, inlinable));
+        }
+        const { $ref } = out;
+        if (typeof $ref !== "string") { 
+            return out;
+        }
+        const name = defNameFromRef($ref);
+        if (!name || !inlinable.has(name)) { 
+            return out;
+        }
+        delete out.$ref;
+        const body = this.#inlineRefs(this.#defs.get(name), inlinable) as Record<string, unknown>;
+        // a keyword that sat beside the reference, eg: a description, wins over the body
+        return { ...body, ...out };
+    }
+
+    /**
+     * inlines every def that is used once and is not part of a cycle,
+     * then hangs whatever is left off the root
+     */
+    #assembleRoot(root: AnySchema): AnySchema { 
+        const cyclic = this.#cyclicDefNames();
+        const inlinable = new Set<string>();
+        for (const [name, count] of this.#refCounts) { 
+            if (count === 1 && !cyclic.has(name)) { 
+                inlinable.add(name);
+            }
+        }
+        const resolved = this.#inlineRefs(root, inlinable) as AnySchema;
+        const defs: Record<string, AnySchema> = {};
+        let hasDefs = false;
+        for (const [name, schema] of this.#defs) { 
+            if (inlinable.has(name)) { 
+                continue;
+            }
+            setKey(defs, name, this.#inlineRefs(schema, inlinable) as AnySchema);
+            hasDefs = true;
+        }
+        return hasDefs
+            ? { $schema: this.$schema, ...resolved, $defs: defs }
+            : { $schema: this.$schema, ...resolved };
+    }
+
+    #resetDefs(): void { 
+        this.#defNames = new Map();
+        this.#usedDefNames = new Set();
+        this.#defs = new Map();
+        this.#defStack = [];
+        this.#refCounts = new Map();
+        this.#refEdges = new Map();
+    }
+
+    /**
      * strips `undefined` and `null` off of `ty` before getting its schema
      *
      * a nullable type gets wrapped in an `anyOf` with `null`, an optional one does not,
@@ -355,8 +603,16 @@ export class Analyzer {
 
     /**
      * handles primitives and objects
+     *
+     * a named object type comes back as a `$ref`, and only {@link getSchemaForSymbol} hangs
+     * the `$defs` those point at off the root, so call this on its own at your own risk
      */
     public getSchemaForType(ty: Type): AnySchema {
+        const name = this.#hoistableDefName(ty);
+        return name ? this.#hoist(ty, name) : this.#buildSchemaForType(ty);
+    }
+
+    #buildSchemaForType(ty: Type): AnySchema {
         // must come first, because `any` and `never` are both assignable to `readonly any[]`
         if (this.#isUnconstrained(ty)) { 
             return {};
@@ -410,12 +666,7 @@ export class Analyzer {
         if (ty.isIntersection()) { 
             const s: SchemaIntersection = { allOf: [] };
             for (const t of ty.types) { 
-                const schema = this.getSchemaForType(t);
-                // remove additionalProperties if it's an object
-                if (schema.type === "object") {
-                    delete schema.additionalProperties;
-                }
-                s.allOf.push(schema);
+                s.allOf.push(this.#getSchemaForIntersectionMember(t));
             }
             return s;
         }
@@ -428,7 +679,8 @@ export class Analyzer {
         }
         if (sym.flags & SymbolFlags.Interface) { 
             // a symbol is only resolved at the root, nested types go through getSchemaForType
-            return { $schema: this.$schema, ...this.#getSchemaForInterface(sym) };
+            this.#resetDefs();
+            return this.#assembleRoot(this.#getSchemaForInterface(sym));
         }
         error(`TODO: implement getSchemaForSymbol for ${sym.getName()} with flags ${humanizeSymbolFlags(sym.flags)}`);
     }

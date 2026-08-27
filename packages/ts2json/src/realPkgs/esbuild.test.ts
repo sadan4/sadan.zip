@@ -10,6 +10,107 @@ it("esbuild.d.ts", () => {
     const jsonSchema = analyzer.getSchemaForSymbol(schema);
     expect(jsonSchema).toMatchInlineSnapshot(`
       {
+        "$defs": {
+          "Loader": {
+            "anyOf": [
+              {
+                "const": "base64",
+                "type": "string",
+              },
+              {
+                "const": "binary",
+                "type": "string",
+              },
+              {
+                "const": "copy",
+                "type": "string",
+              },
+              {
+                "const": "css",
+                "type": "string",
+              },
+              {
+                "const": "dataurl",
+                "type": "string",
+              },
+              {
+                "const": "default",
+                "type": "string",
+              },
+              {
+                "const": "empty",
+                "type": "string",
+              },
+              {
+                "const": "file",
+                "type": "string",
+              },
+              {
+                "const": "js",
+                "type": "string",
+              },
+              {
+                "const": "json",
+                "type": "string",
+              },
+              {
+                "const": "jsx",
+                "type": "string",
+              },
+              {
+                "const": "local-css",
+                "type": "string",
+              },
+              {
+                "const": "text",
+                "type": "string",
+              },
+              {
+                "const": "ts",
+                "type": "string",
+              },
+              {
+                "const": "tsx",
+                "type": "string",
+              },
+            ],
+          },
+          "LogLevel": {
+            "anyOf": [
+              {
+                "const": "verbose",
+                "type": "string",
+              },
+              {
+                "const": "debug",
+                "type": "string",
+              },
+              {
+                "const": "info",
+                "type": "string",
+              },
+              {
+                "const": "warning",
+                "type": "string",
+              },
+              {
+                "const": "error",
+                "type": "string",
+              },
+              {
+                "const": "silent",
+                "type": "string",
+              },
+            ],
+          },
+          "Record": {
+            "additionalProperties": {
+              "type": "string",
+            },
+            "properties": {},
+            "type": "object",
+          },
+        },
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
@@ -38,12 +139,8 @@ it("esbuild.d.ts", () => {
             "type": "string",
           },
           "alias": {
-            "additionalProperties": {
-              "type": "string",
-            },
+            "$ref": "#/$defs/Record",
             "description": "Documentation: https://esbuild.github.io/api/#alias",
-            "properties": {},
-            "type": "object",
           },
           "allowOverwrite": {
             "description": "Documentation: https://esbuild.github.io/api/#allow-overwrite",
@@ -131,11 +228,7 @@ it("esbuild.d.ts", () => {
           "entryPoints": {
             "anyOf": [
               {
-                "additionalProperties": {
-                  "type": "string",
-                },
-                "properties": {},
-                "type": "object",
+                "$ref": "#/$defs/Record",
               },
               {
                 "items": {
@@ -285,100 +378,14 @@ it("esbuild.d.ts", () => {
           },
           "loader": {
             "additionalProperties": {
-              "anyOf": [
-                {
-                  "const": "base64",
-                  "type": "string",
-                },
-                {
-                  "const": "binary",
-                  "type": "string",
-                },
-                {
-                  "const": "copy",
-                  "type": "string",
-                },
-                {
-                  "const": "css",
-                  "type": "string",
-                },
-                {
-                  "const": "dataurl",
-                  "type": "string",
-                },
-                {
-                  "const": "default",
-                  "type": "string",
-                },
-                {
-                  "const": "empty",
-                  "type": "string",
-                },
-                {
-                  "const": "file",
-                  "type": "string",
-                },
-                {
-                  "const": "js",
-                  "type": "string",
-                },
-                {
-                  "const": "json",
-                  "type": "string",
-                },
-                {
-                  "const": "jsx",
-                  "type": "string",
-                },
-                {
-                  "const": "local-css",
-                  "type": "string",
-                },
-                {
-                  "const": "text",
-                  "type": "string",
-                },
-                {
-                  "const": "ts",
-                  "type": "string",
-                },
-                {
-                  "const": "tsx",
-                  "type": "string",
-                },
-              ],
+              "$ref": "#/$defs/Loader",
             },
             "description": "Documentation: https://esbuild.github.io/api/#loader",
             "properties": {},
             "type": "object",
           },
           "logLevel": {
-            "anyOf": [
-              {
-                "const": "verbose",
-                "type": "string",
-              },
-              {
-                "const": "debug",
-                "type": "string",
-              },
-              {
-                "const": "info",
-                "type": "string",
-              },
-              {
-                "const": "warning",
-                "type": "string",
-              },
-              {
-                "const": "error",
-                "type": "string",
-              },
-              {
-                "const": "silent",
-                "type": "string",
-              },
-            ],
+            "$ref": "#/$defs/LogLevel",
             "description": "Documentation: https://esbuild.github.io/api/#log-level",
           },
           "logLimit": {
@@ -387,32 +394,7 @@ it("esbuild.d.ts", () => {
           },
           "logOverride": {
             "additionalProperties": {
-              "anyOf": [
-                {
-                  "const": "verbose",
-                  "type": "string",
-                },
-                {
-                  "const": "debug",
-                  "type": "string",
-                },
-                {
-                  "const": "info",
-                  "type": "string",
-                },
-                {
-                  "const": "warning",
-                  "type": "string",
-                },
-                {
-                  "const": "error",
-                  "type": "string",
-                },
-                {
-                  "const": "silent",
-                  "type": "string",
-                },
-              ],
+              "$ref": "#/$defs/LogLevel",
             },
             "description": "Documentation: https://esbuild.github.io/api/#log-override",
             "properties": {},
@@ -644,68 +626,7 @@ it("esbuild.d.ts", () => {
                 ],
               },
               "loader": {
-                "anyOf": [
-                  {
-                    "const": "base64",
-                    "type": "string",
-                  },
-                  {
-                    "const": "binary",
-                    "type": "string",
-                  },
-                  {
-                    "const": "copy",
-                    "type": "string",
-                  },
-                  {
-                    "const": "css",
-                    "type": "string",
-                  },
-                  {
-                    "const": "dataurl",
-                    "type": "string",
-                  },
-                  {
-                    "const": "default",
-                    "type": "string",
-                  },
-                  {
-                    "const": "empty",
-                    "type": "string",
-                  },
-                  {
-                    "const": "file",
-                    "type": "string",
-                  },
-                  {
-                    "const": "js",
-                    "type": "string",
-                  },
-                  {
-                    "const": "json",
-                    "type": "string",
-                  },
-                  {
-                    "const": "jsx",
-                    "type": "string",
-                  },
-                  {
-                    "const": "local-css",
-                    "type": "string",
-                  },
-                  {
-                    "const": "text",
-                    "type": "string",
-                  },
-                  {
-                    "const": "ts",
-                    "type": "string",
-                  },
-                  {
-                    "const": "tsx",
-                    "type": "string",
-                  },
-                ],
+                "$ref": "#/$defs/Loader",
               },
               "resolveDir": {
                 "type": "string",

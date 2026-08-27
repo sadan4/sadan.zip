@@ -238,6 +238,20 @@ describe("ts2json", () => {
             `;
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
+                "$defs": {
+                  "Item": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": "number",
+                      },
+                    },
+                    "required": [
+                      "id",
+                    ],
+                    "type": "object",
+                  },
+                },
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
                 "additionalProperties": false,
                 "properties": {
@@ -246,29 +260,11 @@ describe("ts2json", () => {
                     "minItems": 2,
                     "prefixItems": [
                       {
-                        "additionalProperties": false,
-                        "properties": {
-                          "id": {
-                            "type": "number",
-                          },
-                        },
-                        "required": [
-                          "id",
-                        ],
-                        "type": "object",
+                        "$ref": "#/$defs/Item",
                       },
                       {
                         "items": {
-                          "additionalProperties": false,
-                          "properties": {
-                            "id": {
-                              "type": "number",
-                            },
-                          },
-                          "required": [
-                            "id",
-                          ],
-                          "type": "object",
+                          "$ref": "#/$defs/Item",
                         },
                         "type": "array",
                       },

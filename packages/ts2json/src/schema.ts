@@ -5,6 +5,12 @@ export interface SchemaBase {
      * only present on the root
      */
     $schema?: Analyzer["$schema"];
+    /**
+     * the schemas that `$ref`s point at, keyed by their `$defs` name
+     *
+     * only present on the root
+     */
+    $defs?: Record<string, AnySchema>;
     type?: "string" | "number" | "object" | "array" | "boolean" | "null";
     /**
      * a description of the type/property/value
@@ -16,7 +22,17 @@ export interface SchemaBase {
     deprecated?: boolean;
 }
 
-export type AnySchema = SchemaIntersection | SchemaUnion | SchemaString | SchemaNumber | SchemaObject | SchemaArray | SchemaTuple | SchemaBoolean | SchemaNull | SchemaUnconstrained | SchemaNever;
+export type AnySchema = SchemaIntersection | SchemaUnion | SchemaString | SchemaNumber | SchemaObject | SchemaArray | SchemaTuple | SchemaBoolean | SchemaNull | SchemaUnconstrained | SchemaNever | SchemaRef;
+
+/**
+ * a reference to a schema in the root's `$defs`, eg: `#/$defs/Foo`
+ *
+ * 2020-12 allows other keywords beside `$ref`, so a description survives on the reference
+ */
+export interface SchemaRef extends SchemaBase {
+    type?: undefined;
+    $ref: string;
+}
 
 /**
  * accepts any value, eg: `any` and `unknown`
