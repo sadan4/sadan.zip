@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
 import { dedent } from "../utils";
 import { handleDefaultExport } from "..";
+
+import { describe, expect, it } from "vitest";
 
 describe("ts2json", () => {
     describe("string literals", () => {
@@ -10,6 +11,7 @@ describe("ts2json", () => {
                     bar: "baz";
                 }
             `;
+
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -34,6 +36,7 @@ describe("ts2json", () => {
                     empty: "";
                 }
             `;
+
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -63,6 +66,7 @@ describe("ts2json", () => {
                     bar: "a" | "b" | "c";
                 }
             `;
+
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -98,6 +102,7 @@ describe("ts2json", () => {
                     bar: "a" | string;
                 }
             `;
+
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -120,6 +125,7 @@ describe("ts2json", () => {
                     bar: "a" | null;
                 }
             `;
+
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -150,6 +156,7 @@ describe("ts2json", () => {
                     bar?: "a";
                 }
             `;
+
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -175,6 +182,7 @@ describe("ts2json", () => {
                     baz: E;
                 }
             `;
+
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",

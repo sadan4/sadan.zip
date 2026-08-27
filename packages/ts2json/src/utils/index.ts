@@ -85,7 +85,8 @@ function alignValue<T>(value: T, precedingText: string): string | T {
 
 export function popcnt(value: number): number {
     let i = 0;
-    while (value) { 
+
+    while (value) {
         value &= value - 1;
         i++;
     }

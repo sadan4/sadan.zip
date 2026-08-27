@@ -1,7 +1,8 @@
-import { describe, expect, it } from "vitest";
+import type { SchemaObject } from "../schema";
 import { dedent } from "../utils";
 import { handleDefaultExport } from "..";
-import type { SchemaObject } from "../schema";
+
+import { describe, expect, it } from "vitest";
 
 describe("ts2json", () => {
     describe("number literals", () => {
@@ -11,8 +12,13 @@ describe("ts2json", () => {
                     bar: 1;
                 }
             `;
+
             const out = handleDefaultExport(input) as SchemaObject;
-            expect(out.properties.bar).toEqual({ type: "number", const: 1 });
+
+            expect(out.properties.bar).toEqual({
+                type: "number",
+                const: 1,
+            });
         });
         it("emits a const for negative and fractional literals", () => {
             const input = dedent/*ts*/`
@@ -21,9 +27,17 @@ describe("ts2json", () => {
                     frac: 1.5;
                 }
             `;
+
             const out = handleDefaultExport(input) as SchemaObject;
-            expect(out.properties.neg).toEqual({ type: "number", const: -1 });
-            expect(out.properties.frac).toEqual({ type: "number", const: 1.5 });
+
+            expect(out.properties.neg).toEqual({
+                type: "number",
+                const: -1,
+            });
+            expect(out.properties.frac).toEqual({
+                type: "number",
+                const: 1.5,
+            });
         });
         it("handles a union of number literals", () => {
             const input = dedent/*ts*/`
@@ -31,11 +45,19 @@ describe("ts2json", () => {
                     bar: 1 | 2;
                 }
             `;
+
             const out = handleDefaultExport(input) as SchemaObject;
+
             expect(out.properties.bar).toEqual({
                 anyOf: [
-                    { type: "number", const: 1 },
-                    { type: "number", const: 2 },
+                    {
+                        type: "number",
+                        const: 1,
+                    },
+                    {
+                        type: "number",
+                        const: 2,
+                    },
                 ],
             });
         });
@@ -49,11 +71,19 @@ describe("ts2json", () => {
                     bar: E;
                 }
             `;
+
             const out = handleDefaultExport(input) as SchemaObject;
+
             expect(out.properties.bar).toEqual({
                 anyOf: [
-                    { type: "number", const: 0 },
-                    { type: "number", const: 1 },
+                    {
+                        type: "number",
+                        const: 0,
+                    },
+                    {
+                        type: "number",
+                        const: 1,
+                    },
                 ],
             });
         });
@@ -66,8 +96,13 @@ describe("ts2json", () => {
                     bar: E.A;
                 }
             `;
+
             const out = handleDefaultExport(input) as SchemaObject;
-            expect(out.properties.bar).toEqual({ type: "number", const: 5 });
+
+            expect(out.properties.bar).toEqual({
+                type: "number",
+                const: 5,
+            });
         });
     });
 });

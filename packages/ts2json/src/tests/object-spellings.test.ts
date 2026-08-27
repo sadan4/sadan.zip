@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
 import { dedent } from "../utils";
 import { handleDefaultExport } from "..";
+
+import { describe, expect, it } from "vitest";
 
 describe("ts2json", () => {
     describe("other object spellings", () => {
@@ -10,6 +11,7 @@ describe("ts2json", () => {
                     bar: { baz: string };
                 }
             `;
+
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -44,6 +46,7 @@ describe("ts2json", () => {
                     bar: Bar;
                 }
             `;
+
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -75,6 +78,7 @@ describe("ts2json", () => {
                     bar: Record<"a" | "b", number>;
                 }
             `;
+
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -110,6 +114,7 @@ describe("ts2json", () => {
                     bar: Record<"a" | "b", string | undefined>;
                 }
             `;
+
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -141,6 +146,7 @@ describe("ts2json", () => {
                     bar: { [K in "a" | "b"]: number };
                 }
             `;
+
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -179,6 +185,7 @@ describe("ts2json", () => {
                     bar: Partial<Bar>;
                 }
             `;
+
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -212,6 +219,7 @@ describe("ts2json", () => {
                     omitted: Omit<Bar, "a">;
                 }
             `;
+
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -257,6 +265,7 @@ describe("ts2json", () => {
                     [key: string]: number;
                 }
             `;
+
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -281,6 +290,7 @@ describe("ts2json", () => {
                     bar: { [key: string]: number };
                 }
             `;
+
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -307,6 +317,7 @@ describe("ts2json", () => {
                     bar: { [key: number]: string };
                 }
             `;
+
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -336,6 +347,7 @@ describe("ts2json", () => {
                     bar: Record<string, number>;
                 }
             `;
+
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -362,6 +374,7 @@ describe("ts2json", () => {
                     bar: { [key: string]: string | number, [key: number]: number };
                 }
             `;
+
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -403,6 +416,7 @@ describe("ts2json", () => {
                     bar: Record<string, Item>;
                 }
             `;
+
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -438,6 +452,7 @@ describe("ts2json", () => {
                     bar: Record<string, string | null>;
                 }
             `;
+
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -471,7 +486,8 @@ describe("ts2json", () => {
                     bar: { [key: symbol]: string };
                 }
             `;
-            expect(() => handleDefaultExport(input)).toThrowErrorMatchingInlineSnapshot(`[Error: index signature on { [key: symbol]: string; } has an unsupported key type symbol]`);
+
+            expect(() => handleDefaultExport(input)).toThrowErrorMatchingInlineSnapshot("[Error: index signature on { [key: symbol]: string; } has an unsupported key type symbol]");
         });
     });
 });

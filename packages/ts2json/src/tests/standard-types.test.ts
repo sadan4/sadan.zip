@@ -1,14 +1,16 @@
-import { describe, expect, it } from "vitest";
 import { dedent } from "../utils";
 import { handleDefaultExport } from "..";
 
-describe("standard types", () => { 
+import { describe, expect, it } from "vitest";
+
+describe("standard types", () => {
     it("handles regexp value types", () => {
         const input = dedent/*ts*/`
             export default interface Foo {
                 bar: RegExp;
             }
         `;
+
         expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
           {
             "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -32,6 +34,7 @@ describe("standard types", () => {
                 bar?: RegExp;
             }
         `;
+
         expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
           {
             "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -52,6 +55,7 @@ describe("standard types", () => {
                 bar: RegExp[];
             }
         `;
+
         expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
           {
             "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -81,6 +85,7 @@ describe("standard types", () => {
                 bar: RegExp;
             }
         `;
+
         expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
           {
             "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -112,6 +117,7 @@ describe("standard types", () => {
                 bar: Uint8Array;
             }
         `;
+
         expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
           {
             "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -142,6 +148,7 @@ describe("standard types", () => {
                 bar: Uint8Array;
             }
         `;
+
         expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
           {
             "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -167,4 +174,4 @@ describe("standard types", () => {
           }
         `);
     });
-})
+});

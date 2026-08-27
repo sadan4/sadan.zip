@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
 import { dedent } from "../utils";
 import { handleDefaultExport } from "..";
+
+import { describe, expect, it } from "vitest";
 
 describe("ts2json", () => {
     describe("arrays", () => {
@@ -10,6 +11,7 @@ describe("ts2json", () => {
                     bar: string[];
                 }
             `;
+
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -35,6 +37,7 @@ describe("ts2json", () => {
                     bar: Array<number>;
                 }
             `;
+
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -60,6 +63,7 @@ describe("ts2json", () => {
                     bar: readonly string[];
                 }
             `;
+
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -85,6 +89,7 @@ describe("ts2json", () => {
                     bar: string[][];
                 }
             `;
+
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -116,6 +121,7 @@ describe("ts2json", () => {
                     bar: Item[];
                 }
             `;
+
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -150,6 +156,7 @@ describe("ts2json", () => {
                     bar: (string | number)[];
                 }
             `;
+
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -182,6 +189,7 @@ describe("ts2json", () => {
                     bar: string[] | null;
                 }
             `;
+
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -214,6 +222,7 @@ describe("ts2json", () => {
                     bar?: string[];
                 }
             `;
+
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -236,6 +245,7 @@ describe("ts2json", () => {
                     bar: (string | undefined)[];
                 }
             `;
+
             // json has no undefined, so the element is just a string
             expect(() => handleDefaultExport(input)).not.toThrow();
         });
@@ -245,6 +255,7 @@ describe("ts2json", () => {
                     bar: (string | null)[];
                 }
             `;
+
             expect((handleDefaultExport(input) as any).properties.bar.items).toEqual({
                 anyOf: [{ type: "string" }, { type: "null" }],
             });

@@ -674,6 +674,8 @@ const styleRules: RuleMap = {
                 // template literal tags
                 "js",
                 "css",
+                "ts",
+                "json",
             ],
         },
     ],
@@ -874,8 +876,8 @@ export default defineConfig({
         "node_modules",
         ".vite-inspect",
         ".wrangler",
-        // subpackage has its own separate tooling; out of scope for root lint
-        "packages",
+        // tsc output for VencordCompanion's test build
+        "dist.test",
         // vendored upstream vscode-textmate source (MIT); not ours to lint
         "src/components/CodeEditor/Monaco/vscode-textmate",
     ],
@@ -963,6 +965,48 @@ export default defineConfig({
                 // "tailwindcss/no-custom-classname": ["error", tailwindCallees],
                 "tailwindcss/no-unnecessary-arbitrary-value": ["error", tailwindCallees],
                 "local/require-css-as-namespace": "error",
+            },
+        },
+        // workspace packages: same JS/TS/style baseline as the app, minus the
+        // React / Tailwind / CSS-module rules — none of them ship a UI.
+        {
+            files: [
+                `packages/*/src/**/*.${extensions}`,
+                `packages/*/scripts/**/*.${extensions}`,
+                `packages/*/*.config.${extensions}`,
+            ],
+            jsPlugins: [
+                "@stylistic/eslint-plugin",
+                "eslint-plugin-unused-imports",
+                "eslint-plugin-simple-import-sort",
+            ],
+            rules: {
+                ...ESLintRules,
+                ...TSLintRules,
+                ...unicornRules,
+                ...styleRules,
+                ...oxcRules,
+                "unused-imports/no-unused-imports": "error",
+                "unused-imports/no-unused-vars": [
+                    "warn",
+                    {
+                        vars: "all",
+                        varsIgnorePattern: "^_",
+                        args: "after-used",
+                        argsIgnorePattern: "^_",
+                    },
+                ],
+                "simple-import-sort/imports": [
+                    "error",
+                    {
+                        groups: [
+                            ["^@.+$"],
+                            ["^\\./(?=.*/)(?!/?$)", "^\\.(?!/?$)", "^\\./?$", "^\\.\\.(?!/?$)", "^\\.\\./?$"],
+                            ["^(assert|buffer|child_process|cluster|console|constants|crypto|dgram|dns|domain|events|fs|http|https|module|net|os|path|punycode|querystring|readline|repl|stream|string_decoder|sys|timers|tls|tty|url|util|vm|zlib|freelist|v8|process|async_hooks|http2|perf_hooks)(/.*|$)"],
+                        ],
+                    },
+                ],
+                "simple-import-sort/exports": "error",
             },
         },
         {

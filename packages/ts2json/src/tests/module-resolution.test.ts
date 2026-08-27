@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
-import { join } from "node:path";
 import { Analyzer } from "..";
+
+import { join } from "node:path";
+import { describe, expect, it } from "vitest";
 
 /**
  * the module is resolved relative to this file, which does not need to exist

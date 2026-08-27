@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
 import { dedent } from "../utils";
 import { handleDefaultExport } from "..";
+
+import { describe, expect, it } from "vitest";
 
 describe("ts2json", () => {
     describe("boolean literals", () => {
@@ -11,6 +12,7 @@ describe("ts2json", () => {
                     f: false;
                 }
             `;
+
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -39,6 +41,7 @@ describe("ts2json", () => {
                     bar: boolean;
                 }
             `;
+
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -61,6 +64,7 @@ describe("ts2json", () => {
                     bar: true | false;
                 }
             `;
+
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -83,6 +87,7 @@ describe("ts2json", () => {
                     bar: true | string;
                 }
             `;
+
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -113,6 +118,7 @@ describe("ts2json", () => {
                     bar: false | null;
                 }
             `;
+
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -143,6 +149,7 @@ describe("ts2json", () => {
                     bar?: true;
                 }
             `;
+
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",

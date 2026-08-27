@@ -1,24 +1,24 @@
+import * as path from "node:path";
 import {
     commands,
     ConfigurationTarget,
     EventEmitter,
-    ExtensionContext,
+    type ExtensionContext,
     Position,
-    QuickPickItem,
+    type QuickPickItem,
     Range as VscRange,
     TabInputText,
-    TextDocumentContentProvider,
+    type TextDocumentContentProvider,
     TextEditorRevealType,
     Uri,
     ViewColumn,
     window,
     workspace,
 } from "vscode";
-import * as path from "node:path";
 import {
     LanguageClient,
-    LanguageClientOptions,
-    ServerOptions,
+    type LanguageClientOptions,
+    type ServerOptions,
     TransportKind,
 } from "vscode-languageclient/node";
 
@@ -39,16 +39,44 @@ const PATCH_HELPER_UPDATE_METHOD = "vencord/patchHelper/update";
 // fails with "command 'vencord.extractModule' already exists".
 
 // Legacy command palette entries kept for backward compatibility.
-const LEGACY_COMMAND_ALIASES: { vscode: string; server: string }[] = [
-    { vscode: "vencord-companion.diffModule",        server: "vencord.diffModule" },
-    { vscode: "vencord-companion.diffModuleSearch",  server: "vencord.diffModule" },
-    { vscode: "vencord-companion.extract",           server: "vencord.extractModule" },
-    { vscode: "vencord-companion.extractSearch",     server: "vencord.extractModule" },
-    { vscode: "vencord-companion.extractFind",       server: "vencord.extractFind" },
-    { vscode: "vencord-companion.disablePlugin",     server: "vencord.disablePlugin" },
-    { vscode: "vencord-companion.testPatch",         server: "vencord.testPatch" },
-    { vscode: "vencord-companion.testFind",          server: "vencord.testFind" },
-    { vscode: "vencord-companion.openPatchHelper",   server: "vencord.openPatchHelper" },
+const LEGACY_COMMAND_ALIASES: { vscode: string;
+    server: string; }[] = [
+    {
+        vscode: "vencord-companion.diffModule",
+        server: "vencord.diffModule",
+    },
+    {
+        vscode: "vencord-companion.diffModuleSearch",
+        server: "vencord.diffModule",
+    },
+    {
+        vscode: "vencord-companion.extract",
+        server: "vencord.extractModule",
+    },
+    {
+        vscode: "vencord-companion.extractSearch",
+        server: "vencord.extractModule",
+    },
+    {
+        vscode: "vencord-companion.extractFind",
+        server: "vencord.extractFind",
+    },
+    {
+        vscode: "vencord-companion.disablePlugin",
+        server: "vencord.disablePlugin",
+    },
+    {
+        vscode: "vencord-companion.testPatch",
+        server: "vencord.testPatch",
+    },
+    {
+        vscode: "vencord-companion.testFind",
+        server: "vencord.testFind",
+    },
+    {
+        vscode: "vencord-companion.openPatchHelper",
+        server: "vencord.openPatchHelper",
+    },
 ];
 
 let client: LanguageClient | undefined;
@@ -56,39 +84,68 @@ let client: LanguageClient | undefined;
 // (the log level is baked into the server env at spawn time, so changing it
 // means restarting the process).
 let extensionContext: ExtensionContext | undefined;
-
 // Mirrors the levels accepted by the server's EnvFilter (COMPANION_LSP_LOG),
 // set up in crates/companion_lsp/src/main.rs.
 const LOG_LEVELS = ["trace", "debug", "info", "warn", "error", "off"] as const;
+
 type LogLevel = typeof LOG_LEVELS[number];
 
 function getConfiguredLogLevel(): LogLevel {
     const cfg = workspace.getConfiguration("vencord-user-companion").get<string>("logLevel");
+
     return (LOG_LEVELS as readonly string[]).includes(cfg ?? "") ? cfg as LogLevel : "info";
 }
 
 function createClient(context: ExtensionContext): LanguageClient {
     const serverPath = resolveServerBinary(context);
     const logLevel = getConfiguredLogLevel();
+
     // For an Executable server, vscode-languageclient passes `options.env`
     // straight to child_process.spawn, which REPLACES the environment rather
     // than extending it. Spread process.env so the server keeps PATH/HOME/etc.
     // (the discord bridge needs them) and only override the log level.
-    const env = { ...process.env, COMPANION_LSP_LOG: logLevel };
+    const env = {
+        ...process.env,
+        COMPANION_LSP_LOG: logLevel,
+    };
+
     const serverOptions: ServerOptions = {
-        run:   { command: serverPath, transport: TransportKind.stdio, options: { env } },
-        debug: { command: serverPath, transport: TransportKind.stdio, options: { env } },
+        run: {
+            command: serverPath,
+            transport: TransportKind.stdio,
+            options: { env },
+        },
+        debug: {
+            command: serverPath,
+            transport: TransportKind.stdio,
+            options: { env },
+        },
     };
 
     const clientOptions: LanguageClientOptions = {
         documentSelector: [
-            { scheme: "file", language: "typescript" },
-            { scheme: "file", language: "typescriptreact" },
-            { scheme: "file", language: "javascript" },
-            { scheme: "file", language: "javascriptreact" },
+            {
+                scheme: "file",
+                language: "typescript",
+            },
+            {
+                scheme: "file",
+                language: "typescriptreact",
+            },
+            {
+                scheme: "file",
+                language: "javascript",
+            },
+            {
+                scheme: "file",
+                language: "javascriptreact",
+            },
             // Patch Helper virtual documents (vencord-patchhelper:/session/*.js)
             // so intl hover works on the patched webpack module shown there.
-            { scheme: "vencord-patchhelper", language: "javascript" },
+            {
+                scheme: "vencord-patchhelper",
+                language: "javascript",
+            },
         ],
         synchronize: {
             fileEvents: workspace.createFileSystemWatcher("**/*.{ts,tsx,js,jsx}"),
@@ -111,9 +168,7 @@ export async function activate(context: ExtensionContext): Promise<void> {
     // `client`, so they survive a restart and only need registering once.
     registerCommandForwarders(context);
     registerPatchHelper(context);
-    context.subscriptions.push(
-        commands.registerCommand("vencord-companion.setLogLevel", setLogLevel),
-    );
+    context.subscriptions.push(commands.registerCommand("vencord-companion.setLogLevel", setLogLevel));
 
     await client.start();
     registerCustomRequests();
@@ -131,14 +186,17 @@ export async function deactivate(): Promise<void> {
 
 async function setLogLevel(): Promise<void> {
     const current = getConfiguredLogLevel();
+
     const picked = await window.showQuickPick(
         LOG_LEVELS.map((level) => ({
-            label:       level,
+            label: level,
             description: level === current ? "(current)" : undefined,
         })),
         { placeHolder: "Select the companion_lsp log level" },
     );
-    if (!picked || picked.label === current) return;
+
+    if (!picked || picked.label === current)
+        return;
 
     await workspace.getConfiguration("vencord-user-companion")
         .update("logLevel", picked.label, ConfigurationTarget.Global);
@@ -147,7 +205,8 @@ async function setLogLevel(): Promise<void> {
 }
 
 async function restartClient(): Promise<void> {
-    if (!extensionContext) return;
+    if (!extensionContext)
+        return;
     if (client) {
         await client.stop();
     }
@@ -163,11 +222,15 @@ async function restartClient(): Promise<void> {
 function resolveServerBinary(context: ExtensionContext): string {
     // 1. Env var override for development.
     const env = process.env.COMPANION_LSP_BIN;
-    if (env) return env;
+
+    if (env)
+        return env;
 
     // 2. User-configured path.
     const cfg = workspace.getConfiguration("vencord-user-companion").get<string>("lspPath");
-    if (cfg) return cfg;
+
+    if (cfg)
+        return cfg;
 
     // 3. Binary bundled with the extension (release path).
     const bundled = path.join(
@@ -175,6 +238,7 @@ function resolveServerBinary(context: ExtensionContext): string {
         "bin",
         process.platform === "win32" ? "companion_lsp.exe" : "companion_lsp",
     );
+
     return bundled;
 }
 
@@ -183,11 +247,10 @@ function resolveServerBinary(context: ExtensionContext): string {
 // ---------------------------------------------------------------------------
 
 function registerCommandForwarders(context: ExtensionContext): void {
-    const forward = (cmd: string) => (...args: unknown[]) =>
-        client?.sendRequest("workspace/executeCommand", {
-            command:   cmd,
-            arguments: args,
-        });
+    const forward = (cmd: string) => (...args: unknown[]) => client?.sendRequest("workspace/executeCommand", {
+        command: cmd,
+        arguments: args,
+    });
 
     for (const { vscode: vsCmd, server: srvCmd } of LEGACY_COMMAND_ALIASES) {
         context.subscriptions.push(commands.registerCommand(vsCmd, forward(srvCmd)));
@@ -199,9 +262,9 @@ function registerCommandForwarders(context: ExtensionContext): void {
 // ---------------------------------------------------------------------------
 
 interface QuickPickRequest {
-    nonce:          string;
-    items:          string[];
-    placeholder?:   string;
+    nonce: string;
+    items: string[];
+    placeholder?: string;
     allowFreeText?: boolean;
 }
 
@@ -213,30 +276,46 @@ async function handleQuickPick(req: QuickPickRequest): Promise<void> {
         // can be empty (no client) or huge (every known module), neither of
         // which a QuickPick surfaces the typed value reliably from. Ask for the
         // value directly.
-        selected = (await window.showInputBox({ placeHolder: req.placeholder }))
-            ?? null;
+        selected = await window.showInputBox({ placeHolder: req.placeholder })
+          ?? null;
     } else {
         selected = await pickFromQuickPick(req);
     }
 
-    client?.sendRequest(QUICK_PICK_RESPONSE_METHOD, { nonce: req.nonce, selected });
+    client?.sendRequest(QUICK_PICK_RESPONSE_METHOD, {
+        nonce: req.nonce,
+        selected,
+    });
 }
 
 async function pickFromQuickPick(req: QuickPickRequest): Promise<string | null> {
     const qp = window.createQuickPick();
-    qp.placeholder    = req.placeholder ?? "";
-    qp.canSelectMany  = false;
+
+    qp.placeholder = req.placeholder ?? "";
+    qp.canSelectMany = false;
+
     const items: QuickPickItem[] = [
-        ...(req.allowFreeText ? [{ label: "", alwaysShow: false }] : []),
-        { label: "", kind: -1 as const },
+        ...req.allowFreeText
+            ? [
+                {
+                    label: "",
+                    alwaysShow: false,
+                },
+            ]
+            : [],
+        {
+            label: "",
+            kind: -1 as const,
+        },
         ...req.items.map((label) => ({ label })),
     ];
+
     qp.items = items;
 
     if (req.allowFreeText) {
         qp.onDidChangeValue(() => {
             if (!req.items.includes(qp.value)) {
-                items[0].label      = qp.value;
+                items[0].label = qp.value;
                 items[0].alwaysShow = true;
             } else {
                 items[0].alwaysShow = false;
@@ -251,10 +330,13 @@ async function pickFromQuickPick(req: QuickPickRequest): Promise<string | null> 
             // free text the user typed.
             const active = qp.selectedItems[0]?.label || qp.activeItems[0]?.label;
             const v = active || (req.allowFreeText ? qp.value : "") || null;
+
             qp.dispose();
             resolve(v);
         });
-        qp.onDidHide(() => resolve(null));
+        qp.onDidHide(() => {
+            resolve(null);
+        });
         qp.show();
     });
 }
@@ -264,14 +346,17 @@ async function pickFromQuickPick(req: QuickPickRequest): Promise<string | null> 
 // ---------------------------------------------------------------------------
 
 interface ShowDiffRequest {
-    left:  { uri: string; content?: string };
-    right: { uri: string; content?: string };
+    left: { uri: string;
+        content?: string; };
+    right: { uri: string;
+        content?: string; };
     title: string;
 }
 
 async function handleShowDiff(req: ShowDiffRequest): Promise<void> {
-    const left  = Uri.parse(req.left.uri);
+    const left = Uri.parse(req.left.uri);
     const right = Uri.parse(req.right.uri);
+
     await commands.executeCommand("vscode.diff", left, right, req.title);
 }
 
@@ -280,24 +365,25 @@ async function handleShowDiff(req: ShowDiffRequest): Promise<void> {
 // ---------------------------------------------------------------------------
 
 interface PatchHelperOpen {
-    sourceUri:     string;
-    patchId:       string;
+    sourceUri: string;
+    patchId: string;
     moduleContent: string;
 }
 
 interface PatchHelperUpdate {
-    sourceUri:     string;
-    patchId:       string;
+    sourceUri: string;
+    patchId: string;
     moduleContent: string;
     // Server-computed 0-based line range covering the difference between the
     // previous and new patched module. Null on the first update (no previous
     // content to diff against) or when nothing changed.
-    revealRange?:  { startLine: number; endLine: number } | null;
+    revealRange?: { startLine: number;
+        endLine: number; } | null;
 }
 
 interface PatchHelperClose {
     sourceUri: string;
-    patchId:   string;
+    patchId: string;
 }
 
 class PatchHelperProvider implements TextDocumentContentProvider {
@@ -307,12 +393,14 @@ class PatchHelperProvider implements TextDocumentContentProvider {
 
     open(patchId: string, content: string): Uri {
         const uri = Uri.parse(`vencord-patchhelper:/session/${patchId}.js`);
+
         this.contents.set(uri.toString(), content);
         return uri;
     }
 
     update(patchId: string, content: string): void {
         const uri = Uri.parse(`vencord-patchhelper:/session/${patchId}.js`);
+
         this.contents.set(uri.toString(), content);
         this._onDidChange.fire(uri);
     }
@@ -352,15 +440,20 @@ function registerPatchHelper(context: ExtensionContext): void {
 }
 
 async function handlePatchHelperOpen(req: PatchHelperOpen): Promise<void> {
-    if (!patchHelperProvider) return;
+    if (!patchHelperProvider)
+        return;
+
     let ids = sourceUriToPatchIds.get(req.sourceUri);
+
     if (!ids) {
         ids = new Set();
         sourceUriToPatchIds.set(req.sourceUri, ids);
     }
     ids.add(req.patchId);
+
     const uri = patchHelperProvider.open(req.patchId, req.moduleContent);
     const doc = await workspace.openTextDocument(uri);
+
     // Beside, not preview — matches the legacy PatchHelper behaviour so the
     // patched view sits next to the plugin source instead of replacing it.
     await window.showTextDocument(doc, {
@@ -371,22 +464,28 @@ async function handlePatchHelperOpen(req: PatchHelperOpen): Promise<void> {
 
 function handlePatchHelperUpdate(req: PatchHelperUpdate): void {
     patchHelperProvider?.update(req.patchId, req.moduleContent);
-    if (!req.revealRange) return;
+    if (!req.revealRange)
+        return;
+
     // VSCode applies the content-provider update in a microtask after `fire`,
     // so defer the reveal one tick so the editor isn't scrolled before the
     // new line layout exists.
     const { startLine, endLine } = req.revealRange;
     const targetUri = patchHelperProvider?.uriFor(req.patchId).toString();
-    if (!targetUri) return;
+
+    if (!targetUri)
+        return;
     queueMicrotask(() => {
-        const editor = window.visibleTextEditors.find(
-            (e) => e.document.uri.toString() === targetUri,
-        );
-        if (!editor) return;
+        const editor = window.visibleTextEditors.find((e) => e.document.uri.toString() === targetUri);
+
+        if (!editor)
+            return;
+
         const range = new VscRange(
             new Position(startLine, 0),
             new Position(endLine, 0),
         );
+
         editor.revealRange(range, TextEditorRevealType.InCenter);
     });
 }
@@ -400,36 +499,43 @@ async function handlePatchHelperClose(req: PatchHelperClose): Promise<void> {
 // its last helper is gone.
 function forgetPatchId(sourceUri: string, patchId: string): void {
     const ids = sourceUriToPatchIds.get(sourceUri);
-    if (!ids) return;
+
+    if (!ids)
+        return;
     ids.delete(patchId);
-    if (ids.size === 0) sourceUriToPatchIds.delete(sourceUri);
+    if (ids.size === 0)
+        sourceUriToPatchIds.delete(sourceUri);
 }
 
 async function closePatchHelperByPatchId(patchId: string): Promise<void> {
-    if (!patchHelperProvider) return;
+    if (!patchHelperProvider)
+        return;
+
     const targetUri = patchHelperProvider.uriFor(patchId).toString();
+
     // Walk every tab group looking for the matching virtual document tab.
     // There's only ever one per patchId since uriFor is deterministic, but
     // VSCode permits the same tab in multiple groups, so close them all.
     const tabs = window.tabGroups.all
         .flatMap((g) => g.tabs)
-        .filter((tab) =>
-            tab.input instanceof TabInputText
-            && tab.input.uri.toString() === targetUri,
-        );
+        .filter((tab) => tab.input instanceof TabInputText
+          && tab.input.uri.toString() === targetUri);
+
     if (tabs.length > 0) {
         await window.tabGroups.close(tabs);
     }
     patchHelperProvider.drop(patchId);
 }
 
-async function onTabsChanged(e: { closed: readonly { input: unknown }[] }): Promise<void> {
+async function onTabsChanged(e: { closed: readonly { input: unknown; }[]; }): Promise<void> {
     for (const tab of e.closed) {
-        if (!(tab.input instanceof TabInputText)) continue;
-        const closedUri = tab.input.uri.toString();
+        if (!(tab.input instanceof TabInputText))
+            continue;
 
+        const closedUri = tab.input.uri.toString();
         // Source tab closed: close every patch helper tab linked to it.
         const patchIds = sourceUriToPatchIds.get(closedUri);
+
         if (patchIds !== undefined) {
             sourceUriToPatchIds.delete(closedUri);
             for (const pid of patchIds) {
@@ -442,6 +548,7 @@ async function onTabsChanged(e: { closed: readonly { input: unknown }[] }): Prom
         // sourceUri → patchIds mapping for it.
         if (tab.input.uri.scheme === "vencord-patchhelper") {
             const id = patchIdFromHelperUri(tab.input.uri);
+
             if (id !== undefined) {
                 patchHelperProvider?.drop(id);
                 for (const [src, ids] of sourceUriToPatchIds) {
@@ -457,6 +564,7 @@ async function onTabsChanged(e: { closed: readonly { input: unknown }[] }): Prom
 function patchIdFromHelperUri(uri: Uri): string | undefined {
     // Mirrors PatchHelperProvider.uriFor: `vencord-patchhelper:/session/<id>.js`.
     const match = /^\/session\/(.+)\.js$/.exec(uri.path);
+
     return match ? match[1] : undefined;
 }
 
@@ -465,7 +573,8 @@ function patchIdFromHelperUri(uri: Uri): string | undefined {
 // ---------------------------------------------------------------------------
 
 function registerCustomRequests(): void {
-    if (!client) return;
+    if (!client)
+        return;
     client.onRequest(QUICK_PICK_METHOD, handleQuickPick);
     client.onRequest(SHOW_DIFF_METHOD, handleShowDiff);
     client.onRequest(PATCH_HELPER_OPEN_METHOD, handlePatchHelperOpen);

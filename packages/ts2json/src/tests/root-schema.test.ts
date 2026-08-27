@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
 import { dedent } from "../utils";
 import { handleDefaultExport } from "..";
+
+import { describe, expect, it } from "vitest";
 
 describe("ts2json", () => {
     describe("root schema", () => {
@@ -10,7 +11,9 @@ describe("ts2json", () => {
                     bar: string;
                 }
             `;
+
             const out = handleDefaultExport(input);
+
             expect(out.$schema).toBe("https://json-schema.org/draft/2020-12/schema");
         });
         it("does not declare the dialect on nested schemas", () => {
@@ -22,7 +25,9 @@ describe("ts2json", () => {
                     bar: Nested;
                 }
             `;
+
             const out = handleDefaultExport(input) as any;
+
             expect(out.properties.bar.$schema).toBeUndefined();
         });
     });

@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
 import { dedent } from "../utils";
 import { handleDefaultExport } from "..";
+
+import { describe, expect, it } from "vitest";
 
 describe("ts2json", () => {
     describe("$defs", () => {
@@ -13,6 +14,7 @@ describe("ts2json", () => {
                     bar: Item;
                 }
             `;
+
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -52,6 +54,7 @@ describe("ts2json", () => {
                     c: Only;
                 }
             `;
+
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
                 "$defs": {
@@ -115,6 +118,7 @@ describe("ts2json", () => {
                     b: Item;
                 }
             `;
+
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
                 "$defs": {
@@ -170,6 +174,7 @@ describe("ts2json", () => {
                     four: Second.Options;
                 }
             `;
+
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
                 "$defs": {

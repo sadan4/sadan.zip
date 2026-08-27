@@ -1,7 +1,6 @@
 // @ts-check
-import { join } from "node:path";
-
 import type { BuildOptions } from "esbuild";
+import { join } from "node:path";
 
 const __dirname = import.meta.dirname;
 const rootDir = join(__dirname, "..");

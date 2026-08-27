@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
 import { dedent } from "../utils";
 import { handleDefaultExport } from "..";
+
+import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
 describe("ts2json", () => {
@@ -12,7 +13,9 @@ describe("ts2json", () => {
                     child?: Tree;
                 }
             `;
+
             const output = handleDefaultExport(input);
+
             expect(output).toMatchInlineSnapshot(`
               {
                 "$defs": {
@@ -36,9 +39,20 @@ describe("ts2json", () => {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
               }
             `);
+
             const zs = z.fromJSONSchema(output as any);
-            expect(zs.parse({ name: "a", child: { name: "b" } })).toEqual({ name: "a", child: { name: "b" } });
-            expect(() => zs.parse({ name: "a", child: { name: 1 } })).toThrow(z.ZodError);
+
+            expect(zs.parse({
+                name: "a",
+                child: { name: "b" },
+            })).toEqual({
+                name: "a",
+                child: { name: "b" },
+            });
+            expect(() => zs.parse({
+                name: "a",
+                child: { name: 1 },
+            })).toThrow(z.ZodError);
         });
         it("handles a self-referential array property", () => {
             const input = dedent/*ts*/`
@@ -47,7 +61,9 @@ describe("ts2json", () => {
                     children: Tree[];
                 }
             `;
+
             const output = handleDefaultExport(input);
+
             expect(output).toMatchInlineSnapshot(`
               {
                 "$defs": {
@@ -75,10 +91,24 @@ describe("ts2json", () => {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
               }
             `);
+
             const zs = z.fromJSONSchema(output as any);
-            const value = { name: "a", children: [{ name: "b", children: [] }] };
+
+            const value = {
+                name: "a",
+                children: [
+                    {
+                        name: "b",
+                        children: [],
+                    },
+                ],
+            };
+
             expect(zs.parse(value)).toEqual(value);
-            expect(() => zs.parse({ name: "a", children: [{ name: "b" }] })).toThrow(z.ZodError);
+            expect(() => zs.parse({
+                name: "a",
+                children: [{ name: "b" }],
+            })).toThrow(z.ZodError);
         });
         it("handles mutually recursive interfaces", () => {
             const input = dedent/*ts*/`
@@ -92,7 +122,9 @@ describe("ts2json", () => {
                     a: A;
                 }
             `;
+
             const output = handleDefaultExport(input);
+
             expect(output).toMatchInlineSnapshot(`
               {
                 "$defs": {
@@ -131,8 +163,10 @@ describe("ts2json", () => {
                 "type": "object",
               }
             `);
+
             const zs = z.fromJSONSchema(output as any);
             const value = { a: { b: { a: {} } } };
+
             expect(zs.parse(value)).toEqual(value);
             expect(() => zs.parse({ a: { b: {} } })).toThrow(z.ZodError);
         });

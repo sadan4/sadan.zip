@@ -1,13 +1,14 @@
-import { __String, CompilerHost, CompilerOptions, createCompilerHost, createProgram, displayPartsToString, ElementFlags, Extension, IndexKind, InternalSymbolName, isClassDeclaration, isIdentifier, isInterfaceDeclaration, Program, resolveModuleName, SourceFile, Symbol, SymbolFlags, TupleTypeReference, Type, TypeChecker, TypeFlags } from "typescript";
-import { AnySchema, SchemaBase, SchemaIntersection, SchemaObject, SchemaTuple, SchemaUnion } from "./schema";
 import { createVirtualProgram, DEFAULT_COMPILER_OPTIONS } from "./program";
+import type { AnySchema, SchemaBase, SchemaIntersection, SchemaObject, SchemaTuple, SchemaUnion } from "./schema";
 
-function error(msg: string): never { 
+import { type __String, type CompilerHost, type CompilerOptions, createCompilerHost, createProgram, displayPartsToString, ElementFlags, Extension, IndexKind, InternalSymbolName, isClassDeclaration, isIdentifier, isInterfaceDeclaration, type Program, resolveModuleName, type SourceFile, type Symbol, SymbolFlags, type TupleTypeReference, type Type, type TypeChecker, TypeFlags } from "typescript";
+
+function error(msg: string): never {
     throw new Error(msg);
 }
 
-function assert<T>(value: T, msg: string): asserts value { 
-    if (!value) {  
+function assert<T>(value: T, msg: string): asserts value {
+    if (!value) {
         error(msg);
     }
 }
@@ -16,7 +17,7 @@ function assert<T>(value: T, msg: string): asserts value {
  * `obj[key] = value` sets the prototype instead of a key when `key` is `__proto__`,
  * which silently drops the property
  */
-function setKey<T>(obj: Record<string, T>, key: string, value: T): void { 
+function setKey<T>(obj: Record<string, T>, key: string, value: T): void {
     Object.defineProperty(obj, key, {
         value,
         writable: true,
@@ -40,27 +41,33 @@ interface EnumFlag {
 
 function extractFlags<E extends RuntimeEnum>(enumObj: E): EnumFlag[] {
     const flags: EnumFlag[] = [];
+
     for (const [key, value] of Object.entries(enumObj)) {
         // reverse mappings are strings, and only single-bit members are flags
         if (typeof value !== "number" || (value & (value - 1))) {
             continue;
         }
-        flags.push({ name: key, value });
+        flags.push({
+            name: key,
+            value,
+        });
     }
     return flags;
 }
 
 function makeFlagHumanizer<E extends RuntimeEnum>(enumObj: E): (v: number) => string {
     const flags = extractFlags(enumObj);
+
     return function humanizeFlags(v: number): string {
         const names: string[] = [];
-        for (const { name, value} of flags) {
+
+        for (const { name, value } of flags) {
             if (v & value) {
                 names.push(name);
             }
         }
         return names.length ? names.join(" | ") : "0";
-    }
+    };
 }
 
 /**
@@ -80,14 +87,11 @@ const TYPED_EXTENSIONS: ReadonlySet<string> = new Set<string>([
 ]);
 
 const BYTE_MAX = 255;
-
 /**
  * a numeric index signature only allows keys that stringify to a number
  */
 const NUMERIC_KEY_PATTERN = "^-?\\d+$";
-
 const DEFS_PREFIX = "#/$defs/";
-
 /**
  * the reference graph needs a source for the references the root document makes itself,
  * and no `$defs` entry can be named this
@@ -97,7 +101,7 @@ const DOCUMENT_ROOT = "";
 /**
  * the `$defs` name a reference points at, or undefined when it points elsewhere
  */
-function defNameFromRef(ref: string): string | undefined { 
+function defNameFromRef(ref: string): string | undefined {
     return ref.startsWith(DEFS_PREFIX) ? ref.slice(DEFS_PREFIX.length) : undefined;
 }
 
@@ -108,14 +112,15 @@ export class Analyzer {
     /**
      * the version of the JSON schema that is emitted
      */
-    public get $schema() { 
+    public get $schema() {
         return "https://json-schema.org/draft/2020-12/schema" as const;
     }
+
     // #tsCode: string;
     // #host: CompilerHost;
-    #c: TypeChecker;
-    #rootFile: SourceFile;
-    #program: Program;
+    readonly #c: TypeChecker;
+    readonly #rootFile: SourceFile;
+    readonly #program: Program;
     /**
      * the `$defs` name claimed by each type, by type identity
      *
@@ -136,14 +141,16 @@ export class Analyzer {
      * the names each def references, keyed by the referencing def, {@link DOCUMENT_ROOT} for the root
      */
     #refEdges = new Map<string, Set<string>>();
-    private constructor(program: Program, rootFile: SourceFile) { 
+
+    private constructor(program: Program, rootFile: SourceFile) {
         this.#c = program.getTypeChecker();
         this.#program = program;
         this.#rootFile = rootFile;
     }
 
-    public static createVirtual(tsCode: string): Analyzer { 
+    public static createVirtual(tsCode: string): Analyzer {
         const { program, rootFile } = createVirtualProgram(tsCode);
+
         return new Analyzer(program, rootFile);
     }
 
@@ -153,7 +160,9 @@ export class Analyzer {
             rootNames: [filePath],
             host,
         });
+
         const rootFile = program.getSourceFile(filePath);
+
         assert(rootFile, `file ${filePath} not found in program`);
         return new Analyzer(program, rootFile);
     }
@@ -169,22 +178,25 @@ export class Analyzer {
         // the file doesn't need to exist, only its directory is used to walk up looking for node_modules
         const from = containingFile ?? `${host.getCurrentDirectory()}/__ts2json__.ts`;
         const { resolvedModule } = resolveModuleName(moduleName, from, options, host);
+
         assert(resolvedModule, `could not resolve module ${moduleName} from ${from}`);
         // resolution only lands on a runtime file when there are no types for the module
         assert(
             TYPED_EXTENSIONS.has(resolvedModule.extension),
-            `module ${moduleName} resolved to ${resolvedModule.resolvedFileName}, which has no type declarations`
+            `module ${moduleName} resolved to ${resolvedModule.resolvedFileName}, which has no type declarations`,
         );
         return Analyzer.createFromFile(resolvedModule.resolvedFileName, options, host);
     }
 
-    public getSymbolForExportName(exportName: __String): Symbol | undefined { 
+    public getSymbolForExportName(exportName: __String): Symbol | undefined {
         return this.#c.getSymbolAtLocation(this.#rootFile)?.exports?.get(exportName);
     }
 
     #getSchemaForInterface(sym: Symbol): AnySchema {
         assert(sym.flags & SymbolFlags.Interface, `Symbol ${sym.getName()} is not an interface`);
+
         const type = this.#c.getDeclaredTypeOfSymbol(sym);
+
         assert(type.isClassOrInterface(), `Symbol ${sym.getName()} is not a class or interface`);
         return this.getSchemaForType(type);
     }
@@ -195,14 +207,14 @@ export class Analyzer {
      * every value includes `undefined` and `null`, but that does not make them
      * optional or nullable, it makes them unconstrained
      */
-    #isUnconstrained(ty: Type): boolean { 
+    #isUnconstrained(ty: Type): boolean {
         return !!(ty.flags & (TypeFlags.Any | TypeFlags.Unknown));
     }
 
     /**
      * null is not considered optional
      */
-    #isJsonOptional(ty: Type): boolean { 
+    #isJsonOptional(ty: Type): boolean {
         return !this.#isUnconstrained(ty) && this.#c.isTypeAssignableTo(this.#c.getUndefinedType(), ty);
     }
 
@@ -212,15 +224,16 @@ export class Analyzer {
      */
     #isNullable(ty: Type): boolean {
         return !this.#isUnconstrained(ty)
-            && this.#c.isTypeAssignableTo(this.#c.getNullType(), ty)
-            && !(ty.flags & TypeFlags.Null);
+          && this.#c.isTypeAssignableTo(this.#c.getNullType(), ty)
+          && !(ty.flags & TypeFlags.Null);
     }
 
     /**
      * a function has no json representation, `JSON.stringify` drops the property entirely
      */
-    #isCallable(ty: Type): boolean { 
+    #isCallable(ty: Type): boolean {
         const nonNullable = this.#c.getNonNullableType(ty);
+
         return nonNullable.getCallSignatures().length > 0 || nonNullable.getConstructSignatures().length > 0;
     }
 
@@ -229,7 +242,7 @@ export class Analyzer {
      *
      * the checker names these `__@toPrimitive@620`, which is not a key any json object can have
      */
-    #isSymbolKeyed(prop: Symbol): boolean { 
+    #isSymbolKeyed(prop: Symbol): boolean {
         // `__String` is branded to keep it apart from real identifiers, but it is a string
         return (prop.escapedName as string).startsWith("__@");
     }
@@ -237,10 +250,11 @@ export class Analyzer {
     /**
      * returns the text of the `\@deprecated` tag if present, otherwise undefined
      */
-    #isDeprecated(sym: Symbol): string | undefined { 
+    #isDeprecated(sym: Symbol): string | undefined {
         const tags = sym.getJsDocTags(this.#c);
-        const deprecatedTag = tags.find(t => t.name === "deprecated");
-        if (deprecatedTag) { 
+        const deprecatedTag = tags.find((t) => t.name === "deprecated");
+
+        if (deprecatedTag) {
             return displayPartsToString(deprecatedTag.text);
         }
     }
@@ -251,49 +265,57 @@ export class Analyzer {
             properties: {},
             additionalProperties: false,
         };
+
         // typescript can't do inference if we declare it in the obj literal
         s.required = [];
         for (const prop of this.#c.getPropertiesOfType(type)) {
-            if (this.#isSymbolKeyed(prop)) { 
+            if (this.#isSymbolKeyed(prop)) {
                 continue;
             }
+
             // a property can have multiple declarations
             // eg: interface Base { foo: string | number } interface Derived extends Base { foo: string }
             // any is valid, the symbols are unique between them
             const decl = prop.valueDeclaration ?? prop.declarations?.[0] ?? this.#rootFile;
             const ty = this.#c.getTypeOfSymbolAtLocation(prop, decl);
+
             // methods and function-valued properties never survive serialization
-            if (this.#isCallable(ty)) { 
+            if (this.#isCallable(ty)) {
                 continue;
             }
+
             const jsDocIR = prop.getDocumentationComment(this.#c);
             const jsDoc = displayPartsToString(jsDocIR);
             const name = prop.getName();
+
             if (!this.#isJsonOptional(ty)) {
                 s.required.push(name);
             }
+
             const schema = this.#getSchemaForNullishType(ty);
+
             if (jsDocIR.length) {
                 schema.description = jsDoc;
             }
             setKey(s.properties, name, schema);
             // @deprecated tag could have empty string value
-            if (this.#isDeprecated(prop) != null) { 
+            if (this.#isDeprecated(prop) != null) {
                 schema.deprecated = true;
             }
         }
-        for (const { keyType, type: valueType } of this.#c.getIndexInfosOfType(type)) { 
+        for (const { keyType, type: valueType } of this.#c.getIndexInfosOfType(type)) {
             const schema = this.#getSchemaForNullishType(valueType);
-            if (keyType.flags & TypeFlags.String) { 
+
+            if (keyType.flags & TypeFlags.String) {
                 s.additionalProperties = schema;
-            } else if (keyType.flags & TypeFlags.Number) { 
+            } else if (keyType.flags & TypeFlags.Number) {
                 s.patternProperties ??= {};
                 s.patternProperties[NUMERIC_KEY_PATTERN] = schema;
-            } else { 
+            } else {
                 error(`index signature on ${this.#c.typeToString(type)} has an unsupported key type ${this.#c.typeToString(keyType)}`);
             }
         }
-        if (!s.required.length) { 
+        if (!s.required.length) {
             delete s.required;
         }
         return s;
@@ -305,13 +327,16 @@ export class Analyzer {
      * `export default interface Tree {}` names the symbol `default`, but `Tree` is what a
      * reader expects to see in `$defs`
      */
-    #declaredNameOf(sym: Symbol): string | undefined { 
+    #declaredNameOf(sym: Symbol): string | undefined {
         const name = sym.getName();
-        if (name !== InternalSymbolName.Default) { 
+
+        if (name !== InternalSymbolName.Default) {
             return name;
         }
+
         const decl = sym.declarations?.[0];
-        if (decl && (isInterfaceDeclaration(decl) || isClassDeclaration(decl))) { 
+
+        if (decl && (isInterfaceDeclaration(decl) || isClassDeclaration(decl))) {
             return decl.name?.text;
         }
         return name;
@@ -320,25 +345,32 @@ export class Analyzer {
     /**
      * the `$defs` key for `ty`, or undefined when it has no declared name to hoist under
      */
-    #defNameFor(ty: Type): string | undefined { 
+    #defNameFor(ty: Type): string | undefined {
         const cached = this.#defNames.get(ty);
-        if (cached) { 
+
+        if (cached) {
             return cached;
         }
+
         // a type alias names the type it points at, which is the name worth hoisting under
         const sym = ty.aliasSymbol ?? ty.getSymbol();
-        if (!sym) { 
+
+        if (!sym) {
             return;
         }
+
         const base = this.#declaredNameOf(sym);
+
         // an object literal type is named `__type`/`__object`, which nobody declared
-        if (!base || base === InternalSymbolName.Type || base === InternalSymbolName.Object) { 
+        if (!base || base === InternalSymbolName.Type || base === InternalSymbolName.Object) {
             return;
         }
+
         // two declarations can share a name, and each instantiation of a generic interface
         // is its own type, so the first claim keeps the bare name and the rest are suffixed
         let name = base;
-        for (let i = 2; this.#usedDefNames.has(name); i++) { 
+
+        for (let i = 2; this.#usedDefNames.has(name); i++) {
             name = `${base}_${i}`;
         }
         this.#usedDefNames.add(name);
@@ -352,17 +384,20 @@ export class Analyzer {
      * its `additionalProperties: false` has to come off or the other members' properties
      * would be rejected, and a hoisted def is shared with sites that still need it
      */
-    #getSchemaForIntersectionMember(ty: Type): AnySchema { 
+    #getSchemaForIntersectionMember(ty: Type): AnySchema {
         // a type already being hoisted has to stay a reference,
         // or an intersection that contains itself would never terminate
         const hoisted = this.#defNames.get(ty);
-        if (hoisted && (this.#defs.has(hoisted) || this.#defStack.includes(hoisted))) { 
+
+        if (hoisted && (this.#defs.has(hoisted) || this.#defStack.includes(hoisted))) {
             return this.#hoist(ty, hoisted);
         }
-        if (ty.flags & TypeFlags.Object) { 
+        if (ty.flags & TypeFlags.Object) {
             const wellKnown = this.#getSchemaForWellKnownType(ty);
-            if (!wellKnown) { 
+
+            if (!wellKnown) {
                 const schema = this.#getSchemaForObjectType(ty);
+
                 delete schema.additionalProperties;
                 return schema;
             }
@@ -377,22 +412,22 @@ export class Analyzer {
      * only a type whose body is worth repeating is hoisted, `type Id = string` is smaller
      * written out than referenced
      */
-    #hoistableDefName(ty: Type): string | undefined { 
+    #hoistableDefName(ty: Type): string | undefined {
         // these have no body at all
-        if (this.#isUnconstrained(ty) || ty.flags & (TypeFlags.Never | TypeFlags.BooleanLike)) { 
+        if (this.#isUnconstrained(ty) || ty.flags & (TypeFlags.Never | TypeFlags.BooleanLike)) {
             return;
         }
         // an array or tuple is named after `Array`, which is not a name the author chose,
         // so it is only worth hoisting when they gave it an alias of its own
-        if (this.#c.isTupleType(ty) || this.#c.isArrayLikeType(ty)) { 
+        if (this.#c.isTupleType(ty) || this.#c.isArrayLikeType(ty)) {
             return ty.aliasSymbol ? this.#defNameFor(ty) : undefined;
         }
-        if (ty.flags & TypeFlags.Object) { 
+        if (ty.flags & TypeFlags.Object) {
             // a well known type is already a primitive schema
             return this.#getSchemaForWellKnownType(ty) ? undefined : this.#defNameFor(ty);
         }
         // every member of a union or intersection is written out, which is the bulk worth sharing
-        if (ty.isUnion() || ty.isIntersection()) { 
+        if (ty.isUnion() || ty.isIntersection()) {
             return this.#defNameFor(ty);
         }
         return;
@@ -404,19 +439,23 @@ export class Analyzer {
      * the name is claimed before the body is built, so a type that refers back to itself
      * finds the reference already there instead of recursing forever
      */
-    #hoist(ty: Type, name: string): AnySchema { 
+    #hoist(ty: Type, name: string): AnySchema {
         this.#refCounts.set(name, (this.#refCounts.get(name) ?? 0) + 1);
+
         const from = this.#defStack.at(-1) ?? DOCUMENT_ROOT;
         let edges = this.#refEdges.get(from);
-        if (!edges) { 
+
+        if (!edges) {
             edges = new Set();
             this.#refEdges.set(from, edges);
         }
         edges.add(name);
         // on the stack means the body is still being built, ie: this is the back edge of a cycle
-        if (!this.#defs.has(name) && !this.#defStack.includes(name)) { 
+        if (!this.#defs.has(name) && !this.#defStack.includes(name)) {
             this.#defStack.push(name);
+
             const built = this.#buildSchemaForType(ty);
+
             this.#defStack.pop();
             this.#defs.set(name, built);
         }
@@ -426,17 +465,19 @@ export class Analyzer {
     /**
      * every def that can reach itself through the reference graph
      */
-    #cyclicDefNames(): ReadonlySet<string> { 
+    #cyclicDefNames(): ReadonlySet<string> {
         const cyclic = new Set<string>();
-        for (const start of this.#defs.keys()) { 
+
+        for (const start of this.#defs.keys()) {
             const seen = new Set<string>();
             const stack = [...this.#refEdges.get(start) ?? []];
-            for (let name = stack.pop(); name != null; name = stack.pop()) { 
-                if (name === start) { 
+
+            for (let name = stack.pop(); name != null; name = stack.pop()) {
+                if (name === start) {
                     cyclic.add(start);
                     break;
                 }
-                if (seen.has(name)) { 
+                if (seen.has(name)) {
                     continue;
                 }
                 seen.add(name);
@@ -451,59 +492,80 @@ export class Analyzer {
      *
      * inlinable defs are never part of a cycle, so this terminates
      */
-    #inlineRefs(node: unknown, inlinable: ReadonlySet<string>): unknown { 
-        if (Array.isArray(node)) { 
-            return node.map(n => this.#inlineRefs(n, inlinable));
+    #inlineRefs(node: unknown, inlinable: ReadonlySet<string>): unknown {
+        if (Array.isArray(node)) {
+            return node.map((n) => this.#inlineRefs(n, inlinable));
         }
-        if (typeof node !== "object" || node === null) { 
+        if (typeof node !== "object" || node === null) {
             return node;
         }
+
         const out: Record<string, unknown> = {};
-        for (const [key, value] of Object.entries(node)) { 
+
+        for (const [key, value] of Object.entries(node)) {
             setKey(out, key, this.#inlineRefs(value, inlinable));
         }
+
         const { $ref } = out;
-        if (typeof $ref !== "string") { 
+
+        if (typeof $ref !== "string") {
             return out;
         }
+
         const name = defNameFromRef($ref);
-        if (!name || !inlinable.has(name)) { 
+
+        if (!name || !inlinable.has(name)) {
             return out;
         }
         delete out.$ref;
+
         const body = this.#inlineRefs(this.#defs.get(name), inlinable) as Record<string, unknown>;
+
         // a keyword that sat beside the reference, eg: a description, wins over the body
-        return { ...body, ...out };
+        return {
+            ...body,
+            ...out,
+        };
     }
 
     /**
      * inlines every def that is used once and is not part of a cycle,
      * then hangs whatever is left off the root
      */
-    #assembleRoot(root: AnySchema): AnySchema { 
+    #assembleRoot(root: AnySchema): AnySchema {
         const cyclic = this.#cyclicDefNames();
         const inlinable = new Set<string>();
-        for (const [name, count] of this.#refCounts) { 
-            if (count === 1 && !cyclic.has(name)) { 
+
+        for (const [name, count] of this.#refCounts) {
+            if (count === 1 && !cyclic.has(name)) {
                 inlinable.add(name);
             }
         }
+
         const resolved = this.#inlineRefs(root, inlinable) as AnySchema;
         const defs: Record<string, AnySchema> = {};
         let hasDefs = false;
-        for (const [name, schema] of this.#defs) { 
-            if (inlinable.has(name)) { 
+
+        for (const [name, schema] of this.#defs) {
+            if (inlinable.has(name)) {
                 continue;
             }
             setKey(defs, name, this.#inlineRefs(schema, inlinable) as AnySchema);
             hasDefs = true;
         }
         return hasDefs
-            ? { $schema: this.$schema, ...resolved, $defs: defs }
-            : { $schema: this.$schema, ...resolved };
+            ? {
+                $schema: this.$schema,
+                ...resolved,
+                $defs: defs,
+            }
+            : {
+                $schema: this.$schema,
+                ...resolved,
+            };
     }
 
-    #resetDefs(): void { 
+    #resetDefs(): void {
         this.#defNames = new Map();
         this.#usedDefNames = new Set();
         this.#defs = new Map();
@@ -518,12 +580,15 @@ export class Analyzer {
      * a nullable type gets wrapped in an `anyOf` with `null`, an optional one does not,
      * because optionality is expressed by the container (`required` / `minItems`)
      */
-    #getSchemaForNullishType(ty: Type): AnySchema { 
+    #getSchemaForNullishType(ty: Type): AnySchema {
         const wasNullable = this.#isNullable(ty);
+
         if (wasNullable || this.#isJsonOptional(ty)) {
             ty = this.#c.getNonNullableType(ty);
         }
+
         const schema = this.getSchemaForType(ty);
+
         return wasNullable ? { anyOf: [schema, { type: "null" }] } : schema;
     }
 
@@ -531,39 +596,43 @@ export class Analyzer {
      * json schema can only express a rest element at the end of a tuple,
      * so `[string, ...number[], boolean]` is an error
      */
-    #getSchemaForTupleType(tyRef: TupleTypeReference): SchemaTuple { 
+    #getSchemaForTupleType(tyRef: TupleTypeReference): SchemaTuple {
         const { elementFlags, labeledElementDeclarations } = tyRef.target;
         const elems = this.#c.getTypeArguments(tyRef);
+
         const s: SchemaTuple = {
             type: "array",
             prefixItems: [],
             items: false,
         };
+
         let minItems = 0;
         let sawNonRequired = false;
-        for (let i = 0; i < elems.length; i++) { 
+
+        for (let i = 0; i < elems.length; i++) {
             const flags = elementFlags[i];
             const schema = this.#getSchemaForNullishType(elems[i]);
             // a tuple is either fully labeled or not labeled at all, but the array is sparse for rest params
             const label = labeledElementDeclarations?.[i]?.name;
-            if (label && isIdentifier(label)) { 
+
+            if (label && isIdentifier(label)) {
                 schema.description = label.text;
             }
             // Variable is Rest | Variadic
-            if (flags & ElementFlags.Variable) { 
+            if (flags & ElementFlags.Variable) {
                 assert(i === elems.length - 1, `tuple type ${this.#c.typeToString(tyRef)} has elements after its rest element`);
                 s.items = schema;
                 break;
             }
-            if (flags & ElementFlags.Optional) { 
+            if (flags & ElementFlags.Optional) {
                 sawNonRequired = true;
-            } else { 
+            } else {
                 assert(!sawNonRequired, `tuple type ${this.#c.typeToString(tyRef)} has a required element after an optional one`);
                 minItems++;
             }
             s.prefixItems.push(schema);
         }
-        if (minItems) { 
+        if (minItems) {
             s.minItems = minItems;
         }
         return s;
@@ -575,26 +644,41 @@ export class Analyzer {
      *
      * returns undefined when `ty` is not one of them
      */
-    #getSchemaForWellKnownType(ty: Type): AnySchema | undefined { 
+    #getSchemaForWellKnownType(ty: Type): AnySchema | undefined {
         const sym = ty.getSymbol();
         const decl = sym?.declarations?.[0];
-        if (!decl || !this.#program.isSourceFileDefaultLibrary(decl.getSourceFile())) { 
+
+        if (!decl || !this.#program.isSourceFileDefaultLibrary(decl.getSourceFile())) {
             return;
         }
-        switch (sym.getName()) { 
+        switch (sym.getName()) {
             // json has no regex literal, only the source text of one
-            case "RegExp": return { type: "string", format: "regex" };
+            case "RegExp": return {
+                type: "string",
+                format: "regex",
+            };
             // json has no binary type, so bytes are the numbers `Array.from` would give
-            case "Uint8Array": return { type: "array", items: { type: "number", minimum: 0, maximum: BYTE_MAX } };
+            case "Uint8Array": return {
+                type: "array",
+                items: {
+                    type: "number",
+                    minimum: 0,
+                    maximum: BYTE_MAX,
+                },
+            };
             // every member of Date is a method, `toJSON` serializes it to an iso string
-            case "Date": return { type: "string", format: "date-time" };
+            case "Date": return {
+                type: "string",
+                format: "date-time",
+            };
         }
     }
 
-    #booleanLiteralValue(ty: Type): boolean { 
+    #booleanLiteralValue(ty: Type): boolean {
         const strRepr = this.#c.typeToString(ty);
+
         assert(ty.flags & TypeFlags.BooleanLiteral, `Type ${strRepr} is not a boolean literal`);
-        switch (strRepr) { 
+        switch (strRepr) {
             case "true": return true;
             case "false": return false;
             default: error(`expected boolean literal type to be "true" or "false", got ${JSON.stringify(strRepr)}`);
@@ -609,63 +693,80 @@ export class Analyzer {
      */
     public getSchemaForType(ty: Type): AnySchema {
         const name = this.#hoistableDefName(ty);
+
         return name ? this.#hoist(ty, name) : this.#buildSchemaForType(ty);
     }
 
     #buildSchemaForType(ty: Type): AnySchema {
         // must come first, because `any` and `never` are both assignable to `readonly any[]`
-        if (this.#isUnconstrained(ty)) { 
+        if (this.#isUnconstrained(ty)) {
             return {};
         }
-        if (ty.flags & TypeFlags.Never) { 
+        if (ty.flags & TypeFlags.Never) {
             return { not: {} };
         }
         // must come before TypeFlags.Object, because arrays are objects
-        if (this.#c.isTupleType(ty)) { 
+        if (this.#c.isTupleType(ty)) {
             return this.#getSchemaForTupleType(ty as TupleTypeReference);
         }
-        if (this.#c.isArrayLikeType(ty)) { 
+        if (this.#c.isArrayLikeType(ty)) {
             const elemType = this.#c.getIndexTypeOfType(ty, IndexKind.Number);
+
             assert(elemType, `Array-like type ${this.#c.typeToString(ty)} has no index type`);
-            return { type: "array", items: this.#getSchemaForNullishType(elemType) };
+            return {
+                type: "array",
+                items: this.#getSchemaForNullishType(elemType),
+            };
         }
         if (ty.flags & TypeFlags.String) {
             return { type: "string" };
         }
-        if (ty.flags & TypeFlags.Number) { 
+        if (ty.flags & TypeFlags.Number) {
             return { type: "number" };
         }
         if (ty.flags & TypeFlags.Object) {
             return this.#getSchemaForWellKnownType(ty) ?? this.#getSchemaForObjectType(ty);
         }
-        if (ty.flags & TypeFlags.Null) { 
+        if (ty.flags & TypeFlags.Null) {
             return { type: "null" };
         }
-        if (ty.isStringLiteral()) { 
-            return { type: "string", const: ty.value };
+        if (ty.isStringLiteral()) {
+            return {
+                type: "string",
+                const: ty.value,
+            };
         }
         // this also covers numeric enum members, which are number literals with an extra flag
-        if (ty.isNumberLiteral()) { 
-            return { type: "number", const: ty.value };
+        if (ty.isNumberLiteral()) {
+            return {
+                type: "number",
+                const: ty.value,
+            };
         }
         if (ty.flags & TypeFlags.Boolean) {
             assert(!(ty.flags & TypeFlags.BooleanLiteral), `Type ${this.#c.typeToString(ty)} is a boolean literal, not a boolean`);
             return { type: "boolean" };
         }
-        if (ty.flags & TypeFlags.BooleanLiteral) { 
+        if (ty.flags & TypeFlags.BooleanLiteral) {
             const val = this.#booleanLiteralValue(ty);
-            return { type: "boolean", const: val };
+
+            return {
+                type: "boolean",
+                const: val,
+            };
         }
-        if (ty.isUnion()) { 
+        if (ty.isUnion()) {
             const s: SchemaUnion = { anyOf: [] };
-            for (const t of ty.types) { 
+
+            for (const t of ty.types) {
                 s.anyOf.push(this.getSchemaForType(t));
             }
             return s;
         }
-        if (ty.isIntersection()) { 
+        if (ty.isIntersection()) {
             const s: SchemaIntersection = { allOf: [] };
-            for (const t of ty.types) { 
+
+            for (const t of ty.types) {
                 s.allOf.push(this.#getSchemaForIntersectionMember(t));
             }
             return s;
@@ -673,11 +774,11 @@ export class Analyzer {
         error(`TODO: implement getSchemaForType for ${this.#c.typeToString(ty)} with flags ${humanizeTypeFlags(ty.flags)}`);
     }
 
-    public getSchemaForSymbol(sym: Symbol): AnySchema { 
-        if (sym.flags & SymbolFlags.Variable) { 
+    public getSchemaForSymbol(sym: Symbol): AnySchema {
+        if (sym.flags & SymbolFlags.Variable) {
             error(`Symbol ${sym.getName()} is a variable, not an type`);
         }
-        if (sym.flags & SymbolFlags.Interface) { 
+        if (sym.flags & SymbolFlags.Interface) {
             // a symbol is only resolved at the root, nested types go through getSchemaForType
             this.#resetDefs();
             return this.#assembleRoot(this.#getSchemaForInterface(sym));
@@ -686,9 +787,10 @@ export class Analyzer {
     }
 }
 
-export function handleDefaultExport(tsCode: string): SchemaBase { 
+export function handleDefaultExport(tsCode: string): SchemaBase {
     const analyzer = Analyzer.createVirtual(tsCode);
     const defaultExportSym = analyzer.getSymbolForExportName(InternalSymbolName.Default);
+
     assert(defaultExportSym, "No default export found");
     return analyzer.getSchemaForSymbol(defaultExportSym);
 }

@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
 import { dedent } from "../utils";
 import { handleDefaultExport } from "..";
+
+import { describe, expect, it } from "vitest";
 
 describe("ts2json", () => {
     describe("tuples", () => {
@@ -10,6 +11,7 @@ describe("ts2json", () => {
                     bar: [string, number];
                 }
             `;
+
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -42,6 +44,7 @@ describe("ts2json", () => {
                     bar: [string, number?];
                 }
             `;
+
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -74,6 +77,7 @@ describe("ts2json", () => {
                     bar: [string, ...number[]];
                 }
             `;
+
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -105,6 +109,7 @@ describe("ts2json", () => {
                     bar: readonly [string, number];
                 }
             `;
+
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -137,6 +142,7 @@ describe("ts2json", () => {
                     bar: [first: string, ...rest: number[]];
                 }
             `;
+
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -170,6 +176,7 @@ describe("ts2json", () => {
                     bar: [];
                 }
             `;
+
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -194,6 +201,7 @@ describe("ts2json", () => {
                     bar: [string | null, number];
                 }
             `;
+
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -236,6 +244,7 @@ describe("ts2json", () => {
                     bar: [Item, Item[]];
                 }
             `;
+
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
                 "$defs": {
@@ -285,6 +294,7 @@ describe("ts2json", () => {
                     bar: [string, [number, boolean]][];
                 }
             `;
+
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -330,7 +340,8 @@ describe("ts2json", () => {
                     bar: [string, ...number[], boolean];
                 }
             `;
-            expect(() => handleDefaultExport(input)).toThrowErrorMatchingInlineSnapshot(`[Error: tuple type [string, ...number[], boolean] has elements after its rest element]`);
+
+            expect(() => handleDefaultExport(input)).toThrowErrorMatchingInlineSnapshot("[Error: tuple type [string, ...number[], boolean] has elements after its rest element]");
         });
         it("uses tuple labels as descriptions", () => {
             const input = dedent/*ts*/`
@@ -338,6 +349,7 @@ describe("ts2json", () => {
                     bar: [first: string, second?: number];
                 }
             `;
+
             expect(handleDefaultExport(input)).toMatchInlineSnapshot(`
               {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",

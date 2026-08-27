@@ -1,7 +1,8 @@
-import { describe, expect, it } from "vitest";
+import type { SchemaObject } from "../schema";
 import { dedent } from "../utils";
 import { handleDefaultExport } from "..";
-import type { SchemaObject } from "../schema";
+
+import { describe, expect, it } from "vitest";
 
 function messageOf(fn: () => unknown): string {
     try {
@@ -20,7 +21,9 @@ describe("ts2json", () => {
                     a: unknown;
                 }
             `;
+
             const out = handleDefaultExport(input) as SchemaObject;
+
             expect(out.required ?? []).toContain("a");
             // `unknown` accepts anything, so it must not be narrowed to a union with null
             expect(out.properties.a).not.toHaveProperty("anyOf");
@@ -31,6 +34,7 @@ describe("ts2json", () => {
                     a: any;
                 }
             `;
+
             expect(() => handleDefaultExport(input)).not.toThrow();
         });
         it("handles a property explicitly typed undefined", () => {
@@ -39,6 +43,7 @@ describe("ts2json", () => {
                     a?: undefined;
                 }
             `;
+
             expect(() => handleDefaultExport(input)).not.toThrow();
         });
         it("does not report never as array-like", () => {
@@ -47,6 +52,7 @@ describe("ts2json", () => {
                     a: never;
                 }
             `;
+
             expect(messageOf(() => handleDefaultExport(input))).not.toMatch(/Array-like/);
         });
         it("does not report any as array-like", () => {
@@ -55,6 +61,7 @@ describe("ts2json", () => {
                     a: any;
                 }
             `;
+
             expect(messageOf(() => handleDefaultExport(input))).not.toMatch(/Array-like/);
         });
     });

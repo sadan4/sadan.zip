@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
 import { dedent } from "../utils";
 import { handleDefaultExport } from "..";
+
+import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
 describe("ts2json", () => {
@@ -11,7 +12,9 @@ describe("ts2json", () => {
                 baz: number;
             }
         `;
+
         const output = handleDefaultExport(input);
+
         expect(output).toMatchInlineSnapshot(`
           {
             "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -31,12 +34,23 @@ describe("ts2json", () => {
             "type": "object",
           }
         `);
+
         const zs = z.fromJSONSchema(output as any);
-        expect(zs.parse({ bar: "hello", baz: 42 })).toEqual({ bar: "hello", baz: 42 });
-        expect(() => zs.parse({ bar: "hello", baz: "not a number" })).toThrow(z.ZodError);
+
+        expect(zs.parse({
+            bar: "hello",
+            baz: 42,
+        })).toEqual({
+            bar: "hello",
+            baz: 42,
+        });
+        expect(() => zs.parse({
+            bar: "hello",
+            baz: "not a number",
+        })).toThrow(z.ZodError);
         expect(() => zs.parse({ bar: 123 })).toThrow(z.ZodError);
     });
-    it("handles narrowed types in interface inheritance", () => { 
+    it("handles narrowed types in interface inheritance", () => {
         const input = dedent/*ts*/`
             interface Base {
                 foo: string | number;
@@ -45,7 +59,9 @@ describe("ts2json", () => {
                 foo: string;
             }
         `;
+
         const output = handleDefaultExport(input);
+
         expect(output).toMatchInlineSnapshot(`
           {
             "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -62,13 +78,15 @@ describe("ts2json", () => {
           }
         `);
     });
-    it("handles union types", () => { 
+    it("handles union types", () => {
         const input = dedent/*ts*/`
             export default interface Foo {
                 bar: string | number;
             }
         `;
+
         const output = handleDefaultExport(input);
+
         expect(output).toMatchInlineSnapshot(`
           {
             "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -91,7 +109,7 @@ describe("ts2json", () => {
             "type": "object",
           }
         `);
-    })
+    });
     it("handles intersection types", () => {
         const input = dedent/*ts*/`
             interface A {
@@ -104,7 +122,9 @@ describe("ts2json", () => {
                 baz: A & B;
             }
         `;
+
         const output = handleDefaultExport(input);
+
         expect(output).toMatchInlineSnapshot(`
           {
             "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -143,9 +163,26 @@ describe("ts2json", () => {
             "type": "object",
           }
         `);
+
         const zs = z.fromJSONSchema(output as any);
-        zs.parse({ baz: { foo: "hello", bar: 42 } });
-        expect(() => zs.parse({ baz: { foo: 1, bar: 42 } })).toThrow(z.ZodError);
-        expect(() => zs.parse({ baz: { foo: "hello", bar: "not a number" } })).toThrow(z.ZodError);
-    })
+
+        zs.parse({
+            baz: {
+                foo: "hello",
+                bar: 42,
+            },
+        });
+        expect(() => zs.parse({
+            baz: {
+                foo: 1,
+                bar: 42,
+            },
+        })).toThrow(z.ZodError);
+        expect(() => zs.parse({
+            baz: {
+                foo: "hello",
+                bar: "not a number",
+            },
+        })).toThrow(z.ZodError);
+    });
 });

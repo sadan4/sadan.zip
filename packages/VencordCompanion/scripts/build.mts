@@ -1,8 +1,7 @@
-import { writeFile } from "node:fs/promises";
+import { commonOpts } from "./common.mts";
 
 import esbuild from "esbuild";
-
-import { commonOpts } from "./common.mts";
+import { writeFile } from "node:fs/promises";
 
 const IS_DEV = process.argv.includes("--dev");
 

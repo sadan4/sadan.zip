@@ -1,6 +1,6 @@
-import { Analyzer } from ".";
+import type { Analyzer } from ".";
 
-export interface SchemaBase { 
+export interface SchemaBase {
     /**
      * only present on the root
      */
@@ -61,12 +61,12 @@ export interface SchemaIntersection extends SchemaBase {
     allOf: AnySchema[];
 }
 
-export interface SchemaUnion extends SchemaBase { 
+export interface SchemaUnion extends SchemaBase {
     type?: undefined;
     anyOf: AnySchema[];
 }
 
-export interface SchemaString extends SchemaBase { 
+export interface SchemaString extends SchemaBase {
     type: "string";
     /**
      * a semantic constraint on the string, eg: a `RegExp` is a `"regex"`
@@ -80,7 +80,7 @@ export interface SchemaString extends SchemaBase {
     const?: string;
 }
 
-export interface SchemaNumber extends SchemaBase { 
+export interface SchemaNumber extends SchemaBase {
     type: "number";
     /**
      * the smallest allowed value, inclusive
@@ -98,7 +98,7 @@ export interface SchemaNumber extends SchemaBase {
     const?: number;
 }
 
-export interface SchemaObject extends SchemaBase { 
+export interface SchemaObject extends SchemaBase {
     type: "object";
     properties: Record<string, AnySchema>;
     required?: string[];
@@ -116,7 +116,7 @@ export interface SchemaObject extends SchemaBase {
     additionalProperties?: AnySchema | boolean;
 }
 
-export interface SchemaArray extends SchemaBase { 
+export interface SchemaArray extends SchemaBase {
     type: "array";
     items: AnySchema;
 }
@@ -124,7 +124,7 @@ export interface SchemaArray extends SchemaBase {
 /**
  * a fixed length (or fixed prefix) array
  */
-export interface SchemaTuple extends SchemaBase { 
+export interface SchemaTuple extends SchemaBase {
     type: "array";
     /**
      * the schema of each element, by position
@@ -144,7 +144,7 @@ export interface SchemaTuple extends SchemaBase {
     minItems?: number;
 }
 
-export interface SchemaBoolean extends SchemaBase { 
+export interface SchemaBoolean extends SchemaBase {
     type: "boolean";
     /**
      * the constant value of the boolean
@@ -154,6 +154,6 @@ export interface SchemaBoolean extends SchemaBase {
     const?: boolean;
 }
 
-export interface SchemaNull extends SchemaBase { 
+export interface SchemaNull extends SchemaBase {
     type: "null";
 }
