@@ -1,6 +1,6 @@
+import { handleDefaultExport } from "../internal";
 import type { SchemaObject } from "../schema";
 import { dedent } from "../utils";
-import { handleDefaultExport } from "..";
 
 import { describe, expect, it } from "vitest";
 

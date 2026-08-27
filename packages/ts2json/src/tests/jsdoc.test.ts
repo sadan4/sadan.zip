@@ -1,5 +1,5 @@
+import { handleDefaultExport } from "../internal";
 import { dedent } from "../utils";
-import { handleDefaultExport } from "..";
 
 import { describe, expect, it } from "vitest";
 

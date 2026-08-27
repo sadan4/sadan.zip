@@ -4,6 +4,17 @@
     "authors": "sadan",
     "version": "1.0.0",
     "type": "module",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "default": "./dist/index.js"
+        }
+    },
+    "files": [
+        "dist"
+    ],
     "dependencies": {
         "typescript": "catalog:"
     },
@@ -12,9 +23,12 @@
         "vitest": "catalog:",
         "@vitest/ui": "catalog:",
         "esbuild": "0.28.2",
+        "rolldown": "catalog:",
+        "rolldown-plugin-dts": "catalog:",
         "zod": "catalog:"
     },
     "scripts": {
+        "build": "rolldown -c",
         "test": "vitest run",
         "test:ui": "vitest --ui",
         "typecheck": "tsc --noEmit -p ./tsconfig.json"

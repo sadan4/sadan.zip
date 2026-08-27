@@ -1,10 +1,10 @@
-import { Analyzer } from "..";
+import { createAnalyzerFromModule } from "..";
 
 import type { __String } from "typescript";
 import { expect, it } from "vitest";
 
 it("esbuild.d.ts", () => {
-    const analyzer = Analyzer.createFromModule("esbuild");
+    const analyzer = createAnalyzerFromModule("esbuild");
     const schema = analyzer.getSymbolForExportName("BuildOptions" as __String);
 
     if (!schema)

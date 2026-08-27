@@ -28,3 +28,7 @@ catalog:
   "@vitest/ui": ^4.1.11
   zod: ^4.3.6
   "@types/node": ^26.2.0
+  # the root also pulls rolldown in through vite; one catalog entry keeps a
+  # single copy in the lockfile
+  rolldown: ^1.2.4
+  rolldown-plugin-dts: ^0.28.2

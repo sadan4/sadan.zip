@@ -1,4 +1,4 @@
-import { Analyzer } from "..";
+import { createAnalyzerFromModule } from "..";
 
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -11,11 +11,11 @@ const CONTAINING_FILE = join(import.meta.dirname, "fixtures", "no-types", "entry
 describe("ts2json", () => {
     describe("createFromModule", () => {
         it("rejects a module that only resolves to .mjs", () => {
-            expect(() => Analyzer.createFromModule("mjs-only-pkg", CONTAINING_FILE))
+            expect(() => createAnalyzerFromModule("mjs-only-pkg", CONTAINING_FILE))
                 .toThrow(/no type declarations/);
         });
         it("rejects a module that only resolves to .cjs", () => {
-            expect(() => Analyzer.createFromModule("cjs-only-pkg", CONTAINING_FILE))
+            expect(() => createAnalyzerFromModule("cjs-only-pkg", CONTAINING_FILE))
                 .toThrow(/no type declarations/);
         });
     });

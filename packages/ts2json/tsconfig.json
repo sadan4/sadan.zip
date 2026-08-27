@@ -13,13 +13,18 @@
         "noUnusedLocals": true,
         "noUnusedParameters": true,
         "noEmit": true,
-        "skipLibCheck": true
+        "skipLibCheck": true,
+        "declaration": true,
+        "isolatedDeclarations": true,
+        "stripInternal": true,
     },
     "include": [
         "src",
-        "vitest.config.ts"
+        "vitest.config.ts",
+        "rolldown.config.ts"
     ],
     "exclude": [
-        "node_modules"
+        "node_modules",
+        "dist"
     ]
 }

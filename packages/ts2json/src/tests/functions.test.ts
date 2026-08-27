@@ -1,6 +1,6 @@
+import { handleDefaultExport } from "../internal";
 import type { SchemaObject } from "../schema";
 import { dedent } from "../utils";
-import { handleDefaultExport } from "..";
 
 import { describe, expect, it } from "vitest";
 
@@ -50,10 +50,10 @@ describe("ts2json", () => {
             `;
 
             const out = handleDefaultExport(input) as SchemaObject;
-            const when = out.properties.when as SchemaObject;
+            const { when } = out.properties;
 
             // eg: `__@toPrimitive@620`, which is not a real key
-            expect(Object.keys(when.properties).filter((k) => k.startsWith("__@"))).toEqual([]);
+            expect(Object.keys((when as any).properties ?? {}).filter((k) => k.startsWith("__@"))).toEqual([]);
         });
     });
 });

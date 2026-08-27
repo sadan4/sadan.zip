@@ -1,7 +1,9 @@
 import { createVirtualProgram, DEFAULT_COMPILER_OPTIONS } from "./program";
-import type { AnySchema, SchemaBase, SchemaIntersection, SchemaObject, SchemaTuple, SchemaUnion } from "./schema";
+import type { AnySchema, SchemaIntersection, SchemaObject, SchemaTuple, SchemaUnion } from "./schema";
 
 import { type __String, type CompilerHost, type CompilerOptions, createCompilerHost, createProgram, displayPartsToString, ElementFlags, Extension, IndexKind, InternalSymbolName, isClassDeclaration, isIdentifier, isInterfaceDeclaration, type Program, resolveModuleName, type SourceFile, type Symbol, SymbolFlags, type TupleTypeReference, type Type, type TypeChecker, TypeFlags } from "typescript";
+
+export type * from "./schema";
 
 function error(msg: string): never {
     throw new Error(msg);
@@ -142,58 +144,13 @@ export class Analyzer {
      */
     #refEdges = new Map<string, Set<string>>();
 
-    private constructor(program: Program, rootFile: SourceFile) {
+    /**
+     * @internal
+     */
+    constructor(program: Program, rootFile: SourceFile) {
         this.#c = program.getTypeChecker();
         this.#program = program;
         this.#rootFile = rootFile;
-    }
-
-    public static createVirtual(tsCode: string): Analyzer {
-        const { program, rootFile } = createVirtualProgram(tsCode);
-
-        return new Analyzer(program, rootFile);
-    }
-
-    public static createFromFile(
-        filePath: string,
-        options: CompilerOptions = DEFAULT_COMPILER_OPTIONS,
-        host?: CompilerHost,
-    ): Analyzer {
-        const program = createProgram({
-            options,
-            rootNames: [filePath],
-            host,
-        });
-
-        const rootFile = program.getSourceFile(filePath);
-
-        assert(rootFile, `file ${filePath} not found in program`);
-        return new Analyzer(program, rootFile);
-    }
-
-    /**
-     * create an analyzer from a module name, eg: "esbuild" or "@foo/bar"
-     *
-     * @param containingFile the file the module is resolved relative to.
-     * defaults to a fake file in the current working directory
-     */
-    public static createFromModule(
-        moduleName: string,
-        containingFile?: string,
-        options: CompilerOptions = DEFAULT_COMPILER_OPTIONS,
-    ): Analyzer {
-        const host = createCompilerHost(options, true);
-        // the file doesn't need to exist, only its directory is used to walk up looking for node_modules
-        const from = containingFile ?? `${host.getCurrentDirectory()}/__ts2json__.ts`;
-        const { resolvedModule } = resolveModuleName(moduleName, from, options, host);
-
-        assert(resolvedModule, `could not resolve module ${moduleName} from ${from}`);
-        // resolution only lands on a runtime file when there are no types for the module
-        assert(
-            TYPED_EXTENSIONS.has(resolvedModule.extension),
-            `module ${moduleName} resolved to ${resolvedModule.resolvedFileName}, which has no type declarations`,
-        );
-        return Analyzer.createFromFile(resolvedModule.resolvedFileName, options, host);
     }
 
     public getSymbolForExportName(exportName: __String): Symbol | undefined {
@@ -206,7 +163,7 @@ export class Analyzer {
         const type = this.#c.getDeclaredTypeOfSymbol(sym);
 
         assert(type.isClassOrInterface(), `Symbol ${sym.getName()} is not a class or interface`);
-        return this.getSchemaForType(type);
+        return this.#getSchemaForType(type);
     }
 
     /**
@@ -411,7 +368,7 @@ export class Analyzer {
             }
             return wellKnown;
         }
-        return this.getSchemaForType(ty);
+        return this.#getSchemaForType(ty);
     }
 
     /**
@@ -595,7 +552,7 @@ export class Analyzer {
             ty = this.#c.getNonNullableType(ty);
         }
 
-        const schema = this.getSchemaForType(ty);
+        const schema = this.#getSchemaForType(ty);
 
         return wasNullable ? { anyOf: [schema, { type: "null" }] } : schema;
     }
@@ -700,7 +657,7 @@ export class Analyzer {
      * a named object type comes back as a `$ref`, and only {@link getSchemaForSymbol} hangs
      * the `$defs` those point at off the root, so call this on its own at your own risk
      */
-    public getSchemaForType(ty: Type): AnySchema {
+    #getSchemaForType(ty: Type): AnySchema {
         const name = this.#hoistableDefName(ty);
 
         return name ? this.#hoist(ty, name) : this.#buildSchemaForType(ty);
@@ -768,7 +725,7 @@ export class Analyzer {
             const s: SchemaUnion = { anyOf: [] };
 
             for (const t of ty.types) {
-                s.anyOf.push(this.getSchemaForType(t));
+                s.anyOf.push(this.#getSchemaForType(t));
             }
             return s;
         }
@@ -796,10 +753,50 @@ export class Analyzer {
     }
 }
 
-export function handleDefaultExport(tsCode: string): SchemaBase {
-    const analyzer = Analyzer.createVirtual(tsCode);
-    const defaultExportSym = analyzer.getSymbolForExportName(InternalSymbolName.Default);
+export function createVirtualAnalyzer(tsCode: string): Analyzer {
+    const { program, rootFile } = createVirtualProgram(tsCode);
 
-    assert(defaultExportSym, "No default export found");
-    return analyzer.getSchemaForSymbol(defaultExportSym);
+    return new Analyzer(program, rootFile);
+}
+
+export function createAnalyzerFromFile(
+    filePath: string,
+    options: CompilerOptions = DEFAULT_COMPILER_OPTIONS,
+    host?: CompilerHost,
+): Analyzer {
+    const program = createProgram({
+        options,
+        rootNames: [filePath],
+        host,
+    });
+
+    const rootFile = program.getSourceFile(filePath);
+
+    assert(rootFile, `file ${filePath} not found in program`);
+    return new Analyzer(program, rootFile);
+}
+
+/**
+ * create an analyzer from a module name, eg: "esbuild" or "@foo/bar"
+ *
+ * @param containingFile the file the module is resolved relative to.
+ * defaults to a fake file in the current working directory
+ */
+export function createAnalyzerFromModule(
+    moduleName: string,
+    containingFile?: string,
+    options: CompilerOptions = DEFAULT_COMPILER_OPTIONS,
+): Analyzer {
+    const host = createCompilerHost(options, true);
+    // the file doesn't need to exist, only its directory is used to walk up looking for node_modules
+    const from = containingFile ?? `${host.getCurrentDirectory()}/__ts2json__.ts`;
+    const { resolvedModule } = resolveModuleName(moduleName, from, options, host);
+
+    assert(resolvedModule, `could not resolve module ${moduleName} from ${from}`);
+    // resolution only lands on a runtime file when there are no types for the module
+    assert(
+        TYPED_EXTENSIONS.has(resolvedModule.extension),
+        `module ${moduleName} resolved to ${resolvedModule.resolvedFileName}, which has no type declarations`,
+    );
+    return createAnalyzerFromFile(resolvedModule.resolvedFileName, options, host);
 }

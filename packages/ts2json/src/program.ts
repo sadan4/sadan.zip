@@ -24,7 +24,7 @@ export interface VirtualProgram {
 export function createVirtualProgram(
     tsCode: string,
     options: CompilerOptions = DEFAULT_COMPILER_OPTIONS,
-    scriptKind = ScriptKind.TS,
+    scriptKind: ScriptKind = ScriptKind.TS,
 ): VirtualProgram {
     const host = createCompilerHost(options, true);
     const sourceFile = createSourceFile(FILE_NAME, tsCode, options.target ?? ScriptTarget.ESNext, true, scriptKind);
