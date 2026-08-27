@@ -53,7 +53,7 @@ pub enum ReporterError {
 	#[diagnostic[
         code(reporter::replace::match_ambiguous),
         severity(Warning),
-        help("This error occurred in module {module_id}")        
+        help("This error occurred in module {module_id}")
     ]]
 	ReplaceMatchAmbiguous {
 		plugin_id: u16,

@@ -261,8 +261,8 @@ impl BundleInner {
 		let raw_source_str = self
 			.get_formatted_module(id)
 			.context("Failed to get formatted module source")?;
-		let source_str =
 		// SAFETY: TODO
+		let source_str =
 			unsafe { mem::transmute::<&str, &'static str>(raw_source_str) };
 		let mut parser = WebpackAstParser::try_new(alloc, source_str)
 			.map_err(into_anyhow)

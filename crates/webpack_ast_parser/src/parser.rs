@@ -1070,7 +1070,7 @@ impl<'ast> WebpackAstParser<'ast> {
 				[Argument::Identifier(ident)] => {
 					if last_decl_id != SymbolId::MAX_INDEX
 						// SAFETY: it's not MAX_INDEX
-						// and we only ever set it to MAX_INDEX as a sentinel value 
+						// and we only ever set it to MAX_INDEX as a sentinel value
 						// or an already valid symbol id
 						&& !self.cmp_sym(ident.as_ref(), &unsafe {
 							SymbolId::from_usize_unchecked(last_decl_id)
