@@ -45,7 +45,7 @@ async fn main() {
 		// https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-erref/705fb797-2175-4a90-b5a3-3918024b10b8
 		const URL: &str = "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-erref/705fb797-2175-4a90-b5a3-3918024b10b8?accept=text%2Fmarkdown";
 		let ast = parse_doc_page(URL).await.context("Failed to get doc ast")?;
-		let codes = match tbl_page::parse(ast){ 
+		let codes = match tbl_page::parse(ast) {
 			Ok(codes) => codes,
 			Err(err) => {
 				error!("Failed to parse {URL}: {err:#?}");
