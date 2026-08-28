@@ -12,32 +12,29 @@ export interface ControlledStateOptions<T> {
 }
 
 // credit to radix
-export function useControlledState<T>({ managedValue, initialValue, handleChange = () => {}, debugName = "UNKNOWN_COMPONENT" }: ControlledStateOptions<T>) {
+function useControlledState_dev<T>({
+    managedValue,
+    initialValue,
+    handleChange = () => { },
+    debugName = "UNKNOWN_COMPONENT",
+}: ControlledStateOptions<T>) {
     const [uncontrolledState, setUncontrolledState] = useState(initialValue);
     const isControlled = managedValue !== undefined;
     const value = isControlled ? managedValue : uncontrolledState;
     const latestChangeFunc = useRecent(handleChange);
+    const isControlledRef = useRef(managedValue !== undefined);
 
-    // OK to disable conditionally calling hooks here because they will always run
-    // consistently in the same environment. Bundlers should be able to remove the
-    // code block entirely in production.
-    if (process.env.NODE_ENV !== "production") {
-        // oxlint-disable-next-line react/react-compiler react-x/rules-of-hooks
-        const isControlledRef = useRef(managedValue !== undefined);
+    useEffect(() => {
+        const wasControlled = isControlledRef.current;
 
-        // oxlint-disable-next-line react/react-compiler react-x/rules-of-hooks
-        useEffect(() => {
-            const wasControlled = isControlledRef.current;
+        if (wasControlled !== isControlled) {
+            const from = wasControlled ? "controlled" : "uncontrolled";
+            const to = isControlled ? "controlled" : "uncontrolled";
 
-            if (wasControlled !== isControlled) {
-                const from = wasControlled ? "controlled" : "uncontrolled";
-                const to = isControlled ? "controlled" : "uncontrolled";
-
-                console.warn(`${debugName} is changing from ${from} to ${to}. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component.`);
-            }
-            isControlledRef.current = isControlled;
-        }, [isControlled, debugName]);
-    }
+            console.warn(`${debugName} is changing from ${from} to ${to}. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component.`);
+        }
+        isControlledRef.current = isControlled;
+    }, [isControlled, debugName]);
 
     const setValue = useCallback<SetStateFunc<T>>((nextValue) => {
         if (isControlled) {
@@ -58,5 +55,37 @@ export function useControlledState<T>({ managedValue, initialValue, handleChange
 
     return [value, setValue] as const;
 }
+
+function useControlledState_prod<T>({
+    managedValue,
+    initialValue,
+    handleChange = () => { },
+}: ControlledStateOptions<T>) {
+    const [uncontrolledState, setUncontrolledState] = useState(initialValue);
+    const isControlled = managedValue !== undefined;
+    const value = isControlled ? managedValue : uncontrolledState;
+    const latestChangeFunc = useRecent(handleChange);
+
+    const setValue = useCallback<SetStateFunc<T>>((nextValue) => {
+        if (isControlled) {
+            const value = nextStateValue(managedValue, nextValue);
+
+            if (value !== managedValue) {
+                latestChangeFunc.current(value);
+            }
+        } else {
+            const value = nextStateValue(uncontrolledState, nextValue);
+
+            if (value !== uncontrolledState) {
+                latestChangeFunc.current(value);
+            }
+            setUncontrolledState(nextValue);
+        }
+    }, [isControlled, latestChangeFunc, managedValue, uncontrolledState]);
+
+    return [value, setValue] as const;
+}
+
+export const useControlledState = import.meta.env.DEV ? useControlledState_dev : useControlledState_prod;
 
 type SetStateFunc<T> = Dispatch<SetStateAction<T>>;

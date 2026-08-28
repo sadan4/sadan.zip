@@ -1,8 +1,7 @@
-import babel from "@rolldown/plugin-babel";
 import tailwindcss from "@tailwindcss/vite";
 import { devtools } from "@tanstack/devtools-vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
-import viteReact, { reactCompilerPreset } from "@vitejs/plugin-react";
+import viteReact from "@vitejs/plugin-react";
 
 import { omt } from "./scripts/vite-plugin-omt.ts";
 
@@ -66,9 +65,8 @@ const config = defineConfig(async ({ command, isSsrBuild }) => {
                     failOnError: false,
                 },
             }),
-            viteReact(),
-            babel({
-                presets: [reactCompilerPreset()],
+            viteReact({
+                compiler: true,
             }),
             omt(),
             !isWindowsOnArm && (await import("@cloudflare/vite-plugin")).cloudflare({
