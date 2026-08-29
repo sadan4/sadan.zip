@@ -1,6 +1,6 @@
 import avatar from "@/assets/avatar.webp";
 import { Clickable } from "@/components/Clickable";
-import { BorderHoldRounded } from "@/components/effects/BorderHold";
+import { BorderHold, borderHoldAnimConfig } from "@/components/effects/BorderHold";
 import PerspectiveHover from "@/components/effects/PerspectiveHover";
 import Shadow from "@/components/effects/Shadow";
 import { useRect } from "@/hooks/rect";
@@ -11,8 +11,6 @@ import { once } from "@/utils/functional";
 import { makeLazy, proxyLazy } from "@/utils/lazy";
 import type { SpringConfig } from "@react-spring/web";
 
-import { borderHoldAnimConfig } from "./effects/BorderHold/common";
-import type { BorderHoldHandle } from "./effects/BorderHold/Rounded";
 import { FriendModal } from "./modals/Friend";
 import { defaultPosition, FriendModalContext } from "./modals/Friend/other";
 import { Modal, type ModalContext } from "./modal";
@@ -45,7 +43,7 @@ function bounceConfig(k: "progress" | "opacity"): SpringConfig {
 
 export default function Avatar({ round = false, ...props }: AvatarProps) {
     const modalRef = useRef<ModalContext>(null);
-    const borderAnimRef = useRef<BorderHoldHandle>(null);
+    const borderAnimRef = useRef<BorderHold.Handle>(null);
     const hasClickedRef = useRef(false);
     const [img, setImg] = useState<HTMLDivElement | null>(null);
     // update the rect before we open the modal to ensure the correct position;
@@ -80,32 +78,39 @@ export default function Avatar({ round = false, ...props }: AvatarProps) {
 
             void api.start({
                 async to(next) {
-                    if (shouldStop()) {
-                        return;
-                    }
-                    await next({
-                        progress: 10,
-                        opacity: 1,
-                        config: bounceConfig,
-                    });
-                    if (shouldStop()) {
-                        return;
-                    }
-                    await next({
-                        progress: 0,
-                        opacity: 0,
-                        config: borderHoldAnimConfig(false),
-                    });
-                    if (shouldStop()) {
-                        return;
-                    }
-                    await next({
-                        progress: 15,
-                        opacity: 1,
-                        config: bounceConfig,
-                    });
-                    if (shouldStop()) {
-                        return;
+                    done: {
+                        if (shouldStop()) {
+                            console.log("stop 1");
+                            break done;
+                        }
+                        await next({
+                            progress: 10,
+                            opacity: 1,
+                            config: bounceConfig,
+                        });
+                        if (shouldStop()) {
+                            console.log("stop 2");
+                            break done;
+                        }
+                        await next({
+                            progress: 0,
+                            opacity: 0,
+                            config: borderHoldAnimConfig(false),
+                        });
+                        if (shouldStop()) {
+                            console.log("stop 3");
+                            break done;
+                        }
+                        await next({
+                            progress: 15,
+                            opacity: 1,
+                            config: bounceConfig,
+                        });
+                        if (shouldStop()) {
+                            console.log("stop 4");
+                            break done;
+                        }
+                        console.log("stop 5");
                     }
                     handle.onStopHold();
                 },
@@ -125,7 +130,7 @@ export default function Avatar({ round = false, ...props }: AvatarProps) {
                 className="touch-none"
             >
                 <Shadow>
-                    <BorderHoldRounded
+                    <BorderHold
                         ref={borderAnimRef}
                         onHold={() => {
                             modalRef.current?.open();
@@ -143,7 +148,7 @@ export default function Avatar({ round = false, ...props }: AvatarProps) {
                             draggable={false}
                             fetchPriority="high"
                         />
-                    </BorderHoldRounded>
+                    </BorderHold>
                 </Shadow>
             </PerspectiveHover>
             <Modal ref={modalRef}>

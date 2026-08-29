@@ -3,13 +3,13 @@ import { Text } from "@/components/Text";
 import { makeRange } from "@/utils/array";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
-import { type BorderHoldHandle, BorderHoldRounded } from "./Rounded";
+import { BorderHold } from ".";
 
 import { useRef, useState } from "react";
 
 const meta = {
-    component: BorderHoldRounded,
-} satisfies Meta<typeof BorderHoldRounded>;
+    component: BorderHold,
+} satisfies Meta<typeof BorderHold>;
 
 export default meta;
 
@@ -19,11 +19,11 @@ export const Default: Story = {
     render() {
         const [text, setText] = useState("Hold Me");
         const [borderRadius, setBorderRadius] = useState(24);
-        const handle = useRef<BorderHoldHandle>(null);
+        const handle = useRef<BorderHold.Handle>(null);
 
         return (
             <div className="m-16 flex flex-col justify-items-center gap-4">
-                <BorderHoldRounded
+                <BorderHold
                     onHold={() => {
                         setText("Held!");
                         setTimeout(() => setText("Hold Me"), 5000);
@@ -40,7 +40,7 @@ export const Default: Story = {
                             {text}
                         </Text>
                     </div>
-                </BorderHoldRounded>
+                </BorderHold>
                 <Slider
                     min={0}
                     max={32}

@@ -53,6 +53,9 @@ const config = defineConfig(async ({ command, isSsrBuild }) => {
                     // don't pipe warn and error logs, piping hides stack traces and the source
                     levels: ["info", "log", "debug"],
                 },
+                enhancedLogs: {
+                    enabled: false,
+                },
             }),
             tailwindcss(),
             tanstackStart({

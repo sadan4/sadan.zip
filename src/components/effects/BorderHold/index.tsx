@@ -1,23 +1,45 @@
-import { type SpringRef, useSpring } from "@react-spring/web";
+import { type SpringConfig, type SpringRef, useSpring } from "@react-spring/web";
 
-import { type BaseBorderHoldProps, borderHoldAnimConfig } from "./common";
 import { BorderProgress } from "../BorderProgress";
 
-import { type Ref, useCallback, useImperativeHandle, useRef } from "react";
+import { type PropsWithChildren, type Ref, useCallback, useImperativeHandle, useRef } from "react";
+
+export function borderHoldAnimConfig(held: boolean) {
+    return (k: "opacity" | "progress"): SpringConfig => {
+        switch (k) {
+            case "opacity":
+                return {};
+            case "progress":
+                return {
+                    mass: 5,
+                    friction: held ? 75 : 50,
+                };
+        }
+    };
+}
 
 export interface BorderHoldSpring {
     progress: number;
     opacity: number;
 }
 
-export interface BorderHoldHandle {
-    recalculateBorder(): void;
-    reactSpringApi: SpringRef<BorderHoldSpring>;
-    onStopHold(): void;
+export declare namespace BorderHold {
+    export interface Handle {
+        recalculateBorder(): void;
+        reactSpringApi: SpringRef<BorderHoldSpring>;
+        onStopHold(): void;
+    }
 }
 
-export interface BorderHoldRoundedProps extends BaseBorderHoldProps {
-    ref?: Ref<BorderHoldHandle | null>;
+declare module "react" {
+    interface CSSProperties {
+        "--border-hold-progress"?: number;
+    }
+}
+
+export interface BorderHoldProps extends PropsWithChildren {
+    onHold?(): void;
+    ref?: Ref<BorderHold.Handle | null>;
     onPointerDown?(): void;
     /**
      * higher number, thinner border.
@@ -29,15 +51,16 @@ export interface BorderHoldRoundedProps extends BaseBorderHoldProps {
     widthCoefficient?: number;
 }
 
-export function BorderHoldRounded({
+export function BorderHold({
     children,
     onHold,
     onPointerDown,
     ref,
     widthCoefficient = 10,
-}: BorderHoldRoundedProps) {
+}: BorderHoldProps) {
     const borderRef = useRef<BorderProgress.Handle | null>(null);
     const dispatchedRef = useRef(false);
+    const stoppingRef = useRef(false);
 
     const [{ progress, opacity }, api] = useSpring(() => ({
         from: {
@@ -47,6 +70,7 @@ export function BorderHoldRounded({
     }));
 
     const onStartHold = useCallback(() => {
+        stoppingRef.current = false;
         api.start({
             async to(next) {
                 await next({
@@ -68,6 +92,7 @@ export function BorderHoldRounded({
     }, [api, onHold]);
 
     const onStopHold = useCallback(() => {
+        stoppingRef.current = true;
         api.start({
             async to(next) {
                 await next({
@@ -77,7 +102,8 @@ export function BorderHoldRounded({
                             // react spring doesn't like this, but it works
                             next({
                                 opacity: 0,
-                            }).catch(() => {});
+                            }).catch(() => { });
+                            stoppingRef.current = false;
                             dispatchedRef.current = false;
                         }
                     },
@@ -101,6 +127,7 @@ export function BorderHoldRounded({
             ref={borderRef}
             progress={progress}
             onPointerDown={() => {
+                console.log("Pointer down");
                 onPointerDown?.();
                 onStartHold();
             }}
@@ -111,9 +138,14 @@ export function BorderHoldRounded({
                 }
             }}
             onPointerUp={() => {
+                console.log("Pointer up");
                 onStopHold();
             }}
             onPointerLeave={() => {
+                // FIXME: hacky workaround for things breaking on touchscreens
+                // which fire an onPointerUp event AND an onPointerLeave event
+                if (stoppingRef.current) return;
+                console.log("Pointer leave");
                 onStopHold();
             }}
             pathStyle={{

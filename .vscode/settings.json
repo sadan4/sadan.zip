@@ -123,4 +123,5 @@
   "oxc.enable.oxlint": true,
   "oxc.enable.oxfmt": false,
   "workspaceKeybindings.oxlint_format.enabled": true,
+  "oxc.enable": true,
 }

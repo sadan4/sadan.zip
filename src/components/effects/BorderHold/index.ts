@@ -1,3 +1,0 @@
-export {
-    BorderHoldRounded,
-} from "./Rounded";
