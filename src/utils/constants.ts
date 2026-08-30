@@ -45,7 +45,7 @@ const IS_SERVER_LOCAL = false;
 const SERVER_BASE_URL = IS_SERVER_LOCAL ? "http://localhost:8484" : "https://s-d-br.sadan.zip";
 
 export function BUNDLE_TARBALL_URL(buildHash: TBundleHash): string {
-    return `${SERVER_BASE_URL}/bundles/${buildHash}/archive.tar.zst`;
+    return `${SERVER_BASE_URL}/build/archive/${buildHash}.tar.zst`;
 }
 
 export function BUNDLE_TARBALL_FILENAME(buildHash: TBundleHash): string {

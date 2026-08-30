@@ -269,13 +269,18 @@ fn make_tarball(zstd_raw_data: &[u8]) -> Result<Vec<u8>> {
 	Ok(zstd_a_data)
 }
 
-async fn get_bundle_tarball(Path(build_hash): Path<String>) -> Result {
-	if !is_valid_build_hash(&build_hash) {
+async fn get_bundle_tarball(Path(file_name): Path<String>) -> Result {
+	let Some(build_hash) = file_name.strip_suffix(".tar.zst") else {
+		return Ok(
+			(StatusCode::NOT_FOUND, "invalid archive name").into_response()
+		);
+	};
+	if !is_valid_build_hash(build_hash) {
 		return Ok(
 			(StatusCode::BAD_REQUEST, "invalid build hash").into_response()
 		);
 	}
-	let data_path = get_build_path(&build_hash)?.join(DATA_FILE_NAME);
+	let data_path = get_build_path(build_hash)?.join(DATA_FILE_NAME);
 	if !fs::try_exists(&data_path).await? {
 		return Ok((
 			StatusCode::NOT_FOUND,
@@ -343,7 +348,7 @@ pub async fn serve(bind_addr: &str, state: crate::State) -> anyhow::Result<()> {
 	let app = Router::new()
 		.route("/build/{id}/metadata", get(get_build_metadata))
 		.route("/build/{id}/full", get(get_build_full))
-		.route("/build/{id}/archive.tar.zst", get(get_bundle_tarball))
+		.route("/build/archive/{file_name}", get(get_bundle_tarball))
 		.route("/builds", get(get_all_builds))
 		.route("/builds/before/time/{timestamp}", get(get_before_timestamp))
 		.route("/builds/before/hash/{hash}", get(get_before_hash))
