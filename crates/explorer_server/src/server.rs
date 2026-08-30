@@ -272,7 +272,7 @@ fn make_tarball(zstd_raw_data: &[u8]) -> Result<Vec<u8>> {
 async fn get_bundle_tarball(Path(file_name): Path<String>) -> Result {
 	let Some(build_hash) = file_name.strip_suffix(".tar.zst") else {
 		return Ok(
-			(StatusCode::NOT_FOUND, "invalid archive name").into_response()
+			(StatusCode::BAD_REQUEST, "invalid archive name. expected {hash}.tar.zst").into_response()
 		);
 	};
 	if !is_valid_build_hash(build_hash) {
