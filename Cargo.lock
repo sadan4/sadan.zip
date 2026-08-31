@@ -3881,6 +3881,7 @@ dependencies = [
  "derive_more",
  "insta",
  "macros",
+ "memchr",
  "oxc",
  "tracing-subscriber",
  "unicode-ident",

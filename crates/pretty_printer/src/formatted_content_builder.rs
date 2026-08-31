@@ -1,21 +1,15 @@
-mod rope;
-
 use std::hint::likely;
 
 use derive_more::Debug;
-use oxc::allocator::Allocator;
 use unicode_ident::is_xid_continue;
 
-use crate::{
-	formatted_content_builder::rope::Rope,
-	indent_cache::INDENT_CACHE,
-};
+use crate::indent_cache::INDENT_CACHE;
 
 #[derive(Debug)]
 /// if `indent_size` is 0, tabs will be used
-pub struct FormattedContentBuilder<'s> {
+pub struct FormattedContentBuilder {
 	#[debug(skip)]
-	formatted_content: Rope<'s>,
+	formatted_content: String,
 	indent_size: u8,
 	nesting_level: u32,
 	new_lines: u32,
@@ -27,10 +21,10 @@ pub struct FormattedContentBuilder<'s> {
 	mappings: Vec<(u32, u32)>,
 }
 
-impl<'a> FormattedContentBuilder<'a> {
-	pub fn new(alloc: &'a Allocator, indent_size: u8) -> Self {
+impl FormattedContentBuilder {
+	pub fn new(indent_size: u8) -> Self {
 		Self {
-			formatted_content: Rope::new_in(alloc),
+			formatted_content: String::new(),
 			indent_size,
 			nesting_level: 0,
 			new_lines: 0,
@@ -52,13 +46,18 @@ impl<'a> FormattedContentBuilder<'a> {
 		old_value
 	}
 
-	pub(crate) fn hint_num_tokens(&mut self, n: usize) {
-		self.mappings.reserve_exact(n);
-		// TODO: good margin for rope?
-		self.formatted_content.reserve(n);
+	/// reserve space to avoid reallocations
+	///
+	/// `toks_len`: number of tokens + comments
+	pub(crate) fn hint_num_tokens(&mut self, toks_len: usize, src_len: usize) {
+		self.mappings.reserve_exact(toks_len);
+		// over-allocate a bit.
+		// on average we only use 1.25x the source length.
+		self.formatted_content
+			.reserve(src_len + src_len / 2);
 	}
 
-	pub fn add_token(&mut self, token: &'a str, original_position: u32) {
+	pub fn add_token(&mut self, token: &str, original_position: u32) {
 		// Skip the regex check if `addSoftSpace` would be a no-op
 		if self.enforce_space_before_words
 			&& self.hard_spaces == 0
@@ -68,9 +67,10 @@ impl<'a> FormattedContentBuilder<'a> {
 			// the boundary where token merging would actually happen.
 			// Using `.any` would spuriously space tokens like `} width=${`
 			// (template middle) when they trail an identifier.
-			if let Some(last_char_of_last_token) =
-				self.formatted_content.last_char()
-				&& is_valid_ident_char(last_char_of_last_token)
+			if let Some(last_char_of_last_token) = self
+				.formatted_content
+				.chars()
+				.next_back() && is_valid_ident_char(last_char_of_last_token)
 				&& token
 					.chars()
 					.next()
@@ -125,13 +125,11 @@ impl<'a> FormattedContentBuilder<'a> {
 	}
 	pub fn build_with_mappings(mut self) -> crate::FormattedContent {
 		if self.new_lines != 0 {
-			self.formatted_content.push("\n");
+			self.formatted_content.push('\n');
 		}
-		let txt = self.formatted_content.to_string();
-		let mappings = self.mappings;
 		crate::FormattedContent {
-			code: txt,
-			mappings,
+			code: self.formatted_content,
+			mappings: self.mappings,
 		}
 	}
 	fn append_formatting(&mut self) {
@@ -180,8 +178,8 @@ impl<'a> FormattedContentBuilder<'a> {
 		self.soft_space = false;
 		self.hard_spaces = 0;
 	}
-	fn add_text(&mut self, text: &'a str) {
-		self.formatted_content.push(text);
+	fn add_text(&mut self, text: &str) {
+		self.formatted_content.push_str(text);
 	}
 	fn add_mapping_if_needed(&mut self, original_position: u32) {
 		// formatted content length
@@ -205,7 +203,6 @@ fn is_valid_ident_char(c: char) -> bool {
 mod tests {
 	use super::*;
 
-	use Allocator as A;
 	use FormattedContentBuilder as F;
 
 	#[test]
@@ -223,8 +220,7 @@ mod tests {
 
 	#[test]
 	fn add_a_token() {
-		let a = A::new();
-		let mut b = F::new(&a, 2);
+		let mut b = F::new(2);
 		let src = "Test Script";
 		b.add_token(src, 0);
 		assert_eq!(b.build(), src);
@@ -232,16 +228,14 @@ mod tests {
 
 	#[test]
 	fn returns_prev_enforce_spaces_value() {
-		let a = A::new();
-		let mut b = F::new(&a, 2);
+		let mut b = F::new(2);
 		b.set_enforce_space_between_words(false);
 		assert!(!b.set_enforce_space_between_words(true));
 	}
 
 	#[test]
 	fn squashes_new_lines_by_default() {
-		let a = A::new();
-		let mut b = F::new(&a, 2);
+		let mut b = F::new(2);
 		b.add_token("Token 1", 0);
 		b.add_new_line(None);
 		b.add_new_line(None);
@@ -251,8 +245,7 @@ mod tests {
 
 	#[test]
 	fn respects_no_squash_parameter() {
-		let a = A::new();
-		let mut b = F::new(&a, 2);
+		let mut b = F::new(2);
 		b.add_token("Token 1", 0);
 		b.add_new_line(None);
 		b.add_new_line(Some(true));
@@ -262,8 +255,7 @@ mod tests {
 
 	#[test]
 	fn avoids_leading_newlines() {
-		let a = A::new();
-		let mut b = F::new(&a, 2);
+		let mut b = F::new(2);
 		b.add_new_line(None);
 		b.add_token("Token", 0);
 		assert_eq!(b.build(), "Token");
@@ -271,8 +263,7 @@ mod tests {
 
 	#[test]
 	fn avoids_more_than_one_trailing_newline() {
-		let a = A::new();
-		let mut b = F::new(&a, 2);
+		let mut b = F::new(2);
 		b.add_token("Token", 0);
 		b.add_new_line(None);
 		b.add_new_line(Some(true));
@@ -281,8 +272,7 @@ mod tests {
 
 	#[test]
 	fn does_not_collapse_hard_spaces() {
-		let a = A::new();
-		let mut b = F::new(&a, 2);
+		let mut b = F::new(2);
 		b.add_token("Token 1", 0);
 		b.add_hard_space();
 		b.add_hard_space();
@@ -293,8 +283,7 @@ mod tests {
 
 	#[test]
 	fn collapses_soft_spaces() {
-		let a = A::new();
-		let mut b = F::new(&a, 2);
+		let mut b = F::new(2);
 		b.add_token("Token 1", 0);
 		b.add_soft_space();
 		b.add_soft_space();
@@ -305,8 +294,7 @@ mod tests {
 
 	#[test]
 	fn ignores_soft_space_after_hard_space() {
-		let a = A::new();
-		let mut b = F::new(&a, 2);
+		let mut b = F::new(2);
 		b.add_token("Token 1", 0);
 		b.add_hard_space();
 		b.add_soft_space();
@@ -316,8 +304,7 @@ mod tests {
 
 	#[test]
 	fn ignores_soft_space_before_hard_space() {
-		let a = A::new();
-		let mut b = F::new(&a, 2);
+		let mut b = F::new(2);
 		b.add_token("Token 1", 0);
 		b.add_soft_space();
 		b.add_hard_space();
@@ -327,8 +314,7 @@ mod tests {
 
 	#[test]
 	fn handles_nesting_levels() {
-		let a = A::new();
-		let mut b = F::new(&a, 2);
+		let mut b = F::new(2);
 		b.add_token("Token 1", 0);
 		b.add_new_line(None);
 		b.increase_nesting_level();
@@ -353,8 +339,7 @@ mod tests {
 
 	#[test]
 	fn formatted_source_mapping() {
-		let a = A::new();
-		let mut b = F::new(&a, 2);
+		let mut b = F::new(2);
 		b.add_token("#main", 0);
 		b.add_soft_space();
 		b.add_token("{", 5);

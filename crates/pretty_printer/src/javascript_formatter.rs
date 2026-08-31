@@ -1,6 +1,6 @@
 //! Last content commit was `59ef2610ba7c43fc42c64fc71f6096e91e19ae16`
 //! <https://github.com/ChromeDevTools/devtools-frontend/commit/59ef2610ba7c43fc42c64fc71f6096e91e19ae16>
-use std::iter::{self};
+use std::{iter, mem};
 
 use anyhow::{Result, bail};
 use oxc::{
@@ -37,7 +37,6 @@ use oxc::{
 	ast_visit::Visit,
 	diagnostics::Severity,
 	parser::{Kind, Parser, Token, config::TokensParserConfig},
-	semantic::{AstNodes, NodeId, SemanticBuilder},
 	span::{GetSpan, SourceType},
 };
 
@@ -56,12 +55,14 @@ mod token_stream {
 	pub struct TokenStream<'a> {
 		tokens: OxcVec<'a, Token>,
 		comments: OxcVec<'a, Comment>,
+		token_idx: usize,
+		comment_idx: usize,
 	}
 
 	impl<'a> TokenStream<'a> {
 		pub fn new(
 			mut tokens: OxcVec<'a, Token>,
-			mut comments: OxcVec<'a, Comment>,
+			comments: OxcVec<'a, Comment>,
 		) -> Self {
 			debug_assert!(
 				tokens.is_sorted_by_key(|t| t.span().start),
@@ -78,11 +79,20 @@ mod token_stream {
 			{
 				tokens.pop();
 			}
-			// reverse the tokens and comments so we can pop instead
-			// of removing from the front and having to shift the elements
-			tokens.reverse();
-			comments.reverse();
-			Self { tokens, comments }
+			Self {
+				tokens,
+				comments,
+				token_idx: 0,
+				comment_idx: 0,
+			}
+		}
+
+		fn next_token(&self) -> Option<&Token> {
+			self.tokens.get(self.token_idx)
+		}
+
+		fn next_comment(&self) -> Option<&Comment> {
+			self.comments.get(self.comment_idx)
 		}
 	}
 
@@ -114,7 +124,7 @@ mod token_stream {
 		type Item = TokenOrComment;
 
 		fn next(&mut self) -> Option<Self::Item> {
-			match (self.tokens.last(), self.comments.last()) {
+			let take_token = match (self.next_token(), self.next_comment()) {
 				(Some(token), Some(comment)) => {
 					debug_assert_ne!(
 						token.span().start,
@@ -122,43 +132,36 @@ mod token_stream {
 						"Tokens and comments must not have the same start position"
 					);
 					// most programs will have more tokens than comments
-					if likely(token.span().start < comment.span.start) {
-						// SAFETY: we just checked that self.tokens.last() is Some
-						Some(
-							unsafe { self.tokens.pop().unwrap_unchecked() }
-								.into(),
-						)
-					} else {
-						// SAFETY: we just checked that self.comments.last() is Some
-						Some(
-							unsafe { self.comments.pop().unwrap_unchecked() }
-								.into(),
-						)
-					}
+					likely(token.span().start < comment.span.start)
 				}
-				(None, None) => None,
-				(None, Some(_comment)) => Some(
-					// SAFETY: comment is Some
-					unsafe { self.comments.pop().unwrap_unchecked() }.into(),
-				),
-				(Some(_token), None) => {
-					// SAFETY: token is Some
-					Some(unsafe { self.tokens.pop().unwrap_unchecked() }.into())
-				}
+				(None, None) => return None,
+				(None, Some(_)) => false,
+				(Some(_), None) => true,
+			};
+			if take_token {
+				let token = self.tokens[self.token_idx];
+				self.token_idx += 1;
+				Some(token.into())
+			} else {
+				let comment = self.comments[self.comment_idx];
+				self.comment_idx += 1;
+				Some(comment.into())
 			}
 		}
 	}
 }
 
 pub struct JavaScriptFormatter<'a> {
-	builder: FormattedContentBuilder<'a>,
+	builder: FormattedContentBuilder,
 	content: &'a str,
 	last_line_number: u32,
 	program: &'a Program<'a>,
 	tokenizer: iter::Peekable<TokenStream<'a>>,
-	nodes: AstNodes<'a>,
+	parents: Vec<AstKind<'a>>,
 	/// index is line number, value is pos of first char in that line
 	line_pos_cache: Vec<u32>,
+	/// advancing index into [`Self::line_pos_cache`]
+	line_cursor: usize,
 }
 
 #[derive(Debug)]
@@ -197,72 +200,52 @@ fn cache_lines(src: &str) -> Vec<u32> {
 	if src.is_empty() {
 		return vec![];
 	}
+	// `\n` is ASCII, so a byte scan is equivalent to a `char` scan here and
+	// avoids decoding every code point in the (potentially huge) source.
 	let mut line_pos_cache = vec![0];
-	for (i, c) in src.char_indices() {
-		if c == '\n' {
-			line_pos_cache.push(i as u32 + 1);
-		}
-	}
+	line_pos_cache.extend(
+		memchr::memchr_iter(b'\n', src.as_bytes()).map(|i| i as u32 + 1),
+	);
 	if *line_pos_cache.last().unwrap() >= src.len() as u32 {
 		line_pos_cache.pop();
 	}
 	line_pos_cache
 }
 
-fn stmt_id(stmt: &Statement) -> NodeId {
-	match stmt {
-		Statement::BlockStatement(n) => n.node_id(),
-		Statement::BreakStatement(n) => n.node_id(),
-		Statement::ContinueStatement(n) => n.node_id(),
-		Statement::DebuggerStatement(n) => n.node_id(),
-		Statement::DoWhileStatement(n) => n.node_id(),
-		Statement::EmptyStatement(n) => n.node_id(),
-		Statement::ExpressionStatement(n) => n.node_id(),
-		Statement::ForInStatement(n) => n.node_id(),
-		Statement::ForOfStatement(n) => n.node_id(),
-		Statement::ForStatement(n) => n.node_id(),
-		Statement::IfStatement(n) => n.node_id(),
-		Statement::LabeledStatement(n) => n.node_id(),
-		Statement::ReturnStatement(n) => n.node_id(),
-		Statement::SwitchStatement(n) => n.node_id(),
-		Statement::ThrowStatement(n) => n.node_id(),
-		Statement::TryStatement(n) => n.node_id(),
-		Statement::WhileStatement(n) => n.node_id(),
-		Statement::WithStatement(n) => n.node_id(),
-		Statement::VariableDeclaration(n) => n.node_id(),
-		Statement::FunctionDeclaration(n) => n.node_id(),
-		Statement::ClassDeclaration(n) => n.node_id(),
-		Statement::TSTypeAliasDeclaration(n) => n.node_id(),
-		Statement::TSInterfaceDeclaration(n) => n.node_id(),
-		Statement::TSEnumDeclaration(n) => n.node_id(),
-		Statement::TSModuleDeclaration(n) => n.node_id(),
-		Statement::TSGlobalDeclaration(n) => n.node_id(),
-		Statement::TSImportEqualsDeclaration(n) => n.node_id(),
-		Statement::ImportDeclaration(n) => n.node_id(),
-		Statement::ExportDeclaration(n) => n.node_id(),
-		Statement::ExportAllDeclaration(n) => n.node_id(),
-		Statement::ExportDefaultDeclaration(n) => n.node_id(),
-		Statement::ExportNamedDeclaration(n) => n.node_id(),
-		Statement::ExportFromDeclaration(n) => n.node_id(),
-		Statement::TSExportAssignment(n) => n.node_id(),
-		Statement::TSNamespaceExportDeclaration(n) => n.node_id(),
-	}
+/// Whether `parent` is a `for` statement, i.e. whether the node it is the
+/// parent of sits in a loop header rather than a loop body.
+const fn is_for_loop_header(parent: AstKind<'_>) -> bool {
+	matches!(
+		parent,
+		AstKind::ForStatement(_)
+			| AstKind::ForInStatement(_)
+			| AstKind::ForOfStatement(_)
+	)
 }
 
 impl<'a> JavaScriptFormatter<'a> {
-	fn is_in_for_loop_header(&self, node_id: NodeId) -> bool {
-		let parent = self.nodes.parent_kind(node_id);
-		matches!(
-			parent,
-			AstKind::ForStatement(_)
-				| AstKind::ForInStatement(_)
-				| AstKind::ForOfStatement(_)
-		)
+	/// The parent of the node currently being visited.
+	///
+	/// Mirrors `AstNodes::parent_kind`, which reports the root program as its
+	/// own parent.
+	fn parent(&self) -> AstKind<'a> {
+		self.ancestor(2)
+	}
+
+	/// `depth` counts back from the node currently being visited, which is at
+	/// depth 1.
+	fn ancestor(&self, depth: usize) -> AstKind<'a> {
+		self.parents
+			.len()
+			.checked_sub(depth)
+			.and_then(|i| self.parents.get(i))
+			.copied()
+			.unwrap_or(AstKind::Program(self.program))
 	}
 
 	pub fn run(
 		alloc: &'a Allocator,
-		mut builder: FormattedContentBuilder<'a>,
+		mut builder: FormattedContentBuilder,
 		content: &'a str,
 	) -> Result<FormattedContent> {
 		let mut parsed = Parser::new(alloc, content, SourceType::default())
@@ -283,27 +266,27 @@ impl<'a> JavaScriptFormatter<'a> {
 			.sort_by_key(|c| c.span.start);
 		let comments = parsed.program.comments.take_in(&alloc);
 		let tokens = parsed.tokens;
-		builder.hint_num_tokens(comments.len() + tokens.len());
+		builder.hint_num_tokens(comments.len() + tokens.len(), content.len());
 		let tok_stream = TokenStream::new(tokens, comments);
-		let (_, nodes) = SemanticBuilder::new()
-			.with_build_nodes(true)
-			.build(&parsed.program)
-			.semantic
-			.into_scoping_and_nodes();
 		let mut formatter = JavaScriptFormatter::<'_> {
 			builder,
 			content,
 			last_line_number: 0,
 			program: &parsed.program,
 			tokenizer: tok_stream.peekable(),
-			nodes,
+			parents: Vec::with_capacity(64),
 			line_pos_cache: cache_lines(content),
+			line_cursor: 0,
 		};
 		formatter.format();
 		Ok(formatter.builder.build_with_mappings())
 	}
 
 	fn format(&mut self) {
+		// `visit_program` bypasses `enter_node`/`leave_node`, so seed the
+		// ancestor stack with the program itself.
+		self.parents
+			.push(AstKind::Program(self.program));
 		self.visit_program(self.program);
 	}
 
@@ -313,8 +296,8 @@ impl<'a> JavaScriptFormatter<'a> {
 		reason = "TODO: refactor?"
 	)]
 	fn format_token(
-		&self,
 		node: AstKind<'_>,
+		node_parent: AstKind<'_>,
 		token: &TokenOrComment,
 	) -> &'static [FormatDirective] {
 		use AstKind as N;
@@ -383,10 +366,7 @@ impl<'a> JavaScriptFormatter<'a> {
 			}
 			N::ObjectPattern(_)
 				if tk == TK::LCurly
-					&& matches!(
-						self.nodes.parent_kind(node.node_id()),
-						N::VariableDeclarator(_)
-					) =>
+					&& matches!(node_parent, N::VariableDeclarator(_)) =>
 			{
 				&[F::Space, F::Token]
 			}
@@ -437,8 +417,7 @@ impl<'a> JavaScriptFormatter<'a> {
 					.declarations
 					.iter()
 					.all(|decl| decl.init.is_some());
-				if all_variables_initialized
-					&& !self.is_in_for_loop_header(n.node_id())
+				if all_variables_initialized && !is_for_loop_header(node_parent)
 				{
 					&[
 						F::NewLine,
@@ -521,13 +500,8 @@ impl<'a> JavaScriptFormatter<'a> {
 				}
 			}
 			N::CallExpression(_) if tk == TK::Comma => &[F::Token, F::Space],
-			N::SequenceExpression(n) if tk == TK::Comma => {
-				if self
-					.nodes
-					.parent_kind(n.node_id())
-					.as_switch_case()
-					.is_some()
-				{
+			N::SequenceExpression(_) if tk == TK::Comma => {
+				if node_parent.as_switch_case().is_some() {
 					&[F::Token, F::Space]
 				} else {
 					&[F::Token, F::NewLine]
@@ -637,6 +611,24 @@ impl<'a> JavaScriptFormatter<'a> {
 			- 1
 	}
 
+	/// [`Self::line_of_pos`], but exploiting the fact that tokens are handed
+	/// to [`Self::push`] in ascending source order: the answer is always at
+	/// or after `line_cursor`, so a forward scan replaces the binary search.
+	fn line_of_pos_forward(&mut self, pos: u32) -> u32 {
+		debug_assert!(
+			!self.line_pos_cache.is_empty() && self.line_pos_cache[0] <= pos,
+			"pos precedes the first line"
+		);
+		let cache = &self.line_pos_cache;
+		let mut cursor = self.line_cursor;
+		while cursor + 1 < cache.len() && cache[cursor + 1] <= pos {
+			cursor += 1;
+		}
+		self.line_cursor = cursor;
+		debug_assert_eq!(cursor as u32, self.line_of_pos(pos));
+		cursor as u32
+	}
+
 	fn push(
 		&mut self,
 		token: Option<&TokenOrComment>,
@@ -656,12 +648,14 @@ impl<'a> JavaScriptFormatter<'a> {
 				FormatDirective::Token => {
 					if let Some(token) = token {
 						let span = token.span();
-						if self.line_of_pos(span.start) - self.last_line_number
+						if self.line_of_pos_forward(span.start)
+							- self.last_line_number
 							> 1
 						{
 							self.builder.add_new_line(Some(true));
 						}
-						self.last_line_number = self.line_of_pos(span.end);
+						self.last_line_number =
+							self.line_of_pos_forward(span.end);
 						self.builder
 							.add_token(&self.content[span], span.start);
 					} else {
@@ -682,9 +676,7 @@ impl<'a> JavaScriptFormatter<'a> {
 			N::WithStatement(WithStatement { body, .. }) if !is_block(body) => {
 				&[F::NewLine, F::Dedent]
 			}
-			N::VariableDeclaration(_)
-				if !self.is_in_for_loop_header(node.node_id()) =>
-			{
+			N::VariableDeclaration(_) if !is_for_loop_header(self.parent()) => {
 				&[F::NewLine]
 			}
 			N::ForStatement(ForStatement { body, .. })
@@ -697,8 +689,8 @@ impl<'a> JavaScriptFormatter<'a> {
 			// Evil logic
 			// TODO: refactor / clean up?
 			N::BlockStatement(_) | N::FunctionBody(_) => {
-				let parent = self.nodes.parent_kind(node.node_id());
-				let grand_parent = self.nodes.parent_kind(parent.node_id());
+				let parent = self.parent();
+				let grand_parent = self.ancestor(3);
 				if let N::ArrowFunctionExpression(p) = parent
 					&& p.is_expression()
 				{
@@ -706,7 +698,7 @@ impl<'a> JavaScriptFormatter<'a> {
 				}
 				if let N::IfStatement(parent) = parent
 					&& parent.alternate.is_some()
-					&& stmt_id(&parent.consequent) == node.node_id()
+					&& parent.consequent.span() == node.span()
 				{
 					return &[];
 				}
@@ -731,7 +723,7 @@ impl<'a> JavaScriptFormatter<'a> {
 					return &[];
 				}
 				if let N::TryStatement(TryStatement { block, .. }) = parent
-					&& block.node_id() == node.node_id()
+					&& block.span == node.span()
 				{
 					return &[F::Space];
 				}
@@ -760,14 +752,12 @@ impl<'a> JavaScriptFormatter<'a> {
 			// Arrow functions with a single expression have an expression statement as their body
 			N::ExpressionStatement(_)
 				if self
-					.nodes
-					.parent_kind(node.node_id())
+					.parent()
 					.as_function_body()
-					.is_some_and(|fb| {
-						let gp = self.nodes.parent_kind(fb.node_id());
-						gp.as_arrow_function_expression()
-							.is_some_and(ArrowFunctionExpression::is_expression)
-					}) =>
+					.is_some() && self
+					.ancestor(3)
+					.as_arrow_function_expression()
+					.is_some_and(ArrowFunctionExpression::is_expression) =>
 			{
 				&[]
 			}
@@ -787,16 +777,34 @@ impl<'a> JavaScriptFormatter<'a> {
 
 impl<'a> Visit<'a> for JavaScriptFormatter<'a> {
 	fn enter_node(&mut self, kind: AstKind<'a>) {
+		self.parents.push(kind);
 		let node_start = kind.span().start;
-		while let Some(token) = self.tokenizer.peek()
-			&& token.start() < node_start
-		{
-			// SAFETY: we just peeked and the next token is Some
+		// The vast majority of `enter_node` calls consume no tokens at all, so
+		// only pay for the ancestor lookups once we know we need them.
+		let Some(token) = self.tokenizer.peek() else {
+			return;
+		};
+		if token.start() >= node_start {
+			return;
+		}
+		// tokens before `kind` starts belong to its parent
+		let parent = self.parent();
+		let grand_parent = self.ancestor(3);
+		loop {
+			// SAFETY: the peek above (or at the bottom of the loop) proved the
+			// next token is Some
 			let token = unsafe { self.tokenizer.next().unwrap_unchecked() };
-			let format = self
-				.format_token(self.nodes.parent_kind(kind.node_id()), &token);
+			let format = Self::format_token(parent, grand_parent, &token);
 
 			self.push(Some(&token), format);
+
+			if self
+				.tokenizer
+				.peek()
+				.is_none_or(|t| t.start() >= node_start)
+			{
+				return;
+			}
 		}
 	}
 
@@ -835,18 +843,27 @@ impl<'a> Visit<'a> for JavaScriptFormatter<'a> {
 					&& kind.as_template_literal().is_none(),
 			);
 		let node_end = kind.span().end;
+		let parent = self.parent();
 		while let Some(token) = self.tokenizer.peek()
 			&& token.start() < node_end
 		{
 			// SAFETY: we just peeked and the next token is Some
 			let token = unsafe { self.tokenizer.next().unwrap_unchecked() };
-			let format = self.format_token(kind, &token);
+			let format = Self::format_token(kind, parent, &token);
 
 			self.push(Some(&token), format);
 		}
 		self.push(None, self.finish_node(kind));
 		self.builder
 			.set_enforce_space_between_words(restore);
+		let popped = self.parents.pop();
+		debug_assert!(
+			popped.is_some_and(|p| {
+				p.span() == kind.span()
+					&& mem::discriminant(&p) == mem::discriminant(&kind)
+			}),
+			"enter_node/leave_node must be balanced"
+		);
 	}
 
 	/// Oxc is bugged and doesn't provide a hashbang token
@@ -871,7 +888,11 @@ impl<'a> Visit<'a> for JavaScriptFormatter<'a> {
 				token.is_comment(),
 				"Expected only comments after program end"
 			);
-			let format = self.format_token(AstKind::Program(it), &token);
+			let format = Self::format_token(
+				AstKind::Program(it),
+				AstKind::Program(it),
+				&token,
+			);
 			self.push(Some(&token), format);
 		}
 	}

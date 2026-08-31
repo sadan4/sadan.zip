@@ -10,8 +10,9 @@ doctest = false
 
 [dependencies]
 anyhow.workspace = true
-oxc = { workspace = true, features = ["ast_visit", "semantic"] }
+oxc = { workspace = true, features = ["ast_visit"] }
 derive_more.workspace = true
+memchr.workspace = true
 clap.workspace = true
 clap_complete.workspace = true
 unicode-ident.workspace = true

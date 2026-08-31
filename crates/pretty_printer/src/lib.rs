@@ -33,6 +33,6 @@ pub fn format_with_alloc(
 	alloc: &Allocator,
 	indent_size: u8,
 ) -> Result<FormattedContent> {
-	let builder = FormattedContentBuilder::new(alloc, indent_size);
+	let builder = FormattedContentBuilder::new(indent_size);
 	JavaScriptFormatter::run(alloc, builder, source)
 }
