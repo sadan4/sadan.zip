@@ -199,7 +199,7 @@ impl<'a> FormattedContentBuilder<'a> {
 }
 
 fn is_valid_ident_char(c: char) -> bool {
-	is_xid_continue(c)
+	is_xid_continue(c) || c == '$'
 }
 #[cfg(test)]
 mod tests {
@@ -214,6 +214,11 @@ mod tests {
 		const ZWNJ: char = '\u{200C}';
 		assert!(is_xid_continue(ZWJ));
 		assert!(is_xid_continue(ZWNJ));
+	}
+
+	#[test]
+	fn dollar_is_ident_char() {
+		assert!(is_valid_ident_char('$'));
 	}
 
 	#[test]

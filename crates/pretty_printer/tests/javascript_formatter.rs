@@ -666,4 +666,14 @@ _()";
 		}
 		");
 	}
+
+	#[test]
+	fn handles_import_statements() {
+		let source = "import {a as foo} from 'bar';import {$ as baz} from 'qux';";
+		let out = format2(source).unwrap();
+		assert_snapshot!(out, @"
+		import {a as foo} from 'bar';
+		import {$ as baz} from 'qux';
+		");
+	}
 }
