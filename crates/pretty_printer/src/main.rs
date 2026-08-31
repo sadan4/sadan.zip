@@ -5,13 +5,13 @@ use std::{
 	path::{Path, PathBuf},
 	process::exit,
 	sync::atomic::{AtomicBool, Ordering},
-	thread,
 };
 
 use clap::{CommandFactory as _, Parser};
 use clap_complete::Shell;
 
 use anyhow::{Context as _, Result, bail};
+use rayon::iter::{IntoParallelIterator as _, ParallelIterator as _};
 
 #[derive(Parser)]
 #[command(version, about)]
@@ -104,11 +104,11 @@ fn main() {
 		eprintln!("Cannot format multiple files to stdout, use --in-place");
 		exit(1)
 	}
-	let mut handles = Vec::with_capacity(cli.files.len());
 	static HAS_ERR: AtomicBool = AtomicBool::new(false);
-	for path in cli.files {
-		let indent = cli.indent;
-		let handle = thread::spawn(move || {
+	let indent = cli.indent;
+	cli.files
+		.into_par_iter()
+		.for_each(|path| {
 			match handle_single_file(&path, indent).and_then(|str| {
 				fs::write(&path, str).with_context(|| {
 					format!("Failed to write file: {}", path.display())
@@ -124,13 +124,5 @@ fn main() {
 				}
 			}
 		});
-		handles.push(handle);
-	}
-	for handle in handles {
-		if let Err(e) = handle.join() {
-			HAS_ERR.store(true, Ordering::Relaxed);
-			eprintln!("Thread panicked. err: {e:?}");
-		}
-	}
 	exit(HAS_ERR.load(Ordering::Relaxed).into());
 }

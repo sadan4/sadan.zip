@@ -70,7 +70,7 @@ impl FormattedContentBuilder {
 			if let Some(last_char_of_last_token) = self
 				.formatted_content
 				.chars()
-				.next_back() && is_valid_ident_char(last_char_of_last_token)
+				.next_back() && should_space_char(last_char_of_last_token)
 				&& token
 					.chars()
 					.next()
@@ -199,6 +199,12 @@ impl FormattedContentBuilder {
 fn is_valid_ident_char(c: char) -> bool {
 	is_xid_continue(c) || c == '$'
 }
+
+fn should_space_char(c: char) -> bool {
+	is_valid_ident_char(c)
+		|| matches!(c, '`' | '}' | ')' | ']' | '\'' | '"' | '/')
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;

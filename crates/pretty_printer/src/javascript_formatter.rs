@@ -346,6 +346,7 @@ impl<'a> JavaScriptFormatter<'a> {
 					&[F::Token, F::Space]
 				}
 			}
+			N::ImportAttribute(_) if tk == TK::Colon => &[F::Token, F::Space],
 			N::ObjectProperty(_) if tk == TK::Colon => &[F::Token, F::Space],
 			N::ArrayExpression(_) if tk == TK::Comma => &[F::Token, F::Space],
 			N::LabeledStatement(_) if tk == TK::Colon => &[F::Token, F::Space],

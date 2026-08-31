@@ -3883,6 +3883,7 @@ dependencies = [
  "macros",
  "memchr",
  "oxc",
+ "rayon",
  "tracing-subscriber",
  "unicode-ident",
 ]

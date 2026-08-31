@@ -16,6 +16,7 @@ memchr.workspace = true
 clap.workspace = true
 clap_complete.workspace = true
 unicode-ident.workspace = true
+rayon.workspace = true
 
 [dev-dependencies]
 insta.workspace = true

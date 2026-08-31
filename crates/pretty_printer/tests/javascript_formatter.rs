@@ -1,5 +1,6 @@
 #![allow(clippy::needless_raw_string_hashes)]
 //! ported from <https://github.com/ChromeDevTools/devtools-frontend/blob/main/front_end/entrypoints/formatter_worker/JavaScriptFormatter.test.ts>
+//! most recent ported commit: af65890f8b3b28930a3f19a9cc636319a2f3ff13
 use anyhow::Result;
 use insta::assert_snapshot;
 use macros::test;
@@ -611,6 +612,28 @@ fn template_literals() {
 }
 
 #[test]
+fn deeply_nested_template_literals() {
+	let formatted_code = "`foo${`foo${x instanceof foo}`}`";
+	let out = format2(formatted_code).unwrap();
+	assert_snapshot!(out, @"
+	`foo${`foo${x instanceof foo}`}`
+	");
+
+	let formatted_code_2 = "`${`x` instanceof foo}` instanceof foo";
+	let out2 = format2(formatted_code_2).unwrap();
+	assert_snapshot!(out2, @"`${`x` instanceof foo}` instanceof foo");
+
+	let formatted_code_3 =
+		"`${`x`, async function() {}}`, async function*() {}";
+	let out3 = format2(formatted_code_3).unwrap();
+	assert_snapshot!(out3, @"
+	`${`x`,
+	async function() {}}`,
+	async function*() {}
+	");
+}
+
+#[test]
 fn expressions_in_template_literals() {
 	let source = "`${function(){let a}}`";
 	let out = format2(source).unwrap();
@@ -629,6 +652,95 @@ fn methods_on_literals() {
 	num = 1 .toString();
 	str = "abc".toUpperCase();
 	"#);
+}
+
+#[test]
+fn import_attributes() {
+	let source =
+		"import  data  from  './data.json'  with  {  type:  'json'  };";
+	let out = format2(source).unwrap();
+	assert_snapshot!(out, @"
+	import data from \'./data.json\' with {type: \'json\'};
+	");
+}
+
+#[test]
+fn space_in_template_literals() {
+	let source = "`${foo instanceof bar}`;`${async function() {}}`;`${async function*() {}}`;";
+	let out = format2(source).unwrap();
+	assert_snapshot!(out, @"
+	`${foo instanceof bar}`;
+	`${async function() {}}`;
+	`${async function*() {}}`;
+	");
+	let source_2 = "function _() {
+  bar = function() {};
+  `${foo instanceof bar}`;
+  `${async function() {}}`;
+  `${async function*() {}}`;
+}";
+	let out2 = format2(source_2).unwrap();
+	assert_snapshot!(out2, @"
+	function _() {
+	  bar = function() {};
+	  `${foo instanceof bar}`;
+	  `${async function() {}}`;
+	  `${async function*() {}}`;
+	}
+	");
+}
+
+#[test]
+fn regex_literals() {
+	let source = "/abc/g;";
+	let out = format2(source).unwrap();
+	assert_snapshot!(out, @"/abc/g;");
+
+	let source2 = "/abc/g instanceof String;";
+	let out2 = format2(source2).unwrap();
+	assert_snapshot!(out2, @"/abc/g instanceof String;");
+
+	let source3 = "/abc/ instanceof String;";
+	let out3 = format2(source3).unwrap();
+	assert_snapshot!(out3, @"/abc/ instanceof String;");
+
+	let source4 = "/[a-z]/v;";
+	let out4 = format2(source4).unwrap();
+	assert_snapshot!(out4, @"/[a-z]/v;");
+
+	let source5 = "/[\\p{ASCII}&&[a-z]]/v;";
+	let out5 = format2(source5).unwrap();
+	assert_snapshot!(out5, @"/[\\p{ASCII}&&[a-z]]/v;");
+}
+
+#[test]
+fn regex_literals_in_templates() {
+	let source = "`${/abc/g}`;";
+	let out = format2(source).unwrap();
+	assert_snapshot!(out, @"`${/abc/g}`;");
+
+	let source2 = "`${/abc/g instanceof String}`;";
+	let out2 = format2(source2).unwrap();
+	assert_snapshot!(out2, @"`${/abc/g instanceof String}`;");
+
+	let source3 = "`${/abc/ instanceof String}`;";
+	let out3 = format2(source3).unwrap();
+	assert_snapshot!(out3, @"`${/abc/ instanceof String}`;");
+}
+
+#[test]
+fn tagged_templates_with_html() {
+	let source = "const myView = $`<div><span>Hello</span></div>`;";
+	let out = format2(source).unwrap();
+	assert_snapshot!(out, @"const myView = $`<div><span>Hello</span></div>`;");
+
+	let source2 = "const myView = html`<div><span>Hello</span></div>`;";
+	let out2 = format2(source2).unwrap();
+	assert_snapshot!(out2, @"const myView = html`<div><span>Hello</span></div>`;");
+
+	let source3 = "const str = \"<div><span>foo</span></div>\";";
+	let out3 = format2(source3).unwrap();
+	assert_snapshot!(out3, @"const str = \"<div><span>foo</span></div>\";");
 }
 
 mod custom_tests {
@@ -669,7 +781,8 @@ _()";
 
 	#[test]
 	fn handles_import_statements() {
-		let source = "import {a as foo} from 'bar';import {$ as baz} from 'qux';";
+		let source =
+			"import {a as foo} from 'bar';import {$ as baz} from 'qux';";
 		let out = format2(source).unwrap();
 		assert_snapshot!(out, @"
 		import {a as foo} from 'bar';
