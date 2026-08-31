@@ -1,6 +1,7 @@
 import avatar from "@/assets/avatar.webp";
 import { Clickable } from "@/components/Clickable";
-import { BorderHold, borderHoldAnimConfig } from "@/components/effects/BorderHold";
+import { BorderHold } from "@/components/effects/BorderHold";
+import { borderHoldAnimConfig } from "@/components/effects/BorderHold/util";
 import PerspectiveHover from "@/components/effects/PerspectiveHover";
 import Shadow from "@/components/effects/Shadow";
 import { useRect } from "@/hooks/rect";
@@ -9,6 +10,7 @@ import cn from "@/utils/cn";
 import { friends } from "@/utils/friends";
 import { once } from "@/utils/functional";
 import { makeLazy, proxyLazy } from "@/utils/lazy";
+import { defer } from "@/utils/scope";
 import type { SpringConfig } from "@react-spring/web";
 
 import { FriendModal } from "./modals/Friend";
@@ -78,41 +80,31 @@ export default function Avatar({ round = false, ...props }: AvatarProps) {
 
             void api.start({
                 async to(next) {
-                    done: {
-                        if (shouldStop()) {
-                            console.log("stop 1");
-                            break done;
-                        }
-                        await next({
-                            progress: 10,
-                            opacity: 1,
-                            config: bounceConfig,
-                        });
-                        if (shouldStop()) {
-                            console.log("stop 2");
-                            break done;
-                        }
-                        await next({
-                            progress: 0,
-                            opacity: 0,
-                            config: borderHoldAnimConfig(false),
-                        });
-                        if (shouldStop()) {
-                            console.log("stop 3");
-                            break done;
-                        }
-                        await next({
-                            progress: 15,
-                            opacity: 1,
-                            config: bounceConfig,
-                        });
-                        if (shouldStop()) {
-                            console.log("stop 4");
-                            break done;
-                        }
-                        console.log("stop 5");
+                    using _ = defer(handle.onStopHold);
+                    if (shouldStop()) {
+                        return;
                     }
-                    handle.onStopHold();
+                    await next({
+                        progress: 10,
+                        opacity: 1,
+                        config: bounceConfig,
+                    });
+                    if (shouldStop()) {
+                        return;
+                    }
+                    await next({
+                        progress: 0,
+                        opacity: 0,
+                        config: borderHoldAnimConfig(false),
+                    });
+                    if (shouldStop()) {
+                        return;
+                    }
+                    await next({
+                        progress: 15,
+                        opacity: 1,
+                        config: bounceConfig,
+                    });
                 },
             });
         }();

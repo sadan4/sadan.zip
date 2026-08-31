@@ -1,22 +1,9 @@
-import { type SpringConfig, type SpringRef, useSpring } from "@react-spring/web";
+import { type SpringRef, useSpring } from "@react-spring/web";
 
+import { borderHoldAnimConfig } from "./util";
 import { BorderProgress } from "../BorderProgress";
 
 import { type PropsWithChildren, type Ref, useCallback, useImperativeHandle, useRef } from "react";
-
-export function borderHoldAnimConfig(held: boolean) {
-    return (k: "opacity" | "progress"): SpringConfig => {
-        switch (k) {
-            case "opacity":
-                return {};
-            case "progress":
-                return {
-                    mass: 5,
-                    friction: held ? 75 : 50,
-                };
-        }
-    };
-}
 
 export interface BorderHoldSpring {
     progress: number;
@@ -138,14 +125,13 @@ export function BorderHold({
                 }
             }}
             onPointerUp={() => {
-                console.log("Pointer up");
                 onStopHold();
             }}
             onPointerLeave={() => {
                 // FIXME: hacky workaround for things breaking on touchscreens
                 // which fire an onPointerUp event AND an onPointerLeave event
-                if (stoppingRef.current) return;
-                console.log("Pointer leave");
+                if (stoppingRef.current)
+                    return;
                 onStopHold();
             }}
             pathStyle={{
