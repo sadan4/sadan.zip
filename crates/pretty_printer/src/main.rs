@@ -24,6 +24,7 @@ struct Cli {
 	#[arg(short, long)]
 	pub in_place: bool,
 	/// the indent size, in spaces
+	///
 	/// a value of 0 means use tabs
 	#[arg(short = 'd', long, default_value_t = 0)]
 	pub indent: u8,
