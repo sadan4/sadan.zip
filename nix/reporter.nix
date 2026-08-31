@@ -6,6 +6,8 @@ rustPlatform.buildRustPackage (finalAttrs: {
 		pname = "reporter";
 		version = "0.1.0";
 
+		env.RUSTC_BOOTSTRAP = 1;
+
 		src =
 			lib.fileset.toSource {
 				root = ../.;

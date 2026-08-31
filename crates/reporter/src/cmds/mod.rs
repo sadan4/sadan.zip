@@ -39,6 +39,7 @@ pub async fn run(
 			.map_err(miette::Report::msg),
 		Cmd::Watch => {
 			watch::run_watcher(cli, global_bar).await?;
+			unreachable!();
 		}
 		Cmd::Lint => {
 			lint::lint(cli, global_bar).map_err(miette::Report::msg)?;
