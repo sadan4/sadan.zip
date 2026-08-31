@@ -1,5 +1,6 @@
 use crate::{
 	cache,
+	diag::WrappedOxcDiagnostic,
 	exts::{ExpressionExt, ModuleDeclarationExt},
 	sym_id::GetSymId,
 };
@@ -48,11 +49,11 @@ macro_rules! impl_parse {
 			.with_config($toks_cfg)
 			.parse();
 		if !parsed.diagnostics.is_empty() {
-			let dbg_src = Arc::new($source.to_string());
-			let err = parsed
-				.diagnostics
-				.swap_remove(0)
-				.with_source_code(dbg_src);
+			let dbg_src = Arc::from($source);
+			let err = parsed.diagnostics.swap_remove(0);
+			let err = WrappedOxcDiagnostic::from(err)
+				.with_source_code(dbg_src)
+				.into();
 			return Err(err);
 		}
 		let $ast: &'ast mut Program<'ast> = $alloc.alloc(parsed.program);
@@ -64,11 +65,11 @@ macro_rules! impl_parse {
 			.build($ast);
 		if !$sema.diagnostics.is_empty() {
 			let mut sema = $sema;
-			let dbg_src = Arc::new($source.to_string());
-			let err = sema
-				.diagnostics
-				.swap_remove(0)
-				.with_source_code(dbg_src);
+			let dbg_src = Arc::from($source);
+			let err = sema.diagnostics.swap_remove(0);
+			let err = WrappedOxcDiagnostic::from(err)
+				.with_source_code(dbg_src)
+				.into();
 			return Err(err);
 		}
 	};
@@ -118,11 +119,11 @@ pub fn parse_no_sema<'ast>(
 ) -> Result<Program<'ast>, miette::Error> {
 	let mut parsed = OxcParser::new(alloc, source, source_type).parse();
 	if !parsed.diagnostics.is_empty() {
-		let dbg_src = Arc::new(source.to_string());
-		let err = parsed
-			.diagnostics
-			.swap_remove(0)
-			.with_source_code(dbg_src);
+		let dbg_src = Arc::from(source);
+		let err = parsed.diagnostics.swap_remove(0);
+		let err = WrappedOxcDiagnostic::from(err)
+			.with_source_code(dbg_src)
+			.into();
 		return Err(err);
 	}
 	Ok(parsed.program)

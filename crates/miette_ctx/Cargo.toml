@@ -4,7 +4,7 @@ version = "0.1.0"
 edition.workspace = true
 
 [dependencies]
-oxc-miette.workspace = true
+miette.workspace = true
 anyhow.workspace = true
 thiserror.workspace = true
 

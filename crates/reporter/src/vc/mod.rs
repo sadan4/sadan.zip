@@ -1,6 +1,7 @@
 use anyhow::{Context, Result, anyhow, bail};
 use clap::Args;
 use itertools::Itertools as _;
+use miette::Report;
 use oxc::{allocator::Allocator, ast::ast::RegExpFlags};
 use regress::escape;
 use serde::{Deserialize, Serialize};
@@ -108,7 +109,7 @@ pub async fn collect_plugins_from_paths(
 ) -> miette::Result<Vec<Plugin>> {
 	task::spawn_blocking(move || do_collect_plugins_from_paths(paths))
 		.await
-		.map_err(|e| miette::Report::msg(e))?
+		.map_err(Report::msg)?
 }
 
 fn do_collect_plugins_from_paths(

@@ -12,7 +12,10 @@ itertools.workspace = true
 oxc = { workspace = true, features = ["semantic", "ast_visit"] }
 oxc_ecmascript.workspace = true
 derive_more.workspace = true
-oxc-miette.workspace = true
+miette.workspace = true
+serde.workspace = true
+smallvec.workspace = true
+smol_str.workspace = true
 
 [lints]
 workspace = true

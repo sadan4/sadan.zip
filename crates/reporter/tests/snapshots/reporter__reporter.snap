@@ -5,417 +5,417 @@ expression: errs
 [
   ReplaceMatchNotFound(
     plugin_id: 262,
-    match_span: SourceSpan(
-      offset: SourceOffset(11187),
-      length: 51,
+    match_span: OxcSourceSpan(
+      start: 11187,
+      end: 11238,
     ),
     module_id: ModuleId(320095),
   ),
   ReplaceMatchAmbiguous(
     plugin_id: 0,
-    match_span: SourceSpan(
-      offset: SourceOffset(3702),
-      length: 18,
+    match_span: OxcSourceSpan(
+      start: 3702,
+      end: 3720,
     ),
     module_id: ModuleId(174755),
   ),
   ReplaceMatchAmbiguous(
     plugin_id: 5,
-    match_span: SourceSpan(
-      offset: SourceOffset(16451),
-      length: 78,
+    match_span: OxcSourceSpan(
+      start: 16451,
+      end: 16529,
     ),
     module_id: ModuleId(689035),
   ),
   ReplaceMatchAmbiguous(
     plugin_id: 5,
-    match_span: SourceSpan(
-      offset: SourceOffset(18594),
-      length: 47,
+    match_span: OxcSourceSpan(
+      start: 18594,
+      end: 18641,
     ),
     module_id: ModuleId(689035),
   ),
   ReplaceMatchAmbiguous(
     plugin_id: 5,
-    match_span: SourceSpan(
-      offset: SourceOffset(22572),
-      length: 86,
+    match_span: OxcSourceSpan(
+      start: 22572,
+      end: 22658,
     ),
     module_id: ModuleId(689035),
   ),
   ReplaceMatchAmbiguous(
     plugin_id: 28,
-    match_span: SourceSpan(
-      offset: SourceOffset(3194),
-      length: 24,
+    match_span: OxcSourceSpan(
+      start: 3194,
+      end: 3218,
     ),
     module_id: ModuleId(141499),
   ),
   ReplaceMatchAmbiguous(
     plugin_id: 30,
-    match_span: SourceSpan(
-      offset: SourceOffset(10045),
-      length: 54,
+    match_span: OxcSourceSpan(
+      start: 10045,
+      end: 10099,
     ),
     module_id: ModuleId(690521),
   ),
   ReplaceMatchAmbiguous(
     plugin_id: 30,
-    match_span: SourceSpan(
-      offset: SourceOffset(12845),
-      length: 15,
+    match_span: OxcSourceSpan(
+      start: 12845,
+      end: 12860,
     ),
     module_id: ModuleId(617617),
   ),
   ReplaceMatchAmbiguous(
     plugin_id: 56,
-    match_span: SourceSpan(
-      offset: SourceOffset(4306),
-      length: 33,
+    match_span: OxcSourceSpan(
+      start: 4306,
+      end: 4339,
     ),
     module_id: ModuleId(438857),
   ),
   ReplaceMatchAmbiguous(
     plugin_id: 56,
-    match_span: SourceSpan(
-      offset: SourceOffset(5538),
-      length: 128,
+    match_span: OxcSourceSpan(
+      start: 5538,
+      end: 5666,
     ),
     module_id: ModuleId(32834),
   ),
   ReplaceMatchAmbiguous(
     plugin_id: 58,
-    match_span: SourceSpan(
-      offset: SourceOffset(3959),
-      length: 39,
+    match_span: OxcSourceSpan(
+      start: 3959,
+      end: 3998,
     ),
     module_id: ModuleId(232835),
   ),
   ReplaceMatchAmbiguous(
     plugin_id: 61,
-    match_span: SourceSpan(
-      offset: SourceOffset(564),
-      length: 60,
+    match_span: OxcSourceSpan(
+      start: 564,
+      end: 624,
     ),
     module_id: ModuleId(739181),
   ),
   ReplaceMatchAmbiguous(
     plugin_id: 90,
-    match_span: SourceSpan(
-      offset: SourceOffset(4215),
-      length: 63,
+    match_span: OxcSourceSpan(
+      start: 4215,
+      end: 4278,
     ),
     module_id: ModuleId(720882),
   ),
   ReplaceMatchAmbiguous(
     plugin_id: 92,
-    match_span: SourceSpan(
-      offset: SourceOffset(3522),
-      length: 68,
+    match_span: OxcSourceSpan(
+      start: 3522,
+      end: 3590,
     ),
     module_id: ModuleId(655098),
   ),
   ReplaceMatchAmbiguous(
     plugin_id: 101,
-    match_span: SourceSpan(
-      offset: SourceOffset(6957),
-      length: 42,
+    match_span: OxcSourceSpan(
+      start: 6957,
+      end: 6999,
     ),
     module_id: ModuleId(156867),
   ),
   ReplaceMatchAmbiguous(
     plugin_id: 101,
-    match_span: SourceSpan(
-      offset: SourceOffset(10398),
-      length: 41,
+    match_span: OxcSourceSpan(
+      start: 10398,
+      end: 10439,
     ),
     module_id: ModuleId(156867),
   ),
   ReplaceMatchAmbiguous(
     plugin_id: 101,
-    match_span: SourceSpan(
-      offset: SourceOffset(11050),
-      length: 41,
+    match_span: OxcSourceSpan(
+      start: 11050,
+      end: 11091,
     ),
     module_id: ModuleId(156867),
   ),
   ReplaceMatchAmbiguous(
     plugin_id: 101,
-    match_span: SourceSpan(
-      offset: SourceOffset(16355),
-      length: 44,
+    match_span: OxcSourceSpan(
+      start: 16355,
+      end: 16399,
     ),
     module_id: ModuleId(212676),
   ),
   ReplaceMatchAmbiguous(
     plugin_id: 101,
-    match_span: SourceSpan(
-      offset: SourceOffset(16617),
-      length: 24,
+    match_span: OxcSourceSpan(
+      start: 16617,
+      end: 16641,
     ),
     module_id: ModuleId(212676),
   ),
   ReplaceMatchAmbiguous(
     plugin_id: 101,
-    match_span: SourceSpan(
-      offset: SourceOffset(16939),
-      length: 27,
+    match_span: OxcSourceSpan(
+      start: 16939,
+      end: 16966,
     ),
     module_id: ModuleId(342952),
   ),
   ReplaceMatchAmbiguous(
     plugin_id: 102,
-    match_span: SourceSpan(
-      offset: SourceOffset(3545),
-      length: 14,
+    match_span: OxcSourceSpan(
+      start: 3545,
+      end: 3559,
     ),
     module_id: ModuleId(87984),
   ),
   ReplaceMatchAmbiguous(
     plugin_id: 107,
-    match_span: SourceSpan(
-      offset: SourceOffset(2579),
-      length: 78,
+    match_span: OxcSourceSpan(
+      start: 2579,
+      end: 2657,
     ),
     module_id: ModuleId(141499),
   ),
   ReplaceMatchAmbiguous(
     plugin_id: 107,
-    match_span: SourceSpan(
-      offset: SourceOffset(2908),
-      length: 76,
+    match_span: OxcSourceSpan(
+      start: 2908,
+      end: 2984,
     ),
     module_id: ModuleId(141499),
   ),
   ReplaceMatchAmbiguous(
     plugin_id: 115,
-    match_span: SourceSpan(
-      offset: SourceOffset(1120),
-      length: 71,
+    match_span: OxcSourceSpan(
+      start: 1120,
+      end: 1191,
     ),
     module_id: ModuleId(212676),
   ),
   ReplaceMatchAmbiguous(
     plugin_id: 117,
-    match_span: SourceSpan(
-      offset: SourceOffset(7518),
-      length: 45,
+    match_span: OxcSourceSpan(
+      start: 7518,
+      end: 7563,
     ),
     module_id: ModuleId(156867),
   ),
   ReplaceMatchAmbiguous(
     plugin_id: 122,
-    match_span: SourceSpan(
-      offset: SourceOffset(2781),
-      length: 75,
+    match_span: OxcSourceSpan(
+      start: 2781,
+      end: 2856,
     ),
     module_id: ModuleId(141499),
   ),
   ReplaceMatchAmbiguous(
     plugin_id: 126,
-    match_span: SourceSpan(
-      offset: SourceOffset(2929),
-      length: 57,
+    match_span: OxcSourceSpan(
+      start: 2929,
+      end: 2986,
     ),
     module_id: ModuleId(141499),
   ),
   ReplaceMatchAmbiguous(
     plugin_id: 132,
-    match_span: SourceSpan(
-      offset: SourceOffset(3800),
-      length: 58,
+    match_span: OxcSourceSpan(
+      start: 3800,
+      end: 3858,
     ),
     module_id: ModuleId(386741),
   ),
   ReplaceMatchAmbiguous(
     plugin_id: 132,
-    match_span: SourceSpan(
-      offset: SourceOffset(3969),
-      length: 60,
+    match_span: OxcSourceSpan(
+      start: 3969,
+      end: 4029,
     ),
     module_id: ModuleId(386741),
   ),
   ReplaceMatchAmbiguous(
     plugin_id: 151,
-    match_span: SourceSpan(
-      offset: SourceOffset(3907),
-      length: 22,
+    match_span: OxcSourceSpan(
+      start: 3907,
+      end: 3929,
     ),
     module_id: ModuleId(720882),
   ),
   ReplaceMatchAmbiguous(
     plugin_id: 151,
-    match_span: SourceSpan(
-      offset: SourceOffset(4606),
-      length: 28,
+    match_span: OxcSourceSpan(
+      start: 4606,
+      end: 4634,
     ),
     module_id: ModuleId(980707),
   ),
   ReplaceMatchAmbiguous(
     plugin_id: 177,
-    match_span: SourceSpan(
-      offset: SourceOffset(712),
-      length: 13,
+    match_span: OxcSourceSpan(
+      start: 712,
+      end: 725,
     ),
     module_id: ModuleId(751258),
   ),
   ReplaceMatchAmbiguous(
     plugin_id: 177,
-    match_span: SourceSpan(
-      offset: SourceOffset(1263),
-      length: 25,
+    match_span: OxcSourceSpan(
+      start: 1263,
+      end: 1288,
     ),
     module_id: ModuleId(31498),
   ),
   ReplaceMatchAmbiguous(
     plugin_id: 178,
-    match_span: SourceSpan(
-      offset: SourceOffset(5699),
-      length: 39,
+    match_span: OxcSourceSpan(
+      start: 5699,
+      end: 5738,
     ),
     module_id: ModuleId(232835),
   ),
   ReplaceMatchAmbiguous(
     plugin_id: 182,
-    match_span: SourceSpan(
-      offset: SourceOffset(1508),
-      length: 45,
+    match_span: OxcSourceSpan(
+      start: 1508,
+      end: 1553,
     ),
     module_id: ModuleId(156867),
   ),
   ReplaceMatchAmbiguous(
     plugin_id: 183,
-    match_span: SourceSpan(
-      offset: SourceOffset(4111),
-      length: 44,
+    match_span: OxcSourceSpan(
+      start: 4111,
+      end: 4155,
     ),
     module_id: ModuleId(187654),
   ),
   ReplaceMatchAmbiguous(
     plugin_id: 187,
-    match_span: SourceSpan(
-      offset: SourceOffset(6363),
-      length: 17,
+    match_span: OxcSourceSpan(
+      start: 6363,
+      end: 6380,
     ),
     module_id: ModuleId(141499),
   ),
   ReplaceMatchAmbiguous(
     plugin_id: 187,
-    match_span: SourceSpan(
-      offset: SourceOffset(6982),
-      length: 26,
+    match_span: OxcSourceSpan(
+      start: 6982,
+      end: 7008,
     ),
     module_id: ModuleId(946228),
   ),
   ReplaceMatchAmbiguous(
     plugin_id: 189,
-    match_span: SourceSpan(
-      offset: SourceOffset(2063),
-      length: 50,
+    match_span: OxcSourceSpan(
+      start: 2063,
+      end: 2113,
     ),
     module_id: ModuleId(315240),
   ),
   ReplaceMatchAmbiguous(
     plugin_id: 193,
-    match_span: SourceSpan(
-      offset: SourceOffset(1025),
-      length: 29,
+    match_span: OxcSourceSpan(
+      start: 1025,
+      end: 1054,
     ),
     module_id: ModuleId(580763),
   ),
   ReplaceMatchAmbiguous(
     plugin_id: 205,
-    match_span: SourceSpan(
-      offset: SourceOffset(1931),
-      length: 40,
+    match_span: OxcSourceSpan(
+      start: 1931,
+      end: 1971,
     ),
     module_id: ModuleId(267889),
   ),
   ReplaceMatchAmbiguous(
     plugin_id: 206,
-    match_span: SourceSpan(
-      offset: SourceOffset(6840),
-      length: 53,
+    match_span: OxcSourceSpan(
+      start: 6840,
+      end: 6893,
     ),
     module_id: ModuleId(156867),
   ),
   ReplaceMatchAmbiguous(
     plugin_id: 214,
-    match_span: SourceSpan(
-      offset: SourceOffset(3446),
-      length: 45,
+    match_span: OxcSourceSpan(
+      start: 3446,
+      end: 3491,
     ),
     module_id: ModuleId(156867),
   ),
   ReplaceMatchAmbiguous(
     plugin_id: 236,
-    match_span: SourceSpan(
-      offset: SourceOffset(1797),
-      length: 28,
+    match_span: OxcSourceSpan(
+      start: 1797,
+      end: 1825,
     ),
     module_id: ModuleId(689035),
   ),
   ReplaceMatchAmbiguous(
     plugin_id: 272,
-    match_span: SourceSpan(
-      offset: SourceOffset(2796),
-      length: 18,
+    match_span: OxcSourceSpan(
+      start: 2796,
+      end: 2814,
     ),
     module_id: ModuleId(107750),
   ),
   ReplaceMatchAmbiguous(
     plugin_id: 289,
-    match_span: SourceSpan(
-      offset: SourceOffset(6307),
-      length: 83,
+    match_span: OxcSourceSpan(
+      start: 6307,
+      end: 6390,
     ),
     module_id: ModuleId(689035),
   ),
   ReplaceMatchAmbiguous(
     plugin_id: 289,
-    match_span: SourceSpan(
-      offset: SourceOffset(6880),
-      length: 34,
+    match_span: OxcSourceSpan(
+      start: 6880,
+      end: 6914,
     ),
     module_id: ModuleId(689035),
   ),
   ReplaceMatchAmbiguous(
     plugin_id: 289,
-    match_span: SourceSpan(
-      offset: SourceOffset(14023),
-      length: 19,
+    match_span: OxcSourceSpan(
+      start: 14023,
+      end: 14042,
     ),
     module_id: ModuleId(550489),
   ),
   ReplaceMatchAmbiguous(
     plugin_id: 289,
-    match_span: SourceSpan(
-      offset: SourceOffset(24040),
-      length: 64,
+    match_span: OxcSourceSpan(
+      start: 24040,
+      end: 24104,
     ),
     module_id: ModuleId(347135),
   ),
   ReplaceMatchAmbiguous(
     plugin_id: 308,
-    match_span: SourceSpan(
-      offset: SourceOffset(590),
-      length: 28,
+    match_span: OxcSourceSpan(
+      start: 590,
+      end: 618,
     ),
     module_id: ModuleId(297469),
   ),
   ReplaceMatchAmbiguous(
     plugin_id: 359,
-    match_span: SourceSpan(
-      offset: SourceOffset(5982),
-      length: 43,
+    match_span: OxcSourceSpan(
+      start: 5982,
+      end: 6025,
     ),
     module_id: ModuleId(92197),
   ),
   FindAmbiguous(
     plugin_id: 148,
-    find_span: SourceSpan(
-      offset: SourceOffset(530),
-      length: 43,
+    find_span: OxcSourceSpan(
+      start: 530,
+      end: 573,
     ),
     ok_ids: [
       125820,
@@ -427,9 +427,9 @@ expression: errs
   ),
   FindAmbiguousRecoverable(
     plugin_id: 35,
-    find_span: SourceSpan(
-      offset: SourceOffset(1132),
-      length: 30,
+    find_span: OxcSourceSpan(
+      start: 1132,
+      end: 1162,
     ),
     ok_id: ModuleId(175671),
     err_ids: [
@@ -439,9 +439,9 @@ expression: errs
   ),
   FindAmbiguousRecoverable(
     plugin_id: 47,
-    find_span: SourceSpan(
-      offset: SourceOffset(3950),
-      length: 24,
+    find_span: OxcSourceSpan(
+      start: 3950,
+      end: 3974,
     ),
     ok_id: ModuleId(617710),
     err_ids: [
@@ -451,9 +451,9 @@ expression: errs
   ),
   FindAmbiguousRecoverable(
     plugin_id: 125,
-    find_span: SourceSpan(
-      offset: SourceOffset(8061),
-      length: 21,
+    find_span: OxcSourceSpan(
+      start: 8061,
+      end: 8082,
     ),
     ok_id: ModuleId(937767),
     err_ids: [
@@ -463,9 +463,9 @@ expression: errs
   ),
   FindAmbiguousRecoverable(
     plugin_id: 267,
-    find_span: SourceSpan(
-      offset: SourceOffset(3663),
-      length: 38,
+    find_span: OxcSourceSpan(
+      start: 3663,
+      end: 3701,
     ),
     ok_id: ModuleId(141499),
     err_ids: [
@@ -475,9 +475,9 @@ expression: errs
   ),
   FindAmbiguousRecoverable(
     plugin_id: 307,
-    find_span: SourceSpan(
-      offset: SourceOffset(7563),
-      length: 31,
+    find_span: OxcSourceSpan(
+      start: 7563,
+      end: 7594,
     ),
     ok_id: ModuleId(480084),
     err_ids: [
@@ -487,33 +487,33 @@ expression: errs
   ),
   NoWarn(ReplaceMatchNotFound(
     plugin_id: 9,
-    match_span: SourceSpan(
-      offset: SourceOffset(2313),
-      length: 34,
+    match_span: OxcSourceSpan(
+      start: 2313,
+      end: 2347,
     ),
     module_id: ModuleId(659280),
   )),
   NoWarn(ReplaceMatchNotFound(
     plugin_id: 9,
-    match_span: SourceSpan(
-      offset: SourceOffset(2672),
-      length: 12,
+    match_span: OxcSourceSpan(
+      start: 2672,
+      end: 2684,
     ),
     module_id: ModuleId(538409),
   )),
   NoWarn(FindNotFound(
     plugin_id: 9,
-    find_span: SourceSpan(
-      offset: SourceOffset(2771),
-      length: 19,
+    find_span: OxcSourceSpan(
+      start: 2771,
+      end: 2790,
     ),
     patch_hash: 2347310399911285752,
   )),
   NoWarn(FindNotFound(
     plugin_id: 133,
-    find_span: SourceSpan(
-      offset: SourceOffset(8272),
-      length: 22,
+    find_span: OxcSourceSpan(
+      start: 8272,
+      end: 8294,
     ),
     patch_hash: 15855369505084964638,
   )),

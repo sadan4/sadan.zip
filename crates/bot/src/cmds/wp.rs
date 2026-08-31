@@ -388,8 +388,8 @@ async fn report_pr_branch(
 					let cause_span = e.cause_span();
 					if cause_span.len() as usize == BAD_CAUSE.len() {
 						let plugin_str = &plugins[e.plugin_id() as usize]
-							.entry_source[cause_span.offset() as usize
-							..(cause_span.offset() + cause_span.len()) as usize];
+							.entry_source
+							.as_str()[cause_span];
 						plugin_str == BAD_CAUSE
 					} else {
 						false
@@ -443,9 +443,8 @@ async fn report_pr_branch(
 				writeln!(cause, "Module [`{mid}`]({module_link})").unwrap();
 			}
 			let source_span = err.cause_span();
-			let source_cause_snippet = &plugin.entry_source[source_span.offset()
-				as usize
-				..(source_span.offset() + source_span.len()) as usize];
+			let source_cause_snippet =
+				&plugin.entry_source.as_str()[source_span];
 			write!(cause, "```js\n{source_cause_snippet}\n```").unwrap();
 			(title, cause, false)
 		});

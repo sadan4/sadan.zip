@@ -1,17 +1,17 @@
 use crate::{
 	diag::ReporterError,
 	fetcher::ScrapedOutput,
-	reporter::cmp_wrapped_oxc_diag::cmp_oxc_diag,
 	util::{MultiProgressWrapper, Stage},
 	vc::Plugin,
 };
 use anyhow::{Context, Result};
+use ast_parser::diag::{SourceCode, WrappedOxcDiagnostic};
 use dashmap::DashMap;
 use derive_more::IsVariant;
 use explorer_server_core::Channel;
 use explorer_types::ModuleId;
 use itertools::{Itertools as _, PutBack, put_back};
-use miette::{Diagnostic, NamedSource, Severity, SourceCode};
+use miette::{Diagnostic, Severity};
 use oxc::{
 	allocator::Allocator,
 	ast::ast::RegExpFlags,
@@ -28,12 +28,9 @@ use rayon::iter::{
 	ParallelIterator,
 };
 use regress::Regex;
-use serde::{Deserialize, Serialize};
+use smol_str::{SmolStr, format_smolstr};
 use std::{
-	borrow::Cow,
-	cmp::Ordering,
 	collections::{HashMap, HashSet},
-	fmt,
 	mem,
 	sync::Arc,
 	time::{Duration, Instant},
@@ -389,7 +386,7 @@ impl<'a> ReporterState<'a> {
 				};
 				report(ReporterError::ReplaceSyntaxError {
 					replace_span: r.replace.s.into(),
-					cause: formatted_error,
+					cause: Box::new(formatted_error),
 					module_id: m_id,
 					plugin_id,
 				});
@@ -402,7 +399,7 @@ impl<'a> ReporterState<'a> {
 
 	fn format_syntax_error(
 		&self,
-		mut e: Box<OxcDiagnostic>,
+		mut e: OxcDiagnostic,
 		original_source: &str,
 		m_id: ModuleId,
 		pat: &Regex,
@@ -461,14 +458,22 @@ impl<'a> ReporterState<'a> {
 				Span::new(label.offset(), label.offset() + label.len());
 			// i can't get Option.cloned() to work for some reason
 			let txt = label.label().map(String::from);
-			*label = Self::find_new_span(&mappings, label_span).into();
-			label.set_label(txt);
+			let primary = label.primary();
+			let new_span = Self::find_new_span(&mappings, label_span);
+			let new_label = if primary {
+				oxc::span::LabeledSpan::new_primary_with_span(txt, new_span)
+			} else {
+				oxc::span::LabeledSpan::new_with_span(txt, new_span)
+			};
+			*label = new_label
 		}
-		Ok(WrappedOxcDiagnostic::new(
-			e,
-			format!("{m_id}.js"),
-			formatted_source,
-		))
+		let mut ret = WrappedOxcDiagnostic::from(e);
+		ret.source = Some(SourceCode {
+			source_code: Arc::from(formatted_source),
+			file_name: Some(format_smolstr!("{m_id}.js")),
+			file_type: Some(SmolStr::new_static("JavaScript")),
+		});
+		Ok(ret)
 	}
 
 	fn find_new_span(mappings: &[(u32, u32)], original_span: Span) -> Span {
@@ -584,7 +589,7 @@ impl<'a> ReporterState<'a> {
 		&self,
 		new_src: &str,
 		m_id: ModuleId,
-	) -> Result<(), Box<OxcDiagnostic>> {
+	) -> Result<(), OxcDiagnostic> {
 		let alloc = self.alloc.get();
 		let result = check_syntax_errors(
 			&alloc,
@@ -630,11 +635,11 @@ fn check_syntax_errors(
 	alloc: &Allocator,
 	src: &str,
 	stats: Option<Stats>,
-) -> Result<Stats, Box<OxcDiagnostic>> {
+) -> Result<Stats, OxcDiagnostic> {
 	let mut p_ret = Parser::new(alloc, src, SourceType::unambiguous()).parse();
 	if !p_ret.diagnostics.is_empty() {
 		let ret = p_ret.diagnostics.swap_remove(0);
-		return Err(Box::new(ret));
+		return Err(ret);
 	}
 	let sema = SemanticBuilder::new()
 		.with_check_syntax_error(true)
@@ -649,108 +654,6 @@ fn check_syntax_errors(
 		Ok(sema.semantic.stats())
 	} else {
 		let ret = sema.diagnostics.swap_remove(0);
-		Err(Box::new(ret))
-	}
-}
-
-mod serde_oxc_diag;
-
-mod serde_named_source_string;
-
-mod cmp_wrapped_oxc_diag;
-
-#[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct WrappedOxcDiagnostic {
-	#[serde(with = "serde_oxc_diag")]
-	diag: Box<OxcDiagnostic>,
-	#[serde(with = "serde_named_source_string")]
-	src: NamedSource<String>,
-}
-
-impl PartialOrd for WrappedOxcDiagnostic {
-	fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-		Some(self.cmp(other))
-	}
-}
-
-impl Ord for WrappedOxcDiagnostic {
-	fn cmp(&self, other: &Self) -> Ordering {
-		cmp_oxc_diag(&self.diag, &other.diag)
-			.then_with(|| self.src.cmp(&other.src))
-	}
-}
-
-impl WrappedOxcDiagnostic {
-	fn new(diag: Box<OxcDiagnostic>, filename: String, src: String) -> Self {
-		Self {
-			diag,
-			src: NamedSource::new(filename, src).with_language("JavaScript"),
-		}
-	}
-}
-
-impl fmt::Display for WrappedOxcDiagnostic {
-	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-		<OxcDiagnostic as fmt::Display>::fmt(&self.diag, f)
-	}
-}
-
-impl fmt::Debug for WrappedOxcDiagnostic {
-	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-		<OxcDiagnostic as fmt::Debug>::fmt(&self.diag, f)
-	}
-}
-
-impl std::error::Error for WrappedOxcDiagnostic {
-	fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-		self.diag.source()
-	}
-
-	fn description(&self) -> &str {
-		#[expect(deprecated)]
-		self.diag.description()
-	}
-
-	fn cause(&self) -> Option<&dyn std::error::Error> {
-		#[expect(deprecated)]
-		self.diag.cause()
-	}
-}
-
-impl Diagnostic for WrappedOxcDiagnostic {
-	fn code(&self) -> Option<Cow<'_, str>> {
-		self.diag.code()
-	}
-
-	fn severity(&self) -> Option<Severity> {
-		self.diag.severity()
-	}
-
-	fn help(&self) -> Option<Cow<'_, str>> {
-		self.diag.help()
-	}
-
-	fn note(&self) -> Option<Cow<'_, str>> {
-		self.diag.note()
-	}
-
-	fn url(&self) -> Option<Cow<'_, str>> {
-		self.diag.url()
-	}
-
-	fn source_code(&self) -> Option<&dyn SourceCode> {
-		Some(&self.src)
-	}
-
-	fn labels(&self) -> miette::Labels {
-		self.diag.labels()
-	}
-
-	fn related(&self) -> miette::Related<'_> {
-		self.diag.related()
-	}
-
-	fn diagnostic_source(&self) -> Option<&dyn Diagnostic> {
-		self.diag.diagnostic_source()
+		Err(ret)
 	}
 }

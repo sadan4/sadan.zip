@@ -2863,7 +2863,7 @@ impl<'ast> WebpackAstParser<'ast> {
 			.n(store_decl_id)
 			.kind()
 			.as_class()?;
-		let does_extend = store_decl.super_class.is_some();
+		let does_extend = store_decl.heritage.is_some();
 		if !does_extend {
 			debug!("Maybe store does not extend any class.");
 			return None;

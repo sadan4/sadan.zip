@@ -24,7 +24,7 @@ tracing.workspace = true
 xxhash-rust.workspace = true
 thiserror.workspace = true
 smol_str.workspace = true
-oxc-miette = { workspace = true }
+miette = { workspace = true }
 
 [dev-dependencies]
 insta.workspace = true

@@ -3,6 +3,7 @@
 pub mod ast_kind;
 mod ast_parser;
 pub mod cache;
+pub mod diag;
 pub mod exts;
 pub mod sym_id;
 

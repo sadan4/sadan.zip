@@ -13,7 +13,7 @@ use clap::{Parser, ValueEnum};
 use clap_complete::Shell;
 use derive_more::{From, Into};
 use explorer_server_core::Channel;
-use miette::SourceCode;
+use miette::{SourceCode, SpanContents};
 use terminal_size::{Width, terminal_size};
 
 use crate::{
@@ -80,16 +80,10 @@ impl SourceCode for SourceWrapper {
 		span: &miette::SourceSpan,
 		context_lines_before: usize,
 		context_lines_after: usize,
-	) -> Result<miette::MietteSpanContents<'a>, miette::MietteError> {
+	) -> Result<Box<dyn SpanContents<'a> + 'a>, miette::MietteError> {
 		self.0[self.1 as usize]
 			.entry_source
 			.read_span(span, context_lines_before, context_lines_after)
-	}
-
-	fn name(&self) -> Option<&str> {
-		self.0[self.1 as usize]
-			.entry_point
-			.to_str()
 	}
 }
 

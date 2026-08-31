@@ -13,7 +13,7 @@ ignored = ["oxc_span"]
 wasm-bindgen = "0.2.113"
 serde-wasm-bindgen = "0.6.5"
 anyhow = "1.0.102"
-serde = { version = "1.0.228", features = ["derive"] }
+serde = { version = "1.0.228", features = ["derive", "rc"] }
 console_error_panic_hook = "0.1.7"
 web-sys = "0.3.4"
 js-sys = "0.3.91"
@@ -39,15 +39,16 @@ clap = { version = "4.6.0", features = ["derive"] }
 clap_complete = "4.6.0"
 itertools = "0.15.0"
 xxhash-rust = { version = "0.8.15", features = ["xxh64"] }
-oxc = { version = "0.143.0", default-features = false }
-oxc_span = { version = "0.143.0", default-features = false }
-oxc_traverse = { version = "0.143.0", default-features = false }
-oxc_ecmascript = { version = "0.143.0", default-features = false, features = [
+oxc = { version = "0.147.0", default-features = false }
+oxc_span = { version = "0.147.0", default-features = false }
+oxc_traverse = { version = "0.147.0", default-features = false }
+oxc_ecmascript = { version = "0.147.0", default-features = false, features = [
   "constant_evaluation",
 ] }
-oxc_allocator = { version = "0.143.0", default-features = false }
-oxc-miette = { version = "3.0.0", default-features = false, features = [
+oxc_allocator = { version = "0.147.0", default-features = false }
+miette = { version = "7.1.0", default-features = false, features = [
   "serde",
+  "derive",
 ] }
 regress = "0.11.1"
 derive_more = { version = "2.1.1", features = ["full"] }

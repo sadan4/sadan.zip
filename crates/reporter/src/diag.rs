@@ -1,10 +1,9 @@
+use ast_parser::diag::{OxcSourceSpan, WrappedOxcDiagnostic};
 use derive_more::IsVariant;
 use explorer_types::ModuleId;
-use miette::{Diagnostic, SourceSpan};
+use miette::Diagnostic;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-
-use crate::reporter::WrappedOxcDiagnostic;
 
 mod serde_regress_error;
 
@@ -34,7 +33,7 @@ pub enum ReporterError {
 		#[serde(with = "serde_regress_error")]
 		source: regress::Error,
 		#[label("From this regex")]
-		regex_span: SourceSpan,
+		regex_span: OxcSourceSpan,
 		expanded: String,
 	},
 	#[error("Replace Match Not Found")]
@@ -46,7 +45,7 @@ pub enum ReporterError {
 	ReplaceMatchNotFound {
 		plugin_id: u16,
 		#[label("Caused by this match")]
-		match_span: SourceSpan,
+		match_span: OxcSourceSpan,
 		module_id: ModuleId,
 	},
 	#[error("Replace Match Ambiguous")]
@@ -58,7 +57,7 @@ pub enum ReporterError {
 	ReplaceMatchAmbiguous {
 		plugin_id: u16,
 		#[label("Caused by this match")]
-		match_span: SourceSpan,
+		match_span: OxcSourceSpan,
 		module_id: ModuleId,
 	},
 	#[error("Replace Syntax Error")]
@@ -70,10 +69,10 @@ pub enum ReporterError {
 	ReplaceSyntaxError {
 		plugin_id: u16,
 		#[label("Caused by this replacement")]
-		replace_span: SourceSpan,
+		replace_span: OxcSourceSpan,
 		#[source]
 		#[diagnostic_source]
-		cause: WrappedOxcDiagnostic,
+		cause: Box<WrappedOxcDiagnostic>,
 		module_id: ModuleId,
 	},
 	#[error("Find Ambiguous")]
@@ -88,7 +87,7 @@ pub enum ReporterError {
 		#[label(
 			"This find matches more than one module. Make it more specific!"
 		)]
-		find_span: SourceSpan,
+		find_span: OxcSourceSpan,
 		ok_ids: Vec<u32>,
 		err_ids: Vec<u32>,
 	},
@@ -103,7 +102,7 @@ pub enum ReporterError {
 		#[label(
 			"This find matches more than one module. Make it more specific!"
 		)]
-		find_span: SourceSpan,
+		find_span: OxcSourceSpan,
 		ok_id: ModuleId,
 		err_ids: Vec<u32>,
 		extra_help: &'static str,
@@ -117,7 +116,7 @@ pub enum ReporterError {
 	FindNotFound {
 		plugin_id: u16,
 		#[label("This find failed to match anything")]
-		find_span: SourceSpan,
+		find_span: OxcSourceSpan,
 		patch_hash: u64,
 	},
 	#[error(transparent)]
@@ -137,7 +136,7 @@ impl ReporterError {
 		}
 	}
 
-	pub fn cause_span(&self) -> SourceSpan {
+	pub fn cause_span(&self) -> OxcSourceSpan {
 		match self {
 			Self::ReplaceMatchNotFound {
 				match_span: span, ..

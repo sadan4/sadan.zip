@@ -90,7 +90,7 @@ async fn do_find_recursive(
 ) -> R {
 	let prev_build_meta = fetch_previous_build_meta(prev_timestamp)
 		.await
-		.map_err(|e| Report::msg(e))?;
+		.map_err(Report::msg)?;
 	let Some(meta) = prev_build_meta else {
 		error!("No previous build found. Cannot fix patch");
 		return Ok(None);

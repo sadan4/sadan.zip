@@ -37,6 +37,10 @@ pub async fn run(
 			.await
 			.map(|r| r.num_errs.try_into().unwrap_or(-1))
 			.map_err(miette::Report::msg),
+		#[allow(
+			unreachable_code,
+			reason = "never type is not in stable code yet"
+		)]
 		Cmd::Watch => {
 			watch::run_watcher(cli, global_bar).await?;
 			unreachable!();
