@@ -747,8 +747,12 @@ impl<'a> JavaScriptFormatter<'a> {
 				alternate: Some(stmt),
 				..
 			}) if !is_block(stmt) && !is_if(stmt) => &[F::Dedent],
+			// Only when there is no `else`: the `Else` token rule above
+			// already emits the dedent that closes a non-block consequent.
 			N::IfStatement(IfStatement {
-				consequent: stmt, ..
+				consequent: stmt,
+				alternate: None,
+				..
 			}) if !is_block(stmt) => &[F::Dedent],
 			// Arrow functions with a single expression have an expression statement as their body
 			N::ExpressionStatement(_)
@@ -766,6 +770,7 @@ impl<'a> JavaScriptFormatter<'a> {
 			| N::ContinueStatement(_)
 			| N::ThrowStatement(_)
 			| N::ReturnStatement(_)
+			| N::EmptyStatement(_)
 			| N::ExpressionStatement(_)
 			| N::ImportDeclaration(_)
 			| N::ExportAllDeclaration(_)

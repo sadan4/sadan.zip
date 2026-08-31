@@ -789,4 +789,45 @@ _()";
 		import {$ as baz} from 'qux';
 		");
 	}
+
+	#[test]
+	fn empty_statement_branches_keep_indentation() {
+		let source = "{function se(){if(_);else if(_);return;}}";
+		let out = format2(source).unwrap();
+		assert_snapshot!(out, @"
+		{
+		  function se() {
+		    if (_)
+		      ;
+		    else if (_)
+		      ;
+		    return;
+		  }
+		}
+	");
+	}
+
+	#[test]
+	fn nested_if_without_block_consequent_keeps_indentation() {
+		let source = "function f(){if(a)b();else if(c)d();if(e)g();else{h();}if(i)j();else k();after();}";
+		let out = format2(source).unwrap();
+		assert_snapshot!(out, @"
+		function f() {
+		  if (a)
+		    b();
+		  else if (c)
+		    d();
+		  if (e)
+		    g();
+		  else {
+		    h();
+		  }
+		  if (i)
+		    j();
+		  else
+		    k();
+		  after();
+		}
+	");
+	}
 }
