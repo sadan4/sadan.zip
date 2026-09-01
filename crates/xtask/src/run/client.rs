@@ -1,4 +1,4 @@
-use std::process;
+use std::{env, process, thread};
 
 use crate::{
 	Runnable,
@@ -47,13 +47,37 @@ impl Command {
 		}
 		Ok(())
 	}
+
+	fn run_server(&self) -> Result<()> {
+		info!("running server");
+		crate::run::server::Command {
+			debug: !self.release,
+			clean_cache: false,
+		}
+		.run()
+	}
 }
 
 impl Runnable for Command {
 	fn run(&self) -> Result<()> {
-		if self.with_server {
-			todo!("run server");
-		}
-		self.run_client()
+		thread::scope(|s| {
+			if self.local_server {
+				// SAFETY: we're have a single-thread here
+				unsafe { env::set_var("IS_SERVER_LOCAL", "1") };
+			}
+			let server_handle = self
+				.with_server
+				.then(|| s.spawn(|| self.run_server()));
+			let client_handle = s.spawn(|| self.run_client());
+			client_handle
+				.join()
+				.expect("client thread panicked")?;
+			if let Some(server_handle) = server_handle {
+				server_handle
+					.join()
+					.expect("server thread panicked")?;
+			}
+			Ok(())
+		})
 	}
 }

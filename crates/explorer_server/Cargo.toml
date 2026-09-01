@@ -29,11 +29,15 @@ axum.workspace = true
 http.workspace = true
 tower-http.workspace = true
 derive_more.workspace = true
-tar.workspace = true
 git_hash.workspace = true
+sevenz-rust2.workspace = true
+redis.workspace = true
 
 [lints]
 workspace = true
 
 [features]
 js-bin = []
+
+[dev-dependencies]
+tempfile.workspace = true

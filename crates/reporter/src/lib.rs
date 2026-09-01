@@ -1,3 +1,4 @@
+#![feature(result_option_map_or_default)]
 pub mod cache;
 pub mod cmds;
 pub mod diag;

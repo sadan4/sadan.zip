@@ -11,10 +11,10 @@ use tracing::{info, instrument};
 pub struct Command {
 	#[arg(short, long, default_value_t = false)]
 	/// Run the server in debug mode.
-	debug: bool,
+	pub debug: bool,
 	#[arg(short, long, default_value_t = false)]
 	/// Clean the build cache of the server that stores previous scraped builds
-	clean_cache: bool,
+	pub clean_cache: bool,
 }
 
 impl Runnable for Command {

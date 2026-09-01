@@ -1,3 +1,4 @@
+mod cache;
 mod migrations;
 mod server;
 mod state;
@@ -9,6 +10,7 @@ use tokio::task::JoinSet;
 
 use tracing::{debug, error, info, warn};
 
+use cache::Cache;
 use migrations::migrate_if_needed;
 use tracing_subscriber::{
 	EnvFilter,
@@ -25,6 +27,8 @@ struct Cli {
 	port: u16,
 	#[arg(long, default_value_t = String::from("0.0.0.0"))]
 	host: String,
+	#[arg(long)]
+	redis_uri: Option<String>,
 }
 
 #[expect(dead_code)]
@@ -60,7 +64,23 @@ async fn main() {
 			process::exit(1);
 		}
 	}
-	let state = State::default();
+	let cache = if let Some(uri) = cli.redis_uri.as_deref() {
+		match Cache::connect(uri).await {
+			Ok(cache) => {
+				info!("Connected to redis cache");
+				cache
+			}
+			Err(e) => {
+				error!("Failed to connect to redis: {e:?}");
+				error!("Exiting.");
+				process::exit(1);
+			}
+		}
+	} else {
+		warn!("No --redis-uri given, running without a cache");
+		Cache::new()
+	};
+	let state = State::new(cache);
 	let mut tasks = JoinSet::new();
 	let state_ = state.clone();
 	tasks.spawn(async move {

@@ -47,6 +47,12 @@ in {
 					type = types.port;
 					description = "The port which the explorer-server should listen to.";
 				};
+			cacheUri = 
+				mkOption {
+					default = null;
+					type = types.nullOr types.str;
+					description = "URI to use for the cache. If null, no cache is used.\nSee <https://docs.rs/redis/1.6.0/redis/#connection-parameters> for the supported protocols.";
+				};
 		};
 	};
 
@@ -88,7 +94,7 @@ in {
 					User = cfg.user;
 					Group = cfg.group;
 					WorkingDirectory = cfg.stateDir;
-					ExecStart = "${lib.getExe cfg.package} --host ${cfg.settings.host} --port ${toString cfg.settings.port}";
+					ExecStart = "${lib.getExe cfg.package} --host ${cfg.settings.host} --port ${toString cfg.settings.port} ${lib.optionalString (cfg.cacheUri != null) "--redis-uri ${cfg.cacheUri}"}";
 					Restart = "always";
 					# Access write directories
 					ReadWritePaths = [
@@ -114,6 +120,7 @@ in {
 					RestrictAddressFamilies = [
 						"AF_INET"
 						"AF_INET6"
+						"AF_UNIX" # unix socket for redis/valkey
 					];
 					RestrictNamespaces = true;
 					LockPersonality = true;

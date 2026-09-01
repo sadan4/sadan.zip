@@ -1,7 +1,9 @@
 {
 	lib,
-	git,
+	cacert,
+	redis,
 	rustPlatform,
+	valkey,
 	rev ? null,
 }:
 rustPlatform.buildRustPackage (finalAttrs: {
@@ -10,6 +12,8 @@ rustPlatform.buildRustPackage (finalAttrs: {
 
 		env = lib.optionalAttrs (rev != null) {
 			GIT_HASH = rev;
+		} // {
+			RUSTC_BOOTSTRAP = 1;
 		};
 
 		src =
@@ -30,8 +34,11 @@ rustPlatform.buildRustPackage (finalAttrs: {
 			outputHashes = import ./cargo-output-hashes.nix;
 		};
 
-		nativeBuildInputs = [
-			git
+		nativeCheckInputs = [
+			# reqwest needs certs despite only connecting over http
+			cacert
+			redis
+			valkey
 		];
 
 		strictDeps = true;
@@ -42,7 +49,7 @@ rustPlatform.buildRustPackage (finalAttrs: {
 
 		checkPhase = ''
 			runHook preCheck
-			cargo test --release --package explorer_server --offline
+			cargo test --release --workspace --exclude qalc --exclude qalc_sbox --exclude qalc_sbox_py --exclude bot --exclude demangler --offline
 			runHook postCheck
 		'';
 

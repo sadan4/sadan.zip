@@ -40,7 +40,7 @@ rustPlatform.buildRustPackage (finalAttrs: {
 
 		checkPhase = ''
 			runHook preCheck
-			cargo test --release --package pretty_printer --offline
+			cargo test --release --package pretty_printer --package ast_parser --offline
 			runHook postCheck
 		'';
 

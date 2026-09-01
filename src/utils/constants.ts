@@ -40,16 +40,14 @@ export const GITHUB_PROFILE_URL = /* @__PURE__ */ githubProfileUrl(GITHUB_USERNA
 export const GITHUB_REPO_URL = /* @__PURE__ */ `${GITHUB_PROFILE_URL}/sadan.zip`;
 export const GITHUB_REPO_CREATE_ISSUE_URL = /* @__PURE__ */ `${GITHUB_REPO_URL}/issues/new`;
 
-const IS_SERVER_LOCAL = false;
-// oxlint-disable-next-line typescript/no-unnecessary-condition
 const SERVER_BASE_URL = IS_SERVER_LOCAL ? "http://localhost:8484" : "https://s-d-br.sadan.zip";
 
-export function BUNDLE_TARBALL_URL(buildHash: TBundleHash): string {
-    return `${SERVER_BASE_URL}/build/archive/${buildHash}.tar.zst`;
+export function BUNDLE_ARCHIVE_URL(buildHash: TBundleHash): string {
+    return `${SERVER_BASE_URL}/build/archive/${buildHash}.7z`;
 }
 
-export function BUNDLE_TARBALL_FILENAME(buildHash: TBundleHash): string {
-    return `${buildHash}.tar.zst`;
+export function BUNDLE_ARCHIVE_FILENAME(buildHash: TBundleHash): string {
+    return `${buildHash}.7z`;
 }
 
 // cspell:disable

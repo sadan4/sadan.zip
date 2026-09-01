@@ -11,8 +11,14 @@ use explorer_types::BundleMetadata;
 use tokio::{fs, sync::RwLock, task::JoinSet};
 use tracing::{info, instrument, warn};
 
+use crate::cache::Cache;
+
 #[derive(Debug, Clone, Default, Deref)]
-pub struct State(Arc<RwLock<StateInner>>);
+pub struct State {
+	#[deref]
+	inner: Arc<RwLock<StateInner>>,
+	pub cache: Arc<Cache>,
+}
 
 #[derive(Debug, Default)]
 pub struct StateInner {
@@ -59,6 +65,13 @@ async fn read_meta_entry(
 }
 
 impl State {
+	pub fn new(cache: Cache) -> Self {
+		Self {
+			inner: Arc::default(),
+			cache: Arc::new(cache),
+		}
+	}
+
 	pub async fn populate_from_disk(&self) -> Result<()> {
 		info!("populating state from disk");
 		let root_path =

@@ -14,7 +14,7 @@ import { TooltipPosition } from "@/components/Tooltip/constants";
 import { type GeneratedGraph, useModuleGraph2 } from "@/hooks/moduleGraph2";
 import { makeRange } from "@/utils/array";
 import cn from "@/utils/cn";
-import { BUNDLE_TARBALL_FILENAME, BUNDLE_TARBALL_URL, GITHUB_REPO_URL, NBSP } from "@/utils/constants";
+import { BUNDLE_ARCHIVE_FILENAME, BUNDLE_ARCHIVE_URL, GITHUB_REPO_URL, NBSP } from "@/utils/constants";
 import { debug_assert } from "@/utils/error";
 import { isNumber } from "@/utils/functional";
 import type { Monaco } from "@/utils/monaco";
@@ -407,8 +407,8 @@ function ExplorerHeader() {
                     tooltipPosition={TooltipPosition.BOTTOM}
                     loadingAnimation
                     onClick={undefined}
-                    href={BUNDLE_TARBALL_URL(buildHash)}
-                    download={BUNDLE_TARBALL_FILENAME(buildHash)}
+                    href={BUNDLE_ARCHIVE_URL(buildHash)}
+                    download={BUNDLE_ARCHIVE_FILENAME(buildHash)}
                 >
                     <DownloadIcon />
                 </IconButton>

@@ -48,6 +48,9 @@
 								emscripten
 								wasm-bindgen-cli
 								msgpack-tools
+								# explorer_server's cache_matrix tests run against both
+								redis
+								valkey
 								mold
 								pkg-config
 								openssl

@@ -18,7 +18,6 @@ console_error_panic_hook = "0.1.7"
 web-sys = "0.3.4"
 js-sys = "0.3.91"
 zstd = "0.13.3"
-tar = "0.4.44"
 tokio = { version = "1.49.0", features = ["macros", "rt-multi-thread"] }
 tokio-stream = { version = "0.1.18", default-features = false }
 tokio-util = { version = "0.7.18", default-features = false }
@@ -27,6 +26,7 @@ tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 rmp-serde = "1.3.1"
 serde_json = { version = "1.0.149", features = ["preserve_order"] }
+sevenz-rust2 = {version = "0.22.2", features = ["zstd", "compress"]}
 toml = "1.1.4"
 axum = { version = "0.8.8", features = ["macros", "http2"] }
 http = "1.4.0"
@@ -140,6 +140,7 @@ pyo3-stub-gen = { version = "0.23", default-features = false }
 pyo3-tracing-subscriber = { version = "0.9.0" }
 pyo3-tracing-subscriber-build = { version = "0.9.0" }
 oneshot = { version = "0.2.1", features = ["async", "std"] }
+redis = { version = "1.6.0", features = ["tokio-comp"] }
 
 [patch.crates-io]
 typesize = { git = "https://github.com/GnomedDev/typesize", branch = "master" }

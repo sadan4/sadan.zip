@@ -103,6 +103,7 @@ const config = defineConfig(async ({ command, isSsrBuild }) => {
         },
         define: {
             IS_CLOUDFLARE: JSON.stringify(!isWindowsOnArm),
+            IS_SERVER_LOCAL: JSON.stringify(process.env.IS_SERVER_LOCAL === "1"),
         },
         build: {
             manifest: !isCi,

@@ -1,13 +1,14 @@
 use std::{
 	fs::FileTimes,
 	io,
+	num::NonZeroUsize,
 	time::{Duration, SystemTime},
 };
 
 use anyhow::Context;
 use axum::{
 	Router,
-	body::Body,
+	body::{Body, Bytes},
 	extract::{Path, State},
 	response::{IntoResponse, Response},
 	routing::{get, post},
@@ -15,7 +16,6 @@ use axum::{
 use explorer_server_core::{
 	DATA_FILE_NAME,
 	METADATA_FILE_NAME,
-	compress_full_bundle_data,
 	get_around,
 	get_build_path,
 	get_root_build_path,
@@ -28,7 +28,18 @@ use explorer_types::{
 };
 use git_hash::GIT_HASH;
 use http::{StatusCode, header};
-use tokio::{fs, net, task::JoinSet};
+use sevenz_rust2::{
+	ArchiveEntry,
+	ArchiveWriter,
+	EncoderConfiguration,
+	SourceReader,
+	encoder_options::Lzma2Options,
+};
+use tokio::{
+	fs,
+	net,
+	task::{JoinSet, spawn_blocking},
+};
 use tokio_stream::{StreamExt, wrappers::ReadDirStream};
 use tokio_util::io::ReaderStream;
 use tower_http::cors;
@@ -42,6 +53,9 @@ const ZSTD_HEADERS: [(header::HeaderName, &str); 1] =
 const MSGPACK_MIME_TYPE: &str = "application/vnd.msgpack";
 const MSGPACK_HEADERS: [(header::HeaderName, &str); 1] =
 	[(header::CONTENT_TYPE, MSGPACK_MIME_TYPE)];
+const SEVENZ_MIME_TYPE: &str = "application/x-7z-compressed";
+const SEVENZ_HEADERS: [(header::HeaderName, &str); 1] =
+	[(header::CONTENT_TYPE, SEVENZ_MIME_TYPE)];
 
 const MB: usize = 1024 * 1024;
 
@@ -228,52 +242,77 @@ async fn get_before_hash(
 	Ok((MSGPACK_HEADERS, body).into_response())
 }
 
-fn make_tarball(zstd_raw_data: &[u8]) -> Result<Vec<u8>> {
+fn make_archive(zstd_raw_data: &[u8]) -> Result<Vec<u8>> {
 	let mpk_raw_data = zstd::decode_all(zstd_raw_data)?;
 	let b: FullBundle = rmp_serde::from_slice(&mpk_raw_data)?;
-	let mut a_data = Vec::new();
-	let mut a = tar::Builder::new(&mut a_data);
-	let mut header = tar::Header::new_gnu();
-	header.set_mode(0o644);
-	// .modules folder
+	// Most archives are around 22MB, allocate a bit more
+	let buf = Vec::with_capacity(25 * MB);
+	let mut a = ArchiveWriter::new(io::Cursor::new(buf))?;
 
-	for (m_id, m_content) in b.modules {
-		let m_content_bytes = m_content.as_bytes();
-		header.set_size(m_content_bytes.len() as u64);
-		a.append_data(
-			&mut header,
-			format!(".modules/{m_id}.js"),
-			m_content_bytes,
-		)?;
+	fn new_entry(name: String) -> ArchiveEntry {
+		ArchiveEntry {
+			name,
+			is_directory: false,
+			has_stream: true,
+			// size and CRC are filled in from the reader
+			..Default::default()
+		}
 	}
 
+	// .modules folder
+	let mut modules: Vec<_> = b.modules.into_iter().collect();
+	modules.sort_unstable_by_key(|&(m_id, _)| m_id);
+
 	// top-level files
-	// deps.json
-	let deps_json_data = serde_json::to_vec(&b.dep_info)?;
-	header.set_size(deps_json_data.len() as u64);
-	a.append_data(&mut header, "deps.json", &*deps_json_data)?;
-	// info.json
-	let info_json_data = serde_json::to_vec(&b.metadata)?;
-	header.set_size(info_json_data.len() as u64);
-	a.append_data(&mut header, "info.json", &*info_json_data)?;
-	// modules.json
-	let modules_json_data = serde_json::to_vec(&b.module_sources)?;
-	header.set_size(modules_json_data.len() as u64);
-	a.append_data(&mut header, "modules.json", &*modules_json_data)?;
+	let deps_json = serde_json::to_vec(&b.dep_info)?;
+	let info_json = serde_json::to_vec(&b.metadata)?;
+	let modules_json = serde_json::to_vec(&b.module_sources)?;
+	let top_level: [(&str, &[u8]); 3] = [
+		("deps.json", &deps_json),
+		("info.json", &info_json),
+		("modules.json", &modules_json),
+	];
 
-	// we don't need the returned ref, we only want to check errors
-	_ = a.into_inner()?;
+	const DICT_SIZE: u32 = 1 << 24;
 
-	let zstd_a_data = compress_full_bundle_data(&a_data)?;
+	let threads =
+		std::thread::available_parallelism().map_or(1, NonZeroUsize::get);
+	let mut lzma2 = Lzma2Options::from_level_mt(
+		6,
+		u32::try_from(threads).unwrap_or(u32::MAX),
+		u64::from(DICT_SIZE),
+	);
+	lzma2.set_dictionary_size(DICT_SIZE);
+	a.set_content_methods(vec![EncoderConfiguration::from(lzma2)]);
 
-	Ok(zstd_a_data)
+	let (entries, readers): (Vec<_>, Vec<_>) = modules
+		.iter()
+		.map(|(m_id, m_content)| {
+			(
+				new_entry(format!(".modules/{m_id}.js")),
+				SourceReader::new(m_content.as_bytes()),
+			)
+		})
+		.chain(top_level.iter().map(|&(name, data)| {
+			(new_entry(name.to_owned()), SourceReader::new(data))
+		}))
+		.unzip();
+
+	// LZMA2 will compress the data in parallel
+	a.push_archive_entries(entries, readers)?;
+
+	Ok(a.finish()?.into_inner())
 }
 
-async fn get_bundle_tarball(Path(file_name): Path<String>) -> Result {
-	let Some(build_hash) = file_name.strip_suffix(".tar.zst") else {
+#[instrument(skip(state))]
+async fn get_bundle_archive(
+	Path(file_name): Path<String>,
+	State(state): State<crate::State>,
+) -> Result {
+	let Some(build_hash) = file_name.strip_suffix(".7z") else {
 		return Ok((
 			StatusCode::BAD_REQUEST,
-			"invalid archive name. expected {hash}.tar.zst",
+			"invalid archive name. expected {hash}.7z",
 		)
 			.into_response());
 	};
@@ -281,6 +320,20 @@ async fn get_bundle_tarball(Path(file_name): Path<String>) -> Result {
 		return Ok(
 			(StatusCode::BAD_REQUEST, "invalid build hash").into_response()
 		);
+	}
+	// a broken cache shouldn't take the endpoint down with it, so treat any
+	// error here as a miss
+	match state
+		.cache
+		.get_cached_archive(build_hash)
+		.await
+	{
+		Ok(Some(archive)) => {
+			info!("serving cached archive for build {build_hash}");
+			return Ok((SEVENZ_HEADERS, Body::from(archive)).into_response());
+		}
+		Ok(None) => {}
+		Err(e) => warn!("failed to read archive from cache: {e:?}"),
 	}
 	let data_path = get_build_path(build_hash)?.join(DATA_FILE_NAME);
 	if !fs::try_exists(&data_path).await? {
@@ -292,11 +345,24 @@ async fn get_bundle_tarball(Path(file_name): Path<String>) -> Result {
 	}
 	let data_file = fs::read(data_path).await?;
 
-	let zstd_tarball = make_tarball(&data_file)?;
+	let archive =
+		Bytes::from(spawn_blocking(move || make_archive(&data_file)).await??);
 
-	let body = Body::from(zstd_tarball);
+	let cache = state.cache.clone();
+	let cached_archive = archive.clone();
+	let cached_hash = build_hash.to_owned();
+	tokio::spawn(async move {
+		if let Err(e) = cache
+			.cache_archive(&cached_hash, &cached_archive)
+			.await
+		{
+			warn!("failed to cache archive: {e:?}");
+		}
+	});
 
-	Ok((ZSTD_HEADERS, body).into_response())
+	let body = Body::from(archive);
+
+	Ok((SEVENZ_HEADERS, body).into_response())
 }
 
 async fn get_all_builds() -> Result {
@@ -350,7 +416,7 @@ pub async fn serve(bind_addr: &str, state: crate::State) -> anyhow::Result<()> {
 	let app = Router::new()
 		.route("/build/{id}/metadata", get(get_build_metadata))
 		.route("/build/{id}/full", get(get_build_full))
-		.route("/build/archive/{file_name}", get(get_bundle_tarball))
+		.route("/build/archive/{file_name}", get(get_bundle_archive))
 		.route("/builds", get(get_all_builds))
 		.route("/builds/before/time/{timestamp}", get(get_before_timestamp))
 		.route("/builds/before/hash/{hash}", get(get_before_hash))
