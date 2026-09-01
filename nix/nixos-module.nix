@@ -47,7 +47,7 @@ in {
 					type = types.port;
 					description = "The port which the explorer-server should listen to.";
 				};
-			cacheUri = 
+			cacheUri =
 				mkOption {
 					default = null;
 					type = types.nullOr types.str;
@@ -94,7 +94,7 @@ in {
 					User = cfg.user;
 					Group = cfg.group;
 					WorkingDirectory = cfg.stateDir;
-					ExecStart = "${lib.getExe cfg.package} --host ${cfg.settings.host} --port ${toString cfg.settings.port} ${lib.optionalString (cfg.cacheUri != null) "--redis-uri ${cfg.cacheUri}"}";
+					ExecStart = "${lib.getExe cfg.package} --host ${cfg.settings.host} --port ${toString cfg.settings.port} ${lib.optionalString (cfg.settings.cacheUri != null) "--redis-uri ${cfg.settings.cacheUri}"}";
 					Restart = "always";
 					# Access write directories
 					ReadWritePaths = [
