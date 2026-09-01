@@ -4,7 +4,7 @@
 	lib,
 	...
 }: let
-	inherit (lib) mkEnableOption mkOption mkIf types;
+	inherit (lib) mkDefault mkEnableOption mkOption mkIf types;
 
 	cfg = config.services.explorer-server;
 in {
@@ -77,6 +77,12 @@ in {
 			systemd.tmpfiles.rules = [
 				"d ${cfg.stateDir} 0750 ${cfg.user} ${cfg.group} - -"
 			];
+			services.redis.servers.explorer-server = mkIf (cfg.settings.cacheUri != null) {
+				enable = mkDefault true;
+				user = mkDefault cfg.user;
+				unixSocket = mkDefault "/run/explorer-server/redis.sock";
+				unixSocketPerm = mkDefault 770;
+			};
 
 			# yoinked from nixpks forgejo config
 			systemd.services.explorer-server = {
