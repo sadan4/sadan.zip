@@ -8,11 +8,16 @@ the Python standard library.
 `dist/` layout (produced by `xtask build qalc-py`):
 
     dist/qalc_sbox_py.so        compiled extension (module `qalc_sbox_py`)
+    dist/qalc_sbox_worker       standalone sandbox worker binary
     dist/qalc_sbox_py/          stub package tree (.pyi + generated .py)
 
 The extension is placed into the wheel as the package initialiser
 (`qalc_sbox_py/__init__<EXT_SUFFIX>`), so `import qalc_sbox_py` loads the
 compiled module while the sibling `.pyi` files describe it (mixed layout).
+The worker binary is placed alongside it, as `qalc_sbox_py/qalc_sbox_worker`
+— `Qalculator.create()` locates it there at runtime via the module's own
+`__file__`, so installing the wheel is enough to use it with no separate
+worker path to manage.
 """
 
 from __future__ import annotations
@@ -56,25 +61,38 @@ def main() -> None:
     py_tag, abi_tag, plat_tag = wheel_tags()
 
     so_src = args.dist / "qalc_sbox_py.so"
+    worker_src = args.dist / "qalc_sbox_worker"
     stub_src = args.dist / "qalc_sbox_py"
     if not so_src.is_file():
         raise SystemExit(f"missing compiled module: {so_src}")
+    if not worker_src.is_file():
+        raise SystemExit(f"missing sandbox worker binary: {worker_src}")
     if not stub_src.is_dir():
         raise SystemExit(f"missing stub package: {stub_src}")
 
-    # (arcname, bytes) for every payload file, in a stable order. Only the
-    # `.pyi` type stubs are shipped: the sibling `.py` files generated for the
-    # `tracing_subscriber` submodule would shadow the real module that the
-    # extension registers at runtime via `add_submodule` (and don't re-export
-    # its members), so importing them breaks `Tracing` et al.
-    payload: list[tuple[str, bytes]] = []
+    # (arcname, bytes, unix file mode) for every payload file, in a stable
+    # order. Only the `.pyi` type stubs are shipped: the sibling `.py` files
+    # generated for the `tracing_subscriber` submodule would shadow the real
+    # module that the extension registers at runtime via `add_submodule`
+    # (and don't re-export its members), so importing them breaks `Tracing`
+    # et al.
+    payload: list[tuple[str, bytes, int]] = []
     for path in sorted(stub_src.rglob("*.pyi")):
         rel = path.relative_to(stub_src).as_posix()
-        payload.append((f"{args.name}/{rel}", path.read_bytes()))
+        payload.append((f"{args.name}/{rel}", path.read_bytes(), 0o644))
     # The extension, loaded as the package initialiser.
-    payload.append((f"{args.name}/__init__{ext_suffix}", so_src.read_bytes()))
+    payload.append(
+        (f"{args.name}/__init__{ext_suffix}", so_src.read_bytes(), 0o644)
+    )
+    # Standalone worker binary `Qalculator.create()` execs at runtime, found
+    # via the module's own `__file__`. Needs the executable bit set in the
+    # zip entry itself — installers extract wheels verbatim, they don't
+    # chmod +x anything.
+    payload.append(
+        (f"{args.name}/qalc_sbox_worker", worker_src.read_bytes(), 0o755)
+    )
     # PEP 561 marker so type checkers pick up the shipped stubs.
-    payload.append((f"{args.name}/py.typed", b""))
+    payload.append((f"{args.name}/py.typed", b"", 0o644))
 
     dist_info = f"{args.name}-{args.version}.dist-info"
     metadata = (
@@ -88,11 +106,11 @@ def main() -> None:
         "Root-Is-Purelib: false\n"
         f"Tag: {py_tag}-{abi_tag}-{plat_tag}\n"
     ).encode()
-    payload.append((f"{dist_info}/METADATA", metadata))
-    payload.append((f"{dist_info}/WHEEL", wheel_meta))
+    payload.append((f"{dist_info}/METADATA", metadata, 0o644))
+    payload.append((f"{dist_info}/WHEEL", wheel_meta, 0o644))
 
     record_path = f"{dist_info}/RECORD"
-    lines = [record_line(name, data) for name, data in payload]
+    lines = [record_line(name, data) for name, data, _mode in payload]
     lines.append(f"{record_path},,")  # RECORD itself is unhashed.
     record = ("\n".join(lines) + "\n").encode()
 
@@ -102,8 +120,11 @@ def main() -> None:
     if wheel_path.exists():
         wheel_path.unlink()
     with zipfile.ZipFile(wheel_path, "w", zipfile.ZIP_DEFLATED) as zf:
-        for name, data in payload:
-            zf.writestr(name, data)
+        for name, data, mode in payload:
+            info = zipfile.ZipInfo(name)
+            info.compress_type = zipfile.ZIP_DEFLATED
+            info.external_attr = (mode & 0o777) << 16
+            zf.writestr(info, data)
         zf.writestr(record_path, record)
 
     print(wheel_path)

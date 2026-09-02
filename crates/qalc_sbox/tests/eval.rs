@@ -4,7 +4,20 @@ use std::assert_matches;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn eval_works_under_seccomp() {
-	let sbox = Sandbox::try_new().expect("spawn sandbox child");
+	let sbox = Sandbox::try_new_exec(env!("CARGO_BIN_EXE_qalc_sbox_worker"))
+		.expect("spawn sandbox worker");
+
+	let out = sbox
+		.eval("2+2".to_string())
+		.await
+		.expect("round-trip to sandbox");
+	assert_eq!(out, Ok("4".to_string()), "basic arithmetic under filter");
+}
+
+#[tokio::test]
+async fn eval_works_via_fork() {
+	// SAFETY: guh
+	let sbox = unsafe { Sandbox::try_new_fork() }.expect("fork sandbox child");
 
 	let out = sbox
 		.eval("2+2".to_string())
@@ -32,7 +45,8 @@ mod blacklisted_functions {
 
 	#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 	async fn load_errors_under_seccomp() {
-		let sbox = Sandbox::try_new().expect("spawn sandbox child");
+		let sbox = Sandbox::try_new_exec(env!("CARGO_BIN_EXE_qalc_sbox_worker"))
+			.expect("spawn sandbox worker");
 
 		let out = sbox
 			.eval("load(\"file\")".to_string())
@@ -46,7 +60,8 @@ mod blacklisted_functions {
 
 	#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 	async fn export_errors_under_seccomp() {
-		let sbox = Sandbox::try_new().expect("spawn sandbox child");
+		let sbox = Sandbox::try_new_exec(env!("CARGO_BIN_EXE_qalc_sbox_worker"))
+			.expect("spawn sandbox worker");
 
 		let out = sbox
 			.eval("export([1 2], \"file\")".to_string())
@@ -60,7 +75,8 @@ mod blacklisted_functions {
 
 	#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 	async fn command_errors_under_seccomp() {
-		let sbox = Sandbox::try_new().expect("spawn sandbox child");
+		let sbox = Sandbox::try_new_exec(env!("CARGO_BIN_EXE_qalc_sbox_worker"))
+			.expect("spawn sandbox worker");
 
 		let out = sbox
 			.eval("command(\"ls\")".to_string())
@@ -74,7 +90,8 @@ mod blacklisted_functions {
 
 	#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 	async fn plot_errors_under_seccomp() {
-		let sbox = Sandbox::try_new().expect("spawn sandbox child");
+		let sbox = Sandbox::try_new_exec(env!("CARGO_BIN_EXE_qalc_sbox_worker"))
+			.expect("spawn sandbox worker");
 
 		let out = sbox
 			.eval("plot(sin(x))".to_string())
@@ -90,7 +107,8 @@ mod blacklisted_functions {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn atom_works_under_seccomp() {
-	let sbox = Sandbox::try_new().expect("spawn sandbox child");
+	let sbox = Sandbox::try_new_exec(env!("CARGO_BIN_EXE_qalc_sbox_worker"))
+		.expect("spawn sandbox worker");
 
 	let out = sbox
 		.eval("atom(Hg; weight) + atom(C; weight) * 4 to g".to_string())
@@ -102,7 +120,8 @@ async fn atom_works_under_seccomp() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn time_works_under_seccomp() {
-	let sbox = Sandbox::try_new().expect("spawn sandbox child");
+	let sbox = Sandbox::try_new_exec(env!("CARGO_BIN_EXE_qalc_sbox_worker"))
+		.expect("spawn sandbox worker");
 
 	let out = sbox
 		.eval("time()".to_string())
@@ -115,7 +134,8 @@ async fn time_works_under_seccomp() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn memory_usage_reports_live_worker() {
-	let sbox = Sandbox::try_new().expect("spawn sandbox child");
+	let sbox = Sandbox::try_new_exec(env!("CARGO_BIN_EXE_qalc_sbox_worker"))
+		.expect("spawn sandbox worker");
 
 	// evaluate something so the worker has actually done work
 	sbox.eval("2+2".to_string())

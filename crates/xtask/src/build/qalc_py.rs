@@ -28,6 +28,12 @@ const PACKAGE: &str = "qalc_sbox_py";
 const LIB_NAME: &str = "libqalc_sbox_py.so";
 /// Name the module must have for `import qalc_sbox_py` to work.
 const MODULE_NAME: &str = "qalc_sbox_py.so";
+/// Cargo package the sandbox worker binary lives in.
+const WORKER_PACKAGE: &str = "qalc_sbox";
+/// The qalc sandbox worker bin name (from `crates/qalc_sbox/src/bin/`).
+/// Bundled into the wheel next to the module so `Qalculator.create()` works
+/// with no separately-managed worker path.
+const WORKER_BIN: &str = "qalc_sbox_worker";
 /// Cargo bin target that emits the `.pyi` stub via `pyo3-stub-gen`.
 const STUB_BIN: &str = "stub_gen";
 /// Package tree `stub_gen` writes, relative to the crate dir. Mixed layout
@@ -113,6 +119,22 @@ impl Command {
 			.with_context(|| "cargo build inside container failed")
 	}
 
+	/// Build the standalone `qalc_sbox_worker` bin in the container, so it can
+	/// be bundled into the wheel alongside the module.
+	#[instrument(skip(self))]
+	fn build_worker(&self) -> Result<()> {
+		info!(
+			"Building {WORKER_BIN} in container ({} profile)",
+			self.profile()
+		);
+		let mut cmd = Self::container_cmd()?;
+		cmd.args(["cargo", "build", "-p", WORKER_PACKAGE, "--bin", WORKER_BIN])
+			.arg_if(!self.debug, "--release");
+		cmd.run().with_context(
+			|| "cargo build --bin qalc_sbox_worker inside container failed",
+		)
+	}
+
 	/// Build and run the `stub_gen` bin in the container, emitting the `.pyi`.
 	/// Built without `extension-module` so it links libpython and can run.
 	#[instrument(skip(self))]
@@ -149,6 +171,28 @@ impl Command {
 			format!("failed to create {}", self.out.display())
 		})?;
 		let dst = self.out.join(MODULE_NAME);
+		fs::rm_if_exists(&dst)?;
+		fs::copy(&src, &dst).with_context(|| {
+			format!("failed to copy {} -> {}", src.display(), dst.display())
+		})?;
+		Ok(dst)
+	}
+
+	/// Copy the built worker bin into the output dir, next to the module.
+	/// `build_wheel.py` places it inside the package dir, alongside
+	/// `__init__<ext_suffix>`.
+	#[instrument(skip(self))]
+	fn stage_worker(&self) -> Result<PathBuf> {
+		let src = PathBuf::from(CONTAINER_TARGET)
+			.join(self.profile())
+			.join(WORKER_BIN);
+		if !src.exists() {
+			bail!("expected build output {} not found", src.display());
+		}
+		fs::create_dir_all(&self.out).with_context(|| {
+			format!("failed to create {}", self.out.display())
+		})?;
+		let dst = self.out.join(WORKER_BIN);
 		fs::rm_if_exists(&dst)?;
 		fs::copy(&src, &dst).with_context(|| {
 			format!("failed to copy {} -> {}", src.display(), dst.display())
@@ -196,11 +240,14 @@ impl Runnable for Command {
 		Self::build_image()?;
 		self.build_module()?;
 		let out = self.stage_module()?;
+		self.build_worker()?;
+		let worker = self.stage_worker()?;
 		self.gen_stub()?;
 		let stub = self.stage_stub()?;
 		info!(
-			"Done. module at `{}`, stub at `{}`",
+			"Done. module at `{}`, worker at `{}`, stub at `{}`",
 			out.display(),
+			worker.display(),
 			stub.display()
 		);
 		Ok(())

@@ -641,14 +641,21 @@ impl Sandbox {
 	///
 	/// The child shares the parent's address space copy-on-write, so a large
 	/// parent produces a child whose RSS is inflated by inherited (unused)
-	/// pages. When that matters, use [`Sandbox::try_new_exec`] to launch a
-	/// small standalone worker binary instead.
-	pub fn try_new() -> Result<Self, Error> {
+	/// pages. When that matters - or when the safety requirement below can't
+	/// be guaranteed - use [`Sandbox::try_new_exec`] to launch a small
+	/// standalone worker binary instead; it has neither downside.
+	///
+	/// # Safety
+	///
+	/// The calling process must have no threads other than the calling one
+	/// alive at the moment this is called, otherwise the child will inherit
+	/// locks held by those threads and might deadlock.
+	pub unsafe fn try_new_fork() -> Result<Self, Error> {
 		#[cfg(target_os = "windows")]
 		compile_error!("TODO: implement sandboxing on windows");
 		let (init_srv, init_srv_name) = IpcOneShotServer::<InitPacket>::new()
 			.map_err(Error::CreateInitIpcServer)?;
-		// SAFETY: we are single-threaded in the child process so fork() is safe
+		// SAFETY: caller assumes deadlock risk
 		let ec = unsafe { libc::fork() };
 		if ec == -1 {
 			let err = io::Error::last_os_error();
@@ -683,7 +690,7 @@ impl Sandbox {
 	}
 
 	/// Accept the worker's bootstrap connection and start the parent-side
-	/// message pump. Shared by [`Sandbox::try_new`] and
+	/// message pump. Shared by [`Sandbox::try_new_fork`] and
 	/// [`Sandbox::try_new_exec`].
 	fn finish_setup(
 		init_srv: IpcOneShotServer<InitPacket>,
