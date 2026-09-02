@@ -351,7 +351,7 @@ impl<'ast> WebpackAstParser<'ast> {
 				.iter()
 				.map(|x| {
 					SearchElement {
-						module_id: *x,
+						module_id: ModuleId(*x),
 						imported_id: self_module_id,
 						// TODO: make this cow?
 						export_name: export_name.clone(),
@@ -401,7 +401,7 @@ impl<'ast> WebpackAstParser<'ast> {
 							.sync
 							.iter()
 							.map(|x| SearchElement {
-								module_id: *x,
+								module_id: ModuleId(*x),
 								imported_id: parser.get_module_id().unwrap(),
 								export_name: vec![exported_as.clone()],
 							}),
@@ -913,7 +913,10 @@ impl<'ast> WebpackAstParser<'ast> {
 					ModuleId::from(args[0].as_numeric_literal()?.as_u32()?);
 				let span = args[0].span();
 
-				Some(SpannedId { id, span })
+				Some(SpannedId {
+					id: *id,
+					span: Some(span.into()),
+				})
 			})
 			.collect();
 		let lazy = self
@@ -929,7 +932,7 @@ impl<'ast> WebpackAstParser<'ast> {
 					return None;
 				};
 				let span = module_id.span;
-				let module_id = module_id.as_u32()?;
+				let module_id = ModuleId(module_id.as_u32()?);
 				// we are searching the pattern `n.bind(n, module_id)`
 				// we only want to match each one once, so we ignore the usage of `n` as an argument
 				if wreq_use.node_id() == usage
@@ -949,8 +952,8 @@ impl<'ast> WebpackAstParser<'ast> {
 				self.is_lazy_require_callee(call)?;
 
 				Some(SpannedId {
-					id: ModuleId::from(module_id),
-					span,
+					id: *module_id,
+					span: Some(span.into()),
 				})
 			})
 			.collect();

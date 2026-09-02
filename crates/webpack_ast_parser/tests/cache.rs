@@ -67,9 +67,7 @@ mod e_exports_default {
 		assert_debug_snapshot!(deps, @"
 		IncomingModuleDeps {
 		    sync: [
-		        ModuleId(
-		            111112,
-		        ),
+		        111112,
 		    ],
 		    lazy: [],
 		}

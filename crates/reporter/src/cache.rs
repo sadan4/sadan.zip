@@ -1,7 +1,7 @@
 use std::{env, io, path::PathBuf};
 
 use derive_more::IsVariant;
-use explorer_types::{ProtoDecodeError, ProtoWire};
+use prost::Message;
 use serde::{Serialize, de::DeserializeOwned};
 use tokio::{fs, io::AsyncWriteExt};
 use tracing::{debug, info};
@@ -49,7 +49,7 @@ pub enum CacheError {
 	#[error("Failed to serialize cache file")]
 	Serialize(#[source] rmp_serde::encode::Error),
 	#[error("Failed to decode cache file")]
-	ProtoDecode(#[source] ProtoDecodeError),
+	Protobuf(#[source] prost::DecodeError),
 }
 
 /// get the system cache dir
@@ -147,7 +147,7 @@ where
 /// read a protobuf-encoded value from cache
 pub async fn read_proto<T>(key: &str) -> Result<Option<T>>
 where
-	T: ProtoWire,
+	T: Message + Default,
 {
 	let cache_dir = get_cache_dir().await?;
 	let cache_file = cache_dir.join(key);
@@ -168,7 +168,7 @@ where
 		})?;
 	let raw_data =
 		zstd::decode_all(&*raw_zstd_data).map_err(CacheError::Zstd)?;
-	let data = T::decode_proto(&raw_data).map_err(CacheError::ProtoDecode)?;
+	let data = T::decode(&*raw_data).map_err(CacheError::Protobuf)?;
 	Ok(Some(data))
 }
 
@@ -247,12 +247,12 @@ pub async fn write_proto<T>(
 	compression_level: impl Into<Option<i32>>,
 ) -> Result<()>
 where
-	T: ProtoWire,
+	T: Message,
 {
 	let compression_level = compression_level.into().unwrap_or(10);
 	let cache_dir = get_cache_dir().await?;
 	let cache_file = cache_dir.join(key);
-	let raw_data = data.encode_proto();
+	let raw_data = data.encode_to_vec();
 	let raw_zstd_data = zstd::encode_all(&*raw_data, compression_level)
 		.map_err(CacheError::Zstd)?;
 	let mut file = fs::File::options()

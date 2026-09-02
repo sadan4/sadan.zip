@@ -61,6 +61,8 @@
 								llvmPackages_latest.libclang
 								llvmPackages_latest.libllvm
 								libiberty
+                                protobuf
+                                protoc-gen-js
 							];
 							buildInputs = with pkgs; [
 								fontconfig

@@ -1,9 +1,12 @@
 use super::diagnose_patch;
-use std::{collections::HashSet, sync::Arc, time::SystemTime};
+use std::{
+	collections::{HashMap, HashSet},
+	sync::Arc,
+};
 
 use explorer_server_core::Channel;
 use explorer_types::{BundleMetadata, FullBundle};
-use jiff::tz::TimeZone;
+use jiff::{Timestamp, tz::TimeZone};
 use miette::{Diagnostic, Report, Severity, miette};
 use tracing::{error, info, warn};
 
@@ -42,29 +45,34 @@ impl PreviousBundle {
 		}
 	}
 
-	pub fn build_hash(&self) -> &str {
+	/// the raw bytes of the build hash; use [`encode_build_hash`] for the hex
+	/// representation
+	pub fn build_hash(&self) -> &[u8] {
 		match self {
 			Self::Full(FullBundle {
-				metadata: BundleMetadata { build_hash, .. },
+				metadata: Some(BundleMetadata { build_hash, .. }),
 				..
 			})
 			| Self::Scraped(ScrapedBranch { build_hash, .. }) => build_hash,
+			_ => &[],
 		}
 	}
 
-	pub const fn build_number(&self) -> Option<u32> {
+	pub fn build_number(&self) -> Option<u32> {
 		match self {
-			Self::Full(FullBundle {
-				metadata: BundleMetadata { build_number, .. },
-				..
-			}) => Some(*build_number),
+			Self::Full(FullBundle { metadata, .. }) => metadata
+				.as_ref()
+				.map(|m| m.build_number),
 			Self::Scraped(ScrapedBranch { .. }) => None,
 		}
 	}
 
-	pub const fn timestamp(&self) -> Option<u64> {
+	pub fn timestamp(&self) -> Option<jiff::Timestamp> {
 		match self {
-			Self::Full(full_bundle) => Some(full_bundle.metadata.first_seen),
+			Self::Full(full_bundle) => full_bundle
+				.metadata
+				.as_ref()
+				.map(|m| m.first_seen_as_timestamp()),
 			Self::Scraped(_) => None,
 		}
 	}
@@ -80,7 +88,7 @@ use crate::{
 type R = miette::Result<Option<BuildDiff>>;
 
 async fn do_find_recursive(
-	prev_timestamp: u64,
+	prev_timestamp: Timestamp,
 	channel: Channel,
 	patch: Arc<Vec<vc::Plugin>>,
 	global_bar: &MultiProgressWrapper,
@@ -98,12 +106,12 @@ async fn do_find_recursive(
 	let meta = meta.before.ok_or_else(|| {
 		miette!("server did not provide build but returned ok")
 	})?;
-	info!("Found previous build with hash {}", meta.build_hash);
+	let build_hash = meta.build_hash_hex();
+	info!("Found previous build with hash {build_hash}");
 
-	if seen.contains(&meta.build_hash) {
+	if seen.contains(&build_hash) {
 		error!(
-			"Cycle detected: build hash {} has already been visited. Cannot continue.",
-			meta.build_hash
+			"Cycle detected: build hash {build_hash} has already been visited. Cannot continue."
 		);
 		return Ok(None);
 	}
@@ -113,16 +121,13 @@ async fn do_find_recursive(
 		.with_time_zone(TimeZone::system())
 		.strftime("%A %B %d %Y %I:%M:%S %p %Z");
 	info!("It was built on {strftime}");
-	info!("fetching full bundle for build {}", meta.build_hash);
-	let mut full_bundle =
-		crate::fetcher::http::fetch_full_bundle(&meta.build_hash)
-			.await
-			.map_err(|e| {
-				Report::msg(e).context("Failed to fetch full bundle")
-			})?;
+	info!("fetching full bundle for build {build_hash}");
+	let mut full_bundle = crate::fetcher::http::fetch_full_bundle(&build_hash)
+		.await
+		.map_err(|e| Report::msg(e).context("Failed to fetch full bundle"))?;
 	info!("Attempting to diagnose patch on previous build");
 	global_bar.clear();
-	let bundle_tmp = Arc::new(full_bundle.modules);
+	let bundle_tmp: Arc<HashMap<u32, String>> = Arc::new(full_bundle.modules);
 	let diag =
 		diagnose_patch(channel, bundle_tmp.clone(), patch.clone(), global_bar)
 			.await;
@@ -147,9 +152,10 @@ async fn do_find_recursive(
 					debug_assert!(new_diag_is_error, "logic error");
 					warn!("diagnosis ");
 				}
-				seen.insert(meta.build_hash);
+				seen.insert(build_hash);
 				Box::pin(do_find_recursive(
-					meta.first_seen,
+					meta.first_seen
+						.map_or_else(Timestamp::now, Into::into),
 					channel,
 					patch,
 					global_bar,
@@ -181,12 +187,7 @@ pub(super) async fn find_last_build(
 	let mut seen = HashSet::from([String::from(prev_hash)]);
 	let prev_timestamp = prev_bundle
 		.timestamp()
-		.unwrap_or_else(|| {
-			SystemTime::now()
-				.duration_since(SystemTime::UNIX_EPOCH)
-				.unwrap()
-				.as_millis() as u64
-		});
+		.unwrap_or_else(Timestamp::now);
 	do_find_recursive(
 		prev_timestamp,
 		channel,

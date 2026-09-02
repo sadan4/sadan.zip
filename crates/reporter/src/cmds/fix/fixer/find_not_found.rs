@@ -7,7 +7,7 @@ use std::{
 
 use dashmap::DashMap;
 use explorer_server_core::Channel;
-use explorer_types::ModuleId;
+use explorer_types::{ModuleId, encode_build_hash};
 use itertools::Itertools;
 use miette_ctx::ErrCtx as _;
 use oxc_allocator::AllocatorPool;
@@ -60,8 +60,8 @@ impl Fixer {
 		}
 	}
 	pub fn fixup_modules(&mut self) {
-		fn fix_entry((k, v): (&ModuleId, &mut String)) {
-			WebpackAstParser::format_module_header(v, *k, false);
+		fn fix_entry((k, v): (&u32, &mut String)) {
+			WebpackAstParser::format_module_header(v, ModuleId(*k), false);
 		}
 		info!("Fixing up module headers in working and broken builds");
 		rayon::scope(|s| {
@@ -103,11 +103,12 @@ impl Fixer {
 		let m_id = self.find_working_module_id();
 		info!("found working module in old build: {m_id:?}");
 		info!("Tracking module to new build. This might take a while");
+		let broken_hash = encode_build_hash(self.diff.broken.build_hash());
 		let tracker = ModuleTracker::try_new(
 			&self.diff.working.modules,
 			m_id,
 			self.diff.broken.modules(),
-			self.diff.broken.build_hash(),
+			&broken_hash,
 		)
 		.context("Failed to create module tracker")?;
 		let reporter = self.new_reporter();
@@ -140,7 +141,7 @@ impl Fixer {
 				let mid = good_modules[0].0.new_module_id;
 				info!(
 					"found new module {} it is the only one that worked",
-					debug_module_url(mid, self.diff.broken.build_hash())
+					debug_module_url(mid, &broken_hash)
 				);
 				info!("generating new find for the module");
 				let src = &self.diff.broken.modules()[&mid];

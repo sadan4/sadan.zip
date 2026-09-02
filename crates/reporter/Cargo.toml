@@ -36,6 +36,7 @@ terminal_size.workspace = true
 syntect = { workspace = true, features = ["regex-onig", "parsing"] }
 oxc_allocator.workspace = true
 ast_parser.workspace = true
+prost.workspace = true
 reqwest-middleware.workspace = true
 notify.workspace = true
 memchr.workspace = true

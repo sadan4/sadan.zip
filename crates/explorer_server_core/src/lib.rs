@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
-use explorer_types::{FullBundle, ProtoWire};
+use explorer_types::{FullBundle, legacy};
+use prost::Message as _;
 use serde::{Deserialize, Serialize};
 use std::{
 	cmp::Ordering,
@@ -15,10 +16,10 @@ use std::{
 pub const DATA_FILE_NAME: &str = "data.pb.zst";
 pub const METADATA_FILE_NAME: &str = "meta.pb.zst";
 
-/// on-disk filename used before the msgpack -> protobuf migration
+/// on-disk data filename used before the msgpack -> protobuf migration
 /// (`explorer_server`'s `V4Migration`)
 pub const LEGACY_DATA_FILE_NAME: &str = "data.mpk.zst";
-/// on-disk filename used before the msgpack -> protobuf migration
+/// on-disk metadata filename used before the msgpack -> protobuf migration
 /// (`explorer_server`'s `V4Migration`)
 pub const LEGACY_METADATA_FILE_NAME: &str = "meta.mpk.zst";
 
@@ -51,22 +52,48 @@ pub fn build_has_data(build_hash: &Path) -> bool {
 		.is_file()
 }
 
+pub fn build_has_legacy_data(build_hash: &Path) -> bool {
+	build_hash
+		.join(LEGACY_DATA_FILE_NAME)
+		.is_file()
+}
+
 pub fn write_full_bundle(bundle: &FullBundle) -> Result<()> {
+	let metadata = bundle
+		.metadata
+		.as_ref()
+		.context("bundle has no metadata")?;
+	let build_path = get_build_path(&metadata.build_hash_hex())?;
+
+	if !build_path.exists() {
+		fs::create_dir_all(&build_path)?;
+	}
+
+	let meta_bin = metadata.encode_to_vec();
+	let meta_zst = zstd::encode_all(meta_bin.as_slice(), 0)?;
+	fs::write(build_path.join(METADATA_FILE_NAME), meta_zst)?;
+
+	let data_pb = bundle.encode_to_vec();
+	let data_zst = compress_full_bundle_data(&data_pb)?;
+	fs::write(build_path.join(DATA_FILE_NAME), data_zst)?;
+
+	Ok(())
+}
+
+pub fn write_full_bundle_legacy(bundle: &legacy::FullBundle) -> Result<()> {
 	let build_path = get_build_path(&bundle.metadata.build_hash)?;
 
 	if !build_path.exists() {
 		fs::create_dir_all(&build_path)?;
 	}
 
-	let meta_bin = bundle.metadata.encode_proto();
+	let meta_bin = rmp_serde::to_vec(&bundle.metadata)?;
 	let meta_zst = zstd::encode_all(meta_bin.as_slice(), 0)?;
-	drop(meta_bin);
-	fs::write(build_path.join(METADATA_FILE_NAME), meta_zst)?;
-	let data_pb = bundle.encode_proto();
-	let data_zst = compress_full_bundle_data(&data_pb)?;
-	drop(data_pb);
+	fs::write(build_path.join(LEGACY_METADATA_FILE_NAME), meta_zst)?;
 
-	fs::write(build_path.join(DATA_FILE_NAME), data_zst)?;
+	let data_mpk = rmp_serde::to_vec(bundle)?;
+	let data_zst = compress_full_bundle_data(&data_mpk)?;
+	fs::write(build_path.join(LEGACY_DATA_FILE_NAME), data_zst)?;
 
 	Ok(())
 }

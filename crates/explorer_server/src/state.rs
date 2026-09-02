@@ -7,7 +7,8 @@ use std::{
 use anyhow::{Context as _, Result};
 use derive_more::Deref;
 use explorer_server_core::{METADATA_FILE_NAME, get_root_build_path};
-use explorer_types::{BundleMetadata, ProtoWire};
+use explorer_types::BundleMetadata;
+use prost::Message as _;
 use tokio::{fs, sync::RwLock, task::JoinSet};
 use tracing::{info, instrument, warn};
 
@@ -56,7 +57,7 @@ async fn read_meta_entry(
 	let meta = tokio::task::spawn_blocking(move || -> Result<_> {
 		let meta_raw =
 			zstd::decode_all(&*meta_zstd_raw).context("ZSTD Error")?;
-		let meta = BundleMetadata::decode_proto(&meta_raw)
+		let meta = BundleMetadata::decode(&*meta_raw)
 			.context("Protobuf decode error")?;
 		Ok(Some(Arc::new(meta)))
 	})
@@ -98,8 +99,8 @@ impl State {
 			else {
 				continue;
 			};
-			meta_by_hash.insert(n.build_hash.clone(), n.clone());
-			meta_by_time.insert(n.first_seen_as_time(), n);
+			meta_by_hash.insert(n.build_hash_hex(), n.clone());
+			meta_by_time.insert(n.first_seen_as_timestamp().into(), n);
 		}
 		let mut this = self.write().await;
 		this.meta_by_hash = meta_by_hash;
@@ -112,8 +113,8 @@ impl State {
 		let meta = Arc::new(meta);
 		let mut this = self.write().await;
 		this.meta_by_hash
-			.insert(meta.build_hash.clone(), meta.clone());
+			.insert(meta.build_hash_hex(), meta.clone());
 		this.meta_by_time
-			.insert(meta.first_seen_as_time(), meta.clone());
+			.insert(meta.first_seen_as_timestamp().into(), meta.clone());
 	}
 }

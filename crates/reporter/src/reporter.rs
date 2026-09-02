@@ -201,7 +201,7 @@ impl<'a> ReporterState<'a> {
 					.par_iter()
 					.filter_map(|(m_id, m_txt)| {
 						if matches_module(m_txt, patch) {
-							Some(*m_id)
+							Some(ModuleId(*m_id))
 						} else {
 							None
 						}

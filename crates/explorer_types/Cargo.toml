@@ -15,6 +15,7 @@ oxc_span.workspace = true
 typesize.workspace = true
 prost.workspace = true
 thiserror.workspace = true
+const-hex.workspace = true
 
 [build-dependencies]
 prost-build.workspace = true

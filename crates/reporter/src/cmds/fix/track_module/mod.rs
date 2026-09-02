@@ -282,12 +282,12 @@ impl<'a> ModuleTracker<'a> {
 			.next_build
 			.par_iter()
 			.filter_map(|(k, v)| {
-				let c = match self.confidence_for(*k, v) {
+				let c = match self.confidence_for(ModuleId(*k), v) {
 					Ok(c) => c,
 					Err(e) => {
 						warn!(
 							"Failed to get confidence for module url=<{}>. cause: {e:?}",
-							debug_module_url(*k, self.next_hash)
+							debug_module_url(ModuleId(*k), self.next_hash)
 						);
 						bar.step();
 						return None;
@@ -295,7 +295,7 @@ impl<'a> ModuleTracker<'a> {
 				};
 				bar.step();
 				Some(TrackedModule {
-					new_module_id: *k,
+					new_module_id: ModuleId(*k),
 					score: c.score(),
 				})
 			})

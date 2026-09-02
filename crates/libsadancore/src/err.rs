@@ -10,7 +10,7 @@ pub enum Error {
 	#[error("Failed to cast JsValue to {0}")]
 	BadJsCast(#[from] BadCast),
 	#[error("Protobuf deserialization: {0}")]
-	ProtoDecode(#[from] explorer_types::ProtoDecodeError),
+	ProtoDecode(#[from] prost::DecodeError),
 	#[error("ZSTD: {0}")]
 	Zstd(io::Error),
 	#[error("HTTP request to {url} failed with code {status}")]

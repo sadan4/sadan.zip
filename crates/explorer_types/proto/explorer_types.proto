@@ -1,59 +1,88 @@
 syntax = "proto3";
 
 package explorer_types;
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
 
 message BundleMetadata {
-	string build_hash = 1;
-	uint32 build_number = 2;
-	uint64 first_seen = 3;
-	optional uint32 entry_point = 4;
-	string env_var_text = 5;
+  // the raw bytes of the build hash, NOT its hex representation
+  bytes                     build_hash   = 1;
+  uint32                    build_number = 2;
+  google.protobuf.Timestamp first_seen   = 3;
+  optional uint32           entry_point  = 4;
+
+  // moved to `FullBundle`
+  reserved 5;
+  reserved "env_var_text";
 }
 
 message ExportName {
-	oneof kind {
-		bool is_default = 1;
-		string named = 2;
-	}
+  oneof kind {
+    google.protobuf.Empty default_export = 1;
+    string                named          = 2;
+  }
 }
 
 message FluxDispatcherEntry {
-	uint32 module_id = 1;
-	ExportName export_name = 2;
+  uint32     module_id   = 1;
+  ExportName export_name = 2;
 }
 
 message KeyModules {
-	repeated FluxDispatcherEntry flux_dispatcher_class = 1;
+  repeated FluxDispatcherEntry flux_dispatcher_class = 1;
 }
 
 message IncomingModuleDeps {
-	repeated uint32 sync = 1;
-	repeated uint32 lazy = 2;
+  repeated uint32 sync = 1;
+  repeated uint32 lazy = 2;
 }
 
 message DepInfo {
-	KeyModules key_modules = 1;
-	map<uint32, IncomingModuleDeps> module_deps = 2;
+  KeyModules                      key_modules = 1;
+  map<uint32, IncomingModuleDeps> module_deps = 2;
 }
 
 message ModuleIdList {
-	repeated uint32 ids = 1;
+  repeated uint32 ids = 1;
 }
 
 message FullBundle {
-	BundleMetadata metadata = 1;
-	DepInfo dep_info = 2;
-	map<string, ModuleIdList> module_sources = 3;
-	map<uint32, string> modules = 4;
+  BundleMetadata      metadata       = 1;
+  DepInfo             dep_info       = 2;
+  ModuleSources       module_sources = 3;
+  map<uint32, string> modules        = 4;
+  string              env_var_text   = 5;
 }
 
 // each entry is an independently zstd-compressed, protobuf-serialized
-// BundleMetadata, matching the on-disk meta.pb.zst layout
+// [`BundleMetadata`], matching the on-disk meta.pb.zst layout
 message BuildList {
-	repeated bytes builds = 1;
+  repeated bytes builds = 1;
 }
 
 message TimestampQueryResults {
-	BundleMetadata before = 1;
-	BundleMetadata after = 2;
+  BundleMetadata before = 1;
+  BundleMetadata after  = 2;
+}
+
+message Span {
+  uint32 start = 1;
+  uint32 end   = 2;
+}
+
+message SpannedId {
+  uint32 id   = 1;
+  Span   span = 2;
+}
+
+// Information about a module's dependencies with source locations
+message OutgoingModuleDepsWithLocs {
+	// The modules that this module requires synchronously
+  repeated SpannedId sync = 1;
+	// the module that this module requires lazily (dynamic import)
+  repeated SpannedId lazy = 2;
+}
+
+message ModuleSources {
+  map<string, ModuleIdList> sources = 1;
 }

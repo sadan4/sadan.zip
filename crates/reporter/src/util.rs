@@ -154,7 +154,7 @@ pub fn debug_module_url(mid: ModuleId, hash: &str) -> impl Display + use<'_> {
 
 pub fn generate_unique_finds<S>(
 	module_id: ModuleId,
-	modules: &HashMap<ModuleId, String, S>,
+	modules: &HashMap<u32, String, S>,
 	bars: &MultiProgressWrapper,
 ) -> miette::Result<Vec<ScoredFindSequence>>
 where
@@ -198,7 +198,7 @@ where
 			let finder = Finder::new(ft);
 
 			let is_unique = !modules.par_iter().any(|(id, code)| {
-				if *id == module_id {
+				if *id == *module_id {
 					return false;
 				}
 				finder.find(code.as_bytes()).is_some()

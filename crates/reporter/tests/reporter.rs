@@ -2,7 +2,7 @@ use std::{fs::File, path::Path, sync::Arc};
 
 use anyhow::{Context, Result};
 use explorer_server_core::Channel;
-use explorer_types::FullBundle;
+use explorer_types::{FullBundle, legacy};
 use insta::assert_ron_snapshot;
 use reporter::{
 	reporter::{Msg, report_broken_patches},
@@ -28,8 +28,12 @@ async fn reporter() {
 		vc::compile_plugin_regexes(&mut plugins);
 		Result::Ok(plugins)
 	});
-	let bundle_fut =
-		spawn_blocking(move || read_mpk_zst_file::<FullBundle>(&bundle_path));
+	// the fixture predates the msgpack -> protobuf migration, so it is read
+	// as a [`legacy::FullBundle`] and converted
+	let bundle_fut = spawn_blocking(move || {
+		let legacy = read_mpk_zst_file::<legacy::FullBundle>(&bundle_path)?;
+		FullBundle::try_from(legacy).context("Build hash is invalid hex")
+	});
 	let (plugins, bundle) = tokio::join!(patches_fut, bundle_fut);
 	let plugins = plugins
 		.unwrap()

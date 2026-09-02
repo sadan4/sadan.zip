@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
-use explorer_types::{FullBundle, ProtoWire, TimestampQueryResults};
+use explorer_types::{FullBundle, TimestampQueryResults};
+use prost::Message;
 use reqwest_middleware::reqwest::{self, StatusCode};
 use tracing::{debug, info, instrument, warn};
 
@@ -10,9 +11,12 @@ const PREVIOUS_BUILD_META_URL: &str = "/builds/before/time";
 
 #[instrument]
 pub async fn fetch_previous_build_meta(
-	timestamp: u64,
+	timestamp: jiff::Timestamp,
 ) -> Result<Option<TimestampQueryResults>> {
-	let endpoint = format!("{BASE_URL}{PREVIOUS_BUILD_META_URL}/{timestamp}");
+	let endpoint = format!(
+		"{BASE_URL}{PREVIOUS_BUILD_META_URL}/{timestamp}",
+		timestamp = timestamp.as_millisecond()
+	);
 	debug!("Fetching previous build metadata from {endpoint}");
 	let res = reqwest::get(&endpoint)
 		.await
@@ -26,7 +30,7 @@ pub async fn fetch_previous_build_meta(
 		.bytes()
 		.await
 		.context("Failed to read response body")?;
-	let data = TimestampQueryResults::decode_proto(&bts)
+	let data = TimestampQueryResults::decode(bts)
 		.context("Failed to decode response body")?;
 	Ok(Some(data))
 }
@@ -46,7 +50,7 @@ pub async fn fetch_full_bundle(build_hash: &str) -> Result<FullBundle> {
 				"Failed to read cached full bundle for {}: {}",
 				build_hash, e
 			);
-			if e.is_deserialize() || e.is_proto_decode() {
+			if e.is_deserialize() || e.is_protobuf() {
 				info!("Invalidating corrupted cache for {}", build_hash);
 				let _ = cache::invalidate(&cache_key).await;
 			}
@@ -65,7 +69,7 @@ pub async fn fetch_full_bundle(build_hash: &str) -> Result<FullBundle> {
 		.context("Failed to read response body")?;
 	let data = tokio::task::spawn_blocking(move || -> Result<_> {
 		let raw = zstd::decode_all(&*bts)?;
-		let data = FullBundle::decode_proto(&raw)?;
+		let data = FullBundle::decode(&*raw)?;
 		Ok(data)
 	})
 	.await

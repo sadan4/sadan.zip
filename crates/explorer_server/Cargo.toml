@@ -32,6 +32,7 @@ derive_more.workspace = true
 git_hash.workspace = true
 sevenz-rust2.workspace = true
 redis.workspace = true
+prost.workspace = true
 
 [lints]
 workspace = true

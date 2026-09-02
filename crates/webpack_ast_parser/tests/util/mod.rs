@@ -83,16 +83,16 @@ impl<'a> Bundle<'a> {
 				continue;
 			};
 			for sync_dep in &o_deps.sync {
-				deps.entry(sync_dep.id)
+				deps.entry(ModuleId(sync_dep.id))
 					.or_default()
 					.sync
-					.push(*id);
+					.push(**id);
 			}
 			for lazy_dep in &o_deps.lazy {
-				deps.entry(lazy_dep.id)
+				deps.entry(ModuleId(lazy_dep.id))
 					.or_default()
 					.lazy
-					.push(*id);
+					.push(**id);
 			}
 		}
 

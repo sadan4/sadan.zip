@@ -61,10 +61,10 @@ impl From<DepInfo> for RcDepInfo {
 		}: DepInfo,
 	) -> Self {
 		Self {
-			key_modules,
+			key_modules: key_modules.unwrap_or_default(),
 			module_deps: module_deps
 				.into_iter()
-				.map(|(k, v)| (k, Rc::new(v)))
+				.map(|(k, v)| (ModuleId(k), Rc::new(v)))
 				.collect(),
 		}
 	}
@@ -81,7 +81,8 @@ struct BundleInner {
 	dep_info: RcDepInfo,
 	#[expect(dead_code)]
 	module_sources: ModuleSources,
-	unformatted_modules: HashMap<ModuleId, String>,
+	env_var_text: String,
+	unformatted_modules: HashMap<TModuleId, String>,
 	format_alloc: RefCell<Allocator>,
 	#[expect(clippy::box_collection)]
 	formatted_modules: RefCell<HashMap<ModuleId, Pin<Box<String>>>>,
@@ -124,8 +125,8 @@ impl IModuleCache<'static> for BundleInner {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ModuleDepsJs<'a> {
-	sync_uses: &'a Vec<ModuleId>,
-	lazy_uses: &'a Vec<ModuleId>,
+	sync_uses: &'a [ModuleId],
+	lazy_uses: &'a [ModuleId],
 }
 
 struct BundleSearchResults {
@@ -562,6 +563,11 @@ fn search_results_to_js(results: &BundleSearchResults) -> Result<JsValue> {
 
 #[wasm_bindgen]
 impl Bundle {
+	/// the text of the build's `GLOBAL_ENV` object
+	#[wasm_bindgen(getter)]
+	pub fn env_var_text(&self) -> String {
+		self.inner.env_var_text.clone()
+	}
 	pub fn get_module_text(&self, module_id: u32) -> Result<String> {
 		// TODO: better errors
 		let ret = self
@@ -578,8 +584,8 @@ impl Bundle {
 			.module_deps
 			.get(&ModuleId(module_id))?;
 		let tmp = ModuleDepsJs {
-			sync_uses: &deps.sync,
-			lazy_uses: &deps.lazy,
+			sync_uses: deps.sync_ids(),
+			lazy_uses: deps.lazy_ids(),
 		};
 		let ret = serde_wasm_bindgen::to_value(&tmp).unwrap();
 		Some(ret)
@@ -590,7 +596,6 @@ impl Bundle {
 			.unformatted_modules
 			.keys()
 			.copied()
-			.map(Into::into)
 			.collect();
 		ret.sort_unstable();
 		ret.into()
@@ -614,12 +619,13 @@ impl Bundle {
 			return search_results_to_js(&BundleSearchResults::new());
 		}
 
-		let mut module_ids: Vec<ModuleId> = self
-			.inner
-			.unformatted_modules
-			.keys()
-			.copied()
-			.collect();
+		let mut module_ids: Vec<ModuleId> = ModuleId::convert_vec(
+			self.inner
+				.unformatted_modules
+				.keys()
+				.copied()
+				.collect(),
+		);
 		module_ids.sort_unstable();
 
 		let mut results = BundleSearchResults::new();
@@ -813,8 +819,16 @@ impl Bundle {
 		let deps = parser
 			.get_modules_that_this_module_requires()
 			.unwrap_or(&DEFAULT);
-		let sync_uses: Vec<ModuleId> = deps.sync.iter().map(|s| s.id).collect();
-		let lazy_uses: Vec<ModuleId> = deps.lazy.iter().map(|s| s.id).collect();
+		let sync_uses: Vec<ModuleId> = deps
+			.sync
+			.iter()
+			.map(|s| ModuleId(s.id))
+			.collect();
+		let lazy_uses: Vec<ModuleId> = deps
+			.lazy
+			.iter()
+			.map(|s| ModuleId(s.id))
+			.collect();
 		let tmp = ModuleDepsJs {
 			sync_uses: &sync_uses,
 			lazy_uses: &lazy_uses,
@@ -951,21 +965,28 @@ pub async fn get_bundle(
 		dep_info,
 		module_sources,
 		modules,
+		env_var_text,
 	}: FullBundle = fetch_struct(&FULL_BUNDLE_ENDPOINT(build_hash)).await?;
 	let module_sources = if drop_sources {
 		ModuleSources::default()
 	} else {
-		module_sources
+		ModuleSources {
+			sources: module_sources
+				.unwrap_or_default()
+				.sources,
+		}
 	};
 	let raw_alloc = Box::new(Allocator::new());
 	let parsers = RefCell::new(HashMap::new());
-	let formatted_modules = RefCell::new(HashMap::new());
+	let formatted_modules: RefCell<HashMap<ModuleId, Pin<Box<String>>>> =
+		RefCell::new(HashMap::new());
 	let formatted_module_mappings = RefCell::new(HashMap::new());
 	let formatted_module_line_indices = RefCell::new(HashMap::new());
 	let inner = BundleInner {
-		metadata: metadata.into(),
-		dep_info: dep_info.into(),
+		metadata: metadata.unwrap_or_default().into(),
+		dep_info: dep_info.unwrap_or_default().into(),
 		module_sources,
+		env_var_text,
 		unformatted_modules: modules,
 		raw_alloc,
 		parsers,
@@ -997,15 +1018,16 @@ mod tests {
 	use explorer_types::{BundleMetadata, DepInfo, KeyModules};
 	use std::collections::HashMap;
 
-	fn make_test_bundle(modules: HashMap<ModuleId, String>) -> Bundle {
+	fn make_test_bundle(modules: HashMap<u32, String>) -> Bundle {
 		let inner = BundleInner {
 			metadata: BundleMetadata::default().into(),
 			dep_info: DepInfo {
-				key_modules: KeyModules::default(),
+				key_modules: Some(KeyModules::default()),
 				module_deps: HashMap::new(),
 			}
 			.into(),
-			module_sources: HashMap::new(),
+			module_sources: ModuleSources::default(),
+			env_var_text: String::new(),
 			unformatted_modules: modules,
 			raw_alloc: Box::new(Allocator::new()),
 			parsers: RefCell::new(HashMap::new()),
@@ -1032,11 +1054,11 @@ mod tests {
 	fn get_module_export_map_resolves_for_cjs_default_with_dep_call() {
 		let modules = HashMap::from([
 			(
-				ModuleId(435815),
+				435815,
 				r#"function(e,t,n){var r=n(941094);e.exports=function(e,t){var n=e.__data__;return r(t)?n["string"==typeof t?"string":"hash"]:n.map}}"#.to_string(),
 			),
 			(
-				ModuleId(941094),
+				941094,
 				"function(e){e.exports=function(t){return typeof t}}".to_string(),
 			),
 		]);
@@ -1067,7 +1089,7 @@ mod tests {
 	fn export_tree_node_always_serializes_ranges_and_children_arrays() {
 		#[allow(clippy::literal_string_with_formatting_args)]
 		let modules = HashMap::from([(
-			ModuleId(1),
+			1,
 			r"function(e,t,n){e.exports={leaf:1,nested:{inner:2}}}".to_string(),
 		)]);
 		let bundle = make_test_bundle(modules);

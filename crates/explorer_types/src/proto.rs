@@ -1,335 +1,334 @@
-use prost::Message as _;
-
-use crate::{
-	BuildList,
-	BundleMetadata,
-	DepInfo,
-	ExportName,
-	FullBundle,
-	IncomingModuleDeps,
-	KeyModules,
-	ModuleId,
-	TimestampQueryResults,
+use std::{
+	ptr,
+	time::{Duration, SystemTime},
 };
 
-#[derive(prost::Message)]
-pub struct FooBar {
-	#[prost(tag = "1")]
-	pub baz: ModuleId,
+use jiff::tz::TimeZone;
+
+use crate::{ModuleId, TModuleId, legacy};
+
+pub mod google {
+	pub mod protobuf {
+		include!(concat!(env!("OUT_DIR"), "/google.protobuf.rs"));
+	}
 }
 
-#[allow(clippy::all, clippy::pedantic, clippy::nursery, missing_docs)]
 pub mod wire {
 	include!(concat!(env!("OUT_DIR"), "/explorer_types.rs"));
 }
 
-#[derive(Debug, thiserror::Error)]
-pub enum ProtoDecodeError {
-	#[error("failed to decode protobuf message: {0}")]
-	Decode(#[from] prost::DecodeError),
-	#[error("missing required field `{0}`")]
-	MissingField(&'static str),
-	#[error("oneof `{0}` had no variant set")]
-	MissingOneof(&'static str),
+pub use const_hex::FromHexError;
+
+/// decodes the hex representation of a build hash into the raw bytes stored in
+/// [`wire::BundleMetadata::build_hash`]
+pub fn decode_build_hash(hex: &str) -> Result<Vec<u8>, FromHexError> {
+	const_hex::decode(hex)
 }
 
-/// A domain type that has a protobuf wire representation.
-pub trait ProtoWire: Sized {
-	fn encode_proto(&self) -> Vec<u8>;
-	fn decode_proto(buf: &[u8]) -> Result<Self, ProtoDecodeError>;
+/// encodes the raw bytes of a build hash as hex, which is how a build is named
+/// on disk and in urls
+pub fn encode_build_hash(bytes: &[u8]) -> String {
+	const_hex::encode(bytes)
 }
 
-macro_rules! impl_proto_wire {
-	($domain:ty, $wire:ty) => {
-		impl ProtoWire for $domain {
-			fn encode_proto(&self) -> Vec<u8> {
-				<$wire>::from(self).encode_to_vec()
-			}
-			fn decode_proto(buf: &[u8]) -> Result<Self, ProtoDecodeError> {
-				<$wire>::decode(buf)?.try_into()
-			}
-		}
-	};
-}
-
-impl_proto_wire!(BundleMetadata, wire::BundleMetadata);
-impl_proto_wire!(FullBundle, wire::FullBundle);
-impl_proto_wire!(TimestampQueryResults, wire::TimestampQueryResults);
-
-impl ProtoWire for BuildList {
-	fn encode_proto(&self) -> Vec<u8> {
-		wire::BuildList::from(self).encode_to_vec()
-	}
-
-	fn decode_proto(buf: &[u8]) -> Result<Self, ProtoDecodeError> {
-		Ok(wire::BuildList::decode(buf)?.into())
+impl google::protobuf::Timestamp {
+	pub fn now() -> Self {
+		SystemTime::now().into()
 	}
 }
 
-impl From<&BundleMetadata> for wire::BundleMetadata {
-	fn from(v: &BundleMetadata) -> Self {
+impl From<google::protobuf::Timestamp> for jiff::Timestamp {
+	fn from(value: google::protobuf::Timestamp) -> Self {
+		Self::new(value.seconds, value.nanos)
+			.expect("Invalid timestamp in protobuf")
+	}
+}
+
+// upstream uses From
+#[expect(clippy::fallible_impl_from)]
+impl From<SystemTime> for google::protobuf::Timestamp {
+	fn from(system_time: SystemTime) -> Self {
+		let (seconds, nanos) =
+			match system_time.duration_since(std::time::UNIX_EPOCH) {
+				Ok(duration) => {
+					let seconds = i64::try_from(duration.as_secs()).unwrap();
+					(seconds, duration.subsec_nanos() as i32)
+				}
+				Err(error) => {
+					let duration = error.duration();
+					let seconds = i64::try_from(duration.as_secs()).unwrap();
+					let nanos = duration.subsec_nanos() as i32;
+					if nanos == 0 {
+						(-seconds, 0)
+					} else {
+						(-seconds - 1, 1_000_000_000 - nanos)
+					}
+				}
+			};
+		Self { seconds, nanos }
+	}
+}
+
+impl From<oxc_span::Span> for wire::Span {
+	fn from(value: oxc_span::Span) -> Self {
 		Self {
-			build_hash: v.build_hash.clone(),
-			build_number: v.build_number,
-			first_seen: v.first_seen,
-			entry_point: v.entry_point.map(u32::from),
-			env_var_text: v.env_var_text.clone(),
+			start: value.start,
+			end: value.end,
 		}
 	}
 }
 
-impl TryFrom<wire::BundleMetadata> for BundleMetadata {
-	type Error = ProtoDecodeError;
+impl From<wire::Span> for oxc_span::Span {
+	fn from(value: wire::Span) -> Self {
+		Self::new(value.start, value.end)
+	}
+}
 
-	fn try_from(v: wire::BundleMetadata) -> Result<Self, Self::Error> {
+impl wire::IncomingModuleDeps {
+	#[inline]
+	pub const fn sync_ids(&self) -> &[ModuleId] {
+		let raw_id_slice: &[TModuleId] = self.sync.as_slice();
+		// SAFETY: This is safe because `ModuleId` is a transparent wrapper around `TModuleId`
+		unsafe {
+			&*(ptr::from_ref::<[TModuleId]>(raw_id_slice)
+				as *const [ModuleId])
+		}
+	}
+
+	#[inline]
+	pub const fn lazy_ids(&self) -> &[ModuleId] {
+		let raw_id_slice: &[TModuleId] = self.lazy.as_slice();
+		// SAFETY: This is safe because `ModuleId` is a transparent wrapper around `TModuleId`
+		unsafe {
+			&*(ptr::from_ref::<[TModuleId]>(raw_id_slice)
+				as *const [ModuleId])
+		}
+	}
+}
+
+impl wire::OutgoingModuleDepsWithLocs {
+	pub const fn new() -> Self {
+		Self {
+			sync: Vec::new(),
+			lazy: Vec::new(),
+		}
+	}
+}
+
+impl wire::BundleMetadata {
+	pub fn first_seen_as_timestamp(&self) -> jiff::Timestamp {
+		self.first_seen
+			.unwrap_or_default()
+			.into()
+	}
+
+	pub fn first_seen_as_zoned(&self) -> jiff::Zoned {
+		self.first_seen_as_timestamp()
+			.to_zoned(TimeZone::UTC)
+	}
+
+	/// the hex representation of [`Self::build_hash`], which is how a build is
+	/// named on disk and in urls
+	pub fn build_hash_hex(&self) -> String {
+		encode_build_hash(&self.build_hash)
+	}
+
+	/// sets [`Self::build_hash`] from its hex representation
+	pub fn set_build_hash_hex(
+		&mut self,
+		hex: &str,
+	) -> Result<(), FromHexError> {
+		self.build_hash = decode_build_hash(hex)?;
+		Ok(())
+	}
+
+	pub fn shrink_to_fit(&mut self) {
+		let Self {
+			build_hash,
+			build_number: _,
+			first_seen: _,
+			entry_point: _,
+		} = self;
+		build_hash.shrink_to_fit();
+	}
+}
+
+impl wire::KeyModules {
+	pub fn shrink_to_fit(&mut self) {
+		let Self {
+			flux_dispatcher_class,
+		} = self;
+		flux_dispatcher_class.shrink_to_fit();
+	}
+}
+
+impl wire::DepInfo {
+	pub fn shrink_to_fit(&mut self) {
+		let Self {
+			key_modules,
+			module_deps,
+		} = self;
+		if let Some(key_modules) = key_modules {
+			key_modules.shrink_to_fit();
+		}
+		module_deps.shrink_to_fit();
+	}
+}
+
+impl wire::ModuleSources {
+	pub fn shrink_to_fit(&mut self) {
+		let Self { sources } = self;
+		sources.shrink_to_fit();
+	}
+}
+
+impl wire::FullBundle {
+	pub fn shrink_to_fit(&mut self) {
+		let Self {
+			metadata,
+			dep_info,
+			module_sources,
+			modules,
+			env_var_text,
+		} = self;
+		if let Some(metadata) = metadata {
+			metadata.shrink_to_fit();
+		}
+		if let Some(dep_info) = dep_info {
+			dep_info.shrink_to_fit();
+		}
+		if let Some(module_sources) = module_sources {
+			module_sources.shrink_to_fit();
+		}
+		modules.shrink_to_fit();
+		env_var_text.shrink_to_fit();
+	}
+}
+
+/// `env_var_text` is dropped by the [`legacy::BundleMetadata`] conversion
+/// because it lives on [`wire::FullBundle`] now; the [`legacy::FullBundle`]
+/// conversion carries it over.
+impl TryFrom<legacy::BundleMetadata> for wire::BundleMetadata {
+	type Error = FromHexError;
+
+	fn try_from(value: legacy::BundleMetadata) -> Result<Self, Self::Error> {
+		let legacy::BundleMetadata {
+			build_hash,
+			build_number,
+			first_seen,
+			entry_point,
+			env_var_text: _,
+		} = value;
 		Ok(Self {
-			build_hash: v.build_hash,
-			build_number: v.build_number,
-			first_seen: v.first_seen,
-			entry_point: v.entry_point.map(ModuleId),
-			env_var_text: v.env_var_text,
+			build_hash: decode_build_hash(&build_hash)?,
+			build_number,
+			first_seen: Some(
+				(SystemTime::UNIX_EPOCH + Duration::from_millis(first_seen))
+					.into(),
+			),
+			entry_point: entry_point.map(ModuleId::into),
 		})
 	}
 }
 
-impl From<&ExportName> for wire::ExportName {
-	fn from(v: &ExportName) -> Self {
-		let kind = match v {
-			ExportName::Default => wire::export_name::Kind::IsDefault(true),
-			ExportName::Named(s) => wire::export_name::Kind::Named(s.clone()),
-		};
-		Self { kind: Some(kind) }
-	}
-}
-
-impl TryFrom<wire::ExportName> for ExportName {
-	type Error = ProtoDecodeError;
-
-	fn try_from(v: wire::ExportName) -> Result<Self, Self::Error> {
-		match v
-			.kind
-			.ok_or(ProtoDecodeError::MissingOneof("ExportName.kind"))?
-		{
-			wire::export_name::Kind::IsDefault(_) => Ok(Self::Default),
-			wire::export_name::Kind::Named(s) => Ok(Self::Named(s)),
+impl From<legacy::ExportName> for wire::ExportName {
+	fn from(value: legacy::ExportName) -> Self {
+		Self {
+			kind: Some(match value {
+				legacy::ExportName::Default => {
+					wire::export_name::Kind::DefaultExport(
+						google::protobuf::Empty {},
+					)
+				}
+				legacy::ExportName::Named(name) => {
+					wire::export_name::Kind::Named(name)
+				}
+			}),
 		}
 	}
 }
 
-impl From<&KeyModules> for wire::KeyModules {
-	fn from(v: &KeyModules) -> Self {
+impl From<legacy::KeyModules> for wire::KeyModules {
+	fn from(value: legacy::KeyModules) -> Self {
+		let legacy::KeyModules {
+			flux_dispatcher_class,
+		} = value;
 		Self {
-			flux_dispatcher_class: v
-				.flux_dispatcher_class
-				.iter()
-				.map(|(id, name)| wire::FluxDispatcherEntry {
-					module_id: (*id).into(),
-					export_name: Some(name.into()),
+			flux_dispatcher_class: flux_dispatcher_class
+				.into_iter()
+				.map(|(id, export_name)| wire::FluxDispatcherEntry {
+					module_id: id.into(),
+					export_name: Some(export_name.into()),
 				})
 				.collect(),
 		}
 	}
 }
 
-impl TryFrom<wire::KeyModules> for KeyModules {
-	type Error = ProtoDecodeError;
-
-	fn try_from(v: wire::KeyModules) -> Result<Self, Self::Error> {
-		Ok(Self {
-			flux_dispatcher_class: v
-				.flux_dispatcher_class
-				.into_iter()
-				.map(|e| {
-					let export_name =
-						e.export_name
-							.ok_or(ProtoDecodeError::MissingField(
-								"FluxDispatcherEntry.export_name",
-							))?;
-					Ok((
-						ModuleId(e.module_id),
-						ExportName::try_from(export_name)?,
-					))
-				})
-				.collect::<Result<_, ProtoDecodeError>>()?,
-		})
+impl From<legacy::IncomingModuleDeps> for wire::IncomingModuleDeps {
+	fn from(value: legacy::IncomingModuleDeps) -> Self {
+		let legacy::IncomingModuleDeps { sync, lazy } = value;
+		Self {
+			sync: ModuleId::unconvert_vec(sync),
+			lazy: ModuleId::unconvert_vec(lazy),
+		}
 	}
 }
 
-impl From<&IncomingModuleDeps> for wire::IncomingModuleDeps {
-	fn from(v: &IncomingModuleDeps) -> Self {
+impl From<legacy::DepInfo> for wire::DepInfo {
+	fn from(value: legacy::DepInfo) -> Self {
+		let legacy::DepInfo {
+			key_modules,
+			module_deps,
+		} = value;
 		Self {
-			sync: v
-				.sync
-				.iter()
-				.map(|id| (*id).into())
-				.collect(),
-			lazy: v
-				.lazy
-				.iter()
-				.map(|id| (*id).into())
+			key_modules: Some(key_modules.into()),
+			module_deps: module_deps
+				.into_iter()
+				.map(|(id, deps)| (id.into(), deps.into()))
 				.collect(),
 		}
 	}
 }
 
-impl From<wire::IncomingModuleDeps> for IncomingModuleDeps {
-	fn from(v: wire::IncomingModuleDeps) -> Self {
+impl From<legacy::ModuleSources> for wire::ModuleSources {
+	fn from(value: legacy::ModuleSources) -> Self {
 		Self {
-			sync: v
-				.sync
+			sources: value
 				.into_iter()
-				.map(ModuleId)
-				.collect(),
-			lazy: v
-				.lazy
-				.into_iter()
-				.map(ModuleId)
-				.collect(),
-		}
-	}
-}
-
-impl From<&DepInfo> for wire::DepInfo {
-	fn from(v: &DepInfo) -> Self {
-		Self {
-			key_modules: Some((&v.key_modules).into()),
-			module_deps: v
-				.module_deps
-				.iter()
-				.map(|(id, deps)| ((*id).into(), deps.into()))
-				.collect(),
-		}
-	}
-}
-
-impl TryFrom<wire::DepInfo> for DepInfo {
-	type Error = ProtoDecodeError;
-
-	fn try_from(v: wire::DepInfo) -> Result<Self, Self::Error> {
-		let key_modules = v
-			.key_modules
-			.ok_or(ProtoDecodeError::MissingField("DepInfo.key_modules"))?;
-		Ok(Self {
-			key_modules: key_modules.try_into()?,
-			module_deps: v
-				.module_deps
-				.into_iter()
-				.map(|(id, deps)| (ModuleId(id), deps.into()))
-				.collect(),
-		})
-	}
-}
-
-impl From<&FullBundle> for wire::FullBundle {
-	fn from(v: &FullBundle) -> Self {
-		Self {
-			metadata: Some((&v.metadata).into()),
-			dep_info: Some((&v.dep_info).into()),
-			module_sources: v
-				.module_sources
-				.iter()
-				.map(|(k, ids)| {
+				.map(|(source, ids)| {
 					(
-						k.clone(),
+						source,
 						wire::ModuleIdList {
-							ids: ids
-								.iter()
-								.map(|id| (*id).into())
-								.collect(),
+							ids: ModuleId::unconvert_vec(ids),
 						},
 					)
 				})
 				.collect(),
-			modules: v
-				.modules
-				.iter()
-				.map(|(id, src)| ((*id).into(), src.clone()))
-				.collect(),
 		}
 	}
 }
 
-impl TryFrom<wire::FullBundle> for FullBundle {
-	type Error = ProtoDecodeError;
+impl TryFrom<legacy::FullBundle> for wire::FullBundle {
+	type Error = FromHexError;
 
-	fn try_from(v: wire::FullBundle) -> Result<Self, Self::Error> {
-		let metadata = v
-			.metadata
-			.ok_or(ProtoDecodeError::MissingField("FullBundle.metadata"))?;
-		let dep_info = v
-			.dep_info
-			.ok_or(ProtoDecodeError::MissingField("FullBundle.dep_info"))?;
+	fn try_from(value: legacy::FullBundle) -> Result<Self, Self::Error> {
+		let legacy::FullBundle {
+			metadata,
+			dep_info,
+			module_sources,
+			modules,
+		} = value;
+		let env_var_text = metadata.env_var_text.clone();
 		Ok(Self {
-			metadata: metadata.try_into()?,
-			dep_info: dep_info.try_into()?,
-			module_sources: v
-				.module_sources
+			metadata: Some(metadata.try_into()?),
+			dep_info: Some(dep_info.into()),
+			module_sources: Some(module_sources.into()),
+			modules: modules
 				.into_iter()
-				.map(|(k, list)| {
-					(
-						k,
-						list.ids
-							.into_iter()
-							.map(ModuleId)
-							.collect(),
-					)
-				})
+				.map(|(id, source)| (id.into(), source))
 				.collect(),
-			modules: v
-				.modules
-				.into_iter()
-				.map(|(id, src)| (ModuleId(id), src))
-				.collect(),
-		})
-	}
-}
-
-impl From<&BuildList> for wire::BuildList {
-	fn from(v: &BuildList) -> Self {
-		Self {
-			builds: v
-				.builds
-				.iter()
-				.map(|b| b.to_vec())
-				.collect(),
-		}
-	}
-}
-
-impl From<wire::BuildList> for BuildList {
-	fn from(v: wire::BuildList) -> Self {
-		Self {
-			builds: v
-				.builds
-				.into_iter()
-				.map(Vec::into_boxed_slice)
-				.collect(),
-		}
-	}
-}
-
-impl From<&TimestampQueryResults> for wire::TimestampQueryResults {
-	fn from(v: &TimestampQueryResults) -> Self {
-		Self {
-			before: v.before.as_ref().map(Into::into),
-			after: v.after.as_ref().map(Into::into),
-		}
-	}
-}
-
-impl TryFrom<wire::TimestampQueryResults> for TimestampQueryResults {
-	type Error = ProtoDecodeError;
-
-	fn try_from(v: wire::TimestampQueryResults) -> Result<Self, Self::Error> {
-		Ok(Self {
-			before: v
-				.before
-				.map(TryInto::try_into)
-				.transpose()?,
-			after: v
-				.after
-				.map(TryInto::try_into)
-				.transpose()?,
+			env_var_text,
 		})
 	}
 }

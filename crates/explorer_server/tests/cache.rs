@@ -12,9 +12,12 @@ use explorer_types::{
 	BundleMetadata,
 	DepInfo,
 	FullBundle,
-	ModuleId,
-	ProtoWire,
+	ModuleIdList,
+	ModuleSources,
+	decode_build_hash,
+	google,
 };
+use prost::Message;
 use redis::AsyncCommands as _;
 use tempfile::TempDir;
 use tokio::time::{Instant, sleep};
@@ -77,40 +80,44 @@ fn write_fixture(root: &Path) {
 	fs::create_dir_all(&build_dir).unwrap();
 
 	let metadata = BundleMetadata {
-		build_hash: BUILD_HASH.to_owned(),
+		build_hash: decode_build_hash(BUILD_HASH).unwrap(),
 		build_number: 1,
-		first_seen: 1_700_000_000_000,
+		first_seen: Some(google::protobuf::Timestamp {
+			seconds: 1_700_000_000,
+			nanos: 0,
+		}),
 		entry_point: None,
-		env_var_text: String::new(),
 	};
 
 	let mut modules = HashMap::new();
-	let mut module_sources = HashMap::new();
+	let mut module_sources = ModuleSources::default();
 	for id in 0..8u32 {
 		modules.insert(
-			ModuleId::from(id),
+			id,
 			format!("export const m{id} = () => {id};\n").repeat(32),
 		);
 		module_sources
-			.insert(format!("module-{id}.js"), vec![ModuleId::from(id)]);
+			.sources
+			.insert(format!("module-{id}.js"), ModuleIdList { ids: vec![id] });
 	}
 
 	let bundle = FullBundle {
-		metadata: metadata.clone(),
-		dep_info: DepInfo::default(),
-		module_sources,
+		env_var_text: String::new(),
+		metadata: Some(metadata.clone()),
+		dep_info: Some(DepInfo::default()),
+		module_sources: Some(module_sources),
 		modules,
 	};
 
 	// the same encoding `explorer_server_core::write_full_bundle` produces,
 	// inlined because that helper resolves paths against the process cwd
-	let meta = metadata.encode_proto();
+	let meta = metadata.encode_to_vec();
 	fs::write(
 		build_dir.join(METADATA_FILE_NAME),
 		zstd::encode_all(&*meta, 0).unwrap(),
 	)
 	.unwrap();
-	let data = bundle.encode_proto();
+	let data = bundle.encode_to_vec();
 	fs::write(
 		build_dir.join(DATA_FILE_NAME),
 		zstd::encode_all(&*data, 10).unwrap(),

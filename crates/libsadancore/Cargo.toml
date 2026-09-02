@@ -26,6 +26,7 @@ ast_parser.workspace = true
 pretty_printer.workspace = true
 dagre.workspace = true
 miette_ctx.workspace = true
+prost.workspace = true
 regress.workspace = true
 memchr.workspace = true
 vencord_ast_parser.workspace = true

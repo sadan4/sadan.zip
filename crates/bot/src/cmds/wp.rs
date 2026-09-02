@@ -147,6 +147,8 @@ async fn find_module_factory(
 				.read()
 				.await
 				.metadata
+				.as_ref()
+				.unwrap()
 				.build_number
 		)
 		.unwrap();
@@ -170,6 +172,8 @@ async fn find_module_factory(
 				.read()
 				.await
 				.metadata
+				.as_ref()
+				.unwrap()
 				.build_number
 		)
 		.unwrap();
@@ -254,7 +258,7 @@ async fn init_webpack_context(fw: &CommandFramework) -> Result<()> {
 fn collect_module_matches(
 	modules: &ScrapedOutput,
 	query: &Finder<'_>,
-) -> Vec<ModuleId> {
+) -> Vec<u32> {
 	modules
 		.par_iter()
 		.filter_map(|(id, module)| {
@@ -361,9 +365,13 @@ async fn report_pr_branch(
 ) -> Result<CreateEmbed<'static>> {
 	let (build_hash, build_number, modules) = {
 		let build = build.read().await;
+		let meta = build
+			.metadata
+			.as_ref()
+			.context("build has no metadata")?;
 		(
-			build.metadata.build_hash.clone(),
-			build.metadata.build_number,
+			meta.build_hash_hex(),
+			meta.build_number,
 			Arc::new(build.modules.clone()),
 		)
 	};

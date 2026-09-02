@@ -24,11 +24,11 @@ use explorer_types::{
 	BuildList,
 	BundleMetadata,
 	FullBundle,
-	ProtoWire,
 	TimestampQueryResults,
 };
 use git_hash::GIT_HASH;
 use http::{StatusCode, header};
+use prost::Message as _;
 use sevenz_rust2::{
 	ArchiveEntry,
 	ArchiveWriter,
@@ -167,11 +167,11 @@ async fn touch_builds(State(state): State<crate::State>) -> Result {
 			.context("Failed to read bundle metadata")?;
 		let meta = tokio::task::spawn_blocking(move || -> Result<_> {
 			let meta_raw = zstd::decode_all(&*meta_zstd_raw)?;
-			let meta = BundleMetadata::decode_proto(&meta_raw)?;
+			let meta = BundleMetadata::decode(&*meta_raw)?;
 			Ok(meta)
 		})
 		.await??;
-		let time = meta.first_seen_as_time();
+		let time = meta.first_seen_as_timestamp().into();
 		let file_times = FileTimes::new().set_modified(time);
 		let file = fs::File::open(dir_path).await?;
 		update_times(file, file_times).await?;
@@ -216,7 +216,7 @@ async fn get_before_timestamp(
 		after: None,
 	};
 
-	let raw = ret_data.encode_proto();
+	let raw = ret_data.encode_to_vec();
 	let body = Body::from(raw);
 	Ok((PROTOBUF_HEADERS, body).into_response())
 }
@@ -230,22 +230,24 @@ async fn get_before_hash(
 	let Some(build) = build else {
 		return Ok(StatusCode::NOT_FOUND.into_response());
 	};
-	let (before, _) =
-		get_around(&state.meta_by_time, &build.first_seen_as_time());
+	let (before, _) = get_around(
+		&state.meta_by_time,
+		&build.first_seen_as_timestamp().into(),
+	);
 	let before = before.map(|(_, v)| v.as_ref().clone());
 	drop(state);
 	let ret_data = TimestampQueryResults {
 		before,
 		after: None,
 	};
-	let raw = ret_data.encode_proto();
+	let raw = ret_data.encode_to_vec();
 	let body = Body::from(raw);
 	Ok((PROTOBUF_HEADERS, body).into_response())
 }
 
 fn make_archive(zstd_raw_data: &[u8]) -> Result<Vec<u8>> {
 	let pb_raw_data = zstd::decode_all(zstd_raw_data)?;
-	let b = FullBundle::decode_proto(&pb_raw_data)?;
+	let b = FullBundle::decode(&*pb_raw_data)?;
 	// Most archives are around 22MB, allocate a bit more
 	let buf = Vec::with_capacity(25 * MB);
 	let mut a = ArchiveWriter::new(io::Cursor::new(buf))?;
@@ -379,12 +381,10 @@ async fn get_all_builds() -> Result {
 		if !fs::try_exists(&meta_path).await? {
 			continue;
 		}
-		let meta_file = fs::read(meta_path)
-			.await?
-			.into_boxed_slice();
+		let meta_file = fs::read(meta_path).await?;
 		builds.push(meta_file);
 	}
-	let builds_pb = BuildList { builds }.encode_proto();
+	let builds_pb = BuildList { builds }.encode_to_vec();
 	let body = Body::from(builds_pb);
 
 	Ok((PROTOBUF_HEADERS, body).into_response())
@@ -403,10 +403,10 @@ async fn get_latest_build_meta(State(state): State<crate::State>) -> Result {
 			(StatusCode::NOT_FOUND, "server has no builds").into_response()
 		);
 	};
-	Ok((PROTOBUF_HEADERS, Body::from(meta.encode_proto())).into_response())
+	Ok((PROTOBUF_HEADERS, Body::from(meta.encode_to_vec())).into_response())
 }
 
-#[instrument]
+#[instrument(skip(state))]
 pub async fn serve(bind_addr: &str, state: crate::State) -> anyhow::Result<()> {
 	let app = Router::new()
 		.route("/build/{id}/metadata", get(get_build_metadata))

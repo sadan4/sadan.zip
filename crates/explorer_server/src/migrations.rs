@@ -1,26 +1,18 @@
 use std::{collections::HashMap, fs, io, path::Path};
 
-use anyhow::{Result, anyhow, bail};
-use explorer_types::{
-	BundleMetadata,
-	DepInfo,
-	ExportName,
-	FullBundle,
-	IncomingModuleDeps,
-	KeyModules,
-	ModuleId,
-};
+use anyhow::{Context as _, Result, anyhow, bail};
+use explorer_types::{FullBundle, ModuleId, legacy};
 use serde::Deserialize;
 use tracing::{Level, error, info, instrument, span};
 
 use explorer_server_core::{
-	DATA_FILE_NAME,
 	LEGACY_DATA_FILE_NAME,
 	LEGACY_METADATA_FILE_NAME,
-	build_has_data,
+	build_has_legacy_data,
 	get_root_build_path,
 	get_version_file_path,
 	write_full_bundle,
+	write_full_bundle_legacy,
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -145,7 +137,7 @@ impl V3Migration {
 		let des = serde_json::from_reader(reader)?;
 		Ok(des)
 	}
-	fn read_js_bundle(path: &Path) -> Result<FullBundle> {
+	fn read_js_bundle(path: &Path) -> Result<legacy::FullBundle> {
 		let deps_json_path = path.join("deps.json");
 		let info_json_path = path.join("info.json");
 		let modules_json_path = path.join("modules.json");
@@ -173,8 +165,8 @@ impl V3Migration {
 
 			modules.insert(m_id, m_source);
 		}
-		let ret = FullBundle {
-			metadata: BundleMetadata {
+		let ret = legacy::FullBundle {
+			metadata: legacy::BundleMetadata {
 				build_hash: info_json.build_hash,
 				build_number: info_json.build_number.parse()?,
 				first_seen: info_json.first_seen,
@@ -184,14 +176,17 @@ impl V3Migration {
 					.transpose()?,
 				env_var_text: info_json.env_var_text,
 			},
-			dep_info: DepInfo {
-				key_modules: KeyModules {
+			dep_info: legacy::DepInfo {
+				key_modules: legacy::KeyModules {
 					flux_dispatcher_class: deps_json
 						.key_modules
 						.flux_dispatcher_class
 						.into_iter()
 						.map(|(k, v)| {
-							Ok((k.parse().map(ModuleId)?, ExportName::Named(v)))
+							Ok((
+								k.parse().map(ModuleId)?,
+								legacy::ExportName::Named(v),
+							))
 						})
 						.collect::<Result<_>>()?,
 				},
@@ -201,7 +196,7 @@ impl V3Migration {
 					.map(|(k, v)| {
 						Ok((
 							k.parse().map(ModuleId)?,
-							IncomingModuleDeps {
+							legacy::IncomingModuleDeps {
 								sync: v
 									.sync_uses
 									.into_iter()
@@ -251,7 +246,7 @@ impl V3Migration {
 	}
 	fn is_data_file(path: &Path) -> bool {
 		path.file_name()
-			.is_some_and(|f| f == DATA_FILE_NAME)
+			.is_some_and(|f| f == LEGACY_DATA_FILE_NAME)
 	}
 }
 
@@ -268,14 +263,14 @@ impl Migration for V3Migration {
 			if entry_path.file_name().unwrap() == "chunks" {
 				continue;
 			}
-			if build_has_data(&entry_path) {
+			if build_has_legacy_data(&entry_path) {
 				bail!(
 					"Build {} already has data file, invalid state!",
 					entry_path.display()
 				);
 			}
 			let bundle = Self::read_js_bundle(&entry_path)?;
-			write_full_bundle(&bundle)?;
+			write_full_bundle_legacy(&bundle)?;
 			Self::rm_dir_all_not_pred(&entry_path, Self::is_data_file)?;
 		}
 		let chunks_path = base_build_path.join("chunks");
@@ -286,7 +281,19 @@ impl Migration for V3Migration {
 	}
 }
 
+/// Rewrites every build's on-disk payload from the msgpack-serialized
+/// [`legacy::FullBundle`] to the protobuf-serialized [`FullBundle`], moving
+/// them from `data.mpk.zst`/`meta.mpk.zst` to `data.pb.zst`/`meta.pb.zst`.
 struct V4Migration;
+
+impl V4Migration {
+	fn read_legacy_bundle(path: &Path) -> Result<legacy::FullBundle> {
+		let data_zst = fs::File::open(path)?;
+		let data_mpk = zstd::Decoder::new(io::BufReader::new(data_zst))?;
+		let bundle = rmp_serde::from_read(data_mpk)?;
+		Ok(bundle)
+	}
+}
 
 impl Migration for V4Migration {
 	fn migrate(&self) -> Result<()> {
@@ -301,9 +308,11 @@ impl Migration for V4Migration {
 			if !legacy_data_path.is_file() {
 				continue;
 			}
-			let data_zst = fs::read(&legacy_data_path)?;
-			let data_mpk = zstd::decode_all(data_zst.as_slice())?;
-			let bundle: FullBundle = rmp_serde::from_slice(&data_mpk)?;
+			let bundle = FullBundle::try_from(Self::read_legacy_bundle(
+				&legacy_data_path,
+			)?)
+			.context("Build hash is not valid hex")?;
+			// writes both the protobuf data and metadata files
 			write_full_bundle(&bundle)?;
 			fs::remove_file(&legacy_data_path)?;
 			let legacy_meta_path = entry_path.join(LEGACY_METADATA_FILE_NAME);

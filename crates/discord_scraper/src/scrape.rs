@@ -7,13 +7,20 @@ use std::{
 		atomic::{AtomicUsize, Ordering},
 	},
 	thread,
-	time::{SystemTime, UNIX_EPOCH},
 };
 
 use anyhow::{Context as _, Result, bail};
 use dashmap::DashMap;
 use explorer_server_core::{Channel, asset_url};
-use explorer_types::{BundleMetadata, FullBundle, ModuleId};
+use explorer_types::{
+	BundleMetadata,
+	FullBundle,
+	ModuleId,
+	ModuleIdList,
+	ModuleSources,
+	decode_build_hash,
+	google,
+};
 use http::StatusCode;
 use memchr::memmem::Finder;
 use oxc_allocator::AllocatorPool;
@@ -43,8 +50,8 @@ static WORKER_FINDER: LazyLock<Finder<'static>> =
 	LazyLock::new(|| Finder::new(br#".ruid=""#));
 
 pub struct ScrapedModules {
-	pub modules: HashMap<ModuleId, String>,
-	pub module_sources: HashMap<String, Vec<ModuleId>>,
+	pub modules: HashMap<u32, String>,
+	pub module_sources: ModuleSources,
 	pub global_env_text: String,
 	pub web_js_url: String,
 	pub build_number: u32,
@@ -68,7 +75,7 @@ struct JsScraperInner {
 	module_sources: DashMap<String, Vec<ModuleId>>,
 	/// TODO: should this be arc?
 	progress: Arc<dyn ScrapeProgress>,
-	modules: DashMap<ModuleId, String>,
+	modules: DashMap<u32, String>,
 	channel: Channel,
 	total_bytes: AtomicUsize,
 }
@@ -173,7 +180,7 @@ impl JsScraper {
 				let mut keys = Vec::with_capacity(modules.size_hint().0);
 				for (m_id, src) in modules {
 					keys.push(m_id);
-					inner.modules.insert(m_id, src);
+					inner.modules.insert(*m_id, src);
 				}
 				inner.module_sources.insert(chunk_name, keys);
 				inner.progress.chunk_finished();
@@ -231,7 +238,7 @@ impl JsScraper {
 			.collect_defined_modules()
 			.context("Failed to get modules from main chunk")?;
 		for (m_id, src) in main_modules {
-			self.inner.modules.insert(m_id, src);
+			self.inner.modules.insert(*m_id, src);
 		}
 		Ok(MainChunkData {
 			build_number,
@@ -282,7 +289,19 @@ impl JsScraper {
 
 		Ok(ScrapedModules {
 			modules: HashMap::from_iter(modules),
-			module_sources: HashMap::from_iter(module_sources),
+			module_sources: ModuleSources {
+				sources: module_sources
+					.into_iter()
+					.map(|(k, v)| {
+						(
+							k,
+							ModuleIdList {
+								ids: ModuleId::unconvert_vec(v),
+							},
+						)
+					})
+					.collect(),
+			},
 			global_env_text: scraper.global_env_text,
 			web_js_url: scraper.web_js_url,
 			build_number,
@@ -317,23 +336,17 @@ pub async fn scrape_full_bundle(
 		code.drain(0..2);
 	}
 
-	let current_time = SystemTime::now()
-		.duration_since(UNIX_EPOCH)
-		.context("Bad System Clock")?
-		.as_millis();
-	debug_assert!(u64::try_from(current_time).is_ok());
-	let first_seen = current_time as u64;
-
 	Ok(FullBundle {
-		metadata: BundleMetadata {
-			build_hash,
+		metadata: Some(BundleMetadata {
+			build_hash: decode_build_hash(&build_hash)
+				.context("Build hash is not valid hex")?,
 			build_number,
-			first_seen,
-			entry_point,
-			env_var_text: global_env_text,
-		},
-		dep_info,
-		module_sources,
+			first_seen: Some(google::protobuf::Timestamp::now()),
+			entry_point: entry_point.map(Into::into),
+		}),
+		dep_info: Some(dep_info),
+		module_sources: Some(module_sources),
 		modules,
+		env_var_text: global_env_text,
 	})
 }

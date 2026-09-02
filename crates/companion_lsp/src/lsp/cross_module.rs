@@ -355,16 +355,16 @@ fn build_inverse_deps(
 		let lazy = outgoing.lazy.clone();
 		drop(parser);
 		for dep in sync {
-			inv.entry(dep.id)
+			inv.entry(ModuleId(dep.id))
 				.or_default()
 				.sync
-				.push(*id);
+				.push(**id);
 		}
 		for dep in lazy {
-			inv.entry(dep.id)
+			inv.entry(ModuleId(dep.id))
 				.or_default()
 				.lazy
-				.push(*id);
+				.push(**id);
 		}
 		alloc.reset();
 	}
@@ -407,8 +407,8 @@ mod tests {
 			.get(&ModuleId(2))
 			.expect("module 2 should have incoming deps");
 		let mut sync = inc.sync.clone();
-		sync.sort();
-		assert_eq!(sync, vec![ModuleId(1), ModuleId(3)]);
+		sync.sort_unstable();
+		assert_eq!(sync, [1, 3]);
 	}
 
 	#[test]
@@ -438,7 +438,7 @@ mod tests {
 			inverse_deps: HashMap::from([(
 				2u32,
 				IncomingModuleDeps {
-					sync: vec![ModuleId(999)],
+					sync: vec![999],
 					lazy: vec![],
 				},
 			)]),
@@ -451,7 +451,7 @@ mod tests {
 				.get(&ModuleId(2))
 				.unwrap()
 				.sync,
-			vec![ModuleId(999)],
+			[999],
 		);
 	}
 
@@ -476,7 +476,7 @@ mod tests {
 			inverse_deps: HashMap::from([(
 				2u32,
 				IncomingModuleDeps {
-					sync: vec![ModuleId(999)],
+					sync: vec![999],
 					lazy: vec![],
 				},
 			)]),
@@ -494,7 +494,7 @@ mod tests {
 				.get(&ModuleId(2))
 				.unwrap()
 				.sync,
-			vec![ModuleId(1)],
+			[1],
 		);
 	}
 

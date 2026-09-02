@@ -10,7 +10,7 @@ use discord_scraper::{
 	util::ByteStr,
 };
 use explorer_server_core::Channel;
-use explorer_types::ModuleId;
+use explorer_types::decode_build_hash;
 use reqwest_middleware::ClientWithMiddleware;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
@@ -27,7 +27,7 @@ use crate::{
 	util::{MultiProgressWrapper, Stage},
 };
 
-pub type ScrapedOutput = HashMap<ModuleId, String>;
+pub type ScrapedOutput = HashMap<u32, String>;
 
 #[derive(Args, Debug, Clone)]
 pub struct FetchOpts {
@@ -55,7 +55,8 @@ pub struct FetchOpts {
 pub struct ScrapedBranch {
 	pub channel: Channel,
 	pub modules: ScrapedOutput,
-	pub build_hash: String,
+	/// the raw bytes of the build hash, NOT its hex representation
+	pub build_hash: Vec<u8>,
 }
 
 pub async fn fetch_build(
@@ -130,7 +131,8 @@ async fn fetch_for_channel(
 	let output = ScrapedBranch {
 		channel,
 		modules,
-		build_hash,
+		build_hash: decode_build_hash(&build_hash)
+			.context("Build hash is not valid hex")?,
 	};
 	// we need to await this here so the task isn't dropped on process exit
 	match cache::write(&cache_key, &output, None).await {

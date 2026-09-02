@@ -3,7 +3,8 @@
 
 use anyhow::{Context as _, Result, bail};
 use clap::Parser;
-use explorer_types::{BuildList, BundleMetadata, ProtoWire};
+use explorer_types::{BuildList, BundleMetadata};
+use prost::Message;
 
 #[derive(Parser)]
 #[command(version, about)]
@@ -37,7 +38,7 @@ async fn main() -> Result<()> {
 	}
 
 	let build_list =
-		BuildList::decode_proto(&body).context("Failed to decode BuildList")?;
+		BuildList::decode(body).context("Failed to decode BuildList")?;
 
 	if cli.raw {
 		println!("{build_list:#?}");
@@ -49,7 +50,7 @@ async fn main() -> Result<()> {
 		let meta_pb = zstd::decode_all(&**build)
 			.with_context(|| format!("Failed to decompress build {i}"))?;
 		let meta =
-			BundleMetadata::decode_proto(&meta_pb).with_context(|| {
+			BundleMetadata::decode(&*meta_pb).with_context(|| {
 				format!("Failed to decode metadata for build {i}")
 			})?;
 		println!("{meta:#?}");

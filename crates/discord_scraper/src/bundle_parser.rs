@@ -1,13 +1,13 @@
 use std::{collections::HashMap, hash::BuildHasher};
 
 use anyhow::Result;
-use explorer_types::{DepInfo, IncomingModuleDeps, KeyModules, ModuleId};
+use explorer_types::{DepInfo, IncomingModuleDeps, KeyModules};
 use miette_ctx::into_anyhow;
 use oxc_allocator::Allocator;
 use webpack_ast_parser::WebpackAstParser;
 
 pub fn parse_bundle<S: BuildHasher>(
-	modules: &HashMap<ModuleId, String, S>,
+	modules: &HashMap<u32, String, S>,
 ) -> Result<DepInfo> {
 	let alloc = Allocator::new();
 	let mut parsers = HashMap::with_capacity(modules.len());
@@ -40,7 +40,7 @@ pub fn parse_bundle<S: BuildHasher>(
 		}
 	}
 	Ok(DepInfo {
-		key_modules: KeyModules::default(),
+		key_modules: Some(KeyModules::default()),
 		module_deps: deps,
 	})
 }

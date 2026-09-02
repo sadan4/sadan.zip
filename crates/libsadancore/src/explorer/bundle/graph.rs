@@ -123,8 +123,8 @@ impl Bundle {
 					.get_modules_that_this_module_requires()
 					.unwrap_or(&DEFAULT);
 				for dep in iter::chain(&deps.sync, &deps.lazy).map(|s| s.id) {
-					included_nodes.insert(dep);
-					new_q.push(dep);
+					included_nodes.insert(ModuleId(dep));
+					new_q.push(ModuleId(dep));
 				}
 			}
 			mem::swap(&mut q, &mut new_q);
@@ -150,8 +150,8 @@ impl Bundle {
 					continue;
 				};
 				for dep in iter::chain(&incoming.sync, &incoming.lazy) {
-					included_nodes.insert(*dep);
-					new_q.push(*dep);
+					included_nodes.insert(ModuleId(*dep));
+					new_q.push(ModuleId(*dep));
 				}
 			}
 			mem::swap(&mut q, &mut new_q);
@@ -173,7 +173,7 @@ impl Bundle {
 				continue;
 			}
 			for dependent in iter::chain(&dep_info.sync, &dep_info.lazy) {
-				if !included_nodes.contains(dependent) {
+				if !included_nodes.contains(&ModuleId(*dependent)) {
 					continue;
 				}
 				// dependent -> m_id (dependent requires this module)

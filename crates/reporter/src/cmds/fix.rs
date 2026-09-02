@@ -5,6 +5,7 @@ mod track_module;
 use std::sync::Arc;
 
 use explorer_server_core::Channel;
+use explorer_types::{BundleMetadata, encode_build_hash};
 use itertools::Itertools;
 use miette::{Context, Diagnostic, Report, Severity, bail};
 use tracing::{debug, error, info, trace, warn};
@@ -170,7 +171,7 @@ pub(super) async fn fix(
 	};
 	info!("Diagnosed patch with hash {patch_hash:x} as issue \n{printer:?}");
 	info!("Attempting to find last build where the patch still works");
-	let hash = scraped_branch.build_hash.clone();
+	let hash = encode_build_hash(&scraped_branch.build_hash);
 	scraped_branch.modules =
 		Arc::into_inner(modules).expect("modules has outstanding refs");
 	let Some(build_diff) = find_last_build(
@@ -189,12 +190,12 @@ pub(super) async fn fix(
 	};
 	info!(
 		build_number=?build_diff.broken.build_number(),
-		hash=%build_diff.broken.build_hash(),
+		hash=%encode_build_hash(build_diff.broken.build_hash()),
 		"Found oldest broken build",
 	);
 	info!(
-		build_number=%build_diff.working.metadata.build_number,
-		hash=%build_diff.working.metadata.build_hash,
+		build_number=%build_diff.working.metadata.as_ref().map(|m| m.build_number).unwrap_or_default(),
+		hash=%build_diff.working.metadata.as_ref().map(BundleMetadata::build_hash_hex).unwrap_or_default(),
 		"Found last working build",
 	);
 	global_bar.clear();

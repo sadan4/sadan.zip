@@ -127,8 +127,8 @@ impl<'ast> WebpackAstParser<'ast> {
 			.unwrap_or_default();
 		let map = |v: Vec<SpannedId>| {
 			v.into_iter()
-				.map(|s| (s.id, SpanDumper(s.span, self.source)))
-				.sorted_by_key(|(id, _)| id.0)
+				.map(|s| (ModuleId(s.id), SpanDumper(s.span.unwrap().into(), self.source)))
+				.sorted_by_key(|(id, _)| *id)
 				.collect::<Vec<_>>()
 		};
 		(map(deps.sync), map(deps.lazy))

@@ -52,7 +52,6 @@ async fn get_build(channel: Channel) -> Result<Option<Build>> {
 	}))
 }
 
-#[instrument]
 async fn handle_build(c: Channel, state: &State) -> Result<()> {
 	if let Some(build) = get_build(c).await? {
 		info!("new {c:?} build: {}", build.build_hash);
@@ -75,7 +74,10 @@ async fn handle_build(c: Channel, state: &State) -> Result<()> {
 			.await;
 			match result {
 				Ok(build) => {
-					let meta = build.metadata.clone();
+					let meta = build
+						.metadata
+						.clone()
+						.unwrap_or_default();
 					tokio::spawn(async move { state.add_build(meta).await });
 					if let Err(e) = write_full_bundle(&build) {
 						error!("Failed to write full bundle: {e:?}");
