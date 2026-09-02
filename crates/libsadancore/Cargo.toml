@@ -17,7 +17,6 @@ explorer_types.workspace = true
 wasm-bindgen-futures.workspace = true
 thiserror.workspace = true
 const_format.workspace = true
-rmp-serde.workspace = true
 serde.workspace = true
 serde-wasm-bindgen.workspace = true
 oxc.workspace = true

@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use explorer_types::FullBundle;
+use explorer_types::{FullBundle, ProtoWire};
 use serde::{Deserialize, Serialize};
 use std::{
 	cmp::Ordering,
@@ -12,8 +12,15 @@ use std::{
 	path::{Path, PathBuf},
 };
 
-pub const DATA_FILE_NAME: &str = "data.mpk.zst";
-pub const METADATA_FILE_NAME: &str = "meta.mpk.zst";
+pub const DATA_FILE_NAME: &str = "data.pb.zst";
+pub const METADATA_FILE_NAME: &str = "meta.pb.zst";
+
+/// on-disk filename used before the msgpack -> protobuf migration
+/// (`explorer_server`'s `V4Migration`)
+pub const LEGACY_DATA_FILE_NAME: &str = "data.mpk.zst";
+/// on-disk filename used before the msgpack -> protobuf migration
+/// (`explorer_server`'s `V4Migration`)
+pub const LEGACY_METADATA_FILE_NAME: &str = "meta.mpk.zst";
 
 pub fn get_root_build_path() -> Result<PathBuf> {
 	let build_path = env::current_dir()
@@ -51,13 +58,13 @@ pub fn write_full_bundle(bundle: &FullBundle) -> Result<()> {
 		fs::create_dir_all(&build_path)?;
 	}
 
-	let meta_bin = rmp_serde::to_vec(&bundle.metadata)?;
+	let meta_bin = bundle.metadata.encode_proto();
 	let meta_zst = zstd::encode_all(meta_bin.as_slice(), 0)?;
 	drop(meta_bin);
 	fs::write(build_path.join(METADATA_FILE_NAME), meta_zst)?;
-	let data_mpk = rmp_serde::to_vec(&bundle)?;
-	let data_zst = compress_full_bundle_data(&data_mpk)?;
-	drop(data_mpk);
+	let data_pb = bundle.encode_proto();
+	let data_zst = compress_full_bundle_data(&data_pb)?;
+	drop(data_pb);
 
 	fs::write(build_path.join(DATA_FILE_NAME), data_zst)?;
 

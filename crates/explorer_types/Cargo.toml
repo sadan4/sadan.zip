@@ -13,6 +13,12 @@ derive_more.workspace = true
 jiff.workspace = true
 oxc_span.workspace = true
 typesize.workspace = true
+prost.workspace = true
+thiserror.workspace = true
+
+[build-dependencies]
+prost-build.workspace = true
+protoc-bin-vendored.workspace = true
 
 [lints]
 workspace = true

@@ -1,4 +1,4 @@
-use explorer_types::{BuildList, BundleMetadata, TModuleId};
+use explorer_types::{BuildList, BundleMetadata, ProtoWire, TModuleId};
 use js_sys::{ArrayBuffer, Uint8Array};
 use wasm_bindgen::{JsCast as _, prelude::wasm_bindgen};
 
@@ -60,15 +60,15 @@ pub async fn get_builds() -> Result<Box<[Meta]>> {
 		.await?
 		.dyn_into::<ArrayBuffer>()
 		.map_err(|_| BadCast::ArrayBuffer)?;
-	// this request is NOT zstd compressed as of now, it is just raw MessagePack data
-	let mpk_data_buf = Uint8Array::new(&arr_buf).to_vec();
-	let data: BuildList = rmp_serde::from_slice(&mpk_data_buf)?;
+	// this request is NOT zstd compressed as of now, it is just raw protobuf data
+	let pb_data_buf = Uint8Array::new(&arr_buf).to_vec();
+	let data = BuildList::decode_proto(&pb_data_buf)?;
 	data.builds
 		.into_iter()
 		.map(|zstd_raw_meta| -> Result<_> {
-			let mpk_raw_meta =
+			let pb_raw_meta =
 				zstd::decode_all(&*zstd_raw_meta).map_err(Error::Zstd)?;
-			let d = rmp_serde::from_slice(&mpk_raw_meta)?;
+			let d = BundleMetadata::decode_proto(&pb_raw_meta)?;
 			Ok(Meta(d))
 		})
 		.collect()

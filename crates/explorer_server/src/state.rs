@@ -7,7 +7,7 @@ use std::{
 use anyhow::{Context as _, Result};
 use derive_more::Deref;
 use explorer_server_core::{METADATA_FILE_NAME, get_root_build_path};
-use explorer_types::BundleMetadata;
+use explorer_types::{BundleMetadata, ProtoWire};
 use tokio::{fs, sync::RwLock, task::JoinSet};
 use tracing::{info, instrument, warn};
 
@@ -56,7 +56,8 @@ async fn read_meta_entry(
 	let meta = tokio::task::spawn_blocking(move || -> Result<_> {
 		let meta_raw =
 			zstd::decode_all(&*meta_zstd_raw).context("ZSTD Error")?;
-		let meta = rmp_serde::from_slice(&meta_raw).context("RMP error")?;
+		let meta = BundleMetadata::decode_proto(&meta_raw)
+			.context("Protobuf decode error")?;
 		Ok(Some(Arc::new(meta)))
 	})
 	.await

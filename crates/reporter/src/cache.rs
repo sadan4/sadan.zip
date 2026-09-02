@@ -1,6 +1,7 @@
 use std::{env, io, path::PathBuf};
 
 use derive_more::IsVariant;
+use explorer_types::{ProtoDecodeError, ProtoWire};
 use serde::{Serialize, de::DeserializeOwned};
 use tokio::{fs, io::AsyncWriteExt};
 use tracing::{debug, info};
@@ -47,6 +48,8 @@ pub enum CacheError {
 	Deserialize(#[source] rmp_serde::decode::Error),
 	#[error("Failed to serialize cache file")]
 	Serialize(#[source] rmp_serde::encode::Error),
+	#[error("Failed to decode cache file")]
+	ProtoDecode(#[source] ProtoDecodeError),
 }
 
 /// get the system cache dir
@@ -141,6 +144,34 @@ where
 	Ok(Some(data))
 }
 
+/// read a protobuf-encoded value from cache
+pub async fn read_proto<T>(key: &str) -> Result<Option<T>>
+where
+	T: ProtoWire,
+{
+	let cache_dir = get_cache_dir().await?;
+	let cache_file = cache_dir.join(key);
+	if !fs::try_exists(&cache_file)
+		.await
+		.map_err(|e| CacheError::Access {
+			path: cache_file.clone(),
+			cause: e,
+		})? {
+		return Ok(None);
+	}
+	debug!("Reading cache file: {}", cache_file.display());
+	let raw_zstd_data = fs::read(&cache_file)
+		.await
+		.map_err(|e| CacheError::Read {
+			path: cache_file.clone(),
+			cause: e,
+		})?;
+	let raw_data =
+		zstd::decode_all(&*raw_zstd_data).map_err(CacheError::Zstd)?;
+	let data = T::decode_proto(&raw_data).map_err(CacheError::ProtoDecode)?;
+	Ok(Some(data))
+}
+
 /// Invalidate a cache entry by key.
 ///
 /// This will remove the cache file if it exists, and do nothing if it does not exist.
@@ -178,6 +209,50 @@ where
 	let cache_dir = get_cache_dir().await?;
 	let cache_file = cache_dir.join(key);
 	let raw_data = rmp_serde::to_vec(data).map_err(CacheError::Serialize)?;
+	let raw_zstd_data = zstd::encode_all(&*raw_data, compression_level)
+		.map_err(CacheError::Zstd)?;
+	let mut file = fs::File::options()
+		.write(true)
+		.create(true)
+		.truncate(true)
+		.append(false)
+		.open(&cache_file)
+		.await
+		.map_err(|e| CacheError::Access {
+			path: cache_file.clone(),
+			cause: e,
+		})?;
+	file.write_all(&raw_zstd_data)
+		.await
+		.map_err(|e| CacheError::Write {
+			path: cache_file.clone(),
+			cause: e,
+		})?;
+	file.flush()
+		.await
+		.map_err(|e| CacheError::Write {
+			path: cache_file.clone(),
+			cause: e,
+		})?;
+	drop(file);
+	Ok(())
+}
+
+/// write a protobuf-encoded value to cache
+///
+/// it will be compressed with zstd at the given compression level (default 10)
+pub async fn write_proto<T>(
+	key: &str,
+	data: &T,
+	compression_level: impl Into<Option<i32>>,
+) -> Result<()>
+where
+	T: ProtoWire,
+{
+	let compression_level = compression_level.into().unwrap_or(10);
+	let cache_dir = get_cache_dir().await?;
+	let cache_file = cache_dir.join(key);
+	let raw_data = data.encode_proto();
 	let raw_zstd_data = zstd::encode_all(&*raw_data, compression_level)
 		.map_err(CacheError::Zstd)?;
 	let mut file = fs::File::options()

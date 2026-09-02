@@ -3,8 +3,8 @@ use crate::{
 	err::{BadCast, Error, Result},
 	util::fut::JsPromiseExt,
 };
+use explorer_types::ProtoWire;
 use js_sys::{ArrayBuffer, Uint8Array, global};
-use serde::de::DeserializeOwned;
 use wasm_bindgen::{JsCast, prelude::wasm_bindgen};
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{Response, Window, WorkerGlobalScope};
@@ -54,7 +54,7 @@ pub async fn fetch(url: &str) -> Result<Response> {
 
 pub async fn fetch_struct<T>(url: &str) -> Result<T>
 where
-	T: DeserializeOwned,
+	T: ProtoWire,
 {
 	let arr_buf = fetch(url)
 		.await?
@@ -64,8 +64,7 @@ where
 		.dyn_into::<ArrayBuffer>()
 		.map_err(|_| BadCast::ArrayBuffer)?;
 	let zstd_raw_data = Uint8Array::new(&arr_buf).to_vec();
-	let mpk_raw_data =
-		zstd::decode_all(&*zstd_raw_data).map_err(Error::Zstd)?;
-	let data = rmp_serde::from_slice(&mpk_raw_data)?;
+	let pb_raw_data = zstd::decode_all(&*zstd_raw_data).map_err(Error::Zstd)?;
+	let data = T::decode_proto(&pb_raw_data)?;
 	Ok(data)
 }

@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use explorer_types::{FullBundle, TimestampQueryResults};
+use explorer_types::{FullBundle, ProtoWire, TimestampQueryResults};
 use reqwest_middleware::reqwest::{self, StatusCode};
 use tracing::{debug, info, instrument, warn};
 
@@ -26,8 +26,8 @@ pub async fn fetch_previous_build_meta(
 		.bytes()
 		.await
 		.context("Failed to read response body")?;
-	let data = rmp_serde::from_slice(&bts)
-		.context("Failed to deserialize response body")?;
+	let data = TimestampQueryResults::decode_proto(&bts)
+		.context("Failed to decode response body")?;
 	Ok(Some(data))
 }
 
@@ -35,7 +35,7 @@ pub async fn fetch_previous_build_meta(
 /// 404 is an error
 pub async fn fetch_full_bundle(build_hash: &str) -> Result<FullBundle> {
 	let cache_key = format!("{build_hash}-full");
-	match cache::read::<FullBundle>(&cache_key).await {
+	match cache::read_proto::<FullBundle>(&cache_key).await {
 		Ok(Some(cached_bundle)) => {
 			debug!("Loaded full bundle for {} from cache", build_hash);
 			return Ok(cached_bundle);
@@ -46,7 +46,7 @@ pub async fn fetch_full_bundle(build_hash: &str) -> Result<FullBundle> {
 				"Failed to read cached full bundle for {}: {}",
 				build_hash, e
 			);
-			if e.is_deserialize() {
+			if e.is_deserialize() || e.is_proto_decode() {
 				info!("Invalidating corrupted cache for {}", build_hash);
 				let _ = cache::invalidate(&cache_key).await;
 			}
@@ -65,13 +65,13 @@ pub async fn fetch_full_bundle(build_hash: &str) -> Result<FullBundle> {
 		.context("Failed to read response body")?;
 	let data = tokio::task::spawn_blocking(move || -> Result<_> {
 		let raw = zstd::decode_all(&*bts)?;
-		let data: FullBundle = rmp_serde::from_slice(&raw)?;
+		let data = FullBundle::decode_proto(&raw)?;
 		Ok(data)
 	})
 	.await
 	.context("JoinError")??;
 
-	if let Err(e) = cache::write(&cache_key, &data, None).await {
+	if let Err(e) = cache::write_proto(&cache_key, &data, None).await {
 		warn!("Failed to cache full bundle for {}: {}", build_hash, e);
 	}
 

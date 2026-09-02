@@ -8,7 +8,13 @@ use std::{
 };
 
 use explorer_server_core::{DATA_FILE_NAME, METADATA_FILE_NAME};
-use explorer_types::{BundleMetadata, DepInfo, FullBundle, ModuleId};
+use explorer_types::{
+	BundleMetadata,
+	DepInfo,
+	FullBundle,
+	ModuleId,
+	ProtoWire,
+};
 use redis::AsyncCommands as _;
 use tempfile::TempDir;
 use tokio::time::{Instant, sleep};
@@ -98,13 +104,13 @@ fn write_fixture(root: &Path) {
 
 	// the same encoding `explorer_server_core::write_full_bundle` produces,
 	// inlined because that helper resolves paths against the process cwd
-	let meta = rmp_serde::to_vec(&metadata).unwrap();
+	let meta = metadata.encode_proto();
 	fs::write(
 		build_dir.join(METADATA_FILE_NAME),
 		zstd::encode_all(&*meta, 0).unwrap(),
 	)
 	.unwrap();
-	let data = rmp_serde::to_vec(&bundle).unwrap();
+	let data = bundle.encode_proto();
 	fs::write(
 		build_dir.join(DATA_FILE_NAME),
 		zstd::encode_all(&*data, 10).unwrap(),

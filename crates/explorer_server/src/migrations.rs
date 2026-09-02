@@ -15,6 +15,8 @@ use tracing::{Level, error, info, instrument, span};
 
 use explorer_server_core::{
 	DATA_FILE_NAME,
+	LEGACY_DATA_FILE_NAME,
+	LEGACY_METADATA_FILE_NAME,
 	build_has_data,
 	get_root_build_path,
 	get_version_file_path,
@@ -28,9 +30,10 @@ enum Versions {
 	V1,
 	V2,
 	V3,
+	V4,
 }
 
-const CURRENT_VERSION: Versions = Versions::V3;
+const CURRENT_VERSION: Versions = Versions::V4;
 
 impl Versions {
 	fn get_current() -> Result<Self> {
@@ -45,6 +48,7 @@ impl Versions {
 					1 => Self::V1,
 					2 => Self::V2,
 					3 => Self::V3,
+					4 => Self::V4,
 					_ => {
 						bail!("Unknown version in version file")
 					}
@@ -66,6 +70,7 @@ impl Versions {
 				panic!("Migrations for versions below 3 are implemented in JS")
 			}
 			Self::V3 => Box::new(V3Migration),
+			Self::V4 => Box::new(V4Migration),
 		}
 	}
 	const fn next(self) -> Option<Self> {
@@ -73,7 +78,8 @@ impl Versions {
 			Self::V0 => Some(Self::V1),
 			Self::V1 => Some(Self::V2),
 			Self::V2 => Some(Self::V3),
-			Self::V3 => None,
+			Self::V3 => Some(Self::V4),
+			Self::V4 => None,
 		}
 	}
 }
@@ -275,6 +281,35 @@ impl Migration for V3Migration {
 		let chunks_path = base_build_path.join("chunks");
 		if chunks_path.exists() && chunks_path.is_dir() {
 			fs::remove_dir_all(chunks_path)?;
+		}
+		Ok(())
+	}
+}
+
+struct V4Migration;
+
+impl Migration for V4Migration {
+	fn migrate(&self) -> Result<()> {
+		let base_build_path = get_root_build_path()?;
+		for entry in fs::read_dir(&base_build_path)? {
+			let entry = entry?;
+			if !entry.file_type()?.is_dir() {
+				continue;
+			}
+			let entry_path = entry.path();
+			let legacy_data_path = entry_path.join(LEGACY_DATA_FILE_NAME);
+			if !legacy_data_path.is_file() {
+				continue;
+			}
+			let data_zst = fs::read(&legacy_data_path)?;
+			let data_mpk = zstd::decode_all(data_zst.as_slice())?;
+			let bundle: FullBundle = rmp_serde::from_slice(&data_mpk)?;
+			write_full_bundle(&bundle)?;
+			fs::remove_file(&legacy_data_path)?;
+			let legacy_meta_path = entry_path.join(LEGACY_METADATA_FILE_NAME);
+			if legacy_meta_path.is_file() {
+				fs::remove_file(&legacy_meta_path)?;
+			}
 		}
 		Ok(())
 	}

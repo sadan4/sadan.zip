@@ -8,6 +8,9 @@ use std::{
 };
 use typesize::derive::TypeSize;
 
+mod proto;
+pub use proto::{ProtoDecodeError, ProtoWire};
+
 pub type TModuleId = u32;
 
 #[derive(Serialize, Deserialize, Default, Debug, Clone, TypeSize)]
@@ -101,7 +104,7 @@ impl FullBundle {
 #[derive(Serialize, Deserialize, Debug, Default, TypeSize)]
 #[serde(rename_all = "camelCase")]
 pub struct BuildList {
-	/// array of zstd compressed msgpack serialized [`BundleMetadata`]
+	/// array of zstd compressed, protobuf-encoded [`BundleMetadata`]
 	pub builds: Vec<Box<[u8]>>,
 }
 

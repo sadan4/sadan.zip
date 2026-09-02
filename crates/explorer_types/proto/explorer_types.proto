@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package explorer_types;
+
+message BundleMetadata {
+	string build_hash = 1;
+	uint32 build_number = 2;
+	uint64 first_seen = 3;
+	optional uint32 entry_point = 4;
+	string env_var_text = 5;
+}
+
+message ExportName {
+	oneof kind {
+		bool is_default = 1;
+		string named = 2;
+	}
+}
+
+message FluxDispatcherEntry {
+	uint32 module_id = 1;
+	ExportName export_name = 2;
+}
+
+message KeyModules {
+	repeated FluxDispatcherEntry flux_dispatcher_class = 1;
+}
+
+message IncomingModuleDeps {
+	repeated uint32 sync = 1;
+	repeated uint32 lazy = 2;
+}
+
+message DepInfo {
+	KeyModules key_modules = 1;
+	map<uint32, IncomingModuleDeps> module_deps = 2;
+}
+
+message ModuleIdList {
+	repeated uint32 ids = 1;
+}
+
+message FullBundle {
+	BundleMetadata metadata = 1;
+	DepInfo dep_info = 2;
+	map<string, ModuleIdList> module_sources = 3;
+	map<uint32, string> modules = 4;
+}
+
+// each entry is an independently zstd-compressed, protobuf-serialized
+// BundleMetadata, matching the on-disk meta.pb.zst layout
+message BuildList {
+	repeated bytes builds = 1;
+}
+
+message TimestampQueryResults {
+	BundleMetadata before = 1;
+	BundleMetadata after = 2;
+}

@@ -24,6 +24,7 @@ use explorer_types::{
 	BuildList,
 	BundleMetadata,
 	FullBundle,
+	ProtoWire,
 	TimestampQueryResults,
 };
 use git_hash::GIT_HASH;
@@ -50,9 +51,9 @@ type Result<T = Response> = std::result::Result<T, AppError>;
 const ZSTD_MIME_TYPE: &str = "application/zstd";
 const ZSTD_HEADERS: [(header::HeaderName, &str); 1] =
 	[(header::CONTENT_TYPE, ZSTD_MIME_TYPE)];
-const MSGPACK_MIME_TYPE: &str = "application/vnd.msgpack";
-const MSGPACK_HEADERS: [(header::HeaderName, &str); 1] =
-	[(header::CONTENT_TYPE, MSGPACK_MIME_TYPE)];
+const PROTOBUF_MIME_TYPE: &str = "application/x-protobuf";
+const PROTOBUF_HEADERS: [(header::HeaderName, &str); 1] =
+	[(header::CONTENT_TYPE, PROTOBUF_MIME_TYPE)];
 const SEVENZ_MIME_TYPE: &str = "application/x-7z-compressed";
 const SEVENZ_HEADERS: [(header::HeaderName, &str); 1] =
 	[(header::CONTENT_TYPE, SEVENZ_MIME_TYPE)];
@@ -166,7 +167,7 @@ async fn touch_builds(State(state): State<crate::State>) -> Result {
 			.context("Failed to read bundle metadata")?;
 		let meta = tokio::task::spawn_blocking(move || -> Result<_> {
 			let meta_raw = zstd::decode_all(&*meta_zstd_raw)?;
-			let meta = rmp_serde::from_slice::<BundleMetadata>(&meta_raw)?;
+			let meta = BundleMetadata::decode_proto(&meta_raw)?;
 			Ok(meta)
 		})
 		.await??;
@@ -215,9 +216,9 @@ async fn get_before_timestamp(
 		after: None,
 	};
 
-	let raw = rmp_serde::to_vec(&ret_data)?;
+	let raw = ret_data.encode_proto();
 	let body = Body::from(raw);
-	Ok((MSGPACK_HEADERS, body).into_response())
+	Ok((PROTOBUF_HEADERS, body).into_response())
 }
 
 async fn get_before_hash(
@@ -237,14 +238,14 @@ async fn get_before_hash(
 		before,
 		after: None,
 	};
-	let raw = rmp_serde::to_vec(&ret_data)?;
+	let raw = ret_data.encode_proto();
 	let body = Body::from(raw);
-	Ok((MSGPACK_HEADERS, body).into_response())
+	Ok((PROTOBUF_HEADERS, body).into_response())
 }
 
 fn make_archive(zstd_raw_data: &[u8]) -> Result<Vec<u8>> {
-	let mpk_raw_data = zstd::decode_all(zstd_raw_data)?;
-	let b: FullBundle = rmp_serde::from_slice(&mpk_raw_data)?;
+	let pb_raw_data = zstd::decode_all(zstd_raw_data)?;
+	let b = FullBundle::decode_proto(&pb_raw_data)?;
 	// Most archives are around 22MB, allocate a bit more
 	let buf = Vec::with_capacity(25 * MB);
 	let mut a = ArchiveWriter::new(io::Cursor::new(buf))?;
@@ -383,10 +384,10 @@ async fn get_all_builds() -> Result {
 			.into_boxed_slice();
 		builds.push(meta_file);
 	}
-	let builds_mpk = rmp_serde::to_vec(&BuildList { builds })?;
-	let body = Body::from(builds_mpk);
+	let builds_pb = BuildList { builds }.encode_proto();
+	let body = Body::from(builds_pb);
 
-	Ok((MSGPACK_HEADERS, body).into_response())
+	Ok((PROTOBUF_HEADERS, body).into_response())
 }
 
 async fn get_latest_build_meta(State(state): State<crate::State>) -> Result {
@@ -402,13 +403,7 @@ async fn get_latest_build_meta(State(state): State<crate::State>) -> Result {
 			(StatusCode::NOT_FOUND, "server has no builds").into_response()
 		);
 	};
-	Ok((
-		MSGPACK_HEADERS,
-		Body::from(
-			rmp_serde::to_vec(&*meta).context("Failed to serialize meta")?,
-		),
-	)
-		.into_response())
+	Ok((PROTOBUF_HEADERS, Body::from(meta.encode_proto())).into_response())
 }
 
 #[instrument]
