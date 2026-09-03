@@ -177,7 +177,8 @@ where
 	let compression_level = compression_level.into().unwrap_or(10);
 	let cache_dir = get_cache_dir().await?;
 	let cache_file = cache_dir.join(key);
-	let raw_data = rmp_serde::to_vec(data).map_err(CacheError::Serialize)?;
+	let raw_data =
+		rmp_serde::to_vec_named(data).map_err(CacheError::Serialize)?;
 	let raw_zstd_data = zstd::encode_all(&*raw_data, compression_level)
 		.map_err(CacheError::Zstd)?;
 	let mut file = fs::File::options()

@@ -215,7 +215,7 @@ async fn get_before_timestamp(
 		after: None,
 	};
 
-	let raw = rmp_serde::to_vec(&ret_data)?;
+	let raw = rmp_serde::to_vec_named(&ret_data)?;
 	let body = Body::from(raw);
 	Ok((MSGPACK_HEADERS, body).into_response())
 }
@@ -237,7 +237,7 @@ async fn get_before_hash(
 		before,
 		after: None,
 	};
-	let raw = rmp_serde::to_vec(&ret_data)?;
+	let raw = rmp_serde::to_vec_named(&ret_data)?;
 	let body = Body::from(raw);
 	Ok((MSGPACK_HEADERS, body).into_response())
 }
@@ -383,7 +383,7 @@ async fn get_all_builds() -> Result {
 			.into_boxed_slice();
 		builds.push(meta_file);
 	}
-	let builds_mpk = rmp_serde::to_vec(&BuildList { builds })?;
+	let builds_mpk = rmp_serde::to_vec_named(&BuildList { builds })?;
 	let body = Body::from(builds_mpk);
 
 	Ok((MSGPACK_HEADERS, body).into_response())
@@ -405,7 +405,8 @@ async fn get_latest_build_meta(State(state): State<crate::State>) -> Result {
 	Ok((
 		MSGPACK_HEADERS,
 		Body::from(
-			rmp_serde::to_vec(&*meta).context("Failed to serialize meta")?,
+			rmp_serde::to_vec_named(&*meta)
+				.context("Failed to serialize meta")?,
 		),
 	)
 		.into_response())

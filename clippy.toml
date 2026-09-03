@@ -1,0 +1,3 @@
+disallowed-methods = [
+    { path = "rmp_serde::to_vec", reason = "to_vec_named includes property names instead of being schema-based", replacement = "rmp_serde::to_vec_named" },
+]

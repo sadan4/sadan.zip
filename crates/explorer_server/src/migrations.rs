@@ -11,13 +11,14 @@ use explorer_types::{
 	ModuleId,
 };
 use serde::Deserialize;
-use tracing::{Level, error, info, instrument, span};
+use tracing::{Level, error, info, instrument, span, warn};
 
 use explorer_server_core::{
 	DATA_FILE_NAME,
 	build_has_data,
 	get_root_build_path,
 	get_version_file_path,
+	read_full_bundle_from_dir,
 	write_full_bundle,
 };
 
@@ -28,9 +29,10 @@ enum Versions {
 	V1,
 	V2,
 	V3,
+	V4,
 }
 
-const CURRENT_VERSION: Versions = Versions::V3;
+const CURRENT_VERSION: Versions = Versions::V4;
 
 impl Versions {
 	fn get_current() -> Result<Self> {
@@ -45,6 +47,7 @@ impl Versions {
 					1 => Self::V1,
 					2 => Self::V2,
 					3 => Self::V3,
+					4 => Self::V4,
 					_ => {
 						bail!("Unknown version in version file")
 					}
@@ -66,6 +69,7 @@ impl Versions {
 				panic!("Migrations for versions below 3 are implemented in JS")
 			}
 			Self::V3 => Box::new(V3Migration),
+			Self::V4 => Box::new(V4Migration),
 		}
 	}
 	const fn next(self) -> Option<Self> {
@@ -73,7 +77,8 @@ impl Versions {
 			Self::V0 => Some(Self::V1),
 			Self::V1 => Some(Self::V2),
 			Self::V2 => Some(Self::V3),
-			Self::V3 => None,
+			Self::V3 => Some(Self::V4),
+			Self::V4 => None,
 		}
 	}
 }
@@ -89,6 +94,9 @@ trait Migration {
 }
 
 struct V3Migration;
+
+/// Re-read and write every bundle to use named fields in messagepack
+struct V4Migration;
 
 type JsModulesJson = HashMap<String, Vec<String>>;
 
@@ -275,6 +283,30 @@ impl Migration for V3Migration {
 		let chunks_path = base_build_path.join("chunks");
 		if chunks_path.exists() && chunks_path.is_dir() {
 			fs::remove_dir_all(chunks_path)?;
+		}
+		Ok(())
+	}
+}
+
+impl Migration for V4Migration {
+	fn migrate(&self) -> Result<()> {
+		let base_build_path = get_root_build_path()?;
+		for entry in fs::read_dir(&base_build_path)? {
+			let entry = entry?;
+			if !entry.file_type()?.is_dir() {
+				continue;
+			}
+			let entry_path = entry.path();
+			if !build_has_data(&entry_path) {
+				warn!(
+					"Skipping {}: empty build directory, no data file",
+					entry_path.display()
+				);
+				continue;
+			}
+			info!("Re-encoding build {}", entry_path.display());
+			let data = read_full_bundle_from_dir(&entry_path)?;
+			write_full_bundle(&data)?;
 		}
 		Ok(())
 	}

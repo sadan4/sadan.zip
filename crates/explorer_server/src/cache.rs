@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use redis::AsyncCommands as _;
 
-const ARCHIVE_KEY_PREFIX: &str = "discord-build-archive:";
+const ARCHIVE_KEY_PREFIX: &str = "discord-build-archive:v2:";
 /// 7 days
 const ARCHIVE_TTL: u64 = 60 * 60 * 24 * 7;
 

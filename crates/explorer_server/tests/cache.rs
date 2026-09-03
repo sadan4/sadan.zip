@@ -14,7 +14,7 @@ use tempfile::TempDir;
 use tokio::time::{Instant, sleep};
 
 /// must match `ARCHIVE_KEY_PREFIX` in `src/cache.rs`
-const KEY_PREFIX: &str = "discord-build-archive:";
+const KEY_PREFIX: &str = "discord-build-archive:v2:";
 /// must match `ARCHIVE_TTL` in `src/cache.rs`
 const ARCHIVE_TTL: i64 = 60 * 60 * 24 * 7;
 
@@ -98,13 +98,13 @@ fn write_fixture(root: &Path) {
 
 	// the same encoding `explorer_server_core::write_full_bundle` produces,
 	// inlined because that helper resolves paths against the process cwd
-	let meta = rmp_serde::to_vec(&metadata).unwrap();
+	let meta = rmp_serde::to_vec_named(&metadata).unwrap();
 	fs::write(
 		build_dir.join(METADATA_FILE_NAME),
 		zstd::encode_all(&*meta, 0).unwrap(),
 	)
 	.unwrap();
-	let data = rmp_serde::to_vec(&bundle).unwrap();
+	let data = rmp_serde::to_vec_named(&bundle).unwrap();
 	fs::write(
 		build_dir.join(DATA_FILE_NAME),
 		zstd::encode_all(&*data, 10).unwrap(),

@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, anyhow};
 use explorer_types::FullBundle;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -7,7 +7,7 @@ use std::{
 	env,
 	fmt::Debug,
 	fs,
-	io,
+	io::{self, Write as _},
 	ops::Bound,
 	path::{Path, PathBuf},
 };
@@ -44,6 +44,50 @@ pub fn build_has_data(build_hash: &Path) -> bool {
 		.is_file()
 }
 
+pub fn read_full_bundle_from_dir(dir: &Path) -> Result<FullBundle> {
+	let data_path = dir.join(DATA_FILE_NAME);
+	let f = fs::File::open(&data_path).with_context(|| {
+		format!("Failed to open bundle data at {}", data_path.display())
+	})?;
+	let raw_zst = zstd::Decoder::new(f).with_context(|| {
+		format!("Failed to read zstd stream at {}", data_path.display())
+	})?;
+	let bundle = rmp_serde::from_read(raw_zst).with_context(|| {
+		format!("Failed to decode bundle at {}", data_path.display())
+	})?;
+	Ok(bundle)
+}
+
+fn write_atomic(path: &Path, contents: &[u8]) -> Result<()> {
+	// same directory so the rename stays on one filesystem
+	let mut tmp_name = path
+		.file_name()
+		.ok_or_else(|| anyhow!("{} has no file name", path.display()))?
+		.to_owned();
+	tmp_name.push(".tmp");
+	let tmp_path = path.with_file_name(tmp_name);
+
+	let mut f = fs::File::create(&tmp_path).with_context(|| {
+		format!("Failed to create temp file {}", tmp_path.display())
+	})?;
+	f.write_all(contents).with_context(|| {
+		format!("Failed to write temp file {}", tmp_path.display())
+	})?;
+	f.sync_all().with_context(|| {
+		format!("Failed to sync temp file {}", tmp_path.display())
+	})?;
+	drop(f);
+
+	fs::rename(&tmp_path, path).with_context(|| {
+		format!(
+			"Failed to rename {} to {}",
+			tmp_path.display(),
+			path.display()
+		)
+	})?;
+	Ok(())
+}
+
 pub fn write_full_bundle(bundle: &FullBundle) -> Result<()> {
 	let build_path = get_build_path(&bundle.metadata.build_hash)?;
 
@@ -51,15 +95,16 @@ pub fn write_full_bundle(bundle: &FullBundle) -> Result<()> {
 		fs::create_dir_all(&build_path)?;
 	}
 
-	let meta_bin = rmp_serde::to_vec(&bundle.metadata)?;
+	let meta_bin = rmp_serde::to_vec_named(&bundle.metadata)?;
 	let meta_zst = zstd::encode_all(meta_bin.as_slice(), 0)?;
 	drop(meta_bin);
-	fs::write(build_path.join(METADATA_FILE_NAME), meta_zst)?;
-	let data_mpk = rmp_serde::to_vec(&bundle)?;
+	write_atomic(&build_path.join(METADATA_FILE_NAME), &meta_zst)?;
+	drop(meta_zst);
+	let data_mpk = rmp_serde::to_vec_named(&bundle)?;
 	let data_zst = compress_full_bundle_data(&data_mpk)?;
 	drop(data_mpk);
 
-	fs::write(build_path.join(DATA_FILE_NAME), data_zst)?;
+	write_atomic(&build_path.join(DATA_FILE_NAME), &data_zst)?;
 
 	Ok(())
 }
