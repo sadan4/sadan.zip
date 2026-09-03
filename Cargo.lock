@@ -576,6 +576,9 @@ name = "bytes"
 version = "1.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc652a48c352aef3ea3aed32080501cf3ef6ed5da78602a020c991775b0aff04"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "bytestring"
@@ -1613,6 +1616,7 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tokio-util",
+ "tonic",
  "tower-http 0.7.1",
  "tracing",
  "tracing-subscriber",
@@ -1644,6 +1648,9 @@ dependencies = [
  "protoc-bin-vendored",
  "serde",
  "thiserror 2.0.20",
+ "tonic",
+ "tonic-prost",
+ "tonic-prost-build",
  "typesize",
 ]
 
@@ -4131,6 +4138,8 @@ dependencies = [
  "prettyplease",
  "prost",
  "prost-types",
+ "pulldown-cmark 0.13.4",
+ "pulldown-cmark-to-cmark",
  "regex",
  "syn 2.0.119",
  "tempfile",
@@ -4231,6 +4240,26 @@ dependencies = [
  "bitflags 2.13.1",
  "memchr",
  "unicase",
+]
+
+[[package]]
+name = "pulldown-cmark"
+version = "0.13.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e9f068eba8e7071c5f9511831b44f32c740d5adf574e990f946ddb53db2f314e"
+dependencies = [
+ "bitflags 2.13.1",
+ "memchr",
+ "unicase",
+]
+
+[[package]]
+name = "pulldown-cmark-to-cmark"
+version = "22.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ab1ad36992cead65f02aa399a373a42730922f1525d988172634fdefdecb8a60"
+dependencies = [
+ "pulldown-cmark 0.13.4",
 ]
 
 [[package]]
@@ -5525,7 +5554,7 @@ dependencies = [
  "cargo_metadata",
  "error-chain",
  "glob",
- "pulldown-cmark",
+ "pulldown-cmark 0.9.6",
  "tempfile",
  "walkdir",
 ]
@@ -6136,6 +6165,19 @@ dependencies = [
  "tower-layer",
  "tower-service",
  "tracing",
+ "zstd",
+]
+
+[[package]]
+name = "tonic-build"
+version = "0.14.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c68f61875ac5293cf72e6c8cf0158086428c82c37229e98c840878f1706b0322"
+dependencies = [
+ "prettyplease",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -6147,6 +6189,22 @@ dependencies = [
  "bytes",
  "prost",
  "tonic",
+]
+
+[[package]]
+name = "tonic-prost-build"
+version = "0.14.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "654e5643eff75d7f8c99197ce1440ed19a3474eada74c12bbac488b2cafdae27"
+dependencies = [
+ "prettyplease",
+ "proc-macro2",
+ "prost-build",
+ "prost-types",
+ "quote",
+ "syn 2.0.119",
+ "tempfile",
+ "tonic-build",
 ]
 
 [[package]]
@@ -6427,8 +6485,9 @@ dependencies = [
 [[package]]
 name = "typesize"
 version = "0.1.15"
-source = "git+https://github.com/GnomedDev/typesize?branch=master#4e032bc507cc693d3f66aac905ed7df8473f9df7"
+source = "git+https://github.com/sadan4/typesize?branch=feat%2Fbytes#49d9b8dcee3f44e112e34af7175b75fe996411d3"
 dependencies = [
+ "bytes",
  "chrono",
  "hashbrown 0.15.5",
  "nonmax",
@@ -6443,7 +6502,7 @@ dependencies = [
 [[package]]
 name = "typesize-derive"
 version = "0.1.11"
-source = "git+https://github.com/GnomedDev/typesize?branch=master#4e032bc507cc693d3f66aac905ed7df8473f9df7"
+source = "git+https://github.com/sadan4/typesize?branch=feat%2Fbytes#49d9b8dcee3f44e112e34af7175b75fe996411d3"
 dependencies = [
  "proc-macro2",
  "quote",

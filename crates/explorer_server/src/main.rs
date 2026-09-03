@@ -1,11 +1,13 @@
+#![feature(try_blocks)]
 mod cache;
 mod migrations;
+mod rpc;
 mod server;
 mod state;
 mod watcher;
 
 use clap::Parser;
-use std::process;
+use std::{net::SocketAddr, process, str::FromStr};
 use tokio::task::JoinSet;
 
 use tracing::{debug, error, info, warn};
@@ -55,6 +57,9 @@ async fn main() {
 	let cli = Cli::parse();
 	install_tracing();
 	info!("Starting explorer server...");
+	let addr = format!("{}:{}", cli.host, cli.port);
+	let addr = SocketAddr::from_str(&addr)
+		.expect("Failed to parse socket addr from cli");
 	// TODO: make async
 	match migrate_if_needed() {
 		Ok(()) => info!("Migrations complete"),
@@ -94,16 +99,7 @@ async fn main() {
 		watcher::start_watcher(state_).await;
 	});
 	debug!("spawned watcher");
-	let state_ = state.clone();
-	tasks.spawn(async move {
-		if let Err(e) =
-			server::serve(&format!("{}:{}", cli.host, cli.port), state_).await
-		{
-			error!("Error in HTTP server: {e}");
-		}
-		warn!("HTTP server exited");
-	});
-	debug!("spawned HTTP server");
+	rpc::BuildServiceImpl::start(addr, state.clone());
 	info!("Explorer server started");
 	while let Some(task) = tasks.join_next().await {
 		if let Err(e) = task {

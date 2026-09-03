@@ -29,6 +29,7 @@ use explorer_types::{
 use git_hash::GIT_HASH;
 use http::{StatusCode, header};
 use prost::Message as _;
+use serde::Serialize;
 use sevenz_rust2::{
 	ArchiveEntry,
 	ArchiveWriter,
@@ -245,6 +246,14 @@ async fn get_before_hash(
 	Ok((PROTOBUF_HEADERS, body).into_response())
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct InfoJson<'a> {
+	#[serde(flatten)]
+	metadata: &'a BundleMetadata,
+	env_var_text: &'a str,
+}
+
 fn make_archive(zstd_raw_data: &[u8]) -> Result<Vec<u8>> {
 	let pb_raw_data = zstd::decode_all(zstd_raw_data)?;
 	let b = FullBundle::decode(&*pb_raw_data)?;
@@ -268,7 +277,13 @@ fn make_archive(zstd_raw_data: &[u8]) -> Result<Vec<u8>> {
 
 	// top-level files
 	let deps_json = serde_json::to_vec(&b.dep_info)?;
-	let info_json = serde_json::to_vec(&b.metadata)?;
+	let info_json = serde_json::to_vec(&InfoJson {
+		metadata: b
+			.metadata
+			.as_ref()
+			.context("build has no metadata")?,
+		env_var_text: &b.env_var_text,
+	})?;
 	let modules_json = serde_json::to_vec(&b.module_sources)?;
 	let top_level: [(&str, &[u8]); 3] = [
 		("deps.json", &deps_json),
@@ -382,7 +397,7 @@ async fn get_all_builds() -> Result {
 			continue;
 		}
 		let meta_file = fs::read(meta_path).await?;
-		builds.push(meta_file);
+		builds.push(meta_file.into());
 	}
 	let builds_pb = BuildList { builds }.encode_to_vec();
 	let body = Body::from(builds_pb);

@@ -79,7 +79,7 @@ syn = { version = "2.0", default-features = false, features = [
 ] }
 reqwest-retry = "0.9.1"
 reqwest-middleware = { version = "0.5.1", features = ["query"] }
-bytes = "1.11.1"
+bytes = { version = "1", features = ["serde"] }
 macros = { path = "crates/macros" }
 explorer_types = { path = "crates/explorer_types" }
 explorer_server_core = { path = "crates/explorer_server_core" }
@@ -128,7 +128,7 @@ cxx = "1.0"
 cxx-build = "1.0"
 zxcvbn = { version = "3.1.1", features = ["ser"] }
 sha1 = "0.11.0"
-typesize = "0.1.15"
+typesize = { version = "0.1.15", features = ["bytes"] }
 libc = "0.2.189"
 seccompiler = "0.5"
 swift-demangler = "0.1.1"
@@ -145,9 +145,12 @@ pyo3-tracing-subscriber = { version = "0.9.0" }
 pyo3-tracing-subscriber-build = { version = "0.9.0" }
 oneshot = { version = "0.2.1", features = ["async", "std"] }
 redis = { version = "1.6.0", features = ["tokio-comp"] }
+tonic = { version = "0.14", features = ["zstd", "gzip"] }
+tonic-prost = "0.14"
+tonic-prost-build = { version = "0.14" }
 
 [patch.crates-io]
-typesize = { git = "https://github.com/GnomedDev/typesize", branch = "master" }
+typesize = { git = "https://github.com/sadan4/typesize", branch = "feat/bytes" }
 
 
 [profile.release]

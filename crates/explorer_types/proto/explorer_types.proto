@@ -61,8 +61,8 @@ message BuildList {
 }
 
 message TimestampQueryResults {
-  BundleMetadata before = 1;
-  BundleMetadata after  = 2;
+  optional BundleMetadata before = 1;
+  optional BundleMetadata after  = 2;
 }
 
 message Span {
@@ -79,10 +79,34 @@ message SpannedId {
 message OutgoingModuleDepsWithLocs {
 	// The modules that this module requires synchronously
   repeated SpannedId sync = 1;
-	// the module that this module requires lazily (dynamic import)
+	// the modules that this module requires lazily (dynamic import)
   repeated SpannedId lazy = 2;
 }
 
 message ModuleSources {
   map<string, ModuleIdList> sources = 1;
+}
+
+message BuildHashQuery {
+  bytes build_hash = 1;
+}
+
+message Bundle7zArchive {
+  bytes archive_7z = 1;
+}
+
+message GitHash {
+  string hash = 1;
+}
+
+service BuildArchive {
+  rpc GetBuildMetadata(BuildHashQuery) returns (BundleMetadata);
+  rpc GetBuildArchive(BuildHashQuery) returns (FullBundle);
+  rpc GetBundle7zArchive(BuildHashQuery) returns (Bundle7zArchive);
+  rpc ListBuilds (google.protobuf.Empty) returns (stream BundleMetadata);
+  rpc GetBuildsBeforeTimestamp(google.protobuf.Timestamp) returns (TimestampQueryResults);
+  rpc GetBuildsBeforeHash(BuildHashQuery) returns (TimestampQueryResults);
+  rpc GetLatestBuild(google.protobuf.Empty) returns (BundleMetadata);
+  rpc FixupTimestamps(google.protobuf.Empty) returns (google.protobuf.Empty);
+  rpc Version(google.protobuf.Empty) returns (GitHash);
 }

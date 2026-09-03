@@ -33,6 +33,7 @@ git_hash.workspace = true
 sevenz-rust2.workspace = true
 redis.workspace = true
 prost.workspace = true
+tonic.workspace = true
 
 [lints]
 workspace = true

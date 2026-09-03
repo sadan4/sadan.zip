@@ -4,6 +4,7 @@ use std::{
 };
 
 use jiff::tz::TimeZone;
+use prost::bytes::Bytes;
 
 use crate::{ModuleId, TModuleId, legacy};
 
@@ -21,14 +22,38 @@ pub use const_hex::FromHexError;
 
 /// decodes the hex representation of a build hash into the raw bytes stored in
 /// [`wire::BundleMetadata::build_hash`]
-pub fn decode_build_hash(hex: &str) -> Result<Vec<u8>, FromHexError> {
-	const_hex::decode(hex)
+pub fn decode_build_hash(hex: &str) -> Result<Bytes, FromHexError> {
+	Ok(const_hex::decode(hex)?.into())
 }
 
 /// encodes the raw bytes of a build hash as hex, which is how a build is named
 /// on disk and in urls
 pub fn encode_build_hash(bytes: &[u8]) -> String {
 	const_hex::encode(bytes)
+}
+
+/// serde adapter for [`wire::BundleMetadata::build_hash`], which is raw bytes
+/// on the wire but has always been a hex string in the json files inside the
+/// downloadable archives
+pub mod build_hash_hex {
+	use std::borrow::Cow;
+
+	use prost::bytes::Bytes;
+	use serde::{Deserialize, Deserializer, Serializer, de::Error as _};
+
+	pub fn serialize<S: Serializer>(
+		bytes: &[u8],
+		serializer: S,
+	) -> Result<S::Ok, S::Error> {
+		serializer.serialize_str(&super::encode_build_hash(bytes))
+	}
+
+	pub fn deserialize<'de, D: Deserializer<'de>>(
+		deserializer: D,
+	) -> Result<Bytes, D::Error> {
+		let hex = Cow::<'de, str>::deserialize(deserializer)?;
+		super::decode_build_hash(&hex).map_err(D::Error::custom)
+	}
 }
 
 impl google::protobuf::Timestamp {
@@ -142,15 +167,7 @@ impl wire::BundleMetadata {
 		Ok(())
 	}
 
-	pub fn shrink_to_fit(&mut self) {
-		let Self {
-			build_hash,
-			build_number: _,
-			first_seen: _,
-			entry_point: _,
-		} = self;
-		build_hash.shrink_to_fit();
-	}
+	pub fn shrink_to_fit(&mut self) {}
 }
 
 impl wire::KeyModules {
