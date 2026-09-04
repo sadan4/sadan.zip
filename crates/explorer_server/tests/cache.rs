@@ -7,7 +7,13 @@ use std::{
 	time::Duration,
 };
 
-use explorer_server_core::{DATA_FILE_NAME, METADATA_FILE_NAME};
+use explorer_server_core::{
+	DATA_FILE_NAME,
+	DATA_ZSTD_LEVEL,
+	METADATA_FILE_NAME,
+	METADATA_ZSTD_LEVEL,
+	write_mpk_zst_atomic,
+};
 use explorer_types::{BundleMetadata, DepInfo, FullBundle, ModuleId};
 use redis::AsyncCommands as _;
 use tempfile::TempDir;
@@ -96,18 +102,16 @@ fn write_fixture(root: &Path) {
 		modules,
 	};
 
-	// the same encoding `explorer_server_core::write_full_bundle` produces,
-	// inlined because that helper resolves paths against the process cwd
-	let meta = rmp_serde::to_vec_named(&metadata).unwrap();
-	fs::write(
-		build_dir.join(METADATA_FILE_NAME),
-		zstd::encode_all(&*meta, 0).unwrap(),
+	write_mpk_zst_atomic(
+		&build_dir.join(METADATA_FILE_NAME),
+		&metadata,
+		METADATA_ZSTD_LEVEL,
 	)
 	.unwrap();
-	let data = rmp_serde::to_vec_named(&bundle).unwrap();
-	fs::write(
-		build_dir.join(DATA_FILE_NAME),
-		zstd::encode_all(&*data, 10).unwrap(),
+	write_mpk_zst_atomic(
+		&build_dir.join(DATA_FILE_NAME),
+		&bundle,
+		DATA_ZSTD_LEVEL,
 	)
 	.unwrap();
 }

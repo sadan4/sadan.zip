@@ -1,4 +1,6 @@
 pub mod fut;
+use std::io::BufReader;
+
 use crate::{
 	err::{BadCast, Error, Result},
 	util::fut::JsPromiseExt,
@@ -8,6 +10,8 @@ use serde::de::DeserializeOwned;
 use wasm_bindgen::{JsCast, prelude::wasm_bindgen};
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{Response, Window, WorkerGlobalScope};
+
+const BUF_SIZE: usize = 1024 * 1024;
 
 #[wasm_bindgen]
 extern "C" {
@@ -65,7 +69,10 @@ where
 		.map_err(|_| BadCast::ArrayBuffer)?;
 	let zstd_raw_data = Uint8Array::new(&arr_buf).to_vec();
 	let mpk_raw_data =
-		zstd::decode_all(&*zstd_raw_data).map_err(Error::Zstd)?;
-	let data = rmp_serde::from_slice(&mpk_raw_data)?;
+		zstd::Decoder::new(&*zstd_raw_data).map_err(Error::Zstd)?;
+	let data = rmp_serde::from_read(BufReader::with_capacity(
+		BUF_SIZE,
+		mpk_raw_data,
+	))?;
 	Ok(data)
 }

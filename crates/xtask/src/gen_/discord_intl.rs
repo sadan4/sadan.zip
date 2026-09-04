@@ -2,7 +2,7 @@ use crate::Runnable;
 use anyhow::{Context, Result};
 use clap::Args;
 use smol_str::SmolStr;
-use std::{collections::HashMap, fs};
+use std::{collections::HashMap, fs, io, io::Write as _};
 use tracing::info;
 
 #[derive(Args, Clone, Debug)]
@@ -16,11 +16,14 @@ impl Runnable for Command {
 			.context("Failed to read key-mappings.json")?;
 		let json: HashMap<SmolStr, SmolStr> = serde_json::from_slice(&raw_json)
 			.context("Failed to parse key-mappings.json")?;
-		let ser_keys = rmp_serde::to_vec_named(&json)
-			.context("Failed to serialize key-mappings.json to MessagePack")?;
-		let compressed = zstd::encode_all(&*ser_keys, 10)
+		let out = fs::File::create(OUT_PATH)
+			.with_context(|| format!("Failed to create {OUT_PATH}"))?;
+		let mut enc = zstd::Encoder::new(io::BufWriter::new(out), 10)
 			.context("Failed to compress key-mappings.json")?;
-		fs::write(OUT_PATH, &compressed)
+		rmp_serde::encode::write_named(&mut enc, &json)
+			.context("Failed to serialize key-mappings.json to MessagePack")?;
+		enc.finish()
+			.and_then(|mut w| w.flush())
 			.with_context(|| format!("Failed to write data to {OUT_PATH}"))?;
 		info!("Done");
 		Ok(())

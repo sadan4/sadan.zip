@@ -1,9 +1,11 @@
-use std::{env, io, path::PathBuf};
+use std::{env, io, io::Write as _, path::PathBuf};
 
 use derive_more::IsVariant;
 use serde::{Serialize, de::DeserializeOwned};
-use tokio::{fs, io::AsyncWriteExt};
+use tokio::fs;
 use tracing::{debug, info};
+
+const BUF_SIZE: usize = 1024 * 1024;
 
 const REPORTER_CACHE_DIR_ENV: &str = "REPORTER_CACHE_DIR";
 const XDG_CACHE_ENV: &str = "XDG_CACHE_HOME";
@@ -128,16 +130,17 @@ where
 		return Ok(None);
 	}
 	debug!("Reading cache file: {}", cache_file.display());
-	let raw_zstd_data = fs::read(&cache_file)
-		.await
-		.map_err(|e| CacheError::Read {
+	let file =
+		std::fs::File::open(&cache_file).map_err(|e| CacheError::Read {
 			path: cache_file.clone(),
 			cause: e,
 		})?;
-	let raw_data =
-		zstd::decode_all(&*raw_zstd_data).map_err(CacheError::Zstd)?;
-	let data =
-		rmp_serde::from_slice(&raw_data).map_err(CacheError::Deserialize)?;
+	let raw_zstd_data = zstd::Decoder::new(file).map_err(CacheError::Zstd)?;
+	let data = rmp_serde::from_read(io::BufReader::with_capacity(
+		BUF_SIZE,
+		raw_zstd_data,
+	))
+	.map_err(CacheError::Deserialize)?;
 	Ok(Some(data))
 }
 
@@ -177,29 +180,25 @@ where
 	let compression_level = compression_level.into().unwrap_or(10);
 	let cache_dir = get_cache_dir().await?;
 	let cache_file = cache_dir.join(key);
-	let raw_data =
-		rmp_serde::to_vec_named(data).map_err(CacheError::Serialize)?;
-	let raw_zstd_data = zstd::encode_all(&*raw_data, compression_level)
-		.map_err(CacheError::Zstd)?;
-	let mut file = fs::File::options()
+	let file = std::fs::File::options()
 		.write(true)
 		.create(true)
 		.truncate(true)
 		.append(false)
 		.open(&cache_file)
-		.await
 		.map_err(|e| CacheError::Access {
 			path: cache_file.clone(),
 			cause: e,
 		})?;
-	file.write_all(&raw_zstd_data)
-		.await
-		.map_err(|e| CacheError::Write {
-			path: cache_file.clone(),
-			cause: e,
-		})?;
+	let mut enc = zstd::Encoder::new(
+		io::BufWriter::with_capacity(BUF_SIZE, file),
+		compression_level,
+	)
+	.map_err(CacheError::Zstd)?;
+	rmp_serde::encode::write_named(&mut enc, data)
+		.map_err(CacheError::Serialize)?;
+	let mut file = enc.finish().map_err(CacheError::Zstd)?;
 	file.flush()
-		.await
 		.map_err(|e| CacheError::Write {
 			path: cache_file.clone(),
 			cause: e,

@@ -91,12 +91,12 @@ async fn run() -> Result<i8> {
 			p.entry_source.clear();
 		}
 	}
-	let raw_plugins = rmp_serde::to_vec_named(&plugins)
-		.context("Failed to serialize plugins")?;
-	let zst_compressed_plugins = zstd::encode_all(&raw_plugins[..], 13)
+	let mut enc = zstd::Encoder::new(io::stdout().lock(), 13)
 		.context("Failed to compress plugin data")?;
-	io::stdout()
-		.write_all(&zst_compressed_plugins)
+	rmp_serde::encode::write_named(&mut enc, &plugins)
+		.context("Failed to serialize plugins")?;
+	enc.finish()
+		.and_then(|mut w| w.flush())
 		.context("Failed to write data to stdout")?;
 	info!("Serialized {} plugins", plugins.len());
 	Ok(0)

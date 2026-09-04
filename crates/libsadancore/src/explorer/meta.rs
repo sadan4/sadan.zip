@@ -67,8 +67,8 @@ pub async fn get_builds() -> Result<Box<[Meta]>> {
 		.into_iter()
 		.map(|zstd_raw_meta| -> Result<_> {
 			let mpk_raw_meta =
-				zstd::decode_all(&*zstd_raw_meta).map_err(Error::Zstd)?;
-			let d = rmp_serde::from_slice(&mpk_raw_meta)?;
+				zstd::Decoder::new(&*zstd_raw_meta).map_err(Error::Zstd)?;
+			let d = rmp_serde::from_read(mpk_raw_meta)?;
 			Ok(Meta(d))
 		})
 		.collect()

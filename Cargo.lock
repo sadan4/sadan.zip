@@ -4698,6 +4698,8 @@ dependencies = [
  "textwrap",
  "thiserror 2.0.20",
  "tokio",
+ "tokio-stream",
+ "tokio-util",
  "tracing",
  "tracing-subscriber",
  "unicode-width 0.2.2",

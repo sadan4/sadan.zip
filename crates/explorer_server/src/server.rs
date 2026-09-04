@@ -19,6 +19,7 @@ use explorer_server_core::{
 	get_around,
 	get_build_path,
 	get_root_build_path,
+	read_mpk_zst_file,
 };
 use explorer_types::{
 	BuildList,
@@ -161,13 +162,10 @@ async fn touch_builds(State(state): State<crate::State>) -> Result {
 			return Ok(());
 		}
 		let meta_path = dir_path.join(METADATA_FILE_NAME);
-		let meta_zstd_raw = fs::read(meta_path)
-			.await
-			.context("Failed to read bundle metadata")?;
 		let meta = tokio::task::spawn_blocking(move || -> Result<_> {
-			let meta_raw = zstd::decode_all(&*meta_zstd_raw)?;
-			let meta = rmp_serde::from_slice::<BundleMetadata>(&meta_raw)?;
-			Ok(meta)
+			read_mpk_zst_file::<BundleMetadata>(&meta_path)
+				.context("Failed to read bundle metadata")
+				.map_err(Into::into)
 		})
 		.await??;
 		let time = meta.first_seen_as_time();
@@ -242,9 +240,8 @@ async fn get_before_hash(
 	Ok((MSGPACK_HEADERS, body).into_response())
 }
 
-fn make_archive(zstd_raw_data: &[u8]) -> Result<Vec<u8>> {
-	let mpk_raw_data = zstd::decode_all(zstd_raw_data)?;
-	let b: FullBundle = rmp_serde::from_slice(&mpk_raw_data)?;
+fn make_archive(data_path: &std::path::Path) -> Result<Vec<u8>> {
+	let b: FullBundle = read_mpk_zst_file(data_path)?;
 	// Most archives are around 22MB, allocate a bit more
 	let buf = Vec::with_capacity(25 * MB);
 	let mut a = ArchiveWriter::new(io::Cursor::new(buf))?;
@@ -343,10 +340,8 @@ async fn get_bundle_archive(
 		)
 			.into_response());
 	}
-	let data_file = fs::read(data_path).await?;
-
 	let archive =
-		Bytes::from(spawn_blocking(move || make_archive(&data_file)).await??);
+		Bytes::from(spawn_blocking(move || make_archive(&data_path)).await??);
 
 	let cache = state.cache.clone();
 	let cached_archive = archive.clone();

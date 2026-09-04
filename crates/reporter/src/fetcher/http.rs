@@ -1,9 +1,15 @@
+use std::io::{self, BufReader};
+
 use anyhow::{Context, Result};
 use explorer_types::{FullBundle, TimestampQueryResults};
 use reqwest_middleware::reqwest::{self, StatusCode};
+use tokio_stream::StreamExt as _;
+use tokio_util::io::{StreamReader, SyncIoBridge};
 use tracing::{debug, info, instrument, warn};
 
 use crate::cache;
+
+const BUF_SIZE: usize = 1024 * 1024;
 
 const BASE_URL: &str = "https://s-d-br.sadan.zip";
 const PREVIOUS_BUILD_META_URL: &str = "/builds/before/time";
@@ -22,12 +28,16 @@ pub async fn fetch_previous_build_meta(
 		return Ok(None);
 	}
 	_ = res.error_for_status_ref()?;
-	let bts = res
-		.bytes()
-		.await
-		.context("Failed to read response body")?;
-	let data = rmp_serde::from_slice(&bts)
-		.context("Failed to deserialize response body")?;
+	let body = SyncIoBridge::new(StreamReader::new(
+		res.bytes_stream()
+			.map(|r| r.map_err(io::Error::other)),
+	));
+	let data = tokio::task::spawn_blocking(move || -> Result<_> {
+		rmp_serde::from_read(BufReader::with_capacity(BUF_SIZE, body))
+			.context("Failed to deserialize response body")
+	})
+	.await
+	.context("JoinError")??;
 	Ok(Some(data))
 }
 
@@ -59,13 +69,16 @@ pub async fn fetch_full_bundle(build_hash: &str) -> Result<FullBundle> {
 		.await
 		.context("Failed to send request")?
 		.error_for_status()?;
-	let bts = res
-		.bytes()
-		.await
-		.context("Failed to read response body")?;
+	let body = SyncIoBridge::new(StreamReader::new(
+		res.bytes_stream()
+			.map(|r| r.map_err(io::Error::other)),
+	));
 	let data = tokio::task::spawn_blocking(move || -> Result<_> {
-		let raw = zstd::decode_all(&*bts)?;
-		let data: FullBundle = rmp_serde::from_slice(&raw)?;
+		let raw = zstd::Decoder::new(body)?;
+		let data: FullBundle = rmp_serde::from_read(BufReader::with_capacity(
+			BUF_SIZE,
+			raw,
+		))?;
 		Ok(data)
 	})
 	.await

@@ -1,4 +1,4 @@
-use std::{fs::File, path::Path, sync::Arc};
+use std::{fs::File, io::BufReader, path::Path, sync::Arc};
 
 use anyhow::{Context, Result};
 use explorer_server_core::Channel;
@@ -68,8 +68,10 @@ async fn reporter() {
 
 fn read_mpk_zst_file<T: DeserializeOwned>(path: &Path) -> Result<T> {
 	let bundle_file = File::open(path).context("Failed to open file")?;
-	let zst_data = zstd::decode_all(bundle_file);
-	let bundle: T = rmp_serde::from_slice(&zst_data?)
-		.context("Failed to deserialize file")?;
+	let zst_data = zstd::Decoder::new(bundle_file)
+		.context("Failed to read zstd stream")?;
+	let bundle: T =
+		rmp_serde::from_read(BufReader::with_capacity(1024 * 1024, zst_data))
+			.context("Failed to deserialize file")?;
 	Ok(bundle)
 }

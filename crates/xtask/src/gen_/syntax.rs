@@ -21,9 +21,7 @@ fn encode<T: serde::Serialize>(
 	w: &mut impl io::Write,
 ) -> Result<()> {
 	let raw = bitcode::serialize(value).context("bitcode")?;
-	let compressed = zstd::encode_all(&*raw, 15).context("zstd")?;
-	w.write_all(&compressed)
-		.context("write")?;
+	zstd::stream::copy_encode(&*raw, w, 15).context("zstd")?;
 	Ok(())
 }
 

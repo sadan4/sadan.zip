@@ -46,9 +46,9 @@ async fn main() -> Result<()> {
 
 	println!("{} build(s)", build_list.builds.len());
 	for (i, build) in build_list.builds.iter().enumerate() {
-		let meta_mpk = zstd::decode_all(&**build)
+		let meta_mpk = zstd::Decoder::new(&**build)
 			.with_context(|| format!("Failed to decompress build {i}"))?;
-		let meta: BundleMetadata = rmp_serde::from_slice(&meta_mpk)
+		let meta: BundleMetadata = rmp_serde::from_read(meta_mpk)
 			.with_context(|| {
 				format!("Failed to deserialize metadata for build {i}")
 			})?;

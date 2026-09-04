@@ -14,10 +14,9 @@ static KEY_MAPPINGS_MPK_ZST: &[u8] = include_bytes!("./key_mappings.mpk.zst");
 /// Parsed, lazily-initialised map of hashed key -> unhashed message name.
 static KEY_MAPPINGS: LazyLock<HashMap<SmolStr, SmolStr>> =
 	LazyLock::new(|| {
-		let raw = zstd::decode_all(KEY_MAPPINGS_MPK_ZST)
+		let raw = zstd::Decoder::new(KEY_MAPPINGS_MPK_ZST)
 			.expect("Failed to decompress key_mappings.mpk.zst");
-		rmp_serde::from_slice(&raw)
-			.expect("Failed to parse key_mappings.mpk.zst")
+		rmp_serde::from_read(raw).expect("Failed to parse key_mappings.mpk.zst")
 	});
 
 /// Attempt to resolve a hashed i18n key to its original (unhashed) message

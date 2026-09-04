@@ -6,7 +6,11 @@ use std::{
 
 use anyhow::{Context as _, Result};
 use derive_more::Deref;
-use explorer_server_core::{METADATA_FILE_NAME, get_root_build_path};
+use explorer_server_core::{
+	METADATA_FILE_NAME,
+	get_root_build_path,
+	read_mpk_zst_file,
+};
 use explorer_types::BundleMetadata;
 use tokio::{fs, sync::RwLock, task::JoinSet};
 use tracing::{info, instrument, warn};
@@ -45,18 +49,8 @@ async fn read_meta_entry(
 		warn!("skipping empty build directory: {}", entry_path.display());
 		return Ok(None);
 	}
-	let meta_zstd_raw = fs::read(&meta_path)
-		.await
-		.with_context(|| {
-			format!(
-				"Failed to read meta data for path: {}",
-				meta_path.display()
-			)
-		})?;
 	let meta = tokio::task::spawn_blocking(move || -> Result<_> {
-		let meta_raw =
-			zstd::decode_all(&*meta_zstd_raw).context("ZSTD Error")?;
-		let meta = rmp_serde::from_slice(&meta_raw).context("RMP error")?;
+		let meta: BundleMetadata = read_mpk_zst_file(&meta_path)?;
 		Ok(Some(Arc::new(meta)))
 	})
 	.await

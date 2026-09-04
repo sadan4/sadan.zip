@@ -1,19 +1,25 @@
 use anyhow::{Context, Result, anyhow};
 use explorer_types::FullBundle;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
 	cmp::Ordering,
 	collections::BTreeMap,
 	env,
 	fmt::Debug,
 	fs,
-	io::{self, Write as _},
+	io::{self, BufReader, BufWriter, IntoInnerError},
 	ops::Bound,
 	path::{Path, PathBuf},
 };
 
 pub const DATA_FILE_NAME: &str = "data.mpk.zst";
 pub const METADATA_FILE_NAME: &str = "meta.mpk.zst";
+/// <100b compressed
+pub const METADATA_ZSTD_LEVEL: i32 = 0;
+/// 150-200mb uncompressed
+pub const DATA_ZSTD_LEVEL: i32 = 10;
+
+const BUF_SIZE: usize = 1024 * 1024;
 
 pub fn get_root_build_path() -> Result<PathBuf> {
 	let build_path = env::current_dir()
@@ -44,21 +50,54 @@ pub fn build_has_data(build_hash: &Path) -> bool {
 		.is_file()
 }
 
-pub fn read_full_bundle_from_dir(dir: &Path) -> Result<FullBundle> {
-	let data_path = dir.join(DATA_FILE_NAME);
-	let f = fs::File::open(&data_path).with_context(|| {
-		format!("Failed to open bundle data at {}", data_path.display())
-	})?;
-	let raw_zst = zstd::Decoder::new(f).with_context(|| {
-		format!("Failed to read zstd stream at {}", data_path.display())
-	})?;
-	let bundle = rmp_serde::from_read(raw_zst).with_context(|| {
-		format!("Failed to decode bundle at {}", data_path.display())
-	})?;
-	Ok(bundle)
+/// Deserializes a zstd compressed msgpack value straight out of `reader`,
+/// never holding the decompressed bytes in memory.
+pub fn read_mpk_zst<T, R>(reader: R) -> Result<T>
+where
+	T: DeserializeOwned,
+	R: io::Read,
+{
+	let raw_zst =
+		zstd::Decoder::new(reader).context("Failed to read zstd stream")?;
+	rmp_serde::from_read(BufReader::with_capacity(BUF_SIZE, raw_zst))
+		.context("Failed to decode msgpack")
 }
 
-fn write_atomic(path: &Path, contents: &[u8]) -> Result<()> {
+/// [`read_mpk_zst`] over a file, streaming it off the disk.
+pub fn read_mpk_zst_file<T>(path: &Path) -> Result<T>
+where
+	T: DeserializeOwned,
+{
+	let f = fs::File::open(path)
+		.with_context(|| format!("Failed to open {}", path.display()))?;
+	read_mpk_zst(f)
+		.with_context(|| format!("Failed to read {}", path.display()))
+}
+
+/// Serializes `value` as msgpack directly into a zstd stream on `writer`,
+/// never holding either encoding in memory.
+pub fn write_mpk_zst<T, W>(writer: W, value: &T, level: i32) -> Result<W>
+where
+	T: Serialize,
+	W: io::Write,
+{
+	let mut enc = zstd::Encoder::new(writer, level)
+		.context("Failed to start zstd stream")?;
+	rmp_serde::encode::write_named(&mut enc, value)
+		.context("Failed to encode msgpack")?;
+	enc.finish()
+		.context("Failed to finish zstd stream")
+}
+
+pub fn read_full_bundle_from_dir(dir: &Path) -> Result<FullBundle> {
+	read_mpk_zst_file(&dir.join(DATA_FILE_NAME))
+}
+
+/// Runs `f` against a temp file next to `path`, then renames it over `path`.
+fn write_atomic_with<F>(path: &Path, f: F) -> Result<()>
+where
+	F: FnOnce(&mut BufWriter<fs::File>) -> Result<()>,
+{
 	// same directory so the rename stays on one filesystem
 	let mut tmp_name = path
 		.file_name()
@@ -67,16 +106,23 @@ fn write_atomic(path: &Path, contents: &[u8]) -> Result<()> {
 	tmp_name.push(".tmp");
 	let tmp_path = path.with_file_name(tmp_name);
 
-	let mut f = fs::File::create(&tmp_path).with_context(|| {
+	let file = fs::File::create(&tmp_path).with_context(|| {
 		format!("Failed to create temp file {}", tmp_path.display())
 	})?;
-	f.write_all(contents).with_context(|| {
+	let mut w = BufWriter::with_capacity(BUF_SIZE, file);
+	f(&mut w).with_context(|| {
 		format!("Failed to write temp file {}", tmp_path.display())
 	})?;
-	f.sync_all().with_context(|| {
+	let file = w
+		.into_inner()
+		.map_err(IntoInnerError::into_error)
+		.with_context(|| {
+			format!("Failed to flush temp file {}", tmp_path.display())
+		})?;
+	file.sync_all().with_context(|| {
 		format!("Failed to sync temp file {}", tmp_path.display())
 	})?;
-	drop(f);
+	drop(file);
 
 	fs::rename(&tmp_path, path).with_context(|| {
 		format!(
@@ -88,6 +134,17 @@ fn write_atomic(path: &Path, contents: &[u8]) -> Result<()> {
 	Ok(())
 }
 
+/// [`write_mpk_zst`] into `path`, atomically.
+pub fn write_mpk_zst_atomic<T>(path: &Path, value: &T, level: i32) -> Result<()>
+where
+	T: Serialize,
+{
+	write_atomic_with(path, |w| {
+		write_mpk_zst(w, value, level)?;
+		Ok(())
+	})
+}
+
 pub fn write_full_bundle(bundle: &FullBundle) -> Result<()> {
 	let build_path = get_build_path(&bundle.metadata.build_hash)?;
 
@@ -95,22 +152,18 @@ pub fn write_full_bundle(bundle: &FullBundle) -> Result<()> {
 		fs::create_dir_all(&build_path)?;
 	}
 
-	let meta_bin = rmp_serde::to_vec_named(&bundle.metadata)?;
-	let meta_zst = zstd::encode_all(meta_bin.as_slice(), 0)?;
-	drop(meta_bin);
-	write_atomic(&build_path.join(METADATA_FILE_NAME), &meta_zst)?;
-	drop(meta_zst);
-	let data_mpk = rmp_serde::to_vec_named(&bundle)?;
-	let data_zst = compress_full_bundle_data(&data_mpk)?;
-	drop(data_mpk);
-
-	write_atomic(&build_path.join(DATA_FILE_NAME), &data_zst)?;
+	write_mpk_zst_atomic(
+		&build_path.join(METADATA_FILE_NAME),
+		&bundle.metadata,
+		METADATA_ZSTD_LEVEL,
+	)?;
+	write_mpk_zst_atomic(
+		&build_path.join(DATA_FILE_NAME),
+		bundle,
+		DATA_ZSTD_LEVEL,
+	)?;
 
 	Ok(())
-}
-
-pub fn compress_full_bundle_data(data: &[u8]) -> Result<Vec<u8>> {
-	Ok(zstd::encode_all(data, 10)?)
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -224,6 +277,34 @@ where
 #[cfg(test)]
 mod tests {
 	use super::*;
+
+	#[test]
+	fn mpk_zst_round_trip() {
+		let value = EncodableBuild {
+			channel: Channel::Canary,
+			build_hash: "deadbeef".to_owned(),
+			web_js_url: "/assets/web.js".to_owned(),
+			global_env_text: "{}".repeat(4096),
+		};
+		let mut buf = Vec::new();
+		write_mpk_zst(&mut buf, &value, DATA_ZSTD_LEVEL).unwrap();
+		let back: EncodableBuild = read_mpk_zst(buf.as_slice()).unwrap();
+		assert_eq!(value, back);
+	}
+
+	#[test]
+	fn mpk_zst_atomic_round_trip() {
+		let dir = env::temp_dir().join("explorer_server_core_atomic_test");
+		fs::create_dir_all(&dir).unwrap();
+		let path = dir.join("round_trip.mpk.zst");
+		let value = vec![("a".to_owned(), 1u32), ("b".to_owned(), 2)];
+		write_mpk_zst_atomic(&path, &value, METADATA_ZSTD_LEVEL).unwrap();
+		let back: Vec<(String, u32)> = read_mpk_zst_file(&path).unwrap();
+		assert_eq!(value, back);
+		// the temp file must not be left behind
+		assert!(!path.with_extension("zst.tmp").exists());
+		fs::remove_file(&path).unwrap();
+	}
 
 	#[test]
 	/// copy of the doctest
