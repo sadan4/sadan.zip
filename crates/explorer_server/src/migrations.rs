@@ -20,7 +20,6 @@ use explorer_server_core::{
 	build_has_data,
 	get_root_build_path,
 	get_version_file_path,
-	read_full_bundle_from_dir,
 	read_mpk_zst_file,
 	write_full_bundle,
 };
@@ -103,10 +102,30 @@ trait Migration {
 struct V3Migration;
 
 /// Re-read and write every bundle to use named fields in messagepack
+///
+/// Bundles are written with the current [`FullBundle`] layout, so this also
+/// performs the [`V5Migration`] move of `envVarText` for anything it touches.
 struct V4Migration;
 
 /// move [`env_var_text`](FullBundle::env_var_text) from [`BundleMetadata`] to [`FullBundle`]
 struct V5Migration;
+
+#[derive(Deserialize)]
+struct V3BundleMetadata {
+	build_hash: String,
+	build_number: u32,
+	first_seen: u64,
+	entry_point: Option<ModuleId>,
+	env_var_text: String,
+}
+
+#[derive(Deserialize)]
+struct V3FullBundle {
+	metadata: V3BundleMetadata,
+	dep_info: DepInfo,
+	module_sources: ModuleSources,
+	modules: Modules,
+}
 
 /// [`BundleMetadata`] as written by V4, where `envVarText` still lived here.
 ///
@@ -343,8 +362,29 @@ impl Migration for V4Migration {
 				continue;
 			}
 			info!("Re-encoding build {}", entry_path.display());
-			let data = read_full_bundle_from_dir(&entry_path)?;
-			write_full_bundle(&data)?;
+			let data_path = entry_path.join(DATA_FILE_NAME);
+			let V3FullBundle {
+				metadata,
+				dep_info,
+				module_sources,
+				modules,
+			} = read_mpk_zst_file(&data_path).with_context(|| {
+				format!("Failed to read {}", data_path.display())
+			})?;
+			let full_bundle = FullBundle {
+				metadata: BundleMetadata {
+					build_hash: metadata.build_hash,
+					build_number: metadata.build_number,
+					first_seen: metadata.first_seen,
+					entry_point: metadata.entry_point,
+				},
+				dep_info,
+				module_sources,
+				modules,
+				env_var_text: metadata.env_var_text,
+			};
+			write_full_bundle(&full_bundle)
+				.context("Failed to write full bundle")?;
 		}
 		Ok(())
 	}
@@ -414,8 +454,8 @@ impl Migration for V5Migration {
 pub fn migrate_if_needed() -> Result<()> {
 	let mut cur = Versions::get_current()?;
 	while let Some(next) = cur.next() {
-		let _ =
-			span!(Level::INFO, "Migration", from = ?cur, to = ?next).entered();
+		let _span =
+			span!(Level::TRACE, "Migration", from = ?cur, to = ?next).entered();
 		let mig = next.get_migration();
 		info!("Starting migration");
 		match mig.migrate() {
@@ -424,7 +464,7 @@ pub fn migrate_if_needed() -> Result<()> {
 				cur = next;
 			}
 			Err(e) => {
-				error!("Migration failed: {}", e);
+				error!("Migration failed: {:?}", e);
 				return Err(e);
 			}
 		}

@@ -469,7 +469,7 @@ async fn test_pr(
 	let venord_dir = fw.config.vencord_path.clone();
 	let target = PrTestTarget::parse(&args.target);
 	let plugins = {
-		_ = REPO_LOCK.lock().await;
+		let _lock = REPO_LOCK.lock().await;
 		let checkout_target = args.target.clone();
 		let opts = tokio::task::spawn_blocking(move || {
 			let repo_dir = PathBuf::from(venord_dir);
