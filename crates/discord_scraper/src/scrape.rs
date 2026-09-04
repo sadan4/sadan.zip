@@ -330,10 +330,10 @@ pub async fn scrape_full_bundle(
 			build_number,
 			first_seen,
 			entry_point,
-			env_var_text: global_env_text,
 		},
 		dep_info,
 		module_sources,
 		modules,
+		env_var_text: global_env_text,
 	})
 }

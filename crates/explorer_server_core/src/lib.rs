@@ -294,16 +294,14 @@ mod tests {
 
 	#[test]
 	fn mpk_zst_atomic_round_trip() {
-		let dir = env::temp_dir().join("explorer_server_core_atomic_test");
-		fs::create_dir_all(&dir).unwrap();
-		let path = dir.join("round_trip.mpk.zst");
+		let dir = tempfile::tempdir().unwrap();
+		let path = dir.path().join("round_trip.mpk.zst");
 		let value = vec![("a".to_owned(), 1u32), ("b".to_owned(), 2)];
 		write_mpk_zst_atomic(&path, &value, METADATA_ZSTD_LEVEL).unwrap();
 		let back: Vec<(String, u32)> = read_mpk_zst_file(&path).unwrap();
 		assert_eq!(value, back);
 		// the temp file must not be left behind
 		assert!(!path.with_extension("zst.tmp").exists());
-		fs::remove_file(&path).unwrap();
 	}
 
 	#[test]

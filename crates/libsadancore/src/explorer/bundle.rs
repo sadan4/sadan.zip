@@ -951,6 +951,7 @@ pub async fn get_bundle(
 		dep_info,
 		module_sources,
 		modules,
+		env_var_text: _,
 	}: FullBundle = fetch_struct(&FULL_BUNDLE_ENDPOINT(build_hash)).await?;
 	let module_sources = if drop_sources {
 		ModuleSources::default()

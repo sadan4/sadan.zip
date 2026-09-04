@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fs, io, path::Path};
 
-use anyhow::{Result, anyhow, bail};
+use anyhow::{Context, Result, anyhow, bail};
 use explorer_types::{
 	BundleMetadata,
 	DepInfo,
@@ -9,6 +9,8 @@ use explorer_types::{
 	IncomingModuleDeps,
 	KeyModules,
 	ModuleId,
+	ModuleSources,
+	Modules,
 };
 use serde::Deserialize;
 use tracing::{Level, error, info, instrument, span, warn};
@@ -19,6 +21,7 @@ use explorer_server_core::{
 	get_root_build_path,
 	get_version_file_path,
 	read_full_bundle_from_dir,
+	read_mpk_zst_file,
 	write_full_bundle,
 };
 
@@ -30,9 +33,10 @@ enum Versions {
 	V2,
 	V3,
 	V4,
+	V5,
 }
 
-const CURRENT_VERSION: Versions = Versions::V4;
+const CURRENT_VERSION: Versions = Versions::V5;
 
 impl Versions {
 	fn get_current() -> Result<Self> {
@@ -48,6 +52,7 @@ impl Versions {
 					2 => Self::V2,
 					3 => Self::V3,
 					4 => Self::V4,
+					5 => Self::V5,
 					_ => {
 						bail!("Unknown version in version file")
 					}
@@ -70,6 +75,7 @@ impl Versions {
 			}
 			Self::V3 => Box::new(V3Migration),
 			Self::V4 => Box::new(V4Migration),
+			Self::V5 => Box::new(V5Migration),
 		}
 	}
 	const fn next(self) -> Option<Self> {
@@ -78,7 +84,8 @@ impl Versions {
 			Self::V1 => Some(Self::V2),
 			Self::V2 => Some(Self::V3),
 			Self::V3 => Some(Self::V4),
-			Self::V4 => None,
+			Self::V4 => Some(Self::V5),
+			Self::V5 => None,
 		}
 	}
 }
@@ -97,6 +104,37 @@ struct V3Migration;
 
 /// Re-read and write every bundle to use named fields in messagepack
 struct V4Migration;
+
+/// move [`env_var_text`](FullBundle::env_var_text) from [`BundleMetadata`] to [`FullBundle`]
+struct V5Migration;
+
+/// [`BundleMetadata`] as written by V4, where `envVarText` still lived here.
+///
+/// Optional so a build that has already been migrated still deserializes.
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct V4BundleMetadata {
+	build_hash: String,
+	build_number: u32,
+	first_seen: u64,
+	entry_point: Option<ModuleId>,
+	#[serde(default)]
+	env_var_text: Option<String>,
+}
+
+/// [`FullBundle`] as written by V4. Deserializing into this instead of an
+/// `rmpv::Value` keeps only one copy of the bundle in memory.
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct V4FullBundle {
+	metadata: V4BundleMetadata,
+	dep_info: DepInfo,
+	module_sources: ModuleSources,
+	modules: Modules,
+	/// only present once the build has been migrated
+	#[serde(default)]
+	env_var_text: Option<String>,
+}
 
 type JsModulesJson = HashMap<String, Vec<String>>;
 
@@ -184,8 +222,8 @@ impl V3Migration {
 					.entry_point
 					.map(|s| s.parse().map(ModuleId))
 					.transpose()?,
-				env_var_text: info_json.env_var_text,
 			},
+			env_var_text: info_json.env_var_text,
 			dep_info: DepInfo {
 				key_modules: KeyModules {
 					flux_dispatcher_class: deps_json
@@ -307,6 +345,62 @@ impl Migration for V4Migration {
 			info!("Re-encoding build {}", entry_path.display());
 			let data = read_full_bundle_from_dir(&entry_path)?;
 			write_full_bundle(&data)?;
+		}
+		Ok(())
+	}
+}
+
+impl Migration for V5Migration {
+	fn migrate(&self) -> Result<()> {
+		let base_build_path = get_root_build_path()?;
+		for entry in fs::read_dir(&base_build_path)? {
+			let entry = entry?;
+			if !entry.file_type()?.is_dir() {
+				continue;
+			}
+			let entry_path = entry.path();
+			if !build_has_data(&entry_path) {
+				warn!(
+					"Skipping {}: empty build directory, no data file",
+					entry_path.display()
+				);
+				continue;
+			}
+			let data_path = entry_path.join(DATA_FILE_NAME);
+			let V4FullBundle {
+				metadata,
+				dep_info,
+				module_sources,
+				modules,
+				env_var_text,
+			} = read_mpk_zst_file(&data_path).with_context(|| {
+				format!("Failed to read {}", data_path.display())
+			})?;
+			if env_var_text.is_some() {
+				info!("Skipping {}: already migrated", entry_path.display());
+				continue;
+			}
+			let env_var_text = metadata.env_var_text.with_context(|| {
+				format!(
+					"{} has no `envVarText` on either the bundle or its metadata",
+					data_path.display()
+				)
+			})?;
+			info!("Re-encoding build {}", entry_path.display());
+			let full_bundle = FullBundle {
+				metadata: BundleMetadata {
+					build_hash: metadata.build_hash,
+					build_number: metadata.build_number,
+					first_seen: metadata.first_seen,
+					entry_point: metadata.entry_point,
+				},
+				dep_info,
+				module_sources,
+				modules,
+				env_var_text,
+			};
+			write_full_bundle(&full_bundle)
+				.context("Failed to write full bundle")?;
 		}
 		Ok(())
 	}

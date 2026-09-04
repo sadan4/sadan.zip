@@ -81,7 +81,6 @@ fn write_fixture(root: &Path) {
 		build_number: 1,
 		first_seen: 1_700_000_000_000,
 		entry_point: None,
-		env_var_text: String::new(),
 	};
 
 	let mut modules = HashMap::new();
@@ -100,6 +99,7 @@ fn write_fixture(root: &Path) {
 		dep_info: DepInfo::default(),
 		module_sources,
 		modules,
+		env_var_text: String::new(),
 	};
 
 	write_mpk_zst_atomic(

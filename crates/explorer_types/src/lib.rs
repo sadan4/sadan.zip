@@ -17,7 +17,6 @@ pub struct BundleMetadata {
 	pub build_number: u32,
 	pub first_seen: u64,
 	pub entry_point: Option<ModuleId>,
-	pub env_var_text: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, TypeSize)]
@@ -75,6 +74,7 @@ pub struct FullBundle {
 	pub dep_info: DepInfo,
 	pub module_sources: HashMap<String, Vec<ModuleId>>,
 	pub modules: HashMap<ModuleId, String>,
+	pub env_var_text: String,
 }
 
 impl FullBundle {
@@ -84,6 +84,7 @@ impl FullBundle {
 			dep_info,
 			module_sources,
 			modules,
+			env_var_text,
 		} = self;
 		metadata.shrink_to_fit();
 		dep_info.shrink_to_fit();
@@ -95,6 +96,7 @@ impl FullBundle {
 		for v in modules.values_mut() {
 			v.shrink_to_fit();
 		}
+		env_var_text.shrink_to_fit();
 	}
 }
 
@@ -229,10 +231,8 @@ impl BundleMetadata {
 			build_number: _,
 			first_seen: _,
 			entry_point: _,
-			env_var_text,
 		} = self;
 		build_hash.shrink_to_fit();
-		env_var_text.shrink_to_fit();
 	}
 
 	pub fn first_seen_as_time(&self) -> SystemTime {

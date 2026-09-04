@@ -1,8 +1,9 @@
 use std::{env, io, io::Write as _, path::PathBuf};
 
+use anyhow::Context;
 use derive_more::IsVariant;
 use serde::{Serialize, de::DeserializeOwned};
-use tokio::fs;
+use tokio::{fs, task};
 use tracing::{debug, info};
 
 const BUF_SIZE: usize = 1024 * 1024;
@@ -14,6 +15,7 @@ const CACHE_SUBDIR: &str = env!("CARGO_CRATE_NAME");
 type Result<T> = std::result::Result<T, CacheError>;
 
 #[derive(thiserror::Error, Debug, IsVariant)]
+#[non_exhaustive]
 pub enum CacheError {
 	#[error("Failed to get home dir")]
 	NoHomeDir,
@@ -49,6 +51,8 @@ pub enum CacheError {
 	Deserialize(#[source] rmp_serde::decode::Error),
 	#[error("Failed to serialize cache file")]
 	Serialize(#[source] rmp_serde::encode::Error),
+	#[error("Failed to join task")]
+	JoinError(#[source] tokio::task::JoinError),
 }
 
 /// get the system cache dir
@@ -117,7 +121,7 @@ async fn get_cache_dir() -> Result<PathBuf> {
 /// read a value from cache
 pub async fn read<T>(key: &str) -> Result<Option<T>>
 where
-	T: DeserializeOwned,
+	T: DeserializeOwned + Send + 'static,
 {
 	let cache_dir = get_cache_dir().await?;
 	let cache_file = cache_dir.join(key);
@@ -130,17 +134,20 @@ where
 		return Ok(None);
 	}
 	debug!("Reading cache file: {}", cache_file.display());
-	let file =
-		std::fs::File::open(&cache_file).map_err(|e| CacheError::Read {
-			path: cache_file.clone(),
-			cause: e,
-		})?;
-	let raw_zstd_data = zstd::Decoder::new(file).map_err(CacheError::Zstd)?;
-	let data = rmp_serde::from_read(io::BufReader::with_capacity(
-		BUF_SIZE,
-		raw_zstd_data,
-	))
-	.map_err(CacheError::Deserialize)?;
+	let data = task::spawn_blocking(move || {
+		let file =
+			std::fs::File::open(&cache_file).map_err(|e| CacheError::Read {
+				path: cache_file.clone(),
+				cause: e,
+			})?;
+		let raw_zstd_data =
+			zstd::Decoder::new(file).map_err(CacheError::Zstd)?;
+		rmp_serde::from_read(io::BufReader::with_capacity(
+			BUF_SIZE,
+			raw_zstd_data,
+		))
+		.map_err(CacheError::Deserialize)
+	}).await.map_err(CacheError::JoinError)??;
 	Ok(Some(data))
 }
 
@@ -175,34 +182,37 @@ pub async fn write<T>(
 	compression_level: impl Into<Option<i32>>,
 ) -> Result<()>
 where
-	T: Serialize,
+	T: Serialize + Sync,
 {
 	let compression_level = compression_level.into().unwrap_or(10);
 	let cache_dir = get_cache_dir().await?;
 	let cache_file = cache_dir.join(key);
-	let file = std::fs::File::options()
-		.write(true)
-		.create(true)
-		.truncate(true)
-		.append(false)
-		.open(&cache_file)
-		.map_err(|e| CacheError::Access {
-			path: cache_file.clone(),
-			cause: e,
-		})?;
-	let mut enc = zstd::Encoder::new(
-		io::BufWriter::with_capacity(BUF_SIZE, file),
-		compression_level,
-	)
-	.map_err(CacheError::Zstd)?;
-	rmp_serde::encode::write_named(&mut enc, data)
-		.map_err(CacheError::Serialize)?;
-	let mut file = enc.finish().map_err(CacheError::Zstd)?;
-	file.flush()
-		.map_err(|e| CacheError::Write {
-			path: cache_file.clone(),
-			cause: e,
-		})?;
-	drop(file);
-	Ok(())
+	
+	task::block_in_place(|| {
+		let file = std::fs::File::options()
+			.write(true)
+			.create(true)
+			.truncate(true)
+			.append(false)
+			.open(&cache_file)
+			.map_err(|e| CacheError::Access {
+				path: cache_file.clone(),
+				cause: e,
+			})?;
+		let mut enc = zstd::Encoder::new(
+			io::BufWriter::with_capacity(BUF_SIZE, file),
+			compression_level,
+		)
+		.map_err(CacheError::Zstd)?;
+		rmp_serde::encode::write_named(&mut enc, data)
+			.map_err(CacheError::Serialize)?;
+		let mut file = enc.finish().map_err(CacheError::Zstd)?;
+		file.flush()
+			.map_err(|e| CacheError::Write {
+				path: cache_file.clone(),
+				cause: e,
+			})?;
+		drop(file);
+		Ok(())
+	})
 }

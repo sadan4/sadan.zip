@@ -39,10 +39,6 @@ impl Meta {
 	pub fn entry_point(&self) -> Option<TModuleId> {
 		self.0.entry_point.map(Into::into)
 	}
-	#[wasm_bindgen(getter)]
-	pub fn env_var_text(&self) -> String {
-		self.0.env_var_text.clone()
-	}
 	#[wasm_bindgen]
 	pub fn sort_newest_first(a: &Self, b: &Self) -> i8 {
 		a.0.first_seen.cmp(&b.0.first_seen) as i8
