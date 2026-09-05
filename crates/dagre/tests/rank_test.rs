@@ -36,8 +36,8 @@ fn respects_minlen_for_each_ranker() {
 		}
 		rank::rank(&mut g);
 		for e in g.edges() {
-			let v_rank = g.node(&e.v).unwrap().rank.unwrap();
-			let w_rank = g.node(&e.w).unwrap().rank.unwrap();
+			let v_rank = g.node(e.v).unwrap().rank.unwrap();
+			let w_rank = g.node(e.w).unwrap().rank.unwrap();
 			let minlen = g.edge_obj(&e).unwrap().minlen;
 			assert!(
 				w_rank - v_rank >= minlen,

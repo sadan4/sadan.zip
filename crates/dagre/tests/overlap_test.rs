@@ -5,7 +5,7 @@ use dagre::{LayoutGraph, layout};
 #[test]
 fn panic1_no_overlapping_nodes() {
 	type Row = (
-		dagre::graph::NodeId,
+		dagre::graph::NodeIdx,
 		f64,
 		f64,
 		f64,
@@ -20,20 +20,12 @@ fn panic1_no_overlapping_nodes() {
 
 	let mut rows: Vec<Row> = Vec::new();
 	for v in g.nodes() {
-		if let Some(n) = g.node(&v) {
+		if let Some(n) = g.node(v) {
 			if n.dummy.is_some() {
 				continue;
 			}
 			if let (Some(x), Some(y)) = (n.x, n.y) {
-				rows.push((
-					v.clone(),
-					x,
-					y,
-					n.width,
-					n.height,
-					n.rank,
-					n.order,
-				));
+				rows.push((v, x, y, n.width, n.height, n.rank, n.order));
 			}
 		}
 	}

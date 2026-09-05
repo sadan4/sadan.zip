@@ -8,10 +8,9 @@ use std::{cmp::Ordering, string::ToString};
 
 use dagre::{
 	acyclic,
-	graph::{Edge, Graph, GraphOpts, NodeId, alg},
+	graph::{Edge, Graph, GraphOpts, alg},
 	types::{EdgeLabel, GraphLabel, NodeLabel},
 };
-use smol_str::SmolStr;
 
 fn mk_graph(
 	acyclicer: Option<&str>,
@@ -30,8 +29,12 @@ fn mk_graph(
 	g
 }
 
-fn strip(e: &Edge) -> (NodeId, NodeId) {
-	(e.v.clone(), e.w.clone())
+/// Endpoint *names*, so the expectations stay readable.
+fn strip(
+	g: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
+	e: &Edge,
+) -> (String, String) {
+	(g.name_or_idx(e.v), g.name_or_idx(e.w))
 }
 
 fn sort_edges(edges: &mut [Edge]) {
@@ -62,12 +65,15 @@ fn run_does_not_change_an_already_acyclic_graph() {
 		acyclic::run(&mut g);
 		let mut edges: Vec<Edge> = g.edges();
 		sort_edges(&mut edges);
-		let pairs: Vec<(NodeId, NodeId)> = edges.iter().map(strip).collect();
-		let expected: Vec<(NodeId, NodeId)> = vec![
-			("a".into(), "b".into()),
-			("a".into(), "c".into()),
-			("b".into(), "d".into()),
-			("c".into(), "d".into()),
+		let pairs: Vec<(String, String)> = edges
+			.iter()
+			.map(|e| strip(&g, e))
+			.collect();
+		let expected: Vec<(String, String)> = vec![
+			("a".to_string(), "b".to_string()),
+			("a".to_string(), "c".to_string()),
+			("b".to_string(), "d".to_string()),
+			("c".to_string(), "d".to_string()),
 		];
 		assert_eq!(pairs, expected, "acyclicer={ac:?}");
 	});
@@ -180,6 +186,6 @@ fn greedy_breaks_at_low_weight_edges() {
 	);
 	acyclic::run(&mut g);
 	let cycles = alg::find_cycles(&g);
-	assert_eq!(cycles, [] as [Vec<SmolStr>; 0]);
+	assert_eq!(cycles, [] as [Vec<dagre::NodeIdx>; 0]);
 	assert!(!g.has_edge("c", "d"), "greedy should reverse c->d");
 }

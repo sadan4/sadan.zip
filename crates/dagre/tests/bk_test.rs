@@ -9,9 +9,10 @@
 #![allow(clippy::float_cmp)]
 
 use dagre::{
-	graph::{Graph, NodeId},
+	graph::{Graph, NodeIdx},
 	position::bk::{
 		Conflicts,
+		NodeMap,
 		PositionMap,
 		add_conflict,
 		align_coordinates,
@@ -53,17 +54,43 @@ fn n_w(rank: i32, order: usize, width: f64) -> NodeLabel {
 	}
 }
 
-fn pmap(pairs: &[(&str, f64)]) -> PositionMap {
+/// Look up a node by the name the test gave it.
+fn ix(g: &Graph<GraphLabel, NodeLabel, EdgeLabel>, v: &str) -> NodeIdx {
+	g.node_idx(v)
+		.unwrap_or_else(|| panic!("no node named {v}"))
+}
+
+/// For the conflict-set tests, which have no graph: ids are opaque distinct
+/// tokens, so map each single-letter name to a fixed index.
+fn n(s: &str) -> NodeIdx {
+	NodeIdx(u32::from(s.as_bytes()[0]))
+}
+
+/// Graph-free `pmap`, for the alignment tests that only need distinct keys.
+fn tmap(pairs: &[(&str, f64)]) -> PositionMap {
 	pairs
 		.iter()
-		.map(|(k, v)| (NodeId::from(*k), *v))
+		.map(|(k, v)| (n(k), *v))
 		.collect()
 }
 
-fn smap(pairs: &[(&str, &str)]) -> FxHashMap<NodeId, NodeId> {
+fn pmap(
+	g: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
+	pairs: &[(&str, f64)],
+) -> PositionMap {
 	pairs
 		.iter()
-		.map(|(k, v)| (NodeId::from(*k), NodeId::from(*v)))
+		.map(|(k, v)| (ix(g, k), *v))
+		.collect()
+}
+
+fn smap(
+	g: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
+	pairs: &[(&str, &str)],
+) -> NodeMap<NodeIdx> {
+	pairs
+		.iter()
+		.map(|(k, v)| (ix(g, k), ix(g, v)))
 		.collect()
 }
 
@@ -71,19 +98,19 @@ fn smap(pairs: &[(&str, &str)]) -> FxHashMap<NodeId, NodeId> {
 
 #[test]
 fn has_conflict_either_orientation() {
-	let mut c: Conflicts = FxHashMap::default();
-	add_conflict(&mut c, "b", "a");
-	assert!(has_conflict(&c, "a", "b"));
-	assert!(has_conflict(&c, "b", "a"));
+	let mut c: Conflicts = Conflicts::default();
+	add_conflict(&mut c, n("b"), n("a"));
+	assert!(has_conflict(&c, n("a"), n("b")));
+	assert!(has_conflict(&c, n("b"), n("a")));
 }
 
 #[test]
 fn has_conflict_multiple_with_same_node() {
-	let mut c: Conflicts = FxHashMap::default();
-	add_conflict(&mut c, "a", "b");
-	add_conflict(&mut c, "a", "c");
-	assert!(has_conflict(&c, "a", "b"));
-	assert!(has_conflict(&c, "a", "c"));
+	let mut c: Conflicts = Conflicts::default();
+	add_conflict(&mut c, n("a"), n("b"));
+	add_conflict(&mut c, n("a"), n("c"));
+	assert!(has_conflict(&c, n("a"), n("b")));
+	assert!(has_conflict(&c, n("a"), n("c")));
 }
 
 // ---------- findType1Conflicts ------------------------------------------
@@ -108,8 +135,8 @@ fn type1_no_conflict_for_uncrossed_edges() {
 	g.set_edge_default("b", "d");
 	let layering = build_layer_matrix(&g);
 	let c = find_type1_conflicts(&g, &layering);
-	assert!(!has_conflict(&c, "a", "c"));
-	assert!(!has_conflict(&c, "b", "d"));
+	assert!(!has_conflict(&c, ix(&g, "a"), ix(&g, "c")));
+	assert!(!has_conflict(&c, ix(&g, "b"), ix(&g, "d")));
 }
 
 #[test]
@@ -117,8 +144,8 @@ fn type1_no_conflict_for_type0_no_dummies() {
 	let g = t1_base();
 	let layering = build_layer_matrix(&g);
 	let c = find_type1_conflicts(&g, &layering);
-	assert!(!has_conflict(&c, "a", "d"));
-	assert!(!has_conflict(&c, "b", "c"));
+	assert!(!has_conflict(&c, ix(&g, "a"), ix(&g, "d")));
+	assert!(!has_conflict(&c, ix(&g, "b"), ix(&g, "c")));
 }
 
 #[test]
@@ -130,8 +157,8 @@ fn type1_no_conflict_when_only_one_dummy() {
 		}
 		let layering = build_layer_matrix(&g);
 		let c = find_type1_conflicts(&g, &layering);
-		assert!(!has_conflict(&c, "a", "d"));
-		assert!(!has_conflict(&c, "b", "c"));
+		assert!(!has_conflict(&c, ix(&g, "a"), ix(&g, "d")));
+		assert!(!has_conflict(&c, ix(&g, "b"), ix(&g, "c")));
 	}
 }
 
@@ -149,11 +176,11 @@ fn type1_marks_conflict_with_three_dummies() {
 		let layering = build_layer_matrix(&g);
 		let c = find_type1_conflicts(&g, &layering);
 		if v == "a" || v == "d" {
-			assert!(has_conflict(&c, "a", "d"), "v={v}");
-			assert!(!has_conflict(&c, "b", "c"), "v={v}");
+			assert!(has_conflict(&c, ix(&g, "a"), ix(&g, "d")), "v={v}");
+			assert!(!has_conflict(&c, ix(&g, "b"), ix(&g, "c")), "v={v}");
 		} else {
-			assert!(!has_conflict(&c, "a", "d"), "v={v}");
-			assert!(has_conflict(&c, "b", "c"), "v={v}");
+			assert!(!has_conflict(&c, ix(&g, "a"), ix(&g, "d")), "v={v}");
+			assert!(has_conflict(&c, ix(&g, "b"), ix(&g, "c")), "v={v}");
 		}
 	}
 }
@@ -168,8 +195,8 @@ fn type1_no_conflict_when_all_dummies() {
 	}
 	let layering = build_layer_matrix(&g);
 	let c = find_type1_conflicts(&g, &layering);
-	assert!(!has_conflict(&c, "a", "d"));
-	assert!(!has_conflict(&c, "b", "c"));
+	assert!(!has_conflict(&c, ix(&g, "a"), ix(&g, "d")));
+	assert!(!has_conflict(&c, ix(&g, "b"), ix(&g, "c")));
 }
 
 // ---------- findType2Conflicts ------------------------------------------
@@ -191,8 +218,8 @@ fn type2_favors_border_segments_1() {
 	}
 	let layering = build_layer_matrix(&g);
 	let c = find_type2_conflicts(&g, &layering);
-	assert!(has_conflict(&c, "a", "d"));
-	assert!(!has_conflict(&c, "b", "c"));
+	assert!(has_conflict(&c, ix(&g, "a"), ix(&g, "d")));
+	assert!(!has_conflict(&c, ix(&g, "b"), ix(&g, "c")));
 }
 
 #[test]
@@ -212,8 +239,8 @@ fn type2_favors_border_segments_2() {
 	}
 	let layering = build_layer_matrix(&g);
 	let c = find_type2_conflicts(&g, &layering);
-	assert!(!has_conflict(&c, "a", "d"));
-	assert!(has_conflict(&c, "b", "c"));
+	assert!(!has_conflict(&c, ix(&g, "a"), ix(&g, "d")));
+	assert!(has_conflict(&c, ix(&g, "b"), ix(&g, "c")));
 }
 
 // ---------- verticalAlignment -------------------------------------------
@@ -224,15 +251,13 @@ fn vertical_alignment_self_when_no_adj() {
 	g.set_node("a", node(0, 0));
 	g.set_node("b", node(1, 0));
 	let layering = build_layer_matrix(&g);
-	let conflicts: Conflicts = FxHashMap::default();
+	let conflicts: Conflicts = Conflicts::default();
 	let g_ref = &g;
-	let (root, align) = vertical_alignment(&layering, &conflicts, |v| {
-		g_ref
-			.predecessors(v)
-			.unwrap_or_default()
+	let (root, align) = vertical_alignment(&layering, &conflicts, |v, out| {
+		g_ref.predecessors_into(v, out);
 	});
-	assert_eq!(root, smap(&[("a", "a"), ("b", "b")]));
-	assert_eq!(align, smap(&[("a", "a"), ("b", "b")]));
+	assert_eq!(root, smap(&g, &[("a", "a"), ("b", "b")]));
+	assert_eq!(align, smap(&g, &[("a", "a"), ("b", "b")]));
 }
 
 #[test]
@@ -242,15 +267,13 @@ fn vertical_alignment_sole_adjacency() {
 	g.set_node("b", node(1, 0));
 	g.set_edge_default("a", "b");
 	let layering = build_layer_matrix(&g);
-	let conflicts: Conflicts = FxHashMap::default();
+	let conflicts: Conflicts = Conflicts::default();
 	let g_ref = &g;
-	let (root, align) = vertical_alignment(&layering, &conflicts, |v| {
-		g_ref
-			.predecessors(v)
-			.unwrap_or_default()
+	let (root, align) = vertical_alignment(&layering, &conflicts, |v, out| {
+		g_ref.predecessors_into(v, out);
 	});
-	assert_eq!(root, smap(&[("a", "a"), ("b", "a")]));
-	assert_eq!(align, smap(&[("a", "b"), ("b", "a")]));
+	assert_eq!(root, smap(&g, &[("a", "a"), ("b", "a")]));
+	assert_eq!(align, smap(&g, &[("a", "b"), ("b", "a")]));
 }
 
 #[test]
@@ -262,15 +285,13 @@ fn vertical_alignment_left_median() {
 	g.set_edge_default("a", "c");
 	g.set_edge_default("b", "c");
 	let layering = build_layer_matrix(&g);
-	let conflicts: Conflicts = FxHashMap::default();
+	let conflicts: Conflicts = Conflicts::default();
 	let g_ref = &g;
-	let (root, align) = vertical_alignment(&layering, &conflicts, |v| {
-		g_ref
-			.predecessors(v)
-			.unwrap_or_default()
+	let (root, align) = vertical_alignment(&layering, &conflicts, |v, out| {
+		g_ref.predecessors_into(v, out);
 	});
-	assert_eq!(root, smap(&[("a", "a"), ("b", "b"), ("c", "a")]));
-	assert_eq!(align, smap(&[("a", "c"), ("b", "b"), ("c", "a")]));
+	assert_eq!(root, smap(&g, &[("a", "a"), ("b", "b"), ("c", "a")]));
+	assert_eq!(align, smap(&g, &[("a", "c"), ("b", "b"), ("c", "a")]));
 }
 
 #[test]
@@ -282,16 +303,14 @@ fn vertical_alignment_right_median_when_left_blocked() {
 	g.set_edge_default("a", "c");
 	g.set_edge_default("b", "c");
 	let layering = build_layer_matrix(&g);
-	let mut conflicts: Conflicts = FxHashMap::default();
-	add_conflict(&mut conflicts, "a", "c");
+	let mut conflicts: Conflicts = Conflicts::default();
+	add_conflict(&mut conflicts, ix(&g, "a"), ix(&g, "c"));
 	let g_ref = &g;
-	let (root, align) = vertical_alignment(&layering, &conflicts, |v| {
-		g_ref
-			.predecessors(v)
-			.unwrap_or_default()
+	let (root, align) = vertical_alignment(&layering, &conflicts, |v, out| {
+		g_ref.predecessors_into(v, out);
 	});
-	assert_eq!(root, smap(&[("a", "a"), ("b", "b"), ("c", "b")]));
-	assert_eq!(align, smap(&[("a", "a"), ("b", "c"), ("c", "b")]));
+	assert_eq!(root, smap(&g, &[("a", "a"), ("b", "b"), ("c", "b")]));
+	assert_eq!(align, smap(&g, &[("a", "a"), ("b", "c"), ("c", "b")]));
 }
 
 #[test]
@@ -305,20 +324,18 @@ fn vertical_alignment_single_median_for_odd_adjacencies() {
 	g.set_edge_default("b", "d");
 	g.set_edge_default("c", "d");
 	let layering = build_layer_matrix(&g);
-	let conflicts: Conflicts = FxHashMap::default();
+	let conflicts: Conflicts = Conflicts::default();
 	let g_ref = &g;
-	let (root, align) = vertical_alignment(&layering, &conflicts, |v| {
-		g_ref
-			.predecessors(v)
-			.unwrap_or_default()
+	let (root, align) = vertical_alignment(&layering, &conflicts, |v, out| {
+		g_ref.predecessors_into(v, out);
 	});
 	assert_eq!(
 		root,
-		smap(&[("a", "a"), ("b", "b"), ("c", "c"), ("d", "b")])
+		smap(&g, &[("a", "a"), ("b", "b"), ("c", "c"), ("d", "b")])
 	);
 	assert_eq!(
 		align,
-		smap(&[("a", "a"), ("b", "d"), ("c", "c"), ("d", "b")])
+		smap(&g, &[("a", "a"), ("b", "d"), ("c", "c"), ("d", "b")])
 	);
 }
 
@@ -328,8 +345,8 @@ fn vertical_alignment_single_median_for_odd_adjacencies() {
 fn hc_single_node_at_origin() {
 	let mut g = mk();
 	g.set_node("a", node(0, 0));
-	let root = smap(&[("a", "a")]);
-	let align = smap(&[("a", "a")]);
+	let root = smap(&g, &[("a", "a")]);
+	let align = smap(&g, &[("a", "a")]);
 	let xs = horizontal_compaction(
 		&g,
 		&build_layer_matrix(&g),
@@ -337,7 +354,7 @@ fn hc_single_node_at_origin() {
 		&align,
 		false,
 	);
-	assert_eq!(xs.get("a").copied(), Some(0.0));
+	assert_eq!(xs.get_copied(ix(&g, "a")), Some(0.0));
 }
 
 #[test]
@@ -348,8 +365,8 @@ fn hc_separates_adjacent_nodes_by_nodesep() {
 	}
 	g.set_node("a", n_w(0, 0, 100.0));
 	g.set_node("b", n_w(0, 1, 200.0));
-	let root = smap(&[("a", "a"), ("b", "b")]);
-	let align = smap(&[("a", "a"), ("b", "b")]);
+	let root = smap(&g, &[("a", "a"), ("b", "b")]);
+	let align = smap(&g, &[("a", "a"), ("b", "b")]);
 	let xs = horizontal_compaction(
 		&g,
 		&build_layer_matrix(&g),
@@ -357,8 +374,8 @@ fn hc_separates_adjacent_nodes_by_nodesep() {
 		&align,
 		false,
 	);
-	assert_eq!(xs.get("a").copied(), Some(0.0));
-	assert_eq!(xs.get("b").copied(), Some(50.0 + 100.0 + 100.0));
+	assert_eq!(xs.get_copied(ix(&g, "a")), Some(0.0));
+	assert_eq!(xs.get_copied(ix(&g, "b")), Some(50.0 + 100.0 + 100.0));
 }
 
 #[test]
@@ -373,8 +390,8 @@ fn hc_separates_adjacent_edges_by_edgesep() {
 	b.dummy = Some(Dummy::Edge);
 	g.set_node("a", a);
 	g.set_node("b", b);
-	let root = smap(&[("a", "a"), ("b", "b")]);
-	let align = smap(&[("a", "a"), ("b", "b")]);
+	let root = smap(&g, &[("a", "a"), ("b", "b")]);
+	let align = smap(&g, &[("a", "a"), ("b", "b")]);
 	let xs = horizontal_compaction(
 		&g,
 		&build_layer_matrix(&g),
@@ -382,8 +399,8 @@ fn hc_separates_adjacent_edges_by_edgesep() {
 		&align,
 		false,
 	);
-	assert_eq!(xs.get("a").copied(), Some(0.0));
-	assert_eq!(xs.get("b").copied(), Some(50.0 + 20.0 + 100.0));
+	assert_eq!(xs.get_copied(ix(&g, "a")), Some(0.0));
+	assert_eq!(xs.get_copied(ix(&g, "b")), Some(50.0 + 20.0 + 100.0));
 }
 
 #[test]
@@ -391,8 +408,8 @@ fn hc_aligns_centers_in_same_block() {
 	let mut g = mk();
 	g.set_node("a", n_w(0, 0, 100.0));
 	g.set_node("b", n_w(1, 0, 200.0));
-	let root = smap(&[("a", "a"), ("b", "a")]);
-	let align = smap(&[("a", "b"), ("b", "a")]);
+	let root = smap(&g, &[("a", "a"), ("b", "a")]);
+	let align = smap(&g, &[("a", "b"), ("b", "a")]);
 	let xs = horizontal_compaction(
 		&g,
 		&build_layer_matrix(&g),
@@ -400,8 +417,8 @@ fn hc_aligns_centers_in_same_block() {
 		&align,
 		false,
 	);
-	assert_eq!(xs.get("a").copied(), Some(0.0));
-	assert_eq!(xs.get("b").copied(), Some(0.0));
+	assert_eq!(xs.get_copied(ix(&g, "a")), Some(0.0));
+	assert_eq!(xs.get_copied(ix(&g, "b")), Some(0.0));
 }
 
 #[test]
@@ -420,8 +437,8 @@ fn hc_handles_labelpos_l() {
 	g.set_node("a", a);
 	g.set_node("b", b);
 	g.set_node("c", c);
-	let root = smap(&[("a", "a"), ("b", "b"), ("c", "c")]);
-	let align = smap(&[("a", "a"), ("b", "b"), ("c", "c")]);
+	let root = smap(&g, &[("a", "a"), ("b", "b"), ("c", "c")]);
+	let align = smap(&g, &[("a", "a"), ("b", "b"), ("c", "c")]);
 	let xs = horizontal_compaction(
 		&g,
 		&build_layer_matrix(&g),
@@ -429,9 +446,9 @@ fn hc_handles_labelpos_l() {
 		&align,
 		false,
 	);
-	let xa = xs["a"];
-	let xb = xs["b"];
-	let xc = xs["c"];
+	let xa = xs[ix(&g, "a")];
+	let xb = xs[ix(&g, "b")];
+	let xc = xs[ix(&g, "c")];
 	assert_eq!(xa, 0.0);
 	assert!((xb - (xa + 50.0 + 50.0 + 200.0)).abs() < 1e-9, "b={xb}");
 	assert!((xc - (xb + 0.0 + 50.0 + 150.0)).abs() < 1e-9, "c={xc}");
@@ -442,31 +459,31 @@ fn hc_handles_labelpos_l() {
 #[test]
 fn align_coords_single_node() {
 	let mut xss: FxHashMap<String, PositionMap> = FxHashMap::default();
-	xss.insert("ul".into(), pmap(&[("a", 50.0)]));
-	xss.insert("ur".into(), pmap(&[("a", 100.0)]));
-	xss.insert("dl".into(), pmap(&[("a", 50.0)]));
-	xss.insert("dr".into(), pmap(&[("a", 200.0)]));
+	xss.insert("ul".into(), tmap(&[("a", 50.0)]));
+	xss.insert("ur".into(), tmap(&[("a", 100.0)]));
+	xss.insert("dl".into(), tmap(&[("a", 50.0)]));
+	xss.insert("dr".into(), tmap(&[("a", 200.0)]));
 	let align_to = xss["ul"].clone();
 	align_coordinates(&mut xss, &align_to);
-	assert_eq!(xss["ul"], pmap(&[("a", 50.0)]));
-	assert_eq!(xss["ur"], pmap(&[("a", 50.0)]));
-	assert_eq!(xss["dl"], pmap(&[("a", 50.0)]));
-	assert_eq!(xss["dr"], pmap(&[("a", 50.0)]));
+	assert_eq!(xss["ul"], tmap(&[("a", 50.0)]));
+	assert_eq!(xss["ur"], tmap(&[("a", 50.0)]));
+	assert_eq!(xss["dl"], tmap(&[("a", 50.0)]));
+	assert_eq!(xss["dr"], tmap(&[("a", 50.0)]));
 }
 
 #[test]
 fn align_coords_multi_node() {
 	let mut xss: FxHashMap<String, PositionMap> = FxHashMap::default();
-	xss.insert("ul".into(), pmap(&[("a", 50.0), ("b", 1000.0)]));
-	xss.insert("ur".into(), pmap(&[("a", 100.0), ("b", 900.0)]));
-	xss.insert("dl".into(), pmap(&[("a", 150.0), ("b", 800.0)]));
-	xss.insert("dr".into(), pmap(&[("a", 200.0), ("b", 700.0)]));
+	xss.insert("ul".into(), tmap(&[("a", 50.0), ("b", 1000.0)]));
+	xss.insert("ur".into(), tmap(&[("a", 100.0), ("b", 900.0)]));
+	xss.insert("dl".into(), tmap(&[("a", 150.0), ("b", 800.0)]));
+	xss.insert("dr".into(), tmap(&[("a", 200.0), ("b", 700.0)]));
 	let align_to = xss["ul"].clone();
 	align_coordinates(&mut xss, &align_to);
-	assert_eq!(xss["ul"], pmap(&[("a", 50.0), ("b", 1000.0)]));
-	assert_eq!(xss["ur"], pmap(&[("a", 200.0), ("b", 1000.0)]));
-	assert_eq!(xss["dl"], pmap(&[("a", 50.0), ("b", 700.0)]));
-	assert_eq!(xss["dr"], pmap(&[("a", 500.0), ("b", 1000.0)]));
+	assert_eq!(xss["ul"], tmap(&[("a", 50.0), ("b", 1000.0)]));
+	assert_eq!(xss["ur"], tmap(&[("a", 200.0), ("b", 1000.0)]));
+	assert_eq!(xss["dl"], tmap(&[("a", 50.0), ("b", 700.0)]));
+	assert_eq!(xss["dr"], tmap(&[("a", 500.0), ("b", 1000.0)]));
 }
 
 // ---------- findSmallestWidthAlignment ---------------------------------
@@ -477,10 +494,10 @@ fn smallest_width_basic() {
 	g.set_node("a", n_w(0, 0, 50.0));
 	g.set_node("b", n_w(0, 1, 50.0));
 	let mut xss: FxHashMap<String, PositionMap> = FxHashMap::default();
-	xss.insert("ul".into(), pmap(&[("a", 0.0), ("b", 1000.0)]));
-	xss.insert("ur".into(), pmap(&[("a", -5.0), ("b", 1000.0)]));
-	xss.insert("dl".into(), pmap(&[("a", 5.0), ("b", 2000.0)]));
-	xss.insert("dr".into(), pmap(&[("a", 0.0), ("b", 200.0)]));
+	xss.insert("ul".into(), pmap(&g, &[("a", 0.0), ("b", 1000.0)]));
+	xss.insert("ur".into(), pmap(&g, &[("a", -5.0), ("b", 1000.0)]));
+	xss.insert("dl".into(), pmap(&g, &[("a", 5.0), ("b", 2000.0)]));
+	xss.insert("dr".into(), pmap(&g, &[("a", 0.0), ("b", 200.0)]));
 	let r = find_smallest_width_alignment(&g, &xss);
 	assert_eq!(r, xss["dr"]);
 }
@@ -492,10 +509,22 @@ fn smallest_width_uses_node_width() {
 	g.set_node("b", n_w(0, 1, 50.0));
 	g.set_node("c", n_w(0, 2, 200.0));
 	let mut xss: FxHashMap<String, PositionMap> = FxHashMap::default();
-	xss.insert("ul".into(), pmap(&[("a", 0.0), ("b", 100.0), ("c", 75.0)]));
-	xss.insert("ur".into(), pmap(&[("a", 0.0), ("b", 100.0), ("c", 80.0)]));
-	xss.insert("dl".into(), pmap(&[("a", 0.0), ("b", 100.0), ("c", 85.0)]));
-	xss.insert("dr".into(), pmap(&[("a", 0.0), ("b", 100.0), ("c", 90.0)]));
+	xss.insert(
+		"ul".into(),
+		pmap(&g, &[("a", 0.0), ("b", 100.0), ("c", 75.0)]),
+	);
+	xss.insert(
+		"ur".into(),
+		pmap(&g, &[("a", 0.0), ("b", 100.0), ("c", 80.0)]),
+	);
+	xss.insert(
+		"dl".into(),
+		pmap(&g, &[("a", 0.0), ("b", 100.0), ("c", 85.0)]),
+	);
+	xss.insert(
+		"dr".into(),
+		pmap(&g, &[("a", 0.0), ("b", 100.0), ("c", 90.0)]),
+	);
 	let r = find_smallest_width_alignment(&g, &xss);
 	assert_eq!(r, xss["ul"]);
 }
@@ -505,31 +534,31 @@ fn smallest_width_uses_node_width() {
 #[test]
 fn balance_single_shared_median() {
 	let mut xss: FxHashMap<String, PositionMap> = FxHashMap::default();
-	xss.insert("ul".into(), pmap(&[("a", 0.0)]));
-	xss.insert("ur".into(), pmap(&[("a", 100.0)]));
-	xss.insert("dl".into(), pmap(&[("a", 100.0)]));
-	xss.insert("dr".into(), pmap(&[("a", 200.0)]));
-	assert_eq!(balance(&xss, None), pmap(&[("a", 100.0)]));
+	xss.insert("ul".into(), tmap(&[("a", 0.0)]));
+	xss.insert("ur".into(), tmap(&[("a", 100.0)]));
+	xss.insert("dl".into(), tmap(&[("a", 100.0)]));
+	xss.insert("dr".into(), tmap(&[("a", 200.0)]));
+	assert_eq!(balance(&xss, None), tmap(&[("a", 100.0)]));
 }
 
 #[test]
 fn balance_single_avg_of_different() {
 	let mut xss: FxHashMap<String, PositionMap> = FxHashMap::default();
-	xss.insert("ul".into(), pmap(&[("a", 0.0)]));
-	xss.insert("ur".into(), pmap(&[("a", 75.0)]));
-	xss.insert("dl".into(), pmap(&[("a", 125.0)]));
-	xss.insert("dr".into(), pmap(&[("a", 200.0)]));
-	assert_eq!(balance(&xss, None), pmap(&[("a", 100.0)]));
+	xss.insert("ul".into(), tmap(&[("a", 0.0)]));
+	xss.insert("ur".into(), tmap(&[("a", 75.0)]));
+	xss.insert("dl".into(), tmap(&[("a", 125.0)]));
+	xss.insert("dr".into(), tmap(&[("a", 200.0)]));
+	assert_eq!(balance(&xss, None), tmap(&[("a", 100.0)]));
 }
 
 #[test]
 fn balance_multi_node() {
 	let mut xss: FxHashMap<String, PositionMap> = FxHashMap::default();
-	xss.insert("ul".into(), pmap(&[("a", 0.0), ("b", 50.0)]));
-	xss.insert("ur".into(), pmap(&[("a", 75.0), ("b", 0.0)]));
-	xss.insert("dl".into(), pmap(&[("a", 125.0), ("b", 60.0)]));
-	xss.insert("dr".into(), pmap(&[("a", 200.0), ("b", 75.0)]));
-	assert_eq!(balance(&xss, None), pmap(&[("a", 100.0), ("b", 55.0)]));
+	xss.insert("ul".into(), tmap(&[("a", 0.0), ("b", 50.0)]));
+	xss.insert("ur".into(), tmap(&[("a", 75.0), ("b", 0.0)]));
+	xss.insert("dl".into(), tmap(&[("a", 125.0), ("b", 60.0)]));
+	xss.insert("dr".into(), tmap(&[("a", 200.0), ("b", 75.0)]));
+	assert_eq!(balance(&xss, None), tmap(&[("a", 100.0), ("b", 55.0)]));
 }
 
 // ---------- positionX ---------------------------------------------------
@@ -539,7 +568,7 @@ fn positionx_single_node_at_origin() {
 	let mut g = mk();
 	g.set_node("a", n_w(0, 0, 100.0));
 	let pos = position_x(&g);
-	assert_eq!(pos.get("a").copied(), Some(0.0));
+	assert_eq!(pos.get_copied(ix(&g, "a")), Some(0.0));
 }
 
 #[test]
@@ -549,8 +578,8 @@ fn positionx_single_block_at_origin() {
 	g.set_node("b", n_w(1, 0, 100.0));
 	g.set_edge_default("a", "b");
 	let pos = position_x(&g);
-	assert_eq!(pos.get("a").copied(), Some(0.0));
-	assert_eq!(pos.get("b").copied(), Some(0.0));
+	assert_eq!(pos.get_copied(ix(&g, "a")), Some(0.0));
+	assert_eq!(pos.get_copied(ix(&g, "b")), Some(0.0));
 }
 
 #[test]
@@ -561,7 +590,7 @@ fn positionx_block_with_different_sizes() {
 	g.set_node("c", n_w(2, 0, 20.0));
 	g.set_path(&["a", "b", "c"]);
 	let pos = position_x(&g);
-	assert_eq!(pos.get("a").copied(), Some(0.0));
-	assert_eq!(pos.get("b").copied(), Some(0.0));
-	assert_eq!(pos.get("c").copied(), Some(0.0));
+	assert_eq!(pos.get_copied(ix(&g, "a")), Some(0.0));
+	assert_eq!(pos.get_copied(ix(&g, "b")), Some(0.0));
+	assert_eq!(pos.get_copied(ix(&g, "c")), Some(0.0));
 }

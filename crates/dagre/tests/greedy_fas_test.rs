@@ -57,16 +57,16 @@ fn clone_graph(
 	let mut out: Graph<GraphLabel, NodeLabel, EdgeLabel> =
 		Graph::with_opts(GraphOpts::directed().multigraph());
 	for v in g.nodes() {
-		out.set_node(v.clone(), g.node(&v).cloned().unwrap_or_default());
+		out.set_node(v, g.node(v).cloned().unwrap_or_default());
 	}
 	for e in g.edges() {
 		out.set_edge_named(
-			e.v.clone(),
-			e.w.clone(),
+			e.v,
+			e.w,
 			g.edge_obj(&e)
 				.cloned()
 				.unwrap_or_default(),
-			e.name.clone(),
+			e.name,
 		);
 	}
 	out
@@ -162,7 +162,10 @@ fn works_with_weighted_edges() {
 	};
 	let fas = greedy_fas(&g1, wf);
 	assert_eq!(fas.len(), 1);
-	assert_eq!((&fas[0].v, &fas[0].w), (&"n2".into(), &"n1".into()));
+	assert_eq!(
+		(g1.name_or_idx(fas[0].v), g1.name_or_idx(fas[0].w)),
+		("n2".to_string(), "n1".to_string())
+	);
 
 	let mut g2 = mk();
 	g2.set_edge(
@@ -191,12 +194,18 @@ fn works_with_weighted_edges() {
 	};
 	let fas2 = greedy_fas(&g2, wf2);
 	assert_eq!(fas2.len(), 1);
-	assert_eq!((&fas2[0].v, &fas2[0].w), (&"n1".into(), &"n2".into()));
+	assert_eq!(
+		(g2.name_or_idx(fas2[0].v), g2.name_or_idx(fas2[0].w)),
+		("n1".to_string(), "n2".to_string())
+	);
 }
 
 #[test]
 fn works_for_multigraphs() {
 	let mut g = mk_mg();
+	let foo = g.fresh_edge_name();
+	let bar = g.fresh_edge_name();
+	let baz = g.fresh_edge_name();
 	g.set_edge_named(
 		"a",
 		"b",
@@ -204,7 +213,7 @@ fn works_for_multigraphs() {
 			weight: 5.0,
 			..Default::default()
 		},
-		Some("foo".into()),
+		Some(foo),
 	);
 	g.set_edge_named(
 		"b",
@@ -213,7 +222,7 @@ fn works_for_multigraphs() {
 			weight: 2.0,
 			..Default::default()
 		},
-		Some("bar".into()),
+		Some(bar),
 	);
 	g.set_edge_named(
 		"b",
@@ -222,7 +231,7 @@ fn works_for_multigraphs() {
 			weight: 2.0,
 			..Default::default()
 		},
-		Some("baz".into()),
+		Some(baz),
 	);
 	let g_ref = &g;
 	let wf = |e: &Edge| {
@@ -231,16 +240,16 @@ fn works_for_multigraphs() {
 			.map_or(1.0, |l| l.weight)
 	};
 	let mut fas = greedy_fas(&g, wf);
-	fas.sort_by(|a, b| a.name.cmp(&b.name));
+	fas.sort_by_key(|a| a.name);
 	// Expect "bar" + "baz" reversed (b -> a).
 	assert_eq!(fas.len(), 2);
 	assert_eq!(
 		fas.iter()
-			.map(|e| (e.v.clone(), e.w.clone(), e.name.clone()))
+			.map(|e| (g.name_or_idx(e.v), g.name_or_idx(e.w), e.name))
 			.collect::<Vec<_>>(),
 		vec![
-			("b".into(), "a".into(), Some("bar".into())),
-			("b".into(), "a".into(), Some("baz".into())),
+			("b".to_string(), "a".to_string(), Some(bar)),
+			("b".to_string(), "a".to_string(), Some(baz)),
 		]
 	);
 }

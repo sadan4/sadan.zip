@@ -2,9 +2,24 @@
 
 use dagre::{
 	graph::Graph,
-	rank::feasible_tree,
+	rank::feasible_tree::{self, Tree},
 	types::{EdgeLabel, GraphLabel, NodeLabel},
 };
+
+/// The tree shares `g`'s node index space but carries no name side-table, so
+/// names have to be resolved through `g` in both directions.
+fn nbrs(
+	g: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
+	tree: &Tree,
+	v: &str,
+) -> Vec<String> {
+	let idx = g
+		.node_idx(v)
+		.unwrap_or_else(|| panic!("no node named {v}"));
+	let mut out = g.names_of(&tree.neighbors(idx).unwrap_or_default());
+	out.sort();
+	out
+}
 
 #[test]
 fn trivial_two_node_graph() {
@@ -37,7 +52,7 @@ fn trivial_two_node_graph() {
 		g.node("b").unwrap().rank.unwrap(),
 		g.node("a").unwrap().rank.unwrap() + 1
 	);
-	assert_eq!(tree.neighbors("a").unwrap(), vec!["b".to_string()]);
+	assert_eq!(nbrs(&g, &tree, "a"), ["b"]);
 }
 
 #[test]
@@ -88,14 +103,10 @@ fn shortens_slack_by_pulling_up() {
 	assert_eq!(rc, rb + 1);
 	assert_eq!(rd, ra + 1);
 
-	let mut na = tree.neighbors("a").unwrap();
-	na.sort();
-	assert_eq!(na, vec!["b".to_string(), "d".to_string()]);
-	let mut nb = tree.neighbors("b").unwrap();
-	nb.sort();
-	assert_eq!(nb, vec!["a".to_string(), "c".to_string()]);
-	assert_eq!(tree.neighbors("c").unwrap(), vec!["b".to_string()]);
-	assert_eq!(tree.neighbors("d").unwrap(), vec!["a".to_string()]);
+	assert_eq!(nbrs(&g, &tree, "a"), ["b", "d"]);
+	assert_eq!(nbrs(&g, &tree, "b"), ["a", "c"]);
+	assert_eq!(nbrs(&g, &tree, "c"), ["b"]);
+	assert_eq!(nbrs(&g, &tree, "d"), ["a"]);
 }
 
 #[test]
@@ -135,9 +146,7 @@ fn shortens_slack_by_pulling_down() {
 	let rc = g.node("c").unwrap().rank.unwrap();
 	assert_eq!(ra, rb + 1);
 	assert_eq!(rc, rb + 1);
-	assert_eq!(tree.neighbors("a").unwrap(), vec!["b".to_string()]);
-	let mut nb = tree.neighbors("b").unwrap();
-	nb.sort();
-	assert_eq!(nb, vec!["a".to_string(), "c".to_string()]);
-	assert_eq!(tree.neighbors("c").unwrap(), vec!["b".to_string()]);
+	assert_eq!(nbrs(&g, &tree, "a"), ["b"]);
+	assert_eq!(nbrs(&g, &tree, "b"), ["a", "c"]);
+	assert_eq!(nbrs(&g, &tree, "c"), ["b"]);
 }

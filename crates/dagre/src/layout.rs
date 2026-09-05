@@ -139,8 +139,8 @@ fn translate_graph(g: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>) {
 		(gl.marginx.unwrap_or(0.0), gl.marginy.unwrap_or(0.0))
 	};
 
-	for v in g.nodes() {
-		if let Some(n) = g.node(&v)
+	for v in g.nodes_iter() {
+		if let Some(n) = g.node(v)
 			&& let (Some(x), Some(y)) = (n.x, n.y)
 		{
 			min_x = min_x.min(x - n.width / 2.0);
@@ -155,7 +155,7 @@ fn translate_graph(g: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>) {
 	min_x -= mx;
 	min_y -= my;
 	for v in g.nodes() {
-		if let Some(n) = g.node_mut(&v) {
+		if let Some(n) = g.node_mut(v) {
 			if let Some(x) = n.x.as_mut() {
 				*x -= min_x;
 			}

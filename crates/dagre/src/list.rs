@@ -10,12 +10,12 @@
 //! from `entry.in / entry.out` each time, we don't need stable references
 //! into the list — we just need an efficient queue.
 
-use crate::graph::NodeId;
+use crate::graph::NodeIdx;
 use std::collections::VecDeque;
 
 #[derive(Debug, Clone)]
 pub struct FasEntry {
-	pub v: NodeId,
+	pub v: NodeIdx,
 	pub in_w: f64,
 	pub out_w: f64,
 }
@@ -49,11 +49,11 @@ impl List {
 
 	/// Remove the entry with the given `v` if present (used when reassigning
 	/// bucket membership after weights change).
-	pub fn remove(&mut self, v: &str) -> Option<FasEntry> {
+	pub fn remove(&mut self, v: NodeIdx) -> Option<FasEntry> {
 		let pos = self
 			.items
 			.iter()
-			.position(|e| e.v.as_str() == v)?;
+			.position(|e| e.v == v)?;
 		self.items.remove(pos)
 	}
 }

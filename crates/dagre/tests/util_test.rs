@@ -16,6 +16,12 @@ use dagre::{
 	util,
 };
 
+/// Look up a node by the name the test gave it.
+fn ix(g: &Graph<GraphLabel, NodeLabel, EdgeLabel>, v: &str) -> dagre::NodeIdx {
+	g.node_idx(v)
+		.unwrap_or_else(|| panic!("no node named {v}"))
+}
+
 fn mg() -> Graph<GraphLabel, NodeLabel, EdgeLabel> {
 	Graph::with_opts(GraphOpts::directed().multigraph())
 }
@@ -43,7 +49,9 @@ fn simplify_copies_a_graph_with_no_multi_edges() {
 		},
 	);
 	let g2 = util::simplify(&g);
-	let e = g2.edge("a", "b").unwrap();
+	let e = g2
+		.edge(ix(&g, "a"), ix(&g, "b"))
+		.unwrap();
 	assert_eq!(e.weight, 1.0);
 	assert_eq!(e.minlen, 1);
 	assert_eq!(g2.edge_count(), 1);
@@ -52,6 +60,7 @@ fn simplify_copies_a_graph_with_no_multi_edges() {
 #[test]
 fn simplify_collapses_multi_edges() {
 	let mut g = mg();
+	let multi = g.fresh_edge_name();
 	g.set_edge_named(
 		"a",
 		"b",
@@ -70,11 +79,13 @@ fn simplify_collapses_multi_edges() {
 			minlen: 2,
 			..Default::default()
 		},
-		Some("multi".into()),
+		Some(multi),
 	);
 	let g2 = util::simplify(&g);
 	assert!(!g2.is_multigraph());
-	let e = g2.edge("a", "b").unwrap();
+	let e = g2
+		.edge(ix(&g, "a"), ix(&g, "b"))
+		.unwrap();
 	assert_eq!(e.weight, 3.0);
 	assert_eq!(e.minlen, 2);
 	assert_eq!(g2.edge_count(), 1);
@@ -105,13 +116,14 @@ fn as_non_compound_copies_all_nodes() {
 	);
 	g.set_node("b", NodeLabel::default());
 	let g2 = util::as_non_compound_graph(&g);
-	assert_eq!(g2.node("a").unwrap().width, 5.0);
-	assert!(g2.has_node("b"));
+	assert_eq!(g2.node(ix(&g, "a")).unwrap().width, 5.0);
+	assert!(g2.has_node(ix(&g, "b")));
 }
 
 #[test]
 fn as_non_compound_copies_all_edges_including_named() {
 	let mut g = mc();
+	let multi = g.fresh_edge_name();
 	g.set_edge_named(
 		"a",
 		"b",
@@ -128,12 +140,17 @@ fn as_non_compound_copies_all_edges_including_named() {
 			weight: 2.0,
 			..Default::default()
 		},
-		Some("multi".into()),
+		Some(multi),
 	);
 	let g2 = util::as_non_compound_graph(&g);
-	assert_eq!(g2.edge("a", "b").unwrap().weight, 1.0);
 	assert_eq!(
-		g2.edge_full("a", "b", Some("multi"))
+		g2.edge(ix(&g, "a"), ix(&g, "b"))
+			.unwrap()
+			.weight,
+		1.0
+	);
+	assert_eq!(
+		g2.edge_full(ix(&g, "a"), ix(&g, "b"), Some(multi))
 			.unwrap()
 			.weight,
 		2.0
@@ -148,7 +165,7 @@ fn as_non_compound_skips_compound_parents() {
 	g.set_parent("a", Some("sg1"));
 	let g2 = util::as_non_compound_graph(&g);
 	assert!(!g2.is_compound());
-	assert!(!g2.has_node("sg1"));
+	assert!(!g2.has_node(ix(&g, "sg1")));
 }
 
 #[test]
@@ -166,6 +183,7 @@ fn as_non_compound_copies_graph_label() {
 
 fn mk_weight_graph() -> Graph<GraphLabel, NodeLabel, EdgeLabel> {
 	let mut g = mg();
+	let multi = g.fresh_edge_name();
 	g.set_edge_named(
 		"a",
 		"b",
@@ -191,7 +209,7 @@ fn mk_weight_graph() -> Graph<GraphLabel, NodeLabel, EdgeLabel> {
 			weight: 2.0,
 			..Default::default()
 		},
-		Some("multi".into()),
+		Some(multi),
 	);
 	g.set_edge_named(
 		"b",
@@ -200,7 +218,7 @@ fn mk_weight_graph() -> Graph<GraphLabel, NodeLabel, EdgeLabel> {
 			weight: 1.0,
 			..Default::default()
 		},
-		Some("multi".into()),
+		Some(multi),
 	);
 	g
 }
@@ -209,21 +227,57 @@ fn mk_weight_graph() -> Graph<GraphLabel, NodeLabel, EdgeLabel> {
 fn successor_weights_sums_per_destination() {
 	let g = mk_weight_graph();
 	let m = util::successor_weights(&g);
-	assert_eq!(m.get("a").unwrap().get("b").copied(), Some(2.0));
-	assert_eq!(m.get("b").unwrap().get("c").copied(), Some(3.0));
-	assert_eq!(m.get("b").unwrap().get("d").copied(), Some(1.0));
-	assert!(m.get("c").unwrap().is_empty());
-	assert!(m.get("d").unwrap().is_empty());
+	assert_eq!(
+		m.get(&ix(&g, "a"))
+			.unwrap()
+			.get(&ix(&g, "b"))
+			.copied(),
+		Some(2.0)
+	);
+	assert_eq!(
+		m.get(&ix(&g, "b"))
+			.unwrap()
+			.get(&ix(&g, "c"))
+			.copied(),
+		Some(3.0)
+	);
+	assert_eq!(
+		m.get(&ix(&g, "b"))
+			.unwrap()
+			.get(&ix(&g, "d"))
+			.copied(),
+		Some(1.0)
+	);
+	assert!(m.get(&ix(&g, "c")).unwrap().is_empty());
+	assert!(m.get(&ix(&g, "d")).unwrap().is_empty());
 }
 
 #[test]
 fn predecessor_weights_sums_per_source() {
 	let g = mk_weight_graph();
 	let m = util::predecessor_weights(&g);
-	assert!(m.get("a").unwrap().is_empty());
-	assert_eq!(m.get("b").unwrap().get("a").copied(), Some(2.0));
-	assert_eq!(m.get("c").unwrap().get("b").copied(), Some(3.0));
-	assert_eq!(m.get("d").unwrap().get("b").copied(), Some(1.0));
+	assert!(m.get(&ix(&g, "a")).unwrap().is_empty());
+	assert_eq!(
+		m.get(&ix(&g, "b"))
+			.unwrap()
+			.get(&ix(&g, "a"))
+			.copied(),
+		Some(2.0)
+	);
+	assert_eq!(
+		m.get(&ix(&g, "c"))
+			.unwrap()
+			.get(&ix(&g, "b"))
+			.copied(),
+		Some(3.0)
+	);
+	assert_eq!(
+		m.get(&ix(&g, "d"))
+			.unwrap()
+			.get(&ix(&g, "b"))
+			.copied(),
+		Some(1.0)
+	);
 }
 
 // ---------- intersectRect ------------------------------------------------
@@ -352,9 +406,9 @@ fn build_layer_matrix_groups_by_rank_and_order() {
 	);
 	let layers = util::build_layer_matrix(&g);
 	assert_eq!(layers.len(), 3);
-	assert_eq!(layers[0], vec!["a".to_string(), "b".to_string()]);
-	assert_eq!(layers[1], vec!["c".to_string(), "d".to_string()]);
-	assert_eq!(layers[2], vec!["e".to_string()]);
+	assert_eq!(g.names_of(&layers[0]), ["a", "b"]);
+	assert_eq!(g.names_of(&layers[1]), ["c", "d"]);
+	assert_eq!(g.names_of(&layers[2]), ["e"]);
 }
 
 // ---------- normalizeRanks ----------------------------------------------
@@ -507,19 +561,4 @@ fn range_with_negative_step() {
 	assert_eq!(r[0], 5);
 	assert_eq!(r.last().copied(), Some(0));
 	assert_eq!(r.len(), 6);
-}
-
-// ---------- uniqueId ----------------------------------------------------
-
-#[test]
-fn unique_id_format_and_distinct() {
-	let id = util::unique_id("_root");
-	assert!(id.starts_with("_root"));
-	let a = util::unique_id("name");
-	let b = util::unique_id("name");
-	let c = util::unique_id("name");
-	assert_ne!(a, b);
-	assert_ne!(b, c);
-	let nid = util::unique_id("99");
-	assert!(nid.starts_with("99"));
 }

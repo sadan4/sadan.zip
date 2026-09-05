@@ -19,7 +19,16 @@ pub mod rank;
 
 pub mod layout;
 
-pub use graph::{Edge, Graph, GraphOpts};
+pub use graph::{
+	Edge,
+	EdgeIdx,
+	EdgeName,
+	Graph,
+	GraphOpts,
+	NodeIdx,
+	NodeKey,
+	NodeRef,
+};
 pub use layout::layout;
 pub use types::{
 	Align,

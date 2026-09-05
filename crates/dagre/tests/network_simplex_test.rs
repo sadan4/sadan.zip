@@ -5,7 +5,7 @@
 #![allow(clippy::float_cmp)]
 
 use dagre::{
-	graph::{Edge, Graph, GraphOpts, NodeId},
+	graph::{Edge, Graph, GraphOpts, NodeIdx},
 	rank::{
 		feasible_tree::{Tree, TreeEdge, TreeNode},
 		network_simplex,
@@ -44,8 +44,26 @@ fn gansner_graph() -> Graph<GraphLabel, NodeLabel, EdgeLabel> {
 	g
 }
 
-fn gansner_tree() -> Tree {
+/// A tree over the same node index space (and names) as `g`. The tree and
+/// the graph are addressed by the same `NodeIdx`, so they must be seeded in
+/// the same order rather than built independently.
+fn tree_like(g: &Graph<GraphLabel, NodeLabel, EdgeLabel>) -> Tree {
 	let mut t = mk_t();
+	for v in g.nodes() {
+		match g.name(v) {
+			Some(name) => {
+				t.set_node_named(name, TreeNode::default());
+			}
+			None => {
+				t.set_node(v, TreeNode::default());
+			}
+		}
+	}
+	t
+}
+
+fn gansner_tree(g: &Graph<GraphLabel, NodeLabel, EdgeLabel>) -> Tree {
+	let mut t = tree_like(g);
 	// Setting up the same tree as gansnerTree in JS.
 	// Undirected edges: a-b, b-c, c-d, d-h, h-g, g-e, g-f.
 	for (v, w) in [
@@ -57,23 +75,13 @@ fn gansner_tree() -> Tree {
 		("g", "e"),
 		("g", "f"),
 	] {
-		if !t.has_node(v) {
-			t.set_node(v.to_string(), TreeNode::default());
-		}
-		if !t.has_node(w) {
-			t.set_node(w.to_string(), TreeNode::default());
-		}
-		t.set_edge(v.to_string(), w.to_string(), TreeEdge::default());
+		t.set_edge(v, w, TreeEdge::default());
 	}
 	t
 }
 
-fn undir(e: &Edge) -> (NodeId, NodeId) {
-	if e.v < e.w {
-		(e.v.clone(), e.w.clone())
-	} else {
-		(e.w.clone(), e.v.clone())
-	}
+fn undir(e: &Edge) -> (NodeIdx, NodeIdx) {
+	if e.v < e.w { (e.v, e.w) } else { (e.w, e.v) }
 }
 
 // ---------- main entry --------------------------------------------------
@@ -156,6 +164,7 @@ fn handles_multi_edges() {
 		},
 	);
 	g.set_edge_default("e", "d");
+	let multi = g.fresh_edge_name();
 	g.set_edge_named(
 		"b",
 		"c",
@@ -164,7 +173,7 @@ fn handles_multi_edges() {
 			minlen: 2,
 			..Default::default()
 		},
-		Some("multi".into()),
+		Some(multi),
 	);
 	ns(&mut g);
 	assert_eq!(g.node("a").unwrap().rank, Some(0));
@@ -220,7 +229,10 @@ fn leave_edge_returns_negative_cutvalue_edge() {
 		},
 	);
 	let e = network_simplex::leave_edge(&t).unwrap();
-	assert_eq!(undir(&e), (NodeId::from("b"), NodeId::from("c")));
+	assert_eq!(
+		undir(&e),
+		(t.node_idx("b").unwrap(), t.node_idx("c").unwrap())
+	);
 }
 
 // ---------- initLowLimValues --------------------------------------------
@@ -237,7 +249,8 @@ fn init_low_lim_assigns_low_lim_parent() {
 		g.set_edge(v.to_string(), w.to_string(), TreeEdge::default());
 	}
 
-	network_simplex::init_low_lim(&mut g, Some("a".into()));
+	let root = g.node_idx("a").unwrap();
+	network_simplex::init_low_lim(&mut g, Some(root));
 
 	let lim_a = g.node("a").unwrap().lim.unwrap();
 	let lim_b = g.node("b").unwrap().lim.unwrap();
@@ -252,17 +265,17 @@ fn init_low_lim_assigns_low_lim_parent() {
 	assert_eq!(g.node("a").unwrap().low, Some(1));
 	assert_eq!(g.node("a").unwrap().lim, Some(5));
 
-	assert_eq!(g.node("b").unwrap().parent.as_deref(), Some("a"));
+	assert_eq!(g.node("b").unwrap().parent, g.node_idx("a"));
 	assert!(lim_b < lim_a);
 
-	assert_eq!(g.node("c").unwrap().parent.as_deref(), Some("a"));
+	assert_eq!(g.node("c").unwrap().parent, g.node_idx("a"));
 	assert!(lim_c < lim_a);
 	assert_ne!(lim_b, lim_c);
 
-	assert_eq!(g.node("d").unwrap().parent.as_deref(), Some("c"));
+	assert_eq!(g.node("d").unwrap().parent, g.node_idx("c"));
 	assert!(lim_d < lim_c);
 
-	assert_eq!(g.node("e").unwrap().parent.as_deref(), Some("c"));
+	assert_eq!(g.node("e").unwrap().parent, g.node_idx("c"));
 	assert!(lim_e < lim_c);
 	assert_ne!(lim_d, lim_e);
 }
@@ -272,16 +285,13 @@ fn init_low_lim_assigns_low_lim_parent() {
 #[test]
 fn exchange_edges_updates_cutvalues_and_lims() {
 	let mut g = gansner_graph();
-	let mut t = gansner_tree();
+	let mut t = gansner_tree(&g);
 	longest_path(&mut g);
 	network_simplex::init_low_lim(&mut t, None);
 
-	network_simplex::exchange_edges(
-		&mut t,
-		&mut g,
-		&Edge::new("g", "h"),
-		&Edge::new("a", "e"),
-	);
+	let gh = Edge::new(t.node_idx("g").unwrap(), t.node_idx("h").unwrap());
+	let ae = Edge::new(t.node_idx("a").unwrap(), t.node_idx("e").unwrap());
+	network_simplex::exchange_edges(&mut t, &mut g, &gh, &ae);
 
 	assert_eq!(t.edge("a", "b").unwrap().cutvalue, Some(2.0));
 	assert_eq!(t.edge("b", "c").unwrap().cutvalue, Some(2.0));
@@ -303,16 +313,13 @@ fn exchange_edges_updates_cutvalues_and_lims() {
 #[test]
 fn exchange_edges_updates_ranks() {
 	let mut g = gansner_graph();
-	let mut t = gansner_tree();
+	let mut t = gansner_tree(&g);
 	longest_path(&mut g);
 	network_simplex::init_low_lim(&mut t, None);
 
-	network_simplex::exchange_edges(
-		&mut t,
-		&mut g,
-		&Edge::new("g", "h"),
-		&Edge::new("a", "e"),
-	);
+	let gh = Edge::new(t.node_idx("g").unwrap(), t.node_idx("h").unwrap());
+	let ae = Edge::new(t.node_idx("a").unwrap(), t.node_idx("e").unwrap());
+	network_simplex::exchange_edges(&mut t, &mut g, &gh, &ae);
 	normalize_ranks(&mut g);
 
 	assert_eq!(g.node("a").unwrap().rank, Some(0));
@@ -345,30 +352,41 @@ fn calc_cut_value_setup(
 			},
 		);
 	}
-	let mut t = mk_t();
+	let mut t = tree_like(&g);
 	for (v, w, cv) in t_edges {
-		if !t.has_node(v) {
-			t.set_node(v.to_string(), TreeNode::default());
-		}
-		if !t.has_node(w) {
-			t.set_node(w.to_string(), TreeNode::default());
-		}
-		t.set_edge(v.to_string(), w.to_string(), TreeEdge { cutvalue: *cv });
+		t.set_edge(*v, *w, TreeEdge { cutvalue: *cv });
 	}
-	network_simplex::init_low_lim(&mut t, Some("p".into()));
+	let root = t.node_idx("p").unwrap();
+	network_simplex::init_low_lim(&mut t, Some(root));
 	(g, t)
 }
 
 #[test]
 fn calc_cut_two_node_c_to_p() {
 	let (g, t) = calc_cut_value_setup(&[("c", "p", 1.0)], &[("p", "c", None)]);
-	assert_eq!(network_simplex::calc_cut_value(&t, &g, "c", "p"), 1.0);
+	assert_eq!(
+		network_simplex::calc_cut_value(
+			&t,
+			&g,
+			t.node_idx("c").unwrap(),
+			t.node_idx("p").unwrap()
+		),
+		1.0
+	);
 }
 
 #[test]
 fn calc_cut_two_node_p_to_c() {
 	let (g, t) = calc_cut_value_setup(&[("p", "c", 1.0)], &[("p", "c", None)]);
-	assert_eq!(network_simplex::calc_cut_value(&t, &g, "c", "p"), 1.0);
+	assert_eq!(
+		network_simplex::calc_cut_value(
+			&t,
+			&g,
+			t.node_idx("c").unwrap(),
+			t.node_idx("p").unwrap()
+		),
+		1.0
+	);
 }
 
 #[test]
@@ -377,7 +395,15 @@ fn calc_cut_3_node_gc_c_p_pointing_to_p() {
 		&[("gc", "c", 1.0), ("c", "p", 1.0)],
 		&[("gc", "c", Some(3.0)), ("p", "c", None)],
 	);
-	assert_eq!(network_simplex::calc_cut_value(&t, &g, "c", "p"), 3.0);
+	assert_eq!(
+		network_simplex::calc_cut_value(
+			&t,
+			&g,
+			t.node_idx("c").unwrap(),
+			t.node_idx("p").unwrap()
+		),
+		3.0
+	);
 }
 
 #[test]
@@ -386,7 +412,15 @@ fn calc_cut_3_node_gc_in_p_in() {
 		&[("p", "c", 1.0), ("gc", "c", 1.0)],
 		&[("gc", "c", Some(3.0)), ("p", "c", None)],
 	);
-	assert_eq!(network_simplex::calc_cut_value(&t, &g, "c", "p"), -1.0);
+	assert_eq!(
+		network_simplex::calc_cut_value(
+			&t,
+			&g,
+			t.node_idx("c").unwrap(),
+			t.node_idx("p").unwrap()
+		),
+		-1.0
+	);
 }
 
 #[test]
@@ -395,7 +429,15 @@ fn calc_cut_3_node_c_to_both() {
 		&[("c", "p", 1.0), ("c", "gc", 1.0)],
 		&[("gc", "c", Some(3.0)), ("p", "c", None)],
 	);
-	assert_eq!(network_simplex::calc_cut_value(&t, &g, "c", "p"), -1.0);
+	assert_eq!(
+		network_simplex::calc_cut_value(
+			&t,
+			&g,
+			t.node_idx("c").unwrap(),
+			t.node_idx("p").unwrap()
+		),
+		-1.0
+	);
 }
 
 #[test]
@@ -404,7 +446,15 @@ fn calc_cut_3_node_p_to_c_to_gc() {
 		&[("p", "c", 1.0), ("c", "gc", 1.0)],
 		&[("gc", "c", Some(3.0)), ("p", "c", None)],
 	);
-	assert_eq!(network_simplex::calc_cut_value(&t, &g, "c", "p"), 3.0);
+	assert_eq!(
+		network_simplex::calc_cut_value(
+			&t,
+			&g,
+			t.node_idx("c").unwrap(),
+			t.node_idx("p").unwrap()
+		),
+		3.0
+	);
 }
 
 #[test]
@@ -418,7 +468,15 @@ fn calc_cut_4_node_gc_c_p_o_with_o_to_c() {
 		],
 		&[("gc", "c", Some(3.0)), ("c", "p", None), ("p", "o", None)],
 	);
-	assert_eq!(network_simplex::calc_cut_value(&t, &g, "c", "p"), -4.0);
+	assert_eq!(
+		network_simplex::calc_cut_value(
+			&t,
+			&g,
+			t.node_idx("c").unwrap(),
+			t.node_idx("p").unwrap()
+		),
+		-4.0
+	);
 }
 
 #[test]
@@ -432,7 +490,15 @@ fn calc_cut_4_node_gc_c_p_o_with_c_to_o() {
 		],
 		&[("gc", "c", Some(3.0)), ("c", "p", None), ("p", "o", None)],
 	);
-	assert_eq!(network_simplex::calc_cut_value(&t, &g, "c", "p"), 10.0);
+	assert_eq!(
+		network_simplex::calc_cut_value(
+			&t,
+			&g,
+			t.node_idx("c").unwrap(),
+			t.node_idx("p").unwrap()
+		),
+		10.0
+	);
 }
 
 // ---------- initCutValues -----------------------------------------------
@@ -440,7 +506,7 @@ fn calc_cut_4_node_gc_c_p_o_with_c_to_o() {
 #[test]
 fn init_cut_values_works_for_gansner_graph() {
 	let g = gansner_graph();
-	let mut t = gansner_tree();
+	let mut t = gansner_tree(&g);
 	network_simplex::init_low_lim(&mut t, None);
 	network_simplex::init_cut_values(&mut t, &g);
 	assert_eq!(t.edge("a", "b").unwrap().cutvalue, Some(3.0));
@@ -455,7 +521,7 @@ fn init_cut_values_works_for_gansner_graph() {
 #[test]
 fn init_cut_values_works_for_updated_gansner_graph() {
 	let g = gansner_graph();
-	let mut t = gansner_tree();
+	let mut t = gansner_tree(&g);
 	t.remove_edge("g", "h");
 	if !t.has_node("a") {
 		t.set_node("a", TreeNode::default());

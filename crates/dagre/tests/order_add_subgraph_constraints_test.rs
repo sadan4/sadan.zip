@@ -1,7 +1,7 @@
 //! Port of test/order/add-subgraph-constraints-test.ts.
 
 use dagre::{
-	graph::{Edge, Graph, GraphOpts, NodeId},
+	graph::{Edge, Graph, GraphOpts, NodeIdx},
 	order::add_subgraph_constraints,
 	types::{EdgeLabel, GraphLabel, NodeLabel},
 };
@@ -10,9 +10,12 @@ fn mk() -> Graph<GraphLabel, NodeLabel, EdgeLabel> {
 	Graph::with_opts(GraphOpts::directed().compound())
 }
 
-fn vs(s: &[&str]) -> Vec<NodeId> {
+fn vs(g: &Graph<GraphLabel, NodeLabel, EdgeLabel>, s: &[&str]) -> Vec<NodeIdx> {
 	s.iter()
-		.map(|x| NodeId::from(*x))
+		.map(|x| {
+			g.node_idx(x)
+				.unwrap_or_else(|| panic!("no node named {x}"))
+		})
 		.collect()
 }
 
@@ -23,7 +26,7 @@ fn flat_node_set_changes_nothing() {
 		g.set_node(v.to_string(), NodeLabel::default());
 	}
 	let mut cg: Graph<(), (), ()> = Graph::new();
-	add_subgraph_constraints(&g, &mut cg, &vs(&["a", "b", "c", "d"]));
+	add_subgraph_constraints(&g, &mut cg, &vs(&g, &["a", "b", "c", "d"]));
 	assert_eq!(cg.node_count(), 0);
 	assert_eq!(cg.edge_count(), 0);
 }
@@ -35,7 +38,7 @@ fn contiguous_subgraph_no_constraint() {
 		g.set_parent(v, Some("sg"));
 	}
 	let mut cg: Graph<(), (), ()> = Graph::new();
-	add_subgraph_constraints(&g, &mut cg, &vs(&["a", "b", "c"]));
+	add_subgraph_constraints(&g, &mut cg, &vs(&g, &["a", "b", "c"]));
 	assert_eq!(cg.edge_count(), 0);
 }
 
@@ -45,10 +48,13 @@ fn adds_constraint_for_adjacent_different_parents() {
 	g.set_parent("a", Some("sg1"));
 	g.set_parent("b", Some("sg2"));
 	let mut cg: Graph<(), (), ()> = Graph::new();
-	add_subgraph_constraints(&g, &mut cg, &vs(&["a", "b"]));
+	add_subgraph_constraints(&g, &mut cg, &vs(&g, &["a", "b"]));
 	let edges = cg.edges();
 	assert_eq!(edges.len(), 1);
-	assert_eq!((edges[0].v.as_str(), edges[0].w.as_str()), ("sg1", "sg2"));
+	assert_eq!(
+		(g.name_or_idx(edges[0].v), g.name_or_idx(edges[0].w)),
+		("sg1".to_string(), "sg2".to_string())
+	);
 }
 
 #[test]
@@ -69,20 +75,23 @@ fn works_for_multiple_levels() {
 	add_subgraph_constraints(
 		&g,
 		&mut cg,
-		&vs(&["a", "b", "c", "d", "e", "f", "g", "h"]),
+		&vs(&g, &["a", "b", "c", "d", "e", "f", "g", "h"]),
 	);
 	let mut edges: Vec<Edge> = cg.edges();
-	edges.sort_by(|a, b| a.v.cmp(&b.v));
+	// Index order is insertion order now, so sort by name to keep the
+	// expectation stable.
+	edges.sort_by_key(|e| g.name_or_idx(e.v));
 	assert_eq!(edges.len(), 2);
-	let pairs: Vec<(NodeId, NodeId)> = edges
+	// The constraint graph shares `g`'s index space, so resolve names there.
+	let pairs: Vec<(String, String)> = edges
 		.into_iter()
-		.map(|e| (e.v, e.w))
+		.map(|e| (g.name_or_idx(e.v), g.name_or_idx(e.w)))
 		.collect();
 	assert_eq!(
 		pairs,
 		vec![
-			(NodeId::from("sg1"), NodeId::from("sg4")),
-			(NodeId::from("sg2"), NodeId::from("sg3"))
+			("sg1".to_string(), "sg4".to_string()),
+			("sg2".to_string(), "sg3".to_string())
 		]
 	);
 }

@@ -1,13 +1,10 @@
 //! Port of `lib/acyclic.ts`: reverse feedback-arc-set edges so the graph
 //! becomes acyclic, then undo the reversal at the end of layout.
 
-use std::collections::HashSet;
-
 use crate::{
-	graph::{Edge, Graph, NodeId},
+	graph::{Edge, Graph, NodeIdx},
 	greedy_fas,
 	types::{EdgeLabel, GraphLabel, NodeLabel},
-	util::unique_id,
 };
 
 pub fn run(graph: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>) {
@@ -32,45 +29,46 @@ pub fn run(graph: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>) {
 			None => continue,
 		};
 		graph.remove_edge_obj(&e);
-		label.forward_name.clone_from(&e.name);
+		label.forward_name = e.name;
 		label.reversed = true;
-		let name = unique_id("rev");
-		graph.set_edge_named(e.w.clone(), e.v.clone(), label, Some(name));
+		let name = graph.fresh_edge_name();
+		graph.set_edge_named(e.w, e.v, label, Some(name));
 	}
 }
 
 fn dfs_fas(graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>) -> Vec<Edge> {
 	let mut fas: Vec<Edge> = Vec::new();
-	let mut stack: HashSet<NodeId> = HashSet::new();
-	let mut visited: HashSet<NodeId> = HashSet::new();
+	// Node ids are dense indices, so the DFS state is a flat bitmap rather
+	// than a hash set.
+	let mut on_stack = vec![false; graph.node_bound()];
+	let mut visited = vec![false; graph.node_bound()];
 
 	fn dfs(
 		graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
-		v: &str,
-		stack: &mut HashSet<NodeId>,
-		visited: &mut HashSet<NodeId>,
+		v: NodeIdx,
+		on_stack: &mut [bool],
+		visited: &mut [bool],
 		fas: &mut Vec<Edge>,
 	) {
-		if visited.contains(v) {
+		if visited[v.index()] {
 			return;
 		}
-		visited.insert(v.into());
-		stack.insert(v.into());
+		visited[v.index()] = true;
+		on_stack[v.index()] = true;
 		if let Some(es) = graph.out_edges(v) {
 			for e in es {
-				if stack.contains(&e.w) {
+				if on_stack[e.w.index()] {
 					fas.push(e);
 				} else {
-					let w = e.w.clone();
-					dfs(graph, &w, stack, visited, fas);
+					dfs(graph, e.w, on_stack, visited, fas);
 				}
 			}
 		}
-		stack.remove(v);
+		on_stack[v.index()] = false;
 	}
 
 	for v in graph.nodes() {
-		dfs(graph, &v, &mut stack, &mut visited, &mut fas);
+		dfs(graph, v, &mut on_stack, &mut visited, &mut fas);
 	}
 	fas
 }
@@ -86,7 +84,7 @@ pub fn undo(graph: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>) {
 			graph.remove_edge_obj(&e);
 			let forward_name = label.forward_name.take();
 			label.reversed = false;
-			graph.set_edge_named(e.w.clone(), e.v.clone(), label, forward_name);
+			graph.set_edge_named(e.w, e.v, label, forward_name);
 		}
 	}
 }

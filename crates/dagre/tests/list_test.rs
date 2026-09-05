@@ -5,11 +5,20 @@
 //! with explicit re-insertion logic in greedy-fas. We test the FIFO
 //! semantics that the algorithm actually depends on.
 
-use dagre::list::{FasEntry, List};
+use dagre::{
+	graph::NodeIdx,
+	list::{FasEntry, List},
+};
+
+/// These tests use node ids only as opaque distinct tokens, so map each
+/// single-letter name to a fixed index.
+fn n(s: &str) -> NodeIdx {
+	NodeIdx(u32::from(s.as_bytes()[0]))
+}
 
 fn entry(v: &str) -> FasEntry {
 	FasEntry {
-		v: v.into(),
+		v: n(v),
 		in_w: 0.0,
 		out_w: 0.0,
 	}
@@ -25,7 +34,7 @@ fn dequeue_returns_none_on_empty_list() {
 fn unlinks_and_returns_the_first_entry() {
 	let mut list = List::new();
 	list.enqueue(entry("a"));
-	assert_eq!(list.dequeue().map(|e| e.v), Some("a".into()));
+	assert_eq!(list.dequeue().map(|e| e.v), Some(n("a")));
 }
 
 #[test]
@@ -33,8 +42,8 @@ fn dequeues_in_fifo_order() {
 	let mut list = List::new();
 	list.enqueue(entry("a"));
 	list.enqueue(entry("b"));
-	assert_eq!(list.dequeue().map(|e| e.v), Some("a".into()));
-	assert_eq!(list.dequeue().map(|e| e.v), Some("b".into()));
+	assert_eq!(list.dequeue().map(|e| e.v), Some(n("a")));
+	assert_eq!(list.dequeue().map(|e| e.v), Some(n("b")));
 }
 
 #[test]
@@ -42,7 +51,7 @@ fn remove_by_id() {
 	let mut list = List::new();
 	list.enqueue(entry("a"));
 	list.enqueue(entry("b"));
-	let removed = list.remove("a");
-	assert_eq!(removed.map(|e| e.v), Some("a".into()));
-	assert_eq!(list.dequeue().map(|e| e.v), Some("b".into()));
+	let removed = list.remove(n("a"));
+	assert_eq!(removed.map(|e| e.v), Some(n("a")));
+	assert_eq!(list.dequeue().map(|e| e.v), Some(n("b")));
 }

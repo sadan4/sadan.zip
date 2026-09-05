@@ -6,7 +6,7 @@
 use criterion::{Criterion, criterion_group, criterion_main};
 use dagre::{
 	LayoutGraph,
-	graph::{Graph, GraphOpts, NodeId},
+	graph::{Graph, GraphOpts, NodeIdx},
 	rank,
 	types::{EdgeLabel, GraphLabel, NodeLabel, Ranker},
 };
@@ -52,11 +52,10 @@ fn large_graph() -> LayoutGraph {
 	let nodes_per_group: usize = 27;
 
 	for group in 0..num_groups {
-		let mut group_nodes: Vec<NodeId> = Vec::with_capacity(nodes_per_group);
+		let mut group_nodes: Vec<NodeIdx> = Vec::with_capacity(nodes_per_group);
 		for node in 0..nodes_per_group {
-			let id: NodeId = format!("g{group}_n{node}").into();
-			g.set_node(
-				id.clone(),
+			let id = g.set_node_named(
+				format!("g{group}_n{node}"),
 				NodeLabel {
 					width: 1.0,
 					height: 1.0,
@@ -70,8 +69,8 @@ fn large_graph() -> LayoutGraph {
 		let mut i = 0;
 		while i + 3 < group_nodes.len() {
 			g.set_edge(
-				group_nodes[i].clone(),
-				group_nodes[i + 3].clone(),
+				group_nodes[i],
+				group_nodes[i + 3],
 				EdgeLabel {
 					minlen: 1,
 					weight: 1.0,
@@ -85,8 +84,8 @@ fn large_graph() -> LayoutGraph {
 		let mut i = 1;
 		while i + 2 < group_nodes.len() {
 			g.set_edge(
-				group_nodes[i - 1].clone(),
-				group_nodes[i].clone(),
+				group_nodes[i - 1],
+				group_nodes[i],
 				EdgeLabel {
 					minlen: 1,
 					weight: 1.0,
@@ -94,8 +93,8 @@ fn large_graph() -> LayoutGraph {
 				},
 			);
 			g.set_edge(
-				group_nodes[i].clone(),
-				group_nodes[i + 1].clone(),
+				group_nodes[i],
+				group_nodes[i + 1],
 				EdgeLabel {
 					minlen: 1,
 					weight: 1.0,
@@ -103,8 +102,8 @@ fn large_graph() -> LayoutGraph {
 				},
 			);
 			g.set_edge(
-				group_nodes[i].clone(),
-				group_nodes[i + 2].clone(),
+				group_nodes[i],
+				group_nodes[i + 2],
 				EdgeLabel {
 					minlen: 1,
 					weight: 1.0,
@@ -226,18 +225,13 @@ fn clone_graph(
 		out.set_graph(gl.clone());
 	}
 	for v in g.nodes() {
-		if let Some(n) = g.node(&v) {
-			out.set_node(v.clone(), n.clone());
+		if let Some(n) = g.node(v) {
+			out.set_node(v, n.clone());
 		}
 	}
 	for e in g.edges() {
 		if let Some(l) = g.edge_obj(&e) {
-			out.set_edge_named(
-				e.v.clone(),
-				e.w.clone(),
-				l.clone(),
-				e.name.clone(),
-			);
+			out.set_edge_named(e.v, e.w, l.clone(), e.name);
 		}
 	}
 	out

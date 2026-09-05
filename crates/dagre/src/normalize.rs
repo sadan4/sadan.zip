@@ -3,7 +3,7 @@
 //! reconstruct points/labels.
 
 use crate::{
-	graph::{Edge, Graph, NodeId},
+	graph::{Edge, Graph, NodeIdx},
 	types::{Dummy, EdgeLabel, GraphLabel, NodeLabel, Point},
 	util::add_dummy_node,
 };
@@ -23,17 +23,17 @@ fn normalize_edge(
 	e: &Edge,
 ) {
 	let v_rank = graph
-		.node(&e.v)
+		.node(e.v)
 		.and_then(|n| n.rank)
 		.expect("v has rank");
 	let w_rank = graph
-		.node(&e.w)
+		.node(e.w)
 		.and_then(|n| n.rank)
 		.expect("w has rank");
 	if w_rank == v_rank + 1 {
 		return;
 	}
-	let name = e.name.clone();
+	let name = e.name;
 	let edge_label = graph
 		.edge_obj(e)
 		.cloned()
@@ -42,7 +42,7 @@ fn normalize_edge(
 
 	graph.remove_edge_obj(e);
 
-	let mut v = e.v.clone();
+	let mut v = e.v;
 	let mut cur_rank = v_rank + 1;
 	let mut i = 0;
 	while cur_rank < w_rank {
@@ -53,7 +53,7 @@ fn normalize_edge(
 				points: Some(Vec::new()),
 				..edge_label.clone()
 			})),
-			edge_obj: Some(e.clone()),
+			edge_obj: Some(*e),
 			rank: Some(cur_rank),
 			..Default::default()
 		};
@@ -64,22 +64,22 @@ fn normalize_edge(
 			typ = Dummy::EdgeLabel;
 			attrs.labelpos = edge_label.labelpos;
 		}
-		let dummy = add_dummy_node(graph, typ, attrs, "_d");
+		let dummy = add_dummy_node(graph, typ, attrs);
 		graph.set_edge_named(
-			v.clone(),
-			dummy.clone(),
+			v,
+			dummy,
 			EdgeLabel {
 				weight: edge_label.weight,
 				..Default::default()
 			},
-			name.clone(),
+			name,
 		);
 		if i == 0
 			&& let Some(gl) = graph.graph_mut()
 		{
 			gl.dummy_chains
 				.get_or_insert_with(Vec::new)
-				.push(dummy.clone());
+				.push(dummy);
 		}
 		v = dummy;
 		i += 1;
@@ -87,7 +87,7 @@ fn normalize_edge(
 	}
 	graph.set_edge_named(
 		v,
-		e.w.clone(),
+		e.w,
 		EdgeLabel {
 			weight: edge_label.weight,
 			..Default::default()
@@ -97,7 +97,7 @@ fn normalize_edge(
 }
 
 pub fn undo(graph: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>) {
-	let chains: Vec<NodeId> = graph
+	let chains: Vec<NodeIdx> = graph
 		.graph()
 		.and_then(|g| g.dummy_chains.clone())
 		.unwrap_or_default();
@@ -105,33 +105,33 @@ pub fn undo(graph: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>) {
 	for start in chains {
 		let mut v = start;
 		// Read first dummy's original edge object + label.
-		let (orig_obj, mut orig_label) = match graph.node(&v) {
+		let (orig_obj, mut orig_label) = match graph.node(v) {
 			Some(n) => match (&n.edge_obj, &n.edge_label) {
-				(Some(o), Some(l)) => (o.clone(), (**l).clone()),
+				(Some(o), Some(l)) => (*o, (**l).clone()),
 				_ => continue,
 			},
 			None => continue,
 		};
 		// Reinstate the original edge.
 		graph.set_edge_named(
-			orig_obj.v.clone(),
-			orig_obj.w.clone(),
+			orig_obj.v,
+			orig_obj.w,
 			orig_label.clone(),
-			orig_obj.name.clone(),
+			orig_obj.name,
 		);
 
-		while let Some(node) = graph.node(&v) {
+		while let Some(node) = graph.node(v) {
 			if node.dummy.is_none() {
 				break;
 			}
 			let Some(w) = graph
-				.successors(&v)
+				.successors(v)
 				.and_then(|s| s.into_iter().next())
 			else {
 				break;
 			};
 			let node = node.clone();
-			graph.remove_node(&v);
+			graph.remove_node(v);
 			orig_label
 				.points
 				.get_or_insert_with(Vec::new)
@@ -150,11 +150,6 @@ pub fn undo(graph: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>) {
 
 		// Re-set the edge label (since `set_edge_named` above replaces with
 		// initial clone; we've accumulated points/coords).
-		graph.set_edge_named(
-			orig_obj.v.clone(),
-			orig_obj.w.clone(),
-			orig_label,
-			orig_obj.name.clone(),
-		);
+		graph.set_edge_named(orig_obj.v, orig_obj.w, orig_label, orig_obj.name);
 	}
 }

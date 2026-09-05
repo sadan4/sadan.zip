@@ -1,6 +1,7 @@
 use anyhow::Context;
-use dagre::{EdgeLabel, GraphLabel, NodeLabel, RankDir, layout};
+use dagre::{EdgeLabel, GraphLabel, NodeIdx, NodeLabel, RankDir, layout};
 use explorer_types::{ModuleId, OutgoingModuleDepsWithLocs};
+use rustc_hash::FxHashMap;
 use std::{collections::HashSet, iter, mem};
 use wasm_bindgen::prelude::wasm_bindgen;
 
@@ -157,15 +158,29 @@ impl Bundle {
 			mem::swap(&mut q, &mut new_q);
 		}
 		console_log!("adding {} nodes", included_nodes.len());
-		for m_id in &included_nodes {
-			graph.set_node(
-				format!("{m_id}"),
-				NodeLabel {
-					width: 75.,
-					height: 40.,
-					..NodeLabel::default()
-				},
+		// Sorted, not `included_nodes` iteration order: that is a std HashSet
+		// with a randomly seeded hasher, so insertion order - and therefore
+		// node indices, layout tie-breaks, and the final coordinates - would
+		// differ run to run.
+		let mut module_ids: Vec<ModuleId> =
+			included_nodes.iter().copied().collect();
+		module_ids.sort_unstable();
+		let mut idx_of: FxHashMap<ModuleId, NodeIdx> =
+			FxHashMap::with_capacity_and_hasher(
+				module_ids.len(),
+				rustc_hash::FxBuildHasher,
 			);
+		// `NodeIdx` is a dense index, so the reverse map is a plain Vec.
+		let mut id_of: Vec<ModuleId> = Vec::with_capacity(module_ids.len());
+		for m_id in module_ids {
+			let idx = graph.add_node(NodeLabel {
+				width: 75.,
+				height: 40.,
+				..NodeLabel::default()
+			});
+			debug_assert_eq!(idx.index(), id_of.len());
+			idx_of.insert(m_id, idx);
+			id_of.push(m_id);
 		}
 		console_log!("adding edges");
 		for (m_id, dep_info) in &self.inner.dep_info.module_deps {
@@ -173,40 +188,43 @@ impl Bundle {
 				continue;
 			}
 			for dependent in iter::chain(&dep_info.sync, &dep_info.lazy) {
-				if !included_nodes.contains(dependent) {
+				let (Some(&from), Some(&to)) =
+					(idx_of.get(dependent), idx_of.get(m_id))
+				else {
 					continue;
-				}
+				};
 				// dependent -> m_id (dependent requires this module)
-				graph.set_edge(
-					format!("{dependent}"),
-					format!("{m_id}"),
-					EdgeLabel::default(),
-				);
+				graph.set_edge(from, to, EdgeLabel::default());
 			}
 		}
 		console_log!("added {} edges", graph.edge_count());
 		console_log!("laying out graph");
 		layout(&mut graph);
 		console_log!("done laying out graph");
+		// Dummy nodes inserted by `normalize` are removed again by
+		// `normalize::undo`, so every surviving index is one we created and
+		// `id_of` covers it.
 		let nodes = graph
 			.nodes_iter()
-			.map(|id| {
-				let label = graph.node(id).unwrap();
-				(id, label)
-			})
-			.map(|(id, label)| JSNode {
-				id: ModuleId(id.parse().unwrap()),
-				width: label.width,
-				height: label.height,
-				x: label.x.unwrap_or_default(),
-				y: label.y.unwrap_or_default(),
+			.filter_map(|idx| {
+				let label = graph.node(idx)?;
+				let &id = id_of.get(idx.index())?;
+				Some(JSNode {
+					id,
+					width: label.width,
+					height: label.height,
+					x: label.x.unwrap_or_default(),
+					y: label.y.unwrap_or_default(),
+				})
 			})
 			.collect();
 		let edges = graph
 			.edges_iter()
-			.map(|edge| JSEdge {
-				from: ModuleId(edge.v.parse().unwrap()),
-				to: ModuleId(edge.w.parse().unwrap()),
+			.filter_map(|edge| {
+				Some(JSEdge {
+					from: *id_of.get(edge.v.index())?,
+					to: *id_of.get(edge.w.index())?,
+				})
 			})
 			.collect();
 
