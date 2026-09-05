@@ -1,11 +1,12 @@
 //! Utility helpers — port of `lib/util.ts`.
 
+use rustc_hash::FxHashMap;
+
 use crate::{
 	graph::{Edge, Graph, GraphOpts, NodeId},
 	types::{Dummy, EdgeLabel, GraphLabel, NodeLabel, Point},
 };
 use std::{
-	collections::HashMap,
 	sync::atomic::{AtomicUsize, Ordering},
 };
 
@@ -109,10 +110,10 @@ pub fn as_non_compound_graph(
 
 pub fn successor_weights(
 	graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
-) -> HashMap<NodeId, HashMap<NodeId, f64>> {
-	let mut out = HashMap::new();
+) -> FxHashMap<NodeId, FxHashMap<NodeId, f64>> {
+	let mut out = FxHashMap::default();
 	for v in graph.nodes() {
-		let mut sucs: HashMap<NodeId, f64> = HashMap::new();
+		let mut sucs: FxHashMap<NodeId, f64> = FxHashMap::default();
 		if let Some(es) = graph.out_edges(&v) {
 			for e in es {
 				let w = graph
@@ -128,10 +129,10 @@ pub fn successor_weights(
 
 pub fn predecessor_weights(
 	graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
-) -> HashMap<NodeId, HashMap<NodeId, f64>> {
-	let mut out = HashMap::new();
+) -> FxHashMap<NodeId, FxHashMap<NodeId, f64>> {
+	let mut out = FxHashMap::default();
 	for v in graph.nodes() {
-		let mut preds: HashMap<NodeId, f64> = HashMap::new();
+		let mut preds: FxHashMap<NodeId, f64> = FxHashMap::default();
 		if let Some(es) = graph.in_edges(&v) {
 			for e in es {
 				let w = graph

@@ -27,7 +27,7 @@ use dagre::{
 	types::{Dummy, EdgeLabel, GraphLabel, LabelPos, NodeLabel},
 	util::build_layer_matrix,
 };
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 
 fn mk() -> Graph<GraphLabel, NodeLabel, EdgeLabel> {
 	let mut g: Graph<GraphLabel, NodeLabel, EdgeLabel> = Graph::new();
@@ -60,7 +60,7 @@ fn pmap(pairs: &[(&str, f64)]) -> PositionMap {
 		.collect()
 }
 
-fn smap(pairs: &[(&str, &str)]) -> HashMap<NodeId, NodeId> {
+fn smap(pairs: &[(&str, &str)]) -> FxHashMap<NodeId, NodeId> {
 	pairs
 		.iter()
 		.map(|(k, v)| (NodeId::from(*k), NodeId::from(*v)))
@@ -71,7 +71,7 @@ fn smap(pairs: &[(&str, &str)]) -> HashMap<NodeId, NodeId> {
 
 #[test]
 fn has_conflict_either_orientation() {
-	let mut c: Conflicts = HashMap::new();
+	let mut c: Conflicts = FxHashMap::default();
 	add_conflict(&mut c, "b", "a");
 	assert!(has_conflict(&c, "a", "b"));
 	assert!(has_conflict(&c, "b", "a"));
@@ -79,7 +79,7 @@ fn has_conflict_either_orientation() {
 
 #[test]
 fn has_conflict_multiple_with_same_node() {
-	let mut c: Conflicts = HashMap::new();
+	let mut c: Conflicts = FxHashMap::default();
 	add_conflict(&mut c, "a", "b");
 	add_conflict(&mut c, "a", "c");
 	assert!(has_conflict(&c, "a", "b"));
@@ -224,7 +224,7 @@ fn vertical_alignment_self_when_no_adj() {
 	g.set_node("a", node(0, 0));
 	g.set_node("b", node(1, 0));
 	let layering = build_layer_matrix(&g);
-	let conflicts: Conflicts = HashMap::new();
+	let conflicts: Conflicts = FxHashMap::default();
 	let g_ref = &g;
 	let (root, align) = vertical_alignment(&layering, &conflicts, |v| {
 		g_ref
@@ -242,7 +242,7 @@ fn vertical_alignment_sole_adjacency() {
 	g.set_node("b", node(1, 0));
 	g.set_edge_default("a", "b");
 	let layering = build_layer_matrix(&g);
-	let conflicts: Conflicts = HashMap::new();
+	let conflicts: Conflicts = FxHashMap::default();
 	let g_ref = &g;
 	let (root, align) = vertical_alignment(&layering, &conflicts, |v| {
 		g_ref
@@ -262,7 +262,7 @@ fn vertical_alignment_left_median() {
 	g.set_edge_default("a", "c");
 	g.set_edge_default("b", "c");
 	let layering = build_layer_matrix(&g);
-	let conflicts: Conflicts = HashMap::new();
+	let conflicts: Conflicts = FxHashMap::default();
 	let g_ref = &g;
 	let (root, align) = vertical_alignment(&layering, &conflicts, |v| {
 		g_ref
@@ -282,7 +282,7 @@ fn vertical_alignment_right_median_when_left_blocked() {
 	g.set_edge_default("a", "c");
 	g.set_edge_default("b", "c");
 	let layering = build_layer_matrix(&g);
-	let mut conflicts: Conflicts = HashMap::new();
+	let mut conflicts: Conflicts = FxHashMap::default();
 	add_conflict(&mut conflicts, "a", "c");
 	let g_ref = &g;
 	let (root, align) = vertical_alignment(&layering, &conflicts, |v| {
@@ -305,7 +305,7 @@ fn vertical_alignment_single_median_for_odd_adjacencies() {
 	g.set_edge_default("b", "d");
 	g.set_edge_default("c", "d");
 	let layering = build_layer_matrix(&g);
-	let conflicts: Conflicts = HashMap::new();
+	let conflicts: Conflicts = FxHashMap::default();
 	let g_ref = &g;
 	let (root, align) = vertical_alignment(&layering, &conflicts, |v| {
 		g_ref
@@ -441,7 +441,7 @@ fn hc_handles_labelpos_l() {
 
 #[test]
 fn align_coords_single_node() {
-	let mut xss: HashMap<String, PositionMap> = HashMap::new();
+	let mut xss: FxHashMap<String, PositionMap> = FxHashMap::default();
 	xss.insert("ul".into(), pmap(&[("a", 50.0)]));
 	xss.insert("ur".into(), pmap(&[("a", 100.0)]));
 	xss.insert("dl".into(), pmap(&[("a", 50.0)]));
@@ -456,7 +456,7 @@ fn align_coords_single_node() {
 
 #[test]
 fn align_coords_multi_node() {
-	let mut xss: HashMap<String, PositionMap> = HashMap::new();
+	let mut xss: FxHashMap<String, PositionMap> = FxHashMap::default();
 	xss.insert("ul".into(), pmap(&[("a", 50.0), ("b", 1000.0)]));
 	xss.insert("ur".into(), pmap(&[("a", 100.0), ("b", 900.0)]));
 	xss.insert("dl".into(), pmap(&[("a", 150.0), ("b", 800.0)]));
@@ -476,7 +476,7 @@ fn smallest_width_basic() {
 	let mut g = mk();
 	g.set_node("a", n_w(0, 0, 50.0));
 	g.set_node("b", n_w(0, 1, 50.0));
-	let mut xss: HashMap<String, PositionMap> = HashMap::new();
+	let mut xss: FxHashMap<String, PositionMap> = FxHashMap::default();
 	xss.insert("ul".into(), pmap(&[("a", 0.0), ("b", 1000.0)]));
 	xss.insert("ur".into(), pmap(&[("a", -5.0), ("b", 1000.0)]));
 	xss.insert("dl".into(), pmap(&[("a", 5.0), ("b", 2000.0)]));
@@ -491,7 +491,7 @@ fn smallest_width_uses_node_width() {
 	g.set_node("a", n_w(0, 0, 50.0));
 	g.set_node("b", n_w(0, 1, 50.0));
 	g.set_node("c", n_w(0, 2, 200.0));
-	let mut xss: HashMap<String, PositionMap> = HashMap::new();
+	let mut xss: FxHashMap<String, PositionMap> = FxHashMap::default();
 	xss.insert("ul".into(), pmap(&[("a", 0.0), ("b", 100.0), ("c", 75.0)]));
 	xss.insert("ur".into(), pmap(&[("a", 0.0), ("b", 100.0), ("c", 80.0)]));
 	xss.insert("dl".into(), pmap(&[("a", 0.0), ("b", 100.0), ("c", 85.0)]));
@@ -504,7 +504,7 @@ fn smallest_width_uses_node_width() {
 
 #[test]
 fn balance_single_shared_median() {
-	let mut xss: HashMap<String, PositionMap> = HashMap::new();
+	let mut xss: FxHashMap<String, PositionMap> = FxHashMap::default();
 	xss.insert("ul".into(), pmap(&[("a", 0.0)]));
 	xss.insert("ur".into(), pmap(&[("a", 100.0)]));
 	xss.insert("dl".into(), pmap(&[("a", 100.0)]));
@@ -514,7 +514,7 @@ fn balance_single_shared_median() {
 
 #[test]
 fn balance_single_avg_of_different() {
-	let mut xss: HashMap<String, PositionMap> = HashMap::new();
+	let mut xss: FxHashMap<String, PositionMap> = FxHashMap::default();
 	xss.insert("ul".into(), pmap(&[("a", 0.0)]));
 	xss.insert("ur".into(), pmap(&[("a", 75.0)]));
 	xss.insert("dl".into(), pmap(&[("a", 125.0)]));
@@ -524,7 +524,7 @@ fn balance_single_avg_of_different() {
 
 #[test]
 fn balance_multi_node() {
-	let mut xss: HashMap<String, PositionMap> = HashMap::new();
+	let mut xss: FxHashMap<String, PositionMap> = FxHashMap::default();
 	xss.insert("ul".into(), pmap(&[("a", 0.0), ("b", 50.0)]));
 	xss.insert("ur".into(), pmap(&[("a", 75.0), ("b", 0.0)]));
 	xss.insert("dl".into(), pmap(&[("a", 125.0), ("b", 60.0)]));

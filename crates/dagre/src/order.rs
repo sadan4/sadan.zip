@@ -1,5 +1,6 @@
 //! Crossing-minimization order pipeline — port of `lib/order/*.ts`.
 
+use rustc_hash::{FxHashMap, FxHashSet};
 use smol_str::SmolStr;
 
 use crate::{
@@ -7,11 +8,7 @@ use crate::{
 	types::{EdgeLabel, GraphLabel, NodeLabel},
 	util,
 };
-use std::{
-	cmp,
-	collections::{HashMap, HashSet},
-	mem,
-};
+use std::{cmp, mem};
 
 #[derive(Debug, Default, Clone)]
 pub struct OrderOptions {
@@ -137,7 +134,7 @@ pub fn add_subgraph_constraints(
 	constraint_graph: &mut Graph<(), (), ()>,
 	vs: &[NodeId],
 ) {
-	let mut prev: HashMap<NodeId, NodeId> = HashMap::new();
+	let mut prev: FxHashMap<NodeId, NodeId> = FxHashMap::default();
 	let mut root_prev: Option<NodeId> = None;
 	for v in vs {
 		let mut child = graph.parent(v).map(NodeId::from);
@@ -283,8 +280,8 @@ enum Relationship {
 
 fn nodes_by_rank(
 	graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
-) -> HashMap<i32, Vec<NodeId>> {
-	let mut nodes_by_rank: HashMap<i32, Vec<NodeId>> = HashMap::new();
+) -> FxHashMap<i32, Vec<NodeId>> {
+	let mut nodes_by_rank: FxHashMap<i32, Vec<NodeId>> = FxHashMap::default();
 	for v in graph.nodes_iter() {
 		if let Some(n) = graph.node(v) {
 			if let Some(r) = n.rank {
@@ -312,7 +309,7 @@ fn build_layer_graphs(
 	graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
 	ranks: &[i32],
 	relationship: Relationship,
-	nodes_by_rank: &HashMap<i32, Vec<NodeId>>,
+	nodes_by_rank: &FxHashMap<i32, Vec<NodeId>>,
 ) -> Vec<LayerGraph> {
 	let empty: Vec<NodeId> = Vec::new();
 	ranks
@@ -421,7 +418,7 @@ fn build_layer_graph(
 pub fn init_order(
 	graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
 ) -> Vec<Vec<NodeId>> {
-	let mut visited: HashSet<NodeId> = HashSet::new();
+	let mut visited: FxHashSet<NodeId> = FxHashSet::default();
 	let simple_nodes: Vec<NodeId> = graph
 		.nodes()
 		.into_iter()
@@ -442,7 +439,7 @@ pub fn init_order(
 	fn dfs(
 		graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
 		v: &str,
-		visited: &mut HashSet<NodeId>,
+		visited: &mut FxHashSet<NodeId>,
 		layers: &mut Vec<Vec<NodeId>>,
 	) {
 		if visited.contains(v) {
@@ -512,7 +509,7 @@ fn two_layer_cross_count(
 	if south.is_empty() {
 		return 0;
 	}
-	let south_pos: HashMap<&str, usize> = south
+	let south_pos: FxHashMap<&str, usize> = south
 		.iter()
 		.enumerate()
 		.map(|(i, v)| (v.as_str(), i))
@@ -627,7 +624,7 @@ fn resolve_conflicts_impl(
 	}
 
 	let mut mapped: Vec<Mapped> = Vec::with_capacity(entries.len());
-	let mut v_to_idx: HashMap<NodeId, usize> = HashMap::new();
+	let mut v_to_idx: FxHashMap<NodeId, usize> = FxHashMap::default();
 	for (i, e) in entries.iter().enumerate() {
 		v_to_idx.insert(e.v.clone(), i);
 		mapped.push(Mapped {
@@ -812,7 +809,7 @@ fn sort_subgraph(
 ) -> SortResult {
 	let barycenters = barycenter_impl(graph, movable);
 	let entries = barycenters;
-	let subgraphs: HashMap<NodeId, SortResult> = HashMap::new();
+	let subgraphs: FxHashMap<NodeId, SortResult> = FxHashMap::default();
 	// Layer graphs from build_layer_graph are flat (compound-but-rooted), no
 	// nested subgraphs beyond the root level in our scope. So skip subgraph
 	// recursion here. (Compound dagre input is out of scope per user choice.)

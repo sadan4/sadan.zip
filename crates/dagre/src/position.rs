@@ -4,6 +4,8 @@
 //! `positionX` uses the Brandes & Köpf algorithm to compute four extreme
 //! alignments (up/down × left/right) and balances among them.
 
+use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
+
 use crate::{
 	graph::{Graph, GraphOpts, NodeId},
 	types::{
@@ -18,11 +20,7 @@ use crate::{
 	},
 	util,
 };
-use std::{
-	cmp::Ordering,
-	collections::{HashMap, HashSet},
-	hash::BuildHasher,
-};
+use std::{cmp::Ordering, collections, hash::BuildHasher};
 
 pub fn position(graph: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>) {
 	// Work on a non-compound copy as the JS does.
@@ -79,9 +77,10 @@ fn position_y(graph: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>) {
 
 // ---------- Brandes-Köpf -------------------------------------------------
 
-pub type Conflicts = HashMap<NodeId, HashSet<NodeId>>;
-pub type PositionMap = HashMap<NodeId, f64>;
-pub type AlignmentResult = (HashMap<NodeId, NodeId>, HashMap<NodeId, NodeId>);
+pub type Conflicts = FxHashMap<NodeId, FxHashSet<NodeId>>;
+pub type PositionMap = FxHashMap<NodeId, f64>;
+pub type AlignmentResult =
+	(FxHashMap<NodeId, NodeId>, FxHashMap<NodeId, NodeId>);
 
 /// Public BK API for unit tests. Re-exports of the internal helpers.
 pub mod bk {
@@ -121,7 +120,7 @@ pub fn find_type1_conflicts(
 	graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
 	layering: &[Vec<NodeId>],
 ) -> Conflicts {
-	let mut conflicts: Conflicts = HashMap::new();
+	let mut conflicts: Conflicts = FxHashMap::default();
 	if layering.is_empty() {
 		return conflicts;
 	}
@@ -177,7 +176,7 @@ pub fn find_type2_conflicts(
 	graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
 	layering: &[Vec<NodeId>],
 ) -> Conflicts {
-	let mut conflicts: Conflicts = HashMap::new();
+	let mut conflicts: Conflicts = FxHashMap::default();
 	if layering.is_empty() {
 		return conflicts;
 	}
@@ -286,13 +285,13 @@ pub fn vertical_alignment<F>(
 	layering: &[Vec<NodeId>],
 	conflicts: &Conflicts,
 	neighbor_fn: F,
-) -> (HashMap<NodeId, NodeId>, HashMap<NodeId, NodeId>)
+) -> (FxHashMap<NodeId, NodeId>, FxHashMap<NodeId, NodeId>)
 where
 	F: Fn(&str) -> Vec<NodeId>,
 {
-	let mut root: HashMap<NodeId, NodeId> = HashMap::new();
-	let mut align: HashMap<NodeId, NodeId> = HashMap::new();
-	let mut pos: HashMap<NodeId, usize> = HashMap::new();
+	let mut root: FxHashMap<NodeId, NodeId> = FxHashMap::default();
+	let mut align: FxHashMap<NodeId, NodeId> = FxHashMap::default();
+	let mut pos: FxHashMap<NodeId, usize> = FxHashMap::default();
 
 	for layer in layering {
 		for (order, v) in layer.iter().enumerate() {
@@ -343,11 +342,11 @@ where
 pub fn horizontal_compaction<S: BuildHasher, S2: BuildHasher>(
 	graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
 	layering: &[Vec<NodeId>],
-	root: &HashMap<NodeId, NodeId, S>,
-	align: &HashMap<NodeId, NodeId, S2>,
+	root: &collections::HashMap<NodeId, NodeId, S>,
+	align: &collections::HashMap<NodeId, NodeId, S2>,
 	reverse_sep: bool,
 ) -> PositionMap {
-	let mut xs: PositionMap = HashMap::new();
+	let mut xs: PositionMap = PositionMap::default();
 	let block_g = build_block_graph(graph, layering, root, reverse_sep);
 	let border_type = if reverse_sep {
 		BorderType::BorderLeft
@@ -373,8 +372,8 @@ pub fn horizontal_compaction<S: BuildHasher, S2: BuildHasher>(
 		const GRAY: u8 = 1;
 		const BLACK: u8 = 2;
 		let nodes = block_g.nodes();
-		let mut state: HashMap<NodeId, u8> =
-			HashMap::with_capacity(nodes.len());
+		let mut state: FxHashMap<NodeId, u8> =
+			FxHashMap::with_capacity_and_hasher(nodes.len(), FxBuildHasher);
 		let mut stack: Vec<NodeId> = nodes;
 		while let Some(elem) = stack.pop() {
 			match state
@@ -470,7 +469,7 @@ pub fn horizontal_compaction<S: BuildHasher, S2: BuildHasher>(
 	};
 
 	// Propagate root x to all aligned nodes.
-	let xs_root: HashMap<NodeId, f64> = xs.clone();
+	let xs_root: FxHashMap<NodeId, f64> = xs.clone();
 	for v in align.keys() {
 		if let Some(rv) = root.get(v)
 			&& let Some(&x) = xs_root.get(rv)
@@ -484,7 +483,7 @@ pub fn horizontal_compaction<S: BuildHasher, S2: BuildHasher>(
 fn build_block_graph<S: BuildHasher>(
 	graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
 	layering: &[Vec<NodeId>],
-	root: &HashMap<NodeId, NodeId, S>,
+	root: &collections::HashMap<NodeId, NodeId, S>,
 	reverse_sep: bool,
 ) -> Graph<(), (), f64> {
 	let mut block_graph: Graph<(), (), f64> = Graph::with_opts(GraphOpts {
@@ -603,7 +602,7 @@ pub fn position_x(
 
 	#[cfg(feature = "profile")]
 	let (mut t_va, mut t_hc) = (0u128, 0u128);
-	let mut xss: HashMap<String, PositionMap> = HashMap::new();
+	let mut xss: FxHashMap<String, PositionMap> = FxHashMap::default();
 	for vert in ["u", "d"] {
 		let mut adjusted: Vec<Vec<NodeId>> = layering.clone();
 		if vert == "d" {
@@ -673,7 +672,7 @@ pub fn position_x(
 
 pub fn find_smallest_width_alignment<S: BuildHasher>(
 	graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
-	xss: &HashMap<String, PositionMap, S>,
+	xss: &collections::HashMap<String, PositionMap, S>,
 ) -> PositionMap {
 	let mut best: (f64, Option<PositionMap>) = (f64::INFINITY, None);
 	for xs in xss.values() {
@@ -693,7 +692,7 @@ pub fn find_smallest_width_alignment<S: BuildHasher>(
 }
 
 pub fn align_coordinates<S: BuildHasher>(
-	xss: &mut HashMap<String, PositionMap, S>,
+	xss: &mut collections::HashMap<String, PositionMap, S>,
 	align_to: &PositionMap,
 ) {
 	let align_to_min = align_to
@@ -744,13 +743,13 @@ pub fn align_coordinates<S: BuildHasher>(
 }
 
 pub fn balance<S: BuildHasher>(
-	xss: &HashMap<String, PositionMap, S>,
+	xss: &collections::HashMap<String, PositionMap, S>,
 	align: Option<Align>,
 ) -> PositionMap {
 	let Some(ul) = xss.get("ul") else {
-		return HashMap::new();
+		return PositionMap::default();
 	};
-	let mut out = HashMap::new();
+	let mut out = PositionMap::default();
 	for v in ul.keys() {
 		if let Some(a) = align
 			&& let Some(m) = xss.get(a.to_str())

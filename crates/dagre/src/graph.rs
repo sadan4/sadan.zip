@@ -13,10 +13,11 @@
 //! always the empty string.
 
 use std::{
-	collections::{self, BTreeMap, BTreeSet, HashMap, HashSet},
+	collections::{self, BTreeMap, BTreeSet},
 	mem,
 };
 
+use rustc_hash::{FxHashMap, FxHashSet};
 pub use smol_str::SmolStr;
 
 #[cfg(feature = "serde")]
@@ -130,29 +131,29 @@ pub struct Graph<G, N, E> {
 
 	/// Insertion-ordered node ids.
 	node_order: Vec<NodeId>,
-	node_index: HashMap<NodeId, usize>,
-	node_labels: HashMap<NodeId, N>,
+	node_index: FxHashMap<NodeId, usize>,
+	node_labels: FxHashMap<NodeId, N>,
 
 	/// Compound graph: parent of each node.
-	parent: HashMap<NodeId, NodeId>,
+	parent: FxHashMap<NodeId, NodeId>,
 	/// Children of each parent ("\x00" key = root children, matching JS impl).
-	children: HashMap<NodeId, BTreeSet<NodeId>>,
+	children: FxHashMap<NodeId, BTreeSet<NodeId>>,
 
 	/// out[v] -> { `edge_id` -> Edge }
-	out_edges: HashMap<NodeId, BTreeMap<NodeId, Edge>>,
+	out_edges: FxHashMap<NodeId, BTreeMap<NodeId, Edge>>,
 	/// in[v] -> { `edge_id` -> Edge }
-	in_edges: HashMap<NodeId, BTreeMap<NodeId, Edge>>,
+	in_edges: FxHashMap<NodeId, BTreeMap<NodeId, Edge>>,
 	/// predecessor count: preds[v][u] = number of u->v edges
-	preds: HashMap<NodeId, HashMap<NodeId, usize>>,
-	sucs: HashMap<NodeId, HashMap<NodeId, usize>>,
+	preds: FxHashMap<NodeId, FxHashMap<NodeId, usize>>,
+	sucs: FxHashMap<NodeId, FxHashMap<NodeId, usize>>,
 
 	/// Insertion-ordered edge ids -> Edge.
 	edge_order: Vec<NodeId>,
-	edge_index: HashMap<NodeId, usize>,
+	edge_index: FxHashMap<NodeId, usize>,
 	/// Edge label, keyed by `edge_id`.
-	edge_labels: HashMap<NodeId, E>,
+	edge_labels: FxHashMap<NodeId, E>,
 	/// Edge object, keyed by `edge_id`.
-	edge_objs: HashMap<NodeId, Edge>,
+	edge_objs: FxHashMap<NodeId, Edge>,
 }
 
 const GRAPH_NODE: &str = "\x00";
@@ -172,18 +173,18 @@ impl<G, N, E> Graph<G, N, E> {
 			default_node_label: None,
 			default_edge_label: None,
 			node_order: Vec::new(),
-			node_index: HashMap::new(),
-			node_labels: HashMap::new(),
-			parent: HashMap::new(),
-			children: HashMap::new(),
-			out_edges: HashMap::new(),
-			in_edges: HashMap::new(),
-			preds: HashMap::new(),
-			sucs: HashMap::new(),
+			node_index: FxHashMap::default(),
+			node_labels: FxHashMap::default(),
+			parent: FxHashMap::default(),
+			children: FxHashMap::default(),
+			out_edges: FxHashMap::default(),
+			in_edges: FxHashMap::default(),
+			preds: FxHashMap::default(),
+			sucs: FxHashMap::default(),
 			edge_order: Vec::new(),
-			edge_index: HashMap::new(),
-			edge_labels: HashMap::new(),
-			edge_objs: HashMap::new(),
+			edge_index: FxHashMap::default(),
+			edge_labels: FxHashMap::default(),
+			edge_objs: FxHashMap::default(),
 		};
 		if g.is_compound {
 			g.children
@@ -275,9 +276,9 @@ impl<G, N, E> Graph<G, N, E> {
 		self.out_edges
 			.insert(v.clone(), BTreeMap::new());
 		self.preds
-			.insert(v.clone(), HashMap::new());
+			.insert(v.clone(), FxHashMap::default());
 		self.sucs
-			.insert(v.clone(), HashMap::new());
+			.insert(v.clone(), FxHashMap::default());
 		if self.is_compound {
 			self.parent
 				.insert(v.clone(), GRAPH_NODE.into());
@@ -770,7 +771,7 @@ impl<G, N, E> Graph<G, N, E> {
 	pub fn neighbors(&self, v: &str) -> Option<Vec<NodeId>> {
 		let mut s: Vec<NodeId> = self.predecessors(v)?;
 		let succ = self.successors(v)?;
-		let set: HashSet<NodeId> = s.iter().cloned().collect();
+		let set: FxHashSet<NodeId> = s.iter().cloned().collect();
 		for n in succ {
 			if !set.contains(&n) {
 				s.push(n);
@@ -785,7 +786,7 @@ impl<G, N, E> Graph<G, N, E> {
 			.filter(|v| {
 				self.preds
 					.get(*v)
-					.is_none_or(HashMap::is_empty)
+					.is_none_or(FxHashMap::is_empty)
 			})
 			.cloned()
 			.collect()
@@ -817,7 +818,7 @@ impl<G, N, E> Graph<G, N, E> {
 			.filter(|v| {
 				self.sucs
 					.get(*v)
-					.is_none_or(HashMap::is_empty)
+					.is_none_or(FxHashMap::is_empty)
 			})
 			.cloned()
 			.collect()
@@ -833,15 +834,16 @@ impl<G, N, E> Default for Graph<G, N, E> {
 // ---- graph algorithms used by network-simplex --------------------------
 
 pub mod alg {
-	use super::{Graph, NodeId};
-	use std::collections::{HashMap, HashSet};
+	use rustc_hash::{FxHashMap, FxHashSet};
+
+use super::{Graph, NodeId};
 
 	/// Postorder DFS traversal — used by network-simplex.
 	pub fn postorder<G, N, E>(
 		g: &Graph<G, N, E>,
 		starts: &[NodeId],
 	) -> Vec<NodeId> {
-		let mut visited: HashSet<NodeId> = HashSet::new();
+		let mut visited: FxHashSet<NodeId> = FxHashSet::default();
 		let mut result: Vec<NodeId> = Vec::new();
 		for s in starts {
 			if !g.has_node(s) {
@@ -860,9 +862,9 @@ pub mod alg {
 			g: &'a Graph<G, N, E>,
 			index: usize,
 			stack: Vec<NodeId>,
-			on_stack: HashSet<NodeId>,
-			indices: HashMap<NodeId, usize>,
-			lowlinks: HashMap<NodeId, usize>,
+			on_stack: FxHashSet<NodeId>,
+			indices: FxHashMap<NodeId, usize>,
+			lowlinks: FxHashMap<NodeId, usize>,
 			results: Vec<Vec<NodeId>>,
 		}
 		fn strong_connect<G, N, E>(s: &mut State<G, N, E>, v: &str) {
@@ -900,9 +902,9 @@ pub mod alg {
 			g,
 			index: 0,
 			stack: Vec::new(),
-			on_stack: HashSet::new(),
-			indices: HashMap::new(),
-			lowlinks: HashMap::new(),
+			on_stack: FxHashSet::default(),
+			indices: FxHashMap::default(),
+			lowlinks: FxHashMap::default(),
 			results: Vec::new(),
 		};
 		for v in g.nodes() {
@@ -935,7 +937,7 @@ pub mod alg {
 		g: &Graph<G, N, E>,
 		starts: &[NodeId],
 	) -> Vec<NodeId> {
-		let mut visited: HashSet<NodeId> = HashSet::new();
+		let mut visited: FxHashSet<NodeId> = FxHashSet::default();
 		let mut result: Vec<NodeId> = Vec::new();
 		for s in starts {
 			if !g.has_node(s) {
@@ -949,7 +951,7 @@ pub mod alg {
 	fn dfs<G, N, E>(
 		g: &Graph<G, N, E>,
 		v: &str,
-		visited: &mut HashSet<NodeId>,
+		visited: &mut FxHashSet<NodeId>,
 		result: &mut Vec<NodeId>,
 		postorder: bool,
 	) {
