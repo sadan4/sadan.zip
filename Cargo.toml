@@ -90,6 +90,7 @@ miette_ctx = { path = "crates/miette_ctx" }
 git_hash = { path = "crates/git_hash" }
 bot_config = { path = "crates/bot_config" }
 reporter = { path = "crates/reporter" }
+text_diff = { path = "crates/text_diff" }
 qalc = { path = "crates/qalc" }
 qalc_sbox = { path = "crates/qalc_sbox" }
 demangler = { path = "crates/demangler" }
@@ -194,6 +195,9 @@ opt-level = 3
 [profile.test.package.oxc_allocator]
 opt-level = 3
 [profile.test.package.oxc_span]
+opt-level = 3
+
+[profile.dev.package.text_diff]
 opt-level = 3
 
 [workspace.lints.rust]

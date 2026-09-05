@@ -10,14 +10,11 @@ use oxc_allocator::AllocatorPool;
 use pretty_printer::format_to_str;
 use rayon::iter::{IntoParallelRefIterator as _, ParallelIterator as _};
 use smol_str::SmolStr;
+use text_diff::{DiffHunk, DiffHunkKind};
 use tracing::{info, warn};
 use webpack_ast_parser::{WebpackAstParser, export_map::ExportMap};
 
-use crate::{
-	cmds::fix::track_module::diff::{DiffHunk, DiffHunkKind},
-	fetcher::ScrapedOutput,
-	util::debug_module_url,
-};
+use crate::{fetcher::ScrapedOutput, util::debug_module_url};
 
 pub struct ModuleTracker<'a> {
 	prev_info: PreviousModuleInfo,
@@ -144,7 +141,6 @@ pub struct TrackedModule {
 
 /// TODO: Move to `webpack_ast_parser`
 mod clear;
-mod diff;
 
 #[derive(Default, Debug)]
 struct ExportDiff {
@@ -192,7 +188,7 @@ impl ExportDiff {
 }
 
 fn diff_modules<'a>(old: &'a str, new: &'a str) -> u8 {
-	let d = diff::diff([old, new]);
+	let d = text_diff::diff([old, new]);
 	Confidence::score_diff(&d)
 }
 

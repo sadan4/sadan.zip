@@ -4695,6 +4695,7 @@ dependencies = [
  "smol_str",
  "syntect",
  "terminal_size",
+ "text_diff",
  "textwrap",
  "thiserror 2.0.20",
  "tokio",
@@ -5760,6 +5761,16 @@ dependencies = [
  "nom",
  "phf 0.11.3",
  "phf_codegen",
+]
+
+[[package]]
+name = "text_diff"
+version = "0.1.0"
+dependencies = [
+ "bstr",
+ "hashbrown 0.17.1",
+ "itertools 0.15.0",
+ "smallvec",
 ]
 
 [[package]]

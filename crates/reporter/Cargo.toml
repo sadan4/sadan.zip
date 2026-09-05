@@ -57,6 +57,7 @@ daft.workspace = true
 smallvec.workspace = true
 bstr.workspace = true
 hashbrown.workspace = true
+text_diff.workspace = true
 
 [dev-dependencies]
 insta.workspace = true
