@@ -502,6 +502,7 @@ dependencies = [
  "git2",
  "git_hash",
  "itertools 0.15.0",
+ "jiff",
  "libc",
  "macros",
  "memchr",

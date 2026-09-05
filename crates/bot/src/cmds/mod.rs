@@ -1,5 +1,8 @@
+use std::time::Duration;
+
 use anyhow::{Context as _, Result};
 use clap::Parser;
+use jiff::{Timestamp, tz::TimeZone};
 use macros::{SlashArgs, command};
 use serenity::all::Context;
 
@@ -50,6 +53,7 @@ pub mod wp;
 	image::invert,
 	image::avg_color,
 	image::monochrome,
+	snowflake,
 ]]
 #[group]
 #[root]
@@ -83,5 +87,37 @@ async fn version(ctx: &Context, cctx: &CommandCtx<'_>) -> Result<()> {
 	cctx.reply(ctx, ver_str)
 		.await
 		.context("Failed to respond to interaction")?;
+	Ok(())
+}
+
+#[derive(Parser, SlashArgs)]
+struct SnowflakeArgs {
+	/// snowflake
+	#[arg()]
+	snowflake: String,
+}
+
+/// Short description of the command.
+#[command]
+#[arg_parser = SnowflakeArgs]
+#[slash_args]
+async fn snowflake(
+	args: SnowflakeArgs,
+	ctx: &Context,
+	cctx: &CommandCtx<'_>,
+) -> Result<()> {
+	const DISCORD_EPOCH: u64 = 1_420_070_400_000;
+	const TIMESTAMP_OFFSET: u64 = 22;
+	let id: u64 = args.snowflake.parse().context("Failed to parse snowflake")?;
+	let timestamp = Timestamp::UNIX_EPOCH
+		+ Duration::from_millis((id >> TIMESTAMP_OFFSET) + DISCORD_EPOCH);
+	let zoned = timestamp
+		.to_zoned(TimeZone::UTC)
+		.with_time_zone(TimeZone::get("America/New_York").unwrap())
+		.strftime("%A %B %d %Y %I:%M:%S %p %Z");
+	cctx.reply(ctx, format!("Snowflake timestamp: {zoned}"))
+		.await
+		.context("Failed to respond to interaction")?;
+
 	Ok(())
 }
