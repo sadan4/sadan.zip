@@ -1,3 +1,4 @@
+#![feature(try_blocks)]
 pub mod base;
 mod lazy_chunk_parser;
 mod main_chunk_parser;

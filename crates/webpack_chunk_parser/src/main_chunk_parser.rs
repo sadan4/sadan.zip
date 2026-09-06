@@ -177,36 +177,32 @@ impl<'ast> WebpackMainChunkParser<'ast> {
 			.scoping()
 			.iter_bindings_in(root_iife_scope_id)
 		{
-			let decl_id = self
-				.sema
-				.scoping()
-				.symbol_declaration(sym_id);
-			let decl_parent = self.n(decl_id).kind();
-			let Some(decl_parent) = decl_parent.as_variable_declarator() else {
-				continue;
+			let _: Option<()> = try {
+				let decl_id = self
+					.sema
+					.scoping()
+					.symbol_declaration(sym_id);
+				let decl_parent = self.n(decl_id).kind();
+				let decl_parent = decl_parent.as_variable_declarator()?;
+				let init = decl_parent.init.as_ref()?;
+				let init = init.as_object_expression()?;
+				let Some(cur_decl) = cur else {
+					cur = Some(decl_parent);
+					continue;
+				};
+				if init.properties.len()
+					> cur_decl
+						.init
+						.as_ref()
+						.unwrap()
+						.as_object_expression()
+						.unwrap()
+						.properties
+						.len()
+				{
+					cur = Some(decl_parent);
+				}
 			};
-			let Some(init) = &decl_parent.init else {
-				continue;
-			};
-			let Some(init) = init.as_object_expression() else {
-				continue;
-			};
-			let Some(cur_decl) = cur else {
-				cur = Some(decl_parent);
-				continue;
-			};
-			if init.properties.len()
-				> cur_decl
-					.init
-					.as_ref()
-					.unwrap()
-					.as_object_expression()
-					.unwrap()
-					.properties
-					.len()
-			{
-				cur = Some(decl_parent);
-			}
 		}
 		cur.map(|decl| {
 			decl.id
@@ -267,28 +263,21 @@ impl<'ast> WebpackMainChunkParser<'ast> {
 			.get_resolved_references(wreq);
 		let u_func = 'u: {
 			for u in uses {
-				let Some(parent) = self
-					.p(u.node_id())
-					.as_static_member_expression()
-				else {
-					continue;
+				let _: Option<()> = try {
+					let parent = self
+						.p(u.node_id())
+						.as_static_member_expression()?;
+					if parent.property.name != "u" {
+						continue;
+					}
+					let assign = self
+						.p(parent.node_id())
+						.as_assignment_expression()?;
+					let func = assign
+						.right
+						.as_arrow_function_expression()?;
+					break 'u func;
 				};
-				if parent.property.name != "u" {
-					continue;
-				}
-				let Some(assign) = self
-					.p(parent.node_id())
-					.as_assignment_expression()
-				else {
-					continue;
-				};
-				let Some(func) = assign
-					.right
-					.as_arrow_function_expression()
-				else {
-					continue;
-				};
-				break 'u func;
 			}
 			return None;
 		};
@@ -329,37 +318,33 @@ impl<'ast> WebpackMainChunkParser<'ast> {
 			.scoping()
 			.get_resolved_references(wreq_sym_id);
 		for u in uses {
-			let Some(call) = self.p(u.node_id()).as_call_expression() else {
-				continue;
+			let _: Option<()> = try {
+				let call = self
+					.p(u.node_id())
+					.as_call_expression()?;
+
+				if call.arguments.len() != 1 {
+					continue;
+				}
+
+				let maybe_id = call.arguments[0]
+					.as_expression()
+					.and_then(as_valid_module_id)?;
+
+				let decl = self
+					.p(call.node_id())
+					.as_variable_declarator()?;
+
+				if decl
+					.id
+					.as_binding_identifier()
+					.is_none_or(|ident| ident.name != WEBPACK_EXPORTS_NAME)
+				{
+					continue;
+				}
+
+				return Some(maybe_id);
 			};
-
-			if call.arguments.len() != 1 {
-				continue;
-			}
-
-			let Some(maybe_id) = call.arguments[0]
-				.as_expression()
-				.and_then(as_valid_module_id)
-			else {
-				continue;
-			};
-
-			let Some(decl) = self
-				.p(call.node_id())
-				.as_variable_declarator()
-			else {
-				continue;
-			};
-
-			if decl
-				.id
-				.as_binding_identifier()
-				.is_none_or(|ident| ident.name != WEBPACK_EXPORTS_NAME)
-			{
-				continue;
-			}
-
-			return Some(maybe_id);
 		}
 		None
 	}
@@ -412,30 +397,26 @@ impl<'ast> WebpackMainChunkParser<'ast> {
 		let wreq = self.get_webpack_require()?;
 		let call_expr = 'c: {
 			for node in self.refs(wreq) {
-				let Some(mem_expr) = self
-					.p(node)
-					.as_static_member_expression()
-				else {
-					continue;
+				let _: Option<()> = try {
+					let mem_expr = self
+						.p(node)
+						.as_static_member_expression()?;
+					if mem_expr.property.name != "O" {
+						continue;
+					}
+					let call = self
+						.p(mem_expr.node_id())
+						.as_call_expression()?;
+					if call.arguments.len() != 3
+						|| self
+							.p(call.node_id())
+							.as_variable_declarator()
+							.is_none()
+					{
+						continue;
+					}
+					break 'c call;
 				};
-				if mem_expr.property.name != "O" {
-					continue;
-				}
-				let Some(call) = self
-					.p(mem_expr.node_id())
-					.as_call_expression()
-				else {
-					continue;
-				};
-				if call.arguments.len() != 3
-					|| self
-						.p(call.node_id())
-						.as_variable_declarator()
-						.is_none()
-				{
-					continue;
-				}
-				break 'c call;
 			}
 			return None;
 		};
@@ -459,6 +440,7 @@ impl<'ast> WebpackMainChunkParser<'ast> {
 		let modules = self.get_defined_modules()?;
 		// use known build modules to save time
 		// TODO: perform a manual search if this fails
+		// FIXME: warn when using BUILD_MODULE_NEEDLE
 		for maybe_known_id in KNOWN_BUILD_MODULE_IDS {
 			if let Some(m_txt) = modules.get(maybe_known_id)
 				&& BUILD_MODULE_NEEDLE

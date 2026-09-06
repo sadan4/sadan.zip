@@ -84,7 +84,6 @@ use oxc::{
 		ast::{
 			Argument,
 			ArrowFunctionExpression,
-			AssignmentTarget,
 			BindingIdentifier,
 			CallExpression,
 			Class,
@@ -474,50 +473,46 @@ impl<'ast> WebpackAstParser<'ast> {
 			.exports
 			.iter()
 			.filter(|(_, v)| {
-				let Ok(v) = v.try_unwrap_range_ref() else {
-					return false;
-				};
-				// The export value is stored as `[IdentifierName(key), <value>]`;
-				// the actual re-exported expression is the last element.
-				let Some(v) = v.last() else {
-					return false;
-				};
-				match v {
-					// `foo: () => bar` where `bar` is the whole imported module
-					AstKind::IdentifierReference(node) => {
-						self.cmp_sym(*node, &decl)
-					}
-					// `foo: () => bar.baz` where `bar` is the imported module and
-					// `baz` is the re-exported export name
-					AstKind::StaticMemberExpression(access) => {
-						let (object, chain) =
-							flatten_property_access_expression(*access);
-						// object must be the imported variable
-						let Some(object) = object.as_identifier() else {
-							return false;
-						};
-						if !self.cmp_sym(object, &decl) {
-							return false;
+				let ret: Option<bool> = try {
+					// The export value is stored as `[IdentifierName(key), <value>]`;
+					// the actual re-exported expression is the last element.
+					let v = v.try_unwrap_range_ref().ok()?.last()?;
+					match v {
+						// `foo: () => bar` where `bar` is the whole imported module
+						AstKind::IdentifierReference(node) => {
+							self.cmp_sym(*node, &decl)
 						}
-						// and the first accessed property must be the export
-						// name we are looking for
-						match chain.first() {
-							Some(MemberExprAccessKind::Static(prop)) => {
-								match &export_name {
-									ExportMapKey::Named(name) => {
-										prop.name == name.as_str()
-									}
-									ExportMapKey::Default => false,
-								}
+						// `foo: () => bar.baz` where `bar` is the imported module and
+						// `baz` is the re-exported export name
+						AstKind::StaticMemberExpression(access) => {
+							let (object, chain) =
+								flatten_property_access_expression(*access);
+							// object must be the imported variable
+							let object = object.as_identifier()?;
+							if !self.cmp_sym(object, &decl) {
+								return false;
 							}
-							_ => false,
+							// and the first accessed property must be the export
+							// name we are looking for
+							match chain.first() {
+								Some(MemberExprAccessKind::Static(prop)) => {
+									match &export_name {
+										ExportMapKey::Named(name) => {
+											prop.name == name.as_str()
+										}
+										ExportMapKey::Default => false,
+									}
+								}
+								_ => false,
+							}
+						}
+						v => {
+							warn!("Unhandled type for reExport: {v:?}");
+							false
 						}
 					}
-					v => {
-						warn!("Unhandled type for reExport: {v:?}");
-						false
-					}
-				}
+				};
+				ret.unwrap_or(false)
 			})
 			.map(|(k, _)| k)
 			.collect_vec();
@@ -709,71 +704,59 @@ impl<'ast> WebpackAstParser<'ast> {
 
 	/// Attempt to determine if the current module is an intl module
 	pub fn is_intl_module(&self) -> bool {
-		let Some(mf) = self.get_main_func() else {
-			return false;
+		let ret = try {
+			// function () { ... }
+			let [es] = self
+				.get_main_func()?
+				.body
+				.as_ref()
+				.unwrap()
+				.statements
+				.as_slice()
+			else {
+				return false;
+			};
+			// expr;
+			let es = es.as_expression_statement()?;
+			// ... = ...;
+			let assign = es
+				.expression
+				.as_assignment_expression()?;
+			// foo.bar = ...;
+			let module_exports_use = assign
+				.left
+				.as_static_member_expression()?;
+			let module_use = module_exports_use
+				.object
+				.as_identifier()?;
+			let json_parse_intl = assign.right.as_call_expression()?;
+			let json_parse = json_parse_intl
+				.callee
+				.as_static_member_expression()?;
+			let json_ref = json_parse.object.as_identifier()?;
+			if !self
+				.sema
+				.is_reference_to_global_variable(json_ref)
+				|| json_ref.name != "JSON"
+				|| json_parse.property.name != "parse"
+			{
+				return false;
+			}
+			let [Argument::StringLiteral(intl)] =
+				json_parse_intl.arguments.as_slice()
+			else {
+				return false;
+			};
+			let module = self.mod_arg()?;
+			if !self.cmp_sym(module_use, &module)
+				|| module_exports_use.property.name != "exports"
+			{
+				return false;
+			}
+			let intl = intl.value.as_str();
+			Self::is_valid_intl_json(intl)
 		};
-		// function () { ... }
-		let [es] = mf
-			.body
-			.as_ref()
-			.unwrap()
-			.statements
-			.as_slice()
-		else {
-			return false;
-		};
-		// expr;
-		let Statement::ExpressionStatement(es) = es else {
-			return false;
-		};
-		// ... = ...;
-		let Expression::AssignmentExpression(assign) = &es.expression else {
-			return false;
-		};
-		// foo.bar = ...;
-		let AssignmentTarget::StaticMemberExpression(module_exports_use) =
-			&assign.left
-		else {
-			return false;
-		};
-		let Expression::Identifier(module_use) = &module_exports_use.object
-		else {
-			return false;
-		};
-		let Expression::CallExpression(json_parse_intl) = &assign.right else {
-			return false;
-		};
-		let Expression::StaticMemberExpression(json_parse) =
-			&json_parse_intl.callee
-		else {
-			return false;
-		};
-		let Expression::Identifier(json_ref) = &json_parse.object else {
-			return false;
-		};
-		if !self
-			.sema
-			.is_reference_to_global_variable(json_ref)
-			|| json_ref.name != "JSON"
-			|| json_parse.property.name != "parse"
-		{
-			return false;
-		}
-		let [Argument::StringLiteral(intl)] =
-			json_parse_intl.arguments.as_slice()
-		else {
-			return false;
-		};
-		let Some(module) = self.mod_arg() else {
-			return false;
-		};
-		if !self.cmp_sym(module_use.as_ref(), &module)
-			|| module_exports_use.property.name != "exports"
-		{
-			return false;
-		}
-		let intl = intl.value.as_str();
-		Self::is_valid_intl_json(intl)
+		ret.unwrap_or(false)
 	}
 }
 
@@ -791,42 +774,39 @@ impl<'ast> WebpackAstParser<'ast> {
 	/// ```js
 	/// Promise.all([wreq.e("chunk_id_1"), wreq.e("chunk_id_2")]).then(wreq.bind(wreq, module_id))
 	/// ```
-	fn is_lazy_require_callee(
-		&self,
-		node: &'ast CallExpression<'ast>,
-	) -> Option<()> {
-		const TRUE: Option<()> = Some(());
-		const FALSE: Option<()> = None;
-		let parent = self
-			.p(node.node_id())
-			.as_call_expression()?;
-		let c_then = parent
-			.callee
-			.as_static_member_expression()?;
-		if c_then.property.name != "then" {
-			return FALSE;
-		}
-		let c_then_obj = c_then.object.as_call_expression()?;
-		if self
-			.is_lazy_chunk_require(c_then_obj)
-			.is_some()
-			|| self.is_promise_resolve(c_then_obj)
-		{
-			return TRUE;
-		}
-		if let Some(Expression::ArrayExpression(arr)) =
-			self.is_promise_all(c_then_obj)
-			&& arr.elements.iter().all(|arg| {
-				arg.as_call_expression()
-					.is_some_and(|call| {
-						self.is_lazy_chunk_require(call)
-							.is_some()
-					})
-			}) {
-			TRUE
-		} else {
-			FALSE
-		}
+	fn is_lazy_require_callee(&self, node: &'ast CallExpression<'ast>) -> bool {
+		let ret = try {
+			let parent = self
+				.p(node.node_id())
+				.as_call_expression()?;
+			let c_then = parent
+				.callee
+				.as_static_member_expression()?;
+			if c_then.property.name != "then" {
+				return false;
+			}
+			let c_then_obj = c_then.object.as_call_expression()?;
+			if self
+				.is_lazy_chunk_require(c_then_obj)
+				.is_some() || self.is_promise_resolve(c_then_obj)
+			{
+				return true;
+			}
+			if let Some(Expression::ArrayExpression(arr)) =
+				self.is_promise_all(c_then_obj)
+				&& arr.elements.iter().all(|arg| {
+					arg.as_call_expression()
+						.is_some_and(|call| {
+							self.is_lazy_chunk_require(call)
+								.is_some()
+						})
+				}) {
+				true
+			} else {
+				false
+			}
+		};
+		ret.unwrap_or(false)
 	}
 	/// checks if `node` is `Promise.all(arg)`
 	/// if it is, returns the argument passed to `Promise.all`, otherwise returns None
@@ -857,22 +837,20 @@ impl<'ast> WebpackAstParser<'ast> {
 	///
 	/// if any arguments are passed to `resolve`, it will return false
 	fn is_promise_resolve(&self, node: &'ast CallExpression<'ast>) -> bool {
-		if !node.arguments.is_empty() {
-			return false;
-		}
-		let Some(callee) = node
-			.callee
-			.as_static_member_expression()
-		else {
-			return false;
+		let ret = try {
+			if !node.arguments.is_empty() {
+				return false;
+			}
+			let callee = node
+				.callee
+				.as_static_member_expression()?;
+			let ident = callee.object.as_identifier()?;
+			self.sema
+				.is_reference_to_global_variable(ident)
+				&& ident.name == "Promise"
+				&& callee.property.name == "resolve"
 		};
-		let Some(ident) = callee.object.as_identifier() else {
-			return false;
-		};
-		self.sema
-			.is_reference_to_global_variable(ident)
-			&& ident.name == "Promise"
-			&& callee.property.name == "resolve"
+		ret.unwrap_or(false)
 	}
 	/// checks if `node` is a lazy chunk require call, `wreq.e("chunk_id")`
 	///
@@ -946,7 +924,9 @@ impl<'ast> WebpackAstParser<'ast> {
 				{
 					return None;
 				}
-				self.is_lazy_require_callee(call)?;
+				if !self.is_lazy_require_callee(call) {
+					return None;
+				}
 
 				Some(SpannedId {
 					id: ModuleId::from(module_id),
@@ -961,26 +941,26 @@ impl<'ast> WebpackAstParser<'ast> {
 	/// callee of the form `<x>.string` / `<x>.format*` and the key lies within
 	/// the call's arguments (not the callee itself).
 	fn is_intl_format_arg(&self, pos: u32) -> bool {
-		let node = self.get_node_at(pos);
-		let Some(call) =
-			self.find_parent(node.node_id(), AstKind::as_call_expression)
-		else {
-			return false;
+		let ret = try {
+			let node = self.get_node_at(pos);
+			let call =
+				self.find_parent(node.node_id(), AstKind::as_call_expression)?;
+			// the key must be inside the arguments, not part of the callee
+			// (e.g. the `string` in `intl.string(...)` is itself a 6-char member)
+			let callee_span = call.callee.span();
+			let key_span = node.span();
+			if key_span.start >= callee_span.start
+				&& key_span.end <= callee_span.end
+			{
+				return false;
+			}
+			let m = call
+				.callee
+				.as_static_member_expression()?;
+			let method = m.property.name.as_str();
+			method == "string" || method.starts_with("format")
 		};
-		// the key must be inside the arguments, not part of the callee
-		// (e.g. the `string` in `intl.string(...)` is itself a 6-char member)
-		let callee_span = call.callee.span();
-		let key_span = node.span();
-		if key_span.start >= callee_span.start
-			&& key_span.end <= callee_span.end
-		{
-			return false;
-		}
-		let Expression::StaticMemberExpression(m) = &call.callee else {
-			return false;
-		};
-		let method = m.property.name.as_str();
-		method == "string" || method.starts_with("format")
+		ret.unwrap_or(false)
 	}
 
 	fn is_valid_intl_json(json: &str) -> bool {
@@ -1024,66 +1004,63 @@ impl<'ast> WebpackAstParser<'ast> {
 	}
 	/// checks if `node` is a decl of webpack imports
 	fn is_import_decl(&self, node: &'ast VariableDeclaration<'ast>) -> bool {
-		if node.kind != VariableDeclarationKind::Var {
-			// webpack import blocks use var, not let
-			return false;
-		}
-		let Some(wreq) = self.wreq() else {
-			// we cant import anything if we dont have wreq
-			return false;
-		};
-		let mut last_decl_id = SymbolId::MAX_INDEX;
-		let mut iter = node
-			.declarations
-			.iter()
-			// webpack will declare extra variables that will be used as empty first
-			// eg:
-			// var a, b, c, d = wreq(0);
-			.skip_while(|d| d.init.is_none())
-			.peekable();
-		if iter.peek().is_none() {
-			return false;
-		}
-		for decl in iter {
-			// _ = n(000000)
-			// OR
-			// b = n.n(a)
-			// where a was the previous declaration
-			let Some(init) = decl.init.as_ref() else {
-				return false;
-			};
-			// only plain idents are bound to imports
-			let Some(decl_ident) = decl.id.as_binding_identifier() else {
-				return false;
-			};
-			let Expression::CallExpression(call) = init else {
-				return false;
-			};
-			if !self.is_import_callee(wreq, &call.callee) {
+		let ret = try {
+			if node.kind != VariableDeclarationKind::Var {
+				// webpack import blocks use var, not let
 				return false;
 			}
-			// is the argument valid
-			match call.arguments.as_slice() {
-				[Argument::NumericLiteral(_)] => {
-					last_decl_id = decl_ident.symbol_id().into();
+			// we cant import anything if we dont have wreq
+			let wreq = self.wreq()?;
+			let mut last_decl_id = SymbolId::MAX_INDEX;
+			let mut iter = node
+				.declarations
+				.iter()
+				// webpack will declare extra variables that will be used as empty first
+				// eg:
+				// var a, b, c, d = wreq(0);
+				.skip_while(|d| d.init.is_none())
+				.peekable();
+			if iter.peek().is_none() {
+				return false;
+			}
+			for decl in iter {
+				// _ = n(000000)
+				// OR
+				// b = n.n(a)
+				// where a was the previous declaration
+				let init = decl.init.as_ref()?;
+				// only plain idents are bound to imports
+				let decl_ident = decl.id.as_binding_identifier()?;
+				let call = init.as_call_expression()?;
+
+				if !self.is_import_callee(wreq, &call.callee) {
+					return false;
 				}
-				[Argument::Identifier(ident)] => {
-					if last_decl_id != SymbolId::MAX_INDEX
-						// SAFETY: it's not MAX_INDEX
-						// and we only ever set it to MAX_INDEX as a sentinel value
-						// or an already valid symbol id
-						&& !self.cmp_sym(ident.as_ref(), &unsafe {
-							SymbolId::from_usize_unchecked(last_decl_id)
-						}) {
+
+				// is the argument valid
+				match call.arguments.as_slice() {
+					[Argument::NumericLiteral(_)] => {
+						last_decl_id = decl_ident.symbol_id().into();
+					}
+					[Argument::Identifier(ident)] => {
+						if last_decl_id != SymbolId::MAX_INDEX
+							// SAFETY: it's not MAX_INDEX
+							// and we only ever set it to MAX_INDEX as a sentinel value
+							// or an already valid symbol id
+							&& !self.cmp_sym(ident.as_ref(), &unsafe {
+								SymbolId::from_usize_unchecked(last_decl_id)
+							}) {
+							return false;
+						}
+					}
+					_ => {
 						return false;
 					}
 				}
-				_ => {
-					return false;
-				}
 			}
-		}
-		true
+			true
+		};
+		ret.unwrap_or(false)
 	}
 
 	/// Webpack will insert side effect imports as seen below
@@ -1103,23 +1080,21 @@ impl<'ast> WebpackAstParser<'ast> {
 		&self,
 		stmt: &'ast ExpressionStatement<'ast>,
 	) -> bool {
-		// wreq(...); must be a call expr
-		let Expression::CallExpression(call) = &stmt.expression else {
-			return false;
+		let ret = try {
+			// wreq(...); must be a call expr
+			let call = stmt.expression.as_call_expression()?;
+			let wreq = self.wreq()?;
+			// it must be a call on a plain identifier
+			// webpack will do an indirect call on imports to change the `this` value
+			// eg: `(0, foo.default)(...)`, which is not a side effect import
+			let wreq_ref = call.callee.as_identifier()?;
+			let [Argument::NumericLiteral(_)] = call.arguments.as_slice()
+			else {
+				return false;
+			};
+			self.cmp_sym(wreq_ref, &wreq)
 		};
-		let Some(wreq) = self.wreq() else {
-			return false;
-		};
-		// it must be a call on a plain identifier
-		// webpack will do an indirect call on imports to change the `this` value
-		// eg: `(0, foo.default)(...)`, which is not a side effect import
-		let Expression::Identifier(wreq_ref) = &call.callee else {
-			return false;
-		};
-		let [Argument::NumericLiteral(_)] = call.arguments.as_slice() else {
-			return false;
-		};
-		self.cmp_sym(wreq_ref.as_ref(), &wreq)
+		ret.unwrap_or(false)
 	}
 
 	fn count_num_concatentated_modules(&self) -> Option<u32> {
@@ -1706,49 +1681,44 @@ impl<'ast> WebpackAstParser<'ast> {
 		// `t` in function(e, t, n) {...} where `n` is `__webpack_require__`
 		let exports_decl = self.webpack_exports()?;
 		for use_ in self.wreq_uses()? {
-			// `wreq.d` in `wreq.d(...)`
-			let Some(wreq_d_expr) = self
-				.p(use_.node_id())
-				.as_static_member_expression()
-			else {
-				continue;
-			};
-			// `d` in `wreq.d(...)`
-			if wreq_d_expr.property.name != "d" {
-				continue;
-			}
-			// `wreq.d(...)`
-			let Some(call) = self
-				.p(wreq_d_expr.node_id())
-				.as_call_expression()
-			else {
-				continue;
-			};
-			// we should only ever have two arguments
-			let args = &call.arguments;
-			if args.len() != 2 {
-				continue;
-			}
+			let ret = try {
+				// `wreq.d` in `wreq.d(...)`
+				let wreq_d_expr = self
+					.p(use_.node_id())
+					.as_static_member_expression()?;
+				// `d` in `wreq.d(...)`
+				if wreq_d_expr.property.name != "d" {
+					continue;
+				}
+				// `wreq.d(...)`
+				let call = self
+					.p(wreq_d_expr.node_id())
+					.as_call_expression()?;
+				// we should only ever have two arguments
+				let args = &call.arguments;
+				if args.len() != 2 {
+					continue;
+				}
 
-			// `t` in `wreq.d(t, {...})`
-			let Some(exports) = args[0].as_identifier() else {
-				continue;
+				// `t` in `wreq.d(t, {...})`
+				let exports = args[0].as_identifier()?;
+				// ensure it's the exports
+				// FIXME: don't think this could ever be `module.exports` instead of just `exports`
+				// because wreq.d is only used on es modules
+				if !self.cmp_sym(exports, &exports_decl) {
+					continue;
+				}
+				// `{...}` in `wreq.d(t, {...})`
+				let obj = args[1].as_object_expression()?;
+				WreqD {
+					_call: call,
+					_exports: exports,
+					obj,
+				}
 			};
-			// ensure it's the exports
-			// FIXME: don't think this could ever be `module.exports` instead of just `exports`
-			// because wreq.d is only used on es modules
-			if !self.cmp_sym(exports, &exports_decl) {
-				continue;
+			if let Some(ret) = ret {
+				return Some(ret);
 			}
-			// `{...}` in `wreq.d(t, {...})`
-			let Some(obj) = args[1].as_object_expression() else {
-				continue;
-			};
-			return Some(WreqD {
-				_call: call,
-				_exports: exports,
-				obj,
-			});
 		}
 		None
 	}
@@ -1852,53 +1822,40 @@ impl<'ast> WebpackAstParser<'ast> {
 				)
 			});
 		for usage in iter {
-			let args = &usage.arguments;
-			if args.len() != 3 {
-				continue;
-			}
-			// TODO: check that args[1] is store_sym_id
-			if let Some(define_prop_arg) = args[1].as_string_literal()
-				&& define_prop_arg.value == "displayName"
-				&& let Some(define_value_arg) = args[2].as_string_literal()
-			{
-				return Some(SmolStr::new(define_value_arg.value));
-			}
-			// Object.defineProperty(store)
-			// store must be an identifier
-			let Some(define_obj_arg) = args[0].as_identifier() else {
-				continue;
+			let _: Option<()> = try {
+				let args = &usage.arguments;
+				if args.len() != 3 {
+					continue;
+				}
+				// TODO: check that args[1] is store_sym_id
+				if let Some(define_prop_arg) = args[1].as_string_literal()
+					&& define_prop_arg.value == "displayName"
+					&& let Some(define_value_arg) = args[2].as_string_literal()
+				{
+					return Some(SmolStr::new(define_value_arg.value));
+				}
+				// Object.defineProperty(store)
+				// store must be an identifier
+				let define_obj_arg = args[0].as_identifier()?;
+				// second argument must be an identifier
+				let define_prop_arg = args[1].as_identifier()?;
+				let define_prop_arg_sym_id = self.sym_id_of(define_prop_arg)?;
+				// the second arg must be "displayName"
+				if !self.is_display_name_prop_key(define_prop_arg_sym_id)
+					|| !self.cmp_sym(define_obj_arg, &store_sym_id)
+				{
+					continue;
+				}
+				// third arg must be an object literal
+				let define_prop_val = args[2].as_object_expression()?;
+				let value_prop = define_prop_val.get_property("value")?;
+				let value_prop_val = value_prop
+					.value
+					.as_identifier()
+					.and_then(|ident| self.sym_id_of(ident))
+					.and_then(|sym_id| self.is_constant_string(sym_id))?;
+				return Some(SmolStr::new(value_prop_val));
 			};
-			// second argument must be an identifier
-			let Some(define_prop_arg) = args[1].as_identifier() else {
-				continue;
-			};
-			let Some(define_prop_arg_sym_id) = self.sym_id_of(define_prop_arg)
-			else {
-				continue;
-			};
-			// the second arg must be "displayName"
-			if !self.is_display_name_prop_key(define_prop_arg_sym_id) {
-				continue;
-			}
-			if !self.cmp_sym(define_obj_arg, &store_sym_id) {
-				continue;
-			}
-			// third arg must be an object literal
-			let Some(define_prop_val) = args[2].as_object_expression() else {
-				continue;
-			};
-			let Some(value_prop) = define_prop_val.get_property("value") else {
-				continue;
-			};
-			let Some(value_prop_val) = value_prop
-				.value
-				.as_identifier()
-				.and_then(|ident| self.sym_id_of(ident))
-				.and_then(|sym_id| self.is_constant_string(sym_id))
-			else {
-				continue;
-			};
-			return Some(SmolStr::new(value_prop_val));
 		}
 		None
 	}
@@ -1938,51 +1895,48 @@ impl<'ast> WebpackAstParser<'ast> {
 	fn does_re_export_whole_module_impl(&self) -> Option<ModuleId> {
 		let mod_arg = self.mod_arg()?;
 		for use_ in self.wreq_uses()? {
-			let Some(assignment) = self
-				.find_parent(use_.node_id(), AstKind::as_assignment_expression)
-			else {
-				continue;
-			};
+			let _: Option<()> = try {
+				let assignment = self.find_parent(
+					use_.node_id(),
+					AstKind::as_assignment_expression,
+				)?;
 
-			let Some(lhs) = assignment
-				.left
-				.as_static_member_expression()
-			else {
-				continue;
-			};
-			let (module, exports_arr) = flatten_property_access_expression(lhs);
-			let Some(module) = module.as_identifier() else {
-				continue;
-			};
-			if !self.cmp_sym(module, &mod_arg) {
-				continue;
-			}
-			debug_assert!(
-				exports_arr.len() == 1,
-				"chain should always have len 1"
-			);
-			if exports_arr
-				.last()
-				.and_then(|e| e.try_unwrap_static().ok())
-				.is_none_or(|e| e.name != "exports")
-			{
-				continue;
-			}
-			let rhs = assignment.right.as_call_expression()?;
-			if rhs.callee.address() != use_.address()
-				|| rhs.arguments.len() != 1
-			{
-				continue;
-			}
-			let Some(arg) = rhs.arguments[0]
-				.as_numeric_literal()
-				.and_then(NumericLiteral::as_u32)
-				.map(ModuleId::from)
-			else {
-				continue;
-			};
+				let lhs = assignment
+					.left
+					.as_static_member_expression()?;
+				let (module, exports_arr) =
+					flatten_property_access_expression(lhs);
+				let module = module.as_identifier()?;
+				if !self.cmp_sym(module, &mod_arg) {
+					continue;
+				}
+				debug_assert!(
+					exports_arr.len() == 1,
+					"chain should always have len 1"
+				);
+				if exports_arr
+					.last()
+					.and_then(|e| e.try_unwrap_static().ok())
+					.is_none_or(|e| e.name != "exports")
+				{
+					continue;
+				}
+				let rhs = assignment.right.as_call_expression()?;
+				if rhs.callee.address() != use_.address()
+					|| rhs.arguments.len() != 1
+				{
+					continue;
+				}
+				let Some(arg) = rhs.arguments[0]
+					.as_numeric_literal()
+					.and_then(NumericLiteral::as_u32)
+					.map(ModuleId::from)
+				else {
+					continue;
+				};
 
-			return Some(arg);
+				return Some(arg);
+			};
 		}
 		None
 	}
