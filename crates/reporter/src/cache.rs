@@ -175,7 +175,7 @@ pub async fn write<T>(
 	compression_level: impl Into<Option<i32>>,
 ) -> Result<()>
 where
-	T: Serialize,
+	T: Serialize + Sync,
 {
 	let compression_level = compression_level.into().unwrap_or(10);
 	let cache_dir = get_cache_dir().await?;

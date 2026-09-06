@@ -92,6 +92,13 @@ pub(crate) struct ReporterState<'a> {
 	pub(crate) channel: Channel,
 }
 
+
+#[derive(Copy, Clone, IsVariant)]
+pub enum PatchStatus {
+	Ok,
+	Error,
+}
+
 impl<'a> ReporterState<'a> {
 	fn new(
 		plugins: &'a [Plugin],
@@ -124,15 +131,7 @@ impl<'a> ReporterState<'a> {
 			channel,
 		}
 	}
-}
 
-#[derive(Copy, Clone, IsVariant)]
-pub enum PatchStatus {
-	Ok,
-	Error,
-}
-
-impl<'a> ReporterState<'a> {
 	fn run(mut self) {
 		let start_time = Instant::now();
 		let mut last = start_time;
@@ -465,7 +464,7 @@ impl<'a> ReporterState<'a> {
 			} else {
 				oxc::span::LabeledSpan::new_with_span(txt, new_span)
 			};
-			*label = new_label
+			*label = new_label;
 		}
 		let mut ret = WrappedOxcDiagnostic::from(e);
 		ret.source = Some(SourceCode {
