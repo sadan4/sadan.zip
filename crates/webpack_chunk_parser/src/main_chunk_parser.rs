@@ -4,7 +4,6 @@ use crate::{
 	Sealed,
 	base::{WebpackChunkParser, WebpackChunkParserImpl},
 };
-use anyhow::{Result, anyhow};
 use ast_parser::{
 	AstParser,
 	NodeLocationIndex,
@@ -23,6 +22,7 @@ use memchr::memmem::Finder;
 use oxc::{
 	allocator::Allocator,
 	ast::ast::{
+		ArrowFunctionExpression,
 		BinaryOperator,
 		Expression,
 		ObjectExpression,
@@ -34,6 +34,7 @@ use oxc::{
 	semantic::{ReferenceFlags, Semantic, SymbolFlags, SymbolId},
 	span::SourceType,
 };
+use parser_diag::{PResult, err, err_ns};
 use regex::Regex;
 use smol_str::{SmolStr, SmolStrBuilder, ToSmolStr};
 use std::sync::LazyLock;
@@ -67,18 +68,24 @@ fn as_valid_module_id<'ast>(expr: &'ast Expression<'ast>) -> Option<ModuleId> {
 fn handle_chunk_cond_rhs(
 	module_id: &str,
 	rhs: &Expression,
-) -> Option<JsHashEntry> {
+) -> PResult<JsHashEntry> {
 	match rhs {
 		Expression::BinaryExpression(cur) => {
 			let cur = cur.as_ref();
-			let chunk_hash_with_ext = &*cur.right.as_string_literal()?.value;
+			let chunk_hash_with_ext = &*cur
+				.right
+				.as_string_literal()
+				.ok_or_else(|| {
+					err(&cur.right, "chunk hash is not a string literal")
+				})?
+				.value;
 			let chunk_hash = chunk_hash_with_ext
 				.strip_suffix(".js")
 				.unwrap_or(chunk_hash_with_ext);
 			let mut sb = SmolStrBuilder::new();
 			sb.push_str(module_id);
 			sb.push_str(chunk_hash);
-			Some(JsHashEntry {
+			Ok(JsHashEntry {
 				chunk_id: module_id.to_smolstr(),
 				hash: sb.finish(),
 			})
@@ -87,12 +94,15 @@ fn handle_chunk_cond_rhs(
 		Expression::StringLiteral(cur) => {
 			let cur = &*cur.as_ref().value;
 			let chunk_hash = cur.strip_suffix(".js").unwrap_or(cur);
-			Some(JsHashEntry {
+			Ok(JsHashEntry {
 				chunk_id: module_id.to_smolstr(),
 				hash: chunk_hash.to_smolstr(),
 			})
 		}
-		_ => None,
+		_ => Err(err(
+			rhs,
+			"chunk hash is neither a concatenation nor a string literal",
+		)),
 	}
 }
 
@@ -101,9 +111,9 @@ impl<'ast> WebpackMainChunkParser<'ast> {
 	pub fn try_new(
 		alloc: &'ast Allocator,
 		source_text: &'ast str,
-	) -> Result<Self> {
+	) -> PResult<Self> {
 		let (prog, sema) = parse(alloc, source_text, SourceType::script())
-			.map_err(|e| anyhow!(e))?;
+			.map_err(|e| err_ns("Failed to parse the main chunk").s(e))?;
 		Ok(Self {
 			source_text,
 			prog,
@@ -112,7 +122,7 @@ impl<'ast> WebpackMainChunkParser<'ast> {
 		})
 	}
 	/// gets `__webpack_require__`
-	fn get_webpack_require(&self) -> Option<SymbolId> {
+	fn get_webpack_require(&self) -> PResult<SymbolId> {
 		let root_iife_scope_id = self.root_iife_scope_id()?;
 		let scoping = self.sema.scoping();
 		for sym_id in scoping.iter_bindings_in(root_iife_scope_id) {
@@ -123,25 +133,44 @@ impl<'ast> WebpackMainChunkParser<'ast> {
 				continue;
 			}
 			if self.prop_set(sym_id, "nmd") && self.prop_set(sym_id, "hmd") {
-				return Some(sym_id);
+				return Ok(sym_id);
 			}
 		}
-		None
+		Err(err_ns("Failed to find webpack require function"))
 	}
 
-	fn root_iife_scope_id(&self) -> Option<oxc::semantic::ScopeId> {
-		Some(
-			self.prog
-				.body
-				.first()?
-				.as_expression_statement()?
-				.expression
-				.as_call_expression()?
-				.callee
-				.get_inner_expression()
-				.as_arrow_function_expression()?
-				.scope_id(),
-		)
+	fn root_iife_scope_id(&self) -> PResult<oxc::semantic::ScopeId> {
+		Ok(self.root_iife()?.scope_id())
+	}
+
+	/// the arrow function the whole chunk is wrapped in
+	fn root_iife(&self) -> PResult<&'ast ArrowFunctionExpression<'ast>> {
+		let first_stmt = self.prog.body.first().ok_or_else(|| {
+			err(self.prog, "program has no top-level statements")
+		})?;
+		let top_level_expr = &first_stmt
+			.as_expression_statement()
+			.ok_or_else(|| {
+				err(
+					first_stmt,
+					"first top-level statement is not an expression statement",
+				)
+			})?
+			.expression;
+		let call = top_level_expr
+			.as_call_expression()
+			.ok_or_else(|| {
+				err(
+					top_level_expr,
+					"first top-level statement is not a call expression",
+				)
+			})?;
+		let callee = call.callee.get_inner_expression();
+		callee
+			.as_arrow_function_expression()
+			.ok_or_else(|| {
+				err(callee, "root IIFE callee is not an arrow function")
+			})
 	}
 
 	fn prop_set(&self, obj: SymbolId, prop_name: impl AsRef<str>) -> bool {
@@ -169,7 +198,7 @@ impl<'ast> WebpackMainChunkParser<'ast> {
 		false
 	}
 	/// gets `__webpack_modules__`
-	fn get_webpack_modules(&self) -> Option<SymbolId> {
+	fn get_webpack_modules(&self) -> PResult<SymbolId> {
 		let root_iife_scope_id = self.root_iife_scope_id()?;
 		let mut cur = Option::<&VariableDeclarator>::None;
 		for sym_id in self
@@ -210,52 +239,91 @@ impl<'ast> WebpackMainChunkParser<'ast> {
 				.unwrap()
 				.symbol_id()
 		})
+		.ok_or_else(|| err_ns("Failed to find webpack modules object"))
 	}
 
-	fn parse_js_hash_map_entry(prop: &ObjectProperty) -> Option<JsHashEntry> {
+	fn parse_js_hash_map_entry(prop: &ObjectProperty) -> PResult<JsHashEntry> {
 		if prop.method
 			|| prop.shorthand
 			|| prop.computed
 			|| prop.kind != PropertyKind::Init
 		{
-			return None;
+			return Err(err(
+				prop,
+				"chunk hash map entry is not a plain key/value property",
+			));
 		}
 		let id = prop
 			.key
-			.try_parse_string_or_number_literal()?;
-		let hash = prop.value.as_string_literal_like()?;
+			.try_parse_string_or_number_literal()
+			.ok_or_else(|| {
+				err(&prop.key, "chunk id is not a string or number literal")
+			})?;
+		let hash = prop
+			.value
+			.as_string_literal_like()
+			.ok_or_else(|| {
+				err(&prop.value, "chunk hash is not a string literal")
+			})?;
 		let ret = JsHashEntry {
 			chunk_id: id.into(),
 			hash: hash.as_str().into(),
 		};
-		Some(ret)
+		Ok(ret)
 	}
 
 	fn process_wreq_u_map_expr(
 		expr: &'ast Expression<'ast>,
-	) -> Option<Vec<JsHashEntry>> {
-		let expr = expr.as_binary_expression()?;
-		if expr.operator != BinaryOperator::Addition {
-			return None;
+	) -> PResult<Vec<JsHashEntry>> {
+		let bin_expr = expr
+			.as_binary_expression()
+			.ok_or_else(|| {
+				err(expr, "`wreq.u` body is not a binary expression")
+			})?;
+		if bin_expr.operator != BinaryOperator::Addition {
+			return Err(err(bin_expr, "`wreq.u` body is not a concatenation"));
 		}
-		let concat_with_hash_map = expr.left.as_binary_expression()?;
+		let concat_with_hash_map = bin_expr
+			.left
+			.as_binary_expression()
+			.ok_or_else(|| {
+				err(
+					&bin_expr.left,
+					"`wreq.u` body lhs is not a binary expression",
+				)
+			})?;
 		if concat_with_hash_map.operator != BinaryOperator::Addition {
-			return None;
+			return Err(err(
+				concat_with_hash_map,
+				"`wreq.u` body lhs is not a concatenation",
+			));
 		}
-		let hash_map = concat_with_hash_map
+		let member = concat_with_hash_map
 			.right
-			.as_computed_member()?
-			.object
-			.get_inner_expression()
-			.as_object_expression()?;
+			.as_computed_member()
+			.ok_or_else(|| {
+				err(
+					&concat_with_hash_map.right,
+					"chunk hash map is not indexed with a computed member expression",
+				)
+			})?;
+		let hash_map_expr = member.object.get_inner_expression();
+		let hash_map = hash_map_expr
+			.as_object_expression()
+			.ok_or_else(|| {
+				err(hash_map_expr, "chunk hash map is not an object expression")
+			})?;
 		let mut ret = Vec::with_capacity(hash_map.properties.len());
 		for prop in &hash_map.properties {
-			ret.push(Self::parse_js_hash_map_entry(prop.as_property()?)?);
+			let prop = prop.as_property().ok_or_else(|| {
+				err(prop, "chunk hash map entry is not an object property")
+			})?;
+			ret.push(Self::parse_js_hash_map_entry(prop)?);
 		}
-		Some(ret)
+		Ok(ret)
 	}
 
-	pub fn get_js_chunk_hashes(&self) -> Option<Vec<JsHashEntry>> {
+	pub fn get_js_chunk_hashes(&self) -> PResult<Vec<JsHashEntry>> {
 		let wreq = self.get_webpack_require()?;
 		let uses = self
 			.sema
@@ -279,18 +347,25 @@ impl<'ast> WebpackMainChunkParser<'ast> {
 					break 'u func;
 				};
 			}
-			return None;
+			return Err(err_ns("Failed to find `wreq.u`"));
 		};
 		// expect body to be BinExp>[BinExp>["" + {id:hash}[id]] + ".js"]
-		let mut cur = u_func.get_expression()?;
+		let mut cur = u_func.get_expression().ok_or_else(|| {
+			err(u_func, "`wreq.u` body is not a single expression")
+		})?;
 		let mut ret = Vec::new();
 		while let Some(expr) = cur.as_conditional_expression() {
-			let cond = expr
-				.test
-				.get_inner_expression()
-				.as_binary_expression()?;
+			let test = expr.test.get_inner_expression();
+			let cond = test
+				.as_binary_expression()
+				.ok_or_else(|| {
+					err(test, "chunk id test is not a binary expression")
+				})?;
 			if cond.operator != BinaryOperator::StrictEquality {
-				return None;
+				return Err(err(
+					cond,
+					"chunk id test is not a strict equality",
+				));
 			}
 			let chunk_id = cond
 				.left
@@ -300,6 +375,12 @@ impl<'ast> WebpackMainChunkParser<'ast> {
 					cond.right
 						.as_string_literal()
 						.map(|s| &*s.value)
+				})
+				.ok_or_else(|| {
+					err(
+						cond,
+						"neither side of the chunk id test is a string literal",
+					)
 				})?;
 			let rhs = &expr.consequent;
 			let entry = handle_chunk_cond_rhs(chunk_id, rhs)?;
@@ -308,10 +389,10 @@ impl<'ast> WebpackMainChunkParser<'ast> {
 		}
 		let from_map_expr = Self::process_wreq_u_map_expr(cur)?;
 		ret.extend(from_map_expr);
-		Some(ret)
+		Ok(ret)
 	}
 
-	fn get_entrypoint_id_1(&self) -> Option<ModuleId> {
+	fn get_entrypoint_id_1(&self) -> PResult<ModuleId> {
 		let wreq_sym_id = self.get_webpack_require()?;
 		let uses = self
 			.sema
@@ -343,57 +424,83 @@ impl<'ast> WebpackMainChunkParser<'ast> {
 					continue;
 				}
 
-				return Some(maybe_id);
+				return Ok(maybe_id);
 			};
 		}
-		None
+		Err(err_ns(
+			"Failed to find a `__webpack_exports__` entrypoint call",
+		))
 	}
 
-	fn get_entrypoint_id_2(&self) -> Option<ModuleId> {
-		let af = &self
-			.prog
-			.body
-			.first()?
-			.as_expression_statement()?
-			.expression
-			.as_call_expression()?
-			.callee
-			.get_inner_expression()
-			.as_arrow_function_expression()?
-			.body;
-		let entry_call = af
-			.as_expression()
-			.or_else(|| {
-				Some(
-					&af.as_function_body()
-						.unwrap()
-						.statements
-						.last()?
-						.as_expression_statement()?
-						.expression,
+	fn get_entrypoint_id_2(&self) -> PResult<ModuleId> {
+		let af = &self.root_iife()?.body;
+		let last_expr = if let Some(expr) = af.as_expression() {
+			expr
+		} else {
+			let body = af.as_function_body().ok_or_else(|| {
+				err(
+					af,
+					"root IIFE body is neither an expression nor a function body",
 				)
-			})?
-			.get_inner_expression()
-			.as_sequence_expression()?
-			.expressions
-			.last()?
-			.as_call_expression()?;
-		if !self.cmp_sym(
-			entry_call.callee.as_identifier()?,
-			&self.get_webpack_require()?,
-		) {
-			return None;
+			})?;
+			let last_stmt = body
+				.statements
+				.last()
+				.ok_or_else(|| err(body, "root IIFE body is empty"))?;
+			&last_stmt
+				.as_expression_statement()
+				.ok_or_else(|| {
+					err(
+						last_stmt,
+						"last statement of the root IIFE is not an expression statement",
+					)
+				})?
+				.expression
+		};
+		let last_expr = last_expr.get_inner_expression();
+		let seq = last_expr
+			.as_sequence_expression()
+			.ok_or_else(|| {
+				err(last_expr, "root IIFE tail is not a sequence expression")
+			})?;
+		let last_in_seq = seq.expressions.last().ok_or_else(|| {
+			err(seq, "root IIFE tail sequence expression is empty")
+		})?;
+		let entry_call = last_in_seq
+			.as_call_expression()
+			.ok_or_else(|| {
+				err(last_in_seq, "entrypoint is not a call expression")
+			})?;
+		let callee = entry_call
+			.callee
+			.as_identifier()
+			.ok_or_else(|| {
+				err(
+					&entry_call.callee,
+					"entrypoint callee is not an identifier",
+				)
+			})?;
+		if !self.cmp_sym(callee, &self.get_webpack_require()?) {
+			return Err(err(
+				callee,
+				"entrypoint callee is not `__webpack_require__`",
+			));
 		}
 		if entry_call.arguments.len() != 1 {
-			return None;
+			return Err(err(
+				entry_call,
+				"expected the entrypoint call to have exactly one argument",
+			));
 		}
-		entry_call.arguments[0]
-			.as_numeric_literal()?
+		let arg = &entry_call.arguments[0];
+		arg.as_numeric_literal()
+			.ok_or_else(|| err(arg, "entrypoint id is not a numeric literal"))?
 			.as_u32()
-			.map(Into::into)
+			.map(ModuleId)
+			.ok_or_else(|| err(arg, "entrypoint id does not fit in a u32"))
 	}
 
-	fn get_entrypoint_id_3(&self) -> Option<ModuleId> {
+	fn get_entrypoint_id_3(&self) -> PResult<ModuleId> {
 		let wreq = self.get_webpack_require()?;
 		let call_expr = 'c: {
 			for node in self.refs(wreq) {
@@ -418,25 +525,48 @@ impl<'ast> WebpackMainChunkParser<'ast> {
 					break 'c call;
 				};
 			}
-			return None;
+			return Err(err_ns("Failed to find a `wreq.O` entrypoint call"));
 		};
-		call_expr.arguments[2]
-			.as_arrow_function_expression()?
-			.get_expression()?
-			.as_call_expression()?
-			.arguments[0]
-			.as_numeric_literal()?
+		let cb = &call_expr.arguments[2];
+		let cb = cb
+			.as_arrow_function_expression()
+			.ok_or_else(|| {
+				err(cb, "`wreq.O` callback is not an arrow function")
+			})?;
+		let cb_body = cb.get_expression().ok_or_else(|| {
+			err(cb, "`wreq.O` callback body is not a single expression")
+		})?;
+		let entry_call = cb_body
+			.as_call_expression()
+			.ok_or_else(|| {
+				err(cb_body, "`wreq.O` callback body is not a call expression")
+			})?;
+		let arg = entry_call
+			.arguments
+			.first()
+			.ok_or_else(|| {
+				err(entry_call, "entrypoint call has no arguments")
+			})?;
+		arg.as_numeric_literal()
+			.ok_or_else(|| err(arg, "entrypoint id is not a numeric literal"))?
 			.as_u32()
 			.map(ModuleId)
+			.ok_or_else(|| err(arg, "entrypoint id does not fit in a u32"))
 	}
 
-	pub fn get_entrypoint_id(&self) -> Option<ModuleId> {
+	pub fn get_entrypoint_id(&self) -> PResult<ModuleId> {
 		self.get_entrypoint_id_1()
-			.or_else(|| self.get_entrypoint_id_2())
-			.or_else(|| self.get_entrypoint_id_3())
+			.or_else(|e1| {
+				self.get_entrypoint_id_2()
+					.map_err(|e2| e2.s(e1))
+			})
+			.or_else(|e2| {
+				self.get_entrypoint_id_3()
+					.map_err(|e3| e3.s(e2))
+			})
 	}
 
-	pub fn get_build_number(&self) -> Option<SmolStr> {
+	pub fn get_build_number(&self) -> PResult<SmolStr> {
 		let modules = self.get_defined_modules()?;
 		// use known build modules to save time
 		// TODO: perform a manual search if this fails
@@ -448,14 +578,19 @@ impl<'ast> WebpackMainChunkParser<'ast> {
 					.is_some()
 			{
 				let id = BUILD_NUMBER_REGEX
-					.captures(m_txt)?
-					.get(1)?
+					.captures(m_txt)
+					.and_then(|caps| caps.get(1))
+					.ok_or_else(|| {
+						err_ns(
+							"Failed to find the build number in the build module",
+						)
+					})?
 					.as_str()
 					.into();
-				return Some(id);
+				return Ok(id);
 			}
 		}
-		None
+		Err(err_ns("Failed to find the build module"))
 	}
 }
 
@@ -476,15 +611,25 @@ impl<'ast> AstParser<'ast> for WebpackMainChunkParser<'ast> {
 impl Sealed for WebpackMainChunkParser<'_> {}
 
 impl<'ast> WebpackChunkParserImpl<'ast> for WebpackMainChunkParser<'ast> {
-	fn get_module_object(&self) -> Option<&'ast ObjectExpression<'ast>> {
+	fn get_module_object(&self) -> PResult<&'ast ObjectExpression<'ast>> {
 		let wp_modules_sym_id = self.get_webpack_modules()?;
-		self.sema
+		let decl = self
+			.sema
 			.symbol_declaration(wp_modules_sym_id)
 			.kind()
-			.as_variable_declarator()?
-			.init
-			.as_ref()?
-			.as_object_expression()
+			.as_variable_declarator()
+			.ok_or_else(|| {
+				err_ns(
+					"webpack modules object is not declared by a variable declarator",
+				)
+			})?;
+		let init = decl.init.as_ref().ok_or_else(|| {
+			err(decl, "webpack modules declaration has no initializer")
+		})?;
+		init.as_object_expression()
+			.ok_or_else(|| {
+				err(init, "webpack modules is not an object expression")
+			})
 	}
 
 	fn get_source_text(&self) -> &'ast str {
@@ -512,12 +657,12 @@ mod tests {
 		let alloc = Allocator::new();
 		let parser = parse!(alloc, "test_data/fullWeb.js");
 		{
-			let entrypoint = parser.get_entrypoint_id();
-			assert_eq!(entrypoint, Some(ModuleId(650204)));
+			let entrypoint = parser.get_entrypoint_id().unwrap();
+			assert_eq!(entrypoint, ModuleId(650204));
 		};
 		{
-			let build_number = parser.get_build_number();
-			assert_eq!(build_number.as_deref(), Some("440786"));
+			let build_number = parser.get_build_number().unwrap();
+			assert_eq!(build_number, "440786");
 		};
 		{
 			let mut hashes = parser.get_js_chunk_hashes().unwrap();
@@ -540,12 +685,12 @@ mod tests {
 		let alloc = Allocator::new();
 		let parser = parse!(alloc, "test_data/fullWeb2.js");
 		{
-			let entrypoint = parser.get_entrypoint_id();
-			assert_eq!(entrypoint, Some(ModuleId(329563)));
+			let entrypoint = parser.get_entrypoint_id().unwrap();
+			assert_eq!(entrypoint, ModuleId(329563));
 		};
 		{
-			let build_number = parser.get_build_number();
-			assert_eq!(build_number.as_deref(), Some("492031"));
+			let build_number = parser.get_build_number().unwrap();
+			assert_eq!(build_number, "492031");
 		};
 		{
 			let mut hashes = parser.get_js_chunk_hashes().unwrap();
@@ -568,20 +713,12 @@ mod tests {
 		let alloc = Allocator::new();
 		let parser = parse!(alloc, "test_data/fullWeb3.js");
 		{
-			let entrypoint = parser.get_entrypoint_id();
-			assert_eq!(
-				entrypoint,
-				Some(ModuleId(329563)),
-				"entrypoint mismatch"
-			);
+			let entrypoint = parser.get_entrypoint_id().unwrap();
+			assert_eq!(entrypoint, ModuleId(329563), "entrypoint mismatch");
 		};
 		{
-			let build_number = parser.get_build_number();
-			assert_eq!(
-				build_number.as_deref(),
-				Some("533645"),
-				"build number mismatch"
-			);
+			let build_number = parser.get_build_number().unwrap();
+			assert_eq!(build_number, "533645", "build number mismatch");
 		};
 		{
 			let mut hashes = parser.get_js_chunk_hashes().unwrap();
@@ -604,20 +741,12 @@ mod tests {
 		let alloc = Allocator::new();
 		let parser = parse!(alloc, "test_data/fullWeb4.js");
 		{
-			let entrypoint = parser.get_entrypoint_id();
-			assert_eq!(
-				entrypoint,
-				Some(ModuleId(329563)),
-				"entrypoint mismatch"
-			);
+			let entrypoint = parser.get_entrypoint_id().unwrap();
+			assert_eq!(entrypoint, ModuleId(329563), "entrypoint mismatch");
 		};
 		{
-			let build_number = parser.get_build_number();
-			assert_eq!(
-				build_number.as_deref(),
-				Some("538030"),
-				"build number mismatch"
-			);
+			let build_number = parser.get_build_number().unwrap();
+			assert_eq!(build_number, "538030", "build number mismatch");
 		};
 		{
 			let mut hashes = parser.get_js_chunk_hashes().unwrap();

@@ -7,7 +7,7 @@ use std::{
 
 use derive_more::Debug;
 use miette::{LabeledSpan, SourceOffset, SourceSpan, SpanContents};
-use oxc::span::{GetSpan, Span};
+use oxc_span::{GetSpan, Span};
 use thiserror::Error;
 
 pub use miette::Severity;
@@ -22,7 +22,7 @@ fn source_code_name(src: &dyn miette::SourceCode) -> Option<String> {
 }
 
 #[derive(Error, Debug, Clone, Default)]
-#[error("VencordAstParser: {msg}")]
+#[error("ParserDiagnostic: {msg}")]
 pub struct ParserDiagnostic {
 	pub msg: Cow<'static, str>,
 	pub labels: Vec<(Span, Cow<'static, str>)>,
@@ -34,7 +34,8 @@ pub struct ParserDiagnostic {
 
 impl ParserDiagnostic {
 	/// attach a source to the error
-	pub(crate) fn s(
+	#[must_use]
+	pub fn s(
 		mut self,
 		cause: impl Into<Box<dyn miette::Diagnostic + Send + Sync + 'static>>,
 	) -> Self {
@@ -43,6 +44,7 @@ impl ParserDiagnostic {
 		self
 	}
 
+	#[must_use]
 	pub fn with_local_source<'a>(
 		self,
 		source: &'a str,
@@ -88,7 +90,7 @@ impl miette::Diagnostic for ParserDiagnostic {
 	}
 }
 
-pub(crate) fn err(
+pub fn err(
 	pos: &impl GetSpan,
 	msg: impl Into<Cow<'static, str>>,
 ) -> ParserDiagnostic {
@@ -99,7 +101,17 @@ pub(crate) fn err(
 	}
 }
 
-pub(crate) fn err_ns(msg: impl Into<Cow<'static, str>>) -> ParserDiagnostic {
+pub fn slice_span<T: GetSpan>(slice: &[T]) -> Option<Span> {
+	if slice.is_empty() {
+		return None;
+	}
+	Some(Span::new(
+		slice.first().unwrap().span().start,
+		slice.last().unwrap().span().end,
+	))
+}
+
+pub fn err_ns(msg: impl Into<Cow<'static, str>>) -> ParserDiagnostic {
 	ParserDiagnostic {
 		msg: msg.into(),
 		..Default::default()

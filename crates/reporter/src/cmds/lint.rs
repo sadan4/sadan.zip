@@ -1,8 +1,9 @@
 use anyhow::{Context as _, Result, bail};
 use oxc_allocator::Allocator;
+use parser_diag::LocalSource;
 use std::{sync::mpsc, time::Instant};
 use tracing::{debug, info};
-use vencord_ast_parser::{VencordAstParser, diag::LocalSource};
+use vencord_ast_parser::VencordAstParser;
 
 use crate::{util::MultiProgressWrapper, vc};
 // TODO: exit success on ctrl-c

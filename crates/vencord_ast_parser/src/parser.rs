@@ -1,14 +1,4 @@
 mod collect_capture_groups;
-pub(crate) use collect_capture_groups::{
-	Capture,
-	GroupInfo,
-	GroupReference,
-	collect_capture_groups,
-};
-use memchr::memmem::Finder;
-use smol_str::{SmolStr, ToSmolStr};
-
-use std::{collections::HashMap, sync::mpsc, vec};
 
 use crate::{
 	AnyFindType,
@@ -25,7 +15,12 @@ use crate::{
 	Replacement,
 	Replacer,
 	TemplateEvaluator,
-	diag::{LocalSource, PResult, ParserDiagnostic, err, err_ns},
+	parser::collect_capture_groups::{
+		Capture,
+		GroupInfo,
+		GroupReference,
+		collect_capture_groups,
+	},
 	pass::{
 		EvalStringRawPass,
 		FlattenTemplatePass,
@@ -62,6 +57,7 @@ use ast_parser::{
 	parse_for_traverse,
 	sym_id::GetSymId,
 };
+use memchr::memmem::Finder;
 use oxc::{
 	allocator::{
 		Allocator,
@@ -99,6 +95,9 @@ use oxc_ecmascript::{
 	constant_evaluation::{ConstantEvaluation, ConstantEvaluationCtx},
 	side_effects::MayHaveSideEffectsContext,
 };
+use parser_diag::{LocalSource, PResult, ParserDiagnostic, err, err_ns};
+use smol_str::{SmolStr, ToSmolStr};
+use std::{collections::HashMap, sync::mpsc, vec};
 use tracing::{debug, instrument, trace, warn};
 
 pub struct VencordAstParser<'ast> {

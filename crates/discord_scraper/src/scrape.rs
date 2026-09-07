@@ -10,7 +10,7 @@ use std::{
 	time::{SystemTime, UNIX_EPOCH},
 };
 
-use anyhow::{Context as _, Result, bail};
+use anyhow::{Context as _, Result, anyhow, bail};
 use dashmap::DashMap;
 use explorer_server_core::{Channel, asset_url};
 use explorer_types::{BundleMetadata, FullBundle, ModuleId};
@@ -22,7 +22,7 @@ use tokio::{
 	sync::Semaphore,
 	task::{self, JoinSet},
 };
-use tracing::{debug, info, trace};
+use tracing::{debug, info, trace, warn};
 use webpack_chunk_parser::{
 	JsHashEntry,
 	WebpackLazyChunkParser,
@@ -169,6 +169,12 @@ impl JsScraper {
 				})?;
 				let modules = chunk_parser
 					.collect_defined_modules()
+					.map_err(|e| {
+						anyhow!(
+							"{:?}",
+							e.with_local_source(chunk_str, &chunk_name)
+						)
+					})
 					.context("Failed to get modules from chunk")?;
 				let mut keys = Vec::with_capacity(modules.size_hint().0);
 				for (m_id, src) in modules {
@@ -209,11 +215,17 @@ impl JsScraper {
 		self.inner
 			.progress
 			.set_stage("Parsing main JS chunk");
-		let main_parser =
-			WebpackMainChunkParser::try_new(alloc, main_js_text.as_ref())
-				.context("Failed to parse main js chunk")?;
+		let src = main_js_text.as_ref();
+		let main_parser = WebpackMainChunkParser::try_new(alloc, src)
+			.map_err(|e| {
+				anyhow!("{:?}", e.with_local_source(src, &self.web_js_url))
+			})
+			.context("Failed to parse main js chunk")?;
 		let chunks = main_parser
 			.get_js_chunk_hashes()
+			.map_err(|e| {
+				anyhow!("{:?}", e.with_local_source(src, &self.web_js_url))
+			})
 			.context("Failed to get js chunk hashes")?;
 		let num_chunks = chunks.len() + self.num_extra_chunks;
 		debug!("found {num_chunks} chunks");
@@ -223,12 +235,21 @@ impl JsScraper {
 		self.spawn_main_chunk_tasks(chunks);
 		let build_number = main_parser
 			.get_build_number()
+			.map_err(|e| e.with_local_source(src, &self.web_js_url))
+			.inspect_err(|e| warn!("Failed to get the build number: {e:?}"))
 			.unwrap_or_default()
 			.parse()
 			.unwrap_or_default();
-		let entry_point = main_parser.get_entrypoint_id();
+		let entry_point = main_parser
+			.get_entrypoint_id()
+			.map_err(|e| e.with_local_source(src, &self.web_js_url))
+			.inspect_err(|e| warn!("Failed to get the entrypoint id: {e:?}"))
+			.ok();
 		let main_modules = main_parser
 			.collect_defined_modules()
+			.map_err(|e| {
+				anyhow!("{:?}", e.with_local_source(src, &self.web_js_url))
+			})
 			.context("Failed to get modules from main chunk")?;
 		for (m_id, src) in main_modules {
 			self.inner.modules.insert(m_id, src);

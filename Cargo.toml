@@ -94,6 +94,7 @@ text_diff = { path = "crates/text_diff" }
 qalc = { path = "crates/qalc" }
 qalc_sbox = { path = "crates/qalc_sbox" }
 demangler = { path = "crates/demangler" }
+parser_diag = { path = "crates/parser_diag" }
 tower-lsp = "0.20.0"
 tokio-tungstenite = "0.30.0"
 futures-util = "0.3.31"

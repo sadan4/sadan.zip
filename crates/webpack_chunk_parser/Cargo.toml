@@ -16,6 +16,8 @@ smol_str.workspace = true
 memchr.workspace = true
 regex.workspace = true
 explorer_types.workspace = true
+parser_diag.workspace = true
+tracing.workspace = true
 
 [dev-dependencies]
 insta.workspace = true

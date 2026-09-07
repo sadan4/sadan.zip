@@ -58,6 +58,7 @@ smallvec.workspace = true
 bstr.workspace = true
 hashbrown.workspace = true
 text_diff.workspace = true
+parser_diag.workspace = true
 
 [dev-dependencies]
 insta.workspace = true

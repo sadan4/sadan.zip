@@ -1,4 +1,3 @@
-pub mod diag;
 pub mod hash;
 pub mod parser;
 mod pass;

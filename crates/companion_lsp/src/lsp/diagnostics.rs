@@ -1,6 +1,7 @@
 use std::{sync::mpsc, time::Duration};
 
 use oxc::{ast::ast::RegExpFlags, span::Span};
+use parser_diag::{ParserDiagnostic, Severity};
 use tower_lsp::lsp_types::{
 	Diagnostic,
 	DiagnosticSeverity,
@@ -8,10 +9,7 @@ use tower_lsp::lsp_types::{
 	Range,
 	Url,
 };
-use vencord_ast_parser::{
-	VencordAstParser,
-	diag::{ParserDiagnostic, Severity},
-};
+use vencord_ast_parser::VencordAstParser;
 
 use crate::{
 	discord_bridge::messages::{
