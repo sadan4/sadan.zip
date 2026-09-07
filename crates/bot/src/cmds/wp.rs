@@ -1,6 +1,5 @@
 use std::{
 	fmt::Write as _,
-	mem,
 	path::{Path, PathBuf},
 	sync::Arc,
 	time::Instant,
@@ -89,8 +88,8 @@ struct FindModuleFactoryArgs {
 }
 
 fn size_arc_rwlock<T: TypeSize>(e: &Arc<RwLock<T>>) -> usize {
-	const ARC_OVERHEAD: usize = mem::size_of::<Arc<()>>();
-	const RWLOCK_OVERHEAD: usize = mem::size_of::<RwLock<()>>();
+	const ARC_OVERHEAD: usize = size_of::<Arc<()>>();
+	const RWLOCK_OVERHEAD: usize = size_of::<RwLock<()>>();
 	ARC_OVERHEAD + RWLOCK_OVERHEAD + e.blocking_read().get_size()
 }
 

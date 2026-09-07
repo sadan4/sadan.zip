@@ -10,7 +10,7 @@ use tracing::error;
 use typesize::{TypeSize, derive::TypeSize};
 
 fn size_of_arc<T: TypeSize>(e: &Arc<T>) -> usize {
-	std::mem::size_of::<Arc<()>>() + e.get_size()
+	size_of::<Arc<()>>() + e.get_size()
 }
 
 #[derive(Deref, Default, Clone, TypeSize)]

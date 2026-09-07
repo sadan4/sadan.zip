@@ -159,7 +159,7 @@ pub struct OutgoingModuleDeps {
 #[derive(Copy, Clone, Debug, TypeSize)]
 pub struct SpannedId {
 	pub id: ModuleId,
-	#[typesize(with = std::mem::size_of_val)]
+	#[typesize(with = size_of_val)]
 	pub span: Span,
 }
 
