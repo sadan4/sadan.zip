@@ -75,8 +75,7 @@ use explorer_types::{
 };
 use export_map::RawExportMap;
 use itertools::Itertools as _;
-use miette::{Result, bail};
-use miette_ctx::{ErrCtx as _, map_anyhow};
+use miette_ctx::map_anyhow;
 use oxc::{
 	allocator::{Allocator, GetAddress, UnstableAddress},
 	ast::{
@@ -114,10 +113,10 @@ use oxc::{
 	semantic::{NodeId, ReferenceId, Semantic, SymbolId},
 	span::{GetSpan, SourceType, Span},
 };
+use parser_diag::{PResult, ParserDiagnostic, err, err_ns};
 use rangemap::RangeSet;
 use smol_str::{SmolStr, ToSmolStr as _};
 use std::{
-	borrow::Cow,
 	collections::{HashMap, HashSet},
 	fmt::Write,
 	iter,
@@ -171,9 +170,10 @@ impl<'ast> AstParser<'ast> for WebpackAstParser<'ast> {
 
 /// Public API
 impl<'ast> WebpackAstParser<'ast> {
-	pub fn try_new(alloc: &'ast Allocator, source: &'ast str) -> Result<Self> {
+	pub fn try_new(alloc: &'ast Allocator, source: &'ast str) -> PResult<Self> {
 		let (toks, prog, sema) =
-			parse_with_tokens(alloc, source, SourceType::script())?;
+			parse_with_tokens(alloc, source, SourceType::script())
+				.map_err(|e| err_ns("Failed to parse module").s(e))?;
 		Ok(Self {
 			prog,
 			sema,
@@ -233,10 +233,13 @@ impl<'ast> WebpackAstParser<'ast> {
 		self.module_dep_provider = module_dep_provider;
 	}
 
-	pub fn get_module_id(&self) -> Option<ModuleId> {
+	pub fn get_module_id(&self) -> PResult<ModuleId> {
 		self.c
 			.module_id
 			.get(|| self.get_module_id_impl())
+			.ok_or_else(|| {
+				err_ns("Could not find the module id of this module")
+			})
 	}
 	pub fn get_export_map(&self) -> &RangeExportMap {
 		self.c.range_export_map.get(|| {
@@ -249,7 +252,7 @@ impl<'ast> WebpackAstParser<'ast> {
 		m_id: ModuleId,
 		export_names: &[ExportMapKey],
 	) -> Vec<Span> {
-		let Some(wreq) = self.wreq() else {
+		let Ok(wreq) = self.wreq() else {
 			return Vec::new();
 		};
 
@@ -322,12 +325,13 @@ impl<'ast> WebpackAstParser<'ast> {
 	pub fn generate_references(
 		&self,
 		pos: u32,
-	) -> Result<Vec<bundle::Reference<'ast>>> {
-		let Some(self_module_id) = self.get_module_id() else {
-			bail!(
-				"Could not find module id of module to search for references of."
-			);
-		};
+	) -> PResult<Vec<bundle::Reference<'ast>>> {
+		let self_module_id = self.get_module_id().map_err(|e| {
+			err_ns(
+				"Could not find module id of module to search for references of.",
+			)
+			.s(e)
+		})?;
 		let module_exports = self.get_export_map();
 		let where_ = self.get_modules_that_require_this_module()?;
 		let mut locs = Vec::new();
@@ -438,13 +442,16 @@ impl<'ast> WebpackAstParser<'ast> {
 	}
 	pub fn get_modules_that_require_this_module(
 		&self,
-	) -> Result<Rc<IncomingModuleDeps>> {
-		let module_id = self
-			.get_module_id()
-			.context("Module ID not found")?;
+	) -> PResult<Rc<IncomingModuleDeps>> {
+		let module_id = self.get_module_id()?;
 		self.module_dep_provider
 			.get_module_deps(module_id)
-			.map_err(map_anyhow)
+			.map_err(|e| {
+				err_ns(format!(
+					"Failed to get the modules that require {module_id}"
+				))
+				.s(map_anyhow(e))
+			})
 	}
 	/// Figure out if this module re-exports another given the module id of the other and
 	/// the name of the export from the other module.
@@ -534,7 +541,7 @@ impl<'ast> WebpackAstParser<'ast> {
 	pub fn generate_definitions(
 		&self,
 		pos: u32,
-	) -> Result<Vec<bundle::Definition<'ast>>> {
+	) -> PResult<Vec<bundle::Definition<'ast>>> {
 		let selected_node = self.get_node_at(pos);
 		if let Some(num_lit) = selected_node.as_numeric_literal() {
 			return self.generate_direct_module_definition(num_lit);
@@ -545,25 +552,24 @@ impl<'ast> WebpackAstParser<'ast> {
 			raw_export_names: _,
 		} = self
 			.resolve_definition(selected_node)
-			.with_context(|| {
-				format!(
-					"Failed to resolve definition of selected node at {:?} {}",
-					selected_node.span(),
-					if cfg!(debug_assertions) {
+			.map_err(|e| {
+				err(
+					&selected_node,
+					format!(
+						"Failed to resolve definition of selected node {}",
 						selected_node.debug_name()
-					} else {
-						Cow::Borrowed("")
-					}
+					),
 				)
+				.s(e)
 			})?;
 		let range = if export_names.is_empty() {
 			Span::default()
 		} else {
 			parser.find_export_location(&export_names)
 		};
-		let module_id = parser
-			.get_module_id()
-			.context("Failed to get module id from parser of export")?;
+		let module_id = parser.get_module_id().map_err(|e| {
+			err_ns("Failed to get module id from parser of export").s(e)
+		})?;
 		Ok(vec![bundle::Definition {
 			range,
 			location: bundle::Location::Inline(parser.source),
@@ -605,7 +611,7 @@ impl<'ast> WebpackAstParser<'ast> {
 		last
 	}
 	/// FIXME: extract (Span, `SmolStr`) into a separate struct;
-	pub fn generate_hover(&self, pos: u32) -> Result<Option<(Span, SmolStr)>> {
+	pub fn generate_hover(&self, pos: u32) -> PResult<Option<(Span, SmolStr)>> {
 		let selected_node = self.get_node_at(pos);
 		let ResolvedDefinition {
 			parser,
@@ -707,7 +713,8 @@ impl<'ast> WebpackAstParser<'ast> {
 		let ret = try {
 			// function () { ... }
 			let [es] = self
-				.get_main_func()?
+				.get_main_func()
+				.ok()?
 				.body
 				.as_ref()
 				.unwrap()
@@ -747,7 +754,7 @@ impl<'ast> WebpackAstParser<'ast> {
 			else {
 				return false;
 			};
-			let module = self.mod_arg()?;
+			let module = self.mod_arg().ok()?;
 			if !self.cmp_sym(module_use, &module)
 				|| module_exports_use.property.name != "exports"
 			{
@@ -855,6 +862,7 @@ impl<'ast> WebpackAstParser<'ast> {
 	/// checks if `node` is a lazy chunk require call, `wreq.e("chunk_id")`
 	///
 	/// if it is, returns Some(&'ast str) where the str is the chunk id, otherwise returns None
+	// FIXME: Make PResult?
 	fn is_lazy_chunk_require(
 		&self,
 		node: &'ast CallExpression<'ast>,
@@ -867,16 +875,17 @@ impl<'ast> WebpackAstParser<'ast> {
 			.callee
 			.as_static_member_expression()?;
 		let wreq_use = wreq_e.object.as_identifier()?;
-		let wreq = self.wreq()?;
+		let wreq = self.wreq().ok()?;
 		if !self.cmp_sym(wreq_use, &wreq) || wreq_e.property.name != "e" {
 			return None;
 		}
 		Some(&chunk_id.value)
 	}
+	// FIXME: make PResult?
 	fn get_modules_that_this_module_requires_impl(
 		&self,
 	) -> Option<OutgoingModuleDepsWithLocs> {
-		let wreq = self.wreq()?;
+		let wreq = self.wreq().ok()?;
 		// TODO: merge these loops to avoid two iterations
 		let sync = self
 			.refs(wreq)
@@ -977,10 +986,13 @@ impl<'ast> WebpackAstParser<'ast> {
 		}
 		true
 	}
-	fn get_main_func(&self) -> Option<&'ast Function<'ast>> {
+	fn get_main_func(&self) -> PResult<&'ast Function<'ast>> {
 		self.c
 			.main_func
 			.get(|| main_func_finder::find(self))
+			.ok_or_else(|| {
+				err(self.prog, "could not find the module's main function")
+			})
 	}
 	/// checks if the expression is `wreq` or `wreq.n`
 	fn is_import_callee(
@@ -1010,7 +1022,7 @@ impl<'ast> WebpackAstParser<'ast> {
 				return false;
 			}
 			// we cant import anything if we dont have wreq
-			let wreq = self.wreq()?;
+			let wreq = self.wreq().ok()?;
 			let mut last_decl_id = SymbolId::MAX_INDEX;
 			let mut iter = node
 				.declarations
@@ -1083,7 +1095,7 @@ impl<'ast> WebpackAstParser<'ast> {
 		let ret = try {
 			// wreq(...); must be a call expr
 			let call = stmt.expression.as_call_expression()?;
-			let wreq = self.wreq()?;
+			let wreq = self.wreq().ok()?;
 			// it must be a call on a plain identifier
 			// webpack will do an indirect call on imports to change the `this` value
 			// eg: `(0, foo.default)(...)`, which is not a side effect import
@@ -1097,8 +1109,9 @@ impl<'ast> WebpackAstParser<'ast> {
 		ret.unwrap_or(false)
 	}
 
+	// FIXME: make PResult?
 	fn count_num_concatentated_modules(&self) -> Option<u32> {
-		let main_func = self.get_main_func()?;
+		let main_func = self.get_main_func().ok()?;
 		let mut count = 0;
 		let mut last_was_import_block = false;
 		for stmt in &main_func
@@ -1273,10 +1286,12 @@ impl<'ast> WebpackAstParser<'ast> {
 	fn resolve_definition(
 		&self,
 		selected_node: AstKind<'ast>,
-	) -> Result<ResolvedDefinition<'ast>> {
+	) -> PResult<ResolvedDefinition<'ast>> {
 		let access_chain = self
 			.find_parent(selected_node.node_id(), MemberExprRef::from_node)
-			.context("Could not find access chain")?;
+			.ok_or_else(|| {
+				err(&selected_node, "Could not find access chain")
+			})?;
 		let (required_module, names) =
 			flatten_property_access_expression(access_chain);
 		// TODO: should this check if requiredModule.expression is wreq
@@ -1294,12 +1309,14 @@ impl<'ast> WebpackAstParser<'ast> {
 		} else {
 			None
 		};
-		let module_id =
-			module_id.context("Failed to get module id from access chain")?;
+		let module_id = module_id.ok_or_else(|| {
+			err(required_module, "Failed to get module id from access chain")
+		})?;
 
 		let mut cur = self.try_get_module_parser(module_id)?;
-		if cfg!(debug_assertions) && cur.get_module_id() != Some(module_id) {
-			warn!(ast=?module_id, parser=?cur.get_module_id(),"Parser did not return the same module id as the AST.");
+		if cur.get_module_id().ok() != Some(module_id)
+		{
+			warn!(ast=?module_id, parser=?cur.get_module_id().ok(),"Parser did not return the same module id as the AST.");
 		}
 		debug_assert!(!names.is_empty(), "document how");
 		if names.is_empty() {
@@ -1350,9 +1367,7 @@ impl<'ast> WebpackAstParser<'ast> {
 				.map(ExportMapKey::from_str)
 				.collect_vec();
 			raw_names.truncate(mapped_names.len());
-			cur = self
-				.try_get_module_parser(import_source_id)
-				.context("Failed to get module parser")?;
+			cur = self.try_get_module_parser(import_source_id)?;
 		}
 		Ok(ResolvedDefinition {
 			export_names: mapped_names,
@@ -1394,16 +1409,20 @@ impl<'ast> WebpackAstParser<'ast> {
 		}
 		range
 	}
-	fn try_get_module_parser(&self, module_id: ModuleId) -> Result<Rc<Self>> {
+	fn try_get_module_parser(&self, module_id: ModuleId) -> PResult<Rc<Self>> {
 		self.module_cache
 			.get_latest_module_parser(self, module_id)
-			.map_err(map_anyhow)
+			.map_err(|e| {
+				err_ns(format!("Failed to get parser for module {module_id}"))
+					.s(map_anyhow(e))
+			})
 	}
 	/// Gets the [`ModuleId`] from a require by the returned symbol id
 	/// ```js
 	/// var mod = wreq(123);
 	/// ```
 	/// given the symbol id of `mod`, this function would return `Some(ModuleId(123))`
+	// FIXME: make PResult?
 	fn get_module_id_for_import(&self, sym_id: SymbolId) -> Option<ModuleId> {
 		let decl = self
 			.sema
@@ -1415,7 +1434,7 @@ impl<'ast> WebpackAstParser<'ast> {
 			.as_ref()?
 			.as_call_expression()?;
 		// make sure init is a call to wreq
-		if !self.cmp_sym(init.callee.as_identifier()?, &self.wreq()?) {
+		if !self.cmp_sym(init.callee.as_identifier()?, &self.wreq().ok()?) {
 			return None;
 		}
 		let args = &init.arguments;
@@ -1430,34 +1449,39 @@ impl<'ast> WebpackAstParser<'ast> {
 	fn generate_direct_module_definition(
 		&self,
 		node: &'ast NumericLiteral<'ast>,
-	) -> Result<Vec<bundle::Definition<'ast>>> {
+	) -> PResult<Vec<bundle::Definition<'ast>>> {
 		let call = self
 			.p(node.node_id())
 			.as_call_expression()
-			.context("number parent is not a call")?;
+			.ok_or_else(|| err(node, "number parent is not a call"))?;
 		if call.arguments.len() != 1 {
-			bail!("expected module it to be the only argument");
+			return Err(err(
+				call,
+				"expected the module id to be the only argument",
+			));
 		}
 		let func = call
 			.callee
 			.as_identifier()
-			.context("expected callee to be an ident")?;
-		if !self.cmp_sym(
-			func,
-			&self
-				.wreq()
-				.context("couldnt find wreq")?,
-		) {
-			bail!("expected callee to be wreq");
+			.ok_or_else(|| {
+				err(&call.callee, "expected callee to be an ident")
+			})?;
+		if !self.cmp_sym(func, &self.wreq()?) {
+			return Err(err(func, "expected callee to be wreq"));
 		}
 		let module_id = node
 			.as_u32()
-			.context("number is not a valid module it")?
+			.ok_or_else(|| err(node, "number is not a valid module id"))?
 			.into();
 		let file_path = self
 			.module_cache
 			.get_module_filepath(module_id)
-			.context("Could not get module filepath")?;
+			.ok_or_else(|| {
+				err(
+					node,
+					format!("Could not get the filepath of module {module_id}"),
+				)
+			})?;
 		let ret = vec![bundle::Definition {
 			range: Span::default(),
 			module_id,
@@ -1503,21 +1527,34 @@ impl<'ast> WebpackAstParser<'ast> {
 	}
 	/// `exports` in `function(module, exports, wreq) {...}`
 	/// also commonly `t` in `function(e, t, n) {...}`
-	fn webpack_exports(&self) -> Option<SymbolId> {
+	fn webpack_exports(&self) -> PResult<SymbolId> {
 		self.c
 			.t
 			.get(|| self.find_webpack_arg(1))
+			.ok_or_else(|| self.missing_webpack_arg(1, "exports"))
 	}
 	/// `__webpack_require__` in `function(module, exports, __webpack_require__) {...}`
 	/// also commonly `t` in `function(e, t, n) {...}`
-	fn wreq(&self) -> Option<SymbolId> {
+	fn wreq(&self) -> PResult<SymbolId> {
 		self.c
 			.wreq
 			.get(|| self.find_webpack_arg(2))
+			.ok_or_else(|| self.missing_webpack_arg(2, "__webpack_require__"))
 	}
 	// TODO: would it be better to cache these in a vec or smth
-	fn wreq_uses(&self) -> Option<impl Iterator<Item = AstKind<'ast>> + '_> {
-		Some(self.ref_nodes(self.wreq()?))
+	fn wreq_uses(&self) -> PResult<impl Iterator<Item = AstKind<'ast>> + '_> {
+		Ok(self.ref_nodes(self.wreq()?))
+	}
+	/// the error for a parameter of `function(module, exports, wreq) {...}`
+	/// that could not be found
+	fn missing_webpack_arg(&self, index: u8, name: &str) -> ParserDiagnostic {
+		let msg = format!(
+			"could not find the `{name}` argument (index {index}) of the module function"
+		);
+		match self.get_main_func() {
+			Ok(main_func) => err(main_func, msg),
+			Err(e) => err_ns(msg).s(e),
+		}
 	}
 	fn text(&self, span: &impl GetSpan) -> &'ast str {
 		&self.source[span.span()]
@@ -1535,7 +1572,7 @@ impl<'ast> WebpackAstParser<'ast> {
 
 	// TODO: Add tests
 	fn get_imported_var(&self, module_id: ModuleId) -> Option<SymbolId> {
-		let usage = self.refs(self.wreq()?).find(|u| {
+		let usage = self.refs(self.wreq().ok()?).find(|u| {
 			self.find_parent(*u, AstKind::as_call_expression)
 				.is_some_and(|call| {
 					call.arguments.len() == 1
@@ -1564,20 +1601,22 @@ impl<'ast> WebpackAstParser<'ast> {
 	/// // ...
 	/// }
 	/// ```
-	fn mod_arg(&self) -> Option<SymbolId> {
+	fn mod_arg(&self) -> PResult<SymbolId> {
 		self.c
 			.mod_arg
 			.get(|| self.find_webpack_arg(0))
+			.ok_or_else(|| self.missing_webpack_arg(0, "module"))
 	}
 	/// TODO: document
-	fn exports_arg(&self) -> Option<SymbolId> {
+	fn exports_arg(&self) -> PResult<SymbolId> {
 		self.c
 			.exports_arg
 			.get(|| self.find_webpack_arg(1))
+			.ok_or_else(|| self.missing_webpack_arg(1, "exports"))
 	}
 	/// TODO: document
 	fn get_export_map_raw_module_exports(&self) -> Option<RawExportMap<'ast>> {
-		let mod_arg = self.mod_arg()?;
+		let mod_arg = self.mod_arg().ok()?;
 		let mut ret = RawExportMap::default();
 		for usage in self.ref_nodes(mod_arg) {
 			let usage = usage.as_identifier_reference().unwrap();
@@ -1607,7 +1646,7 @@ impl<'ast> WebpackAstParser<'ast> {
 							if !ret.exports.is_empty() {
 								debug!(
 									"module.exports in module id {:?} is assigned to more than once",
-									self.get_module_id()
+									self.get_module_id().ok()
 								);
 								continue;
 							}
@@ -1636,7 +1675,7 @@ impl<'ast> WebpackAstParser<'ast> {
 					if ret.exports.contains_key(&key_txt) {
 						debug!(
 							"module.exports.{key_txt} is assigned to more than once in module id {:?}",
-							self.get_module_id()
+							self.get_module_id().ok()
 						);
 						continue;
 					}
@@ -1649,7 +1688,7 @@ impl<'ast> WebpackAstParser<'ast> {
 	}
 	fn get_export_map_raw_wreq_t(&self) -> Option<RawExportMap<'ast>> {
 		let mut ret = RawExportMap::default();
-		for usage in self.ref_nodes(self.exports_arg()?) {
+		for usage in self.ref_nodes(self.exports_arg().ok()?) {
 			let usage = usage.as_identifier_reference().unwrap();
 			let Some(export_access) = self
 				.p(usage.node_id())
@@ -1679,8 +1718,8 @@ impl<'ast> WebpackAstParser<'ast> {
 
 	fn impl_find_wreq_d(&self) -> Option<WreqD<'ast>> {
 		// `t` in function(e, t, n) {...} where `n` is `__webpack_require__`
-		let exports_decl = self.webpack_exports()?;
-		for use_ in self.wreq_uses()? {
+		let exports_decl = self.webpack_exports().ok()?;
+		for use_ in self.wreq_uses().ok()? {
 			let ret = try {
 				// `wreq.d` in `wreq.d(...)`
 				let wreq_d_expr = self
@@ -1893,8 +1932,8 @@ impl<'ast> WebpackAstParser<'ast> {
 			.is_some_and(|s| s == "displayName")
 	}
 	fn does_re_export_whole_module_impl(&self) -> Option<ModuleId> {
-		let mod_arg = self.mod_arg()?;
-		for use_ in self.wreq_uses()? {
+		let mod_arg = self.mod_arg().ok()?;
+		for use_ in self.wreq_uses().ok()? {
 			let _: Option<()> = try {
 				let assignment = self.find_parent(
 					use_.node_id(),
@@ -1969,7 +2008,7 @@ impl<'ast> WebpackAstParser<'ast> {
 	/// ]).then(n.bind(n, 577593));
 	/// ```
 	fn collect_lazy_chunk_requires(&self) -> Vec<&'ast CallExpression<'ast>> {
-		let Some(wreq) = self.wreq() else {
+		let Ok(wreq) = self.wreq() else {
 			return Vec::new();
 		};
 		let mut calls = Vec::new();
@@ -2005,7 +2044,7 @@ impl<'ast> WebpackAstParser<'ast> {
 	/// simalar to [`Self::count_num_concatentated_modules`]
 	fn get_import_spans(&self) -> RangeSet<u32> {
 		let mut rs = RangeSet::new();
-		let Some(mf) = self.get_main_func() else {
+		let Ok(mf) = self.get_main_func() else {
 			return rs;
 		};
 		let mut last_was_import_block = false;
@@ -2272,7 +2311,7 @@ impl<'ast> WebpackAstParser<'ast> {
 					);
 					tl
 				}
-				_ => todo!("mid: {:?} score token {:#?}", self.get_module_id(), t),
+				_ => todo!("mid: {:?} score token {:#?}", self.get_module_id().ok(), t),
 			};
 			ts += score;
 		}
@@ -2831,7 +2870,7 @@ impl<'ast> WebpackAstParser<'ast> {
 				);
 				if name.is_none() {
 					warn!(
-						module_id=?self.get_module_id(),
+						module_id=?self.get_module_id().ok(),
 						"Store has displayName prop but could not resolve display name. This should not happen"
 					);
 				}

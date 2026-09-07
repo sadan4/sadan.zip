@@ -2,6 +2,8 @@
 use anyhow::Result;
 use oxc::allocator::Allocator;
 
+use parser_diag::ParserDiagnostic;
+
 use crate::{
 	formatted_content_builder::FormattedContentBuilder,
 	javascript_formatter::JavaScriptFormatter,
@@ -17,6 +19,48 @@ pub struct FormattedContent {
 	pub code: String,
 	/// `Vec<(original_position, formatted_position)>`
 	pub mappings: Vec<(u32, u32)>,
+}
+
+impl FormattedContent {
+	/// The position in [`Self::code`] that `original` (a position in the
+	/// source this was formatted from) maps to.
+	#[must_use]
+	pub fn map_pos(&self, original: u32) -> u32 {
+		map_pos(&self.mappings, original)
+	}
+}
+
+/// `mappings` must be sorted in ascending original position order, which is
+/// how [`FormattedContent::mappings`] is built.
+#[must_use]
+pub fn map_pos(mappings: &[(u32, u32)], original: u32) -> u32 {
+	let index = mappings.partition_point(|&(before, _)| before <= original);
+
+	let Some(&(before, after)) = index
+		.checked_sub(1)
+		.and_then(|i| mappings.get(i))
+	else {
+		return 0;
+	};
+
+	after + (original - before)
+}
+
+/// Renders `e` against a pretty printed copy of `source`, remapping its spans
+/// into the formatted text so the labelled source is readable.
+///
+/// Falls back to rendering against `source` itself when it cannot be
+/// formatted.
+#[must_use]
+pub fn render_diag(e: ParserDiagnostic, source: &str, name: &str) -> String {
+	match format(source, 4) {
+		Ok(fmt) => format!(
+			"{:?}",
+			e.remap_spans(|pos| fmt.map_pos(pos))
+				.with_local_source(&fmt.code, name)
+		),
+		Err(_) => format!("{:?}", e.with_local_source(source, name)),
+	}
 }
 
 pub fn format_to_str(source: &str, indent_size: u8) -> Result<String> {

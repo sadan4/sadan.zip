@@ -14,6 +14,7 @@ use itertools::Itertools;
 use miette::{Result, miette};
 use miette_ctx::{ErrCtx as _, into_anyhow};
 use oxc::{allocator::Allocator, span::Span};
+use parser_diag::PResult;
 use smol_str::SmolStr;
 use webpack_ast_parser::{
 	WebpackAstParser,
@@ -142,7 +143,7 @@ impl<'a> Bundle<'a> {
 		parser: &WebpackAstParser,
 		line: u32,
 		col: u32,
-	) -> Result<Vec<ReferenceDumper<'a>>> {
+	) -> PResult<Vec<ReferenceDumper<'a>>> {
 		let pos =
 			get_offset_from_line_and_column(parser.get_source(), line, col);
 		parser
@@ -168,7 +169,7 @@ impl<'a> Bundle<'a> {
 		parser: &WebpackAstParser,
 		line: u32,
 		col: u32,
-	) -> Result<Vec<DefinitionDumper<'a>>> {
+	) -> PResult<Vec<DefinitionDumper<'a>>> {
 		let pos =
 			get_offset_from_line_and_column(parser.get_source(), line, col);
 		parser

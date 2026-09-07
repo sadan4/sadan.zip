@@ -13,6 +13,7 @@ anyhow.workspace = true
 oxc = { workspace = true, features = ["ast_visit"] }
 derive_more.workspace = true
 memchr.workspace = true
+parser_diag.workspace = true
 clap.workspace = true
 clap_complete.workspace = true
 unicode-ident.workspace = true

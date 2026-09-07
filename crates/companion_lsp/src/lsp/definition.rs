@@ -183,7 +183,14 @@ fn resolve_definitions(
 	let defs = match parser.generate_definitions(offset) {
 		Ok(d) => d,
 		Err(e) => {
-			tracing::debug!(?e, "generate_definitions failed");
+			let name = parser.get_module_id().map_or_else(
+				|_| "<unknown module>".to_owned(),
+				|id| format!("{id}.js"),
+			);
+			tracing::debug!(
+				"generate_definitions failed: {:?}",
+				e.with_local_source(source, &name)
+			);
 			return None;
 		}
 	};

@@ -4,7 +4,7 @@ use arrayvec::ArrayVec;
 use daft::Diffable;
 use explorer_types::ModuleId;
 use itertools::Itertools;
-use miette::Result;
+use miette::{Result, miette};
 use miette_ctx::ErrCtx as _;
 use oxc_allocator::AllocatorPool;
 use pretty_printer::format_to_str;
@@ -264,8 +264,17 @@ impl<'a> ModuleTracker<'a> {
 			.get(&prev_mid)
 			.expect("previous module should exist");
 		// get old module info
-		let parser = WebpackAstParser::try_new(alloc, prev_module)
-			.context("Failed to parse previous module")?;
+		let parser =
+			WebpackAstParser::try_new(alloc, prev_module).map_err(|e| {
+				miette!(
+					"Failed to parse previous module: {}",
+					pretty_printer::render_diag(
+						e,
+						prev_module,
+						&format!("{prev_mid}.js")
+					)
+				)
+			})?;
 		let formatted_txt = format_to_str(prev_module, 0)
 			.context("Failed to format previous module")?;
 		let prev_info = PreviousModuleInfo {
@@ -286,7 +295,12 @@ impl<'a> ModuleTracker<'a> {
 	}
 	fn confidence_for(&self, k: ModuleId, v: &str) -> Result<Confidence> {
 		let alloc = &*self.pool.get();
-		let parser = WebpackAstParser::try_new(alloc, v)?;
+		let parser = WebpackAstParser::try_new(alloc, v).map_err(|e| {
+			miette!(
+				"Failed to parse module: {}",
+				pretty_printer::render_diag(e, v, &format!("{k}.js"))
+			)
+		})?;
 		let new_export_map = clear::map(parser.get_export_map().clone());
 		let num_concatenated = parser.num_concatenated_modules();
 		let exports =

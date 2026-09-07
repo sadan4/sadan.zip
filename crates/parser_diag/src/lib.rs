@@ -44,6 +44,23 @@ impl ParserDiagnostic {
 		self
 	}
 
+	/// Rewrite every label offset with `f`.
+	///
+	/// Used to move a diagnostic from the coordinates of the source it was
+	/// parsed from into the coordinates of the text it is rendered against,
+	/// eg the pretty printed module.
+	///
+	/// Only this diagnostic's own labels are remapped; a [`Self::cause`]
+	/// attached with [`Self::s`] is an opaque [`miette::Diagnostic`] and keeps
+	/// its original offsets.
+	#[must_use]
+	pub fn remap_spans(mut self, f: impl Fn(u32) -> u32) -> Self {
+		for (span, _) in &mut self.labels {
+			*span = Span::new(f(span.start), f(span.end));
+		}
+		self
+	}
+
 	#[must_use]
 	pub fn with_local_source<'a>(
 		self,

@@ -132,7 +132,14 @@ fn compute_references(
 	let refs = match parser.generate_references(offset) {
 		Ok(r) => r,
 		Err(e) => {
-			tracing::debug!(?e, "generate_references failed");
+			let name = parser.get_module_id().map_or_else(
+				|_| "<unknown module>".to_owned(),
+				|id| format!("{id}.js"),
+			);
+			tracing::debug!(
+				"generate_references failed: {:?}",
+				e.with_local_source(source, &name)
+			);
 			return None;
 		}
 	};
