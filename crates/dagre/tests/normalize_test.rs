@@ -41,7 +41,10 @@ fn run_does_not_change_a_short_edge() {
 	normalize::run(&mut g);
 	let es = g.edges();
 	assert_eq!(es.len(), 1);
-	assert_eq!((es[0].v.as_str(), es[0].w.as_str()), ("a", "b"));
+	assert_eq!(
+		(g.name_or_idx(es[0].v), g.name_or_idx(es[0].w)),
+		("a".to_string(), "b".to_string())
+	);
 	assert_eq!(g.node("a").unwrap().rank, Some(0));
 	assert_eq!(g.node("b").unwrap().rank, Some(1));
 }
@@ -71,7 +74,7 @@ fn run_splits_two_layer_edge_into_two_segments() {
 	let dn = g.node(dummy).unwrap();
 	assert_eq!(dn.dummy, Some(Dummy::Edge));
 	assert_eq!(dn.rank, Some(1));
-	assert_eq!(g.successors(dummy).unwrap(), vec!["b".to_string()]);
+	assert_eq!(g.names_of(&g.successors(dummy).unwrap()), ["b"]);
 	let chains = g
 		.graph()
 		.unwrap()
@@ -109,8 +112,8 @@ fn run_assigns_zero_dims_to_dummy_nodes_by_default() {
 		},
 	);
 	normalize::run(&mut g);
-	let dummy = g.successors("a").unwrap()[0].clone();
-	let dn = g.node(&dummy).unwrap();
+	let dummy = g.successors("a").unwrap()[0];
+	let dn = g.node(dummy).unwrap();
 	assert_eq!(dn.width, 0.0);
 	assert_eq!(dn.height, 0.0);
 }
@@ -143,9 +146,9 @@ fn run_assigns_dims_from_edge_for_node_on_label_rank() {
 		},
 	);
 	normalize::run(&mut g);
-	let first = g.successors("a").unwrap()[0].clone();
-	let label_v = g.successors(&first).unwrap()[0].clone();
-	let label_node = g.node(&label_v).unwrap();
+	let first = g.successors("a").unwrap()[0];
+	let label_v = g.successors(first).unwrap()[0];
+	let label_node = g.node(label_v).unwrap();
 	assert_eq!(label_node.width, 20.0);
 	assert_eq!(label_node.height, 10.0);
 }
@@ -178,7 +181,7 @@ fn run_preserves_edge_weight() {
 	normalize::run(&mut g);
 	let succ = g.successors("a").unwrap();
 	assert_eq!(succ.len(), 1);
-	let e = g.edge("a", &succ[0]).unwrap();
+	let e = g.edge("a", succ[0]).unwrap();
 	assert_eq!(e.weight, 2.0);
 }
 
@@ -204,7 +207,10 @@ fn undo_reverses_run() {
 	normalize::undo(&mut g);
 	let es = g.edges();
 	assert_eq!(es.len(), 1);
-	assert_eq!((es[0].v.as_str(), es[0].w.as_str()), ("a", "b"));
+	assert_eq!(
+		(g.name_or_idx(es[0].v), g.name_or_idx(es[0].w)),
+		("a".to_string(), "b".to_string())
+	);
 	assert_eq!(g.node("a").unwrap().rank, Some(0));
 	assert_eq!(g.node("b").unwrap().rank, Some(2));
 }
@@ -228,8 +234,8 @@ fn undo_collects_assigned_coordinates_into_points() {
 	);
 	g.set_edge("a", "b", EdgeLabel::default());
 	normalize::run(&mut g);
-	let dummy = g.neighbors("a").unwrap()[0].clone();
-	if let Some(n) = g.node_mut(&dummy) {
+	let dummy = g.neighbors("a").unwrap()[0];
+	if let Some(n) = g.node_mut(dummy) {
 		n.x = Some(5.0);
 		n.y = Some(10.0);
 	}
@@ -263,9 +269,9 @@ fn undo_merges_coordinates_along_long_edge() {
 	g.set_edge("a", "b", EdgeLabel::default());
 	normalize::run(&mut g);
 	// Three dummy nodes: a -> d1 -> d2 -> d3 -> b
-	let d1 = g.successors("a").unwrap()[0].clone();
-	let d2 = g.successors(&d1).unwrap()[0].clone();
-	let d3 = g.successors(&d2).unwrap()[0].clone();
+	let d1 = g.successors("a").unwrap()[0];
+	let d2 = g.successors(d1).unwrap()[0];
+	let d3 = g.successors(d2).unwrap()[0];
 	for (v, x, y) in [(&d1, 5.0, 10.0), (&d2, 20.0, 25.0), (&d3, 100.0, 200.0)]
 	{
 		if let Some(n) = g.node_mut(v) {
@@ -318,8 +324,8 @@ fn undo_sets_coords_and_dims_when_short_edge_has_label() {
 		},
 	);
 	normalize::run(&mut g);
-	let label_v = g.successors("a").unwrap()[0].clone();
-	if let Some(n) = g.node_mut(&label_v) {
+	let label_v = g.successors("a").unwrap()[0];
+	if let Some(n) = g.node_mut(label_v) {
 		n.x = Some(50.0);
 		n.y = Some(60.0);
 		n.width = 20.0;
@@ -350,31 +356,33 @@ fn undo_restores_multi_edges() {
 			..Default::default()
 		},
 	);
-	g.set_edge_named("a", "b", EdgeLabel::default(), Some("bar".into()));
-	g.set_edge_named("a", "b", EdgeLabel::default(), Some("foo".into()));
+	let bar = g.fresh_edge_name();
+	let foo = g.fresh_edge_name();
+	g.set_edge_named("a", "b", EdgeLabel::default(), Some(bar));
+	g.set_edge_named("a", "b", EdgeLabel::default(), Some(foo));
 	normalize::run(&mut g);
 
 	let mut out_edges = g.out_edges("a").unwrap();
-	out_edges.sort_by(|a, b| a.name.cmp(&b.name));
+	out_edges.sort_by_key(|a| a.name);
 	assert_eq!(out_edges.len(), 2);
 
-	let bar_dummy = out_edges[0].w.clone();
-	let foo_dummy = out_edges[1].w.clone();
-	if let Some(n) = g.node_mut(&bar_dummy) {
+	let bar_dummy = out_edges[0].w;
+	let foo_dummy = out_edges[1].w;
+	if let Some(n) = g.node_mut(bar_dummy) {
 		n.x = Some(5.0);
 		n.y = Some(10.0);
 	}
-	if let Some(n) = g.node_mut(&foo_dummy) {
+	if let Some(n) = g.node_mut(foo_dummy) {
 		n.x = Some(15.0);
 		n.y = Some(20.0);
 	}
 	normalize::undo(&mut g);
 	assert!(!g.has_edge("a", "b"));
 	let bar = g
-		.edge_full("a", "b", Some("bar"))
+		.edge_full("a", "b", Some(bar))
 		.unwrap();
 	let foo = g
-		.edge_full("a", "b", Some("foo"))
+		.edge_full("a", "b", Some(foo))
 		.unwrap();
 	assert_eq!(
 		bar.points.clone().unwrap_or_default(),

@@ -1,54 +1,38 @@
-//! Utility helpers — port of `lib/util.ts`.
+//! Utility helpers - port of `lib/util.ts`.
+
+use rustc_hash::FxHashMap;
 
 use crate::{
-	graph::{Edge, Graph, GraphOpts, NodeId},
+	graph::{Edge, Graph, GraphOpts, NodeIdx},
 	types::{Dummy, EdgeLabel, GraphLabel, NodeLabel, Point},
 };
-use std::{
-	collections::HashMap,
-	sync::atomic::{AtomicUsize, Ordering},
-};
 
-static ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
-
-pub fn unique_id(prefix: &str) -> NodeId {
-	let id = ID_COUNTER.fetch_add(1, Ordering::SeqCst) + 1;
-	format!("{prefix}{id}").into()
-}
-
-/// Reset the global id counter — useful in tests for determinism. Not
-/// thread-safe across parallel tests; tests that need it run single-threaded.
-#[cfg(test)]
-pub fn reset_unique_id() {
-	ID_COUNTER.store(0, Ordering::SeqCst);
-}
-
+/// Append a dummy node. Dummies carry no name: `NodeLabel.dummy` is what
+/// identifies them, and minting a `_d{n}` string for each of the tens of
+/// thousands `normalize` creates was pure overhead.
 pub fn add_dummy_node(
 	g: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>,
 	dummy_type: Dummy,
 	mut attrs: NodeLabel,
-	name: &str,
-) -> NodeId {
-	let mut v: NodeId = name.into();
-	while g.has_node(&v) {
-		v = unique_id(name);
-	}
+) -> NodeIdx {
 	attrs.dummy = Some(dummy_type);
-	g.set_node(v.clone(), attrs);
-	v
+	g.add_node(attrs)
 }
 
 /// Returns a new graph with only simple edges (no multi-edges). Weights are
 /// summed; minlen takes the max. Aggregates correspond to the JS `simplify`.
+///
+/// Node indices are preserved, so ranks can be copied straight back.
 pub fn simplify(
 	graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
 ) -> Graph<GraphLabel, NodeLabel, EdgeLabel> {
 	let mut s: Graph<GraphLabel, NodeLabel, EdgeLabel> = Graph::new();
+	s.reserve_nodes(graph.node_bound());
 	if let Some(g) = graph.graph() {
 		s.set_graph(g.clone());
 	}
 	for v in graph.nodes() {
-		if let Some(n) = graph.node(&v) {
+		if let Some(n) = graph.node(v) {
 			s.set_node(v, n.clone());
 		}
 	}
@@ -58,7 +42,7 @@ pub fn simplify(
 			.cloned()
 			.unwrap_or_default();
 		let prev = s
-			.edge(&e.v, &e.w)
+			.edge(e.v, e.w)
 			.cloned()
 			.unwrap_or_else(|| EdgeLabel {
 				weight: 0.0,
@@ -66,8 +50,8 @@ pub fn simplify(
 				..Default::default()
 			});
 		s.set_edge(
-			e.v.clone(),
-			e.w.clone(),
+			e.v,
+			e.w,
 			EdgeLabel {
 				weight: prev.weight + label.weight,
 				minlen: prev.minlen.max(label.minlen),
@@ -87,12 +71,13 @@ pub fn as_non_compound_graph(
 			multigraph: graph.is_multigraph(),
 			compound: false,
 		});
+	s.reserve_nodes(graph.node_bound());
 	if let Some(g) = graph.graph() {
 		s.set_graph(g.clone());
 	}
 	for v in graph.nodes() {
-		if graph.children(Some(&v)).is_empty()
-			&& let Some(n) = graph.node(&v)
+		if graph.children(Some(v)).is_empty()
+			&& let Some(n) = graph.node(v)
 		{
 			s.set_node(v, n.clone());
 		}
@@ -102,23 +87,23 @@ pub fn as_non_compound_graph(
 			.edge_obj(&e)
 			.cloned()
 			.unwrap_or_default();
-		s.set_edge_named(e.v.clone(), e.w.clone(), l, e.name.clone());
+		s.set_edge_named(e.v, e.w, l, e.name);
 	}
 	s
 }
 
 pub fn successor_weights(
 	graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
-) -> HashMap<NodeId, HashMap<NodeId, f64>> {
-	let mut out = HashMap::new();
+) -> FxHashMap<NodeIdx, FxHashMap<NodeIdx, f64>> {
+	let mut out = FxHashMap::default();
 	for v in graph.nodes() {
-		let mut sucs: HashMap<NodeId, f64> = HashMap::new();
-		if let Some(es) = graph.out_edges(&v) {
+		let mut sucs: FxHashMap<NodeIdx, f64> = FxHashMap::default();
+		if let Some(es) = graph.out_edges(v) {
 			for e in es {
 				let w = graph
 					.edge_obj(&e)
 					.map_or(0.0, |l| l.weight);
-				*sucs.entry(e.w.clone()).or_insert(0.0) += w;
+				*sucs.entry(e.w).or_insert(0.0) += w;
 			}
 		}
 		out.insert(v, sucs);
@@ -128,16 +113,16 @@ pub fn successor_weights(
 
 pub fn predecessor_weights(
 	graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
-) -> HashMap<NodeId, HashMap<NodeId, f64>> {
-	let mut out = HashMap::new();
+) -> FxHashMap<NodeIdx, FxHashMap<NodeIdx, f64>> {
+	let mut out = FxHashMap::default();
 	for v in graph.nodes() {
-		let mut preds: HashMap<NodeId, f64> = HashMap::new();
-		if let Some(es) = graph.in_edges(&v) {
+		let mut preds: FxHashMap<NodeIdx, f64> = FxHashMap::default();
+		if let Some(es) = graph.in_edges(v) {
 			for e in es {
 				let w = graph
 					.edge_obj(&e)
 					.map_or(0.0, |l| l.weight);
-				*preds.entry(e.v.clone()).or_insert(0.0) += w;
+				*preds.entry(e.v).or_insert(0.0) += w;
 			}
 		}
 		out.insert(v, preds);
@@ -152,9 +137,10 @@ pub fn intersect_rect(rect: &NodeLabel, point: Point) -> Point {
 	let dy = point.y - y;
 	let mut w = rect.width / 2.0;
 	let mut h = rect.height / 2.0;
-	if dx == 0.0 && dy == 0.0 {
-		panic!("Not possible to find intersection inside of the rectangle");
-	}
+	assert!(
+		!(dx == 0.0 && dy == 0.0),
+		"Not possible to find intersection inside of the rectangle"
+	);
 	let (sx, sy);
 	if dy.abs() * w > dx.abs() * h {
 		if dy < 0.0 {
@@ -177,18 +163,18 @@ pub fn intersect_rect(rect: &NodeLabel, point: Point) -> Point {
 
 pub fn build_layer_matrix(
 	graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
-) -> Vec<Vec<NodeId>> {
+) -> Vec<Vec<NodeIdx>> {
 	let mx = max_rank(graph);
 	if mx < 0 {
 		return Vec::new();
 	}
 	// Bucket each node into its rank, then sort each bucket by `order`. The
 	// previous implementation indexed `layers[rank][order] = v` directly and
-	// padded missing slots with `String::new()` — but `order` is sparse (gaps
-	// from dummy removal etc.) and downstream code (`vertical_alignment`,
-	// `build_block_graph`) treats those empty strings as real nodes, which
-	// silently corrupts root/pos maps and causes nodes to share x positions.
-	let mut layers: Vec<Vec<(usize, NodeId)>> = (0..=mx as usize)
+	// padded missing slots - but `order` is sparse (gaps from dummy removal
+	// etc.) and downstream code (`vertical_alignment`, `build_block_graph`)
+	// treats those padding entries as real nodes, which silently corrupts
+	// root/pos maps and causes nodes to share x positions.
+	let mut layers: Vec<Vec<(usize, NodeIdx)>> = (0..=mx as usize)
 		.map(|_| Vec::new())
 		.collect();
 	for v in graph.nodes_iter() {
@@ -200,7 +186,7 @@ pub fn build_layer_matrix(
 			if r >= layers.len() {
 				layers.resize_with(r + 1, Vec::new);
 			}
-			layers[r].push((n.order.unwrap_or(0), v.into()));
+			layers[r].push((n.order.unwrap_or(0), v));
 		}
 	}
 	layers
@@ -233,8 +219,8 @@ pub fn max_rank(graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>) -> i32 {
 
 pub fn normalize_ranks(graph: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>) {
 	let mut min = i32::MAX;
-	for v in graph.nodes() {
-		if let Some(n) = graph.node(&v)
+	for v in graph.nodes_iter() {
+		if let Some(n) = graph.node(v)
 			&& let Some(r) = n.rank
 			&& r < min
 		{
@@ -245,7 +231,7 @@ pub fn normalize_ranks(graph: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>) {
 		return;
 	}
 	for v in graph.nodes() {
-		if let Some(n) = graph.node_mut(&v)
+		if let Some(n) = graph.node_mut(v)
 			&& let Some(r) = n.rank
 		{
 			n.rank = Some(r - min);
@@ -255,17 +241,15 @@ pub fn normalize_ranks(graph: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>) {
 
 pub fn remove_empty_ranks(graph: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>) {
 	let ranks: Vec<i32> = graph
-		.nodes()
-		.iter()
+		.nodes_iter()
 		.filter_map(|v| graph.node(v).and_then(|n| n.rank))
 		.collect();
-	if ranks.is_empty() {
+	let Some(&offset) = ranks.iter().min() else {
 		return;
-	}
-	let offset = *ranks.iter().min().unwrap();
-	let mut layers: Vec<Option<Vec<NodeId>>> = Vec::new();
-	for v in graph.nodes() {
-		if let Some(n) = graph.node(&v)
+	};
+	let mut layers: Vec<Option<Vec<NodeIdx>>> = Vec::new();
+	for v in graph.nodes_iter() {
+		if let Some(n) = graph.node(v)
 			&& let Some(r) = n.rank
 		{
 			let idx = (r - offset) as usize;
@@ -274,7 +258,7 @@ pub fn remove_empty_ranks(graph: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>) {
 			}
 			layers[idx]
 				.get_or_insert_with(Vec::new)
-				.push(v.clone());
+				.push(v);
 		}
 	}
 	let factor = graph
@@ -282,7 +266,7 @@ pub fn remove_empty_ranks(graph: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>) {
 		.and_then(|g| g.node_rank_factor)
 		.unwrap_or(0.0) as i32;
 	let mut delta = 0i32;
-	for (i, vs) in layers.iter().enumerate() {
+	for (i, vs) in layers.clone().into_iter().enumerate() {
 		match vs {
 			None if factor != 0 && i as i32 % factor != 0 => {
 				delta -= 1;
@@ -303,10 +287,9 @@ pub fn remove_empty_ranks(graph: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>) {
 
 pub fn add_border_node(
 	graph: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>,
-	prefix: &str,
 	rank: Option<i32>,
 	order: Option<usize>,
-) -> NodeId {
+) -> NodeIdx {
 	let node = NodeLabel {
 		width: 0.0,
 		height: 0.0,
@@ -314,7 +297,7 @@ pub fn add_border_node(
 		order,
 		..Default::default()
 	};
-	add_dummy_node(graph, Dummy::Border, node, prefix)
+	add_dummy_node(graph, Dummy::Border, node)
 }
 
 pub fn range(start: i32, limit: i32, step: i32) -> Vec<i32> {
@@ -355,7 +338,7 @@ pub fn partition<T, F: Fn(&T) -> bool>(
 	(lhs, rhs)
 }
 
-/// Aggregate the weight of an edge — used by greedy-fas. Picks the `weight`
+/// Aggregate the weight of an edge - used by greedy-fas. Picks the `weight`
 /// field, defaulting to 1 when an explicit weight function isn't provided.
 pub fn edge_weight(
 	graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,

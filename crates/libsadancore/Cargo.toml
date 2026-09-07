@@ -8,6 +8,7 @@ edition = "2024"
 crate-type = ["cdylib"]
 
 [dependencies]
+rustc-hash.workspace = true
 wasm-bindgen.workspace = true
 anyhow.workspace = true
 console_error_panic_hook.workspace = true
@@ -26,7 +27,7 @@ smol_str.workspace = true
 ast_parser.workspace = true
 pretty_printer.workspace = true
 dagre.workspace = true
-miette_ctx.workspace = true
+parser_diag.workspace = true
 regress.workspace = true
 memchr.workspace = true
 vencord_ast_parser.workspace = true

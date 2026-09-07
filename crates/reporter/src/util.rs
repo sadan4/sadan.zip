@@ -183,8 +183,12 @@ where
 	};
 
 	let alloc = Allocator::new();
-	let parser = WebpackAstParser::try_new(&alloc, src)
-		.map_err(|e| miette!("Failed to parse file: {e:?}"))?;
+	let parser = WebpackAstParser::try_new(&alloc, src).map_err(|e| {
+		miette!(
+			"Failed to parse file: {}",
+			pretty_printer::render_diag(e, src, &format!("{module_id}.js"))
+		)
+	})?;
 
 	let finds = parser.generate_finds();
 

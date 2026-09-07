@@ -6,6 +6,16 @@ use dagre::{
 	types::{EdgeLabel, GraphLabel, NodeLabel},
 };
 
+/// Layer contents as sorted names, so the expectations stay readable.
+fn names(
+	g: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
+	layer: &[dagre::NodeIdx],
+) -> Vec<String> {
+	let mut out = g.names_of(layer);
+	out.sort();
+	out
+}
+
 fn mk() -> Graph<GraphLabel, NodeLabel, EdgeLabel> {
 	let mut g: Graph<GraphLabel, NodeLabel, EdgeLabel> =
 		Graph::with_opts(GraphOpts::directed().compound());
@@ -39,13 +49,9 @@ fn non_overlapping_orders_in_a_tree() {
 	g.set_edge_default("b", "d");
 	g.set_edge_default("a", "e");
 	let layering = init_order(&g);
-	assert_eq!(layering[0], vec!["a".to_string()]);
-	let mut l1 = layering[1].clone();
-	l1.sort();
-	assert_eq!(l1, vec!["b".to_string(), "e".to_string()]);
-	let mut l2 = layering[2].clone();
-	l2.sort();
-	assert_eq!(l2, vec!["c".to_string(), "d".to_string()]);
+	assert_eq!(names(&g, &layering[0]), ["a"]);
+	assert_eq!(names(&g, &layering[1]), ["b", "e"]);
+	assert_eq!(names(&g, &layering[2]), ["c", "d"]);
 }
 
 #[test]
@@ -55,11 +61,9 @@ fn non_overlapping_orders_in_dag() {
 	g.set_path(&["a", "b", "d"]);
 	g.set_path(&["a", "c", "d"]);
 	let layering = init_order(&g);
-	assert_eq!(layering[0], vec!["a".to_string()]);
-	let mut l1 = layering[1].clone();
-	l1.sort();
-	assert_eq!(l1, vec!["b".to_string(), "c".to_string()]);
-	assert_eq!(layering[2], vec!["d".to_string()]);
+	assert_eq!(names(&g, &layering[0]), ["a"]);
+	assert_eq!(names(&g, &layering[1]), ["b", "c"]);
+	assert_eq!(names(&g, &layering[2]), ["d"]);
 }
 
 #[test]
@@ -75,5 +79,6 @@ fn does_not_assign_order_to_subgraph_nodes() {
 	g.set_node("sg1", NodeLabel::default());
 	g.set_parent("a", Some("sg1"));
 	let layering = init_order(&g);
-	assert_eq!(layering, vec![vec!["a".to_string()]]);
+	assert_eq!(layering.len(), 1);
+	assert_eq!(names(&g, &layering[0]), ["a"]);
 }

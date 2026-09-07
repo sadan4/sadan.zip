@@ -2,9 +2,15 @@
 //! Port of test/order/sort-test.ts.
 
 use dagre::{
-	graph::NodeId,
+	graph::NodeIdx,
 	order::{ResolvedEntry, sort},
 };
+
+/// These tests use node ids only as opaque distinct tokens, so map each
+/// single-letter name to a fixed index.
+fn n(s: &str) -> NodeIdx {
+	NodeIdx(u32::from(s.as_bytes()[0]))
+}
 
 fn entry(
 	vs: &[&str],
@@ -13,20 +19,15 @@ fn entry(
 	w: Option<f64>,
 ) -> ResolvedEntry {
 	ResolvedEntry {
-		vs: vs
-			.iter()
-			.map(|x| NodeId::from(*x))
-			.collect(),
+		vs: vs.iter().map(|x| n(x)).collect(),
 		i,
 		barycenter: b,
 		weight: w,
 	}
 }
 
-fn vs(s: &[&str]) -> Vec<NodeId> {
-	s.iter()
-		.map(|x| NodeId::from(*x))
-		.collect()
+fn vs(s: &[&str]) -> Vec<NodeIdx> {
+	s.iter().map(|x| n(x)).collect()
 }
 
 #[test]

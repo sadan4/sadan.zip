@@ -3,20 +3,18 @@ use std::time::Instant;
 use arrayvec::ArrayVec;
 use daft::Diffable;
 use explorer_types::ModuleId;
-use miette::Result;
+use itertools::Itertools;
+use miette::{Result, miette};
 use miette_ctx::ErrCtx as _;
 use oxc_allocator::AllocatorPool;
 use pretty_printer::format_to_str;
 use rayon::iter::{IntoParallelRefIterator as _, ParallelIterator as _};
 use smol_str::SmolStr;
+use text_diff::{DiffHunk, DiffHunkKind};
 use tracing::{info, warn};
 use webpack_ast_parser::{WebpackAstParser, export_map::ExportMap};
 
-use crate::{
-	cmds::fix::track_module::diff::{DiffHunk, DiffHunkKind},
-	fetcher::ScrapedOutput,
-	util::debug_module_url,
-};
+use crate::{fetcher::ScrapedOutput, util::debug_module_url};
 
 pub struct ModuleTracker<'a> {
 	prev_info: PreviousModuleInfo,
@@ -30,6 +28,10 @@ struct PreviousModuleInfo {
 	/// the exports of the previous module
 	export_map: ExportMap<()>,
 	formatted_txt: String,
+	/// the length of the *unformatted* source of the previous module
+	///
+	/// used to skip modules that are orders of magnitude different in size
+	raw_len: usize,
 	num_concatenated: u32,
 }
 
@@ -139,7 +141,6 @@ pub struct TrackedModule {
 
 /// TODO: Move to `webpack_ast_parser`
 mod clear;
-mod diff;
 
 #[derive(Default, Debug)]
 struct ExportDiff {
@@ -187,7 +188,7 @@ impl ExportDiff {
 }
 
 fn diff_modules<'a>(old: &'a str, new: &'a str) -> u8 {
-	let d = diff::diff([old, new]);
+	let d = text_diff::diff([old, new]);
 	Confidence::score_diff(&d)
 }
 
@@ -196,6 +197,59 @@ pub type TrackedModules =
 
 impl<'a> ModuleTracker<'a> {
 	pub const MAX_TRACKED_MODULES: usize = 8;
+	/// This is a hurestic. it could very easily be broken by a module being contatenated with a large module,
+	///  or a module being split into multiple smaller modules.
+	const MAX_LEN_RATIO: f64 = 16.0;
+
+	/// how many times longer the longer of `new_len` and the previous module
+	/// is than the shorter one
+	///
+	/// `1.0` means they are exactly the same length. empty modules are
+	/// treated as one byte long, both to avoid dividing by zero and because
+	/// [`Confidence::score`] cannot handle a zero length.
+	#[expect(
+		clippy::cast_precision_loss,
+		reason = "oxc will refuse to parse before this ever becomes lossy"
+	)]
+	fn len_ratio(&self, new_len: usize) -> f64 {
+		let prev_len = self.prev_info.raw_len.max(1) as f64;
+		let new_len = new_len.max(1) as f64;
+		prev_len.max(new_len) / prev_len.min(new_len)
+	}
+
+	/// the candidates from the new build that are worth scoring, cheapest
+	/// filter first
+	///
+	/// the module with the same id as the previous one is always kept, as
+	/// [`Confidence::same_id`] makes it a strong candidate on its own.
+	fn candidates(&self) -> Vec<(&'a ModuleId, &'a String)> {
+		let mut candidates = self
+			.next_build
+			.iter()
+			.filter(|(k, v)| {
+				!v.is_empty()
+					&& (**k == self.prev_info.module_id
+						|| self.len_ratio(v.len()) <= Self::MAX_LEN_RATIO)
+			})
+			.collect_vec();
+		if candidates.len() >= Self::MAX_TRACKED_MODULES {
+			return candidates;
+		}
+		// the previous module is an outlier in this build, so the window is
+		// too narrow to fill the output. widen it to the closest modules by
+		// length instead of returning fewer results than asked for
+		candidates = self
+			.next_build
+			.iter()
+			.filter(|(_, v)| !v.is_empty())
+			.collect();
+		candidates.sort_unstable_by(|(_, a), (_, b)| {
+			self.len_ratio(a.len())
+				.total_cmp(&self.len_ratio(b.len()))
+		});
+		candidates.truncate(Self::MAX_TRACKED_MODULES);
+		candidates
+	}
 
 	pub fn try_new(
 		prev_build: &'a ScrapedOutput,
@@ -210,14 +264,24 @@ impl<'a> ModuleTracker<'a> {
 			.get(&prev_mid)
 			.expect("previous module should exist");
 		// get old module info
-		let parser = WebpackAstParser::try_new(alloc, prev_module)
-			.context("Failed to parse previous module")?;
+		let parser =
+			WebpackAstParser::try_new(alloc, prev_module).map_err(|e| {
+				miette!(
+					"Failed to parse previous module: {}",
+					pretty_printer::render_diag(
+						e,
+						prev_module,
+						&format!("{prev_mid}.js")
+					)
+				)
+			})?;
 		let formatted_txt = format_to_str(prev_module, 0)
 			.context("Failed to format previous module")?;
 		let prev_info = PreviousModuleInfo {
 			module_id: prev_mid,
 			export_map: clear::map(parser.get_export_map().clone()),
 			formatted_txt,
+			raw_len: prev_module.len(),
 			num_concatenated: parser.num_concatenated_modules(),
 		};
 		drop(alloc_guard);
@@ -231,7 +295,12 @@ impl<'a> ModuleTracker<'a> {
 	}
 	fn confidence_for(&self, k: ModuleId, v: &str) -> Result<Confidence> {
 		let alloc = &*self.pool.get();
-		let parser = WebpackAstParser::try_new(alloc, v)?;
+		let parser = WebpackAstParser::try_new(alloc, v).map_err(|e| {
+			miette!(
+				"Failed to parse module: {}",
+				pretty_printer::render_diag(e, v, &format!("{k}.js"))
+			)
+		})?;
 		let new_export_map = clear::map(parser.get_export_map().clone());
 		let num_concatenated = parser.num_concatenated_modules();
 		let exports =
@@ -272,22 +341,25 @@ impl<'a> ModuleTracker<'a> {
 		// let score = c.score();
 		// todo!("score for new module: {score}");
 		let start = Instant::now();
-		let bar = crate::util::Stage::new(
-			"Tracking module",
-			Some(self.next_build.len()),
-		)
-		.and_attach(bars);
+		let candidates = self.candidates();
+		info!(
+			"Scoring {} of {} modules in the new build",
+			candidates.len(),
+			self.next_build.len()
+		);
+		let bar =
+			crate::util::Stage::new("Tracking module", Some(candidates.len()))
+				.and_attach(bars);
 
-		let mut scores: Vec<_> = self
-			.next_build
+		let mut scores: Vec<_> = candidates
 			.par_iter()
 			.filter_map(|(k, v)| {
-				let c = match self.confidence_for(*k, v) {
+				let c = match self.confidence_for(**k, v) {
 					Ok(c) => c,
 					Err(e) => {
 						warn!(
 							"Failed to get confidence for module url=<{}>. cause: {e:?}",
-							debug_module_url(*k, self.next_hash)
+							debug_module_url(**k, self.next_hash)
 						);
 						bar.step();
 						return None;
@@ -295,7 +367,7 @@ impl<'a> ModuleTracker<'a> {
 				};
 				bar.step();
 				Some(TrackedModule {
-					new_module_id: *k,
+					new_module_id: **k,
 					score: c.score(),
 				})
 			})

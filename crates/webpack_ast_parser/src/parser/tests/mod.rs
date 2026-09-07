@@ -182,7 +182,7 @@ fn finds_wreq() {
 fn doesnt_find_wreq_in_module_that_doesnt_use_it() {
 	let alloc = Allocator::new();
 	let p = parse_!(alloc, "test_data/wp/bad/noWreq.js");
-	assert_eq!(p.wreq(), None);
+	assert!(p.wreq().is_err());
 }
 
 #[test]
@@ -242,7 +242,7 @@ mod module_id {
 		let p = parse_!(alloc, "test_data/wp/module.js");
 		let id = p.get_module_id();
 
-		assert_eq!(id, Some(ModuleId(317269)));
+		assert_eq!(id.unwrap(), ModuleId(317269));
 	}
 
 	#[test]
@@ -250,7 +250,7 @@ mod module_id {
 		let alloc = Allocator::new();
 		let p = parse_!(alloc, "test_data/wp/bad/badModule1.js");
 		let id = p.get_module_id();
-		assert_eq!(id, None);
+		assert!(id.is_err());
 	}
 
 	#[test]
@@ -258,7 +258,7 @@ mod module_id {
 		let alloc = Allocator::new();
 		let p = parse_!(alloc, "test_data/wp/bad/badModule2.js");
 		let id = p.get_module_id();
-		assert_eq!(id, None);
+		assert!(id.is_err());
 	}
 
 	#[test]

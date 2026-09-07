@@ -30,8 +30,8 @@ use explorer_types::{
 };
 use js_sys::{Object, Reflect, Uint32Array};
 use memchr::memmem::Finder;
-use miette_ctx::into_anyhow;
 use oxc::{allocator::Allocator, span::Span};
+use parser_diag::ParserDiagnostic;
 use pretty_printer::{FormattedContent, format_with_alloc};
 use regress::Regex;
 use serde::Serialize;
@@ -265,7 +265,7 @@ impl BundleInner {
 		let source_str =
 			unsafe { mem::transmute::<&str, &'static str>(raw_source_str) };
 		let mut parser = WebpackAstParser::try_new(alloc, source_str)
-			.map_err(into_anyhow)
+			.map_err(|e| render_diag(e, id, source_str))
 			.context("Failed to create parser")?;
 		// SAFETY: TODO
 		let static_self_ref: &Self = unsafe { &*self.self_ptr };
@@ -352,19 +352,15 @@ impl BundleInner {
 	}
 }
 
-/// `mappings` must be sorted in ascending `before` (original position) order,
-/// which is how they're built in `formatted_content_builder.rs`.
-fn find_formatted_pos(mappings: &[(u32, u32)], original_pos: u32) -> u32 {
-	let index = mappings.partition_point(|&(before, _)| before <= original_pos);
-
-	let Some(&(before, after)) = index
-		.checked_sub(1)
-		.and_then(|i| mappings.get(i))
-	else {
-		return 0;
-	};
-
-	after + (original_pos - before)
+/// Renders a parser diagnostic against the formatted module its spans point
+/// into, so the graphical report shows the labelled source.
+fn render_diag(
+	e: ParserDiagnostic,
+	id: ModuleId,
+	formatted_source: &str,
+) -> anyhow::Error {
+	let name = format!("/.modules/{id}.js");
+	anyhow!("{:?}", e.with_local_source(formatted_source, &name))
 }
 
 fn normalize_source_index(source: &str, index: u32) -> u32 {
@@ -489,7 +485,7 @@ fn formatted_search_position(
 		.with_context(|| {
 			format!("Module source mapping not found for {module_id}")
 		})?;
-	let formatted_index = find_formatted_pos(mappings, raw_index);
+	let formatted_index = pretty_printer::map_pos(mappings, raw_index);
 	let formatted_index =
 		normalize_source_index(formatted_source, formatted_index);
 
@@ -514,7 +510,7 @@ fn formatted_search_result_info(
 		.with_context(|| {
 			format!("Module source mapping not found for {module_id}")
 		})?;
-	let formatted_index = find_formatted_pos(mappings, raw_index);
+	let formatted_index = pretty_printer::map_pos(mappings, raw_index);
 	let formatted_index =
 		normalize_source_index(formatted_source, formatted_index);
 
@@ -712,7 +708,7 @@ impl Bundle {
 		let pos = m_pos.to_offset(fmt_src);
 		let locs = parser
 			.generate_definitions(pos)
-			.map_err(into_anyhow)?;
+			.map_err(|e| render_diag(e, m_id, fmt_src))?;
 		let ret = locs
 			.into_iter()
 			.map(|loc| {
@@ -744,7 +740,7 @@ impl Bundle {
 
 		let locs = parser
 			.generate_references(pos)
-			.map_err(into_anyhow)?;
+			.map_err(|e| render_diag(e, m_id, fmt_src))?;
 
 		let ret = locs
 			.into_iter()
@@ -782,7 +778,7 @@ impl Bundle {
 
 		let ret = parser
 			.generate_hover(pos)
-			.map_err(into_anyhow)?
+			.map_err(|e| render_diag(e, m_id, fmt_src))?
 			.map(|(span, content)| {
 				let range = MonacoRange::from_span(span, fmt_src);
 				HoverInfo {
@@ -1118,34 +1114,34 @@ mod tests {
 
 	#[test]
 	fn find_formatted_pos_returns_zero_for_empty_mappings() {
-		assert_eq!(find_formatted_pos(&[], 0), 0);
-		assert_eq!(find_formatted_pos(&[], 42), 0);
+		assert_eq!(pretty_printer::map_pos(&[], 0), 0);
+		assert_eq!(pretty_printer::map_pos(&[], 42), 0);
 	}
 
 	#[test]
 	fn find_formatted_pos_returns_zero_before_first_mapping() {
 		let mappings = [(10, 100), (20, 250)];
-		assert_eq!(find_formatted_pos(&mappings, 0), 0);
-		assert_eq!(find_formatted_pos(&mappings, 9), 0);
+		assert_eq!(pretty_printer::map_pos(&mappings, 0), 0);
+		assert_eq!(pretty_printer::map_pos(&mappings, 9), 0);
 	}
 
 	#[test]
 	fn find_formatted_pos_matches_exact_mapping_entries() {
 		let mappings = [(10, 100), (20, 250), (30, 400)];
-		assert_eq!(find_formatted_pos(&mappings, 10), 100);
-		assert_eq!(find_formatted_pos(&mappings, 20), 250);
-		assert_eq!(find_formatted_pos(&mappings, 30), 400);
+		assert_eq!(pretty_printer::map_pos(&mappings, 10), 100);
+		assert_eq!(pretty_printer::map_pos(&mappings, 20), 250);
+		assert_eq!(pretty_printer::map_pos(&mappings, 30), 400);
 	}
 
 	#[test]
 	fn find_formatted_pos_offsets_from_nearest_preceding_mapping() {
 		let mappings = [(10, 100), (20, 250), (30, 400)];
 		// between first and second entry: offset from (10, 100)
-		assert_eq!(find_formatted_pos(&mappings, 15), 105);
+		assert_eq!(pretty_printer::map_pos(&mappings, 15), 105);
 		// between second and third entry: offset from (20, 250)
-		assert_eq!(find_formatted_pos(&mappings, 25), 255);
+		assert_eq!(pretty_printer::map_pos(&mappings, 25), 255);
 		// past the last entry: offset from (30, 400)
-		assert_eq!(find_formatted_pos(&mappings, 100), 470);
+		assert_eq!(pretty_printer::map_pos(&mappings, 100), 470);
 	}
 
 	#[test]
@@ -1168,7 +1164,7 @@ mod tests {
 
 		for original_pos in 0..(500 * 7 + 50) {
 			assert_eq!(
-				find_formatted_pos(&mappings, original_pos),
+				pretty_printer::map_pos(&mappings, original_pos),
 				naive(&mappings, original_pos),
 				"mismatch at original_pos={original_pos}"
 			);

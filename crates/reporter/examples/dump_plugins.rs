@@ -6,11 +6,9 @@ use std::{
 use anyhow::{Context as _, Result, bail};
 use clap::{CommandFactory as _, Parser};
 use reporter::{
-	err::printer::GraphicalReportHandler,
 	util::{MultiProgressWrapper, Stage},
 	vc::{self, VencordOpts},
 };
-use terminal_size::{Width, terminal_size};
 use tracing::{error, info};
 use tracing_subscriber::util::SubscriberInitExt as _;
 
@@ -103,16 +101,6 @@ async fn run() -> Result<i8> {
 }
 fn main() {
 	install_tracing();
-	miette::set_hook(Box::new(|_| {
-		Box::new(
-			GraphicalReportHandler::new()
-				.with_width(
-					terminal_size()
-						.map_or(80, |(Width(width), _)| width as usize),
-				)
-				.with_cause_chain(),
-		)
-	}))
-	.expect("Failed to set miette hook");
+	reporter::install_miette_hook();
 	async_main();
 }

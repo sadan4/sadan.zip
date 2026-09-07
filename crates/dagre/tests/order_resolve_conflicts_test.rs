@@ -1,25 +1,27 @@
 #![allow(clippy::suboptimal_flops)]
 //! Port of test/order/resolve-conflicts-test.ts.
 
-use std::string::ToString;
-
 use dagre::{
-	graph::Graph,
+	graph::{Graph, NodeIdx},
 	order::{BarycenterEntry, ResolvedEntry, resolve_conflicts},
 };
 
+/// These tests use node ids only as opaque distinct tokens, so map each
+/// single-letter name to a fixed index.
+fn n(s: &str) -> NodeIdx {
+	NodeIdx(u32::from(s.as_bytes()[0]))
+}
+
 fn bc(v: &str, b: Option<f64>, w: Option<f64>) -> BarycenterEntry {
 	BarycenterEntry {
-		v: v.into(),
+		v: n(v),
 		barycenter: b,
 		weight: w,
 	}
 }
 
-fn vs(s: &[&str]) -> Vec<String> {
-	s.iter()
-		.map(ToString::to_string)
-		.collect()
+fn vs(s: &[&str]) -> Vec<NodeIdx> {
+	s.iter().copied().map(n).collect()
 }
 
 fn sort_by_first(mut r: Vec<ResolvedEntry>) -> Vec<ResolvedEntry> {
@@ -45,7 +47,7 @@ fn no_constraints_returns_unchanged() {
 #[test]
 fn no_conflicts_returns_unchanged() {
 	let mut cg: Graph<(), (), ()> = Graph::new();
-	cg.set_edge("b", "a", ());
+	cg.set_edge(n("b"), n("a"), ());
 	let input =
 		vec![bc("a", Some(2.0), Some(3.0)), bc("b", Some(1.0), Some(2.0))];
 	let r = sort_by_first(resolve_conflicts(&input, &cg));
@@ -55,7 +57,7 @@ fn no_conflicts_returns_unchanged() {
 #[test]
 fn coalesces_on_conflict() {
 	let mut cg: Graph<(), (), ()> = Graph::new();
-	cg.set_edge("a", "b", ());
+	cg.set_edge(n("a"), n("b"), ());
 	let input =
 		vec![bc("a", Some(2.0), Some(3.0)), bc("b", Some(1.0), Some(2.0))];
 	let r = resolve_conflicts(&input, &cg);
@@ -70,7 +72,9 @@ fn coalesces_on_conflict() {
 #[test]
 fn coalesces_on_path_constraint() {
 	let mut cg: Graph<(), (), ()> = Graph::new();
-	cg.set_path(&["a", "b", "c", "d"]);
+	for (v, w) in [("a", "b"), ("b", "c"), ("c", "d")] {
+		cg.set_edge(n(v), n(w), ());
+	}
 	let input = vec![
 		bc("a", Some(4.0), Some(1.0)),
 		bc("b", Some(3.0), Some(1.0)),
@@ -101,7 +105,7 @@ fn does_nothing_when_no_barycenter_or_constraint() {
 #[test]
 fn ignores_edges_unrelated_to_entries() {
 	let mut cg: Graph<(), (), ()> = Graph::new();
-	cg.set_edge("c", "d", ());
+	cg.set_edge(n("c"), n("d"), ());
 	let input =
 		vec![bc("a", Some(2.0), Some(3.0)), bc("b", Some(1.0), Some(2.0))];
 	let r = sort_by_first(resolve_conflicts(&input, &cg));

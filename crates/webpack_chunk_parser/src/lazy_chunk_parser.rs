@@ -7,8 +7,9 @@ use ast_parser::{
 use oxc::{
 	allocator::Allocator,
 	ast::ast::{CallExpression, Expression, ObjectExpression, Program},
-	span::SourceType,
+	span::{GetSpan as _, SourceType, Span},
 };
+use parser_diag::{PResult, err, slice_span};
 use std::borrow::Cow;
 
 // TODO: should we cache things here
@@ -29,72 +30,137 @@ impl<'ast> WebpackLazyChunkParser<'ast> {
 			prog: alloc.alloc(prog),
 		})
 	}
-	fn get_push_call(&self) -> Option<&'ast CallExpression<'ast>> {
+	fn get_push_call(&self) -> PResult<&'ast CallExpression<'ast>> {
 		let top_level_stmts = &self.prog.body;
 
 		// we only expect one top-level statement
 		if top_level_stmts.len() != 1 {
-			return None;
+			return Err(err(
+				&slice_span(top_level_stmts).unwrap_or(self.prog.span),
+				"expected one top-level statement",
+			));
 		}
 
-		let call = top_level_stmts[0]
-			.as_expression_statement()?
-			.expression
-			.as_call_expression()?;
+		let top_level_expr_stmt = &top_level_stmts[0]
+			.as_expression_statement()
+			.ok_or_else(|| {
+				err(
+					&top_level_stmts[0],
+					"top level statement is not an expression statement",
+				)
+			})?
+			.expression;
+		let call = top_level_expr_stmt
+			.as_call_expression()
+			.ok_or_else(|| {
+				err(
+					top_level_expr_stmt,
+					"top level statement is not a call expression",
+				)
+			})?;
 		if call.arguments.len() != 1 {
-			return None;
+			return Err(err(
+				&slice_span(&call.arguments).unwrap_or_else(|| {
+					Span::new(call.callee.span().end, call.span.end)
+				}),
+				"expected push call to have exactly one argument",
+			));
 		}
 
 		// ensure push call
-		if call
+		let callee_sme = call
 			.callee
-			.as_static_member_expression()?
-			.property
-			.name != "push"
-		{
-			return None;
+			.as_static_member_expression()
+			.ok_or_else(|| {
+				err(
+					&call.callee,
+					"push call callee is not a static member expression",
+				)
+			})?;
+		if callee_sme.property.name != "push" {
+			return Err(err(
+				&callee_sme.property,
+				"push callee property is not `push`",
+			));
 		}
 
-		Some(call)
+		Ok(call)
 	}
 	fn assert_one_entry(
 		&self,
-	) -> Option<(&'ast Expression<'ast>, &'ast Expression<'ast>)> {
-		let elements = &self
-			.get_push_call()?
+	) -> PResult<(&'ast Expression<'ast>, &'ast Expression<'ast>)> {
+		let push_call = self.get_push_call()?;
+		let first_arg = push_call
 			.arguments
-			.first()?
-			.as_array_expression()?
+			.first()
+			.expect("Get push call asserts one argument");
+		let elements = &first_arg
+			.as_array_expression()
+			.ok_or_else(|| {
+				err(first_arg, "first arugment is not an array expression")
+			})?
 			.elements;
 		if elements.len() != 2 {
-			return None;
+			return Err(err(
+				&slice_span(elements).unwrap_or_else(|| first_arg.span()),
+				"expected push call array to have exactly two elements",
+			));
 		}
-		let a = elements[0].as_expression()?;
-		let b = elements[1].as_expression()?;
+		let a = elements[0]
+			.as_expression()
+			.ok_or_else(|| {
+				err(
+					&elements[0],
+					"push call arg array elements must be expressions",
+				)
+			})?;
+		let b = elements[1]
+			.as_expression()
+			.ok_or_else(|| {
+				err(
+					&elements[1],
+					"push call arg array elements must be expressions",
+				)
+			})?;
 
-		Some((a, b))
+		Ok((a, b))
 	}
-	// TODO: should this be a Option<u32>
-	pub fn chunk_id(&self) -> Option<Cow<'ast, str>> {
-		self.assert_one_entry()?
-			.0
-			.as_array_expression()?
-			.elements
-			.first()?
+
+	pub fn chunk_id(&self) -> PResult<Cow<'ast, str>> {
+		let (chunk_ids_expr, _) = self.assert_one_entry()?;
+		let chunk_ids = &chunk_ids_expr
+			.as_array_expression()
+			.ok_or_else(|| {
+				err(chunk_ids_expr, "push_call.arguments.0.0 is not an array")
+			})?
+			.elements;
+		if chunk_ids.len() != 1 {
+			return Err(err(
+				chunk_ids_expr,
+				"push_call.arguments.0.0 is expected to have exactly one element",
+			));
+		}
+		let id_raw = chunk_ids.first().unwrap();
+		id_raw
 			.try_parse_string_or_number_literal()
+			.ok_or_else(|| err(id_raw, "Failed to parse as string or number"))
 	}
 }
 
 impl Sealed for WebpackLazyChunkParser<'_> {}
 
 impl<'ast> WebpackChunkParserImpl<'ast> for WebpackLazyChunkParser<'ast> {
-	fn get_module_object(&self) -> Option<&'ast ObjectExpression<'ast>> {
-		let modules_arg = self
-			.assert_one_entry()?
-			.1
-			.as_object_expression()?;
+	fn get_module_object(&self) -> PResult<&'ast ObjectExpression<'ast>> {
+		let (_, modules_arg) = self.assert_one_entry()?;
 
-		Some(modules_arg)
+		modules_arg
+			.as_object_expression()
+			.ok_or_else(|| {
+				err(
+					modules_arg,
+					"push_call.arguments.0.1 is not an object expression",
+				)
+			})
 	}
 
 	fn get_source_text(&self) -> &'ast str {

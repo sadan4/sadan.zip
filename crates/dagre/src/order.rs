@@ -1,17 +1,13 @@
-//! Crossing-minimization order pipeline — port of `lib/order/*.ts`.
+//! Crossing-minimization order pipeline - port of `lib/order/*.ts`.
 
-use smol_str::SmolStr;
+use rustc_hash::FxHashMap;
 
 use crate::{
-	graph::{Graph, GraphOpts, NodeId},
+	graph::{Graph, GraphOpts, NodeIdx},
 	types::{EdgeLabel, GraphLabel, NodeLabel},
 	util,
 };
-use std::{
-	cmp,
-	collections::{HashMap, HashSet},
-	mem,
-};
+use std::{cmp, mem};
 
 #[derive(Debug, Default, Clone)]
 pub struct OrderOptions {
@@ -22,13 +18,12 @@ pub struct OrderOptions {
 #[expect(dead_code)]
 struct LayerNode {
 	// rank/min_rank/max_rank carried for parity with JS layer-graph node label;
-	// ordering only consults `order` and borders.
+	// ordering only consults the borders.
 	rank: Option<i32>,
 	min_rank: Option<i32>,
 	max_rank: Option<i32>,
-	order: Option<usize>,
-	border_left: Option<SmolStr>,
-	border_right: Option<SmolStr>,
+	border_left: Option<NodeIdx>,
+	border_right: Option<NodeIdx>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -38,21 +33,28 @@ struct LayerEdge {
 
 #[derive(Debug, Default, Clone)]
 struct LayerGraphLabel {
-	movable: Vec<NodeId>,
+	/// Movable nodes, as *local* layer-graph indices.
+	movable: Vec<NodeIdx>,
+	/// Local index -> index in the parent layout graph.
+	global: Vec<NodeIdx>,
 }
 
+/// A layer graph uses its own compact index space rather than sharing the
+/// parent's: there is one per rank (~200 for a large bundle) and the parent
+/// has ~63k node slots after normalize, so sharing would allocate 200 x 63k
+/// slots. `LayerGraphLabel::global` maps back.
 type LayerGraph = Graph<LayerGraphLabel, LayerNode, LayerEdge>;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct BarycenterEntry {
-	pub v: NodeId,
+	pub v: NodeIdx,
 	pub barycenter: Option<f64>,
 	pub weight: Option<f64>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ResolvedEntry {
-	pub vs: Vec<NodeId>,
+	pub vs: Vec<NodeIdx>,
 	pub i: usize,
 	pub barycenter: Option<f64>,
 	pub weight: Option<f64>,
@@ -60,7 +62,7 @@ pub struct ResolvedEntry {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SortResult {
-	pub vs: Vec<NodeId>,
+	pub vs: Vec<NodeIdx>,
 	pub barycenter: Option<f64>,
 	pub weight: Option<f64>,
 }
@@ -75,15 +77,15 @@ pub struct SortResult {
 /// `order` from node labels and `weight` from edge labels.
 pub fn barycenter(
 	graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
-	movable: &[NodeId],
+	movable: &[NodeIdx],
 ) -> Vec<BarycenterEntry> {
 	movable
 		.iter()
-		.map(|v| {
+		.map(|&v| {
 			let in_es = graph.in_edges(v).unwrap_or_default();
 			if in_es.is_empty() {
 				BarycenterEntry {
-					v: v.clone(),
+					v,
 					barycenter: None,
 					weight: None,
 				}
@@ -95,14 +97,14 @@ pub fn barycenter(
 						.edge_obj(&e)
 						.map_or(0., |l| l.weight);
 					let order = graph
-						.node(&e.v)
+						.node(e.v)
 						.and_then(|n| n.order)
 						.unwrap_or(0) as f64;
 					sum = edge_w.mul_add(order, sum);
 					weight += edge_w;
 				}
 				BarycenterEntry {
-					v: v.clone(),
+					v,
 					barycenter: Some(if weight > 0.0 {
 						sum / weight
 					} else {
@@ -135,21 +137,21 @@ pub fn sort(entries: Vec<ResolvedEntry>, bias_right: bool) -> SortResult {
 pub fn add_subgraph_constraints(
 	graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
 	constraint_graph: &mut Graph<(), (), ()>,
-	vs: &[NodeId],
+	vs: &[NodeIdx],
 ) {
-	let mut prev: HashMap<NodeId, NodeId> = HashMap::new();
-	let mut root_prev: Option<NodeId> = None;
-	for v in vs {
-		let mut child = graph.parent(v).map(NodeId::from);
-		while let Some(c) = child.clone() {
-			let parent = graph.parent(&c).map(NodeId::from);
-			let prev_child = if let Some(p) = &parent {
-				let pc = prev.get(p).cloned();
-				prev.insert(p.clone(), c.clone());
+	let mut prev: FxHashMap<NodeIdx, NodeIdx> = FxHashMap::default();
+	let mut root_prev: Option<NodeIdx> = None;
+	for &v in vs {
+		let mut child = graph.parent(v);
+		while let Some(c) = child {
+			let parent = graph.parent(c);
+			let prev_child = if let Some(p) = parent {
+				let pc = prev.get(&p).copied();
+				prev.insert(p, c);
 				pc
 			} else {
 				let pc = root_prev;
-				root_prev = Some(c.clone());
+				root_prev = Some(c);
 				pc
 			};
 			if let Some(pc) = prev_child
@@ -208,7 +210,7 @@ pub fn order(
 	}
 
 	let mut best_cc = f64::INFINITY;
-	let mut best: Option<Vec<Vec<NodeId>>> = None;
+	let mut best: Option<Vec<Vec<NodeIdx>>> = None;
 
 	let mut last_best = 0;
 	let mut i = 0;
@@ -262,8 +264,9 @@ pub fn order(
 	}
 	#[cfg(feature = "profile")]
 	eprintln!(
-		"[dagre]   order iters={} sweep={:.1}ms layer={:.1}ms cc={:.1}ms clone={:.1}ms",
+		"[dagre]   order iters={} best_crossings={} sweep={:.1}ms layer={:.1}ms cc={:.1}ms clone={:.1}ms",
 		i,
+		best_cc,
 		t_sweep as f64 / 1e6,
 		t_layer as f64 / 1e6,
 		t_cc as f64 / 1e6,
@@ -283,15 +286,15 @@ enum Relationship {
 
 fn nodes_by_rank(
 	graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
-) -> HashMap<i32, Vec<NodeId>> {
-	let mut nodes_by_rank: HashMap<i32, Vec<NodeId>> = HashMap::new();
+) -> FxHashMap<i32, Vec<NodeIdx>> {
+	let mut nodes_by_rank: FxHashMap<i32, Vec<NodeIdx>> = FxHashMap::default();
 	for v in graph.nodes_iter() {
 		if let Some(n) = graph.node(v) {
 			if let Some(r) = n.rank {
 				nodes_by_rank
 					.entry(r)
 					.or_default()
-					.push(v.into());
+					.push(v);
 			}
 			if let (Some(min), Some(max)) = (n.min_rank, n.max_rank) {
 				for r in min..=max {
@@ -299,7 +302,7 @@ fn nodes_by_rank(
 						nodes_by_rank
 							.entry(r)
 							.or_default()
-							.push(v.into());
+							.push(v);
 					}
 				}
 			}
@@ -312,9 +315,13 @@ fn build_layer_graphs(
 	graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
 	ranks: &[i32],
 	relationship: Relationship,
-	nodes_by_rank: &HashMap<i32, Vec<NodeId>>,
+	nodes_by_rank: &FxHashMap<i32, Vec<NodeIdx>>,
 ) -> Vec<LayerGraph> {
-	let empty: Vec<NodeId> = Vec::new();
+	let empty: Vec<NodeIdx> = Vec::new();
+	// Scratch global -> local map, reused across every rank. `u32::MAX` means
+	// "not in this layer graph"; entries are cleared per rank by walking the
+	// nodes we actually touched.
+	let mut local_of: Vec<u32> = vec![u32::MAX; graph.node_bound()];
 	ranks
 		.iter()
 		.map(|r| {
@@ -323,116 +330,157 @@ fn build_layer_graphs(
 				*r,
 				relationship,
 				nodes_by_rank.get(r).unwrap_or(&empty),
+				&mut local_of,
 			)
 		})
 		.collect()
 }
 
+#[expect(clippy::too_many_lines)]
 fn build_layer_graph(
 	graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
 	rank: i32,
 	relationship: Relationship,
-	nodes_with_rank: &[NodeId],
+	nodes_with_rank: &[NodeIdx],
+	local_of: &mut [u32],
 ) -> LayerGraph {
 	let mut result: LayerGraph = Graph::with_opts(GraphOpts {
 		directed: true,
 		multigraph: false,
 		compound: false,
 	});
-	let mut movable: Vec<NodeId> = Vec::with_capacity(nodes_with_rank.len());
+	let mut movable: Vec<NodeIdx> = Vec::with_capacity(nodes_with_rank.len());
+	let mut global: Vec<NodeIdx> = Vec::with_capacity(nodes_with_rank.len());
 
-	for v in nodes_with_rank {
+	// Interns a global node into this layer graph's local index space.
+	fn intern(
+		local_of: &mut [u32],
+		global: &mut Vec<NodeIdx>,
+		result: &mut LayerGraph,
+		g: NodeIdx,
+		label: LayerNode,
+	) -> NodeIdx {
+		let slot = local_of[g.index()];
+		if slot == u32::MAX {
+			let l = result.add_node(label);
+			debug_assert_eq!(l.index(), global.len());
+			global.push(g);
+			local_of[g.index()] = l.0;
+			l
+		} else {
+			let l = NodeIdx(slot);
+			result.set_node(l, label);
+			l
+		}
+	}
+
+	for &v in nodes_with_rank {
 		// Read only the fields we need by reference. Cloning the whole
 		// NodeLabel here was ~1s across the two pre-loop build_layer_graphs
-		// calls because NodeLabel contains Option<Vec<String>> and
+		// calls because NodeLabel contains Option<Vec<_>> and
 		// Option<Box<EdgeLabel>>.
-		let (n_rank, n_min_rank, n_max_rank, n_order, border) = match graph
-			.node(v)
-		{
+		let (n_rank, n_min_rank, n_max_rank, border) = match graph.node(v) {
 			Some(n) => {
 				let ri = rank as usize;
 				let bord = match (&n.border_left, &n.border_right) {
 					(Some(bl), Some(br)) if ri < bl.len() && ri < br.len() => {
-						Some((bl[ri].clone(), br[ri].clone()))
+						Some((bl[ri], br[ri]))
 					}
 					_ => None,
 				};
-				(n.rank, n.min_rank, n.max_rank, n.order, bord)
+				(n.rank, n.min_rank, n.max_rank, bord)
 			}
 			None => continue,
 		};
 		let in_range = n_rank == Some(rank)
 			|| (n_min_rank.is_some()
 				&& n_max_rank.is_some()
-				&& n_min_rank.unwrap() <= rank
-				&& rank <= n_max_rank.unwrap());
+				&& n_min_rank.unwrap_or(i32::MAX) <= rank
+				&& rank <= n_max_rank.unwrap_or(i32::MIN));
 		if !in_range {
 			continue;
 		}
-		result.set_node(
-			v.clone(),
+		let lv = intern(
+			local_of,
+			&mut global,
+			&mut result,
+			v,
 			LayerNode {
 				rank: n_rank,
 				min_rank: n_min_rank,
 				max_rank: n_max_rank,
-				order: n_order,
 				..Default::default()
 			},
 		);
-		movable.push(v.clone());
+		movable.push(lv);
 
 		let es = match relationship {
-			Relationship::InEdges => graph.in_edges(v).unwrap_or_default(),
-			Relationship::OutEdges => graph.out_edges(v).unwrap_or_default(),
+			Relationship::InEdges => graph.in_edge_idxs(v),
+			Relationship::OutEdges => graph.out_edge_idxs(v),
 		};
-		for e in es {
-			let u = if e.v == *v { e.w.clone() } else { e.v.clone() };
-			if !result.has_node(&u) {
-				result.set_node(u.clone(), LayerNode::default());
-			}
+		for &ei in es {
+			let Some((e, label)) = graph.edge_entry(ei) else {
+				continue;
+			};
+			let u = if e.v == v { e.w } else { e.v };
+			let lu = if local_of[u.index()] == u32::MAX {
+				intern(
+					local_of,
+					&mut global,
+					&mut result,
+					u,
+					LayerNode::default(),
+				)
+			} else {
+				NodeIdx(local_of[u.index()])
+			};
 			let prev = result
-				.edge(&u, v)
-				.map_or(0., |l| l.weight);
-			let w = graph
-				.edge_obj(&e)
+				.edge(lu, lv)
 				.map_or(0., |l| l.weight);
 			result.set_edge(
-				u.clone(),
-				v.clone(),
-				LayerEdge { weight: prev + w },
+				lu,
+				lv,
+				LayerEdge {
+					weight: prev + label.weight,
+				},
 			);
 		}
 
 		if let Some((bl, br)) = border
-			&& let Some(n) = result.node_mut(v)
+			&& let Some(n) = result.node_mut(lv)
 		{
 			n.border_left = Some(bl);
 			n.border_right = Some(br);
 		}
 	}
-	result.set_graph(LayerGraphLabel { movable });
+
+	// Reset the scratch map for the next rank.
+	for &g in &global {
+		local_of[g.index()] = u32::MAX;
+	}
+
+	result.set_graph(LayerGraphLabel { movable, global });
 	result
 }
 
 // ---------- init order ---------------------------------------------------
 
-/// Public init-order — visible for testing. Performs a DFS starting at the
+/// Public init-order - visible for testing. Performs a DFS starting at the
 /// leftmost rank node, assigning visit order to each non-subgraph node.
 pub fn init_order(
 	graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
-) -> Vec<Vec<NodeId>> {
-	let mut visited: HashSet<NodeId> = HashSet::new();
-	let simple_nodes: Vec<NodeId> = graph
-		.nodes()
-		.into_iter()
-		.filter(|v| graph.children(Some(v)).is_empty())
+) -> Vec<Vec<NodeIdx>> {
+	let mut visited = vec![false; graph.node_bound()];
+	let simple_nodes: Vec<NodeIdx> = graph
+		.nodes_iter()
+		.filter(|&v| graph.children(Some(v)).is_empty())
 		.collect();
 	let max_rank = simple_nodes
 		.iter()
-		.filter_map(|v| graph.node(v).and_then(|n| n.rank))
+		.filter_map(|&v| graph.node(v).and_then(|n| n.rank))
 		.max()
 		.unwrap_or(0);
-	let mut layers: Vec<Vec<NodeId>> = (0..=max_rank.max(0))
+	let mut layers: Vec<Vec<NodeIdx>> = (0..=max_rank.max(0))
 		.map(|_| Vec::new())
 		.collect();
 	if max_rank < 0 {
@@ -441,49 +489,54 @@ pub fn init_order(
 
 	fn dfs(
 		graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
-		v: &str,
-		visited: &mut HashSet<NodeId>,
-		layers: &mut Vec<Vec<NodeId>>,
+		start: NodeIdx,
+		visited: &mut [bool],
+		layers: &mut Vec<Vec<NodeIdx>>,
 	) {
-		if visited.contains(v) {
-			return;
-		}
-		visited.insert(v.into());
-		if let Some(n) = graph.node(v)
-			&& let Some(r) = n.rank
-			&& r >= 0
-		{
-			let ri = r as usize;
-			while layers.len() <= ri {
-				layers.push(Vec::new());
+		// Explicit stack: normalize turns long edges into dummy chains as long
+		// as the rank span, so a recursive DFS blows the stack on large graphs.
+		let mut stack = vec![start];
+		while let Some(v) = stack.pop() {
+			if visited[v.index()] {
+				continue;
 			}
-			layers[ri].push(v.into());
-		}
-		let succ = graph.successors(v).unwrap_or_default();
-		for s in succ {
-			dfs(graph, &s, visited, layers);
+			visited[v.index()] = true;
+			if let Some(n) = graph.node(v)
+				&& let Some(r) = n.rank
+				&& r >= 0
+			{
+				let ri = r as usize;
+				while layers.len() <= ri {
+					layers.push(Vec::new());
+				}
+				layers[ri].push(v);
+			}
+			// Reversed so the first successor is visited first, matching the
+			// recursive traversal this replaced.
+			let succ = graph.successors(v).unwrap_or_default();
+			stack.extend(succ.into_iter().rev());
 		}
 	}
 
 	let mut ordered = simple_nodes;
-	ordered.sort_by_key(|v| {
+	ordered.sort_by_key(|&v| {
 		graph
 			.node(v)
 			.and_then(|n| n.rank)
 			.unwrap_or(0)
 	});
 	for v in ordered {
-		dfs(graph, &v, &mut visited, &mut layers);
+		dfs(graph, v, &mut visited, &mut layers);
 	}
 	layers
 }
 
 fn assign_order(
 	graph: &mut Graph<GraphLabel, NodeLabel, EdgeLabel>,
-	layering: &[Vec<NodeId>],
+	layering: &[Vec<NodeIdx>],
 ) {
 	for layer in layering {
-		for (i, v) in layer.iter().enumerate() {
+		for (i, &v) in layer.iter().enumerate() {
 			if let Some(n) = graph.node_mut(v) {
 				n.order = Some(i);
 			}
@@ -495,40 +548,64 @@ fn assign_order(
 
 pub fn cross_count(
 	graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
-	layering: &[Vec<NodeId>],
+	layering: &[Vec<NodeIdx>],
 ) -> u64 {
 	let mut cc = 0u64;
+	// Scratch buffers, reused across every layer pair.
+	let mut scratch = CrossCountScratch {
+		south_pos: vec![u32::MAX; graph.node_bound()],
+		south_entries: Vec::new(),
+		local: Vec::new(),
+		tree: Vec::new(),
+	};
 	for i in 1..layering.len() {
-		cc += two_layer_cross_count(graph, &layering[i - 1], &layering[i]);
+		cc += two_layer_cross_count(
+			graph,
+			&layering[i - 1],
+			&layering[i],
+			&mut scratch,
+		);
 	}
 	cc
 }
 
+struct CrossCountScratch {
+	/// Node index -> position in the south layer; `u32::MAX` is "not there".
+	south_pos: Vec<u32>,
+	south_entries: Vec<(usize, f64)>,
+	local: Vec<(usize, f64)>,
+	/// Fenwick tree of accumulated weights.
+	tree: Vec<f64>,
+}
+
 fn two_layer_cross_count(
 	graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
-	north: &[NodeId],
-	south: &[NodeId],
+	north: &[NodeIdx],
+	south: &[NodeIdx],
+	scratch: &mut CrossCountScratch,
 ) -> u64 {
 	if south.is_empty() {
 		return 0;
 	}
-	let south_pos: HashMap<&str, usize> = south
-		.iter()
-		.enumerate()
-		.map(|(i, v)| (v.as_str(), i))
-		.collect();
-	let mut south_entries: Vec<(usize, f64)> = Vec::new();
-	let mut local: Vec<(usize, f64)> = Vec::new();
-	for v in north {
+	let CrossCountScratch {
+		south_pos,
+		south_entries,
+		local,
+		tree,
+	} = scratch;
+	for (i, &v) in south.iter().enumerate() {
+		south_pos[v.index()] = u32::try_from(i).unwrap_or(u32::MAX);
+	}
+	south_entries.clear();
+	for &v in north {
 		local.clear();
-		if let Some(it) = graph.out_edges_iter(v) {
-			for e in it {
-				if let Some(&pos) = south_pos.get(e.w.as_str()) {
-					let weight = graph
-						.edge_obj(e)
-						.map_or(0., |l| l.weight);
-					local.push((pos, weight));
-				}
+		for &ei in graph.out_edge_idxs(v) {
+			let Some((e, label)) = graph.edge_entry(ei) else {
+				continue;
+			};
+			let pos = south_pos[e.w.index()];
+			if pos != u32::MAX {
+				local.push((pos as usize, label.weight));
 			}
 		}
 		local.sort_by_key(|x| x.0);
@@ -541,9 +618,10 @@ fn two_layer_cross_count(
 	}
 	let tree_size = 2 * first_index - 1;
 	first_index -= 1;
-	let mut tree = vec![0.0_f64; tree_size];
+	tree.clear();
+	tree.resize(tree_size, 0.0);
 	let mut cc = 0.0f64;
-	for (pos, weight) in south_entries {
+	for &(pos, weight) in south_entries.iter() {
 		let mut index = pos + first_index;
 		tree[index] += weight;
 		let mut weight_sum = 0.0;
@@ -556,38 +634,50 @@ fn two_layer_cross_count(
 		}
 		cc = weight.mul_add(weight_sum, cc);
 	}
+
+	// Clear the scratch positions we set.
+	for &v in south {
+		south_pos[v.index()] = u32::MAX;
+	}
 	cc as u64
 }
 
 // ---------- barycenter (internal LayerGraph version) ---------------------
 
+/// `order` is read from the *main* graph through `global`, not from the layer
+/// graph's own node labels. The layer graphs are built once and reused across
+/// every sweep, so their copies of `order` go stale immediately - and fixed
+/// (non-movable) neighbours never had one at all, which pinned every
+/// barycenter to 0 and made the sweep close to a no-op. JS dagre gets this for
+/// free by aliasing the main graph's label objects into the layer graph.
 fn barycenter_impl(
-	graph: &LayerGraph,
-	movable: &[NodeId],
+	layer: &LayerGraph,
+	graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
+	global: &[NodeIdx],
+	movable: &[NodeIdx],
 ) -> Vec<BarycenterEntry> {
 	movable
 		.iter()
-		.map(|v| {
+		.map(|&v| {
 			let mut sum = 0.0;
 			let mut weight = 0.0;
 			let mut any = false;
-			if let Some(it) = graph.in_edges_iter(v) {
-				for e in it {
-					any = true;
-					let edge_w = graph
-						.edge_obj(e)
-						.map_or(0., |l| l.weight);
-					let order = graph
-						.node(&e.v)
-						.and_then(|n| n.order)
-						.unwrap_or(0) as f64;
-					sum = edge_w.mul_add(order, sum);
-					weight += edge_w;
-				}
+			for &ei in layer.in_edge_idxs(v) {
+				let Some((e, label)) = layer.edge_entry(ei) else {
+					continue;
+				};
+				any = true;
+				let order = global
+					.get(e.v.index())
+					.and_then(|&g| graph.node(g))
+					.and_then(|n| n.order)
+					.unwrap_or(0) as f64;
+				sum = label.weight.mul_add(order, sum);
+				weight += label.weight;
 			}
 			if any {
 				BarycenterEntry {
-					v: v.clone(),
+					v,
 					barycenter: Some(if weight > 0.0 {
 						sum / weight
 					} else {
@@ -597,7 +687,7 @@ fn barycenter_impl(
 				}
 			} else {
 				BarycenterEntry {
-					v: v.clone(),
+					v,
 					barycenter: None,
 					weight: None,
 				}
@@ -619,7 +709,7 @@ fn resolve_conflicts_impl(
 		indegree: usize,
 		ins: Vec<usize>,
 		outs: Vec<usize>,
-		vs: Vec<NodeId>,
+		vs: Vec<NodeIdx>,
 		i: usize,
 		barycenter: Option<f64>,
 		weight: Option<f64>,
@@ -627,14 +717,21 @@ fn resolve_conflicts_impl(
 	}
 
 	let mut mapped: Vec<Mapped> = Vec::with_capacity(entries.len());
-	let mut v_to_idx: HashMap<NodeId, usize> = HashMap::new();
+	// Entry ids are dense indices into whichever graph produced them, so a
+	// flat lookup beats a hash map. `u32::MAX` means "not an entry".
+	let bound = entries
+		.iter()
+		.map(|e| e.v.index() + 1)
+		.max()
+		.unwrap_or(0);
+	let mut v_to_idx: Vec<u32> = vec![u32::MAX; bound];
 	for (i, e) in entries.iter().enumerate() {
-		v_to_idx.insert(e.v.clone(), i);
+		v_to_idx[e.v.index()] = u32::try_from(i).unwrap_or(u32::MAX);
 		mapped.push(Mapped {
 			indegree: 0,
 			ins: Vec::new(),
 			outs: Vec::new(),
-			vs: vec![e.v.clone()],
+			vs: vec![e.v],
 			i,
 			barycenter: e.barycenter,
 			weight: e.weight,
@@ -642,11 +739,16 @@ fn resolve_conflicts_impl(
 		});
 	}
 
-	for e in constraint_graph.edges() {
-		let (Some(&vi), Some(&wi)) = (v_to_idx.get(&e.v), v_to_idx.get(&e.w))
+	for e in constraint_graph.edges_iter() {
+		let (Some(&vi), Some(&wi)) =
+			(v_to_idx.get(e.v.index()), v_to_idx.get(e.w.index()))
 		else {
 			continue;
 		};
+		if vi == u32::MAX || wi == u32::MAX {
+			continue;
+		}
+		let (vi, wi) = (vi as usize, wi as usize);
 		mapped[wi].indegree += 1;
 		mapped[vi].outs.push(wi);
 	}
@@ -743,34 +845,35 @@ fn sort_impl(entries: Vec<ResolvedEntry>, bias_right: bool) -> SortResult {
 	unsortable.sort_by_key(|e| cmp::Reverse(e.i));
 	let mut sortable = sortable;
 	sortable.sort_by(|a, b| {
-		let ab = a.barycenter.unwrap();
-		let bb = b.barycenter.unwrap();
+		let ab = a.barycenter.unwrap_or(0.0);
+		let bb = b.barycenter.unwrap_or(0.0);
 		if ab < bb {
 			cmp::Ordering::Less
 		} else if ab > bb {
 			cmp::Ordering::Greater
-		} else if !bias_right {
-			a.i.cmp(&b.i)
-		} else {
+		} else if bias_right {
 			b.i.cmp(&a.i)
+		} else {
+			a.i.cmp(&b.i)
 		}
 	});
 
-	let mut vs: Vec<Vec<NodeId>> = Vec::new();
+	let mut vs: Vec<Vec<NodeIdx>> = Vec::new();
 	let mut sum = 0.0;
 	let mut weight = 0.0;
 	let mut vs_index = 0usize;
 
-	let consume_unsortable = |vs: &mut Vec<Vec<NodeId>>,
+	let consume_unsortable = |vs: &mut Vec<Vec<NodeIdx>>,
 	                          unsortable: &mut Vec<ResolvedEntry>,
 	                          mut index: usize|
 	 -> usize {
 		while let Some(last) = unsortable.last() {
 			if last.i <= index {
-				let last = unsortable.pop().unwrap();
-				let n = last.vs.len();
-				vs.push(last.vs);
-				index += n;
+				if let Some(last) = unsortable.pop() {
+					let n = last.vs.len();
+					vs.push(last.vs);
+					index += n;
+				}
 			} else {
 				break;
 			}
@@ -782,7 +885,7 @@ fn sort_impl(entries: Vec<ResolvedEntry>, bias_right: bool) -> SortResult {
 
 	for entry in sortable {
 		vs_index += entry.vs.len();
-		let bc = entry.barycenter.unwrap();
+		let bc = entry.barycenter.unwrap_or(0.0);
 		let w = entry.weight.unwrap_or(0.0);
 		sum = bc.mul_add(w, sum);
 		weight += w;
@@ -790,7 +893,7 @@ fn sort_impl(entries: Vec<ResolvedEntry>, bias_right: bool) -> SortResult {
 		vs_index = consume_unsortable(&mut vs, &mut unsortable, vs_index);
 	}
 
-	let flat: Vec<NodeId> = vs.into_iter().flatten().collect();
+	let flat: Vec<NodeIdx> = vs.into_iter().flatten().collect();
 	SortResult {
 		vs: flat,
 		barycenter: if weight > 0.0 {
@@ -805,19 +908,17 @@ fn sort_impl(entries: Vec<ResolvedEntry>, bias_right: bool) -> SortResult {
 // ---------- sort subgraph ------------------------------------------------
 
 fn sort_subgraph(
-	graph: &LayerGraph,
-	movable: &[NodeId],
+	layer: &LayerGraph,
+	graph: &Graph<GraphLabel, NodeLabel, EdgeLabel>,
+	global: &[NodeIdx],
+	movable: &[NodeIdx],
 	constraint_graph: &Graph<(), (), ()>,
 	bias_right: bool,
 ) -> SortResult {
-	let barycenters = barycenter_impl(graph, movable);
-	let entries = barycenters;
-	let subgraphs: HashMap<NodeId, SortResult> = HashMap::new();
+	let entries = barycenter_impl(layer, graph, global, movable);
 	// Layer graphs from build_layer_graph are flat (compound-but-rooted), no
 	// nested subgraphs beyond the root level in our scope. So skip subgraph
 	// recursion here. (Compound dagre input is out of scope per user choice.)
-	let _ = subgraphs;
-
 	let resolved = resolve_conflicts_impl(&entries, constraint_graph);
 	sort_impl(resolved, bias_right)
 }
@@ -827,7 +928,7 @@ fn sort_subgraph(
 const fn add_subgraph_constraints_layer(
 	_layer: &LayerGraph,
 	_cg: &mut Graph<(), (), ()>,
-	_vs: &[NodeId],
+	_vs: &[NodeIdx],
 ) {
 	// No compound subgraphs to add constraints for in our scope.
 }
@@ -841,16 +942,18 @@ fn sweep_layer_graphs(
 ) {
 	let mut cg: Graph<(), (), ()> = Graph::new();
 	for lg in layer_graphs {
-		let movable = lg
+		let (movable, global) = lg
 			.graph()
-			.map(|g| g.movable.clone())
+			.map(|g| (g.movable.clone(), g.global.clone()))
 			.unwrap_or_default();
-		let sorted = sort_subgraph(lg, &movable, &cg, bias_right);
-		for (i, v) in sorted.vs.iter().enumerate() {
-			if let Some(n) = lg.node_mut(v) {
-				n.order = Some(i);
-			}
-			if let Some(n) = graph.node_mut(v) {
+		let sorted =
+			sort_subgraph(lg, graph, &global, &movable, &cg, bias_right);
+		// Only the main graph carries `order` now; the next layer's
+		// barycenters read it back from there.
+		for (i, &v) in sorted.vs.iter().enumerate() {
+			if let Some(&g) = global.get(v.index())
+				&& let Some(n) = graph.node_mut(g)
+			{
 				n.order = Some(i);
 			}
 		}

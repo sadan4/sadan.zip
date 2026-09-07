@@ -9,52 +9,80 @@
 //!   - multigraph (named edges)
 //!   - compound graphs (parent / children)
 //!
-//! Edge identity is the triple `(v, w, name)`. For non-multigraphs the name is
-//! always the empty string.
+//! Nodes and edges are addressed by dense `u32` indices, not strings. Node
+//! identity is a [`NodeIdx`]; edge identity is the triple `(v, w, name)`
+//! captured by [`Edge`], which is `Copy` and hashes without allocating. A
+//! node may optionally carry a human-readable name, stored in a side table
+//! that the layout pipeline never touches.
 
-use std::{
-	collections::{self, BTreeMap, BTreeSet, HashMap, HashSet},
-	mem,
-};
+use std::mem;
 
+use rustc_hash::FxHashMap;
 pub use smol_str::SmolStr;
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-/// Identifier type for nodes and edges. [`SmolStr`] inlines strings up to 23 bytes;
-/// dagre node/edge ids in practice (numeric module ids, "a"/"b", "rev1", "_d24")
-/// are well under that, so the vast majority never heap-allocate.
-pub type NodeId = SmolStr;
+/// Identifier for a node. Indexes directly into the graph's slot table.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(transparent))]
+pub struct NodeIdx(pub u32);
+
+impl NodeIdx {
+	#[must_use]
+	pub const fn index(self) -> usize {
+		self.0 as usize
+	}
+}
+
+impl std::fmt::Display for NodeIdx {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		write!(f, "#{}", self.0)
+	}
+}
+
+/// Identifier for an edge slot. Only used to index the edge table; edge
+/// *identity* is [`Edge`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(transparent))]
+pub struct EdgeIdx(pub u32);
+
+impl EdgeIdx {
+	#[must_use]
+	pub const fn index(self) -> usize {
+		self.0 as usize
+	}
+}
+
+/// Opaque token distinguishing parallel edges between the same two nodes.
+/// Minted by [`Graph::fresh_edge_name`]. Nothing inspects its value.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(transparent))]
+pub struct EdgeName(pub u32);
 
 /// Identifies an edge by its endpoints and (for multigraphs) a name.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Edge {
-	pub v: NodeId,
-	pub w: NodeId,
-	pub name: Option<NodeId>,
+	pub v: NodeIdx,
+	pub w: NodeIdx,
+	pub name: Option<EdgeName>,
 }
 
 impl Edge {
 	#[must_use]
-	pub fn new(v: impl Into<NodeId>, w: impl Into<NodeId>) -> Self {
-		Self {
-			v: v.into(),
-			w: w.into(),
-			name: None,
-		}
+	pub const fn new(v: NodeIdx, w: NodeIdx) -> Self {
+		Self { v, w, name: None }
 	}
 	#[must_use]
-	pub fn with_name(
-		v: impl Into<NodeId>,
-		w: impl Into<NodeId>,
-		name: impl Into<NodeId>,
-	) -> Self {
+	pub const fn with_name(v: NodeIdx, w: NodeIdx, name: EdgeName) -> Self {
 		Self {
-			v: v.into(),
-			w: w.into(),
-			name: Some(name.into()),
+			v,
+			w,
+			name: Some(name),
 		}
 	}
 }
@@ -103,18 +131,144 @@ impl GraphOpts {
 	}
 }
 
-type NodeLabelFactory<N> = Box<dyn Fn(&str) -> N>;
-type EdgeLabelFactory<E> = Box<dyn Fn(&Edge) -> E>;
+mod sealed {
+	pub trait Sealed {}
+	impl Sealed for super::NodeIdx {}
+	impl Sealed for &super::NodeIdx {}
+	impl Sealed for &str {}
+	impl Sealed for String {}
+	impl Sealed for &String {}
+	impl Sealed for super::SmolStr {}
+	impl Sealed for &super::SmolStr {}
+}
+
+/// Something that names a node position for *writing*: either an index, or a
+/// string that gets interned into the name side-table (creating the node if it
+/// is new). Lets callers keep using readable names where ergonomics matter
+/// while the layout pipeline stays on raw indices.
+pub trait NodeKey<G, N, E>: sealed::Sealed {
+	fn resolve(self, g: &mut Graph<G, N, E>) -> NodeIdx;
+}
+
+impl<G, N, E> NodeKey<G, N, E> for NodeIdx {
+	fn resolve(self, _g: &mut Graph<G, N, E>) -> Self {
+		self
+	}
+}
+impl<G, N, E> NodeKey<G, N, E> for &NodeIdx {
+	fn resolve(self, _g: &mut Graph<G, N, E>) -> NodeIdx {
+		*self
+	}
+}
+impl<G, N: Default, E> NodeKey<G, N, E> for &str {
+	fn resolve(self, g: &mut Graph<G, N, E>) -> NodeIdx {
+		g.node_named_or_insert(self)
+	}
+}
+impl<G, N: Default, E> NodeKey<G, N, E> for &SmolStr {
+	fn resolve(self, g: &mut Graph<G, N, E>) -> NodeIdx {
+		g.node_named_or_insert(self)
+	}
+}
+impl<G, N: Default, E> NodeKey<G, N, E> for SmolStr {
+	fn resolve(self, g: &mut Graph<G, N, E>) -> NodeIdx {
+		g.node_named_or_insert(&self)
+	}
+}
+impl<G, N: Default, E> NodeKey<G, N, E> for String {
+	fn resolve(self, g: &mut Graph<G, N, E>) -> NodeIdx {
+		g.node_named_or_insert(&self)
+	}
+}
+impl<G, N: Default, E> NodeKey<G, N, E> for &String {
+	fn resolve(self, g: &mut Graph<G, N, E>) -> NodeIdx {
+		g.node_named_or_insert(self)
+	}
+}
+
+/// Something that names an *existing* node, for reading. Unknown names
+/// resolve to `None` rather than creating anything.
+pub trait NodeRef<G, N, E>: sealed::Sealed {
+	fn lookup(self, g: &Graph<G, N, E>) -> Option<NodeIdx>;
+}
+
+impl<G, N, E> NodeRef<G, N, E> for NodeIdx {
+	fn lookup(self, _g: &Graph<G, N, E>) -> Option<Self> {
+		Some(self)
+	}
+}
+impl<G, N, E> NodeRef<G, N, E> for &NodeIdx {
+	fn lookup(self, _g: &Graph<G, N, E>) -> Option<NodeIdx> {
+		Some(*self)
+	}
+}
+impl<G, N, E> NodeRef<G, N, E> for &str {
+	fn lookup(self, g: &Graph<G, N, E>) -> Option<NodeIdx> {
+		g.node_idx(self)
+	}
+}
+impl<G, N, E> NodeRef<G, N, E> for &SmolStr {
+	fn lookup(self, g: &Graph<G, N, E>) -> Option<NodeIdx> {
+		g.node_idx(self)
+	}
+}
+impl<G, N, E> NodeRef<G, N, E> for SmolStr {
+	fn lookup(self, g: &Graph<G, N, E>) -> Option<NodeIdx> {
+		g.node_idx(&self)
+	}
+}
+impl<G, N, E> NodeRef<G, N, E> for String {
+	fn lookup(self, g: &Graph<G, N, E>) -> Option<NodeIdx> {
+		g.node_idx(&self)
+	}
+}
+impl<G, N, E> NodeRef<G, N, E> for &String {
+	fn lookup(self, g: &Graph<G, N, E>) -> Option<NodeIdx> {
+		g.node_idx(self)
+	}
+}
+
+type NodeLabelFactory<N> = Box<dyn Fn(NodeIdx) -> N>;
+type EdgeLabelFactory<E> = Box<dyn Fn(Edge) -> E>;
+
+/// One live node. Adjacency is stored as edge-slot indices in insertion
+/// order; degrees in dagre graphs are small (~4 before normalize, ~1 after),
+/// so linear scans beat any map here.
+#[derive(Debug, Clone)]
+struct NodeSlot<N> {
+	label: N,
+	out: Vec<EdgeIdx>,
+	inc: Vec<EdgeIdx>,
+	/// Compound graphs only. `None` means the node sits at the root.
+	parent: Option<NodeIdx>,
+	/// Compound graphs only, insertion-ordered.
+	children: Vec<NodeIdx>,
+}
+
+impl<N> NodeSlot<N> {
+	const fn new(label: N) -> Self {
+		Self {
+			label,
+			out: Vec::new(),
+			inc: Vec::new(),
+			parent: None,
+			children: Vec::new(),
+		}
+	}
+}
+
+#[derive(Debug, Clone)]
+struct EdgeSlot<E> {
+	edge: Edge,
+	label: E,
+}
 
 /// The graph itself. `G`, `N`, `E` are the label types.
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[cfg_attr(
-	feature = "serde",
-	serde(bound(
-		serialize = "G: Serialize, N: Serialize, E: Serialize",
-		deserialize = "G: Deserialize<'de>, N: Deserialize<'de>, E: Deserialize<'de>"
-	))
-)]
+///
+/// Removed nodes and edges leave tombstones (`None` slots) behind and their
+/// indices are never reused: `normalize::undo` deletes tens of thousands of
+/// dummy nodes and adds none back, so a free list would buy nothing while
+/// opening the door to a stale [`NodeIdx`] silently aliasing a new node.
 pub struct Graph<G, N, E> {
 	is_directed: bool,
 	is_multigraph: bool,
@@ -122,40 +276,27 @@ pub struct Graph<G, N, E> {
 
 	label: Option<G>,
 
-	// Default label factory used by `setNode(v)` (without label).
-	#[cfg_attr(feature = "serde", serde(skip))]
+	// Default label factory used by `set_node_default(v)` (without label).
 	default_node_label: Option<NodeLabelFactory<N>>,
-	#[cfg_attr(feature = "serde", serde(skip))]
 	default_edge_label: Option<EdgeLabelFactory<E>>,
 
-	/// Insertion-ordered node ids.
-	node_order: Vec<NodeId>,
-	node_index: HashMap<NodeId, usize>,
-	node_labels: HashMap<NodeId, N>,
+	/// Node slots. Index is the [`NodeIdx`]; `None` is a tombstone.
+	nodes: Vec<Option<NodeSlot<N>>>,
+	live_nodes: usize,
 
-	/// Compound graph: parent of each node.
-	parent: HashMap<NodeId, NodeId>,
-	/// Children of each parent ("\x00" key = root children, matching JS impl).
-	children: HashMap<NodeId, BTreeSet<NodeId>>,
+	/// Edge slots. Index is the [`EdgeIdx`]; `None` is a tombstone.
+	edges: Vec<Option<EdgeSlot<E>>>,
+	live_edges: usize,
+	/// Edge identity -> slot.
+	edge_lookup: FxHashMap<Edge, EdgeIdx>,
 
-	/// out[v] -> { `edge_id` -> Edge }
-	out_edges: HashMap<NodeId, BTreeMap<NodeId, Edge>>,
-	/// in[v] -> { `edge_id` -> Edge }
-	in_edges: HashMap<NodeId, BTreeMap<NodeId, Edge>>,
-	/// predecessor count: preds[v][u] = number of u->v edges
-	preds: HashMap<NodeId, HashMap<NodeId, usize>>,
-	sucs: HashMap<NodeId, HashMap<NodeId, usize>>,
+	next_edge_name: u32,
 
-	/// Insertion-ordered edge ids -> Edge.
-	edge_order: Vec<NodeId>,
-	edge_index: HashMap<NodeId, usize>,
-	/// Edge label, keyed by `edge_id`.
-	edge_labels: HashMap<NodeId, E>,
-	/// Edge object, keyed by `edge_id`.
-	edge_objs: HashMap<NodeId, Edge>,
+	/// Optional human-readable node names. Empty unless a caller uses the
+	/// `*_named` helpers; the layout pipeline never reads it.
+	names: Vec<Option<SmolStr>>,
+	by_name: FxHashMap<SmolStr, NodeIdx>,
 }
-
-const GRAPH_NODE: &str = "\x00";
 
 impl<G, N, E> Graph<G, N, E> {
 	pub fn new() -> Self {
@@ -163,33 +304,28 @@ impl<G, N, E> Graph<G, N, E> {
 	}
 
 	pub fn with_opts(opts: GraphOpts) -> Self {
-		let is_directed = opts.directed;
-		let mut g = Self {
-			is_directed,
+		Self {
+			is_directed: opts.directed,
 			is_multigraph: opts.multigraph,
 			is_compound: opts.compound,
 			label: None,
 			default_node_label: None,
 			default_edge_label: None,
-			node_order: Vec::new(),
-			node_index: HashMap::new(),
-			node_labels: HashMap::new(),
-			parent: HashMap::new(),
-			children: HashMap::new(),
-			out_edges: HashMap::new(),
-			in_edges: HashMap::new(),
-			preds: HashMap::new(),
-			sucs: HashMap::new(),
-			edge_order: Vec::new(),
-			edge_index: HashMap::new(),
-			edge_labels: HashMap::new(),
-			edge_objs: HashMap::new(),
-		};
-		if g.is_compound {
-			g.children
-				.insert(GRAPH_NODE.into(), BTreeSet::new());
+			nodes: Vec::new(),
+			live_nodes: 0,
+			edges: Vec::new(),
+			live_edges: 0,
+			edge_lookup: FxHashMap::default(),
+			next_edge_name: 0,
+			names: Vec::new(),
+			by_name: FxHashMap::default(),
 		}
-		g
+	}
+
+	/// Pre-size the node table. Derived graphs that mirror a parent's index
+	/// space use this to avoid repeated growth.
+	pub fn reserve_nodes(&mut self, n: usize) {
+		self.nodes.reserve(n);
 	}
 
 	pub const fn is_directed(&self) -> bool {
@@ -210,6 +346,16 @@ impl<G, N, E> Graph<G, N, E> {
 		self.is_compound
 	}
 
+	/// Upper bound on any live [`NodeIdx`]. Side tables indexed by node use
+	/// this as their length.
+	pub const fn node_bound(&self) -> usize {
+		self.nodes.len()
+	}
+	/// Upper bound on any live [`EdgeIdx`].
+	pub const fn edge_bound(&self) -> usize {
+		self.edges.len()
+	}
+
 	// ---- graph label ----------------------------------------------------
 
 	pub fn set_graph(&mut self, label: G) -> &mut Self {
@@ -223,14 +369,14 @@ impl<G, N, E> Graph<G, N, E> {
 		self.label.as_mut()
 	}
 
-	pub fn set_default_node_label<F: Fn(&str) -> N + 'static>(
+	pub fn set_default_node_label<F: Fn(NodeIdx) -> N + 'static>(
 		&mut self,
 		f: F,
 	) -> &mut Self {
 		self.default_node_label = Some(Box::new(f));
 		self
 	}
-	pub fn set_default_edge_label<F: Fn(&Edge) -> E + 'static>(
+	pub fn set_default_edge_label<F: Fn(Edge) -> E + 'static>(
 		&mut self,
 		f: F,
 	) -> &mut Self {
@@ -241,292 +387,421 @@ impl<G, N, E> Graph<G, N, E> {
 	// ---- nodes ----------------------------------------------------------
 
 	pub const fn node_count(&self) -> usize {
-		self.node_order.len()
-	}
-	pub fn nodes(&self) -> Vec<NodeId> {
-		self.node_order.clone()
-	}
-	/// Borrowing alternative to `nodes()` for hot loops. Avoids cloning the
-	/// 60k-entry `node_order` Vec when callers only need to iterate.
-	pub fn nodes_iter(&self) -> impl Iterator<Item = &str> {
-		self.node_order
-			.iter()
-			.map(SmolStr::as_str)
-	}
-	pub fn has_node(&self, v: &str) -> bool {
-		self.node_labels.contains_key(v)
+		self.live_nodes
 	}
 
-	pub fn set_node(&mut self, v: impl Into<NodeId>, label: N) -> &mut Self {
-		let v = v.into();
-		if let collections::hash_map::Entry::Occupied(mut e) =
-			self.node_labels.entry(v.clone())
-		{
-			e.insert(label);
-			return self;
+	/// Snapshot of the live node ids, in index (= insertion) order. Cheap
+	/// now that ids are `Copy` u32s; use it when the loop body mutates the
+	/// graph, and `nodes_iter` otherwise.
+	pub fn nodes(&self) -> Vec<NodeIdx> {
+		self.nodes_iter().collect()
+	}
+
+	pub fn nodes_iter(&self) -> impl Iterator<Item = NodeIdx> + '_ {
+		self.nodes
+			.iter()
+			.enumerate()
+			.filter_map(|(i, slot)| {
+				slot.as_ref()
+					.map(|_| NodeIdx(u32::try_from(i).unwrap_or(u32::MAX)))
+			})
+	}
+
+	pub fn has_node(&self, v: impl NodeRef<G, N, E>) -> bool {
+		v.lookup(self)
+			.is_some_and(|v| self.slot(v).is_some())
+	}
+
+	fn slot(&self, v: NodeIdx) -> Option<&NodeSlot<N>> {
+		self.nodes.get(v.index())?.as_ref()
+	}
+	fn slot_mut(&mut self, v: NodeIdx) -> Option<&mut NodeSlot<N>> {
+		self.nodes.get_mut(v.index())?.as_mut()
+	}
+
+	/// Append a node with a fresh index.
+	pub fn add_node(&mut self, label: N) -> NodeIdx {
+		let v =
+			NodeIdx(u32::try_from(self.nodes.len()).expect("node overflow"));
+		self.nodes
+			.push(Some(NodeSlot::new(label)));
+		self.live_nodes += 1;
+		v
+	}
+
+	/// Create or replace the node at `v`, growing the slot table with
+	/// tombstones as needed. Derived graphs (`util::simplify`,
+	/// `order::build_layer_graph`, the block graph, the feasible tree) use
+	/// this to share their parent's index space.
+	pub fn set_node(
+		&mut self,
+		v: impl NodeKey<G, N, E>,
+		label: N,
+	) -> &mut Self {
+		let v = v.resolve(self);
+		if self.nodes.len() <= v.index() {
+			self.nodes
+				.resize_with(v.index() + 1, || None);
 		}
-		self.node_labels
-			.insert(v.clone(), label);
-		self.node_index
-			.insert(v.clone(), self.node_order.len());
-		self.node_order.push(v.clone());
-		self.in_edges
-			.insert(v.clone(), BTreeMap::new());
-		self.out_edges
-			.insert(v.clone(), BTreeMap::new());
-		self.preds
-			.insert(v.clone(), HashMap::new());
-		self.sucs
-			.insert(v.clone(), HashMap::new());
-		if self.is_compound {
-			self.parent
-				.insert(v.clone(), GRAPH_NODE.into());
-			self.children
-				.entry(GRAPH_NODE.into())
-				.or_default()
-				.insert(v.clone());
-			self.children.insert(v, BTreeSet::new());
+		let slot = &mut self.nodes[v.index()];
+		if let Some(existing) = slot {
+			existing.label = label;
+		} else {
+			*slot = Some(NodeSlot::new(label));
+			self.live_nodes += 1;
 		}
 		self
 	}
 
-	/// Like `setNode(v)` in JS with no label: uses default label factory if
-	/// one was registered, else falls back to `N::default()`.
-	pub fn set_node_default(&mut self, v: impl Into<NodeId>) -> &mut Self
+	/// Like `set_node(v)` with no label: uses the default label factory if one
+	/// was registered, else `N::default()`. Existing nodes are left alone.
+	pub fn set_node_default(&mut self, v: impl NodeKey<G, N, E>) -> &mut Self
 	where
 		N: Default,
 	{
-		let v = v.into();
-		if self.node_labels.contains_key(&v) {
+		let v = v.resolve(self);
+		if self.has_node(v) {
 			return self;
 		}
 		let label = match &self.default_node_label {
-			Some(f) => f(&v),
+			Some(f) => f(v),
 			None => N::default(),
 		};
 		self.set_node(v, label)
 	}
 
-	pub fn node(&self, v: &str) -> Option<&N> {
-		self.node_labels.get(v)
+	pub fn node(&self, v: impl NodeRef<G, N, E>) -> Option<&N> {
+		self.slot(v.lookup(self)?)
+			.map(|s| &s.label)
 	}
-	pub fn node_mut(&mut self, v: &str) -> Option<&mut N> {
-		self.node_labels.get_mut(v)
+	pub fn node_mut(&mut self, v: impl NodeRef<G, N, E>) -> Option<&mut N> {
+		let v = v.lookup(self)?;
+		self.slot_mut(v).map(|s| &mut s.label)
 	}
 
-	pub fn remove_node(&mut self, v: &str) {
+	pub fn remove_node(&mut self, v: impl NodeRef<G, N, E>) {
+		let Some(v) = v.lookup(self) else {
+			return;
+		};
 		if !self.has_node(v) {
 			return;
 		}
-		// Remove from compound parent/children
 		if self.is_compound {
-			// Detach children up to root.
-			let cs: Vec<NodeId> = self
-				.children
-				.get(v)
-				.map(|s| s.iter().cloned().collect())
-				.unwrap_or_default();
-			// Remove this v from its parent's child set.
-			if let Some(p) = self.parent.remove(v)
-				&& let Some(set) = self.children.get_mut(&p)
+			// Children become root-level; detach from our own parent.
+			let children = mem::take(&mut self.slot_mut(v).unwrap().children);
+			for c in children {
+				if let Some(cs) = self.slot_mut(c) {
+					cs.parent = None;
+				}
+			}
+			if let Some(p) = self.slot(v).and_then(|s| s.parent)
+				&& let Some(ps) = self.slot_mut(p)
 			{
-				set.remove(v);
+				ps.children.retain(|&c| c != v);
 			}
-			for c in &cs {
-				// children become root-level.
-				self.parent
-					.insert(c.clone(), GRAPH_NODE.into());
-				self.children
-					.entry(GRAPH_NODE.into())
-					.or_default()
-					.insert(c.clone());
-			}
-			self.children.remove(v);
 		}
 
-		// Remove incident edges.
-		let in_es: Vec<Edge> = self
-			.in_edges
-			.get(v)
-			.map(|m| m.values().cloned().collect())
-			.unwrap_or_default();
-		let out_es: Vec<Edge> = self
-			.out_edges
-			.get(v)
-			.map(|m| m.values().cloned().collect())
-			.unwrap_or_default();
-		for e in in_es.into_iter().chain(out_es) {
+		// Remove incident edges. Collect first: `remove_edge_obj` mutates
+		// the adjacency lists we would otherwise be iterating.
+		let incident: Vec<Edge> = {
+			let slot = self.slot(v).unwrap();
+			slot.inc
+				.iter()
+				.chain(slot.out.iter())
+				.filter_map(|&e| self.edges[e.index()].as_ref())
+				.map(|s| s.edge)
+				.collect()
+		};
+		for e in incident {
 			self.remove_edge_obj(&e);
 		}
 
-		self.node_labels.remove(v);
-		self.in_edges.remove(v);
-		self.out_edges.remove(v);
-		self.preds.remove(v);
-		self.sucs.remove(v);
-		// O(1) removal via swap_remove. normalize::undo deletes ~tens of
-		// thousands of dummies, so any O(N) work here turns the phase into
-		// O(N²) — measured at 15s on a 63k-node graph before this change.
-		// Iteration order at the swapped slot changes, but no caller in this
-		// crate relies on insertion-order stability after a removal: layer
-		// algorithms sort by node.rank/order, not by nodes() position.
-		if let Some(&idx) = self.node_index.get(v) {
-			self.node_order.swap_remove(idx);
-			self.node_index.remove(v);
-			if let Some(swapped) = self.node_order.get(idx) {
-				self.node_index
-					.insert(swapped.clone(), idx);
-			}
+		self.nodes[v.index()] = None;
+		self.live_nodes -= 1;
+		if let Some(slot) = self.names.get_mut(v.index())
+			&& let Some(name) = slot.take()
+		{
+			self.by_name.remove(&name);
+		}
+	}
+
+	// ---- names (side table, not used by the layout pipeline) ------------
+
+	/// Create a node carrying `name`, or replace the label of the node that
+	/// already has it.
+	pub fn set_node_named(
+		&mut self,
+		name: impl Into<SmolStr>,
+		label: N,
+	) -> NodeIdx {
+		let name = name.into();
+		if let Some(&v) = self.by_name.get(&name) {
+			self.set_node(v, label);
+			return v;
+		}
+		let v = self.add_node(label);
+		self.bind_name(v, name);
+		v
+	}
+
+	/// Look up (or create, with the default label) the node called `name`.
+	pub fn node_named_or_insert(&mut self, name: &str) -> NodeIdx
+	where
+		N: Default,
+	{
+		if let Some(&v) = self.by_name.get(name) {
+			return v;
+		}
+		let next =
+			NodeIdx(u32::try_from(self.nodes.len()).expect("node overflow"));
+		let label = match &self.default_node_label {
+			Some(f) => f(next),
+			None => N::default(),
+		};
+		let v = self.add_node(label);
+		self.bind_name(v, SmolStr::from(name));
+		v
+	}
+
+	fn bind_name(&mut self, v: NodeIdx, name: SmolStr) {
+		if self.names.len() <= v.index() {
+			self.names
+				.resize_with(v.index() + 1, || None);
+		}
+		self.names[v.index()] = Some(name.clone());
+		self.by_name.insert(name, v);
+	}
+
+	/// Index of the node called `name`, if one was ever registered.
+	pub fn node_idx(&self, name: &str) -> Option<NodeIdx> {
+		self.by_name.get(name).copied()
+	}
+
+	/// Name of `v`, if it has one.
+	pub fn name(&self, v: NodeIdx) -> Option<&str> {
+		self.names.get(v.index())?.as_deref()
+	}
+
+	/// `name(v)` with a `#idx` fallback, for diagnostics.
+	pub fn name_or_idx(&self, v: NodeIdx) -> String {
+		self.name(v)
+			.map_or_else(|| v.to_string(), ToString::to_string)
+	}
+
+	pub fn names_of(&self, vs: &[NodeIdx]) -> Vec<String> {
+		vs.iter()
+			.map(|&v| self.name_or_idx(v))
+			.collect()
+	}
+
+	/// Convenience: like graphlib's `setPath`, creates a chain of named nodes
+	/// and the edges between them. Each edge gets the default edge label.
+	pub fn set_path(&mut self, path: &[&str])
+	where
+		N: Default,
+		E: Default,
+	{
+		let Some(first) = path.first() else {
+			return;
+		};
+		let mut prev = self.node_named_or_insert(first);
+		for name in &path[1..] {
+			let cur = self.node_named_or_insert(name);
+			self.set_edge_full(prev, cur, None, None);
+			prev = cur;
 		}
 	}
 
 	// ---- compound -------------------------------------------------------
 
-	pub fn set_parent(&mut self, v: &str, parent: Option<&str>)
+	pub fn set_parent(
+		&mut self,
+		v: impl NodeKey<G, N, E>,
+		parent: Option<impl NodeKey<G, N, E>>,
+	) where
+		N: Default,
+	{
+		let v = v.resolve(self);
+		let parent = parent.map(|p| p.resolve(self));
+		assert!(
+			self.is_compound,
+			"Cannot set parent in a non-compound graph"
+		);
+		self.set_node_default(v);
+		if let Some(p) = parent {
+			self.set_node_default(p);
+			// Disallow cycles.
+			let mut ancestor = Some(p);
+			while let Some(a) = ancestor {
+				assert!(
+					a != v,
+					"Setting {p} as parent of {v} would create a cycle"
+				);
+				ancestor = self.slot(a).and_then(|s| s.parent);
+			}
+		}
+		// Detach from previous parent.
+		if let Some(prev) = self.slot(v).and_then(|s| s.parent)
+			&& let Some(ps) = self.slot_mut(prev)
+		{
+			ps.children.retain(|&c| c != v);
+		}
+		if let Some(s) = self.slot_mut(v) {
+			s.parent = parent;
+		}
+		if let Some(p) = parent
+			&& let Some(ps) = self.slot_mut(p)
+			&& !ps.children.contains(&v)
+		{
+			ps.children.push(v);
+		}
+	}
+
+	/// Detach `v` from its parent, making it root-level. Separate from
+	/// `set_parent` because a bare `None` there cannot infer a key type.
+	pub fn unset_parent(&mut self, v: impl NodeKey<G, N, E>)
 	where
 		N: Default,
 	{
-		if !self.is_compound {
-			panic!("Cannot set parent in a non-compound graph");
-		}
-		if !self.has_node(v) {
-			self.set_node_default(v.to_string());
-		}
-		let new_parent: NodeId = parent.unwrap_or(GRAPH_NODE).into();
-		// Disallow cycles.
-		if parent.is_some() {
-			let mut ancestor = Some(new_parent.clone());
-			while let Some(a) = ancestor {
-				if a == v {
-					panic!(
-						"Setting {new_parent} as parent of {v} would create a cycle",
-					);
-				}
-				ancestor = self.parent.get(&a).cloned();
-				if ancestor.as_deref() == Some(GRAPH_NODE) {
-					ancestor = None;
-				}
-			}
-		}
-		if let Some(parent) = parent
-			&& !self.has_node(parent)
-		{
-			self.set_node_default(parent.to_string());
-		}
-		// Detach from previous parent.
-		if let Some(prev) = self.parent.get(v).cloned()
-			&& let Some(set) = self.children.get_mut(&prev)
-		{
-			set.remove(v);
-		}
-		self.parent
-			.insert(v.into(), new_parent.clone());
-		self.children
-			.entry(new_parent)
-			.or_default()
-			.insert(v.into());
+		self.set_parent(v, None::<NodeIdx>);
 	}
 
-	pub fn parent(&self, v: &str) -> Option<&str> {
+	pub fn parent(&self, v: impl NodeRef<G, N, E>) -> Option<NodeIdx> {
 		if !self.is_compound {
 			return None;
 		}
-		let p = self.parent.get(v)?;
-		if p == GRAPH_NODE {
-			None
-		} else {
-			Some(p.as_str())
-		}
+		self.slot(v.lookup(self)?)?.parent
 	}
 
-	/// Returns children of `v`, or root-level nodes if `v` is None.
-	pub fn children(&self, v: Option<&str>) -> Vec<NodeId> {
-		let key = v.unwrap_or(GRAPH_NODE);
-		if self.is_compound {
-			self.children
-				.get(key)
-				.map(|s| s.iter().cloned().collect())
-				.unwrap_or_default()
-		} else if v.is_none() {
-			self.nodes()
-		} else {
-			vec![]
+	/// The root-level nodes. Counterpart to `children` for the same reason
+	/// `unset_parent` exists: a bare `None` cannot infer a key type.
+	pub fn root_children(&self) -> Vec<NodeIdx> {
+		self.children(None::<NodeIdx>)
+	}
+
+	/// Children of `v`, or the root-level nodes if `v` is `None`.
+	pub fn children(&self, v: Option<impl NodeRef<G, N, E>>) -> Vec<NodeIdx> {
+		let v = v.map(|v| v.lookup(self));
+		if !self.is_compound {
+			return match v {
+				None => self.nodes(),
+				Some(_) => Vec::new(),
+			};
+		}
+		match v.flatten() {
+			Some(v) => self
+				.slot(v)
+				.map(|s| s.children.clone())
+				.unwrap_or_default(),
+			None => self
+				.nodes_iter()
+				.filter(|&n| {
+					self.slot(n)
+						.is_some_and(|s| s.parent.is_none())
+				})
+				.collect(),
 		}
 	}
 
 	// ---- edges ----------------------------------------------------------
 
 	pub const fn edge_count(&self) -> usize {
-		self.edge_order.len()
+		self.live_edges
+	}
+
+	/// Mint a fresh edge name. The value is opaque; it exists only to keep
+	/// parallel edges distinct.
+	pub const fn fresh_edge_name(&mut self) -> EdgeName {
+		let n = EdgeName(self.next_edge_name);
+		self.next_edge_name += 1;
+		n
 	}
 
 	pub fn edges(&self) -> Vec<Edge> {
-		self.edge_order
-			.iter()
-			.map(|id| self.edge_objs.get(id).cloned().unwrap())
-			.collect()
+		self.edges_iter().collect()
 	}
 
-	pub fn edges_iter(&self) -> impl Iterator<Item = &Edge> {
-		self.edge_order
+	pub fn edges_iter(&self) -> impl Iterator<Item = Edge> + '_ {
+		self.edges
 			.iter()
-			.map(|id| self.edge_objs.get(id).unwrap())
+			.filter_map(|slot| slot.as_ref().map(|s| s.edge))
 	}
 
-	fn edge_id(&self, v: &str, w: &str, name: Option<&str>) -> NodeId {
-		let s = if !self.is_directed && v > w {
-			format!("{}\x01{}\x01{}", w, v, name.unwrap_or(""))
+	/// Canonical identity for `(v, w, name)`. Undirected graphs order the
+	/// endpoints so both directions map to the same edge.
+	const fn canonical(&self, e: Edge) -> Edge {
+		if !self.is_directed && e.v.0 > e.w.0 {
+			Edge {
+				v: e.w,
+				w: e.v,
+				name: e.name,
+			}
 		} else {
-			format!("{}\x01{}\x01{}", v, w, name.unwrap_or(""))
-		};
-		s.into()
+			e
+		}
 	}
 
-	pub fn has_edge(&self, v: &str, w: &str) -> bool {
+	pub fn has_edge(
+		&self,
+		v: impl NodeRef<G, N, E>,
+		w: impl NodeRef<G, N, E>,
+	) -> bool {
 		self.has_edge_named(v, w, None)
 	}
-	pub fn has_edge_named(&self, v: &str, w: &str, name: Option<&str>) -> bool {
-		let id = self.edge_id(v, w, name);
-		self.edge_index.contains_key(&id)
+	pub fn has_edge_named(
+		&self,
+		v: impl NodeRef<G, N, E>,
+		w: impl NodeRef<G, N, E>,
+		name: Option<EdgeName>,
+	) -> bool {
+		let (Some(v), Some(w)) = (v.lookup(self), w.lookup(self)) else {
+			return false;
+		};
+		self.has_edge_obj(&Edge { v, w, name })
 	}
 	pub fn has_edge_obj(&self, e: &Edge) -> bool {
-		self.has_edge_named(&e.v, &e.w, e.name.as_deref())
+		self.edge_lookup
+			.contains_key(&self.canonical(*e))
 	}
 
 	pub fn set_edge(
 		&mut self,
-		v: impl Into<NodeId>,
-		w: impl Into<NodeId>,
+		v: impl NodeKey<G, N, E>,
+		w: impl NodeKey<G, N, E>,
 		label: E,
 	) where
 		N: Default,
 		E: Default,
 	{
-		self.set_edge_full(v, w, None, Some(label));
+		self.set_edge_named(v, w, label, None);
 	}
 
 	pub fn set_edge_named(
 		&mut self,
-		v: impl Into<NodeId>,
-		w: impl Into<NodeId>,
+		v: impl NodeKey<G, N, E>,
+		w: impl NodeKey<G, N, E>,
 		label: E,
-		name: Option<NodeId>,
+		name: Option<EdgeName>,
 	) where
 		N: Default,
 		E: Default,
 	{
+		let v = v.resolve(self);
+		let w = w.resolve(self);
 		self.set_edge_full(v, w, name, Some(label));
 	}
 
-	/// Equivalent to setEdge(v, w) with no label — applies default factory.
+	/// Equivalent to `set_edge(v, w)` with no label - applies default factory.
 	pub fn set_edge_default(
 		&mut self,
-		v: impl Into<NodeId>,
-		w: impl Into<NodeId>,
+		v: impl NodeKey<G, N, E>,
+		w: impl NodeKey<G, N, E>,
 	) where
 		N: Default,
 		E: Default,
 	{
+		let v = v.resolve(self);
+		let w = w.resolve(self);
 		self.set_edge_full(v, w, None, None);
 	}
 
@@ -535,291 +810,348 @@ impl<G, N, E> Graph<G, N, E> {
 		N: Default,
 		E: Default,
 	{
-		self.set_edge_full(
-			e.v.clone(),
-			e.w.clone(),
-			e.name.clone(),
-			Some(label),
-		);
+		self.set_edge_full(e.v, e.w, e.name, Some(label));
 	}
 	pub fn set_edge_obj_default(&mut self, e: &Edge)
 	where
 		N: Default,
 		E: Default,
 	{
-		self.set_edge_full(e.v.clone(), e.w.clone(), e.name.clone(), None);
+		self.set_edge_full(e.v, e.w, e.name, None);
 	}
 
 	fn set_edge_full(
 		&mut self,
-		v: impl Into<NodeId>,
-		w: impl Into<NodeId>,
-		name: Option<NodeId>,
+		v: NodeIdx,
+		w: NodeIdx,
+		name: Option<EdgeName>,
 		label: Option<E>,
 	) where
 		N: Default,
 		E: Default,
 	{
-		let mut v = v.into();
-		let mut w = w.into();
-		if name.is_some() && !self.is_multigraph {
-			panic!("Cannot set a named edge when isMultigraph = false");
-		}
-		let id = self.edge_id(&v, &w, name.as_deref());
+		assert!(
+			name.is_none() || self.is_multigraph,
+			"Cannot set a named edge when isMultigraph = false"
+		);
+		let edge = self.canonical(Edge { v, w, name });
 
-		if self.edge_index.contains_key(&id) {
-			if let Some(label) = label {
-				self.edge_labels.insert(id, label);
-			} else if let Some(f) = &self.default_edge_label {
-				let e = Edge {
-					v: v.clone(),
-					w: w.clone(),
-					name,
-				};
-				let l = f(&e);
-				self.edge_labels.insert(id, l);
+		if let Some(&idx) = self.edge_lookup.get(&edge) {
+			let label = match label {
+				Some(l) => l,
+				None => match &self.default_edge_label {
+					Some(f) => f(edge),
+					None => E::default(),
+				},
+			};
+			if let Some(slot) = self.edges[idx.index()].as_mut() {
+				slot.label = label;
 			}
 			return;
 		}
-		if !self.has_node(&v) {
-			self.set_node_default(v.clone());
-		}
-		if !self.has_node(&w) {
-			self.set_node_default(w.clone());
-		}
-		// Canonicalize for undirected: ensure v <= w.
-		if !self.is_directed && v > w {
-			mem::swap(&mut v, &mut w);
-		}
-		let edge = Edge {
-			v: v.clone(),
-			w: w.clone(),
-			name,
-		};
+
+		self.set_node_default(edge.v);
+		self.set_node_default(edge.w);
+
 		let label = match label {
 			Some(l) => l,
 			None => match &self.default_edge_label {
-				Some(f) => f(&edge),
+				Some(f) => f(edge),
 				None => E::default(),
 			},
 		};
 
-		self.edge_labels
-			.insert(id.clone(), label);
-		self.edge_objs
-			.insert(id.clone(), edge.clone());
-		self.edge_index
-			.insert(id.clone(), self.edge_order.len());
-		self.edge_order.push(id.clone());
-
-		self.out_edges
-			.get_mut(&v)
-			.unwrap()
-			.insert(id.clone(), edge.clone());
-		self.in_edges
-			.get_mut(&w)
-			.unwrap()
-			.insert(id, edge);
-		*self
-			.sucs
-			.get_mut(&v)
-			.unwrap()
-			.entry(w.clone())
-			.or_insert(0) += 1;
-		*self
-			.preds
-			.get_mut(&w)
-			.unwrap()
-			.entry(v.clone())
-			.or_insert(0) += 1;
+		let idx =
+			EdgeIdx(u32::try_from(self.edges.len()).expect("edge overflow"));
+		self.edges
+			.push(Some(EdgeSlot { edge, label }));
+		self.live_edges += 1;
+		self.edge_lookup.insert(edge, idx);
+		self.nodes[edge.v.index()]
+			.as_mut()
+			.expect("edge tail exists")
+			.out
+			.push(idx);
+		self.nodes[edge.w.index()]
+			.as_mut()
+			.expect("edge head exists")
+			.inc
+			.push(idx);
 	}
 
-	pub fn edge(&self, v: &str, w: &str) -> Option<&E> {
+	pub fn edge(
+		&self,
+		v: impl NodeRef<G, N, E>,
+		w: impl NodeRef<G, N, E>,
+	) -> Option<&E> {
 		self.edge_full(v, w, None)
 	}
-	pub fn edge_mut(&mut self, v: &str, w: &str) -> Option<&mut E> {
+	pub fn edge_mut(
+		&mut self,
+		v: impl NodeRef<G, N, E>,
+		w: impl NodeRef<G, N, E>,
+	) -> Option<&mut E> {
 		self.edge_full_mut(v, w, None)
 	}
 	pub fn edge_full(
 		&self,
-		v: &str,
-		w: &str,
-		name: Option<&str>,
+		v: impl NodeRef<G, N, E>,
+		w: impl NodeRef<G, N, E>,
+		name: Option<EdgeName>,
 	) -> Option<&E> {
-		let id = self.edge_id(v, w, name);
-		self.edge_labels.get(&id)
+		let (v, w) = (v.lookup(self)?, w.lookup(self)?);
+		self.edge_obj(&Edge { v, w, name })
 	}
 	pub fn edge_full_mut(
 		&mut self,
-		v: &str,
-		w: &str,
-		name: Option<&str>,
+		v: impl NodeRef<G, N, E>,
+		w: impl NodeRef<G, N, E>,
+		name: Option<EdgeName>,
 	) -> Option<&mut E> {
-		let id = self.edge_id(v, w, name);
-		self.edge_labels.get_mut(&id)
+		let (v, w) = (v.lookup(self)?, w.lookup(self)?);
+		self.edge_obj_mut(&Edge { v, w, name })
 	}
 	pub fn edge_obj(&self, e: &Edge) -> Option<&E> {
-		self.edge_full(&e.v, &e.w, e.name.as_deref())
+		let idx = *self
+			.edge_lookup
+			.get(&self.canonical(*e))?;
+		self.edges[idx.index()]
+			.as_ref()
+			.map(|s| &s.label)
 	}
 	pub fn edge_obj_mut(&mut self, e: &Edge) -> Option<&mut E> {
-		self.edge_full_mut(&e.v, &e.w, e.name.as_deref())
+		let idx = *self
+			.edge_lookup
+			.get(&self.canonical(*e))?;
+		self.edges[idx.index()]
+			.as_mut()
+			.map(|s| &mut s.label)
 	}
 
-	pub fn remove_edge(&mut self, v: &str, w: &str) {
+	pub fn remove_edge(
+		&mut self,
+		v: impl NodeRef<G, N, E>,
+		w: impl NodeRef<G, N, E>,
+	) {
 		self.remove_edge_named(v, w, None);
 	}
-	pub fn remove_edge_named(&mut self, v: &str, w: &str, name: Option<&str>) {
-		let id = self.edge_id(v, w, name);
-		if let Some(e) = self.edge_objs.get(&id).cloned() {
-			let (vv, ww) = (e.v.clone(), e.w);
-			self.edge_labels.remove(&id);
-			self.edge_objs.remove(&id);
-			// See remove_node: O(1) swap_remove instead of order-preserving
-			// shift. edge_index stays consistent for the swapped element only;
-			// no caller relies on stable edges() iteration order after a delete.
-			if let Some(&idx) = self.edge_index.get(&id) {
-				self.edge_order.swap_remove(idx);
-				self.edge_index.remove(&id);
-				if let Some(swapped) = self.edge_order.get(idx) {
-					self.edge_index
-						.insert(swapped.clone(), idx);
-				}
-			}
-			if let Some(m) = self.out_edges.get_mut(&vv) {
-				m.remove(&id);
-			}
-			if let Some(m) = self.in_edges.get_mut(&ww) {
-				m.remove(&id);
-			}
-			if let Some(m) = self.sucs.get_mut(&vv)
-				&& let Some(cnt) = m.get_mut(&ww)
-			{
-				*cnt -= 1;
-				if *cnt == 0 {
-					m.remove(&ww);
-				}
-			}
-			if let Some(m) = self.preds.get_mut(&ww)
-				&& let Some(cnt) = m.get_mut(&vv)
-			{
-				*cnt -= 1;
-				if *cnt == 0 {
-					m.remove(&vv);
-				}
-			}
-		}
+	pub fn remove_edge_named(
+		&mut self,
+		v: impl NodeRef<G, N, E>,
+		w: impl NodeRef<G, N, E>,
+		name: Option<EdgeName>,
+	) {
+		let (Some(v), Some(w)) = (v.lookup(self), w.lookup(self)) else {
+			return;
+		};
+		self.remove_edge_obj(&Edge { v, w, name });
 	}
 	pub fn remove_edge_obj(&mut self, e: &Edge) {
-		self.remove_edge_named(&e.v, &e.w, e.name.as_deref());
+		let edge = self.canonical(*e);
+		let Some(idx) = self.edge_lookup.remove(&edge) else {
+			return;
+		};
+		self.edges[idx.index()] = None;
+		self.live_edges -= 1;
+		if let Some(s) = self.slot_mut(edge.v) {
+			s.out.retain(|&x| x != idx);
+		}
+		if let Some(s) = self.slot_mut(edge.w) {
+			s.inc.retain(|&x| x != idx);
+		}
+	}
+
+	// ---- edge slots -----------------------------------------------------
+	//
+	// Hot loops address edges by slot so they never hash an `Edge`: the
+	// adjacency lists are borrowed as-is and the label is a direct index.
+
+	/// Outgoing edge slots of `v`, in insertion order.
+	pub fn out_edge_idxs(&self, v: NodeIdx) -> &[EdgeIdx] {
+		self.slot(v).map_or(&[], |s| &s.out)
+	}
+	/// Incoming edge slots of `v`, in insertion order.
+	pub fn in_edge_idxs(&self, v: NodeIdx) -> &[EdgeIdx] {
+		self.slot(v).map_or(&[], |s| &s.inc)
+	}
+	/// Endpoints of an edge slot.
+	pub fn edge_ends(&self, e: EdgeIdx) -> Option<Edge> {
+		Some(
+			self.edges
+				.get(e.index())?
+				.as_ref()?
+				.edge,
+		)
+	}
+	/// Label of an edge slot.
+	pub fn edge_label(&self, e: EdgeIdx) -> Option<&E> {
+		Some(
+			&self
+				.edges
+				.get(e.index())?
+				.as_ref()?
+				.label,
+		)
+	}
+	pub fn edge_label_mut(&mut self, e: EdgeIdx) -> Option<&mut E> {
+		Some(
+			&mut self
+				.edges
+				.get_mut(e.index())?
+				.as_mut()?
+				.label,
+		)
+	}
+	/// Endpoints and label together, for loops that need both.
+	pub fn edge_entry(&self, e: EdgeIdx) -> Option<(Edge, &E)> {
+		let slot = self.edges.get(e.index())?.as_ref()?;
+		Some((slot.edge, &slot.label))
 	}
 
 	// ---- neighborhood ---------------------------------------------------
 
-	pub fn in_edges(&self, v: &str) -> Option<Vec<Edge>> {
-		let m = self.in_edges.get(v)?;
-		Some(m.values().cloned().collect())
+	fn edges_of(&self, list: &[EdgeIdx]) -> Vec<Edge> {
+		list.iter()
+			.filter_map(|&i| self.edges[i.index()].as_ref())
+			.map(|s| s.edge)
+			.collect()
+	}
+
+	pub fn in_edges(&self, v: impl NodeRef<G, N, E>) -> Option<Vec<Edge>> {
+		let slot = self.slot(v.lookup(self)?)?;
+		Some(self.edges_of(&slot.inc))
 	}
 	pub fn in_edges_iter(
 		&self,
-		v: &str,
-	) -> Option<impl Iterator<Item = &Edge>> {
-		Some(self.in_edges.get(v)?.values())
-	}
-	pub fn in_edges_from(&self, v: &str, u: &str) -> Option<Vec<Edge>> {
-		let m = self.in_edges.get(v)?;
+		v: impl NodeRef<G, N, E>,
+	) -> Option<impl Iterator<Item = Edge> + '_> {
+		let slot = self.slot(v.lookup(self)?)?;
 		Some(
-			m.values()
+			slot.inc
+				.iter()
+				.filter_map(|&i| self.edges[i.index()].as_ref())
+				.map(|s| s.edge),
+		)
+	}
+	pub fn in_edges_from(
+		&self,
+		v: impl NodeRef<G, N, E>,
+		u: impl NodeRef<G, N, E>,
+	) -> Option<Vec<Edge>> {
+		let u = u.lookup(self)?;
+		Some(
+			self.in_edges_iter(v)?
 				.filter(|e| e.v == u)
-				.cloned()
 				.collect(),
 		)
 	}
-	pub fn out_edges(&self, v: &str) -> Option<Vec<Edge>> {
-		let m = self.out_edges.get(v)?;
-		Some(m.values().cloned().collect())
+	pub fn out_edges(&self, v: impl NodeRef<G, N, E>) -> Option<Vec<Edge>> {
+		let slot = self.slot(v.lookup(self)?)?;
+		Some(self.edges_of(&slot.out))
 	}
 	pub fn out_edges_iter(
 		&self,
-		v: &str,
-	) -> Option<impl Iterator<Item = &Edge>> {
-		Some(self.out_edges.get(v)?.values())
-	}
-	pub fn out_edges_to(&self, v: &str, w: &str) -> Option<Vec<Edge>> {
-		let m = self.out_edges.get(v)?;
+		v: impl NodeRef<G, N, E>,
+	) -> Option<impl Iterator<Item = Edge> + '_> {
+		let slot = self.slot(v.lookup(self)?)?;
 		Some(
-			m.values()
+			slot.out
+				.iter()
+				.filter_map(|&i| self.edges[i.index()].as_ref())
+				.map(|s| s.edge),
+		)
+	}
+	pub fn out_edges_to(
+		&self,
+		v: impl NodeRef<G, N, E>,
+		w: impl NodeRef<G, N, E>,
+	) -> Option<Vec<Edge>> {
+		let w = w.lookup(self)?;
+		Some(
+			self.out_edges_iter(v)?
 				.filter(|e| e.w == w)
-				.cloned()
 				.collect(),
 		)
 	}
-	pub fn node_edges(&self, v: &str) -> Option<Vec<Edge>> {
-		let inv = self.in_edges(v)?;
+	pub fn node_edges(&self, v: impl NodeRef<G, N, E>) -> Option<Vec<Edge>> {
+		let v = v.lookup(self)?;
 		let mut out = self.out_edges(v)?;
-		out.extend(inv);
+		out.extend(self.in_edges(v)?);
 		Some(out)
 	}
-	pub fn predecessors(&self, v: &str) -> Option<Vec<NodeId>> {
-		let m = self.preds.get(v)?;
-		Some(m.keys().cloned().collect())
+
+	/// Distinct tails of the incoming edges, appended to `out`. Scratch-buffer
+	/// form for hot loops that would otherwise allocate a `Vec` per node.
+	pub fn predecessors_into(&self, v: NodeIdx, out: &mut Vec<NodeIdx>) {
+		out.clear();
+		for &ei in self.in_edge_idxs(v) {
+			if let Some(slot) = self.edges[ei.index()].as_ref()
+				&& !out.contains(&slot.edge.v)
+			{
+				out.push(slot.edge.v);
+			}
+		}
 	}
-	pub fn successors(&self, v: &str) -> Option<Vec<NodeId>> {
-		let m = self.sucs.get(v)?;
-		Some(m.keys().cloned().collect())
+
+	/// Distinct heads of the outgoing edges, appended to `out`.
+	pub fn successors_into(&self, v: NodeIdx, out: &mut Vec<NodeIdx>) {
+		out.clear();
+		for &ei in self.out_edge_idxs(v) {
+			if let Some(slot) = self.edges[ei.index()].as_ref()
+				&& !out.contains(&slot.edge.w)
+			{
+				out.push(slot.edge.w);
+			}
+		}
 	}
-	pub fn neighbors(&self, v: &str) -> Option<Vec<NodeId>> {
-		let mut s: Vec<NodeId> = self.predecessors(v)?;
-		let succ = self.successors(v)?;
-		let set: HashSet<NodeId> = s.iter().cloned().collect();
-		for n in succ {
-			if !set.contains(&n) {
+
+	/// Distinct tails of the incoming edges, in edge-insertion order.
+	pub fn predecessors(
+		&self,
+		v: impl NodeRef<G, N, E>,
+	) -> Option<Vec<NodeIdx>> {
+		let mut out: Vec<NodeIdx> = Vec::new();
+		for e in self.in_edges_iter(v)? {
+			if !out.contains(&e.v) {
+				out.push(e.v);
+			}
+		}
+		Some(out)
+	}
+	/// Distinct heads of the outgoing edges, in edge-insertion order.
+	pub fn successors(&self, v: impl NodeRef<G, N, E>) -> Option<Vec<NodeIdx>> {
+		let mut out: Vec<NodeIdx> = Vec::new();
+		for e in self.out_edges_iter(v)? {
+			if !out.contains(&e.w) {
+				out.push(e.w);
+			}
+		}
+		Some(out)
+	}
+	pub fn neighbors(&self, v: impl NodeRef<G, N, E>) -> Option<Vec<NodeIdx>> {
+		let v = v.lookup(self)?;
+		let mut s = self.predecessors(v)?;
+		for n in self.successors(v)? {
+			if !s.contains(&n) {
 				s.push(n);
 			}
 		}
 		Some(s)
 	}
-
-	pub fn sources(&self) -> Vec<NodeId> {
-		self.node_order
-			.iter()
-			.filter(|v| {
-				self.preds
-					.get(*v)
-					.is_none_or(HashMap::is_empty)
+	pub fn sources(&self) -> Vec<NodeIdx> {
+		self.nodes_iter()
+			.filter(|&v| {
+				self.slot(v)
+					.is_some_and(|s| s.inc.is_empty())
 			})
-			.cloned()
 			.collect()
 	}
-	/// Convenience: like graphlib's `setPath`, creates a chain of edges.
-	/// Each edge gets the default edge label (so `default_edge_label` must
-	/// have been set, or the labels are written via the caller).
-	pub fn set_path(&mut self, path: &[&str])
-	where
-		N: Default,
-		E: Default,
-	{
-		for i in 1..path.len() {
-			// Use the registered default-edge-label factory if any, else
-			// E::default(). This matches graphlib's setPath semantics where
-			// edges inherit the default label.
-			self.set_edge_full(
-				NodeId::from(path[i - 1]),
-				NodeId::from(path[i]),
-				None,
-				None,
-			);
-		}
-	}
-
-	pub fn sinks(&self) -> Vec<NodeId> {
-		self.node_order
-			.iter()
-			.filter(|v| {
-				self.sucs
-					.get(*v)
-					.is_none_or(HashMap::is_empty)
+	pub fn sinks(&self) -> Vec<NodeIdx> {
+		self.nodes_iter()
+			.filter(|&v| {
+				self.slot(v)
+					.is_some_and(|s| s.out.is_empty())
 			})
-			.cloned()
 			.collect()
 	}
 }
@@ -830,215 +1162,437 @@ impl<G, N, E> Default for Graph<G, N, E> {
 	}
 }
 
+impl<G: std::fmt::Debug, N: std::fmt::Debug, E: std::fmt::Debug> std::fmt::Debug
+	for Graph<G, N, E>
+{
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.debug_struct("Graph")
+			.field("is_directed", &self.is_directed)
+			.field("is_multigraph", &self.is_multigraph)
+			.field("is_compound", &self.is_compound)
+			.field("label", &self.label)
+			.field("node_count", &self.live_nodes)
+			.field("edge_count", &self.live_edges)
+			.finish_non_exhaustive()
+	}
+}
+
+// ---- serde --------------------------------------------------------------
+
+/// Wire format. Deliberately *not* a mirror of the internal storage: the
+/// adjacency lists, the edge lookup and the name map are all rebuilt on
+/// load, so only nodes and edges are transmitted.
+#[cfg(feature = "serde")]
+#[derive(Serialize, Deserialize)]
+#[serde(bound(
+	serialize = "G: Serialize, N: Serialize, E: Serialize",
+	deserialize = "G: Deserialize<'de>, N: Deserialize<'de>, E: Deserialize<'de>"
+))]
+struct SerGraph<G, N, E> {
+	directed: bool,
+	multigraph: bool,
+	compound: bool,
+	label: Option<G>,
+	/// Position in this array *is* the `NodeIdx`. `None` is a tombstone.
+	nodes: Vec<Option<SerNode<N>>>,
+	edges: Vec<SerEdge<E>>,
+	#[serde(default)]
+	next_edge_name: u32,
+}
+
+#[cfg(feature = "serde")]
+#[derive(Serialize, Deserialize)]
+struct SerNode<N> {
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	name: Option<SmolStr>,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	parent: Option<NodeIdx>,
+	label: N,
+}
+
+#[cfg(feature = "serde")]
+#[derive(Serialize, Deserialize)]
+struct SerEdge<E> {
+	v: NodeIdx,
+	w: NodeIdx,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	name: Option<EdgeName>,
+	label: E,
+}
+
+#[cfg(feature = "serde")]
+impl<G, N, E> Serialize for Graph<G, N, E>
+where
+	G: Serialize + Clone,
+	N: Serialize + Clone,
+	E: Serialize + Clone,
+{
+	fn serialize<S: serde::Serializer>(
+		&self,
+		serializer: S,
+	) -> Result<S::Ok, S::Error> {
+		let nodes = self
+			.nodes
+			.iter()
+			.enumerate()
+			.map(|(i, slot)| {
+				slot.as_ref().map(|s| SerNode {
+					name: self.names.get(i).cloned().flatten(),
+					parent: s.parent,
+					label: s.label.clone(),
+				})
+			})
+			.collect();
+		let edges = self
+			.edges
+			.iter()
+			.filter_map(|slot| {
+				slot.as_ref().map(|s| SerEdge {
+					v: s.edge.v,
+					w: s.edge.w,
+					name: s.edge.name,
+					label: s.label.clone(),
+				})
+			})
+			.collect();
+		SerGraph {
+			directed: self.is_directed,
+			multigraph: self.is_multigraph,
+			compound: self.is_compound,
+			label: self.label.clone(),
+			nodes,
+			edges,
+			next_edge_name: self.next_edge_name,
+		}
+		.serialize(serializer)
+	}
+}
+
+#[cfg(feature = "serde")]
+impl<'de, G, N, E> Deserialize<'de> for Graph<G, N, E>
+where
+	G: Deserialize<'de>,
+	N: Deserialize<'de> + Default,
+	E: Deserialize<'de> + Default,
+{
+	fn deserialize<D: serde::Deserializer<'de>>(
+		deserializer: D,
+	) -> Result<Self, D::Error> {
+		let raw: SerGraph<G, N, E> = SerGraph::deserialize(deserializer)?;
+		let mut g = Self::with_opts(GraphOpts {
+			directed: raw.directed,
+			multigraph: raw.multigraph,
+			compound: raw.compound,
+		});
+		g.label = raw.label;
+		g.next_edge_name = raw.next_edge_name;
+		g.nodes.reserve(raw.nodes.len());
+		g.names.reserve(raw.nodes.len());
+		let mut parents: Vec<(NodeIdx, NodeIdx)> = Vec::new();
+		for (i, node) in raw.nodes.into_iter().enumerate() {
+			let v = NodeIdx(u32::try_from(i).expect("node overflow"));
+			match node {
+				Some(n) => {
+					g.set_node(v, n.label);
+					if let Some(name) = n.name {
+						g.bind_name(v, name);
+					}
+					if let Some(p) = n.parent {
+						parents.push((v, p));
+					}
+				}
+				None => g.nodes.push(None),
+			}
+		}
+		for (v, p) in parents {
+			if let Some(s) = g.slot_mut(v) {
+				s.parent = Some(p);
+			}
+			if let Some(ps) = g.slot_mut(p) {
+				ps.children.push(v);
+			}
+		}
+		for e in raw.edges {
+			g.set_edge_full(e.v, e.w, e.name, Some(e.label));
+		}
+		Ok(g)
+	}
+}
+
 // ---- graph algorithms used by network-simplex --------------------------
 
 pub mod alg {
-	use super::{Graph, NodeId};
-	use std::collections::{HashMap, HashSet};
+	use super::{Graph, NodeIdx};
 
-	/// Postorder DFS traversal — used by network-simplex.
+	/// Postorder DFS traversal - used by network-simplex.
 	pub fn postorder<G, N, E>(
 		g: &Graph<G, N, E>,
-		starts: &[NodeId],
-	) -> Vec<NodeId> {
-		let mut visited: HashSet<NodeId> = HashSet::new();
-		let mut result: Vec<NodeId> = Vec::new();
+		starts: &[NodeIdx],
+	) -> Vec<NodeIdx> {
+		let mut visited = vec![false; g.node_bound()];
+		let mut result: Vec<NodeIdx> = Vec::new();
 		for s in starts {
-			if !g.has_node(s) {
-				panic!("postorder: node {s} not in graph");
-			}
-			dfs(g, s, &mut visited, &mut result, true);
+			dfs(g, *s, &mut visited, &mut result, true);
 		}
 		result
 	}
 
-	/// Tarjan-style strongly connected components on a directed graph; used
-	/// by `find_cycles`. Only the SCCs with > 1 node (or self-loops) form
-	/// cycles.
-	pub fn tarjan<G, N, E>(g: &Graph<G, N, E>) -> Vec<Vec<NodeId>> {
-		struct State<'a, G: 'a, N: 'a, E: 'a> {
-			g: &'a Graph<G, N, E>,
-			index: usize,
-			stack: Vec<NodeId>,
-			on_stack: HashSet<NodeId>,
-			indices: HashMap<NodeId, usize>,
-			lowlinks: HashMap<NodeId, usize>,
-			results: Vec<Vec<NodeId>>,
-		}
-		fn strong_connect<G, N, E>(s: &mut State<G, N, E>, v: &str) {
-			s.indices.insert(v.into(), s.index);
-			s.lowlinks.insert(v.into(), s.index);
-			s.index += 1;
-			s.stack.push(v.into());
-			s.on_stack.insert(v.into());
-			for w in s.g.successors(v).unwrap_or_default() {
-				if !s.indices.contains_key(&w) {
-					strong_connect(s, &w);
-					let lw = *s.lowlinks.get(&w).unwrap();
-					let lv = *s.lowlinks.get(v).unwrap();
-					s.lowlinks.insert(v.into(), lv.min(lw));
-				} else if s.on_stack.contains(&w) {
-					let iw = *s.indices.get(&w).unwrap();
-					let lv = *s.lowlinks.get(v).unwrap();
-					s.lowlinks.insert(v.into(), lv.min(iw));
-				}
-			}
-			if s.lowlinks.get(v) == s.indices.get(v) {
-				let mut comp = Vec::new();
-				while let Some(w) = s.stack.pop() {
-					s.on_stack.remove(&w);
-					let stop = w == v;
-					comp.push(w);
-					if stop {
-						break;
-					}
-				}
-				s.results.push(comp);
-			}
-		}
-		let mut state = State {
-			g,
-			index: 0,
-			stack: Vec::new(),
-			on_stack: HashSet::new(),
-			indices: HashMap::new(),
-			lowlinks: HashMap::new(),
-			results: Vec::new(),
-		};
-		for v in g.nodes() {
-			if !state.indices.contains_key(&v) {
-				strong_connect(&mut state, &v);
-			}
-		}
-		state.results
-	}
-
-	/// Returns the cycles in the graph: SCCs with more than one node, plus
-	/// any self-loop (which are SCCs of size 1 with an edge to themselves).
-	pub fn find_cycles<G, N, E>(g: &Graph<G, N, E>) -> Vec<Vec<NodeId>> {
-		tarjan(g)
-			.into_iter()
-			.filter(|comp| {
-				let len = comp.len();
-				if len == 1 {
-					let v = &comp[0];
-					g.has_edge(v, v)
-				} else {
-					len > 1
-				}
-			})
-			.collect()
-	}
-
-	/// Preorder DFS traversal.
 	pub fn preorder<G, N, E>(
 		g: &Graph<G, N, E>,
-		starts: &[NodeId],
-	) -> Vec<NodeId> {
-		let mut visited: HashSet<NodeId> = HashSet::new();
-		let mut result: Vec<NodeId> = Vec::new();
+		starts: &[NodeIdx],
+	) -> Vec<NodeIdx> {
+		let mut visited = vec![false; g.node_bound()];
+		let mut result: Vec<NodeIdx> = Vec::new();
 		for s in starts {
-			if !g.has_node(s) {
-				panic!("preorder: node {s} not in graph");
-			}
-			dfs(g, s, &mut visited, &mut result, false);
+			dfs(g, *s, &mut visited, &mut result, false);
 		}
 		result
 	}
 
 	fn dfs<G, N, E>(
 		g: &Graph<G, N, E>,
-		v: &str,
-		visited: &mut HashSet<NodeId>,
-		result: &mut Vec<NodeId>,
+		v: NodeIdx,
+		visited: &mut [bool],
+		result: &mut Vec<NodeIdx>,
 		postorder: bool,
 	) {
-		if visited.contains(v) {
+		if visited[v.index()] {
 			return;
 		}
-		visited.insert(v.into());
+		visited[v.index()] = true;
 		if !postorder {
-			result.push(v.into());
+			result.push(v);
 		}
-		// For undirected graphs, neighbors; for directed, successors.
 		let next = if g.is_directed() {
 			g.successors(v).unwrap_or_default()
 		} else {
 			g.neighbors(v).unwrap_or_default()
 		};
 		for w in next {
-			dfs(g, &w, visited, result, postorder);
+			dfs(g, w, visited, result, postorder);
 		}
 		if postorder {
-			result.push(v.into());
+			result.push(v);
 		}
+	}
+
+	/// Tarjan's strongly-connected components.
+	pub fn tarjan<G, N, E>(g: &Graph<G, N, E>) -> Vec<Vec<NodeIdx>> {
+		struct State {
+			index: usize,
+			stack: Vec<NodeIdx>,
+			on_stack: Vec<bool>,
+			indices: Vec<Option<usize>>,
+			lowlinks: Vec<usize>,
+			results: Vec<Vec<NodeIdx>>,
+		}
+
+		fn strong_connect<G, N, E>(
+			s: &mut State,
+			g: &Graph<G, N, E>,
+			v: NodeIdx,
+		) {
+			s.indices[v.index()] = Some(s.index);
+			s.lowlinks[v.index()] = s.index;
+			s.index += 1;
+			s.stack.push(v);
+			s.on_stack[v.index()] = true;
+
+			for w in g.successors(v).unwrap_or_default() {
+				if s.indices[w.index()].is_none() {
+					strong_connect(s, g, w);
+					s.lowlinks[v.index()] =
+						s.lowlinks[v.index()].min(s.lowlinks[w.index()]);
+				} else if s.on_stack[w.index()] {
+					s.lowlinks[v.index()] = s.lowlinks[v.index()]
+						.min(s.indices[w.index()].unwrap_or(usize::MAX));
+				}
+			}
+
+			if Some(s.lowlinks[v.index()]) == s.indices[v.index()] {
+				let mut comp: Vec<NodeIdx> = Vec::new();
+				while let Some(w) = s.stack.pop() {
+					s.on_stack[w.index()] = false;
+					comp.push(w);
+					if w == v {
+						break;
+					}
+				}
+				s.results.push(comp);
+			}
+		}
+
+		let bound = g.node_bound();
+		let mut state = State {
+			index: 0,
+			stack: Vec::new(),
+			on_stack: vec![false; bound],
+			indices: vec![None; bound],
+			lowlinks: vec![0; bound],
+			results: Vec::new(),
+		};
+		for v in g.nodes() {
+			if state.indices[v.index()].is_none() {
+				strong_connect(&mut state, g, v);
+			}
+		}
+		state.results
+	}
+
+	/// Strongly-connected components with more than one node, plus
+	/// single-node components that carry a self-loop.
+	pub fn find_cycles<G, N, E>(g: &Graph<G, N, E>) -> Vec<Vec<NodeIdx>> {
+		tarjan(g)
+			.into_iter()
+			.filter(|comp| {
+				comp.len() > 1
+					|| (comp.len() == 1 && g.has_edge(comp[0], comp[0]))
+			})
+			.collect()
 	}
 }
 
 #[cfg(test)]
 mod tests {
-	use super::*;
+	use super::{Edge, Graph, GraphOpts, NodeIdx};
 
 	#[test]
-	fn basic_node_edge() {
+	fn add_and_read_nodes() {
 		let mut g: Graph<(), i32, i32> = Graph::new();
-		g.set_node("a", 1);
-		g.set_node("b", 2);
-		g.set_edge("a", "b", 10);
+		let a = g.add_node(1);
+		let b = g.add_node(2);
 		assert_eq!(g.node_count(), 2);
-		assert_eq!(g.edge_count(), 1);
-		assert_eq!(g.edge("a", "b"), Some(&10));
-		assert_eq!(g.successors("a").unwrap(), vec![NodeId::from("b")]);
-		assert_eq!(g.predecessors("b").unwrap(), vec![NodeId::from("a")]);
+		assert_eq!(g.node(a), Some(&1));
+		assert_eq!(g.node(b), Some(&2));
+		assert_eq!(g.nodes(), vec![a, b]);
 	}
 
 	#[test]
-	fn remove_node_clears_edges() {
+	fn remove_node_tombstones_and_keeps_order() {
 		let mut g: Graph<(), i32, i32> = Graph::new();
-		g.set_node("a", 1);
-		g.set_node("b", 2);
-		g.set_edge("a", "b", 10);
-		g.remove_node("a");
-		assert_eq!(g.edge_count(), 0);
-		assert!(!g.has_node("a"));
+		let a = g.add_node(1);
+		let b = g.add_node(2);
+		let c = g.add_node(3);
+		g.remove_node(b);
+		assert_eq!(g.node_count(), 2);
+		assert_eq!(g.nodes(), vec![a, c]);
+		assert!(!g.has_node(b));
 	}
 
 	#[test]
-	fn multigraph_named_edges() {
+	fn edges_and_adjacency() {
+		let mut g: Graph<(), i32, i32> = Graph::new();
+		let a = g.add_node(0);
+		let b = g.add_node(0);
+		let c = g.add_node(0);
+		g.set_edge(a, b, 1);
+		g.set_edge(b, c, 2);
+		assert_eq!(g.edge_count(), 2);
+		assert_eq!(g.edge(a, b), Some(&1));
+		assert_eq!(g.successors(a), Some(vec![b]));
+		assert_eq!(g.predecessors(c), Some(vec![b]));
+		assert_eq!(g.sources(), vec![a]);
+		assert_eq!(g.sinks(), vec![c]);
+		g.remove_edge(a, b);
+		assert_eq!(g.edge_count(), 1);
+		assert_eq!(g.successors(a), Some(vec![]));
+	}
+
+	#[test]
+	fn named_edges_need_multigraph() {
 		let mut g: Graph<(), i32, i32> =
 			Graph::with_opts(GraphOpts::directed().multigraph());
-		g.set_node("a", 1);
-		g.set_node("b", 2);
-		g.set_edge_named("a", "b", 1, Some("e1".into()));
-		g.set_edge_named("a", "b", 2, Some("e2".into()));
+		let a = g.add_node(0);
+		let b = g.add_node(0);
+		let n1 = g.fresh_edge_name();
+		let n2 = g.fresh_edge_name();
+		g.set_edge_named(a, b, 1, Some(n1));
+		g.set_edge_named(a, b, 2, Some(n2));
 		assert_eq!(g.edge_count(), 2);
+		assert_eq!(g.edge_full(a, b, Some(n1)), Some(&1));
+		assert_eq!(g.edge_full(a, b, Some(n2)), Some(&2));
 	}
 
-	#[cfg(feature = "serde")]
 	#[test]
-	fn serde_roundtrip() {
-		let mut g: Graph<String, i32, i32> = Graph::new();
-		g.set_graph("hello".to_string());
-		g.set_node("a", 1);
-		g.set_node("b", 2);
-		g.set_edge("a", "b", 10);
-		let json = serde_json::to_string(&g).unwrap();
-		let g2: Graph<String, i32, i32> = serde_json::from_str(&json).unwrap();
-		assert_eq!(g2.graph(), Some(&"hello".to_string()));
-		assert_eq!(g2.node_count(), 2);
-		assert_eq!(g2.edge_count(), 1);
-		assert_eq!(g2.edge("a", "b"), Some(&10));
-		assert_eq!(g2.successors("a").unwrap(), vec![NodeId::from("b")]);
+	fn undirected_edges_are_canonical() {
+		let mut g: Graph<(), i32, i32> =
+			Graph::with_opts(GraphOpts::undirected());
+		let a = g.add_node(0);
+		let b = g.add_node(0);
+		g.set_edge(b, a, 7);
+		assert_eq!(g.edge(a, b), Some(&7));
+		assert!(g.has_edge(b, a));
+		assert_eq!(g.edge_count(), 1);
+	}
+
+	#[test]
+	fn names_are_optional_side_table() {
+		let mut g: Graph<(), i32, i32> = Graph::new();
+		let a = g.set_node_named("a", 1);
+		assert_eq!(g.node_idx("a"), Some(a));
+		assert_eq!(g.name(a), Some("a"));
+		let plain = g.add_node(2);
+		assert_eq!(g.name(plain), None);
+		assert_eq!(g.name_or_idx(plain), "#1");
+	}
+
+	#[test]
+	fn set_path_builds_named_chain() {
+		let mut g: Graph<(), i32, i32> = Graph::new();
+		g.set_path(&["a", "b", "c"]);
+		let a = g.node_idx("a").unwrap();
+		let b = g.node_idx("b").unwrap();
+		let c = g.node_idx("c").unwrap();
+		assert!(g.has_edge(a, b));
+		assert!(g.has_edge(b, c));
+		assert_eq!(g.node_count(), 3);
 	}
 
 	#[test]
 	fn compound_parent_children() {
 		let mut g: Graph<(), i32, i32> =
 			Graph::with_opts(GraphOpts::directed().compound());
-		g.set_node("p", 0);
-		g.set_node("c", 1);
-		g.set_parent("c", Some("p"));
-		assert_eq!(g.parent("c"), Some("p"));
-		assert_eq!(g.children(Some("p")), vec![NodeId::from("c")]);
+		let a = g.add_node(0);
+		let sg = g.add_node(0);
+		g.set_parent(a, Some(sg));
+		assert_eq!(g.parent(a), Some(sg));
+		assert_eq!(g.children(Some(sg)), vec![a]);
+		assert_eq!(g.root_children(), vec![sg]);
+		g.unset_parent(a);
+		assert_eq!(g.parent(a), None);
+		assert_eq!(g.children(Some(sg)), vec![]);
+	}
+
+	#[test]
+	fn set_node_grows_with_holes() {
+		let mut g: Graph<(), i32, i32> = Graph::new();
+		g.set_node(NodeIdx(3), 9);
+		assert_eq!(g.node_count(), 1);
+		assert_eq!(g.node_bound(), 4);
+		assert_eq!(g.nodes(), vec![NodeIdx(3)]);
+	}
+
+	#[cfg(feature = "serde")]
+	#[test]
+	fn serde_roundtrip() {
+		let mut g: Graph<String, i32, i32> = Graph::new();
+		g.set_graph("gl".to_string());
+		let a = g.set_node_named("a", 1);
+		let b = g.set_node_named("b", 2);
+		let c = g.add_node(3);
+		g.set_edge(a, b, 10);
+		g.set_edge(b, c, 20);
+		g.remove_node(c);
+
+		let json = serde_json::to_string(&g).unwrap();
+		let back: Graph<String, i32, i32> =
+			serde_json::from_str(&json).unwrap();
+		assert_eq!(back.graph(), Some(&"gl".to_string()));
+		assert_eq!(back.node_count(), 2);
+		assert_eq!(back.nodes(), vec![a, b]);
+		assert_eq!(back.node_idx("a"), Some(a));
+		assert_eq!(back.edge(a, b), Some(&10));
+		assert_eq!(back.edge_count(), 1);
+		assert_eq!(back.edges(), vec![Edge::new(a, b)]);
 	}
 }

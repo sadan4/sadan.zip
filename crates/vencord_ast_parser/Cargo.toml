@@ -25,6 +25,7 @@ xxhash-rust.workspace = true
 thiserror.workspace = true
 smol_str.workspace = true
 miette = { workspace = true }
+parser_diag.workspace = true
 
 [dev-dependencies]
 insta.workspace = true

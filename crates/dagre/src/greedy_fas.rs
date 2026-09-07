@@ -5,16 +5,29 @@
 //! is the aggregated weight.
 
 use crate::{
-	graph::{Edge, Graph, GraphOpts, NodeId},
+	graph::{Edge, Graph, GraphOpts, NodeIdx},
 	list::{FasEntry, List},
 	types::{EdgeLabel, GraphLabel, NodeLabel},
 };
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone)]
 struct FasNode {
-	v: NodeId,
+	v: NodeIdx,
 	in_w: f64,
 	out_w: f64,
+}
+
+impl Default for FasNode {
+	/// Only reached through `set_node_default` when an edge is inserted
+	/// before its endpoints; `build_state` always inserts every node first,
+	/// so the sentinel `v` is never observed.
+	fn default() -> Self {
+		Self {
+			v: NodeIdx(u32::MAX),
+			in_w: 0.0,
+			out_w: 0.0,
+		}
+	}
 }
 
 #[derive(Debug, Default, Clone)]
@@ -46,7 +59,7 @@ where
 	// Expand multi-edges to the actual edges in the original graph.
 	let mut out: Vec<Edge> = Vec::new();
 	for edge in results {
-		if let Some(es) = graph.out_edges_to(&edge.v, &edge.w) {
+		if let Some(es) = graph.out_edges_to(edge.v, edge.w) {
 			out.extend(es);
 		}
 	}
@@ -84,58 +97,55 @@ fn remove_node(
 	collect_predecessors: bool,
 	results: &mut Vec<Edge>,
 ) {
-	let v = entry.v.clone();
+	let v = entry.v;
 
-	let in_es = state.g.in_edges(&v).unwrap_or_default();
+	let in_es = state.g.in_edges(v).unwrap_or_default();
 	for e in in_es {
 		let w = state
 			.g
 			.edge_obj(&e)
 			.map_or(0.0, |l| l.weight);
 		if collect_predecessors {
-			results.push(Edge::new(e.v.clone(), e.w.clone()));
+			results.push(Edge::new(e.v, e.w));
 		}
 		// mutate u's out weight
-		if let Some(u_node) = state.g.node_mut(&e.v) {
+		if let Some(u_node) = state.g.node_mut(e.v) {
 			u_node.out_w -= w;
 		}
 		// rebucket u
-		let u_copy = state.g.node(&e.v).cloned();
+		let u_copy = state.g.node(e.v).cloned();
 		if let Some(u) = u_copy {
 			assign_bucket(&mut state.buckets, state.zero_idx, &u);
 		}
 	}
 
-	let out_es = state
-		.g
-		.out_edges(&v)
-		.unwrap_or_default();
+	let out_es = state.g.out_edges(v).unwrap_or_default();
 	for e in out_es {
 		let w = state
 			.g
 			.edge_obj(&e)
 			.map_or(0.0, |l| l.weight);
-		if let Some(w_node) = state.g.node_mut(&e.w) {
+		if let Some(w_node) = state.g.node_mut(e.w) {
 			w_node.in_w -= w;
 		}
-		let w_copy = state.g.node(&e.w).cloned();
+		let w_copy = state.g.node(e.w).cloned();
 		if let Some(wnode) = w_copy {
 			assign_bucket(&mut state.buckets, state.zero_idx, &wnode);
 		}
 	}
 
-	state.g.remove_node(&v);
+	state.g.remove_node(v);
 }
 
 fn assign_bucket(buckets: &mut [List], zero_idx: usize, entry: &FasNode) {
 	// First remove from whichever bucket currently holds this v.
 	for b in buckets.iter_mut() {
-		if b.remove(&entry.v).is_some() {
+		if b.remove(entry.v).is_some() {
 			break;
 		}
 	}
 	let fe = FasEntry {
-		v: entry.v.clone(),
+		v: entry.v,
 		in_w: entry.in_w,
 		out_w: entry.out_w,
 	};
@@ -159,14 +169,15 @@ where
 	F: Fn(&Edge) -> f64,
 {
 	let mut g: FasGraph = Graph::with_opts(GraphOpts::directed());
+	g.reserve_nodes(graph.node_bound());
 	let mut max_in = 0.0_f64;
 	let mut max_out = 0.0_f64;
 
 	for v in graph.nodes() {
 		g.set_node(
-			v.clone(),
+			v,
 			FasNode {
-				v: v.clone(),
+				v,
 				in_w: 0.0,
 				out_w: 0.0,
 			},
@@ -174,18 +185,18 @@ where
 	}
 	for e in graph.edges() {
 		let prev = g
-			.edge(&e.v, &e.w)
+			.edge(e.v, e.w)
 			.map_or(0.0, |l| l.weight);
 		let w = weight_fn(&e);
 		let combined = prev + w;
-		g.set_edge(e.v.clone(), e.w.clone(), FasEdge { weight: combined });
-		if let Some(vn) = g.node_mut(&e.v) {
+		g.set_edge(e.v, e.w, FasEdge { weight: combined });
+		if let Some(vn) = g.node_mut(e.v) {
 			vn.out_w += w;
 			if vn.out_w > max_out {
 				max_out = vn.out_w;
 			}
 		}
-		if let Some(wn) = g.node_mut(&e.w) {
+		if let Some(wn) = g.node_mut(e.w) {
 			wn.in_w += w;
 			if wn.in_w > max_in {
 				max_in = wn.in_w;
@@ -202,9 +213,13 @@ where
 		buckets,
 		zero_idx,
 	};
-	let nodes: Vec<NodeId> = state.g.nodes();
+	let nodes: Vec<NodeIdx> = state.g.nodes();
 	for v in nodes {
-		let node = state.g.node(&v).cloned().unwrap();
+		let node = state
+			.g
+			.node(v)
+			.cloned()
+			.expect("node exists");
 		assign_bucket(&mut state.buckets, state.zero_idx, &node);
 	}
 	state

@@ -1,3 +1,4 @@
+#![feature(try_blocks)]
 // #![warn(missing_docs)]
 pub mod bundle;
 pub mod find;

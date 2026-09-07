@@ -823,16 +823,8 @@ fn render_replacement(
 /// `before <= orig` gives the right offset (between two consecutive mappings
 /// the text is byte-identical, so we add the delta).
 fn map_span(mappings: &[(u32, u32)], start: u32, end: u32) -> (u32, u32) {
+	use pretty_printer::map_pos;
 	(map_pos(mappings, start), map_pos(mappings, end))
-}
-
-fn map_pos(mappings: &[(u32, u32)], orig: u32) -> u32 {
-	for &(before, after) in mappings.iter().rev() {
-		if orig >= before {
-			return after + (orig - before);
-		}
-	}
-	0
 }
 
 fn substitute_self(s: &str, plugin_name: &str) -> String {

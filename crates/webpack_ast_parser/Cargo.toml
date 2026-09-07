@@ -16,8 +16,8 @@ smol_str.workspace = true
 tracing.workspace = true
 itertools.workspace = true
 explorer_types.workspace = true
-miette.workspace = true
 miette_ctx.workspace = true
+parser_diag.workspace = true
 daft.workspace = true
 arrayvec.workspace = true
 rangemap.workspace = true
@@ -27,6 +27,7 @@ zstd.workspace = true
 
 [dev-dependencies]
 insta.workspace = true
+miette.workspace = true
 macros.workspace = true
 tracing-subscriber.workspace = true # used by test macro
 

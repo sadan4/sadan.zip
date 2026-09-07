@@ -27,7 +27,7 @@ oxc.workspace = true
 thiserror.workspace = true
 regress.workspace = true
 derive_more.workspace = true
-miette = {workspace = true, features = ["fancy"]}
+miette = {workspace = true, features = ["fancy", "syntect-highlighter"]}
 indicatif.workspace = true
 owo-colors.workspace = true
 unicode-width.workspace = true
@@ -57,6 +57,8 @@ daft.workspace = true
 smallvec.workspace = true
 bstr.workspace = true
 hashbrown.workspace = true
+text_diff.workspace = true
+parser_diag.workspace = true
 
 [dev-dependencies]
 insta.workspace = true

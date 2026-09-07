@@ -3,11 +3,10 @@
 //! In the JS code labels are plain objects with many optional fields. We
 //! mirror that with Rust structs where every situational field is `Option`.
 
-use crate::graph::{Edge, NodeId};
+use crate::graph::{Edge, EdgeName, NodeIdx};
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
-use smol_str::SmolStr;
 
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -102,6 +101,7 @@ pub enum Ranker {
 
 #[derive(Debug, Clone, Default)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub struct NodeLabel {
 	/// Input width of the node, used for spacing during layout.
 	pub width: f64,
@@ -121,13 +121,13 @@ pub struct NodeLabel {
 	/// For border dummy nodes, distinguishes left vs right border segments.
 	pub border_type: Option<BorderType>,
 	/// Compound graphs: node ID of the top border anchor.
-	pub border_top: Option<SmolStr>,
+	pub border_top: Option<NodeIdx>,
 	/// Compound graphs: node ID of the bottom border anchor.
-	pub border_bottom: Option<SmolStr>,
+	pub border_bottom: Option<NodeIdx>,
 	/// Compound graphs: left border node IDs, indexed by rank.
-	pub border_left: Option<Vec<SmolStr>>,
+	pub border_left: Option<Vec<NodeIdx>>,
 	/// Compound graphs: right border node IDs, indexed by rank.
-	pub border_right: Option<Vec<SmolStr>>,
+	pub border_right: Option<Vec<NodeIdx>>,
 	/// Compound graphs: smallest rank a cluster subgraph may occupy.
 	pub min_rank: Option<i32>,
 	/// Compound graphs: largest rank a cluster subgraph may occupy.
@@ -158,6 +158,7 @@ pub struct SelfEdgeStash {
 
 #[derive(Debug, Clone, Default)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub struct EdgeLabel {
 	/// Computed spline waypoints for the edge, populated by the position phase.
 	pub points: Option<Vec<Point>>,
@@ -183,7 +184,7 @@ pub struct EdgeLabel {
 	/// True if the edge was reversed by the acyclic phase to break a cycle.
 	pub reversed: bool,
 	/// Original edge name preserved when reversed, so the acyclic phase can undo the flip.
-	pub forward_name: Option<NodeId>,
+	pub forward_name: Option<EdgeName>,
 	/// True if the edge is a self-loop.
 	pub self_edge: bool,
 	/// True if the edge was inserted to enforce compound-graph nesting.
@@ -196,7 +197,7 @@ pub struct EdgeLabel {
 	/// Network-simplex tree state: lowest DFS index in the subtree rooted at the head node.
 	pub low: Option<i32>,
 	/// Network-simplex tree state: parent node in the spanning tree.
-	pub parent: Option<NodeId>,
+	pub parent: Option<NodeIdx>,
 }
 
 impl EdgeLabel {
@@ -215,6 +216,7 @@ impl EdgeLabel {
 
 #[derive(Debug, Clone, Default)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub struct GraphLabel {
 	/// Output total width of the laid-out graph.
 	pub width: Option<f64>,
@@ -246,11 +248,11 @@ pub struct GraphLabel {
 	pub rank_align: Option<RankAlign>,
 
 	/// Compound graphs: root node ID of the nesting hierarchy.
-	pub nesting_root: Option<NodeId>,
+	pub nesting_root: Option<NodeIdx>,
 	/// Compound graphs: divisor controlling rank spacing across nesting levels.
 	pub node_rank_factor: Option<f64>,
 	/// Starting nodes of dummy chains inserted by normalize, used to undo normalization.
-	pub dummy_chains: Option<Vec<NodeId>>,
+	pub dummy_chains: Option<Vec<NodeIdx>>,
 
 	/// Largest rank index in the graph after ranking; computed by the ranking phase.
 	pub max_rank: Option<i32>,

@@ -1,5 +1,4 @@
 use crate::{
-	diag::{PResult, err},
 	hash::hash_message_key,
 };
 use ast_parser::exts::{ExpressionExt as _, TemplateLiteralExt as _};
@@ -16,6 +15,7 @@ use oxc::{
 	},
 	span::Span,
 };
+use parser_diag::{PResult, err};
 use regress::Regex;
 use std::{
 	borrow::Cow,
