@@ -133,15 +133,15 @@ impl<'a> Paigeinator<'a> {
 		self
 	}
 
-	pub fn starting_page(mut self, page: usize) -> Self {
-		if cfg!(debug_assertions) && page >= self.pages.len() {
-			warn!(
-				"Paigeinator::starting_page called with an out-of-bounds page index. This will error if no pages are added before the paigeinator is started."
-			);
-		}
-		self.current_page = page;
-		self
-	}
+	// pub fn starting_page(mut self, page: usize) -> Self {
+	// 	if cfg!(debug_assertions) && page >= self.pages.len() {
+	// 		warn!(
+	// 			"Paigeinator::starting_page called with an out-of-bounds page index. This will error if no pages are added before the paigeinator is started."
+	// 		);
+	// 	}
+	// 	self.current_page = page;
+	// 	self
+	// }
 	/// overwrites existing pages
 	pub fn with_pages(
 		mut self,
@@ -162,10 +162,10 @@ impl<'a> Paigeinator<'a> {
 		self.pages.push(page.into());
 		self
 	}
-	pub const fn with_timeout(mut self, timeout: Duration) -> Self {
-		self.timeout = Some(timeout);
-		self
-	}
+	// pub const fn with_timeout(mut self, timeout: Duration) -> Self {
+	// 	self.timeout = Some(timeout);
+	// 	self
+	// }
 	const DEFAULT_TIMEOUT: Duration = Duration::from_mins(5);
 
 	pub async fn run(
