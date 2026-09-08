@@ -1,4 +1,4 @@
-mod cmds;
+pub mod cmds;
 
 use tower_lsp::{
 	LanguageServer,
@@ -26,7 +26,7 @@ impl LanguageServer for Server {
 	) -> Result<InitializeResult> {
 		Ok(InitializeResult {
 			capabilities: ServerCapabilities {
-				execute_command_provider: Some(self.get_cmd_provider()),
+				execute_command_provider: Some(Self::get_cmd_provider()),
 				..ServerCapabilities::default()
 			},
 			server_info: Some(ServerInfo {

@@ -18,14 +18,25 @@ type CmdFunc = for<'fut> fn(
 	Box<dyn Future<Output = Result<Option<JValue>>> + Send + 'fut>,
 >;
 
-type RegisteredCmd = (&'static str, CmdFunc);
+pub struct CommandDescriptor {
+	pub desc: &'static str,
+	func: CmdFunc,
+}
 
-static CMD_MAP: phf::Map<&'static str, CmdFunc> = phf::phf_map! {
-	"hello_world" => super::Server::hello_world_cmd,
+pub static CMD_MAP: phf::Map<&'static str, CommandDescriptor> = phf::phf_map! {
+	"hello_world" => CommandDescriptor {
+		desc: "Prints 'Hello World' to the log",
+		func: super::Server::hello_world_cmd,
+	},
+	"hello_world_2" => CommandDescriptor {
+		desc: "Prints 'Hello World' to the log. again.",
+		func: super::Server::hello_world_cmd,
+	},
 };
 
+
 impl super::Server {
-	pub(super) fn get_cmd_provider(&self) -> ExecuteCommandOptions {
+	pub fn get_cmd_provider() -> ExecuteCommandOptions {
 		let commands = CMD_MAP
 			.keys()
 			.map(|s| format!("{SERVER_NAME}.{s}"))
@@ -42,8 +53,8 @@ impl super::Server {
 		&self,
 		params: ExecuteCommandParams,
 	) -> Result<Option<JValue>> {
-		if let Some(cmd_func) = CMD_MAP.get(&params.command) {
-			cmd_func(self, params).await
+		if let Some(cmd) = CMD_MAP.get(&params.command) {
+			(cmd.func)(self, params).await
 		} else {
 			Err(jsonrpc::Error::method_not_found())
 		}

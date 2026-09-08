@@ -1,10 +1,10 @@
-use companion_lsp::Server;
+use companion_lsp::lsp;
 use tokio::io;
 
 #[tokio::main]
 async fn main() {
 	init_tracing();
-	let srv = Server {};
+	let srv = lsp::Server {};
 	let (service, socket) = tower_lsp::LspService::new(|_| srv);
 	tower_lsp::Server::new(io::stdin(), io::stdout(), socket)
 		.serve(service)

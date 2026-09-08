@@ -16,6 +16,7 @@ mod syntax;
 mod ts_api;
 mod types;
 mod update_intl_mappings;
+mod ext_commands;
 
 #[derive(Args)]
 pub struct Command {
@@ -40,6 +41,7 @@ impl Runnable for Command {
 			Target::NixCargoHashes(c) => c.run(),
 			Target::UpdateIntlMappings(c) => c.run(),
 			Target::ExtSettings(c) => c.run(),
+			Target::ExtCommands(c) => c.run(),
 		}
 	}
 }
@@ -74,4 +76,6 @@ enum Target {
 	UpdateIntlMappings(update_intl_mappings::Command),
 	/// Generate the vscode extension settings bindings
 	ExtSettings(ext_settings::Command),
+	/// Update the extension commands in `package.json` from the companion_lsp crate
+	ExtCommands(ext_commands::Command),
 }
