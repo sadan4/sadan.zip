@@ -901,6 +901,7 @@ dependencies = [
  "insta",
  "oxc",
  "parser_diag",
+ "phf 0.14.0",
  "pretty_printer",
  "regex",
  "regress",

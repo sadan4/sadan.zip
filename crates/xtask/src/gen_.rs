@@ -5,6 +5,7 @@ use crate::Runnable;
 
 mod bot_config;
 mod client;
+mod ext_settings;
 mod client_grammars;
 mod discord_intl;
 mod indent_cache;
@@ -38,6 +39,7 @@ impl Runnable for Command {
 			Target::BotConfig(c) => c.run(),
 			Target::NixCargoHashes(c) => c.run(),
 			Target::UpdateIntlMappings(c) => c.run(),
+			Target::ExtSettings(c) => c.run(),
 		}
 	}
 }
@@ -70,4 +72,6 @@ enum Target {
 	NixCargoHashes(nix_cargo_hashes::Command),
 	/// Update discord intl mappings from url
 	UpdateIntlMappings(update_intl_mappings::Command),
+	/// Generate the vscode extension settings bindings
+	ExtSettings(ext_settings::Command),
 }

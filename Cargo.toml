@@ -143,6 +143,7 @@ pyo3-tracing-subscriber = { version = "0.9.0" }
 pyo3-tracing-subscriber-build = { version = "0.9.0" }
 oneshot = { version = "0.2.1", features = ["async", "std"] }
 redis = { version = "1.6.0", features = ["tokio-comp"] }
+phf = {version = "0.14", features = ["macros"]}
 
 [patch.crates-io]
 typesize = { git = "https://github.com/GnomedDev/typesize", branch = "master" }

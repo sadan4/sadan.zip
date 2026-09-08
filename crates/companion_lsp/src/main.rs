@@ -1,32 +1,12 @@
-use std::{io, sync::Arc};
-
-use companion_lsp::{Backend, SessionState, discord_bridge, vencord_ext};
-use tower_lsp::{LspService, Server};
+use companion_lsp::Server;
+use tokio::io;
 
 #[tokio::main]
 async fn main() {
 	init_tracing();
-
-	let session = Arc::new(SessionState::new());
-
-	let discord_session = session.clone();
-	tokio::spawn(async move {
-		if let Err(err) = discord_bridge::run(discord_session).await {
-			tracing::error!(?err, "discord bridge terminated");
-		}
-	});
-
-	let (service, socket) =
-		LspService::build(|client| Backend::new(client, session.clone()))
-			.custom_method(
-				vencord_ext::QUICK_PICK_RESPONSE_METHOD,
-				Backend::on_quick_pick_response,
-			)
-			.finish();
-
-	let stdin = tokio::io::stdin();
-	let stdout = tokio::io::stdout();
-	Server::new(stdin, stdout, socket)
+	let srv = Server {};
+	let (service, socket) = tower_lsp::LspService::new(|_| srv);
+	tower_lsp::Server::new(io::stdin(), io::stdout(), socket)
 		.serve(service)
 		.await;
 }
@@ -39,7 +19,7 @@ fn init_tracing() {
 
 	let _ = fmt()
 		.with_env_filter(filter)
-		.with_writer(io::stderr)
+		.with_writer(std::io::stderr)
 		.with_ansi(false)
 		.try_init();
 }

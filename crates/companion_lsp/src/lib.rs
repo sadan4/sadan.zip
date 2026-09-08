@@ -1,8 +1,5 @@
-pub mod discord_bridge;
-pub mod lsp;
-pub mod module_cache;
-pub mod state;
-pub mod vencord_ext;
-
-pub use lsp::Backend;
-pub use state::{SessionState, SharedState};
+mod lsp;
+pub const SERVER_NAME: &str = "vc-companion-lsp";
+pub const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
+pub type JValue = serde_json::Value;
+pub use lsp::Server;
