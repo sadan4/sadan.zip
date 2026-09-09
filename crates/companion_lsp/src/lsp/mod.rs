@@ -1,6 +1,10 @@
 pub mod cmds;
+mod custom;
+
+use std::sync::Arc;
 
 use tower_lsp::{
+	Client,
 	LanguageServer,
 	LspService,
 	async_trait,
@@ -13,10 +17,37 @@ use tower_lsp::{
 		ServerInfo,
 	},
 };
+use tracing::error;
 
-use crate::{JValue, SERVER_NAME, SERVER_VERSION};
+use crate::{
+	JValue,
+	SERVER_NAME,
+	SERVER_VERSION,
+	State,
+	wss::{self, WsServer},
+};
 
-pub struct Server {}
+pub struct Server {
+	client: Client,
+	state: Arc<State>,
+}
+
+impl Server {
+	pub fn new(client: Client) -> Self {
+		let state = Arc::new(State {
+			ws: WsServer::disconnected(),
+		});
+		let server = state.ws.clone();
+		tokio::spawn(async move {
+			if let Err(e) = WsServer::run_loop(server).await {
+				error!("WebSocket server failed: {e:?}");
+				return;
+			}
+			error!("WebSocket server exited unexpectedly");
+		});
+		Self { client, state }
+	}
+}
 
 #[async_trait]
 impl LanguageServer for Server {

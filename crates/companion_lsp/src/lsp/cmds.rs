@@ -1,8 +1,11 @@
-use std::pin::Pin;
+use std::{borrow::Cow, pin::Pin};
 
-use crate::{JValue, SERVER_NAME};
+use crate::{JValue, LspResult, SERVER_NAME, lsp::custom::QuickPickRequest};
+use anyhow::Result;
+use const_format::formatc;
+use smol_str::SmolStr;
 use tower_lsp::{
-	jsonrpc::{self, Result},
+	jsonrpc,
 	lsp_types::{
 		ExecuteCommandOptions,
 		ExecuteCommandParams,
@@ -32,14 +35,19 @@ pub static CMD_MAP: phf::Map<&'static str, CommandDescriptor> = phf::phf_map! {
 		desc: "Prints 'Hello World' to the log. again.",
 		func: super::Server::hello_world_cmd,
 	},
+	"qp_test" => CommandDescriptor {
+		desc: "Quick Pick Test",
+		func: super::Server::echo_cmd,
+	},
 };
 
-
 impl super::Server {
+	const COMMAND_PREFIX: &str = formatc!("{SERVER_NAME}.");
+
 	pub fn get_cmd_provider() -> ExecuteCommandOptions {
 		let commands = CMD_MAP
 			.keys()
-			.map(|s| format!("{SERVER_NAME}.{s}"))
+			.map(|s| format!("{}{s}", Self::COMMAND_PREFIX))
 			.collect();
 		ExecuteCommandOptions {
 			commands,
@@ -52,19 +60,43 @@ impl super::Server {
 	pub async fn handle_cmd(
 		&self,
 		params: ExecuteCommandParams,
-	) -> Result<Option<JValue>> {
-		if let Some(cmd) = CMD_MAP.get(&params.command) {
-			(cmd.func)(self, params).await
-		} else {
-			Err(jsonrpc::Error::method_not_found())
+	) -> LspResult<Option<JValue>> {
+		if let Some(cmd) = CMD_MAP.get(
+			params
+				.command
+				.trim_prefix(Self::COMMAND_PREFIX),
+		) {
+			return (cmd.func)(self, params)
+				.await
+				.map_err(|e| jsonrpc::Error {
+					message: Cow::Owned(format!("{e}")),
+					..jsonrpc::Error::internal_error()
+				});
 		}
+		Err(jsonrpc::Error::method_not_found())
+	}
+
+	fn echo_cmd(
+		&self,
+		params: ExecuteCommandParams,
+	) -> Pin<Box<dyn Future<Output = Result<Option<JValue>>> + Send + '_>> {
+		Box::pin(async move {
+			let msg = self
+				.quick_pick(QuickPickRequest {
+					items: Vec::new(),
+					placeholder: Some(SmolStr::new_static("Hello, World!")),
+					allow_free_text: true,
+				})
+				.await?;
+			info!("Quick Pick Result: {msg:?}");
+			Ok(None)
+		})
 	}
 
 	fn hello_world_cmd(
 		&self,
-		params: ExecuteCommandParams,
+		_: ExecuteCommandParams,
 	) -> Pin<Box<dyn Future<Output = Result<Option<JValue>>> + Send + '_>> {
-		info!(?params, "Hello World");
-		Box::pin(async move { Ok(None) })
+		todo!()
 	}
 }

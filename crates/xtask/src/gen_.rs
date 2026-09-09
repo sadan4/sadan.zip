@@ -76,6 +76,6 @@ enum Target {
 	UpdateIntlMappings(update_intl_mappings::Command),
 	/// Generate the vscode extension settings bindings
 	ExtSettings(ext_settings::Command),
-	/// Update the extension commands in `package.json` from the companion_lsp crate
+	/// Update the extension commands in `package.json` from the `companion_lsp` crate
 	ExtCommands(ext_commands::Command),
 }

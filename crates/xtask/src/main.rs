@@ -1,7 +1,8 @@
+#![feature(try_blocks)]
 use anyhow::{Context, Result, bail};
 use clap::{Parser, Subcommand, ValueEnum};
-use std::{env, path::Path};
-use tracing::level_filters::LevelFilter;
+use std::{env, path::Path, process::exit};
+use tracing::{error, level_filters::LevelFilter};
 
 mod build;
 mod clean;
@@ -14,7 +15,7 @@ mod util;
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
 struct XTask {
-	#[arg(long, value_enum, default_value_t = LogLevel::Info)]
+	#[arg(short = 'v', long, value_enum, default_value_t = LogLevel::Info)]
 	log_level: LogLevel,
 	#[command(subcommand)]
 	command: Command,
@@ -81,13 +82,19 @@ fn ensure_in_workspace_root() -> Result<()> {
 	Ok(())
 }
 
-fn main() -> Result<()> {
-	ensure_in_workspace_root()
-		.with_context(|| "Failed to locate workspace root")?;
-	let xt = XTask::parse();
-	tracing_subscriber::fmt()
-		.with_max_level(xt.log_level)
-		.init();
-	xt.command.run()?;
-	Ok(())
+fn main() -> ! {
+	let ret = try {
+		ensure_in_workspace_root()
+			.with_context(|| "Failed to locate workspace root")?;
+		let xt = XTask::parse();
+		tracing_subscriber::fmt()
+			.with_max_level(xt.log_level)
+			.init();
+		xt.command.run()?;
+	};
+	if let Err(e) = ret {
+		error!("Error: {e:?}");
+		exit(1)
+	}
+	exit(0)
 }

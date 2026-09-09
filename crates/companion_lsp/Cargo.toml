@@ -36,6 +36,7 @@ regress.workspace = true
 bytecount.workspace = true
 parser_diag.workspace = true
 phf.workspace = true
+const_format.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

@@ -41,6 +41,7 @@
         "typecheck": "tsc --noEmit -p ./tsconfig.json"
     },
     "dependencies": {
+        "zod": "^4.3.6",
         "vscode-languageclient": "^9.0.1"
     },
     "devDependencies": {
@@ -93,32 +94,16 @@
         },
         "commands": [
             {
-                "command": "vencord-companion.diffModuleSearch",
-                "title": "Vencord Companion: Diff Module Search"
+                "command": "vencord-companion.hello_world",
+                "title": "Prints 'Hello World' to the log"
             },
             {
-                "command": "vencord-companion.diffModule",
-                "title": "Vencord Companion: Diff Module"
+                "command": "vencord-companion.hello_world_2",
+                "title": "Prints 'Hello World' to the log. again."
             },
             {
-                "command": "vencord-companion.extract",
-                "title": "Vencord Companion: Extract"
-            },
-            {
-                "command": "vencord-companion.extractSearch",
-                "title": "Vencord Companion: Extract With Search"
-            },
-            {
-                "command": "vencord.downloadModuleCache",
-                "title": "Vencord Companion: Download Module Cache"
-            },
-            {
-                "command": "vencord.purgeModuleCache",
-                "title": "Vencord Companion: Purge Module Cache"
-            },
-            {
-                "command": "vencord-companion.setLogLevel",
-                "title": "Vencord Companion: Set Log Level"
+                "command": "vencord-companion.qp_test",
+                "title": "Quick Pick Test"
             }
         ],
         "snippets": [

@@ -115,6 +115,7 @@ impl Runnable for Command {
 	#[instrument]
 	fn run(&self) -> Result<()> {
 		info!(?self, "Building VSCode extension");
+		// FIXME: generate extension settings and commands in parallel before building js
 		self.build_lsp()?;
 		self.stage_lsp_binary()?;
 		self.build_client()?;

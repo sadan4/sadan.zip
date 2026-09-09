@@ -895,6 +895,7 @@ dependencies = [
  "anyhow",
  "ast_parser",
  "bytecount",
+ "const_format",
  "dashmap 6.2.1",
  "explorer_types",
  "futures-util",

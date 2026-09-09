@@ -262,6 +262,9 @@ importers:
       vscode-languageclient:
         specifier: ^9.0.1
         version: 9.0.1
+      zod:
+        specifier: ^4.3.6
+        version: 4.4.3
     devDependencies:
       '@stylistic/eslint-plugin':
         specifier: ^3.0.1

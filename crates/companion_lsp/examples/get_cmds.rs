@@ -8,14 +8,14 @@ fn main() {
 	for (name, desc) in lsp::cmds::CMD_MAP.entries() {
 		#[derive(Serialize)]
 		struct O<'a> {
-			name: String,
-			desc: &'a str,
+			command: String,
+			title: &'a str,
 		}
 		serde_json::to_writer(
 			&mut w,
 			&O {
-				name: format!("{SERVER_NAME}.{name}"),
-				desc: desc.desc,
+				command: format!("{SERVER_NAME}.{name}"),
+				title: desc.desc,
 			},
 		)
 		.expect("failed to serialize output");
