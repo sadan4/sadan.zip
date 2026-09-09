@@ -6,7 +6,6 @@ use std::sync::Arc;
 use tower_lsp::{
 	Client,
 	LanguageServer,
-	LspService,
 	async_trait,
 	jsonrpc::Result,
 	lsp_types::{
@@ -24,7 +23,7 @@ use crate::{
 	SERVER_NAME,
 	SERVER_VERSION,
 	State,
-	wss::{self, WsServer},
+	wss::WsServer,
 };
 
 pub struct Server {
@@ -39,7 +38,7 @@ impl Server {
 		});
 		let server = state.ws.clone();
 		tokio::spawn(async move {
-			if let Err(e) = WsServer::run_loop(server).await {
+			if let Err(e) = server.run_loop().await {
 				error!("WebSocket server failed: {e:?}");
 				return;
 			}

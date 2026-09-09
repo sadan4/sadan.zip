@@ -1,6 +1,5 @@
 use std::{env, io, io::Write as _, path::PathBuf};
 
-use anyhow::Context;
 use derive_more::IsVariant;
 use serde::{Serialize, de::DeserializeOwned};
 use tokio::{fs, task};

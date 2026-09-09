@@ -1,19 +1,13 @@
-use std::{
-	sync::atomic::{AtomicI32, AtomicU32, AtomicU64, Ordering},
-	time::Duration,
-};
+use std::time::Duration;
 
-use crate::{JValue, SERVER_NAME, lsp};
-use anyhow::{Result, anyhow, bail};
+use crate::{SERVER_NAME, lsp};
+use anyhow::{Result, anyhow};
 use const_format::formatc;
-use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
 use smol_str::SmolStr;
-use tokio::{sync::oneshot, time::timeout};
-use tower_lsp::{jsonrpc, lsp_types::request::Request};
-use tracing::{debug, error_span, instrument, warn, warn_span};
-
-static NEXT_NONCE: AtomicI32 = AtomicI32::new(0);
+use tokio::time::timeout;
+use tower_lsp::lsp_types::request::Request;
+use tracing::{instrument, warn};
 
 #[derive(Serialize, Deserialize, Default)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
@@ -51,11 +45,11 @@ impl lsp::Server {
 			Ok(Err(guh)) => {
 				warn!("Request failed: {guh}");
 				Err(anyhow!("Request failed: {guh}"))
-			},
+			}
 			Err(_) => {
 				warn!("Request timed out");
 				Ok(None)
-			},
+			}
 		}
 	}
 }

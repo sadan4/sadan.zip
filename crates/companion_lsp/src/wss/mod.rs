@@ -357,7 +357,8 @@ impl WsServer {
 		Self(Arc::new(RwLock::new(Inner::disconnected())))
 	}
 
-	pub async fn run_loop(Self(state): Self) -> Result<()> {
+	pub async fn run_loop(self) -> Result<()> {
+		let Self(state) = self;
 		let addr = SocketAddr::from(([127, 0, 0, 1], Self::PORT));
 		let listener = TcpListener::bind(addr)
 			.await
