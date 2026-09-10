@@ -1,7 +1,7 @@
 use std::{borrow::Cow, pin::Pin};
 
 use crate::{JValue, LspResult, SERVER_NAME, lsp::custom::QuickPickRequest};
-use anyhow::Result;
+use anyhow::{Context as _, Result, anyhow, bail};
 use const_format::formatc;
 use smol_str::SmolStr;
 use tower_lsp::{
@@ -12,7 +12,8 @@ use tower_lsp::{
 		WorkDoneProgressOptions,
 	},
 };
-use tracing::info;
+use tracing::{debug, info};
+use tracing_subscriber::EnvFilter;
 
 type CmdFunc = for<'fut> fn(
 	&'fut super::Server,
@@ -27,18 +28,10 @@ pub struct CommandDescriptor {
 }
 
 pub static CMD_MAP: phf::Map<&'static str, CommandDescriptor> = phf::phf_map! {
-	"hello_world" => CommandDescriptor {
-		desc: "Prints 'Hello World' to the log",
-		func: super::Server::hello_world_cmd,
-	},
-	"hello_world_2" => CommandDescriptor {
-		desc: "Prints 'Hello World' to the log. again.",
-		func: super::Server::hello_world_cmd,
-	},
-	"qp_test" => CommandDescriptor {
-		desc: "Quick Pick Test",
-		func: super::Server::echo_cmd,
-	},
+	"set_log_level" => CommandDescriptor {
+		desc: "Set the log level of the server",
+		func: super::Server::set_log_level_cmd,
+	}
 };
 
 impl super::Server {
@@ -76,27 +69,53 @@ impl super::Server {
 		Err(jsonrpc::Error::method_not_found())
 	}
 
-	fn echo_cmd(
+	fn set_log_level_cmd(
 		&self,
 		params: ExecuteCommandParams,
 	) -> Pin<Box<dyn Future<Output = Result<Option<JValue>>> + Send + '_>> {
 		Box::pin(async move {
-			let msg = self
-				.quick_pick(QuickPickRequest {
-					items: Vec::new(),
-					placeholder: Some(SmolStr::new_static("Hello, World!")),
-					allow_free_text: true,
-				})
-				.await?;
-			info!("Quick Pick Result: {msg:?}");
+			let handle = self
+				.log_reload_handle
+				.as_ref()
+				.context("Internal Error: log reload handle not set")?;
+			let filter_str = match params.arguments.first() {
+				Some(JValue::String(s)) => s.clone(),
+				Some(other) => {
+					bail!(
+						"expected first argument to be a string, got {other:?}"
+					);
+				}
+				None => {
+					debug!("no argument provided, asking user");
+					
+					self
+						.quick_pick(QuickPickRequest {
+							items: vec![
+								SmolStr::new_static("info"),
+								SmolStr::new_static("debug"),
+								SmolStr::new_static("trace"),
+								SmolStr::new_static("warn"),
+								SmolStr::new_static("error"),
+							],
+							placeholder: Some(SmolStr::new_static(
+								"Enter a log filter string",
+							)),
+							allow_free_text: true,
+						})
+						.await
+						.map_err(|e| {
+							anyhow!("failed to get log filter from user: {e}")
+						})?
+						.context("user cancelled log filter prompt")?
+				}
+			};
+			handle
+				.reload(
+					EnvFilter::try_new(&filter_str)
+						.context("failed to parse log filter string")?,
+				)
+				.context("failed to reload log filter")?;
 			Ok(None)
 		})
-	}
-
-	fn hello_world_cmd(
-		&self,
-		_: ExecuteCommandParams,
-	) -> Pin<Box<dyn Future<Output = Result<Option<JValue>>> + Send + '_>> {
-		todo!()
 	}
 }

@@ -77,12 +77,12 @@ export class _Settings {
     }
     /**
      * Log level for the companion_lsp server (sets COMPANION_LSP_LOG). Changing this restarts the server. Use the "Vencord Companion: Set Log Level" command for a quick picker.
-     * @default info
+     * @default undefined
      * @see {@link workspace.getConfiguration}
      * @see {@link WorkspaceConfiguration.get}
      */
-    public get logLevel(): "trace" | "debug" | "info" | "warn" | "error" | "off" {
-        return workspace.getConfiguration("vencord-user-companion").get<"trace" | "debug" | "info" | "warn" | "error" | "off">("logLevel", "info");
+    public get logLevel(): "trace" | "debug" | "info" | "warn" | "error" | "off" | null | undefined {
+        return workspace.getConfiguration("vencord-user-companion").get<"trace" | "debug" | "info" | "warn" | "error" | "off" | null | undefined>("logLevel");
     }
     /**
      * Log level for the companion_lsp server (sets COMPANION_LSP_LOG). Changing this restarts the server. Use the "Vencord Companion: Set Log Level" command for a quick picker.
@@ -93,7 +93,7 @@ export class _Settings {
      * @see {@link workspace.getConfiguration}
      * @see {@link WorkspaceConfiguration.update}
      */
-    public set logLevel(value: "trace" | "debug" | "info" | "warn" | "error" | "off") {
+    public set logLevel(value: "trace" | "debug" | "info" | "warn" | "error" | "off" | null) {
         workspace.getConfiguration("vencord-user-companion").update("logLevel", value);
     }
     /**
@@ -105,7 +105,7 @@ export class _Settings {
      * @see {@link workspace.getConfiguration}
      * @see {@link WorkspaceConfiguration.update}
      */
-    public setLogLevel(value: "trace" | "debug" | "info" | "warn" | "error" | "off", configurationTarget?: boolean | ConfigurationTarget | null, overrideInLanguage?: boolean): Thenable<void> {
+    public setLogLevel(value: "trace" | "debug" | "info" | "warn" | "error" | "off" | null, configurationTarget?: boolean | ConfigurationTarget | null, overrideInLanguage?: boolean): Thenable<void> {
         return workspace.getConfiguration("vencord-user-companion").update("logLevel", value, configurationTarget, overrideInLanguage);
     }
 }

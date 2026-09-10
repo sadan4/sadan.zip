@@ -53,6 +53,10 @@ export interface ConfEntry {
      * instead of `string`
      */
     enumValues?: string[];
+    /**
+     * Set when the schema also allows `null`.
+     */
+    nullable?: boolean;
 }
 
 type ConfType = [withUndefined: TypeNode, withoutUndefined: TypeNode];
@@ -363,8 +367,19 @@ export class Generator {
      * the members of the setting's type, before `undefined` is added
      *
      * more than one member only for string settings with an `enum`
+     * and for nullable settings
      */
     private baseTypesForEntry(entry: ConfEntry): TypeNode[] {
+        const types = this.nonNullTypesForEntry(entry);
+
+        if (entry.nullable) {
+            types.push(this.createNullType());
+        }
+
+        return types;
+    }
+
+    private nonNullTypesForEntry(entry: ConfEntry): TypeNode[] {
         switch (entry.settingType) {
             case "boolean":
                 return [this.createBooleanType()];
@@ -568,6 +583,95 @@ export class Generator {
     }
 }
 
+/**
+ * the alternatives a schema allows, as `{ type, enum }` objects
+ *
+ * flattens `oneOf`/`anyOf` and `type` arrays into a single list
+ */
+function schemaBranches(val: any): any[] {
+    const alternatives = val.oneOf ?? val.anyOf;
+
+    if (Array.isArray(alternatives)) {
+        return alternatives;
+    }
+
+    if (Array.isArray(val.type)) {
+        return val.type.map((type: unknown) => ({
+            enum: val.enum,
+            type,
+        }));
+    }
+
+    return [val];
+}
+
+/**
+ * the type info for one configuration property,
+ * or `undefined` if it cannot be generated for
+ */
+function resolveSchema(key: string, val: any): Pick<ConfEntry, "enumValues" | "nullable" | "settingType"> | undefined {
+    let nullable = false;
+    let typedBranch: any;
+
+    for (const branch of schemaBranches(val)) {
+        const type = branch?.type;
+
+        if (type === "null") {
+            nullable = true;
+            continue;
+        }
+
+        if (typeof type !== "string") {
+            console.warn(`Configuration key "${key}" does not have a type. Skipping.`);
+            return;
+        }
+
+        if (typedBranch) {
+            console.warn(`Configuration key "${key}" allows more than one non-null type. Skipping.`);
+            return;
+        }
+
+        typedBranch = branch;
+    }
+
+    if (!typedBranch) {
+        console.warn(`Configuration key "${key}" does not have a non-null type. Skipping.`);
+        return;
+    }
+
+    const settingType = typedBranch.type as SupportedType;
+
+    if (!SUPPORTED_TYPES.includes(settingType)) {
+        console.warn(`Configuration key "${key}" has unsupported type "${settingType}". Skipping.`);
+        console.info("Supported types are:", SUPPORTED_TYPES.join(", "));
+        console.info(`You can add support for more types by editing ${SCRIPT_PATH}`);
+        return;
+    }
+
+    const enumMembers = typedBranch.enum ?? val.enum;
+    let enumValues: string[] | undefined;
+
+    if (settingType === "string" && Array.isArray(enumMembers)) {
+        // a `null` member is redundant with the nullable branch
+        const nonNull = enumMembers.filter((v: unknown) => !(nullable && v === null));
+
+        if (nonNull.every((v: unknown) => typeof v === "string")) {
+            enumValues = nonNull;
+            if (val.default != null && !enumValues.includes(val.default)) {
+                console.warn(`Default value "${val.default}" of "${key}" is not one of its enum values.`);
+            }
+        } else {
+            console.warn(`Configuration key "${key}" has a non-string enum. Falling back to "string".`);
+        }
+    }
+
+    return {
+        settingType,
+        enumValues,
+        nullable,
+    };
+}
+
 export async function genSettings() {
     const { values: { outPath, packageJson: packageJsonPath } } = parseArgs({
         strict: true,
@@ -609,39 +713,17 @@ export async function genSettings() {
             continue;
         }
 
-        const settingType = val.type as SupportedType | undefined;
+        const resolved = resolveSchema(_key, val);
 
-        if (!settingType) {
-            console.warn(`Configuration key "${_key}" does not have a type. Skipping.`);
+        if (!resolved) {
             continue;
-        }
-
-        if (!SUPPORTED_TYPES.includes(settingType)) {
-            console.warn(`Configuration key "${_key}" has unsupported type "${settingType}". Skipping.`);
-            console.info("Supported types are:", SUPPORTED_TYPES.join(", "));
-            console.info(`You can add support for more types by editing ${SCRIPT_PATH}`);
-            continue;
-        }
-
-        let enumValues: string[] | undefined;
-
-        if (settingType === "string" && Array.isArray(val.enum)) {
-            if (val.enum.every((v: unknown) => typeof v === "string")) {
-                enumValues = val.enum as string[];
-                if (val.default != null && !enumValues.includes(val.default)) {
-                    console.warn(`Default value "${val.default}" of "${_key}" is not one of its enum values.`);
-                }
-            } else {
-                console.warn(`Configuration key "${_key}" has a non-string enum. Falling back to "string".`);
-            }
         }
 
         entries.push({
             key,
-            settingType,
-            enumValues,
             default: val.default,
             description: val.description,
+            ...resolved,
         });
     }
 

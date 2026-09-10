@@ -78,32 +78,31 @@
                     "type": "string"
                 },
                 "vencord-user-companion.logLevel": {
-                    "default": "info",
+                    "default": null,
                     "description": "Log level for the companion_lsp server (sets COMPANION_LSP_LOG). Changing this restarts the server. Use the \"Vencord Companion: Set Log Level\" command for a quick picker.",
-                    "type": "string",
-                    "enum": [
-                        "trace",
-                        "debug",
-                        "info",
-                        "warn",
-                        "error",
-                        "off"
+                    "oneOf": [
+                        {
+                            "type": "string",
+                            "enum": [
+                                "trace",
+                                "debug",
+                                "info",
+                                "warn",
+                                "error",
+                                "off"
+                            ]
+                        },
+                        {
+                            "type": "null"
+                        }
                     ]
                 }
             }
         },
         "commands": [
             {
-                "command": "vencord-companion.hello_world",
-                "title": "Prints 'Hello World' to the log"
-            },
-            {
-                "command": "vencord-companion.hello_world_2",
-                "title": "Prints 'Hello World' to the log. again."
-            },
-            {
-                "command": "vencord-companion.qp_test",
-                "title": "Quick Pick Test"
+                "command": "vencord-companion.set_log_level",
+                "title": "Vencord Companion: Set the log level of the server"
             }
         ],
         "snippets": [

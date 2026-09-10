@@ -34,7 +34,6 @@ export async function activate(cx: ExtensionContext): Promise<void> {
     const c = client = mkClient(cx);
     client.onRequest(QUICK_PICK_METHOD, async (req: unknown) => { 
         try {
-            c.debug(`Received QuickPickRequest: ${JSON.stringify(req)}`);
             const parsed = QuickPickRequest.parse(req);
             return await doQuickPick(parsed);
         } catch (parseErr: any) { 
@@ -97,9 +96,25 @@ function doQuickPick(req: QuickPickRequest): Promise<string | undefined> {
 function mkClient(cx: ExtensionContext): LanguageClient { 
     const serverOptions: ServerOptions = {
         command: resolveServerBinary(cx),
-        transport: TransportKind.stdio,
-    };
-    const clientOptions: LanguageClientOptions = {};
+		transport: TransportKind.stdio,
+		options: {
+			env: {}
+		}
+	};
+	const logLevel = Settings.logLevel;
+	if (logLevel) { 
+		serverOptions.options!.env.COMPANION_LSP_LOG = logLevel;
+	}
+	const clientOptions: LanguageClientOptions = {
+		documentSelector: [
+			...["typescript", "javascript", "typescriptreact", "javascriptreact"]
+				.map((language) => ({
+					scheme: "file",
+					language
+				})),
+			{ scheme: "vencord-companion" }
+		],
+	};
     return new LanguageClient("vencord-companion-client", "Vencord Companion", serverOptions, clientOptions);
 }
 
