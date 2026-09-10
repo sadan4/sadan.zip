@@ -6,6 +6,28 @@ use macros::cache_test;
 
 use util::Bundle;
 
+/// The whole point of [`webpack_ast_parser::ThreadSafeParser`]: a cached
+/// parser, and the bundle it reaches back into for its module cache and
+/// dependency provider, can both be used from another thread.
+#[cache_test]
+fn parsers_are_usable_across_threads(b: &Bundle) {
+	let parser = b.parse(222222);
+	let on_other_thread = std::sync::Arc::clone(&parser);
+	let handle = std::thread::spawn(move || {
+		let p = on_other_thread.parser();
+		(
+			p.get_module_id().unwrap(),
+			format!("{:?}", p.get_modules_that_require_this_module()),
+		)
+	});
+	let p = parser.parser();
+	let expected = (
+		p.get_module_id().unwrap(),
+		format!("{:?}", p.get_modules_that_require_this_module()),
+	);
+	assert_eq!(handle.join().unwrap(), expected);
+}
+
 #[cache_test]
 fn simple_export_in_single_file(b: &Bundle) {
 	let parser = b.parse(222222);
@@ -62,6 +84,7 @@ mod e_exports_default {
 	fn test1(b: &Bundle) {
 		let parser = b.parse(111113);
 		let deps = parser
+			.parser()
 			.get_modules_that_require_this_module()
 			.unwrap();
 		assert_debug_snapshot!(deps, @"

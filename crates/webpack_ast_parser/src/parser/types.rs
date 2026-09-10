@@ -1,22 +1,25 @@
 #![deny(clippy::missing_docs_in_private_items)]
 //! Private types for [`super::WebpackAstParser`]
-use std::rc::Rc;
+use std::sync::Arc;
 
 use ast_parser::{ast_kind::IntoAstKind, exts::MemberExprAccessKind};
 use derive_more::From;
 use explorer_types::ModuleId;
-use oxc::ast::{
-	AstKind,
+use oxc::{
 	ast::{
-		CallExpression,
-		Expression,
-		IdentifierReference,
-		MemberExpression,
-		ObjectExpression,
+		AstKind,
+		ast::{
+			CallExpression,
+			Expression,
+			IdentifierReference,
+			MemberExpression,
+			ObjectExpression,
+		},
 	},
+	span::Span,
 };
 
-use crate::{WebpackAstParser, parser::export_map::ExportMapKey};
+use crate::{parser::export_map::ExportMapKey, sync::ThreadSafeParser};
 
 /// `wreq.d(exports, { foo: () => local_foo })`
 #[derive(Copy, Clone, Debug)]
@@ -82,7 +85,7 @@ pub struct SearchElement {
 	pub export_name: Vec<ExportMapKey>,
 }
 
-/// Helper type for [`WebpackAstParser::does_re_export_from_export`]
+/// Helper type for [`super::WebpackAstParser::does_re_export_from_export`]
 pub struct ReExport<'ast> {
 	/// TODO: doc
 	pub import_source_id: ModuleId,
@@ -93,11 +96,14 @@ pub struct ReExport<'ast> {
 /// A definition resolved from a position.
 ///
 /// Used to abstract logic from position/hover queries.
-pub struct ResolvedDefinition<'ast> {
+pub struct ResolvedDefinition {
 	/// the parser that has the definition
-	pub parser: Rc<WebpackAstParser<'ast>>,
-	/// the chain of export names to get the definition from [`Self::parser`]
-	pub raw_export_names: Vec<MemberExprAccessKind<'ast>>,
+	pub parser: Arc<ThreadSafeParser>,
+	/// the spans, in the module the chain was resolved from, of the nodes
+	/// [`Self::export_names`] was built from
+	///
+	/// These can't be the nodes because we elide the lifetime with an Arc
+	pub raw_export_spans: Vec<Span>,
 	/// the chain of export names to get the definition from [`Self::parser`]
 	pub export_names: Vec<ExportMapKey>,
 }

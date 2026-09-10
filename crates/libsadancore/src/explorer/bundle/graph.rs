@@ -121,6 +121,7 @@ impl Bundle {
 				static DEFAULT: OutgoingModuleDepsWithLocs =
 					OutgoingModuleDepsWithLocs::new();
 				let deps = parser
+					.parser()
 					.get_modules_that_this_module_requires()
 					.unwrap_or(&DEFAULT);
 				for dep in iter::chain(&deps.sync, &deps.lazy).map(|s| s.id) {

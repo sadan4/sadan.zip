@@ -41,10 +41,8 @@ pub fn cache_test(attr: TokenStream, item: TokenStream) -> TokenStream {
 		#[core::prelude::v1::test]
 		fn #orig_fn_name() {
 			#tfn
-			let alloc = ::oxc::allocator::Allocator::new();
-			let (b, parsers) = crate::Bundle::try_new(&alloc, #sub_dir).unwrap();
-			b.bind_plugins(parsers);
-			#new_fn_name(&b);
+			let b = crate::Bundle::try_new(#sub_dir).unwrap();
+			#new_fn_name(b);
 		}
 	}
 	.into()

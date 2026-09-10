@@ -1,50 +1,79 @@
-use crate::parser::WebpackAstParser;
+use crate::{parser::WebpackAstParser, sync::ThreadSafeParser};
 use anyhow::{Result, bail};
 use explorer_types::{IncomingModuleDeps, ModuleId};
 use oxc::span::Span;
 use smol_str::SmolStr;
-use std::rc::Rc;
+use std::sync::Arc;
 
 #[derive(Debug, Clone)]
-pub enum Location<'a> {
+pub enum Location {
 	Path(SmolStr),
-	Inline(&'a str),
+	Inline(Arc<str>),
 }
 
 /// O(1) clone
 #[derive(Debug, Clone)]
-pub struct Reference<'a> {
-	pub location: Location<'a>,
+pub struct Reference {
+	pub location: Location,
 	pub module_id: ModuleId,
 	pub range: Span,
 }
 
 /// O(1) clone
 #[derive(Debug, Clone)]
-pub struct Definition<'a> {
-	pub location: Location<'a>,
+pub struct Definition {
+	pub location: Location,
 	pub module_id: ModuleId,
 	pub range: Span,
 }
 
 pub trait IModuleDepProvider {
-	fn get_module_deps(&self, id: ModuleId) -> Result<Rc<IncomingModuleDeps>>;
+	fn get_module_deps(&self, id: ModuleId) -> Result<Arc<IncomingModuleDeps>>;
 }
 
-pub trait IModuleCache<'ast> {
+impl<T: IModuleDepProvider + ?Sized> IModuleDepProvider for &T {
+	fn get_module_deps(&self, id: ModuleId) -> Result<Arc<IncomingModuleDeps>> {
+		(**self).get_module_deps(id)
+	}
+}
+
+pub trait IModuleCache {
 	fn get_module_filepath(&self, id: ModuleId) -> Option<SmolStr>;
 	fn get_module_parser(
 		&self,
-		requestor: &WebpackAstParser<'ast>,
+		requestor: &WebpackAstParser<'_>,
 		id: ModuleId,
 		latest: Option<bool>,
-	) -> Result<Rc<WebpackAstParser<'ast>>>;
+	) -> Result<Arc<ThreadSafeParser>>;
 	fn get_latest_module_parser(
 		&self,
-		requestor: &WebpackAstParser<'ast>,
+		requestor: &WebpackAstParser<'_>,
 		id: ModuleId,
-	) -> Result<Rc<WebpackAstParser<'ast>>> {
+	) -> Result<Arc<ThreadSafeParser>> {
 		self.get_module_parser(requestor, id, Some(true))
+	}
+}
+
+impl<T: IModuleCache + ?Sized> IModuleCache for &T {
+	fn get_module_filepath(&self, id: ModuleId) -> Option<SmolStr> {
+		(**self).get_module_filepath(id)
+	}
+
+	fn get_module_parser(
+		&self,
+		requestor: &WebpackAstParser<'_>,
+		id: ModuleId,
+		latest: Option<bool>,
+	) -> Result<Arc<ThreadSafeParser>> {
+		(**self).get_module_parser(requestor, id, latest)
+	}
+
+	fn get_latest_module_parser(
+		&self,
+		requestor: &WebpackAstParser<'_>,
+		id: ModuleId,
+	) -> Result<Arc<ThreadSafeParser>> {
+		(**self).get_latest_module_parser(requestor, id)
 	}
 }
 
@@ -53,22 +82,25 @@ pub(crate) struct DefaultModuleDepProvider;
 pub(crate) struct DefaultModuleCache;
 
 impl IModuleDepProvider for DefaultModuleDepProvider {
-	fn get_module_deps(&self, _id: ModuleId) -> Result<Rc<IncomingModuleDeps>> {
+	fn get_module_deps(
+		&self,
+		_id: ModuleId,
+	) -> Result<Arc<IncomingModuleDeps>> {
 		bail!("No module dependency provider provided");
 	}
 }
 
-impl<'ast> IModuleCache<'ast> for DefaultModuleCache {
+impl IModuleCache for DefaultModuleCache {
 	fn get_module_filepath(&self, _id: ModuleId) -> Option<SmolStr> {
 		None
 	}
 
 	fn get_module_parser(
 		&self,
-		_requestor: &WebpackAstParser<'ast>,
+		_requestor: &WebpackAstParser<'_>,
 		_id: ModuleId,
 		_latest: Option<bool>,
-	) -> Result<Rc<WebpackAstParser<'ast>>> {
+	) -> Result<Arc<ThreadSafeParser>> {
 		bail!("No module cache provided");
 	}
 }

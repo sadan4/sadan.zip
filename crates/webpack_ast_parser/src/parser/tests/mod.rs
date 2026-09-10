@@ -1789,16 +1789,16 @@ mod direct_module_definition {
 		paths: HashMap<ModuleId, SmolStr>,
 	}
 
-	impl<'ast> IModuleCache<'ast> for TestModuleCache {
+	impl IModuleCache for TestModuleCache {
 		fn get_module_filepath(&self, id: ModuleId) -> Option<SmolStr> {
 			self.paths.get(&id).cloned()
 		}
 		fn get_module_parser(
 			&self,
-			_requestor: &WebpackAstParser<'ast>,
+			_requestor: &WebpackAstParser<'_>,
 			_id: ModuleId,
 			_latest: Option<bool>,
-		) -> anyhow::Result<Rc<WebpackAstParser<'ast>>> {
+		) -> anyhow::Result<Arc<ThreadSafeParser>> {
 			anyhow::bail!("test cache does not provide parsers")
 		}
 	}
@@ -1814,7 +1814,7 @@ mod direct_module_definition {
 			)]),
 		};
 		let mut p = WebpackAstParser::try_new(&alloc, source).unwrap();
-		p.set_module_cache(&cache);
+		p.set_module_cache(Arc::new(cache));
 		// pos 188 lies inside `200651` of `n(200651)` on line 11
 		let defs = p.generate_definitions(188).unwrap();
 		assert_debug_snapshot!(defs, @r#"

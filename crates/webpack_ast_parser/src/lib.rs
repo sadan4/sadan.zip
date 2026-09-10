@@ -4,5 +4,7 @@ pub mod bundle;
 pub mod find;
 pub mod intl;
 mod parser;
+mod sync;
 
 pub use parser::{WebpackAstParser, export_map};
+pub use sync::ThreadSafeParser;
