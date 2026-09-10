@@ -1,7 +1,6 @@
 use companion_lsp::{ReloadHandle, lsp};
 use tokio::io;
 use tower_lsp::{LspService, Server};
-use tracing_subscriber::{EnvFilter, Registry, reload};
 
 #[tokio::main]
 async fn main() {

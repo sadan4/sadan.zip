@@ -1,4 +1,5 @@
 #![feature(trim_prefix_suffix)]
+#![feature(path_trailing_sep)]
 #![feature(try_blocks)]
 #![allow(clippy::multiple_inherent_impl)]
 pub mod lsp;

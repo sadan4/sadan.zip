@@ -1783,14 +1783,14 @@ mod import_parsing {
 mod direct_module_definition {
 	use super::*;
 	use macros::test;
-	use std::collections::HashMap;
+	use std::{collections::HashMap, path::PathBuf};
 
 	struct TestModuleCache {
-		paths: HashMap<ModuleId, SmolStr>,
+		paths: HashMap<ModuleId, PathBuf>,
 	}
 
 	impl IModuleCache for TestModuleCache {
-		fn get_module_filepath(&self, id: ModuleId) -> Option<SmolStr> {
+		fn get_module_filepath(&self, id: ModuleId) -> Option<PathBuf> {
 			self.paths.get(&id).cloned()
 		}
 		fn get_module_parser(
@@ -1810,7 +1810,7 @@ mod direct_module_definition {
 		let cache = TestModuleCache {
 			paths: HashMap::from([(
 				ModuleId(200651),
-				SmolStr::new_static("modules/200651.js"),
+				PathBuf::from("modules/200651.js"),
 			)]),
 		};
 		let mut p = WebpackAstParser::try_new(&alloc, source).unwrap();

@@ -2,12 +2,11 @@ use crate::{parser::WebpackAstParser, sync::ThreadSafeParser};
 use anyhow::{Result, bail};
 use explorer_types::{IncomingModuleDeps, ModuleId};
 use oxc::span::Span;
-use smol_str::SmolStr;
-use std::sync::Arc;
+use std::{path::PathBuf, sync::Arc};
 
 #[derive(Debug, Clone)]
 pub enum Location {
-	Path(SmolStr),
+	Path(PathBuf),
 	Inline(Arc<str>),
 }
 
@@ -38,7 +37,7 @@ impl<T: IModuleDepProvider + ?Sized> IModuleDepProvider for &T {
 }
 
 pub trait IModuleCache {
-	fn get_module_filepath(&self, id: ModuleId) -> Option<SmolStr>;
+	fn get_module_filepath(&self, id: ModuleId) -> Option<PathBuf>;
 	fn get_module_parser(
 		&self,
 		requestor: &WebpackAstParser<'_>,
@@ -55,7 +54,7 @@ pub trait IModuleCache {
 }
 
 impl<T: IModuleCache + ?Sized> IModuleCache for &T {
-	fn get_module_filepath(&self, id: ModuleId) -> Option<SmolStr> {
+	fn get_module_filepath(&self, id: ModuleId) -> Option<PathBuf> {
 		(**self).get_module_filepath(id)
 	}
 
@@ -91,7 +90,7 @@ impl IModuleDepProvider for DefaultModuleDepProvider {
 }
 
 impl IModuleCache for DefaultModuleCache {
-	fn get_module_filepath(&self, _id: ModuleId) -> Option<SmolStr> {
+	fn get_module_filepath(&self, _id: ModuleId) -> Option<PathBuf> {
 		None
 	}
 
