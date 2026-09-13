@@ -95,6 +95,7 @@ qalc = { path = "crates/qalc" }
 qalc_sbox = { path = "crates/qalc_sbox" }
 demangler = { path = "crates/demangler" }
 parser_diag = { path = "crates/parser_diag" }
+miette_ui = { path = "crates/miette_ui" }
 tower-lsp = "0.20.0"
 tokio-tungstenite = "0.30.0"
 futures-util = "0.3.31"
@@ -144,6 +145,7 @@ pyo3-tracing-subscriber-build = { version = "0.9.0" }
 oneshot = { version = "0.2.1", features = ["async", "std"] }
 redis = { version = "1.6.0", features = ["tokio-comp"] }
 phf = {version = "0.14", features = ["macros"]}
+async-trait = "0.1"
 
 [patch.crates-io]
 typesize = { git = "https://github.com/GnomedDev/typesize", branch = "master" }
@@ -205,9 +207,6 @@ opt-level = 3
 [workspace.lints.cargo]
 non_kebab_case_bins = "allow"
 
-[workspace.lints.rust]
-# too buggy and noisy when used in the editor, but can be uncommented to find unused deps
-# unused_crate_dependencies = "deny"
 [workspace.lints.clippy]
 pedantic = { priority = -1, level = "warn" }
 nursery = { priority = -1, level = "warn" }

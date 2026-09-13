@@ -223,7 +223,7 @@ impl<'ast> VencordAstParser<'ast> {
 							inner: miette::Report::from(e),
 						};
 						debug!(
-							"Failed to canonicalize patch for plugin {name}, skipping. Cause:\n{e:?}"
+							"Failed to canonicalize patch for plugin {name}, skipping. Cause:{e:?}"
 						);
 						None
 					}
@@ -1223,7 +1223,7 @@ impl<'ast> VencordAstParser<'ast> {
 						inner,
 					};
 					warn!(
-						"Failed to parse spread patch for plugin {plugin_name:?}, skipping. Cause: \n{report:?}"
+						"Failed to parse spread patch for plugin {plugin_name:?}, skipping. Cause:{report:?}"
 					);
 				}
 			} else {
@@ -1239,7 +1239,7 @@ impl<'ast> VencordAstParser<'ast> {
 							inner: e,
 						};
 						debug!(
-							"Failed to parse patch, skipping. Cause:\n{e:?}"
+							"Failed to parse patch, skipping. Cause:{e:?}"
 						);
 					}
 				}

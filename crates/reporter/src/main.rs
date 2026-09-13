@@ -1,12 +1,13 @@
+// nix is on 1.97.1
 #![feature(result_option_map_or_default)]
 use clap::{CommandFactory as _, Parser as _};
 use derive_more::From;
 use indicatif::MultiProgress;
 use miette::{Result, bail};
+use miette_ui::install_miette_hook;
 use reporter::{
 	Cli,
 	cmds,
-	install_miette_hook,
 	util::MultiProgressWrapper,
 	vc,
 };
@@ -73,7 +74,7 @@ fn install_tracing() {
 
 fn main() {
 	install_tracing();
-	install_miette_hook();
+	install_miette_hook(true);
 	async_main();
 }
 

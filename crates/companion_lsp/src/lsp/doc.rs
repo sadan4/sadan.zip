@@ -1,8 +1,7 @@
-use std::{cmp::Ordering, sync::Arc};
+use std::sync::Arc;
 
 use ast_parser::get_offset_from_line_and_column;
 use dashmap::DashMap;
-use smol_str::SmolStr;
 use tower_lsp::lsp_types::{
 	DidChangeTextDocumentParams,
 	DidCloseTextDocumentParams,
@@ -10,7 +9,6 @@ use tower_lsp::lsp_types::{
 	TextDocumentContentChangeEvent,
 	TextDocumentItem,
 	Url,
-	notification::DidCloseTextDocument,
 };
 use tracing::{debug, warn};
 
@@ -19,6 +17,7 @@ pub struct Files(Arc<Inner>);
 
 #[derive(Default)]
 struct Inner {
+	/// FIXME: store line -> offset mappings
 	cache: DashMap<Url, TextDocumentItem>,
 }
 
@@ -38,7 +37,7 @@ fn update_document(
 				range.end.line,
 				range.end.character,
 			) as usize;
-			if old.is_char_boundary(start) || old.is_char_boundary(end) {
+			if !old.is_char_boundary(start) || !old.is_char_boundary(end) {
 				warn!(
 					start = start,
 					end = end,

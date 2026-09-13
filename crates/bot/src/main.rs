@@ -1,8 +1,10 @@
 use std::env;
 
+use miette_ui::install_miette_hook;
+
 fn main() {
 	bot::install_tracing();
-	reporter::install_miette_hook();
+	install_miette_hook(true);
 	let path = env::var("BOT_CONFIG")
 		.unwrap_or_else(|_| ".bot.config.json".to_owned());
 	let raw = std::fs::read_to_string(&path)

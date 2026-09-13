@@ -1,25 +1,19 @@
 use ast_parser::span_line_and_column;
 use explorer_types::SpannedId;
 use parser_diag::LocalSource;
-use tower_lsp::lsp_types::{
-	GotoDefinitionParams,
-	GotoDefinitionResponse,
-	Location,
-	Position,
-	Range,
-};
-use tracing::{debug, error, warn};
+use tower_lsp::lsp_types::{Location, Position, Range, ReferenceParams};
+use tracing::{debug, warn};
 use webpack_ast_parser::{WebpackAstParser, bundle};
 
 use crate::{LspResult, lsp};
 
 impl lsp::Server {
-	pub(crate) async fn provide_definition(
+	pub async fn gen_references(
 		&self,
-		params: GotoDefinitionParams,
-	) -> LspResult<Option<GotoDefinitionResponse>> {
+		params: ReferenceParams,
+	) -> LspResult<Option<Vec<Location>>> {
 		let uri = &params
-			.text_document_position_params
+			.text_document_position
 			.text_document
 			.uri;
 		let Some(doc) = self.files.get(uri) else {
@@ -27,7 +21,7 @@ impl lsp::Server {
 			return Ok(None);
 		};
 		if !WebpackAstParser::is_webpack_module(&doc.text) {
-			debug!("document is not a webpack module, skipping definition");
+			debug!("document is not a webpack module, skipping references");
 			return Ok(None);
 		}
 		let Some(SpannedId {
@@ -36,7 +30,7 @@ impl lsp::Server {
 		}) = WebpackAstParser::parse_module_id(&doc.text)
 		else {
 			debug!(
-				"failed to parse module id from document, skipping definition"
+				"failed to parse module id from document, skipping references"
 			);
 			return Ok(None);
 		};
@@ -52,41 +46,40 @@ impl lsp::Server {
 		let offset = lsp::cursor_offset(
 			&doc.text,
 			&module,
-			params
-				.text_document_position_params
-				.position,
+			params.text_document_position.position,
 		)?;
-		let defs = match p.generate_definitions(offset).await {
-			Ok(defs) => defs,
+		let refs = match p.generate_references(offset).await {
+			Ok(refs) => refs,
 			Err(e) => {
 				let err = LocalSource {
 					inner: miette::Report::from(e),
 					source: p.get_source(),
 					name: uri.as_str(),
 				};
-				warn!("Failed to generate definitions:{err:?}");
+				warn!("Failed to generate references:{err:?}");
 				return Ok(None);
 			}
 		};
-		let mut ret = Vec::with_capacity(defs.len());
-		for def in defs {
-			let def_parser = match module_cache
-				.get_parser(def.module_id)
+		let mut ret = Vec::with_capacity(refs.len());
+		for reference in refs {
+			let ref_parser = match module_cache
+				.get_parser(reference.module_id)
 				.await
 			{
 				Ok(p) => p,
 				Err(e) => {
-					error!(
-						"Failed to get parser for module {module_id:?}: {e:?}"
+					warn!(
+						module_id = %reference.module_id,
+						"Failed to get parser for module: {e:?}"
 					);
-					return Ok(None);
+					continue;
 				}
 			};
-			let def_src = def_parser.get_source();
-			let range = span_line_and_column(def_src, def.range);
-			let bundle::Location::Path(uri) = def.location else {
-				warn!("TODO: handle definition locations other than Paths");
-				return Ok(None);
+			let ref_src = ref_parser.get_source();
+			let range = span_line_and_column(ref_src, reference.range);
+			let bundle::Location::Path(uri) = reference.location else {
+				warn!("TODO: handle reference locations other than Paths");
+				continue;
 			};
 			ret.push(Location {
 				uri,
@@ -102,6 +95,6 @@ impl lsp::Server {
 				},
 			});
 		}
-		Ok(Some(GotoDefinitionResponse::Array(ret)))
+		Ok(Some(ret))
 	}
 }

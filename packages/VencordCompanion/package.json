@@ -101,6 +101,10 @@
         },
         "commands": [
             {
+                "command": "vencord-companion.progress_test",
+                "title": "Vencord Companion: Test the progress reporting"
+            },
+            {
                 "command": "vencord-companion.set_log_level",
                 "title": "Vencord Companion: Set the log level of the server"
             }

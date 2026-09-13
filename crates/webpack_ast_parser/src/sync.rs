@@ -1,6 +1,12 @@
 //! A self-owning [`WebpackAstParser`].
 
-use std::{mem, ptr, sync::Arc};
+use std::{
+	mem,
+	pin::Pin,
+	ptr,
+	sync::Arc,
+	task::{Context, Poll},
+};
 
 use oxc::allocator::Allocator;
 use parser_diag::PResult;
@@ -73,7 +79,7 @@ impl ThreadSafeParser {
 
 	/// The source this parser was created from.
 	#[must_use]
-	pub const fn code(&self) -> &Arc<str> {
+	pub const fn get_source(&self) -> &Arc<str> {
 		&self.code
 	}
 
@@ -89,10 +95,6 @@ impl ThreadSafeParser {
 	}
 }
 
-#[expect(
-	clippy::non_send_fields_in_send_ty,
-	reason = "the point of the impl: `inner`'s `Cell`s are frozen after `try_new`, see below"
-)]
 // SAFETY: a parser is read-only once built, and everything it reads is owned by
 // the `ThreadSafeParser` that holds it:
 //
@@ -119,3 +121,47 @@ const _: () = {
 	const fn assert_send_sync<T: Send + Sync>() {}
 	assert_send_sync::<ThreadSafeParser>();
 };
+
+/// Asserts that a future is [`Send`] and [`Sync`].
+///
+/// oxc uses ! [`Send`] and ! [`Sync`] for it's AST; however,
+/// the way we use them, they are send + sync
+#[repr(transparent)]
+pub struct UnsafeFuture<T, O>(T)
+where
+	T: Future<Output = O>;
+
+impl<T, O> UnsafeFuture<T, O>
+where
+	T: Future<Output = O>,
+{
+	/// # Safety
+	///
+	/// Everything `fut` holds across an await point must be safe to move to,
+	/// and share with, another thread
+	pub(crate) const unsafe fn new(fut: T) -> Self {
+		Self(fut)
+	}
+}
+
+#[expect(
+	clippy::non_send_fields_in_send_ty,
+	reason = "asserting `Send` for a future that is not is the whole point"
+)]
+/// SAFETY: guaranteed by the caller of [`UnsafeFuture::new`].
+unsafe impl<T, O> Send for UnsafeFuture<T, O> where T: Future<Output = O> {}
+/// SAFETY: see the `Send` impl above.
+unsafe impl<T, O> Sync for UnsafeFuture<T, O> where T: Future<Output = O> {}
+
+impl<T, O> Future for UnsafeFuture<T, O>
+where
+	T: Future<Output = O>,
+{
+	type Output = O;
+
+	fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+		// SAFETY: repr(transparent)
+		let fut = unsafe { self.map_unchecked_mut(|s| &mut s.0) };
+		fut.poll(cx)
+	}
+}

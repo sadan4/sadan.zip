@@ -1,6 +1,6 @@
 use derive_more::{Deref, Display, From, Into};
 use jiff::{Timestamp, Zoned, tz::TimeZone};
-use oxc_span::Span;
+use oxc_span::{SPAN, Span};
 use serde::{Deserialize, Serialize};
 use std::{
 	collections::HashMap,
@@ -158,7 +158,9 @@ pub struct OutgoingModuleDeps {
 	pub lazy: Vec<ModuleId>,
 }
 
-#[derive(Copy, Clone, Debug, TypeSize)]
+#[derive(
+	Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, TypeSize,
+)]
 pub struct SpannedId {
 	pub id: ModuleId,
 	#[typesize(with = size_of_val)]
@@ -179,6 +181,15 @@ impl OutgoingModuleDepsWithLocs {
 		Self {
 			sync: Vec::new(),
 			lazy: Vec::new(),
+		}
+	}
+}
+
+impl SpannedId {
+	pub const fn unspanned(id: ModuleId) -> Self {
+		Self {
+			id,
+			span: SPAN
 		}
 	}
 }

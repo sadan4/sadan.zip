@@ -1,16 +1,33 @@
 use companion_lsp::{ReloadHandle, lsp};
+use miette_ui::install_miette_hook;
 use tokio::io;
 use tower_lsp::{LspService, Server};
 
+fn main() {
+	setup_backtrace();
+	tokio_main();
+}
+
 #[tokio::main]
-async fn main() {
+async fn tokio_main() {
+	install_miette_hook(false);
 	let reload_handle = init_tracing();
-	let (service, socket) = LspService::new(|client| {
-		lsp::Server::new(client).with_reload_handle(reload_handle)
-	});
+	let builder = lsp::ServerBuilder::new()
+		.expect("Failed to create LSP ServerBuilder")
+		.with_reload_handle(reload_handle);
+	let (service, socket) = LspService::new(|client| builder.build(client));
 	Server::new(io::stdin(), io::stdout(), socket)
 		.serve(service)
 		.await;
+}
+fn setup_backtrace() {
+	use std::env;
+	if env::var_os("RUST_BACKTRACE").is_none() {
+		// SAFETY: no other threads are running yet
+		unsafe {
+			env::set_var("RUST_BACKTRACE", "1");
+		}
+	}
 }
 
 fn init_tracing() -> ReloadHandle {
@@ -36,6 +53,7 @@ fn init_tracing() -> ReloadHandle {
 
 	let fmt_layer = fmt::layer()
 		.with_writer(std::io::stderr)
+		.with_ansi_sanitization(false)
 		.with_ansi(false);
 
 	registry()

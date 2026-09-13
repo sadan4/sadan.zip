@@ -18,6 +18,7 @@ use crate::{
 };
 use anyhow::{Context, anyhow};
 use ast_parser::{get_line_and_column, get_offset_from_line_and_column};
+use async_trait::async_trait;
 use explorer_types::{
 	DepInfo,
 	FullBundle,
@@ -35,7 +36,8 @@ use parser_diag::ParserDiagnostic;
 use pretty_printer::{FormattedContent, format_with_alloc};
 use regress::Regex;
 use serde::Serialize;
-use smol_str::{SmolStr, format_smolstr};
+use smol_str::SmolStr;
+use url::Url;
 use vencord_ast_parser::patches::{
 	canonicalize_intl,
 	canonicalize_regex_ident,
@@ -93,8 +95,14 @@ struct BundleInner {
 	_pin: PhantomPinned,
 }
 
+// SAFETY: rust wasm is single-threaded
+unsafe impl Send for BundleInner {}
+// SAFETY: rust wasm is single-threaded
+unsafe impl Sync for BundleInner {}
+
+#[async_trait]
 impl IModuleDepProvider for BundleInner {
-	fn get_module_deps(
+	async fn get_module_deps(
 		&self,
 		id: ModuleId,
 	) -> anyhow::Result<Arc<explorer_types::IncomingModuleDeps>> {
@@ -106,12 +114,13 @@ impl IModuleDepProvider for BundleInner {
 	}
 }
 
+#[async_trait]
 impl IModuleCache for BundleInner {
-	fn get_module_filepath(&self, id: ModuleId) -> Option<SmolStr> {
-		Some(format_smolstr!("/.modules/{id}.js"))
+	async fn get_module_filepath(&self, id: ModuleId) -> Option<Url> {
+		Some(Url::parse(&format!("file:///.modules/{id}.js")).unwrap())
 	}
 
-	fn get_module_parser(
+	async fn get_module_parser(
 		&self,
 		_requestor: &WebpackAstParser<'_>,
 		id: ModuleId,
@@ -128,21 +137,23 @@ unsafe impl Send for BundleRef {}
 // SAFETY: rust wasm is single-threaded
 unsafe impl Sync for BundleRef {}
 
+#[async_trait]
 impl IModuleDepProvider for BundleRef {
-	fn get_module_deps(
+	async fn get_module_deps(
 		&self,
 		id: ModuleId,
 	) -> anyhow::Result<Arc<explorer_types::IncomingModuleDeps>> {
-		self.0.get_module_deps(id)
+		self.0.get_module_deps(id).await
 	}
 }
 
+#[async_trait]
 impl IModuleCache for BundleRef {
-	fn get_module_filepath(&self, id: ModuleId) -> Option<SmolStr> {
-		self.0.get_module_filepath(id)
+	async fn get_module_filepath(&self, id: ModuleId) -> Option<Url> {
+		self.0.get_module_filepath(id).await
 	}
 
-	fn get_module_parser(
+	async fn get_module_parser(
 		&self,
 		requestor: &WebpackAstParser<'_>,
 		id: ModuleId,
@@ -150,6 +161,7 @@ impl IModuleCache for BundleRef {
 	) -> anyhow::Result<Arc<ThreadSafeParser>> {
 		self.0
 			.get_module_parser(requestor, id, latest)
+			.await
 	}
 }
 
@@ -722,7 +734,7 @@ impl Bundle {
 			.context("Failed to serialize search location")?)
 	}
 	/// line and column are 1-based
-	pub fn provide_definition(
+	pub async fn provide_definition(
 		&mut self,
 		module_id: u32,
 		m_pos: MonacoPosition,
@@ -734,6 +746,7 @@ impl Bundle {
 		let locs = parser
 			.parser()
 			.generate_definitions(pos)
+			.await
 			.map_err(|e| render_diag(e, m_id, fmt_src))?;
 		let ret = locs
 			.into_iter()
@@ -754,7 +767,7 @@ impl Bundle {
 		Ok(ret)
 	}
 
-	pub fn provide_references(
+	pub async fn provide_references(
 		&mut self,
 		module_id: u32,
 		m_pos: MonacoPosition,
@@ -767,6 +780,7 @@ impl Bundle {
 		let locs = parser
 			.parser()
 			.generate_references(pos)
+			.await
 			.map_err(|e| render_diag(e, m_id, fmt_src))?;
 
 		let ret = locs
@@ -789,7 +803,7 @@ impl Bundle {
 		Ok(ret)
 	}
 
-	pub fn provide_hover(
+	pub async fn provide_hover(
 		&mut self,
 		module_id: u32,
 		m_pos: MonacoPosition,
@@ -806,6 +820,7 @@ impl Bundle {
 		let ret = parser
 			.parser()
 			.generate_hover(pos)
+			.await
 			.map_err(|e| render_diag(e, m_id, fmt_src))?
 			.map(|(span, content)| {
 				let range = MonacoRange::from_span(span, fmt_src);

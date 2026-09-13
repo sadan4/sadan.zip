@@ -8,6 +8,7 @@ use std::{
 };
 
 use ast_parser::{get_offset_from_line_and_column, span_line_and_column};
+use async_trait::async_trait;
 use explorer_types::{IncomingModuleDeps, ModuleId};
 use itertools::Itertools;
 use miette::{Result, miette};
@@ -15,6 +16,7 @@ use miette_ctx::{ErrCtx as _, into_anyhow};
 use oxc::span::Span;
 use parser_diag::PResult;
 use smol_str::SmolStr;
+use url::Url;
 use webpack_ast_parser::{
 	ThreadSafeParser,
 	WebpackAstParser,
@@ -143,7 +145,7 @@ impl Bundle {
 	}
 
 	/// line and col are 0-based
-	pub fn dbg_gen_refs(
+	pub async fn dbg_gen_refs(
 		&self,
 		parser: &ThreadSafeParser,
 		line: u32,
@@ -154,6 +156,7 @@ impl Bundle {
 			get_offset_from_line_and_column(parser.get_source(), line, col);
 		parser
 			.generate_references(pos)
+			.await
 			.map(|refs| {
 				refs.into_iter()
 					.map(|ref_| ReferenceDumper {
@@ -167,7 +170,7 @@ impl Bundle {
 					.collect()
 			})
 	}
-	pub fn dbg_defs(
+	pub async fn dbg_defs(
 		&self,
 		parser: &ThreadSafeParser,
 		line: u32,
@@ -178,6 +181,7 @@ impl Bundle {
 			get_offset_from_line_and_column(parser.get_source(), line, col);
 		parser
 			.generate_definitions(pos)
+			.await
 			.map(|refs| {
 				refs.into_iter()
 					.map(|ref_| DefinitionDumper {
@@ -193,17 +197,15 @@ impl Bundle {
 	}
 }
 
+#[async_trait]
 impl IModuleCache for Bundle {
-	fn get_module_filepath(&self, id: ModuleId) -> Option<SmolStr> {
-		Some(
-			self.dir
-				.join(format!("{id}.js"))
-				.to_string_lossy()
-				.into(),
-		)
+	async fn get_module_filepath(&self, id: ModuleId) -> Option<Url> {
+		let path = self.dir.join(format!("{id}.js"));
+		let url = Url::from_file_path(&path).unwrap();
+		Some(url)
 	}
 
-	fn get_module_parser(
+	async fn get_module_parser(
 		&self,
 		_requestor: &WebpackAstParser<'_>,
 		id: ModuleId,
@@ -219,8 +221,9 @@ impl IModuleCache for Bundle {
 	}
 }
 
+#[async_trait]
 impl IModuleDepProvider for Bundle {
-	fn get_module_deps(
+	async fn get_module_deps(
 		&self,
 		id: ModuleId,
 	) -> anyhow::Result<Arc<IncomingModuleDeps>> {
@@ -314,14 +317,14 @@ pub fn dbg_export_map(p: &ThreadSafeParser) -> String {
 	format!("{:#?}", ExportMapDumper(p.get_export_map(), p.get_source()))
 }
 
-pub fn dbg_hover(
+pub async fn dbg_hover(
 	p: &ThreadSafeParser,
 	line: u32,
 	col: u32,
 ) -> Result<Option<(SmolStr, SpanDumper<'_>)>> {
 	let p = p.parser();
 	let pos = get_offset_from_line_and_column(p.get_source(), line, col);
-	let s = p.generate_hover(pos)?;
+	let s = p.generate_hover(pos).await?;
 	Ok(s.map(|(s, t)| (t, SpanDumper(s, p.get_source()))))
 }
 

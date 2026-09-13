@@ -2,31 +2,73 @@ pub mod cmds;
 mod custom;
 mod definition;
 mod doc;
+mod reference;
 
-use std::{debug_assert_matches, sync::Arc};
+use std::{borrow::Cow, debug_assert_matches, path::PathBuf, sync::Arc};
 
+use anyhow::Result;
+use ast_parser::get_offset_from_line_and_column;
 use tower_lsp::{
-	Client, LanguageServer, async_trait, jsonrpc::Result, lsp_types::{
-		DefinitionOptions, DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams, ExecuteCommandParams, GotoDefinitionParams, GotoDefinitionResponse, InitializeParams, InitializeResult, OneOf, SaveOptions, ServerCapabilities, ServerInfo, TextDocumentSyncCapability, TextDocumentSyncKind, TextDocumentSyncOptions, TextDocumentSyncSaveOptions, WorkDoneProgressOptions, notification::DidOpenTextDocument,
+	Client,
+	LanguageServer,
+	async_trait,
+	jsonrpc,
+	lsp_types::{
+		DidChangeTextDocumentParams,
+		DidCloseTextDocumentParams,
+		DidOpenTextDocumentParams,
+		DidSaveTextDocumentParams,
+		ExecuteCommandParams,
+		GotoDefinitionParams,
+		GotoDefinitionResponse,
+		InitializeParams,
+		InitializeResult,
+		Location,
+		OneOf,
+		Position,
+		ReferenceParams,
+		SaveOptions,
+		ServerCapabilities,
+		ServerInfo,
+		TextDocumentSyncCapability,
+		TextDocumentSyncKind,
+		TextDocumentSyncOptions,
+		TextDocumentSyncSaveOptions,
 	},
 };
-use tracing::{error, info, instrument};
-use tracing_subscriber::reload;
+use tracing::{error, instrument, warn};
+use webpack_ast_parser::ThreadSafeParser;
 
 use crate::{
-	JValue, LspResult, ReloadHandle, SERVER_NAME, SERVER_VERSION, State, wss::WsServer,
+	JValue,
+	LspResult,
+	ReloadHandle,
+	SERVER_NAME,
+	SERVER_VERSION,
+	State,
+	module_cache::SplitModuleCache,
+	wss::WsServer,
 };
 
 pub struct Server {
-	client: Client,
+	pub(crate) client: Client,
+	files: doc::Files,
+	#[expect(unused)]
+	state: Arc<State>,
+	log_reload_handle: Option<ReloadHandle>,
+	module_cache: SplitModuleCache,
+}
+
+#[must_use = "this is just a builder for the server"]
+pub struct ServerBuilder {
 	files: doc::Files,
 	state: Arc<State>,
 	log_reload_handle: Option<ReloadHandle>,
+	module_cache: SplitModuleCache,
 }
 
-impl Server {
-	#[must_use]
-	pub fn new(client: Client) -> Self {
+impl ServerBuilder {
+	pub fn new() -> Result<Self> {
 		let state = Arc::new(State {
 			ws: WsServer::disconnected(),
 		});
@@ -39,28 +81,89 @@ impl Server {
 			error!("WebSocket server exited unexpectedly");
 		});
 		let files = doc::Files::default();
-		Self {
-			client,
+		let module_cache = SplitModuleCache::new(state.ws.clone());
+		Ok(Self {
 			files,
 			state,
 			log_reload_handle: None,
-		}
+			module_cache,
+		})
 	}
 
-	#[must_use]
 	pub fn with_reload_handle(mut self, handle: ReloadHandle) -> Self {
-		debug_assert_matches!(self.log_reload_handle, None, "reload handle already set");
+		debug_assert_matches!(
+			self.log_reload_handle,
+			None,
+			"reload handle already set"
+		);
 		self.log_reload_handle = Some(handle);
 		self
 	}
+	#[must_use]
+	pub fn build(self, client: Client) -> Server {
+		self.module_cache
+			.set_client(client.clone());
+		Server {
+			client,
+			files: self.files,
+			state: self.state,
+			log_reload_handle: self.log_reload_handle,
+			module_cache: self.module_cache,
+		}
+	}
 }
+
+fn workspace_roots(params: &InitializeParams) -> Vec<PathBuf> {
+	let folders = params
+		.workspace_folders
+		.iter()
+		.flatten()
+		.map(|folder| &folder.uri);
+	// deprecated in the spec, but plenty of clients still only send this
+	let root_uri = params.root_uri.iter();
+	folders
+		.chain(root_uri)
+		.filter_map(|uri| {
+			uri.to_file_path()
+				.inspect_err(|()| {
+					warn!(%uri, "Workspace folder is not a file path, ignoring");
+				})
+				.ok()
+		})
+		.collect()
+}
+
+fn cursor_offset(
+	doc_text: &str,
+	parser: &ThreadSafeParser,
+	position: Position,
+) -> LspResult<u32> {
+	if &**parser.get_source() != doc_text {
+		return Err(jsonrpc::Error {
+			code: jsonrpc::ErrorCode::ContentModified,
+			message: Cow::Borrowed(
+				"parser source does not match the open document, skipping; save the file to refresh it",
+			),
+			data: None,
+		});
+	}
+	Ok(get_offset_from_line_and_column(
+		doc_text,
+		position.line,
+		position.character,
+	))
+}
+
+impl Server {}
 
 #[async_trait]
 impl LanguageServer for Server {
 	async fn initialize(
 		&self,
 		params: InitializeParams,
-	) -> Result<InitializeResult> {
+	) -> LspResult<InitializeResult> {
+		self.module_cache
+			.set_workspace_roots(workspace_roots(&params));
 		Ok(InitializeResult {
 			capabilities: ServerCapabilities {
 				text_document_sync: Some(TextDocumentSyncCapability::Options(
@@ -77,6 +180,7 @@ impl LanguageServer for Server {
 					},
 				)),
 				definition_provider: Some(OneOf::Left(true)),
+				references_provider: Some(OneOf::Left(true)),
 				execute_command_provider: Some(Self::get_cmd_provider()),
 				..ServerCapabilities::default()
 			},
@@ -98,6 +202,14 @@ impl LanguageServer for Server {
 	}
 
 	#[instrument(skip_all, fields(uri =% params.text_document.uri))]
+	async fn did_save(&self, params: DidSaveTextDocumentParams) {
+		// the parser and dep graph we cached are from the old contents
+		self.module_cache
+			.handle_save(&params.text_document.uri)
+			.await;
+	}
+
+	#[instrument(skip_all, fields(uri =% params.text_document.uri))]
 	async fn did_close(&self, params: DidCloseTextDocumentParams) {
 		self.files.handle_close(params);
 	}
@@ -110,14 +222,21 @@ impl LanguageServer for Server {
 		self.provide_definition(params).await
 	}
 
+	async fn references(
+		&self,
+		params: ReferenceParams,
+	) -> LspResult<Option<Vec<Location>>> {
+		self.gen_references(params).await
+	}
+
 	async fn execute_command(
 		&self,
 		params: ExecuteCommandParams,
-	) -> Result<Option<JValue>> {
+	) -> LspResult<Option<JValue>> {
 		self.handle_cmd(params).await
 	}
 
-	async fn shutdown(&self) -> Result<()> {
+	async fn shutdown(&self) -> LspResult<()> {
 		todo!()
 	}
 }

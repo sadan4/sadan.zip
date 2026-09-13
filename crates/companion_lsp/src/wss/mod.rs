@@ -77,11 +77,11 @@ impl WsServer {
 			// we don't care about notifications so they don't need a response slot
 			let rx = notification.is_none().then(|| {
 				let (res_tx, res_rx) = oneshot::channel();
-				inner.pending_tx.insert(nonce, res_tx);
+				inner.pending_rx.insert(nonce, res_tx);
 				res_rx
 			});
 			if let Err(e) = tx.send(wire_str) {
-				inner.pending_tx.remove(&nonce);
+				inner.pending_rx.remove(&nonce);
 				bail!("Failed to post WS message to outbound channel: {e:?}");
 			}
 			(nonce, rx)
@@ -104,7 +104,7 @@ impl WsServer {
 				self.0
 					.read()
 					.await
-					.pending_tx
+					.pending_rx
 					.remove(&nonce);
 				bail!("Timed out waiting for WS response");
 			}
@@ -117,7 +117,7 @@ mod types;
 struct Inner {
 	/// The pending outbound messages, stringified JSON
 	tx: Option<mpsc::UnboundedSender<String>>,
-	pending_tx: DashMap<u32, oneshot::Sender<PendingResponse>>,
+	pending_rx: DashMap<u32, oneshot::Sender<PendingResponse>>,
 	next_nonce: AtomicU32,
 	tasks: Option<[JoinHandle<()>; 2]>,
 }
@@ -200,7 +200,7 @@ impl Inner {
 			}
 			*inner = Self {
 				tx: Some(outbound_tx),
-				pending_tx: DashMap::new(),
+				pending_rx: DashMap::new(),
 				next_nonce: AtomicU32::new(0),
 				tasks: None,
 			};
@@ -321,7 +321,7 @@ impl Inner {
 		let value = this
 			.read()
 			.await
-			.pending_tx
+			.pending_rx
 			.remove(&nonce);
 		if let Some((_, tx)) = value {
 			if tx.send(msg).is_err() {
@@ -343,7 +343,7 @@ impl Inner {
 	fn disconnected() -> Self {
 		Self {
 			tx: None,
-			pending_tx: DashMap::new(),
+			pending_rx: DashMap::new(),
 			next_nonce: AtomicU32::new(0),
 			tasks: None,
 		}

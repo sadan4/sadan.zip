@@ -507,6 +507,7 @@ dependencies = [
  "macros",
  "memchr",
  "miette",
+ "miette_ui",
  "mini-moka",
  "qalc",
  "qalc_sbox",
@@ -900,6 +901,8 @@ dependencies = [
  "explorer_types",
  "futures-util",
  "insta",
+ "miette",
+ "miette_ui",
  "oxc",
  "parser_diag",
  "phf 0.14.0",
@@ -915,6 +918,7 @@ dependencies = [
  "tower-lsp",
  "tracing",
  "tracing-subscriber",
+ "url",
  "vencord_ast_parser",
  "webpack_ast_parser",
 ]
@@ -2736,6 +2740,7 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "ast_parser",
+ "async-trait",
  "console_error_panic_hook",
  "const_format",
  "dagre",
@@ -2753,6 +2758,7 @@ dependencies = [
  "serde_json",
  "smol_str",
  "thiserror 2.0.20",
+ "url",
  "vencord_ast_parser",
  "wasm-bindgen",
  "wasm-bindgen-futures",
@@ -2948,6 +2954,16 @@ dependencies = [
  "anyhow",
  "miette",
  "thiserror 2.0.20",
+]
+
+[[package]]
+name = "miette_ui"
+version = "0.1.0"
+dependencies = [
+ "bitcode",
+ "miette",
+ "terminal_size",
+ "zstd",
 ]
 
 [[package]]
@@ -4719,6 +4735,7 @@ dependencies = [
  "memchr",
  "miette",
  "miette_ctx",
+ "miette_ui",
  "notify",
  "num_cpus",
  "owo-colors",
@@ -6831,6 +6848,7 @@ dependencies = [
  "anyhow",
  "arrayvec",
  "ast_parser",
+ "async-trait",
  "daft",
  "derive_more",
  "explorer_types",
@@ -6846,8 +6864,10 @@ dependencies = [
  "serde",
  "serde_json",
  "smol_str",
+ "tokio",
  "tracing",
  "tracing-subscriber",
+ "url",
  "zstd",
 ]
 

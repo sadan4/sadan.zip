@@ -1,8 +1,5 @@
 use std::{
-	borrow::Cow,
-	fmt::{self, Display},
-	option::Option,
-	sync::Arc,
+	borrow::Cow, fmt::{self, Display, Write}, option::Option, sync::Arc,
 };
 
 use derive_more::Debug;
@@ -151,6 +148,7 @@ impl fmt::Display for LocalSource<'_> {
 
 impl fmt::Debug for LocalSource<'_> {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		f.write_char('\n')?;
 		let handler = self.inner.handler();
 		handler.debug(self, f)
 	}

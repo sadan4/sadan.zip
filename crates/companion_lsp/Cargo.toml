@@ -37,6 +37,9 @@ bytecount.workspace = true
 parser_diag.workspace = true
 phf.workspace = true
 const_format.workspace = true
+url.workspace = true
+miette.workspace = true
+miette_ui.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

@@ -1,14 +1,16 @@
-use std::{borrow::Cow, pin::Pin};
+use std::{borrow::Cow, pin::Pin, time::Duration};
 
 use crate::{JValue, LspResult, SERVER_NAME, lsp::custom::QuickPickRequest};
 use anyhow::{Context as _, Result, anyhow, bail};
 use const_format::formatc;
 use smol_str::SmolStr;
+use tokio::time;
 use tower_lsp::{
 	jsonrpc,
 	lsp_types::{
 		ExecuteCommandOptions,
 		ExecuteCommandParams,
+		WorkDoneProgressBegin,
 		WorkDoneProgressOptions,
 	},
 };
@@ -31,7 +33,11 @@ pub static CMD_MAP: phf::Map<&'static str, CommandDescriptor> = phf::phf_map! {
 	"set_log_level" => CommandDescriptor {
 		desc: "Set the log level of the server",
 		func: super::Server::set_log_level_cmd,
-	}
+	},
+	"progress_test" => CommandDescriptor {
+		desc: "Test the progress reporting",
+		func: super::Server::progress_test_cmd,
+	},
 };
 
 impl super::Server {
@@ -87,26 +93,25 @@ impl super::Server {
 				}
 				None => {
 					debug!("no argument provided, asking user");
-					
-					self
-						.quick_pick(QuickPickRequest {
-							items: vec![
-								SmolStr::new_static("info"),
-								SmolStr::new_static("debug"),
-								SmolStr::new_static("trace"),
-								SmolStr::new_static("warn"),
-								SmolStr::new_static("error"),
-							],
-							placeholder: Some(SmolStr::new_static(
-								"Enter a log filter string",
-							)),
-							allow_free_text: true,
-						})
-						.await
-						.map_err(|e| {
-							anyhow!("failed to get log filter from user: {e}")
-						})?
-						.context("user cancelled log filter prompt")?
+
+					self.quick_pick(QuickPickRequest {
+						items: vec![
+							SmolStr::new_static("info"),
+							SmolStr::new_static("debug"),
+							SmolStr::new_static("trace"),
+							SmolStr::new_static("warn"),
+							SmolStr::new_static("error"),
+						],
+						placeholder: Some(SmolStr::new_static(
+							"Enter a log filter string",
+						)),
+						allow_free_text: true,
+					})
+					.await
+					.map_err(|e| {
+						anyhow!("failed to get log filter from user: {e}")
+					})?
+					.context("user cancelled log filter prompt")?
 				}
 			};
 			handle
@@ -115,6 +120,29 @@ impl super::Server {
 						.context("failed to parse log filter string")?,
 				)
 				.context("failed to reload log filter")?;
+			Ok(None)
+		})
+	}
+
+	fn progress_test_cmd(
+		&self,
+		_: ExecuteCommandParams,
+	) -> Pin<Box<dyn Future<Output = Result<Option<JValue>>> + Send + '_>> {
+		Box::pin(async move {
+			let handle = Self::start_progress(
+				self.client.clone(),
+				WorkDoneProgressBegin {
+					title: "Test Progress".into(),
+					message: Some(String::from("Test Progress Message")),
+					..Default::default()
+				},
+			);
+			info!("starting progress test");
+			for i in 1..=20 {
+				handle.step(Some(i * 5), format!("Step {i} of 20"));
+				time::sleep(Duration::SECOND).await;
+			}
+			info!("progress test complete");
 			Ok(None)
 		})
 	}
