@@ -1,7 +1,6 @@
-use ast_parser::span_line_and_column;
 use explorer_types::SpannedId;
 use parser_diag::LocalSource;
-use tower_lsp::lsp_types::{Location, Position, Range, ReferenceParams};
+use tower_lsp::lsp_types::{Location, ReferenceParams};
 use tracing::{debug, warn};
 use webpack_ast_parser::{WebpackAstParser, bundle};
 
@@ -44,7 +43,7 @@ impl lsp::Server {
 		};
 		let p = module.parser();
 		let offset = lsp::cursor_offset(
-			&doc.text,
+			&doc,
 			&module,
 			params.text_document_position.position,
 		)?;
@@ -76,24 +75,15 @@ impl lsp::Server {
 				}
 			};
 			let ref_src = ref_parser.get_source();
-			let range = span_line_and_column(ref_src, reference.range);
+			let range = self
+				.files
+				.encoding()
+				.range_in(ref_src, reference.range);
 			let bundle::Location::Path(uri) = reference.location else {
 				warn!("TODO: handle reference locations other than Paths");
 				continue;
 			};
-			ret.push(Location {
-				uri,
-				range: Range {
-					start: Position {
-						line: range.0.0,
-						character: range.0.1,
-					},
-					end: Position {
-						line: range.1.0,
-						character: range.1.1,
-					},
-				},
-			});
+			ret.push(Location { uri, range });
 		}
 		Ok(Some(ret))
 	}

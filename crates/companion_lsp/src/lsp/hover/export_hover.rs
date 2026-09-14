@@ -1,8 +1,7 @@
 use anyhow::{Context as _, Result};
-use ast_parser::span_line_and_column;
 use explorer_types::SpannedId;
 use parser_diag::LocalSource;
-use tower_lsp::lsp_types::{HoverParams, Position, Range};
+use tower_lsp::lsp_types::{HoverParams, Range};
 use tracing::error;
 use webpack_ast_parser::WebpackAstParser;
 
@@ -32,7 +31,7 @@ impl lsp::Server {
 			.await
 			.context("Failed to get parser for module")?;
 		let pos = lsp::cursor_offset(
-			&doc.text,
+			&doc,
 			&parser,
 			params
 				.text_document_position_params
@@ -44,21 +43,7 @@ impl lsp::Server {
 			.await
 		{
 			Ok(Some((span, content))) => {
-				let ((start_line, start_col), (end_line, end_col)) =
-					span_line_and_column(&doc.text, span);
-				Ok(Some((
-					content.into(),
-					Range {
-						start: Position {
-							line: start_line,
-							character: start_col,
-						},
-						end: Position {
-							line: end_line,
-							character: end_col,
-						},
-					},
-				)))
+				Ok(Some((content.into(), doc.range_for_span(span))))
 			}
 			Ok(None) => Ok(None),
 			Err(e) => {

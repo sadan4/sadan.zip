@@ -25,24 +25,35 @@ type CmdFunc = for<'fut> fn(
 	Box<dyn Future<Output = Result<Option<JValue>>> + Send + 'fut>,
 >;
 
+#[derive(Clone, Copy)]
 pub struct CommandDescriptor {
 	pub desc: &'static str,
-	func: CmdFunc,
+	/// Should the user be able to see and run this command
+	pub user_visible: bool,
+	pub func: CmdFunc,
 }
 
 pub static CMD_MAP: phf::Map<&'static str, CommandDescriptor> = phf::phf_map! {
 	"set_log_level" => CommandDescriptor {
 		desc: "Set the log level of the server",
+		user_visible: true,
 		func: super::Server::set_log_level_cmd,
 	},
 	"progress_test" => CommandDescriptor {
 		desc: "Test the progress reporting",
+		user_visible: true,
 		func: super::Server::progress_test_cmd,
 	},
 };
 
 impl super::Server {
 	const COMMAND_PREFIX: &str = formatc!("{SERVER_NAME}.");
+
+	/// The name a client sees for the command registered under `key` in
+	/// [`CMD_MAP`], i.e. `key` with [`Self::COMMAND_PREFIX`] prepended.
+	pub(crate) fn cmd_name(key: &str) -> String {
+		format!("{}{key}", Self::COMMAND_PREFIX)
+	}
 
 	pub(crate) fn copy_string_cmd_uri(s: &str) -> String {
 		let input = serde_json::to_string(&[s]).unwrap();
@@ -56,7 +67,7 @@ impl super::Server {
 	pub fn get_cmd_provider() -> ExecuteCommandOptions {
 		let commands = CMD_MAP
 			.keys()
-			.map(|s| format!("{}{s}", Self::COMMAND_PREFIX))
+			.map(|s| Self::cmd_name(s))
 			.collect();
 		ExecuteCommandOptions {
 			commands,

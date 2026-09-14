@@ -902,6 +902,7 @@ dependencies = [
  "futures-util",
  "insta",
  "itertools 0.15.0",
+ "memchr",
  "miette",
  "miette_ui",
  "oxc",

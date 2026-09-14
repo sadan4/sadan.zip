@@ -1,7 +1,5 @@
 use anyhow::{Context as _, Result};
-use ast_parser::span_line_and_column;
 use explorer_types::SpannedId;
-use oxc::span::Span;
 use smol_str::SmolStr;
 use std::fmt::Write as _;
 use tower_lsp::lsp_types::{HoverParams, Range};
@@ -57,14 +55,7 @@ impl IntlToken {
 }
 
 impl lsp::Server {
-	async fn mk_token(
-		&self,
-		source: &str,
-		hashed: SmolStr,
-		span: Span,
-	) -> IntlToken {
-		let ((start_line, start_col), (end_line, end_col)) =
-			span_line_and_column(source, span);
+	async fn mk_token(&self, span: Range, hashed: SmolStr) -> IntlToken {
 		debug_assert_eq!(
 			hashed.len(),
 			6,
@@ -85,16 +76,7 @@ impl lsp::Server {
 			hashed,
 			source,
 			resolved_value,
-			span: Range {
-				start: tower_lsp::lsp_types::Position {
-					line: start_line,
-					character: start_col,
-				},
-				end: tower_lsp::lsp_types::Position {
-					line: end_line,
-					character: end_col,
-				},
-			},
+			span,
 		}
 	}
 	pub(super) async fn provide_intl_hover(
@@ -120,7 +102,7 @@ impl lsp::Server {
 			.await
 			.context("Failed to get parser for module")?;
 		let pos = lsp::cursor_offset(
-			&doc.text,
+			&doc,
 			&parser,
 			params
 				.text_document_position_params
@@ -130,7 +112,7 @@ impl lsp::Server {
 			return Ok(None);
 		};
 		Ok(Some(
-			self.mk_token(&doc.text, key, span)
+			self.mk_token(doc.range_for_span(span), key)
 				.await
 				.render(),
 		))

@@ -2,16 +2,45 @@ pub mod cmds;
 mod custom;
 mod definition;
 mod doc;
-mod reference;
 mod hover;
+mod lenses;
+mod reference;
 
 use std::{borrow::Cow, debug_assert_matches, path::PathBuf, sync::Arc};
 
 use anyhow::Result;
-use ast_parser::get_offset_from_line_and_column;
 use tower_lsp::{
-	Client, LanguageServer, async_trait, jsonrpc, lsp_types::{
-		DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams, DidSaveTextDocumentParams, ExecuteCommandParams, GotoDefinitionParams, GotoDefinitionResponse, Hover, HoverParams, HoverProviderCapability, InitializeParams, InitializeResult, Location, OneOf, Position, ReferenceParams, SaveOptions, ServerCapabilities, ServerInfo, TextDocumentSyncCapability, TextDocumentSyncKind, TextDocumentSyncOptions, TextDocumentSyncSaveOptions,
+	Client,
+	LanguageServer,
+	async_trait,
+	jsonrpc,
+	lsp_types::{
+		CodeLens,
+		CodeLensOptions,
+		CodeLensParams,
+		DidChangeTextDocumentParams,
+		DidCloseTextDocumentParams,
+		DidOpenTextDocumentParams,
+		DidSaveTextDocumentParams,
+		ExecuteCommandParams,
+		GotoDefinitionParams,
+		GotoDefinitionResponse,
+		Hover,
+		HoverParams,
+		HoverProviderCapability,
+		InitializeParams,
+		InitializeResult,
+		Location,
+		OneOf,
+		Position,
+		ReferenceParams,
+		SaveOptions,
+		ServerCapabilities,
+		ServerInfo,
+		TextDocumentSyncCapability,
+		TextDocumentSyncKind,
+		TextDocumentSyncOptions,
+		TextDocumentSyncSaveOptions,
 	},
 };
 use tracing::{error, instrument, warn};
@@ -111,11 +140,11 @@ fn workspace_roots(params: &InitializeParams) -> Vec<PathBuf> {
 }
 
 fn cursor_offset(
-	doc_text: &str,
+	doc: &doc::Document,
 	parser: &ThreadSafeParser,
 	position: Position,
 ) -> LspResult<u32> {
-	if &**parser.get_source() != doc_text {
+	if &**parser.get_source() != doc.text.as_str() {
 		return Err(jsonrpc::Error {
 			code: jsonrpc::ErrorCode::ContentModified,
 			message: Cow::Borrowed(
@@ -124,11 +153,7 @@ fn cursor_offset(
 			data: None,
 		});
 	}
-	Ok(get_offset_from_line_and_column(
-		doc_text,
-		position.line,
-		position.character,
-	))
+	Ok(doc.offset_at(position))
 }
 
 impl Server {}
@@ -141,8 +166,12 @@ impl LanguageServer for Server {
 	) -> LspResult<InitializeResult> {
 		self.module_cache
 			.set_workspace_roots(workspace_roots(&params));
+		let position_encoding = self
+			.files
+			.negotiate_encoding(params.capabilities.general.as_ref());
 		Ok(InitializeResult {
 			capabilities: ServerCapabilities {
+				position_encoding: Some(position_encoding),
 				text_document_sync: Some(TextDocumentSyncCapability::Options(
 					TextDocumentSyncOptions {
 						open_close: Some(true),
@@ -159,6 +188,9 @@ impl LanguageServer for Server {
 				definition_provider: Some(OneOf::Left(true)),
 				references_provider: Some(OneOf::Left(true)),
 				hover_provider: Some(HoverProviderCapability::Simple(true)),
+				code_lens_provider: Some(CodeLensOptions {
+					resolve_provider: Some(false),
+				}),
 				execute_command_provider: Some(Self::get_cmd_provider()),
 				..ServerCapabilities::default()
 			},
@@ -216,6 +248,13 @@ impl LanguageServer for Server {
 
 	async fn hover(&self, params: HoverParams) -> LspResult<Option<Hover>> {
 		self.provide_hover(params).await
+	}
+
+	async fn code_lens(
+		&self,
+		params: CodeLensParams,
+	) -> LspResult<Option<Vec<CodeLens>>> {
+		self.provide_lenses(params).await
 	}
 
 	async fn shutdown(&self) -> LspResult<()> {
