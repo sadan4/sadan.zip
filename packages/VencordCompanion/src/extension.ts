@@ -1,4 +1,4 @@
-import { ExtensionContext, QuickPickItem, window as vsWindow } from "vscode";
+import { commands, env, ExtensionContext, Hover, MarkdownString, QuickPickItem, window as vsWindow } from "vscode";
 import { ErrorCodes, LanguageClient, LanguageClientOptions, ResponseError, ServerOptions, TransportKind } from "vscode-languageclient/node";
 import { Settings } from "./Settings";
 import { join } from "node:path";
@@ -7,6 +7,14 @@ import * as z from "zod";
 let client: LanguageClient | undefined;
 
 const QUICK_PICK_METHOD = "$/vencord-companion/quick_pick";
+
+/**
+ * Not contributed in package.json on purpose:
+ * `contributes.commands` is generated from the server's `CMD_MAP` by
+ * `cargo xtask gen ext-commands`, and this command is handled entirely by the
+ * client, so it would be clobbered (and it has no useful palette entry anyway).
+ */
+const COPY_COMMAND = "vencord-companion.copy";
 
 const QuickPickRequest = z.object({
     items: z.array(z.string()),
@@ -32,7 +40,8 @@ export async function activate(cx: ExtensionContext): Promise<void> {
         throw new Error("Vencord Companion LSP client is already active");
     }
     const c = client = mkClient(cx);
-    client.onRequest(QUICK_PICK_METHOD, async (req: unknown) => { 
+    cx.subscriptions.push(commands.registerCommand(COPY_COMMAND, doCopy));
+    client.onRequest(QUICK_PICK_METHOD, async (req: unknown) => {
         try {
             const parsed = QuickPickRequest.parse(req);
             return await doQuickPick(parsed);
@@ -52,7 +61,20 @@ export async function activate(cx: ExtensionContext): Promise<void> {
     client.start();
 }
 
-function doQuickPick(req: QuickPickRequest): Promise<string | undefined> { 
+/**
+ * Handler for {@link COPY_COMMAND}.
+ */
+async function doCopy(toCopy: unknown): Promise<void> {
+    if (typeof toCopy !== "string") {
+        client?.error(`${COPY_COMMAND} expected a string argument, got ${typeof toCopy}`);
+        void vsWindow.showErrorMessage("Vencord Companion: nothing to copy");
+        return;
+    }
+    await env.clipboard.writeText(toCopy);
+    client?.debug(`Copied "${toCopy}" to the clipboard`);
+}
+
+function doQuickPick(req: QuickPickRequest): Promise<string | undefined> {
     const qp = vsWindow.createQuickPick();
     const { promise, resolve, reject } = Promise.withResolvers<string | undefined>();
     const baseItems = req.items.map((label) => ({ label }));
@@ -93,7 +115,16 @@ function doQuickPick(req: QuickPickRequest): Promise<string | undefined> {
     return promise;
 }
 
-function mkClient(cx: ExtensionContext): LanguageClient { 
+function trustHover(hover: Hover): void {
+    for (const content of hover.contents) {
+        if (content instanceof MarkdownString) {
+            content.isTrusted = { enabledCommands: [COPY_COMMAND] };
+            content.supportThemeIcons = true;
+        }
+    }
+}
+
+function mkClient(cx: ExtensionContext): LanguageClient {
     const serverOptions: ServerOptions = {
         command: resolveServerBinary(cx),
 		transport: TransportKind.stdio,
@@ -114,6 +145,17 @@ function mkClient(cx: ExtensionContext): LanguageClient {
 				})),
 			{ scheme: "vencord-companion" }
 		],
+		middleware: {
+			// hovers from the server contain `command:` links and `$(icon)`
+			// codicons, both of which are inert unless the markdown opts in
+			async provideHover(document, position, token, next) {
+				const hover = await next(document, position, token);
+				if (hover) {
+					trustHover(hover);
+				}
+				return hover;
+			}
+		}
 	};
     return new LanguageClient("vencord-companion-client", "Vencord Companion", serverOptions, clientOptions);
 }

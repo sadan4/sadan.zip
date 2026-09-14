@@ -3,37 +3,15 @@ mod custom;
 mod definition;
 mod doc;
 mod reference;
+mod hover;
 
 use std::{borrow::Cow, debug_assert_matches, path::PathBuf, sync::Arc};
 
 use anyhow::Result;
 use ast_parser::get_offset_from_line_and_column;
 use tower_lsp::{
-	Client,
-	LanguageServer,
-	async_trait,
-	jsonrpc,
-	lsp_types::{
-		DidChangeTextDocumentParams,
-		DidCloseTextDocumentParams,
-		DidOpenTextDocumentParams,
-		DidSaveTextDocumentParams,
-		ExecuteCommandParams,
-		GotoDefinitionParams,
-		GotoDefinitionResponse,
-		InitializeParams,
-		InitializeResult,
-		Location,
-		OneOf,
-		Position,
-		ReferenceParams,
-		SaveOptions,
-		ServerCapabilities,
-		ServerInfo,
-		TextDocumentSyncCapability,
-		TextDocumentSyncKind,
-		TextDocumentSyncOptions,
-		TextDocumentSyncSaveOptions,
+	Client, LanguageServer, async_trait, jsonrpc, lsp_types::{
+		DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams, DidSaveTextDocumentParams, ExecuteCommandParams, GotoDefinitionParams, GotoDefinitionResponse, Hover, HoverParams, HoverProviderCapability, InitializeParams, InitializeResult, Location, OneOf, Position, ReferenceParams, SaveOptions, ServerCapabilities, ServerInfo, TextDocumentSyncCapability, TextDocumentSyncKind, TextDocumentSyncOptions, TextDocumentSyncSaveOptions,
 	},
 };
 use tracing::{error, instrument, warn};
@@ -53,7 +31,6 @@ use crate::{
 pub struct Server {
 	pub(crate) client: Client,
 	files: doc::Files,
-	#[expect(unused)]
 	state: Arc<State>,
 	log_reload_handle: Option<ReloadHandle>,
 	module_cache: SplitModuleCache,
@@ -181,6 +158,7 @@ impl LanguageServer for Server {
 				)),
 				definition_provider: Some(OneOf::Left(true)),
 				references_provider: Some(OneOf::Left(true)),
+				hover_provider: Some(HoverProviderCapability::Simple(true)),
 				execute_command_provider: Some(Self::get_cmd_provider()),
 				..ServerCapabilities::default()
 			},
@@ -234,6 +212,10 @@ impl LanguageServer for Server {
 		params: ExecuteCommandParams,
 	) -> LspResult<Option<JValue>> {
 		self.handle_cmd(params).await
+	}
+
+	async fn hover(&self, params: HoverParams) -> LspResult<Option<Hover>> {
+		self.provide_hover(params).await
 	}
 
 	async fn shutdown(&self) -> LspResult<()> {

@@ -3,6 +3,7 @@ use std::{borrow::Cow, pin::Pin, time::Duration};
 use crate::{JValue, LspResult, SERVER_NAME, lsp::custom::QuickPickRequest};
 use anyhow::{Context as _, Result, anyhow, bail};
 use const_format::formatc;
+use percent_encoding::{NON_ALPHANUMERIC, percent_encode};
 use smol_str::SmolStr;
 use tokio::time;
 use tower_lsp::{
@@ -42,6 +43,15 @@ pub static CMD_MAP: phf::Map<&'static str, CommandDescriptor> = phf::phf_map! {
 
 impl super::Server {
 	const COMMAND_PREFIX: &str = formatc!("{SERVER_NAME}.");
+
+	pub(crate) fn copy_string_cmd_uri(s: &str) -> String {
+		let input = serde_json::to_string(&[s]).unwrap();
+		format!(
+			"command:{}copy?{}",
+			Self::COMMAND_PREFIX,
+			percent_encode(input.as_bytes(), NON_ALPHANUMERIC)
+		)
+	}
 
 	pub fn get_cmd_provider() -> ExecuteCommandOptions {
 		let commands = CMD_MAP

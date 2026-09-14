@@ -1,3 +1,5 @@
+pub mod types;
+
 use std::{
 	net::SocketAddr,
 	sync::{
@@ -11,6 +13,7 @@ use anyhow::{Context as _, Result, anyhow, bail};
 use dashmap::DashMap;
 use futures_util::{SinkExt, StreamExt as _};
 use serde::Deserialize;
+use smol_str::SmolStr;
 use tokio::{
 	net::{TcpListener, TcpStream},
 	sync::{RwLock, mpsc, oneshot},
@@ -58,14 +61,31 @@ fn check_client_version(version: Semver) -> Result<()> {
 /// either a parsed frame, or the error from failing to parse it
 type PendingResponse = Result<types::from_client::FullMessage>;
 
+/// How long [`WsServer::send_msg`] waits for a response before giving up
+const DEFAULT_RESPONSE_TIMEOUT: Duration = Duration::from_mins(1);
+/// How long [`WsServer::lookup_intl_value`] waits for a response before giving up.
+const INTL_LOOKUP_TIMEOUT: Duration = Duration::from_secs(2);
+
 impl WsServer {
+	// TODO: custom default timeout setting from user
 	pub async fn send_msg<T: MsgToClient>(
 		&self,
 		msg: T,
 	) -> Result<T::Response> {
+		self.send_msg_timeout(msg, DEFAULT_RESPONSE_TIMEOUT)
+			.await
+	}
+
+	/// [`Self::send_msg`], but gives up after `response_timeout` instead of
+	/// [`DEFAULT_RESPONSE_TIMEOUT`]
+	pub async fn send_msg_timeout<T: MsgToClient>(
+		&self,
+		msg: T,
+		response_timeout: Duration,
+	) -> Result<T::Response> {
 		let notification = T::Response::notification_type();
 		let (nonce, rx) = {
-			// held across the whole process so we don't 
+			// held across the whole process so we don't
 			// get a nonce from once connection and use it with another
 			let inner = self.0.read().await;
 			let nonce = inner.mint_nonce();
@@ -90,8 +110,7 @@ impl WsServer {
 			return Ok(notification
 				.expect("no receiver is registered only for notifications"));
 		};
-		// FIXME: customizable timeout duration
-		match timeout(Duration::from_mins(1), rx).await {
+		match timeout(response_timeout, rx).await {
 			Ok(Ok(res)) => res.and_then(|msg| {
 				T::Response::from_wire(msg)
 					.context("Failed to extract message from wire")
@@ -110,9 +129,39 @@ impl WsServer {
 			}
 		}
 	}
-}
 
-mod types;
+	/// Resolves the value of a 6-char hashed intl key.
+	///
+	/// Responses are cached for the lifetime of the connection
+	pub async fn lookup_intl_value(
+		&self,
+		hashed_key: &SmolStr,
+	) -> Result<SmolStr> {
+		{
+			let inner = self.0.read().await;
+			if let Some(cached) = inner.intl_cache.get(hashed_key) {
+				trace!(%hashed_key, "intl cache hit");
+				return Ok(cached.clone());
+			}
+		}
+		let value = SmolStr::new(
+			self.send_msg_timeout(
+				types::to_client::IntlLookup {
+					hashed_key: hashed_key.clone(),
+				},
+				INTL_LOOKUP_TIMEOUT,
+			)
+			.await?
+			.value,
+		);
+		self.0
+			.read()
+			.await
+			.intl_cache
+			.insert(hashed_key.clone(), value.clone());
+		Ok(value)
+	}
+}
 
 struct Inner {
 	/// The pending outbound messages, stringified JSON
@@ -120,6 +169,13 @@ struct Inner {
 	pending_rx: DashMap<u32, oneshot::Sender<PendingResponse>>,
 	next_nonce: AtomicU32,
 	tasks: Option<[JoinHandle<()>; 2]>,
+	/// The list of module the client has loaded.
+	///
+	/// may be stale
+	module_list: Arc<Vec<SmolStr>>,
+	/// Values of intl keys the client has already resolved, keyed by the
+	/// 6-char hashed key.
+	intl_cache: DashMap<SmolStr, SmolStr>,
 }
 
 impl Drop for Inner {
@@ -203,6 +259,8 @@ impl Inner {
 				pending_rx: DashMap::new(),
 				next_nonce: AtomicU32::new(0),
 				tasks: None,
+				module_list: Arc::new(Vec::new()),
+				intl_cache: DashMap::new(),
 			};
 		};
 		// send messages from the server to the client
@@ -317,6 +375,19 @@ impl Inner {
 				nonce
 			}
 		};
+		// client sends module list on connect, without a nonce
+		if let Ok(types::from_client::FullMessage::Ok {
+			msg:
+				types::from_client::IncomingMessage::ModuleList {
+					data: types::from_client::ModuleList { modules },
+				},
+			nonce: 0,
+		}) = msg
+		{
+			info!("Recieved initial module list from client");
+			this.write().await.module_list = Arc::new(modules);
+			return;
+		}
 		trace!(?msg, "Received WS message");
 		let value = this
 			.read()
@@ -346,12 +417,14 @@ impl Inner {
 			pending_rx: DashMap::new(),
 			next_nonce: AtomicU32::new(0),
 			tasks: None,
+			module_list: Arc::new(Vec::new()),
+			intl_cache: DashMap::new(),
 		}
 	}
 }
 
 impl WsServer {
-	pub const PORT: u16 = 8484;
+	pub const PORT: u16 = 8485;
 
 	pub fn disconnected() -> Self {
 		Self(Arc::new(RwLock::new(Inner::disconnected())))

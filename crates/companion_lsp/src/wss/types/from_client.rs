@@ -19,6 +19,7 @@ pub enum FullMessage {
 	Ok {
 		#[serde(flatten)]
 		msg: IncomingMessage,
+		#[serde(default)]
 		nonce: u32,
 	},
 }

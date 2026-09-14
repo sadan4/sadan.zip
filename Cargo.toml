@@ -146,6 +146,7 @@ oneshot = { version = "0.2.1", features = ["async", "std"] }
 redis = { version = "1.6.0", features = ["tokio-comp"] }
 phf = {version = "0.14", features = ["macros"]}
 async-trait = "0.1"
+percent-encoding = "2"
 
 [patch.crates-io]
 typesize = { git = "https://github.com/GnomedDev/typesize", branch = "master" }

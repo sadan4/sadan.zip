@@ -40,6 +40,8 @@ const_format.workspace = true
 url.workspace = true
 miette.workspace = true
 miette_ui.workspace = true
+itertools.workspace = true
+percent-encoding.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

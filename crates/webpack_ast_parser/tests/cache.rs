@@ -548,6 +548,21 @@ mod hover_text {
 		)
 		"#);
 	}
+	/// The span should be in 900003's source, not 900002's
+	#[cache_test(sub_dir = "re_export_store")]
+	async fn store_behind_explicit_re_export(b: &Bundle) {
+		let parser = b.parse(900003);
+		let hov = dbg_hover(&parser, 8, 17)
+			.await
+			.unwrap()
+			.unwrap();
+		assert_debug_snapshot!(hov, @r#"
+		(
+		    "ReExportedStore",
+		    "[8:17->8:19) St",
+		)
+		"#);
+	}
 	#[cache_test]
 	async fn store_in_other_module_2(b: &Bundle) {
 		let parser = b.parse(111111);

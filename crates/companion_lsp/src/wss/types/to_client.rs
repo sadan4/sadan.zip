@@ -300,7 +300,7 @@ mod wire_shape {
 
 	use crate::JValue;
 
-use super::*;
+	use super::*;
 
 	/// Serializes `msg` exactly like [`crate::wss::WsServer::send_msg`] does
 	/// (through [`serde_json::to_string`]) and reparses it, rejecting

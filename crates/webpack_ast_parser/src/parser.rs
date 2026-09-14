@@ -731,12 +731,6 @@ impl<'ast> WebpackAstParser<'ast> {
 
 	/// Get the hashed Discord intl key the cursor at `pos` is sitting on, if
 	/// any.
-	///
-	/// Returns the [`Span`] of the key node (the identifier, or the string
-	/// literal *including* its quotes) and the hashed key itself. The key is
-	/// returned as written in the source; it is not resolved back to its
-	/// original message name — use [`crate::intl::resolve_unhashed_key`] for
-	/// that.
 	pub fn get_i18n_key_at(&self, pos: u32) -> Option<(Span, SmolStr)> {
 		let node = self.get_node_at(pos);
 		let key = match node {
@@ -1433,7 +1427,7 @@ impl<'ast> WebpackAstParser<'ast> {
 				raw_export_spans: vec![],
 			});
 		}
-		let (mut mapped_names, mut raw_spans) = Self::map_export_names(&names);
+		let (mut mapped_names, raw_spans) = Self::map_export_names(&names);
 		loop {
 			// check for an explicit re-export before falling back to checking for a whole module re-export
 			// the names of a re-export are allocated in `cur`'s arena, so they
@@ -1453,7 +1447,9 @@ impl<'ast> WebpackAstParser<'ast> {
 						)
 					},
 				);
-			let Some((import_source_id, (new_mapped, new_spans))) = ret else {
+			// the spans of the re-export are in `cur`'s source, not ours,
+			// so they have no relevance to us
+			let Some((import_source_id, (new_mapped, _))) = ret else {
 				let whole_module_export_id = cur
 					.parser()
 					.does_re_export_whole_module();
@@ -1474,7 +1470,6 @@ impl<'ast> WebpackAstParser<'ast> {
 				break;
 			};
 			mapped_names = new_mapped;
-			raw_spans = new_spans;
 			cur = self
 				.try_get_module_parser(SpannedId::unspanned(import_source_id))
 				.await?;

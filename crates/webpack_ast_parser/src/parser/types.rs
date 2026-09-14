@@ -99,10 +99,15 @@ pub struct ReExport<'ast> {
 pub struct ResolvedDefinition {
 	/// the parser that has the definition
 	pub parser: Arc<ThreadSafeParser>,
-	/// the spans, in the module the chain was resolved from, of the nodes
-	/// [`Self::export_names`] was built from
+	/// the spans of the nodes the access chain was read from, in the source
+	/// of the parser [`super::WebpackAstParser::resolve_definition`] was
+	/// called on
 	///
-	/// These can't be the nodes because we elide the lifetime with an Arc
+	/// Deliberately *not* remapped for re-exports, because they
+	/// should be in the querying module's source, not the
+	/// source of whichever module the definition ended up in
+	///
+	/// These can't be the nodes because we elide the lifetime with an Arc ([`crate::ThreadSafeParser`])
 	pub raw_export_spans: Vec<Span>,
 	/// the chain of export names to get the definition from [`Self::parser`]
 	pub export_names: Vec<ExportMapKey>,
