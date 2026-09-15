@@ -1,12 +1,21 @@
-use companion_lsp::{ReloadHandle, lsp};
+use companion_lsp::{
+	ReloadHandle,
+	lsp::{self, custom::ephemera::EphemeralQuery},
+};
 use miette_ui::install_miette_hook;
 use std::{env, io::Write as _, process, thread, time::Duration};
 use tokio::io;
-use tower_lsp::{LspService, Server};
+use tower_lsp_server::{LspService, Server, ls_types::request::Request};
 
 fn main() {
 	#[cfg(debug_assertions)]
 	{
+		// SAFETY: this just allows us to be traced by a debugger, without needing to set yama.ptrace_scope = 0
+		// SEE: PR_SET_PTRACER.2const
+		#[cfg(target_os = "linux")]
+		unsafe {
+			libc::prctl(libc::PR_SET_PTRACER, libc::PR_SET_PTRACER_ANY);
+		};
 		wait_for_debugger();
 	};
 	setup_backtrace();
@@ -20,7 +29,14 @@ async fn tokio_main() {
 	let builder = lsp::ServerBuilder::new()
 		.expect("Failed to create LSP ServerBuilder")
 		.with_reload_handle(reload_handle);
-	let (service, socket) = LspService::new(|client| builder.build(client));
+	let (service, socket) = LspService::build(|client| builder.build(client))
+		.custom_method(
+			EphemeralQuery::METHOD,
+			async |client: &lsp::Server, params| {
+				client.query_ephemeral_document(&params)
+			},
+		)
+		.finish();
 	Server::new(io::stdin(), io::stdout(), socket)
 		.serve(service)
 		.await;
@@ -29,10 +45,12 @@ async fn tokio_main() {
 #[cfg(target_os = "linux")]
 fn wait_for_debugger() {
 	const {
-		assert!(cfg!(debug_assertions), "wait_for_debugger should only be called in debug builds");
+		assert!(
+			cfg!(debug_assertions),
+			"wait_for_debugger should only be called in debug builds"
+		);
 	};
-	if env::var_os("COMPANION_LSP_WAIT_DEBUGGER").is_none()
-	{
+	if env::var_os("COMPANION_LSP_WAIT_DEBUGGER").is_none() {
 		return;
 	}
 	// stdout is the LSP transport, so this has to go to stderr.

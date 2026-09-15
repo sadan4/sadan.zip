@@ -5,8 +5,8 @@ use std::{ffi::OsStr, path::Path};
 use oxc::span::Span;
 use parser_diag::LocalSource;
 use serde::Serialize;
-use tower_lsp::lsp_types::{CodeLens, Command, Url};
-use tracing::debug;
+use tower_lsp_server::ls_types::{CodeLens, Command, Uri};
+use tracing::{debug, trace};
 use vencord_ast_parser::{Allocator, VencordAstParser};
 
 use crate::lsp::{self, doc::Document};
@@ -21,7 +21,7 @@ const LENSES: &[(&str, &str)] = &[
 /// Serialized patch lens args
 #[derive(Serialize)]
 struct PatchLensArgs<'a> {
-	uri: &'a Url,
+	uri: &'a Uri,
 	span: Span,
 }
 
@@ -57,12 +57,12 @@ fn is_plugin_path(path: &Path) -> bool {
 }
 
 pub(super) fn patch_lenses(
-	uri: &Url,
+	uri: &Uri,
 	doc: &Document,
 	path: &Path,
 ) -> Vec<CodeLens> {
 	if !is_plugin_path(path) {
-		debug!(?path, "not a plugin file, skipping patch lenses");
+		trace!(?path, "not a plugin file, skipping patch lenses");
 		return Vec::new();
 	}
 	let src = doc.text.as_str();

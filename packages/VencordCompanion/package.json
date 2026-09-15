@@ -101,6 +101,10 @@
         },
         "commands": [
             {
+                "command": "vencord-companion.ephemera_test",
+                "title": "Vencord Companion: Create a test epehemeral document"
+            },
+            {
                 "command": "vencord-companion.progress_test",
                 "title": "Vencord Companion: Test the progress reporting"
             },

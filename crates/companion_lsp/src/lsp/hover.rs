@@ -1,7 +1,7 @@
 use anyhow::Result;
 use itertools::Itertools;
 use tokio::join;
-use tower_lsp::lsp_types::{
+use tower_lsp_server::ls_types::{
 	Hover,
 	HoverContents,
 	HoverParams,

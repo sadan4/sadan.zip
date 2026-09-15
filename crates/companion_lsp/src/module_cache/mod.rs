@@ -13,6 +13,7 @@ use std::{
 };
 
 use anyhow::{Context, Result, bail};
+use async_trait::async_trait;
 use dashmap::DashMap;
 use explorer_types::{IncomingModuleDeps, ModuleId};
 use tokio::{
@@ -20,9 +21,11 @@ use tokio::{
 	sync::{OnceCell, RwLock},
 	task,
 };
-use tower_lsp::{Client, async_trait, lsp_types::WorkDoneProgressBegin};
+use tower_lsp_server::{
+	Client,
+	ls_types::{Uri, WorkDoneProgressBegin},
+};
 use tracing::{debug, info, instrument, warn};
-use url::Url;
 use webpack_ast_parser::{
 	ThreadSafeParser,
 	WebpackAstParser,
@@ -81,8 +84,8 @@ const MODULE_DIR_NAME: &str = ".modules";
 
 /// The module a uri points at, taken from its file name the same way
 /// [`DiskModuleCache::scan_module_root`] does.
-fn module_id_from_uri(uri: &Url) -> Option<ModuleId> {
-	let path = Path::new(uri.path());
+fn module_id_from_uri(uri: &Uri) -> Option<ModuleId> {
+	let path = Path::new(uri.path().as_str());
 	if path.extension() != Some(OsStr::new("js")) {
 		return None;
 	}
@@ -140,24 +143,24 @@ impl SplitModuleCache {
 	}
 
 	/// Drop what is cached for a module whose file was just written.
-	pub async fn handle_save(&self, uri: &Url) {
+	pub async fn handle_save(&self, uri: &Uri) {
 		let Some(id) = module_id_from_uri(uri) else {
-			debug!(%uri, "Saved file is not a module, nothing to invalidate");
+			debug!(uri =% uri.as_str(), "Saved file is not a module, nothing to invalidate");
 			return;
 		};
 		self.get_for_uri(uri)
 			.invalidate(id)
 			.await;
 	}
-	pub fn get_for_uri(&self, uri: &Url) -> Arc<dyn SplitCache> {
-		match uri.scheme() {
+	pub fn get_for_uri(&self, uri: &Uri) -> Arc<dyn SplitCache> {
+		match uri.scheme().as_str() {
 			"file" => Arc::clone(&self.disk) as Arc<dyn SplitCache>,
 			"vencord-companion" => {
 				Arc::clone(&self.live) as Arc<dyn SplitCache>
 			}
 			scheme => {
 				warn!(
-					scheme,
+					?scheme,
 					"Unknown scheme for module cache, defaulting to disk"
 				);
 				Arc::clone(&self.disk) as Arc<dyn SplitCache>
@@ -617,9 +620,9 @@ impl IModuleDepProvider for DiskModuleCache {
 #[async_trait]
 impl IModuleCache for DiskModuleCache {
 	#[instrument(skip_all, fields(id))]
-	async fn get_module_filepath(&self, id: ModuleId) -> Option<Url> {
+	async fn get_module_filepath(&self, id: ModuleId) -> Option<url::Url> {
 		self.module_path(id).await.map(|path| {
-			Url::from_file_path(path).expect("path is not canonical")
+			url::Url::from_file_path(path).expect("path is not canonical")
 		})
 	}
 
@@ -659,7 +662,7 @@ impl IModuleDepProvider for WeakDiskCache {
 
 #[async_trait]
 impl IModuleCache for WeakDiskCache {
-	async fn get_module_filepath(&self, id: ModuleId) -> Option<Url> {
+	async fn get_module_filepath(&self, id: ModuleId) -> Option<url::Url> {
 		match self.get() {
 			Ok(cache) => cache.get_module_filepath(id).await,
 			Err(e) => {
@@ -718,7 +721,7 @@ impl IModuleDepProvider for LiveModuleCache {
 
 #[async_trait]
 impl IModuleCache for LiveModuleCache {
-	async fn get_module_filepath(&self, _: ModuleId) -> Option<Url> {
+	async fn get_module_filepath(&self, _: ModuleId) -> Option<url::Url> {
 		warn!("{UNIMPLEMENTED}");
 		None
 	}

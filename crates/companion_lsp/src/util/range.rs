@@ -1,6 +1,6 @@
 use std::mem;
 
-use tower_lsp::lsp_types::Range;
+use tower_lsp_server::ls_types::Range;
 
 /// Returns the overlap between `r1` and `r2`, or [`None`] if they are
 /// disjoint.
@@ -34,7 +34,7 @@ pub fn union(r1: Range, r2: Range) -> Range {
 
 #[cfg(test)]
 mod tests {
-	use tower_lsp::lsp_types::{Position, Range};
+	use tower_lsp_server::ls_types::{Position, Range};
 
 	use super::{intersect, union};
 
@@ -193,7 +193,7 @@ mod tests {
 		}
 	}
 
-	mod union{
+	mod union {
 		use super::*;
 
 		#[test]

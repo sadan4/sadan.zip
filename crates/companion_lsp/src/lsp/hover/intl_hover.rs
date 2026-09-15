@@ -2,7 +2,7 @@ use anyhow::{Context as _, Result};
 use explorer_types::SpannedId;
 use smol_str::SmolStr;
 use std::fmt::Write as _;
-use tower_lsp::lsp_types::{HoverParams, Range};
+use tower_lsp_server::ls_types::{HoverParams, Range};
 use tracing::warn;
 use webpack_ast_parser::{WebpackAstParser, intl::resolve_unhashed_key};
 

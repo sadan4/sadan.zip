@@ -1,5 +1,7 @@
+use std::str::FromStr as _;
+
 use ast_parser::{get_line_and_column, get_offset_from_line_and_column};
-use tower_lsp::lsp_types::{
+use tower_lsp_server::ls_types::{
 	DidOpenTextDocumentParams,
 	GeneralClientCapabilities,
 	Position,
@@ -7,7 +9,7 @@ use tower_lsp::lsp_types::{
 	Range,
 	TextDocumentContentChangeEvent,
 	TextDocumentItem,
-	Url,
+	Uri,
 };
 
 use oxc::span::Span;
@@ -21,7 +23,7 @@ const MIXED: &str = "aé\n😀z";
 
 fn item(text: &str) -> TextDocumentItem {
 	TextDocumentItem {
-		uri: Url::parse("file:///test.js").unwrap(),
+		uri: Uri::from_str("file:///test.js").unwrap(),
 		language_id: String::from("javascript"),
 		version: 0,
 		text: String::from(text),
@@ -287,7 +289,7 @@ fn keeps_the_first_negotiated_encoding() {
 #[test]
 fn opens_documents_with_the_negotiated_encoding() {
 	let files = Files::default();
-	let uri = Url::parse("file:///test.js").unwrap();
+	let uri = Uri::from_str("file:///test.js").unwrap();
 	files.negotiate_encoding(Some(&offering(&[PositionEncodingKind::UTF8])));
 
 	files.handle_open(DidOpenTextDocumentParams {

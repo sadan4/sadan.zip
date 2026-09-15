@@ -6,7 +6,7 @@ use const_format::formatc;
 use serde::{Deserialize, Serialize};
 use smol_str::SmolStr;
 use tokio::time::timeout;
-use tower_lsp::lsp_types::request::Request;
+use tower_lsp_server::ls_types::request::Request;
 use tracing::{instrument, warn};
 
 #[derive(Serialize, Deserialize, Default)]

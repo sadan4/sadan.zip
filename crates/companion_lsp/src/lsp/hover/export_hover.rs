@@ -1,7 +1,7 @@
 use anyhow::{Context as _, Result};
 use explorer_types::SpannedId;
 use parser_diag::LocalSource;
-use tower_lsp::lsp_types::{HoverParams, Range};
+use tower_lsp_server::ls_types::{HoverParams, Range};
 use tracing::error;
 use webpack_ast_parser::WebpackAstParser;
 

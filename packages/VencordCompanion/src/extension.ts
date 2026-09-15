@@ -1,12 +1,40 @@
-import { commands, env, ExtensionContext, Hover, MarkdownString, QuickPickItem, window as vsWindow } from "vscode";
-import { ErrorCodes, LanguageClient, LanguageClientOptions, ResponseError, ServerOptions, TransportKind } from "vscode-languageclient/node";
+import * as vs from "vscode";
+import {
+    CancellationToken,
+    commands,
+    env,
+    Event,
+    ExtensionContext,
+    Hover,
+    MarkdownString,
+    ProviderResult,
+    QuickPickItem,
+    TextDocumentContentProvider,
+    Uri,
+    window as vsWindow
+} from "vscode";
+import {
+    ErrorCodes,
+    State,
+    LanguageClient,
+    LanguageClientOptions,
+    ResponseError,
+    ServerOptions,
+    TransportKind,
+} from "vscode-languageclient/node";
 import { Settings } from "./Settings";
 import { join } from "node:path";
 import * as z from "zod";
 
 let client: LanguageClient | undefined;
 
-const QUICK_PICK_METHOD = "$/vencord-companion/quick_pick";
+const SERVER_NAME = "vencord-companion";
+
+const QUICK_PICK_METHOD = `$/${SERVER_NAME}/quick_pick`;
+
+const EPHEMERAL_DID_CHANGE_NOTI = `$/${SERVER_NAME}/ephemera/didChange`;
+
+const EPHEMERAL_QUERY_METHOD = `$/${SERVER_NAME}/ephemera/queryDoc`;
 
 /**
  * Not contributed in package.json on purpose:
@@ -21,6 +49,52 @@ const QuickPickRequest = z.object({
     placeholder: z.string().optional(),
     allowFreeText: z.boolean().optional(),
 });
+
+const EphemeralChange = z.object({
+    /**
+     * the URI of the document that changed
+     */
+    uri: z.url(),
+    /**
+     * if present, the content of the document has changed
+     */
+    content: z.string().nullish(),
+    /**
+     * if true, the document has been closed/"deleted"
+     */
+    deleted: z.boolean().nullish(),
+});
+
+const EphemeralQuery = z.object({
+    /**
+     * the URI of the document to query
+     */
+    uri: z.url(),
+});
+
+const EphemeralDocument = z.object({
+    /**
+     * the URI of the document
+     */
+    uri: z.url(),
+    /**
+     * the content of the document
+     */
+    content: z.string(),
+});
+
+const EphemeralQueryResponse = z.object({
+    doc: EphemeralDocument.nullish(),
+});
+
+
+type EphemeralQuery = z.infer<typeof EphemeralQuery>;
+
+type EphemeralDocument = z.infer<typeof EphemeralDocument>;
+
+type EphemeralQueryResponse = z.infer<typeof EphemeralQueryResponse>;
+
+type EphemeralChange = z.infer<typeof EphemeralChange>;
 
 type QuickPickRequest = z.infer<typeof QuickPickRequest>;
 
@@ -58,7 +132,81 @@ export async function activate(cx: ExtensionContext): Promise<void> {
             throw toThrow;
         }
     })
+    handleEphemeralDocuments(cx, c);
     client.start();
+}
+
+async function handleEphemeralDocuments(cx: ExtensionContext, c: LanguageClient) { 
+    c.onNotification(EPHEMERAL_DID_CHANGE_NOTI, (change: unknown) => {
+        try {
+            const parsed = EphemeralChange.parse(change);
+            handleEphemeralChange(parsed);
+        } catch (e: any) {
+            if (e instanceof z.ZodError) {
+                let err = z.prettifyError(e);
+                c.error(`Failed to handle EphemeralChange notification: Invalid parameters`, `\n${err}`);
+            } else {
+                c.error(`Failed to handle EphemeralChange notification: ${e}`)
+            }
+        }
+    });
+    let ephemeralEvent = new vs.EventEmitter<Uri>();
+    /**
+     * What the server last told us each document holds, keyed by
+     * {@link Uri.toString}, not {@link EphemeralChange.uri}
+     *
+     * undefined means the document is closed/deleted
+     */
+    let docs = new Map<string, string | undefined>();
+    function handleEphemeralChange(change: EphemeralChange) {
+        let uri = Uri.parse(change.uri);
+        let key = uri.toString();
+        using _ = defer(() => ephemeralEvent.fire(uri));
+        if (change.deleted) {
+            if (docs.get(key) === undefined) {
+                c.warn(`Received EphemeralChange for ${key} with deleted=true, but no document was found`);
+            }
+            docs.set(key, undefined);
+            return;
+        }
+        if (change.content != null) {
+            c.debug(`Updating ephemeral document ${key} with new content of length ${change.content.length}`);
+            docs.set(key, change.content);
+        }
+    }
+    async function provideEphemeralDocument(uri: Uri, token: CancellationToken): Promise<string | undefined> {
+        let key = uri.toString();
+        if (docs.has(key)) {
+            return docs.get(key) ?? "";
+        }
+        let raw = await c.sendRequest(
+            EPHEMERAL_QUERY_METHOD,
+            {
+                uri: key
+            } satisfies EphemeralQuery,
+            token
+        );
+        let res = EphemeralQueryResponse.parse(raw);
+        return res.doc?.content;
+    }
+    c.onDidChangeState((e) => {
+        if (e.oldState === State.Running) {
+            assert(e.newState === State.Stopped, "Client should only transition from Running to Stopped");
+            c.debug("Client stopped, clearing ephemeral documents");
+            // tombstone rather than clear: the refresh below makes VSCode ask
+            // for each document again, and there is no longer a server to ask
+            for (let key of [...docs.keys()]) {
+                docs.set(key, undefined);
+                ephemeralEvent.fire(Uri.parse(key));
+            }
+        }
+    })
+    cx.subscriptions.push(
+        vs.workspace.registerTextDocumentContentProvider(SERVER_NAME, {
+            onDidChange: ephemeralEvent.event,
+            provideTextDocumentContent: provideEphemeralDocument,
+        })
+    )
 }
 
 /**
@@ -178,4 +326,51 @@ function resolveServerBinary(cx: ExtensionContext): string {
         process.platform === "win32" ? "companion_lsp.exe" : "companion_lsp",
     );
     return bundled;
+}
+
+function defer(fn: () => void): Disposable { 
+    return {
+        [Symbol.dispose]() {
+            fn();
+        }
+    };
+}
+
+function error(msg?: string): never { 
+    throw new Error(msg);
+}
+
+/**
+ * An assertion with an expression that is always falsy will always fail.
+ * 
+ * NOTE: NaN is falsy, but not included because there is no literal type for it
+ * 
+ * @throws an {@link AssertionError} always
+ * 
+ * @see {@link unreachable} and {@link error} for better uses if you are passing a literal
+ * @see {@link https://developer.mozilla.org/en-US/docs/Glossary/Falsy|MDN - Falsy}
+ * @see {@link https://developer.mozilla.org/en-US/docs/Web/API/HTMLAllCollection|MDN - HTMLAllCollection}
+ */
+export function assert(cond: null | undefined | false | 0 | 0n | "", msg?: string): never;
+/**
+ * Assert {@link cond} is truthy
+ * 
+ * @throws an {@link AssertionError} if {@link cond} is falsy
+ */
+export function assert(cond: unknown, msg?: string): asserts cond;
+export function assert(cond: unknown, msg?: string): asserts cond {
+    if (!cond) {
+        const err = new AssertionError(msg);
+
+        AssertionError.captureStackTrace(err, assert);
+        throw err;
+    }
+}
+
+export class AssertionError extends Error {
+    override name = "AssertionError";
+
+    constructor(msg?: string) {
+        super(msg);
+    }
 }

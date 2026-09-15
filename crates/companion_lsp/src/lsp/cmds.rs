@@ -1,18 +1,29 @@
-use std::{borrow::Cow, pin::Pin, time::Duration};
+use std::{borrow::Cow, pin::Pin, sync::Arc, time::Duration};
 
-use crate::{JValue, LspResult, SERVER_NAME, lsp::custom::QuickPickRequest};
+use crate::{
+	JValue,
+	LspResult,
+	SERVER_NAME,
+	lsp::custom::{
+		EphemeralDocument,
+		QuickPickRequest,
+		ephemera::{self, EphemeralChange},
+	},
+};
 use anyhow::{Context as _, Result, anyhow, bail};
 use const_format::formatc;
 use percent_encoding::{NON_ALPHANUMERIC, percent_encode};
 use smol_str::SmolStr;
 use tokio::time;
-use tower_lsp::{
+use tower_lsp_server::{
 	jsonrpc,
-	lsp_types::{
+	ls_types::{
 		ExecuteCommandOptions,
 		ExecuteCommandParams,
+		ShowDocumentParams,
 		WorkDoneProgressBegin,
 		WorkDoneProgressOptions,
+		request::ShowDocument,
 	},
 };
 use tracing::{debug, info};
@@ -44,6 +55,11 @@ pub static CMD_MAP: phf::Map<&'static str, CommandDescriptor> = phf::phf_map! {
 		user_visible: true,
 		func: super::Server::progress_test_cmd,
 	},
+	"ephemera_test" => CommandDescriptor {
+		desc: "Create a test epehemeral document",
+		user_visible: true,
+		func: super::Server::ephemera_test_cmd,
+	}
 };
 
 impl super::Server {
@@ -164,6 +180,49 @@ impl super::Server {
 				time::sleep(Duration::SECOND).await;
 			}
 			info!("progress test complete");
+			Ok(None)
+		})
+	}
+
+	fn ephemera_test_cmd(
+		&self,
+		_: ExecuteCommandParams,
+	) -> Pin<Box<dyn Future<Output = Result<Option<JValue>>> + Send + '_>> {
+		Box::pin(async move {
+			let uri = ephemera::uri("/test-ephemeral-doc.txt").unwrap();
+			self.create_ephemeral_document(EphemeralDocument {
+				uri: uri.clone(),
+				content: Arc::from("This is a test ephemeral document"),
+			});
+			self.client
+				.send_request::<ShowDocument>(ShowDocumentParams {
+					uri: uri.clone(),
+					take_focus: Some(true),
+					external: None,
+					selection: None,
+				})
+				.await
+				.context("Failed to show document")?
+				.success
+				.then_some(())
+				.context("Client reported failing to show document")?;
+			for i in 1..=10 {
+				time::sleep(Duration::from_secs(5)).await;
+				debug!("updating ephemeral document");
+				self.update_ephemeral_document(EphemeralChange {
+					uri: uri.clone(),
+					content: Some(
+						format!(
+							"This is a test ephemeral document, updated {i} times"
+						)
+						.into(),
+					),
+					deleted: None,
+				})
+				.context("Failed to update ephemeral document")?;
+			}
+			self.delete_ephemeral_document(uri)
+				.context("Failed to delete ephemeral document")?;
 			Ok(None)
 		})
 	}

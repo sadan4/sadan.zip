@@ -1,5 +1,5 @@
 pub mod cmds;
-mod custom;
+pub mod custom;
 mod definition;
 mod doc;
 mod hover;
@@ -9,12 +9,12 @@ mod reference;
 use std::{borrow::Cow, debug_assert_matches, path::PathBuf, sync::Arc};
 
 use anyhow::Result;
-use tower_lsp::{
+use tokio::sync::mpsc;
+use tower_lsp_server::{
 	Client,
 	LanguageServer,
-	async_trait,
 	jsonrpc,
-	lsp_types::{
+	ls_types::{
 		CodeLens,
 		CodeLensOptions,
 		CodeLensParams,
@@ -43,7 +43,7 @@ use tower_lsp::{
 		TextDocumentSyncSaveOptions,
 	},
 };
-use tracing::{error, instrument, warn};
+use tracing::{debug, error, instrument, warn};
 use webpack_ast_parser::ThreadSafeParser;
 
 use crate::{
@@ -53,7 +53,9 @@ use crate::{
 	SERVER_NAME,
 	SERVER_VERSION,
 	State,
+	lsp::custom::{Ephemera, ephemera::EphemeralChange},
 	module_cache::SplitModuleCache,
+	util::uri,
 	wss::WsServer,
 };
 
@@ -63,6 +65,7 @@ pub struct Server {
 	state: Arc<State>,
 	log_reload_handle: Option<ReloadHandle>,
 	module_cache: SplitModuleCache,
+	ephemera: Ephemera,
 }
 
 #[must_use = "this is just a builder for the server"]
@@ -71,6 +74,8 @@ pub struct ServerBuilder {
 	state: Arc<State>,
 	log_reload_handle: Option<ReloadHandle>,
 	module_cache: SplitModuleCache,
+	ephemera: Ephemera,
+	ephemera_changes: mpsc::UnboundedReceiver<EphemeralChange>,
 }
 
 impl ServerBuilder {
@@ -88,11 +93,14 @@ impl ServerBuilder {
 		});
 		let files = doc::Files::default();
 		let module_cache = SplitModuleCache::new(state.ws.clone());
+		let (ephemera, ephemera_changes) = Ephemera::new();
 		Ok(Self {
 			files,
 			state,
 			log_reload_handle: None,
 			module_cache,
+			ephemera,
+			ephemera_changes,
 		})
 	}
 
@@ -109,12 +117,14 @@ impl ServerBuilder {
 	pub fn build(self, client: Client) -> Server {
 		self.module_cache
 			.set_client(client.clone());
+		Ephemera::serve_changes(client.clone(), self.ephemera_changes);
 		Server {
 			client,
 			files: self.files,
 			state: self.state,
 			log_reload_handle: self.log_reload_handle,
 			module_cache: self.module_cache,
+			ephemera: self.ephemera,
 		}
 	}
 }
@@ -126,15 +136,17 @@ fn workspace_roots(params: &InitializeParams) -> Vec<PathBuf> {
 		.flatten()
 		.map(|folder| &folder.uri);
 	// deprecated in the spec, but plenty of clients still only send this
+	#[expect(deprecated)]
 	let root_uri = params.root_uri.iter();
 	folders
 		.chain(root_uri)
 		.filter_map(|uri| {
-			uri.to_file_path()
-				.inspect_err(|()| {
-					warn!(%uri, "Workspace folder is not a file path, ignoring");
+			uri::to_path(uri)
+				.inspect_err(|_| {
+					warn!(uri =% uri.as_str(), "Workspace folder is not a file path, ignoring");
 				})
 				.ok()
+				.map(Cow::into_owned)
 		})
 		.collect()
 }
@@ -158,12 +170,13 @@ fn cursor_offset(
 
 impl Server {}
 
-#[async_trait]
+#[allow(clippy::unused_async_trait_impl)]
 impl LanguageServer for Server {
 	async fn initialize(
 		&self,
 		params: InitializeParams,
 	) -> LspResult<InitializeResult> {
+		debug!("client capabilities: {:#?}", params.capabilities);
 		self.module_cache
 			.set_workspace_roots(workspace_roots(&params));
 		let position_encoding = self
@@ -198,20 +211,21 @@ impl LanguageServer for Server {
 				name: String::from(SERVER_NAME),
 				version: Some(String::from(SERVER_VERSION)),
 			}),
+			offset_encoding: None,
 		})
 	}
 
-	#[instrument(skip_all, fields(uri =% params.text_document.uri))]
+	#[instrument(skip_all, fields(uri =% params.text_document.uri.as_str()))]
 	async fn did_open(&self, params: DidOpenTextDocumentParams) {
 		self.files.handle_open(params);
 	}
 
-	#[instrument(skip_all, fields(uri =% params.text_document.uri))]
+	#[instrument(skip_all, fields(uri =% params.text_document.uri.as_str()))]
 	async fn did_change(&self, params: DidChangeTextDocumentParams) {
 		self.files.handle_change(params);
 	}
 
-	#[instrument(skip_all, fields(uri =% params.text_document.uri))]
+	#[instrument(skip_all, fields(uri =% params.text_document.uri.as_str()))]
 	async fn did_save(&self, params: DidSaveTextDocumentParams) {
 		// the parser and dep graph we cached are from the old contents
 		self.module_cache
@@ -219,12 +233,12 @@ impl LanguageServer for Server {
 			.await;
 	}
 
-	#[instrument(skip_all, fields(uri =% params.text_document.uri))]
+	#[instrument(skip_all, fields(uri =% params.text_document.uri.as_str()))]
 	async fn did_close(&self, params: DidCloseTextDocumentParams) {
 		self.files.handle_close(params);
 	}
 
-	#[instrument(skip_all, fields(uri =% params.text_document_position_params.text_document.uri))]
+	#[instrument(skip_all, fields(uri =% params.text_document_position_params.text_document.uri.as_str()))]
 	async fn goto_definition(
 		&self,
 		params: GotoDefinitionParams,

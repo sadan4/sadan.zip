@@ -4,9 +4,9 @@ use std::{
 };
 
 use tokio::{sync::mpsc, task::JoinHandle};
-use tower_lsp::{
+use tower_lsp_server::{
 	Client,
-	lsp_types::{
+	ls_types::{
 		ProgressParams,
 		ProgressParamsValue,
 		ProgressToken,

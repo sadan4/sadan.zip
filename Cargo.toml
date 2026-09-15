@@ -96,7 +96,7 @@ qalc_sbox = { path = "crates/qalc_sbox" }
 demangler = { path = "crates/demangler" }
 parser_diag = { path = "crates/parser_diag" }
 miette_ui = { path = "crates/miette_ui" }
-tower-lsp = "0.20.0"
+tower-lsp-server = "0.23.0"
 tokio-tungstenite = "0.30.0"
 futures-util = "0.3.31"
 dashmap = "6.1.0"
@@ -147,6 +147,7 @@ redis = { version = "1.6.0", features = ["tokio-comp"] }
 phf = {version = "0.14", features = ["macros"]}
 async-trait = "0.1"
 percent-encoding = "2"
+fluent-uri = "0.1"
 
 [patch.crates-io]
 typesize = { git = "https://github.com/GnomedDev/typesize", branch = "master" }
@@ -189,11 +190,6 @@ opt-level = 3
 # https://docs.rs/insta/latest/insta/#optional-faster-runs
 [profile.dev.package.insta]
 opt-level = 3
-
-# faster dev builds
-[profile.dev.package.'*']
-opt-level = 3
-
 
 # During testing, we parse large javascript files, up to 20mb!
 # Compile oxc with -O3 so the tests run 2-4x faster

@@ -1,22 +1,25 @@
-use tower_lsp::lsp_types::{CodeLens, CodeLensParams};
+use tower_lsp_server::ls_types::{CodeLens, CodeLensParams};
 use tracing::{debug, instrument};
 
-use crate::{LspResult, lsp};
+use crate::{LspResult, lsp, util::uri};
 
 mod patch;
 mod plugin_def;
 mod webpack;
 
 impl lsp::Server {
-	#[instrument(skip_all, fields(uri =% params.text_document.uri))]
+	#[instrument(skip_all, fields(uri =% params.text_document.uri.as_str()))]
 	pub(super) async fn provide_lenses(
 		&self,
 		params: CodeLensParams,
 	) -> LspResult<Option<Vec<CodeLens>>> {
 		let uri = &params.text_document.uri;
-		let Ok(path) = uri.to_file_path() else {
-			debug!("uri is not a file path, skipping lenses");
-			return Ok(None);
+		let path = match uri::to_path(uri) {
+			Ok(p) => p,
+			Err(e) => {
+				debug!("uri is not a file path, skipping lenses: {e}");
+				return Ok(None);
+			}
 		};
 		let Some(doc) = self.files.get(uri) else {
 			debug!("no document found for uri, skipping lenses");

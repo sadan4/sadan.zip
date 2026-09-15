@@ -3,7 +3,7 @@ use std::sync::{Arc, OnceLock};
 use dashmap::DashMap;
 use memchr::{memchr_iter, memrchr};
 use oxc::span::Span;
-use tower_lsp::lsp_types::{
+use tower_lsp_server::ls_types::{
 	DidChangeTextDocumentParams,
 	DidCloseTextDocumentParams,
 	DidOpenTextDocumentParams,
@@ -13,7 +13,7 @@ use tower_lsp::lsp_types::{
 	Range,
 	TextDocumentContentChangeEvent,
 	TextDocumentItem,
-	Url,
+	Uri,
 };
 use tracing::{debug, info, instrument, warn};
 
@@ -22,7 +22,7 @@ pub struct Files(Arc<Inner>);
 
 #[derive(Default)]
 struct Inner {
-	cache: DashMap<Url, Arc<Document>>,
+	cache: DashMap<Uri, Arc<Document>>,
 	/// The position encodings supported by the client. Client and server
 	/// have to agree on the same position encoding to ensure that offsets
 	/// (e.g. character position in a line) are interpreted the same on both
@@ -138,7 +138,7 @@ impl PositionEncoding {
 }
 
 /// An open text document
-/// 
+///
 /// resolving offset -> position is `O(log n)`
 #[derive(Clone)]
 pub struct Document {
@@ -317,7 +317,7 @@ impl Files {
 			.unwrap_or_default()
 	}
 
-	pub fn get(&self, uri: &Url) -> Option<Arc<Document>> {
+	pub fn get(&self, uri: &Uri) -> Option<Arc<Document>> {
 		self.0.cache.get(uri).map(|e| e.clone())
 	}
 

@@ -1,10 +1,10 @@
 use explorer_types::SpannedId;
 use parser_diag::LocalSource;
-use tower_lsp::lsp_types::{Location, ReferenceParams};
+use tower_lsp_server::ls_types::{Location, ReferenceParams};
 use tracing::{debug, warn};
 use webpack_ast_parser::{WebpackAstParser, bundle};
 
-use crate::{LspResult, lsp};
+use crate::{LspResult, lsp, util::uri};
 
 impl lsp::Server {
 	pub async fn gen_references(
@@ -83,7 +83,10 @@ impl lsp::Server {
 				warn!("TODO: handle reference locations other than Paths");
 				continue;
 			};
-			ret.push(Location { uri, range });
+			ret.push(Location {
+				uri: uri::from_url(&uri),
+				range,
+			});
 		}
 		Ok(Some(ret))
 	}

@@ -1,6 +1,6 @@
 use explorer_types::SpannedId;
 use parser_diag::LocalSource;
-use tower_lsp::lsp_types::{
+use tower_lsp_server::ls_types::{
 	GotoDefinitionParams,
 	GotoDefinitionResponse,
 	Location,
@@ -8,7 +8,7 @@ use tower_lsp::lsp_types::{
 use tracing::{debug, error, warn};
 use webpack_ast_parser::{WebpackAstParser, bundle};
 
-use crate::{LspResult, lsp};
+use crate::{LspResult, lsp, util::uri};
 
 impl lsp::Server {
 	pub(crate) async fn provide_definition(
@@ -88,7 +88,10 @@ impl lsp::Server {
 				warn!("TODO: handle definition locations other than Paths");
 				return Ok(None);
 			};
-			ret.push(Location { uri, range });
+			ret.push(Location {
+				uri: uri::from_url(&uri),
+				range,
+			});
 		}
 		Ok(Some(GotoDefinitionResponse::Array(ret)))
 	}
