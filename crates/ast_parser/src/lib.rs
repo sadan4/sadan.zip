@@ -5,8 +5,8 @@ mod ast_parser;
 pub mod cache;
 pub mod diag;
 pub mod exts;
+pub mod pool;
 pub mod sym_id;
-
 pub use ast_parser::{
 	AstParser,
 	ESModuleParser,

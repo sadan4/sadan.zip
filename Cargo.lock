@@ -171,6 +171,7 @@ dependencies = [
  "itertools 0.15.0",
  "miette",
  "oxc",
+ "oxc_data_structures",
  "oxc_ecmascript",
  "serde",
  "smallvec",
@@ -3793,6 +3794,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2ee67f1008b1ba2321834326597b8e186293b049a023cdef258527550b9935b4"
 
 [[package]]
+name = "patch_engine"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "ast_parser",
+ "insta",
+ "itertools 0.15.0",
+ "miette_ui",
+ "oxc",
+ "pretty_printer",
+ "regress",
+ "smol_str",
+ "tracing",
+ "vencord_ast_parser",
+]
+
+[[package]]
 name = "pbjson"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4753,6 +4771,7 @@ dependencies = [
  "oxc",
  "oxc_allocator",
  "parser_diag",
+ "patch_engine",
  "pretty_printer",
  "rayon",
  "regress",

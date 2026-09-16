@@ -163,8 +163,10 @@ async function handleEphemeralDocuments(cx: ExtensionContext, c: LanguageClient)
         let key = uri.toString();
         using _ = defer(() => ephemeralEvent.fire(uri));
         if (change.deleted) {
-            if (docs.get(key) === undefined) {
+            if (!docs.has(key)) {
                 c.warn(`Received EphemeralChange for ${key} with deleted=true, but no document was found`);
+            } else if (docs.get(key) === undefined) {
+                c.warn(`Received EphemeralChange for ${key} with deleted=true, but document was already deleted`);
             }
             docs.set(key, undefined);
             return;
@@ -187,7 +189,14 @@ async function handleEphemeralDocuments(cx: ExtensionContext, c: LanguageClient)
             token
         );
         let res = EphemeralQueryResponse.parse(raw);
-        return res.doc?.content;
+        let content = res.doc?.content;
+        if (content != null) { 
+            handleEphemeralChange({
+                uri: key,
+                content,
+            })
+        }
+        return content;
     }
     c.onDidChangeState((e) => {
         if (e.oldState === State.Running) {

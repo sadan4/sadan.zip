@@ -46,6 +46,7 @@ oxc_ecmascript = { version = "0.147.0", default-features = false, features = [
   "constant_evaluation",
 ] }
 oxc_allocator = { version = "0.147.0", default-features = false }
+oxc_data_structures= { version = "0.147.0", features = ["stack"] }
 miette = { version = "7.1.0", default-features = false, features = [
   "serde",
   "derive",
@@ -84,6 +85,7 @@ vencord_ast_parser = { path = "crates/vencord_ast_parser" }
 webpack_ast_parser = { path = "crates/webpack_ast_parser" }
 webpack_chunk_parser = { path = "crates/webpack_chunk_parser" }
 pretty_printer = { path = "crates/pretty_printer" }
+patch_engine = { path = "crates/patch_engine" }
 dagre = { path = "crates/dagre", features = ["serde"] }
 discord_scraper = { path = "crates/discord_scraper" }
 miette_ctx = { path = "crates/miette_ctx" }
@@ -147,7 +149,6 @@ redis = { version = "1.6.0", features = ["tokio-comp"] }
 phf = {version = "0.14", features = ["macros"]}
 async-trait = "0.1"
 percent-encoding = "2"
-fluent-uri = "0.1"
 
 [patch.crates-io]
 typesize = { git = "https://github.com/GnomedDev/typesize", branch = "master" }

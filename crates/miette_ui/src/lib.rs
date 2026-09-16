@@ -1,15 +1,17 @@
 use std::{
 	fmt::Debug,
-	sync::Arc,
+	sync::{Arc, LazyLock},
 };
 
 use miette::{
 	GraphicalReportHandler,
+	GraphicalTheme,
 	highlighters::{BlankHighlighter, Highlighter, SyntectHighlighter},
 };
 use terminal_size::{Width, terminal_size};
 
 #[derive(Clone)]
+// FIXME: don't arc and impl for &Self instead
 struct ArcHl(Arc<dyn Highlighter + Send + Sync + 'static>);
 
 impl Debug for ArcHl {
@@ -29,31 +31,48 @@ impl Highlighter for ArcHl {
 }
 
 pub fn install_miette_hook(with_color: bool) {
-	let highlighter = ArcHl(if with_color {
-		let bts: &[u8] = include_bytes!("./syntaxes.bin");
-		let syntax_raw =
-			zstd::decode_all(bts).expect("failed to decompress syntax data");
-		let syntax_set = bitcode::deserialize(&syntax_raw)
-			.expect("failed to deserialize syntax data");
-		let bts: &[u8] = include_bytes!("./theme.bin");
-		let theme_raw =
-			zstd::decode_all(bts).expect("failed to decompress theme data");
-		let theme = bitcode::deserialize(&theme_raw)
-			.expect("failed to deserialize theme data");
-		Arc::new(SyntectHighlighter::new(syntax_set, theme, false))
-	} else {
-		Arc::new(BlankHighlighter)
-	});
 	miette::set_hook(Box::new(move |_| {
-		Box::new(
-			GraphicalReportHandler::new()
-				.with_width(
-					terminal_size()
-						.map_or(80, |(Width(width), _)| usize::from(width)),
-				)
-				.with_cause_chain()
-				.with_syntax_highlighting(highlighter.clone()),
-		)
+		Box::new(create_report_handler(with_color))
 	}))
 	.expect("Failed to set miette hook");
+}
+
+fn get_highlighter(with_color: bool) -> ArcHl {
+	if with_color {
+		static HL: LazyLock<ArcHl> = LazyLock::new(|| {
+			let bts: &[u8] = include_bytes!("./syntaxes.bin");
+			let syntax_raw = zstd::decode_all(bts)
+				.expect("failed to decompress syntax data");
+			let syntax_set = bitcode::deserialize(&syntax_raw)
+				.expect("failed to deserialize syntax data");
+			let bts: &[u8] = include_bytes!("./theme.bin");
+			let theme_raw =
+				zstd::decode_all(bts).expect("failed to decompress theme data");
+			let theme = bitcode::deserialize(&theme_raw)
+				.expect("failed to deserialize theme data");
+			ArcHl(Arc::new(SyntectHighlighter::new(syntax_set, theme, false)))
+		});
+		HL.clone()
+	} else {
+		static BLANK_HL: LazyLock<ArcHl> =
+			LazyLock::new(|| ArcHl(Arc::new(BlankHighlighter)));
+		BLANK_HL.clone()
+	}
+}
+
+fn create_report_handler(with_color: bool) -> GraphicalReportHandler {
+	make_handler(get_highlighter(with_color))
+}
+
+pub fn mk_test_handler() -> GraphicalReportHandler {
+	make_handler(get_highlighter(false)).with_theme(GraphicalTheme::none())
+}
+
+fn make_handler(highlighter: ArcHl) -> GraphicalReportHandler {
+	GraphicalReportHandler::new()
+		.with_width(
+			terminal_size().map_or(80, |(Width(width), _)| usize::from(width)),
+		)
+		.with_cause_chain()
+		.with_syntax_highlighting(highlighter)
 }

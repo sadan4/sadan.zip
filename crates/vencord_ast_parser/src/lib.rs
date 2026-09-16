@@ -1,3 +1,4 @@
+#![feature(try_blocks)]
 pub mod hash;
 pub mod parser;
 mod pass;

@@ -4,31 +4,26 @@ use crate::{
 	util::{MultiProgressWrapper, Stage},
 	vc::Plugin,
 };
-use anyhow::{Context, Result};
-use ast_parser::diag::{SourceCode, WrappedOxcDiagnostic};
+use ast_parser::pool::AllocPool;
 use dashmap::DashMap;
 use derive_more::IsVariant;
 use explorer_server_core::Channel;
 use explorer_types::ModuleId;
-use itertools::{Itertools as _, PutBack, put_back};
+use itertools::Itertools as _;
 use miette::{Diagnostic, Severity};
-use oxc::{
-	allocator::Allocator,
-	ast::ast::RegExpFlags,
-	diagnostics::OxcDiagnostic,
-	parser::Parser,
-	semantic::{SemanticBuilder, Stats},
-	span::{SourceType, Span},
+use oxc::semantic::Stats;
+use patch_engine::{
+	ApplyOptions,
+	SyntaxErrorReport,
+	apply_patch,
+	matches_module,
 };
-use oxc_allocator::AllocatorPool;
-use pretty_printer::{FormattedContent, format_with_alloc};
 use rayon::iter::{
 	IntoParallelIterator,
 	IntoParallelRefIterator,
 	ParallelIterator,
 };
-use regress::Regex;
-use smol_str::{SmolStr, format_smolstr};
+use smol_str::format_smolstr;
 use std::{
 	collections::{HashMap, HashSet},
 	mem,
@@ -40,7 +35,7 @@ use tokio::{
 	task,
 };
 use tracing::{debug, error};
-use vencord_ast_parser::{Match, Patch, Replacement, Replacer};
+use vencord_ast_parser::{Match, Patch};
 
 #[derive(Debug)]
 pub enum Msg {
@@ -86,12 +81,11 @@ pub(crate) struct ReporterState<'a> {
 	pub(crate) m_bar: MultiProgressWrapper,
 	pub(crate) patches: HashSet<&'a Patch>,
 	pub(crate) find_map: HashMap<&'a Patch, Vec<ModuleId>>,
-	pub(crate) alloc: AllocatorPool,
+	pub(crate) alloc: AllocPool,
 	pub(crate) build: &'a ScrapedOutput,
 	pub(crate) stats: DashMap<ModuleId, Stats>,
 	pub(crate) channel: Channel,
 }
-
 
 #[derive(Copy, Clone, IsVariant)]
 pub enum PatchStatus {
@@ -127,7 +121,7 @@ impl<'a> ReporterState<'a> {
 			patches,
 			stats,
 			find_map,
-			alloc: AllocatorPool::new(num_cpus::get()),
+			alloc: AllocPool::new(None),
 			channel,
 		}
 	}
@@ -199,7 +193,9 @@ impl<'a> ReporterState<'a> {
 					.build
 					.par_iter()
 					.filter_map(|(m_id, m_txt)| {
-						if matches_module(m_txt, patch) {
+						if matches_module(m_txt, patch)
+							.expect("prune_bad_finds should be called first")
+						{
 							Some(*m_id)
 						} else {
 							None
@@ -307,20 +303,40 @@ impl<'a> ReporterState<'a> {
 			});
 		self.find_map = found_patches;
 	}
+
 	pub(crate) fn test_patch_against_module(
 		&self,
 		patch: &'a Patch,
 		m_id: ModuleId,
 		mut errs: Option<&mut Vec<ReporterError>>,
 	) -> PatchStatus {
-		let mut status = PatchStatus::Ok;
 		let m_txt = self
 			.build
 			.get(&m_id)
 			.expect("invalid module id");
-		let mut last_src = format!("0,{m_txt}");
-		let plugin_id = patch.plugin_id();
-		let mut report = |e: ReporterError| {
+		let file_name = format_smolstr!("{m_id}.js");
+		let mut alloc = self.alloc.get();
+		let applied = apply_patch(
+			&mut alloc,
+			patch,
+			format!("0,{m_txt}"),
+			&ApplyOptions {
+				syntax_errors: SyntaxErrorReport::Formatted {
+					file_name: Some(&file_name),
+				},
+				stats: self.stats.get(&m_id).map(|x| *x),
+				plugin_name: Some("MyPlugin"),
+				..ApplyOptions::default()
+			},
+		);
+
+		if let Some(stats) = applied.stats {
+			self.stats.entry(m_id).or_insert(stats);
+		}
+
+		let mut status = PatchStatus::Ok;
+		for event in applied.events {
+			let e = ReporterError::from_event(event, patch.plugin_id(), m_id);
 			if !e.is_no_warn()
 				&& e.severity()
 					.is_none_or(|s| s == Severity::Error)
@@ -330,279 +346,8 @@ impl<'a> ReporterState<'a> {
 			if let Some(errs) = &mut errs {
 				errs.push(e);
 			}
-		};
-
-		for r in &patch.replacement {
-			let no_warn = patch.no_warn || r.no_warn;
-			let is_global = r
-				.match_
-				.v
-				.as_regex()
-				.is_some_and(|r| r.flags.contains(RegExpFlags::G));
-
-			let Some(pat) =
-				Self::compile_replacement_pattern(r, plugin_id, &mut report)
-			else {
-				continue;
-			};
-
-			if !Self::validate_match_occurrence(
-				pat,
-				&last_src,
-				is_global,
-				no_warn,
-				r,
-				m_id,
-				plugin_id,
-				&mut report,
-			) {
-				continue;
-			}
-
-			let new_src = Self::apply_replacement(
-				pat,
-				&last_src,
-				&r.replace.v,
-				is_global,
-			);
-
-			if let Err(e) = self.check_and_update_syntax(&new_src, m_id) {
-				let formatted_error = match self.format_syntax_error(
-					e,
-					&last_src,
-					m_id,
-					pat,
-					&r.replace.v,
-					is_global,
-				) {
-					Ok(e) => e,
-					Err(e) => {
-						error!(
-							"Failed to format syntax error, skipping: {e:?}"
-						);
-						continue;
-					}
-				};
-				report(ReporterError::ReplaceSyntaxError {
-					replace_span: r.replace.s.into(),
-					cause: Box::new(formatted_error),
-					module_id: m_id,
-					plugin_id,
-				});
-			}
-
-			last_src = new_src;
 		}
 		status
-	}
-
-	fn format_syntax_error(
-		&self,
-		mut e: OxcDiagnostic,
-		original_source: &str,
-		m_id: ModuleId,
-		pat: &Regex,
-		replacement: &Replacer,
-		is_global: bool,
-	) -> Result<WrappedOxcDiagnostic> {
-		let alloc = self.alloc.get();
-		let FormattedContent {
-			code: mut formatted_source,
-			mappings,
-		} = format_with_alloc(original_source, &alloc, 2)
-			.context("Failed to format valid module source")?;
-		// determine the ranges and contents of each replacement
-		let mut ranges = Vec::new();
-		if is_global {
-			for m in pat.find_iter(original_source) {
-				let repl_txt = replacement.do_replace(original_source, &m);
-				ranges.push((
-					Span::new(m.start() as u32, m.end() as u32),
-					repl_txt,
-				));
-			}
-			debug_assert!(
-				!ranges.is_empty(),
-				"we should only be here if a previous replacement applied with a syntax error"
-			);
-		} else {
-			let m = pat.find(original_source).unwrap();
-			let repl_txt = replacement.do_replace(original_source, &m);
-			ranges
-				.push((Span::new(m.start() as u32, m.end() as u32), repl_txt));
-		}
-		let mut new_ranges = Vec::with_capacity(ranges.len());
-
-		for (before_span, replaced_text) in ranges {
-			let new_range = Self::find_new_span(&mappings, before_span);
-			new_ranges.push((new_range, replaced_text));
-		}
-
-		// TODO: reserve space for the replacements using data from previous loops
-		// Do the replace and get the new source
-		// sort so we can pop to iterate in reverse order
-		new_ranges.sort_by_key(|a| a.0);
-		// Iterate in reverse (pop()) so that the early ranges dont shift the later ones
-		while let Some((repl_range, repl_txt)) = new_ranges.pop() {
-			formatted_source.replace_range(
-				repl_range.start as usize..repl_range.end as usize,
-				&repl_txt,
-			);
-		}
-
-		// Map the error spans from the original diagnostic
-		for label in e.labels.as_mut_slice() {
-			// miette is evil and doesn't let you mutate the offset or go into string
-			let label_span =
-				Span::new(label.offset(), label.offset() + label.len());
-			// i can't get Option.cloned() to work for some reason
-			let txt = label.label().map(String::from);
-			let primary = label.primary();
-			let new_span = Self::find_new_span(&mappings, label_span);
-			let new_label = if primary {
-				oxc::span::LabeledSpan::new_primary_with_span(txt, new_span)
-			} else {
-				oxc::span::LabeledSpan::new_with_span(txt, new_span)
-			};
-			*label = new_label;
-		}
-		let mut ret = WrappedOxcDiagnostic::from(e);
-		ret.source = Some(SourceCode {
-			source_code: Arc::from(formatted_source),
-			file_name: Some(format_smolstr!("{m_id}.js")),
-			file_type: Some(SmolStr::new_static("JavaScript")),
-		});
-		Ok(ret)
-	}
-
-	fn find_new_span(mappings: &[(u32, u32)], original_span: Span) -> Span {
-		let mut it = put_back(mappings.iter().copied().rev());
-		let new_end = Self::find_new_pos(&mut it, original_span.end);
-		let new_start = Self::find_new_pos(&mut it, original_span.start);
-		Span::new(new_start, new_end)
-	}
-
-	/// Mappings must be a reverse iterator (highest to lowest)
-	fn find_new_pos(
-		mappings: &mut PutBack<impl Iterator<Item = (u32, u32)>>,
-		prev: u32,
-	) -> u32 {
-		for (before, after) in mappings.by_ref() {
-			if prev >= before {
-				// We need to put it back because the next one might be within this mapping as well
-				mappings.put_back((before, after));
-				return after + (prev - before);
-			}
-		}
-		unreachable!(
-			"we should always find a mapping because the first mapping should be (0, 0)"
-		)
-	}
-
-	fn compile_replacement_pattern<'r>(
-		replacement: &'r Replacement,
-		plugin_id: u16,
-		report: &mut impl FnMut(ReporterError),
-	) -> Option<&'r regress::Regex> {
-		match &replacement.match_.v {
-			Match::Str(_) => {
-				unreachable!()
-			}
-			Match::Regex(v) => match v.regex() {
-				Ok(r) => Some(r),
-				Err(e) => {
-					report(ReporterError::BadRegexSyntax {
-						plugin_id,
-						source: e.clone(),
-						regex_span: replacement.match_.s.into(),
-						expanded: format!("/{}/{}", v.pattern, v.flags),
-					});
-					None
-				}
-			},
-		}
-	}
-
-	#[expect(clippy::too_many_arguments)]
-	fn validate_match_occurrence(
-		pat: &regress::Regex,
-		src: &str,
-		is_global: bool,
-		no_warn: bool,
-		replacement: &Replacement,
-		m_id: ModuleId,
-		plugin_id: u16,
-		report: &mut impl FnMut(ReporterError),
-	) -> bool {
-		let mut it = pat.find_iter(src);
-
-		if it.next().is_none() {
-			let mut err = ReporterError::ReplaceMatchNotFound {
-				match_span: replacement.match_.s.into(),
-				module_id: m_id,
-				plugin_id,
-			};
-			if no_warn {
-				err = ReporterError::NoWarn(Box::new(err));
-			}
-			report(err);
-			return false;
-		}
-
-		if !is_global && it.next().is_some() {
-			report(ReporterError::ReplaceMatchAmbiguous {
-				match_span: replacement.match_.s.into(),
-				plugin_id,
-				module_id: m_id,
-			});
-		}
-
-		true
-	}
-
-	fn apply_replacement(
-		pat: &regress::Regex,
-		src: &str,
-		replacer: &Replacer,
-		is_global: bool,
-	) -> String {
-		match replacer {
-			Replacer::Str(s) => {
-				if is_global {
-					pat.replace_all(src, s.as_str())
-				} else {
-					pat.replace(src, s.as_str())
-				}
-			}
-			Replacer::Template(e) => {
-				if is_global {
-					pat.replace_all_with(src, e.make_replacer(src))
-				} else {
-					pat.replace_with(src, e.make_replacer(src))
-				}
-			}
-		}
-	}
-
-	fn check_and_update_syntax(
-		&self,
-		new_src: &str,
-		m_id: ModuleId,
-	) -> Result<(), OxcDiagnostic> {
-		let alloc = self.alloc.get();
-		let result = check_syntax_errors(
-			&alloc,
-			new_src,
-			self.stats.get(&m_id).map(|x| *x),
-		);
-
-		match result {
-			Ok(stats) => {
-				self.stats.entry(m_id).or_insert(stats);
-				Ok(())
-			}
-			Err(e) => Err(e),
-		}
 	}
 }
 
@@ -613,46 +358,4 @@ fn run_reporter(
 	tx: &mpsc::Sender<Msg>,
 ) {
 	ReporterState::new(plugins, build, tx, channel).run();
-}
-
-fn matches_module(m_txt: &str, patch: &Patch) -> bool {
-	match &patch.find.v {
-		Match::Str(s) => s.find(m_txt.as_bytes()).is_some(),
-		Match::Regex(s) => {
-			// we should never have a patch with bad regex
-			// it should have been filtered out
-			s.regex()
-				.as_ref()
-				.unwrap()
-				.find(m_txt)
-				.is_some()
-		}
-	}
-}
-
-fn check_syntax_errors(
-	alloc: &Allocator,
-	src: &str,
-	stats: Option<Stats>,
-) -> Result<Stats, OxcDiagnostic> {
-	let mut p_ret = Parser::new(alloc, src, SourceType::unambiguous()).parse();
-	if !p_ret.diagnostics.is_empty() {
-		let ret = p_ret.diagnostics.swap_remove(0);
-		return Err(ret);
-	}
-	let sema = SemanticBuilder::new()
-		.with_check_syntax_error(true)
-		.with_cfg(false);
-	let sema = if let Some(stats) = stats {
-		sema.with_stats(stats)
-	} else {
-		sema
-	};
-	let mut sema = sema.build(&p_ret.program);
-	if sema.diagnostics.is_empty() {
-		Ok(sema.semantic.stats())
-	} else {
-		let ret = sema.diagnostics.swap_remove(0);
-		Err(ret)
-	}
 }
