@@ -47,6 +47,7 @@ percent-encoding.workspace = true
 async-trait.workspace = true
 libc.workspace = true
 patch_engine.workspace = true
+text_diff.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

@@ -8,6 +8,7 @@ use dashmap::DashMap;
 use explorer_types::ModuleId;
 use itertools::Itertools;
 use miette::{Diagnostic, Severity};
+use oxc::span::Span;
 use parser_diag::LocalSource;
 use patch_engine::{
 	ApplyEvent,
@@ -17,23 +18,21 @@ use patch_engine::{
 };
 use pretty_printer::format_with_alloc;
 use smol_str::SmolStr;
+use text_diff::DiffHunkKind;
 use tokio::sync::Mutex;
 use tower_lsp_server::ls_types::{ShowDocumentParams, Uri};
 use tracing::{debug, warn};
 use vencord_ast_parser::{Match, Patch, VencordAstParser};
 
 use crate::{
-	LspResult,
-	lsp::{
+	LspResult, lsp::{
 		self,
 		custom::{
 			EphemeralDocument,
 			ephemera::{self, EphemeralChange},
 		},
 		lenses::PatchLensArgs,
-	},
-	util::{iter::IterExt, uri},
-	wss::types::to_client,
+	}, util::{iter::IterExt, str_util::offset_into, uri}, wss::types::to_client,
 };
 
 const INDENT: u8 = 2;
@@ -60,15 +59,37 @@ struct State {
 	current_source: String,
 }
 
+
+fn get_reveal_range(before: &str, after: &str) -> Option<Span> {
+	use text_diff::diff;
+	let changes = diff([before, after]);
+	for change in changes {
+		if change.kind == DiffHunkKind::Different {
+			let new_insertions = change.contents[1];
+			if new_insertions.is_empty(){
+				continue;
+			}
+			let start = offset_into(after.as_bytes(), &new_insertions).expect("not substring of after") as u32;
+			return Some(Span::sized(start, new_insertions.len() as u32));
+		}
+	}
+	todo!("handle no additions, only deletions")
+}
+
 impl State {
 	fn find_patch(&self, new_patches: &[Patch]) -> Option<usize> {
+		if new_patches.len() == 1 {
+			return Some(0)
+		}
+		if new_patches.is_empty() {
+			return None;
+		}
 		let mut patches = Vec::from_iter(new_patches);
-		if let Some((idx, _)) = patches
+		if let Ok((idx, _)) = patches
 			.iter()
 			.enumerate()
 			.filter(|(_, p)| self.patch.track_cmp(p))
 			.exactly_one()
-			.ok()
 		{
 			return Some(idx);
 		}
@@ -338,6 +359,7 @@ impl lsp::Server {
 			bail!("Failed to find patch in changed plugin file, skipping");
 		};
 		guard.patch = patches.swap_remove(idx);
+		compile_patch_regexes([&mut guard.patch]);
 		guard.other_patches = patches;
 
 		self.update_state_replacement_text(&mut guard)?;
