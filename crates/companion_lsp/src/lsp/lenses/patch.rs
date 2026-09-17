@@ -2,9 +2,8 @@
 
 use std::{ffi::OsStr, path::Path};
 
-use oxc::span::Span;
 use parser_diag::LocalSource;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tower_lsp_server::ls_types::{CodeLens, Command, Uri};
 use tracing::{debug, trace};
 use vencord_ast_parser::{Allocator, VencordAstParser};
@@ -18,11 +17,14 @@ const LENSES: &[(&str, &str)] = &[
 	("Open in Patch Helper", "open_patch_helper"),
 ];
 
+mod hash_repr;
+
 /// Serialized patch lens args
-#[derive(Serialize)]
-struct PatchLensArgs<'a> {
-	uri: &'a Uri,
-	span: Span,
+#[derive(Serialize, Deserialize)]
+pub struct PatchLensArgs {
+	pub uri: Uri,
+	#[serde(with = "hash_repr")]
+	pub hash: u64,
 }
 
 /// does `path` match the glob
@@ -80,9 +82,7 @@ pub(super) fn patch_lenses(
 			return Vec::new();
 		}
 	};
-	// `false`: the spans these lenses hand out are for commands that ship the
-	// patch to a JS runtime, which does its own canonicalization
-	let patches = match parser.patches(false) {
+	let patches = match parser.patches(true) {
 		Ok(patches) => patches,
 		Err(e) => {
 			let e = LocalSource {
@@ -97,9 +97,10 @@ pub(super) fn patch_lenses(
 	let mut ret = Vec::with_capacity(patches.len() * LENSES.len());
 	for patch in patches {
 		let range = doc.range_for_span(patch.span);
+		let hash = patch.content_hash();
 		let args = match serde_json::to_value(PatchLensArgs {
-			uri,
-			span: patch.span,
+			uri: uri.clone(),
+			hash,
 		}) {
 			Ok(args) => args,
 			Err(e) => {

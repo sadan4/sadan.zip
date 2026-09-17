@@ -7,6 +7,8 @@ mod patch;
 mod plugin_def;
 mod webpack;
 
+pub use patch::PatchLensArgs;
+
 impl lsp::Server {
 	#[instrument(skip_all, fields(uri =% params.text_document.uri.as_str()))]
 	pub(super) async fn provide_lenses(

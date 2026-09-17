@@ -1,4 +1,5 @@
-use ast_parser::diag::WrappedOxcDiagnostic;
+use ast_parser::diag::{OxcSourceSpan, WrappedOxcDiagnostic};
+use miette::Diagnostic;
 use oxc::{
 	allocator::Allocator,
 	ast::ast::RegExpFlags,
@@ -8,6 +9,7 @@ use oxc::{
 	span::{SourceType, Span},
 };
 use regress::Regex;
+use thiserror::Error;
 use tracing::warn;
 use vencord_ast_parser::{Match, Patch, Replacement, Replacer};
 
@@ -75,28 +77,55 @@ pub struct Applied {
 	pub stats: Option<Stats>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Diagnostic, Error)]
 pub enum ApplyEvent {
-	/// A `match:` regex did not compile, so the replacement was skipped.
+	#[error("Bad Regex Syntax")]
+	#[diagnostic[
+        code(bad_regex_syntax),
+        severity(Error),
+        help("The regex was expanded to {expanded}"),
+    ]]
 	BadRegex {
 		/// the span of the regex in the source file it came from
-		regex_span: Span,
+		#[label("From this regex")]
+		regex_span: OxcSourceSpan,
+		#[source]
 		source: regress::Error,
 		/// the pattern as the parser expanded it, for the error message
 		expanded: String,
 	},
-	/// A `match:` found nothing to replace, so the replacement was skipped.
-	MatchNotFound { match_span: Span },
-	/// A non-global `match:` matched more than once. Only the first was
-	/// replaced, same as at runtime.
-	MatchAmbiguous { match_span: Span },
-	/// The replacement produced source that does not parse. Whether it was
-	/// kept is [`ApplyOptions::keep_broken_replacements`].
+	#[error("Match Not Found")]
+	#[diagnostic[
+        code(replace::match_not_found),
+        severity(Error),
+    ]]
+	MatchNotFound {
+		#[label("Caused by this match")]
+		match_span: OxcSourceSpan,
+	},
+	#[error("Replace Match Ambiguous")]
+	#[diagnostic[
+        code(replace::match_ambiguous),
+        severity(Warning),
+    ]]
+	MatchAmbiguous {
+		#[label("Caused by this match")]
+		match_span: OxcSourceSpan,
+	},
+	#[error("Replace Syntax Error")]
+	#[diagnostic[
+        code(replace::syntax_error),
+        severity(Error),
+    ]]
 	SyntaxError {
-		replace_span: Span,
+		#[label("Caused by this replacement")]
+		replace_span: OxcSourceSpan,
+		#[source]
+		#[diagnostic_source]
 		cause: Box<WrappedOxcDiagnostic>,
 	},
 	/// An [`ApplyEvent`] that was suppressed because of [`Patch::no_warn`] or [`Replacement::no_warn`].
+	#[error(transparent)]
 	NoWarn(Box<Self>),
 }
 
@@ -155,7 +184,7 @@ pub fn apply_patch(
 			Ok(new_stats) => stats = Some(new_stats.increase_by(0.1)),
 			Err(e) => {
 				events.push(ApplyEvent::SyntaxError {
-					replace_span: r.replace.s,
+					replace_span: r.replace.s.into(),
 					cause: Box::new(report_syntax_error(
 						alloc,
 						e,
@@ -319,7 +348,7 @@ fn get_repl_regex<'r>(
 			Ok(r) => Some(r),
 			Err(e) => {
 				events.push(ApplyEvent::BadRegex {
-					regex_span: replacement.match_.s,
+					regex_span: replacement.match_.s.into(),
 					source: e.clone(),
 					expanded: format!("/{}/{}", v.pattern, v.flags),
 				});
@@ -349,7 +378,7 @@ fn check_match_target(
 	if it.next().is_none() {
 		events.push(
 			ApplyEvent::MatchNotFound {
-				match_span: replacement.match_.s,
+				match_span: replacement.match_.s.into(),
 			}
 			.suppress_if(no_warn),
 		);
@@ -358,7 +387,7 @@ fn check_match_target(
 
 	if !is_global && it.next().is_some() {
 		events.push(ApplyEvent::MatchAmbiguous {
-			match_span: replacement.match_.s,
+			match_span: replacement.match_.s.into(),
 		});
 	}
 

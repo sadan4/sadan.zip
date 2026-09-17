@@ -9,11 +9,7 @@ use vencord_ast_parser::{Match, MatchRegex, Patch};
 /// [`matches_module`](crate::matches_module):
 /// [`MatchRegex::regex`] panics on a pattern that was never compiled.
 ///
-/// A string `match:` becomes a flagless regex over the escaped needle, which is
-/// what gives it JS `String.prototype.replace` semantics — with no `g` flag
-/// only the first occurrence is replaced, and `$1`/`$&` in the replacement
-/// still expand. A string `find:` is left as a `Finder`, since it is only ever
-/// searched for, never replaced.
+/// A string `match:` becomes a flagless regex over the escaped needle
 pub fn compile_patch_regexes<'a>(
 	patches: impl IntoIterator<Item = &'a mut Patch>,
 ) {

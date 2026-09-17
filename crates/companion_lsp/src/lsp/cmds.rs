@@ -1,16 +1,27 @@
-use std::{borrow::Cow, pin::Pin, sync::Arc, time::Duration};
+use std::{
+	borrow::Cow,
+	error::Error as StdError,
+	pin::Pin,
+	sync::Arc,
+	time::Duration,
+};
 
 use crate::{
 	JValue,
 	LspResult,
 	SERVER_NAME,
-	lsp::custom::{
-		EphemeralDocument,
-		QuickPickRequest,
-		ephemera::{self, EphemeralChange},
+	lsp::{
+		custom::{
+			EphemeralDocument,
+			QuickPickRequest,
+			ephemera::{self, EphemeralChange},
+		},
+		lenses::PatchLensArgs,
 	},
+	util::err::is_caused_by,
+	wss::NoClientsError,
 };
-use anyhow::{Context as _, Result, anyhow, bail};
+use anyhow::{Context as _, Result, anyhow, bail, ensure};
 use const_format::formatc;
 use percent_encoding::{NON_ALPHANUMERIC, percent_encode};
 use smol_str::SmolStr;
@@ -20,13 +31,14 @@ use tower_lsp_server::{
 	ls_types::{
 		ExecuteCommandOptions,
 		ExecuteCommandParams,
+		MessageType,
 		ShowDocumentParams,
 		WorkDoneProgressBegin,
 		WorkDoneProgressOptions,
 		request::ShowDocument,
 	},
 };
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 use tracing_subscriber::EnvFilter;
 
 type CmdFunc = for<'fut> fn(
@@ -59,6 +71,11 @@ pub static CMD_MAP: phf::Map<&'static str, CommandDescriptor> = phf::phf_map! {
 		desc: "Create a test epehemeral document",
 		user_visible: true,
 		func: super::Server::ephemera_test_cmd,
+	},
+	"open_patch_helper" => CommandDescriptor {
+		desc: "Open a patch in the patch helper",
+		user_visible: false,
+		func: super::Server::open_patch_helper_cmd,
 	}
 };
 
@@ -102,12 +119,25 @@ impl super::Server {
 				.command
 				.trim_prefix(Self::COMMAND_PREFIX),
 		) {
-			return (cmd.func)(self, params)
-				.await
-				.map_err(|e| jsonrpc::Error {
-					message: Cow::Owned(format!("{e}")),
-					..jsonrpc::Error::internal_error()
-				});
+			let command = params.command.clone();
+			let ret = (cmd.func)(self, params).await;
+			return match ret {
+				Ok(v) => Ok(v),
+				Err(e) => {
+					if is_caused_by::<NoClientsError>(&*e) {
+						self.client
+							.show_message(MessageType::ERROR, NoClientsError)
+							.await;
+						Ok(None)
+					} else {
+						warn!("Error executing command {}: {e:?}", command);
+						Err(jsonrpc::Error {
+							message: Cow::Owned(format!("{e}")),
+							..jsonrpc::Error::internal_error()
+						})
+					}
+				}
+			};
 		}
 		Err(jsonrpc::Error::method_not_found())
 	}
@@ -223,6 +253,31 @@ impl super::Server {
 			}
 			self.delete_ephemeral_document(uri)
 				.context("Failed to delete ephemeral document")?;
+			Ok(None)
+		})
+	}
+
+	fn open_patch_helper_cmd(
+		&self,
+		mut params: ExecuteCommandParams,
+	) -> Pin<Box<dyn Future<Output = Result<Option<JValue>>> + Send + '_>> {
+		Box::pin(async move {
+			ensure!(
+				params.arguments.len() == 1,
+				"expected exactly one argument for open_patch_helper"
+			);
+			let args: PatchLensArgs = match params.arguments.swap_remove(0) {
+				JValue::Object(map) => serde_json::from_value(JValue::Object(
+					map,
+				))
+				.context("Failed to parse arguments for open_patch_helper")?,
+				other => {
+					bail!(
+						"expected first argument to be an object, got {other:?}"
+					);
+				}
+			};
+			self.open_patch_helper(args).await?;
 			Ok(None)
 		})
 	}

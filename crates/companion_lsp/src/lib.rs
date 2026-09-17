@@ -3,6 +3,7 @@
 #![feature(try_blocks)]
 #![feature(duration_constants)]
 #![feature(current_thread_id)]
+#![feature(integer_widen_truncate)]
 #![allow(clippy::multiple_inherent_impl)]
 pub mod lsp;
 mod module_cache;

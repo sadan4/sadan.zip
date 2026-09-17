@@ -104,6 +104,18 @@ pub struct Replacement {
 	pub replace: ReplaceLike,
 	pub no_warn: bool,
 }
+impl Replacement {
+	fn track_cmp(&self, other: &Self) -> bool {
+		let Self {
+			match_,
+			replace,
+			no_warn,
+		} = self;
+		match_.track_cmp(&other.match_)
+			&& replace.track_cmp(&other.replace)
+			&& *no_warn == other.no_warn
+	}
+}
 
 #[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ReplaceLike {
@@ -112,6 +124,16 @@ pub struct ReplaceLike {
 	pub s: Span,
 	#[serde(deserialize_with = "deserialize_2d_spans")]
 	pub used_replace_capture_spans: Vec<Vec<Span>>,
+}
+impl ReplaceLike {
+	fn track_cmp(&self, other: &Self) -> bool {
+		let Self {
+			v,
+			s: _,
+			used_replace_capture_spans: _,
+		} = self;
+		*v == other.v
+	}
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -334,6 +356,24 @@ impl Patch {
 			.expect("Plugin ID not set")
 	}
 
+	pub fn track_cmp(&self, other: &Self) -> bool {
+		let Self {
+			plugin_id: _,
+			all,
+			no_warn,
+			find,
+			replacement,
+			span: _,
+		} = self;
+		*all == other.all
+			&& *no_warn == other.no_warn
+			&& find.track_cmp(&other.find)
+			&& replacement
+				.iter()
+				.zip(other.replacement.iter())
+				.all(|(a, b)| a.track_cmp(b))
+	}
+
 	/// takes the hash of the patch's content, ignoring the plugin ID
 	pub fn content_hash(&self) -> u64 {
 		let h = &mut Xxh64::default();
@@ -352,6 +392,13 @@ impl Patch {
 		replacement.hash(h);
 		span.hash(h);
 		h.finish()
+	}
+}
+
+impl MatchLike {
+	pub fn track_cmp(&self, other: &Self) -> bool {
+		let Self { v, s: _ } = self;
+		*v == other.v
 	}
 }
 

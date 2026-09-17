@@ -14,6 +14,7 @@ use dashmap::DashMap;
 use futures_util::{SinkExt, StreamExt as _};
 use serde::Deserialize;
 use smol_str::SmolStr;
+use thiserror::Error;
 use tokio::{
 	net::{TcpListener, TcpStream},
 	sync::{RwLock, mpsc, oneshot},
@@ -57,6 +58,10 @@ fn check_client_version(version: Semver) -> Result<()> {
 	Ok(())
 }
 
+#[derive(Error, Debug)]
+#[error("{NO_CONN_MSG}")]
+pub struct NoClientsError;
+
 /// What the receive task hands back to a waiting [`WsServer::send_msg`]:
 /// either a parsed frame, or the error from failing to parse it
 type PendingResponse = Result<types::from_client::FullMessage>;
@@ -92,7 +97,7 @@ impl WsServer {
 			let wire_str = serde_json::to_string(&msg.to_wire(nonce))
 				.context("Failed to serialize WS message")?;
 			let Some(tx) = inner.tx.as_ref() else {
-				bail!(NO_CONN_MSG);
+				bail!(NoClientsError);
 			};
 			// we don't care about notifications so they don't need a response slot
 			let rx = notification.is_none().then(|| {

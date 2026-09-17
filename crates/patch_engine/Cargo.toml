@@ -17,6 +17,8 @@ regress.workspace = true
 tracing.workspace = true
 vencord_ast_parser.workspace = true
 smol_str.workspace = true
+miette.workspace = true
+thiserror.workspace = true
 
 [dev-dependencies]
 insta.workspace = true

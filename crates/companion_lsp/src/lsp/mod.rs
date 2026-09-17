@@ -4,11 +4,13 @@ mod definition;
 mod doc;
 mod hover;
 mod lenses;
+mod patch_helper2;
 mod reference;
 
 use std::{borrow::Cow, debug_assert_matches, path::PathBuf, sync::Arc};
 
-use anyhow::Result;
+use anyhow::{Context as _, Result};
+use ast_parser::pool::AllocPool;
 use tokio::sync::mpsc;
 use tower_lsp_server::{
 	Client,
@@ -37,10 +39,13 @@ use tower_lsp_server::{
 		SaveOptions,
 		ServerCapabilities,
 		ServerInfo,
+		ShowDocumentParams,
+		ShowDocumentResult,
 		TextDocumentSyncCapability,
 		TextDocumentSyncKind,
 		TextDocumentSyncOptions,
 		TextDocumentSyncSaveOptions,
+		request::ShowDocument,
 	},
 };
 use tracing::{debug, error, instrument, warn};
@@ -66,6 +71,8 @@ pub struct Server {
 	log_reload_handle: Option<ReloadHandle>,
 	module_cache: SplitModuleCache,
 	ephemera: Ephemera,
+	patch_helpers: patch_helper2::Helpers,
+	pool: AllocPool,
 }
 
 #[must_use = "this is just a builder for the server"]
@@ -76,6 +83,8 @@ pub struct ServerBuilder {
 	module_cache: SplitModuleCache,
 	ephemera: Ephemera,
 	ephemera_changes: mpsc::UnboundedReceiver<EphemeralChange>,
+	patch_helpers: patch_helper2::Helpers,
+	pool: AllocPool,
 }
 
 impl ServerBuilder {
@@ -94,6 +103,8 @@ impl ServerBuilder {
 		let files = doc::Files::default();
 		let module_cache = SplitModuleCache::new(state.ws.clone());
 		let (ephemera, ephemera_changes) = Ephemera::new();
+		let patch_helpers = patch_helper2::Helpers::default();
+		let pool = AllocPool::new(None);
 		Ok(Self {
 			files,
 			state,
@@ -101,6 +112,8 @@ impl ServerBuilder {
 			module_cache,
 			ephemera,
 			ephemera_changes,
+			patch_helpers,
+			pool,
 		})
 	}
 
@@ -125,6 +138,8 @@ impl ServerBuilder {
 			log_reload_handle: self.log_reload_handle,
 			module_cache: self.module_cache,
 			ephemera: self.ephemera,
+			patch_helpers: self.patch_helpers,
+			pool: self.pool,
 		}
 	}
 }
@@ -168,7 +183,17 @@ fn cursor_offset(
 	Ok(doc.offset_at(position))
 }
 
-impl Server {}
+impl Server {
+	async fn show_document(&self, params: ShowDocumentParams) -> Result<()> {
+		self.client
+			.send_request::<ShowDocument>(params)
+			.await
+			.context("Failed to show document")?
+			.success
+			.then_some(())
+			.context("Client reported failing to show document")
+	}
+}
 
 #[allow(clippy::unused_async_trait_impl)]
 impl LanguageServer for Server {
@@ -222,7 +247,9 @@ impl LanguageServer for Server {
 
 	#[instrument(skip_all, fields(uri =% params.text_document.uri.as_str()))]
 	async fn did_change(&self, params: DidChangeTextDocumentParams) {
+		let uri = params.text_document.uri.clone();
 		self.files.handle_change(params);
+		self.patch_helper_change_hook(&uri).await;
 	}
 
 	#[instrument(skip_all, fields(uri =% params.text_document.uri.as_str()))]
