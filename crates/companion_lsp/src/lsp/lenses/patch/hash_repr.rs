@@ -42,7 +42,6 @@ where
 	Ok(u64::from(repr))
 }
 
-
 #[cfg(test)]
 mod tests {
 	use super::*;
@@ -62,4 +61,3 @@ mod tests {
 		}
 	}
 }
-

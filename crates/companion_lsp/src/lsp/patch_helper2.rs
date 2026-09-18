@@ -424,11 +424,43 @@ impl lsp::Server {
 		}
 		first_err.map_or(Ok(()), Err)
 	}
+
+	/// close any relevant patch helpers
+	pub(super) fn patch_helper_close_hook(&self, uri: &Uri) {
+		let Some(helper) = self.patch_helpers.remove(uri) else {
+			return;
+		};
+		debug!(?helper.plugin_file, ?helper.ephemeral_file, "Closing patch helper");
+		if let Err(e) =
+			self.delete_ephemeral_document(helper.ephemeral_file.clone())
+		{
+			warn!("Failed to delete patch helper document:{e:?}");
+		}
+	}
 }
 
 impl Helpers {
 	fn mint_id(&self) -> u64 {
 		self.next_id
 			.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+	}
+
+	/// Forgets the helper backing `ephemeral_file`
+	fn remove(&self, ephemeral_file: &Uri) -> Option<Arc<PatchHelper>> {
+		let (_, helper) = self
+			.by_ephemeral_file
+			.remove(ephemeral_file)?;
+		if let Some(mut siblings) = self
+			.by_plugin_file
+			.get_mut(&helper.plugin_file)
+		{
+			siblings.retain(|h| !Arc::ptr_eq(h, &helper));
+			// drop so below doesn't deadlock
+			drop(siblings);
+			// remove an empty plugin -> vec entry
+			self.by_plugin_file
+				.remove_if(&helper.plugin_file, |_, v| v.is_empty());
+		}
+		Some(helper)
 	}
 }

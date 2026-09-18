@@ -249,7 +249,12 @@ impl LanguageServer for Server {
 	async fn did_change(&self, params: DidChangeTextDocumentParams) {
 		let uri = params.text_document.uri.clone();
 		self.files.handle_change(params);
-		self.patch_helper_change_hook(&uri).await;
+		if let Err(e) = self
+			.patch_helper_change_hook(&uri)
+			.await
+		{
+			warn!("Failed to run patch helper change hook {e:?}");
+		}
 	}
 
 	#[instrument(skip_all, fields(uri =% params.text_document.uri.as_str()))]
@@ -262,6 +267,7 @@ impl LanguageServer for Server {
 
 	#[instrument(skip_all, fields(uri =% params.text_document.uri.as_str()))]
 	async fn did_close(&self, params: DidCloseTextDocumentParams) {
+		self.patch_helper_close_hook(&params.text_document.uri);
 		self.files.handle_close(params);
 	}
 
