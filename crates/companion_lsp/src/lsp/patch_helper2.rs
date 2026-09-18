@@ -43,7 +43,9 @@ const INDENT: u8 = 2;
 
 #[derive(Default)]
 pub struct Helpers {
-	by_plugin_file: DashMap<Uri, Arc<PatchHelper>>,
+	/// Multiple patch helpers can be open for the same plugin file, one per
+	/// patch being worked on.
+	by_plugin_file: DashMap<Uri, Vec<Arc<PatchHelper>>>,
 	by_ephemeral_file: DashMap<Uri, Arc<PatchHelper>>,
 	next_id: AtomicU64,
 }
@@ -183,7 +185,9 @@ impl lsp::Server {
 			.insert(helper.ephemeral_file.clone(), Arc::clone(&helper));
 		self.patch_helpers
 			.by_plugin_file
-			.insert(helper.plugin_file.clone(), Arc::clone(&helper));
+			.entry(helper.plugin_file.clone())
+			.or_default()
+			.push(Arc::clone(&helper));
 		let (current_source, reveal_span) = {
 			let guard = helper.state.lock().await;
 			let current_source = guard.current_source.clone();
@@ -404,18 +408,21 @@ impl lsp::Server {
 		&self,
 		uri: &Uri,
 	) -> Result<()> {
-		let p = self
+		// clone out of the map so the ref isn't held across an await
+		let helpers = self
 			.patch_helpers
 			.by_plugin_file
 			.get(uri)
-			.map(|x| Arc::clone(&x));
-		if let Some(p) = p {
-			let p2 = Arc::clone(&p);
-			drop(p);
-			let p = p2;
-			self.update_state(&p).await?;
+			.map(|x| x.value().clone())
+			.unwrap_or_default();
+		let mut first_err = None;
+		for helper in helpers {
+			// one failing helper shouldn't stop the others from updating
+			if let Err(e) = self.update_state(&helper).await {
+				first_err.get_or_insert(e);
+			}
 		}
-		Ok(())
+		first_err.map_or(Ok(()), Err)
 	}
 }
 
