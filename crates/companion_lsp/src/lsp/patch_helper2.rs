@@ -75,7 +75,10 @@ impl State {
 	fn find_patch(&self, new_patches: &[Patch]) -> Option<usize> {
 		let ret = || -> Option<usize> {
 			if new_patches.len() == 1 {
-				return Some(0);
+				return new_patches[0]
+					.find
+					.track_cmp(&self.patch.find)
+					.then_some(0);
 			}
 			if new_patches.is_empty() {
 				return None;
