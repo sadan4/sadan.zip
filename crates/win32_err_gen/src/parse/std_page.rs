@@ -144,7 +144,7 @@ pub fn parse(node: &mdast::Node) -> Result<Vec<W32Error>> {
 		debug_assert_eq!(c, Some('\n'));
 		ret.push(W32Error {
 			code,
-			message: message.clone(),
+			message,
 			desc,
 		});
 	}

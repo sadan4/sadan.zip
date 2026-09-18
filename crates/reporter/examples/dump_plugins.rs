@@ -101,6 +101,6 @@ async fn run() -> Result<i8> {
 }
 fn main() {
 	install_tracing();
-	reporter::install_miette_hook();
+	miette_ui::install_miette_hook(true);
 	async_main();
 }

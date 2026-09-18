@@ -5,12 +5,12 @@ use std::{
 	time::Instant,
 };
 
+use ast_parser::pool::AllocPool;
 use dashmap::DashMap;
 use explorer_server_core::Channel;
 use explorer_types::ModuleId;
 use itertools::Itertools;
 use miette_ctx::ErrCtx as _;
-use oxc_allocator::AllocatorPool;
 use rayon::iter::{
 	IntoParallelRefIterator as _,
 	IntoParallelRefMutIterator as _,
@@ -88,8 +88,9 @@ impl Fixer {
 			m_bar: MultiProgressWrapper::null_bar(),
 			patches: HashSet::new(),
 			find_map: HashMap::new(),
-			alloc: AllocatorPool::new(
-				num_cpus::get().max(ModuleTracker::MAX_TRACKED_MODULES),
+			alloc: AllocPool::new(
+				AllocPool::default_size()
+					.max(ModuleTracker::MAX_TRACKED_MODULES),
 			),
 			build: self.diff.broken.modules(),
 			stats: DashMap::new(),
@@ -177,7 +178,7 @@ impl Fixer {
 
 	fn find_working_module_id(&self) -> ModuleId {
 		let mut tx = sink_sender(32);
-		let alloc_pool = AllocatorPool::new(num_cpus::get());
+		let alloc_pool = AllocPool::new(None);
 		let stats = DashMap::new();
 		let patch = &self.plugins[0].patches[0];
 		let mut state = ReporterState {

@@ -23,8 +23,9 @@ futures-util.workspace = true
 dashmap.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
-tower-lsp.workspace = true
+tower-lsp-server.workspace = true
 oxc.workspace = true
+thiserror.workspace = true
 ast_parser.workspace = true
 vencord_ast_parser.workspace = true
 webpack_ast_parser.workspace = true
@@ -34,7 +35,19 @@ smol_str.workspace = true
 regex.workspace = true
 regress.workspace = true
 bytecount.workspace = true
+memchr.workspace = true
 parser_diag.workspace = true
+phf.workspace = true
+const_format.workspace = true
+url.workspace = true
+miette.workspace = true
+miette_ui = { workspace = true, default-features = false }
+itertools.workspace = true
+percent-encoding.workspace = true
+async-trait.workspace = true
+libc.workspace = true
+patch_engine.workspace = true
+text_diff.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

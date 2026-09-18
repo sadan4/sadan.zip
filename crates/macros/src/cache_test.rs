@@ -25,6 +25,7 @@ pub fn cache_test(attr: TokenStream, item: TokenStream) -> TokenStream {
 		}
 	};
 	let mut tfn = parse_macro_input!(item as ItemFn);
+	let async_tok = tfn.sig.asyncness;
 	let args = &tfn.sig.inputs;
 	if args.len() != 1 {
 		return syn::Error::new_spanned(
@@ -37,14 +38,22 @@ pub fn cache_test(attr: TokenStream, item: TokenStream) -> TokenStream {
 	let orig_fn_name = tfn.sig.ident;
 	tfn.sig.ident = syn::Ident::new(TEST_FUNCTION_NAME, orig_fn_name.span());
 	let new_fn_name = &tfn.sig.ident;
+	let test_attr = if async_tok.is_some() {
+		quote! { #[::tokio::test] }
+	} else {
+		quote! { #[::core::prelude::v1::test] }
+	};
+	let invocation = if async_tok.is_some() {
+		quote! { #new_fn_name(b).await }
+	} else {
+		quote! { #new_fn_name(b) }
+	};
 	quote! {
-		#[core::prelude::v1::test]
-		fn #orig_fn_name() {
+		#test_attr
+		#async_tok fn #orig_fn_name() {
 			#tfn
-			let alloc = ::oxc::allocator::Allocator::new();
-			let (b, parsers) = crate::Bundle::try_new(&alloc, #sub_dir).unwrap();
-			b.bind_plugins(parsers);
-			#new_fn_name(&b);
+			let b = crate::Bundle::try_new(#sub_dir).unwrap();
+			#invocation;
 		}
 	}
 	.into()

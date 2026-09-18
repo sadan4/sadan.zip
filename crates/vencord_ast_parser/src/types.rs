@@ -3,14 +3,17 @@ pub mod find;
 use anyhow::Result;
 use derive_more::{Eq, PartialEq, Unwrap};
 use itertools::Itertools;
-use memchr::memmem::Finder;
+use memchr::memmem::{Finder, FinderRev};
 use oxc::{ast::ast::RegExpFlags, span::Span};
 use regress::{Flags, Regex};
 use serde::{Deserialize, Serialize};
 use smol_str::SmolStr;
 use std::{
+	borrow::Cow,
 	collections::HashMap,
+	debug_assert_matches,
 	hash::{Hash, Hasher},
+	sync::LazyLock,
 };
 use xxhash_rust::xxh64::Xxh64;
 
@@ -90,8 +93,7 @@ pub struct Patch {
 	pub no_warn: bool,
 	pub find: MatchLike,
 	pub replacement: Vec<Replacement>,
-	/// Source span covering the patch object literal (or the spread array
-	/// element it was synthesized from). Suitable for UI anchoring.
+	/// Source span covering the patch source literal
 	#[serde(deserialize_with = "deserialize_span")]
 	pub span: Span,
 }
@@ -102,6 +104,18 @@ pub struct Replacement {
 	pub replace: ReplaceLike,
 	pub no_warn: bool,
 }
+impl Replacement {
+	fn track_cmp(&self, other: &Self) -> bool {
+		let Self {
+			match_,
+			replace,
+			no_warn,
+		} = self;
+		match_.track_cmp(&other.match_)
+			&& replace.track_cmp(&other.replace)
+			&& *no_warn == other.no_warn
+	}
+}
 
 #[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ReplaceLike {
@@ -110,6 +124,16 @@ pub struct ReplaceLike {
 	pub s: Span,
 	#[serde(deserialize_with = "deserialize_2d_spans")]
 	pub used_replace_capture_spans: Vec<Vec<Span>>,
+}
+impl ReplaceLike {
+	fn track_cmp(&self, other: &Self) -> bool {
+		let Self {
+			v,
+			s: _,
+			used_replace_capture_spans: _,
+		} = self;
+		*v == other.v
+	}
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -131,7 +155,7 @@ pub struct MatchLike {
 	pub s: Span,
 }
 
-#[derive(Debug, Serialize, Deserialize, Unwrap)]
+#[derive(Serialize, Deserialize, Unwrap)]
 #[unwrap(ref)]
 pub enum Match {
 	#[serde(with = "FinderDef")]
@@ -139,7 +163,25 @@ pub enum Match {
 	Regex(MatchRegex),
 }
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+impl std::fmt::Debug for Match {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			Self::Str(finder) => f
+				.debug_tuple("Str")
+				.field(
+					&str::from_utf8(finder.needle())
+						.expect("finder is not a utf8 string"),
+				)
+				.finish(),
+			Self::Regex(regex) => f
+				.debug_tuple("Regex")
+				.field(regex)
+				.finish(),
+		}
+	}
+}
+
+#[derive(PartialEq, Eq, Serialize, Deserialize)]
 pub struct MatchRegex {
 	pub pattern: String,
 	#[serde(with = "RegExpFlagsDef")]
@@ -152,7 +194,14 @@ pub struct MatchRegex {
 	/// TODO: add highlights for whole reference for when the regex has look(?:ahead|behind) assertions
 	/// TODO: make Vec<Vec<Span>> to also highlight backreferences
 	#[serde(deserialize_with = "deserialize_spans")]
+	#[eq(skip)]
 	pub capture_spans: Vec<Span>,
+}
+
+impl std::fmt::Debug for MatchRegex {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		write!(f, "/{}/{}", self.pattern, self.flags)
+	}
 }
 
 #[derive(Serialize, Deserialize)]
@@ -173,16 +222,38 @@ impl TemplateEvaluator {
 	pub fn make_replacer<'this: 's, 's: 'this>(
 		&'this self,
 		src: &'s str,
+		self_expr: Option<&'s str>,
 	) -> impl 'this + 's + Fn(&regress::Match) -> String {
-		|m| self.do_replace(src, m)
+		move |m| self.do_replace(src, m, self_expr)
 	}
-	pub fn do_replace(&self, src: &str, m: &regress::Match) -> String {
-		let lits = self.lits.iter().map(String::as_str);
+	// TODO: add tests for self replacement
+	pub fn do_replace(
+		&self,
+		src: &str,
+		m: &regress::Match,
+		self_expr: Option<&str>,
+	) -> String {
+		let self_expr = self_expr.unwrap_or("$self");
+		static SELF_FINDER: LazyLock<Finder<'static>> =
+			LazyLock::new(|| Finder::new(b"$self"));
+		static R_SELF_FINDER: LazyLock<FinderRev<'static>> =
+			LazyLock::new(|| FinderRev::new(b"$self"));
+		let lits = self.lits.iter().map(|s| {
+			if SELF_FINDER.find(s.as_bytes()).is_some() {
+				let mut r = s.clone();
+				for m in R_SELF_FINDER.rfind_iter(s.as_bytes()) {
+					r.replace_range(m..m + 5, self_expr);
+				}
+				Cow::Owned(r)
+			} else {
+				Cow::Borrowed(s.as_str())
+			}
+		});
 		let caps = self.captures.iter().map(|&i| {
 			let range = m
 				.group(i as _)
 				.expect("capture group out of range");
-			&src[range]
+			Cow::Borrowed(&src[range])
 		});
 		debug_assert_eq!(self.lits.len(), self.captures.len() + 1);
 		lits.interleave_shortest(caps).collect()
@@ -190,26 +261,34 @@ impl TemplateEvaluator {
 }
 
 /// This is a re-implementation (read: copy-paste) of [`regress::Regex::expand_replacement`] as it is private
+// TODO: rewrite to take &mut String instead of returning a new String
+// TODO: add tests for self replacement
 fn process_string_replacement(
 	repl: &str,
 	text: &str,
 	m: &regress::Match,
+	self_expr: Option<&str>,
 ) -> String {
 	const MAX_CAPTURE_GROUPS: usize = u16::MAX as _;
 	let mut output = String::with_capacity(m.end() - m.start());
-	let mut chars = repl.chars().peekable();
-	while let Some(ch) = chars.next() {
+	let mut chars = repl.char_indices().peekable();
+	let self_expr = self_expr.unwrap_or("$self");
+	while let Some((_, ch)) = chars.next() {
 		if ch == '$' {
-			match chars.peek() {
-				Some('$') => {
+			let Some((idx, c)) = chars.peek() else {
+				output.push('$');
+				continue;
+			};
+			match c {
+				'$' => {
 					// $$ -> literal $
 					chars.next();
 					output.push('$');
 				}
-				Some(&digit) if digit.is_ascii_digit() => {
+				'0'..='9' => {
 					// Parse the group number
 					let mut group_num = 0;
-					while let Some(&digit) = chars.peek() {
+					while let Some(&(_, digit)) = chars.peek() {
 						if digit.is_ascii_digit() {
 							chars.next();
 							group_num = group_num * 10
@@ -229,13 +308,13 @@ fn process_string_replacement(
 					}
 					// If group doesn't exist or didn't match, add nothing
 				}
-				Some('{') => {
+				'{' => {
 					// Handle ${name} syntax for named groups
 					chars.next(); // consume '{'
 					let mut name = String::new();
 					let mut found_closing_brace = false;
 
-					for ch in chars.by_ref() {
+					for (_, ch) in chars.by_ref() {
 						if ch == '}' {
 							found_closing_brace = true;
 							break;
@@ -253,6 +332,18 @@ fn process_string_replacement(
 						output.push_str(&name);
 					}
 				}
+				's' if repl.get(idx + 1..idx + 4) == Some("elf") => {
+					let guh = try {
+						[
+							chars.next()?.1,
+							chars.next()?.1,
+							chars.next()?.1,
+							chars.next()?.1,
+						]
+					};
+					debug_assert_matches!(guh, Some(['s', 'e', 'l', 'f']));
+					output.push_str(self_expr);
+				}
 				_ => {
 					// Just a $ at end or followed by non-digit
 					output.push('$');
@@ -267,9 +358,19 @@ fn process_string_replacement(
 
 impl Replacer {
 	pub fn do_replace(&self, src: &str, m: &regress::Match) -> String {
+		self.do_replace_with_self(src, m, None)
+	}
+	pub fn do_replace_with_self(
+		&self,
+		src: &str,
+		m: &regress::Match,
+		self_expr: Option<&str>,
+	) -> String {
 		match self {
-			Self::Str(repl) => process_string_replacement(repl, src, m),
-			Self::Template(repl) => repl.do_replace(src, m),
+			Self::Str(repl) => {
+				process_string_replacement(repl, src, m, self_expr)
+			}
+			Self::Template(repl) => repl.do_replace(src, m, self_expr),
 		}
 	}
 }
@@ -278,6 +379,25 @@ impl Patch {
 	pub const fn plugin_id(&self) -> u16 {
 		self.plugin_id
 			.expect("Plugin ID not set")
+	}
+
+	pub fn track_cmp(&self, other: &Self) -> bool {
+		let Self {
+			plugin_id: _,
+			all,
+			no_warn,
+			find,
+			replacement,
+			span: _,
+		} = self;
+		*all == other.all
+			&& *no_warn == other.no_warn
+			&& find.track_cmp(&other.find)
+			&& replacement.len() == other.replacement.len()
+			&& replacement
+				.iter()
+				.zip(other.replacement.iter())
+				.all(|(a, b)| a.track_cmp(b))
 	}
 
 	/// takes the hash of the patch's content, ignoring the plugin ID
@@ -298,6 +418,13 @@ impl Patch {
 		replacement.hash(h);
 		span.hash(h);
 		h.finish()
+	}
+}
+
+impl MatchLike {
+	pub fn track_cmp(&self, other: &Self) -> bool {
+		let Self { v, s: _ } = self;
+		*v == other.v
 	}
 }
 

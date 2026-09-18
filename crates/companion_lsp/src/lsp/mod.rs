@@ -1,20 +1,29 @@
-use std::{future, sync::Arc};
+pub mod cmds;
+pub mod custom;
+mod definition;
+mod doc;
+mod hover;
+mod lenses;
+mod patch_helper2;
+mod reference;
 
-use oxc::allocator::Allocator;
-use tower_lsp::{
+use std::{borrow::Cow, debug_assert_matches, path::PathBuf, sync::Arc};
+
+use anyhow::{Context as _, Result};
+use ast_parser::pool::AllocPool;
+use tokio::sync::mpsc;
+use tower_lsp_server::{
 	Client,
 	LanguageServer,
-	jsonrpc::Result as LspResult,
-	lsp_types::{
+	jsonrpc,
+	ls_types::{
 		CodeLens,
 		CodeLensOptions,
 		CodeLensParams,
 		DidChangeTextDocumentParams,
 		DidCloseTextDocumentParams,
 		DidOpenTextDocumentParams,
-		DocumentHighlight,
-		DocumentHighlightParams,
-		ExecuteCommandOptions,
+		DidSaveTextDocumentParams,
 		ExecuteCommandParams,
 		GotoDefinitionParams,
 		GotoDefinitionResponse,
@@ -23,217 +32,278 @@ use tower_lsp::{
 		HoverProviderCapability,
 		InitializeParams,
 		InitializeResult,
-		InitializedParams,
 		Location,
-		MessageType,
 		OneOf,
+		Position,
 		ReferenceParams,
+		SaveOptions,
 		ServerCapabilities,
 		ServerInfo,
+		ShowDocumentParams,
 		TextDocumentSyncCapability,
 		TextDocumentSyncKind,
-		WorkDoneProgressOptions,
+		TextDocumentSyncOptions,
+		TextDocumentSyncSaveOptions,
+		request::ShowDocument,
 	},
 };
-use vencord_ast_parser::{Patch, VencordAstParser};
+use tracing::{debug, error, instrument, warn};
+use webpack_ast_parser::ThreadSafeParser;
 
 use crate::{
-	state::{CachedPatches, Document, SessionState, SharedState},
-	vencord_ext,
+	JValue,
+	LspResult,
+	ReloadHandle,
+	SERVER_NAME,
+	SERVER_VERSION,
+	State,
+	lsp::custom::{Ephemera, ephemera::EphemeralChange},
+	module_cache::SplitModuleCache,
+	util::uri,
+	wss::WsServer,
 };
 
-mod client_ext;
-mod code_lens;
-mod commands;
-pub mod cross_module;
-mod definition;
-pub mod diagnostics;
-mod document;
-mod hl;
-mod hover;
-pub mod patch_helper;
-mod references;
-
-pub struct Backend {
-	pub client: Client,
-	pub state: SharedState,
+pub struct Server {
+	pub(crate) client: Client,
+	files: doc::Files,
+	state: Arc<State>,
+	log_reload_handle: Option<ReloadHandle>,
+	module_cache: SplitModuleCache,
+	ephemera: Ephemera,
+	patch_helpers: patch_helper2::Helpers,
+	pool: AllocPool,
 }
 
-impl Backend {
-	pub const fn new(client: Client, state: SharedState) -> Self {
-		Self { client, state }
+#[must_use = "this is just a builder for the server"]
+pub struct ServerBuilder {
+	files: doc::Files,
+	state: Arc<State>,
+	log_reload_handle: Option<ReloadHandle>,
+	module_cache: SplitModuleCache,
+	ephemera: Ephemera,
+	ephemera_changes: mpsc::UnboundedReceiver<EphemeralChange>,
+	patch_helpers: patch_helper2::Helpers,
+	pool: AllocPool,
+}
+
+impl ServerBuilder {
+	pub fn new() -> Result<Self> {
+		let state = Arc::new(State {
+			ws: WsServer::disconnected(),
+		});
+		let server = state.ws.clone();
+		tokio::spawn(async move {
+			if let Err(e) = server.run_loop().await {
+				error!("WebSocket server failed: {e:?}");
+				return;
+			}
+			error!("WebSocket server exited unexpectedly");
+		});
+		let files = doc::Files::default();
+		let module_cache = SplitModuleCache::new(state.ws.clone());
+		let (ephemera, ephemera_changes) = Ephemera::new();
+		let patch_helpers = patch_helper2::Helpers::default();
+		let pool = AllocPool::new(None);
+		Ok(Self {
+			files,
+			state,
+			log_reload_handle: None,
+			module_cache,
+			ephemera,
+			ephemera_changes,
+			patch_helpers,
+			pool,
+		})
 	}
 
-	/// Custom server method: editor delivers a `QuickPick` selection back to a
-	/// pending server-initiated request. Implementation lives in `commands`.
-	pub fn on_quick_pick_response(
-		&self,
-		params: serde_json::Value,
-	) -> impl Future<Output = LspResult<serde_json::Value>> {
-		future::ready(commands::on_quick_pick_response(self, params))
+	pub fn with_reload_handle(mut self, handle: ReloadHandle) -> Self {
+		debug_assert_matches!(
+			self.log_reload_handle,
+			None,
+			"reload handle already set"
+		);
+		self.log_reload_handle = Some(handle);
+		self
+	}
+	#[must_use]
+	pub fn build(self, client: Client) -> Server {
+		self.module_cache
+			.set_client(client.clone());
+		Ephemera::serve_changes(client.clone(), self.ephemera_changes);
+		Server {
+			client,
+			files: self.files,
+			state: self.state,
+			log_reload_handle: self.log_reload_handle,
+			module_cache: self.module_cache,
+			ephemera: self.ephemera,
+			patch_helpers: self.patch_helpers,
+			pool: self.pool,
+		}
 	}
 }
 
-#[tower_lsp::async_trait]
-impl LanguageServer for Backend {
+fn workspace_roots(params: &InitializeParams) -> Vec<PathBuf> {
+	let folders = params
+		.workspace_folders
+		.iter()
+		.flatten()
+		.map(|folder| &folder.uri);
+	// deprecated in the spec, but plenty of clients still only send this
+	#[expect(deprecated)]
+	let root_uri = params.root_uri.iter();
+	folders
+		.chain(root_uri)
+		.filter_map(|uri| {
+			uri::to_path(uri)
+				.inspect_err(|_| {
+					warn!(uri =% uri.as_str(), "Workspace folder is not a file path, ignoring");
+				})
+				.ok()
+				.map(Cow::into_owned)
+		})
+		.collect()
+}
+
+fn cursor_offset(
+	doc: &doc::Document,
+	parser: &ThreadSafeParser,
+	position: Position,
+) -> LspResult<u32> {
+	if &**parser.get_source() != doc.text.as_str() {
+		return Err(jsonrpc::Error {
+			code: jsonrpc::ErrorCode::ContentModified,
+			message: Cow::Borrowed(
+				"parser source does not match the open document, skipping; save the file to refresh it",
+			),
+			data: None,
+		});
+	}
+	Ok(doc.offset_at(position))
+}
+
+impl Server {
+	async fn show_document(&self, params: ShowDocumentParams) -> Result<()> {
+		self.client
+			.send_request::<ShowDocument>(params)
+			.await
+			.context("Failed to show document")?
+			.success
+			.then_some(())
+			.context("Client reported failing to show document")
+	}
+}
+
+#[allow(clippy::unused_async_trait_impl)]
+impl LanguageServer for Server {
 	async fn initialize(
 		&self,
 		params: InitializeParams,
 	) -> LspResult<InitializeResult> {
-		// Capture the workspace root so the module cache can orient itself.
-		// Prefer the modern `workspaceFolders` field;
-		// fall back to the deprecated `rootUri` so older clients keep
-		// working.
-		let workspace_root = params
-			.workspace_folders
-			.as_ref()
-			.and_then(|f| f.first())
-			.and_then(|f| f.uri.to_file_path().ok())
-			.or_else(|| {
-				params
-					.root_uri
-					.as_ref()
-					.and_then(|u| u.to_file_path().ok())
-			});
-
-		if let Some(root) = workspace_root {
-			let mut cache = self.state.module_cache.write().await;
-			cache.set_workspace_root(&root);
-			let _ = cache.rescan().await;
-		}
-
-		let capabilities = ServerCapabilities {
-			text_document_sync: Some(TextDocumentSyncCapability::Kind(
-				TextDocumentSyncKind::INCREMENTAL,
-			)),
-			hover_provider: Some(HoverProviderCapability::Simple(true)),
-			definition_provider: Some(OneOf::Left(true)),
-			references_provider: Some(OneOf::Left(true)),
-			document_highlight_provider: Some(OneOf::Left(true)),
-			code_lens_provider: Some(CodeLensOptions {
-				resolve_provider: Some(false),
-			}),
-			execute_command_provider: Some(ExecuteCommandOptions {
-				commands: vencord_ext::ALL_COMMAND_IDS
-					.iter()
-					.map(|s| (*s).to_owned())
-					.collect(),
-				work_done_progress_options: WorkDoneProgressOptions::default(),
-			}),
-			..Default::default()
-		};
-
+		debug!("client capabilities: {:#?}", params.capabilities);
+		self.module_cache
+			.set_workspace_roots(workspace_roots(&params));
+		let position_encoding = self
+			.files
+			.negotiate_encoding(params.capabilities.general.as_ref());
 		Ok(InitializeResult {
-			capabilities,
+			capabilities: ServerCapabilities {
+				position_encoding: Some(position_encoding),
+				text_document_sync: Some(TextDocumentSyncCapability::Options(
+					TextDocumentSyncOptions {
+						open_close: Some(true),
+						change: Some(TextDocumentSyncKind::INCREMENTAL),
+						will_save: Some(true),
+						save: Some(TextDocumentSyncSaveOptions::SaveOptions(
+							SaveOptions {
+								include_text: Some(true),
+							},
+						)),
+						..Default::default()
+					},
+				)),
+				definition_provider: Some(OneOf::Left(true)),
+				references_provider: Some(OneOf::Left(true)),
+				hover_provider: Some(HoverProviderCapability::Simple(true)),
+				code_lens_provider: Some(CodeLensOptions {
+					resolve_provider: Some(false),
+				}),
+				execute_command_provider: Some(Self::get_cmd_provider()),
+				..ServerCapabilities::default()
+			},
 			server_info: Some(ServerInfo {
-				name: env!("CARGO_PKG_NAME").to_owned(),
-				version: Some(env!("CARGO_PKG_VERSION").to_owned()),
+				name: String::from(SERVER_NAME),
+				version: Some(String::from(SERVER_VERSION)),
 			}),
+			offset_encoding: None,
 		})
 	}
 
-	async fn initialized(&self, _params: InitializedParams) {
-		self.client
-			.log_message(MessageType::INFO, "companion_lsp ready")
+	#[instrument(skip_all, fields(uri =% params.text_document.uri.as_str()))]
+	async fn did_open(&self, params: DidOpenTextDocumentParams) {
+		self.files.handle_open(params);
+	}
+
+	#[instrument(skip_all, fields(uri =% params.text_document.uri.as_str()))]
+	async fn did_change(&self, params: DidChangeTextDocumentParams) {
+		let uri = params.text_document.uri.clone();
+		self.files.handle_change(params);
+		if let Err(e) = self
+			.patch_helper_change_hook(&uri)
+			.await
+		{
+			warn!("Failed to run patch helper change hook {e:?}");
+		}
+	}
+
+	#[instrument(skip_all, fields(uri =% params.text_document.uri.as_str()))]
+	async fn did_save(&self, params: DidSaveTextDocumentParams) {
+		// the parser and dep graph we cached are from the old contents
+		self.module_cache
+			.handle_save(&params.text_document.uri)
 			.await;
 	}
 
-	async fn shutdown(&self) -> LspResult<()> {
-		Ok(())
-	}
-
-	async fn did_open(&self, params: DidOpenTextDocumentParams) {
-		document::on_did_open(self, params);
-	}
-
-	async fn did_change(&self, params: DidChangeTextDocumentParams) {
-		document::on_did_change(self, params);
-	}
-
+	#[instrument(skip_all, fields(uri =% params.text_document.uri.as_str()))]
 	async fn did_close(&self, params: DidCloseTextDocumentParams) {
-		document::on_did_close(self, params);
+		self.patch_helper_close_hook(&params.text_document.uri);
+		self.files.handle_close(params);
 	}
 
+	#[instrument(skip_all, fields(uri =% params.text_document_position_params.text_document.uri.as_str()))]
 	async fn goto_definition(
 		&self,
 		params: GotoDefinitionParams,
 	) -> LspResult<Option<GotoDefinitionResponse>> {
-		definition::goto_definition(self, params).await
+		self.provide_definition(params).await
 	}
 
 	async fn references(
 		&self,
 		params: ReferenceParams,
 	) -> LspResult<Option<Vec<Location>>> {
-		references::references(self, params).await
+		self.gen_references(params).await
+	}
+
+	async fn execute_command(
+		&self,
+		params: ExecuteCommandParams,
+	) -> LspResult<Option<JValue>> {
+		self.handle_cmd(params).await
 	}
 
 	async fn hover(&self, params: HoverParams) -> LspResult<Option<Hover>> {
-		hover::hover(self, params).await
-	}
-
-	async fn document_highlight(
-		&self,
-		params: DocumentHighlightParams,
-	) -> LspResult<Option<Vec<DocumentHighlight>>> {
-		hl::document_highlight(self, params).await
+		self.provide_hover(params).await
 	}
 
 	async fn code_lens(
 		&self,
 		params: CodeLensParams,
 	) -> LspResult<Option<Vec<CodeLens>>> {
-		code_lens::code_lens(self, params).await
+		self.provide_lenses(params).await
 	}
 
-	async fn execute_command(
-		&self,
-		params: ExecuteCommandParams,
-	) -> LspResult<Option<serde_json::Value>> {
-		commands::execute_command(self, params).await
+	async fn shutdown(&self) -> LspResult<()> {
+		todo!()
 	}
 }
-
-/// Helper used by hover/definition/etc. — fetches the document or returns None.
-pub fn get_doc(
-	state: &SharedState,
-	uri: &tower_lsp::lsp_types::Url,
-) -> Option<Document> {
-	state.get_document(uri)
-}
-
-/// Returns the canonical (LSP, non-regress) patches for `doc`, reusing the
-/// cached parse when the document version is unchanged.
-///
-/// Parsing is CPU-bound, so this is meant to be called from within a
-/// `spawn_blocking` task. Returns `None` if the document fails to parse or has
-/// no extractable patches (e.g. it is mid-edit / invalid); failures are not
-/// cached, so an actively-broken document re-parses until it becomes valid.
-pub fn get_patches(
-	state: &SessionState,
-	doc: &Document,
-) -> Option<Arc<Vec<Patch>>> {
-	if let Some(entry) = state.patch_cache.get(&doc.uri)
-		&& entry.version == doc.version
-	{
-		return Some(Arc::clone(&entry.patches));
-	}
-
-	let alloc = Allocator::new();
-	let parser = VencordAstParser::try_new(&alloc, &doc.text, None).ok()?;
-	let patches = Arc::new(parser.patches(false).ok()?);
-	state.patch_cache.insert(
-		doc.uri.clone(),
-		CachedPatches {
-			version: doc.version,
-			patches: Arc::clone(&patches),
-		},
-	);
-	Some(patches)
-}
-
-const _: fn() = || {
-	const fn assert_send_sync<T: Send + Sync>() {}
-	assert_send_sync::<Backend>();
-	assert_send_sync::<Arc<Backend>>();
-};

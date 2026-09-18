@@ -1,0 +1,28 @@
+[package]
+name = "patch_engine"
+description = "Applies vencord patches to webpack module source"
+version = "0.1.0"
+edition.workspace = true
+
+[lib]
+doctest = false
+
+[dependencies]
+anyhow.workspace = true
+ast_parser.workspace = true
+itertools.workspace = true
+oxc = { workspace = true, features = ["semantic"] }
+pretty_printer.workspace = true
+regress.workspace = true
+tracing.workspace = true
+vencord_ast_parser.workspace = true
+smol_str.workspace = true
+miette.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+insta.workspace = true
+miette_ui.workspace = true
+
+[lints]
+workspace = true

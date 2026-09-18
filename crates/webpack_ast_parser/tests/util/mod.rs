@@ -1,39 +1,39 @@
 use std::{
 	borrow::Cow,
-	cell::OnceCell,
 	collections::HashMap,
 	fmt::{self, Debug},
 	fs,
 	path::{Path, PathBuf},
-	rc::Rc,
+	sync::{Arc, OnceLock},
 };
 
 use ast_parser::{get_offset_from_line_and_column, span_line_and_column};
+use async_trait::async_trait;
 use explorer_types::{IncomingModuleDeps, ModuleId};
 use itertools::Itertools;
 use miette::{Result, miette};
 use miette_ctx::{ErrCtx as _, into_anyhow};
-use oxc::{allocator::Allocator, span::Span};
+use oxc::span::Span;
 use parser_diag::PResult;
 use smol_str::SmolStr;
+use url::Url;
 use webpack_ast_parser::{
+	ThreadSafeParser,
 	WebpackAstParser,
 	bundle::{IModuleCache, IModuleDepProvider},
 	export_map::{ExportValue, RangeExportMap, RangeExportMapValue},
 };
 
-pub struct Bundle<'a> {
+pub struct Bundle {
 	dir: PathBuf,
-	_alloc: &'a Allocator,
-	parsers: OnceCell<HashMap<ModuleId, Rc<WebpackAstParser<'a>>>>,
-	deps: HashMap<ModuleId, Rc<IncomingModuleDeps>>,
+	parsers: OnceLock<HashMap<ModuleId, Arc<ThreadSafeParser>>>,
+	deps: HashMap<ModuleId, Arc<IncomingModuleDeps>>,
 }
 
-impl<'a> Bundle<'a> {
+impl Bundle {
 	pub fn try_new<'b>(
-		alloc: &'a Allocator,
 		sub_dir: impl Into<Option<Cow<'b, str>>>,
-	) -> Result<(Self, HashMap<ModuleId, WebpackAstParser<'a>>)> {
+	) -> Result<&'static Self> {
 		let mut bundle_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
 			.join("tests")
 			.join(".modules");
@@ -72,14 +72,15 @@ impl<'a> Bundle<'a> {
 			let module_str = fs::read_to_string(&path).with_context(|| {
 				format!("Failed to read {}", path.display())
 			})?;
-			let module_str = alloc.alloc_str(module_str.as_str());
-			let parser = WebpackAstParser::try_new(alloc, module_str)?;
+			let parser = ThreadSafeParser::new(module_str.into())?;
 
 			parsers.insert(id, parser);
 		}
 
 		for (id, parser) in &parsers {
-			let Some(o_deps) = parser.get_modules_that_this_module_requires()
+			let Some(o_deps) = parser
+				.parser()
+				.get_modules_that_this_module_requires()
 			else {
 				continue;
 			};
@@ -97,38 +98,33 @@ impl<'a> Bundle<'a> {
 			}
 		}
 
-		let ret = Self {
+		// TODO: fix leak?
+		let ret: &'static Self = Box::leak(Box::new(Self {
 			dir: bundle_dir,
-			_alloc: alloc,
-			parsers: OnceCell::new(),
+			parsers: OnceLock::new(),
 			deps: deps
 				.into_iter()
-				.map(|(id, deps)| (id, Rc::new(deps)))
+				.map(|(id, deps)| (id, Arc::new(deps)))
 				.collect(),
-		};
+		}));
 
-		Ok((ret, parsers))
-	}
-
-	pub fn bind_plugins<'s: 'a>(
-		&'s self,
-		parsers: HashMap<ModuleId, WebpackAstParser<'a>>,
-	) {
 		let parsers = parsers
 			.into_iter()
 			.map(|(id, mut parser)| {
-				parser.set_module_cache(self);
-				parser.set_module_dep_provider(self);
-				(id, Rc::new(parser))
+				parser.set_module_cache(Arc::new(ret));
+				parser.set_module_dep_provider(Arc::new(ret));
+				(id, Arc::new(parser))
 			})
 			.collect::<HashMap<_, _>>();
-		self.parsers
+		ret.parsers
 			.set(parsers)
 			.map_err(|_| miette!("Parsers already set"))
 			.unwrap();
+
+		Ok(ret)
 	}
 
-	pub fn parse(&self, id: u32) -> Rc<WebpackAstParser<'a>> {
+	pub fn parse(&self, id: u32) -> Arc<ThreadSafeParser> {
 		self.parsers
 			.get()
 			.unwrap()
@@ -137,54 +133,63 @@ impl<'a> Bundle<'a> {
 			.clone()
 	}
 
+	/// The source of `id`
+	pub fn module_source(&self, id: ModuleId) -> &str {
+		self.parsers
+			.get()
+			.unwrap()
+			.get(&id)
+			.unwrap()
+			.parser()
+			.get_source()
+	}
+
 	/// line and col are 0-based
-	pub fn dbg_gen_refs(
+	pub async fn dbg_gen_refs(
 		&self,
-		parser: &WebpackAstParser,
+		parser: &ThreadSafeParser,
 		line: u32,
 		col: u32,
-	) -> PResult<Vec<ReferenceDumper<'a>>> {
+	) -> PResult<Vec<ReferenceDumper<'_>>> {
+		let parser = parser.parser();
 		let pos =
 			get_offset_from_line_and_column(parser.get_source(), line, col);
 		parser
 			.generate_references(pos)
+			.await
 			.map(|refs| {
 				refs.into_iter()
-					.map(|ref_| {
-						let other_parser = self.parse(*ref_.module_id);
-						ReferenceDumper {
-							id: ref_.module_id,
-							range: SpanDumper(
-								ref_.range,
-								other_parser.get_source(),
-							),
-						}
+					.map(|ref_| ReferenceDumper {
+						id: ref_.module_id,
+						range: SpanDumper(
+							ref_.range,
+							self.module_source(ref_.module_id),
+						),
 					})
 					.sorted()
 					.collect()
 			})
 	}
-	pub fn dbg_defs(
+	pub async fn dbg_defs(
 		&self,
-		parser: &WebpackAstParser,
+		parser: &ThreadSafeParser,
 		line: u32,
 		col: u32,
-	) -> PResult<Vec<DefinitionDumper<'a>>> {
+	) -> PResult<Vec<DefinitionDumper<'_>>> {
+		let parser = parser.parser();
 		let pos =
 			get_offset_from_line_and_column(parser.get_source(), line, col);
 		parser
 			.generate_definitions(pos)
+			.await
 			.map(|refs| {
 				refs.into_iter()
-					.map(|ref_| {
-						let other_parser = self.parse(*ref_.module_id);
-						DefinitionDumper {
-							id: ref_.module_id,
-							range: SpanDumper(
-								ref_.range,
-								other_parser.get_source(),
-							),
-						}
+					.map(|ref_| DefinitionDumper {
+						id: ref_.module_id,
+						range: SpanDumper(
+							ref_.range,
+							self.module_source(ref_.module_id),
+						),
 					})
 					.sorted()
 					.collect()
@@ -192,22 +197,20 @@ impl<'a> Bundle<'a> {
 	}
 }
 
-impl<'a> IModuleCache<'a> for Bundle<'a> {
-	fn get_module_filepath(&self, id: ModuleId) -> Option<SmolStr> {
-		Some(
-			self.dir
-				.join(format!("{id}.js"))
-				.to_string_lossy()
-				.into(),
-		)
+#[async_trait]
+impl IModuleCache for Bundle {
+	async fn get_module_filepath(&self, id: ModuleId) -> Option<Url> {
+		let path = self.dir.join(format!("{id}.js"));
+		let url = Url::from_file_path(&path).unwrap();
+		Some(url)
 	}
 
-	fn get_module_parser(
+	async fn get_module_parser(
 		&self,
-		_requestor: &WebpackAstParser<'a>,
+		_requestor: &WebpackAstParser<'_>,
 		id: ModuleId,
 		_latest: Option<bool>,
-	) -> anyhow::Result<Rc<WebpackAstParser<'a>>> {
+	) -> anyhow::Result<Arc<ThreadSafeParser>> {
 		self.parsers
 			.get()
 			.unwrap()
@@ -218,11 +221,12 @@ impl<'a> IModuleCache<'a> for Bundle<'a> {
 	}
 }
 
-impl IModuleDepProvider for Bundle<'_> {
-	fn get_module_deps(
+#[async_trait]
+impl IModuleDepProvider for Bundle {
+	async fn get_module_deps(
 		&self,
 		id: ModuleId,
-	) -> anyhow::Result<Rc<IncomingModuleDeps>> {
+	) -> anyhow::Result<Arc<IncomingModuleDeps>> {
 		self.deps
 			.get(&id)
 			.cloned()
@@ -308,17 +312,19 @@ impl Debug for ExportMapDumper<'_> {
 	}
 }
 
-pub fn dbg_export_map(p: &WebpackAstParser) -> String {
+pub fn dbg_export_map(p: &ThreadSafeParser) -> String {
+	let p = p.parser();
 	format!("{:#?}", ExportMapDumper(p.get_export_map(), p.get_source()))
 }
 
-pub fn dbg_hover<'a>(
-	p: &WebpackAstParser<'a>,
+pub async fn dbg_hover(
+	p: &ThreadSafeParser,
 	line: u32,
 	col: u32,
-) -> Result<Option<(SmolStr, SpanDumper<'a>)>> {
+) -> Result<Option<(SmolStr, SpanDumper<'_>)>> {
+	let p = p.parser();
 	let pos = get_offset_from_line_and_column(p.get_source(), line, col);
-	let s = p.generate_hover(pos)?;
+	let s = p.generate_hover(pos).await?;
 	Ok(s.map(|(s, t)| (t, SpanDumper(s, p.get_source()))))
 }
 

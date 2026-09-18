@@ -171,6 +171,7 @@ dependencies = [
  "itertools 0.15.0",
  "miette",
  "oxc",
+ "oxc_data_structures",
  "oxc_ecmascript",
  "serde",
  "smallvec",
@@ -204,17 +205,6 @@ name = "atomic-waker"
 version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
-
-[[package]]
-name = "auto_impl"
-version = "1.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ffdcb70bdbc4d478427380519163274ac86e52916e10f0a8889adf0f96d3fee7"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.119",
-]
 
 [[package]]
 name = "autocfg"
@@ -273,7 +263,7 @@ dependencies = [
  "serde_urlencoded",
  "sync_wrapper",
  "tokio",
- "tower 0.5.3",
+ "tower",
  "tower-layer",
  "tower-service",
  "tracing",
@@ -473,6 +463,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "borrow-or-share"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dc0b364ead1874514c8c2855ab558056ebfeb775653e7ae45ff72f28f8f3166c"
+
+[[package]]
 name = "borsh"
 version = "1.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -507,6 +503,7 @@ dependencies = [
  "macros",
  "memchr",
  "miette",
+ "miette_ui",
  "mini-moka",
  "qalc",
  "qalc_sbox",
@@ -894,13 +891,23 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "ast_parser",
+ "async-trait",
  "bytecount",
+ "const_format",
  "dashmap 6.2.1",
  "explorer_types",
  "futures-util",
  "insta",
+ "itertools 0.15.0",
+ "libc",
+ "memchr",
+ "miette",
+ "miette_ui",
  "oxc",
  "parser_diag",
+ "patch_engine",
+ "percent-encoding",
+ "phf 0.14.0",
  "pretty_printer",
  "regex",
  "regress",
@@ -908,11 +915,14 @@ dependencies = [
  "serde_json",
  "smol_str",
  "tempfile",
+ "text_diff",
+ "thiserror 2.0.20",
  "tokio",
  "tokio-tungstenite 0.30.0",
- "tower-lsp",
+ "tower-lsp-server",
  "tracing",
  "tracing-subscriber",
+ "url",
  "vencord_ast_parser",
  "webpack_ast_parser",
 ]
@@ -1702,6 +1712,17 @@ dependencies = [
  "crc32fast",
  "miniz_oxide 0.9.1",
  "zlib-rs",
+]
+
+[[package]]
+name = "fluent-uri"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bc74ac4d8359ae70623506d512209619e5cf8f347124910440dbc221714b328e"
+dependencies = [
+ "borrow-or-share",
+ "ref-cast",
+ "serde",
 ]
 
 [[package]]
@@ -2734,6 +2755,7 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "ast_parser",
+ "async-trait",
  "console_error_panic_hook",
  "const_format",
  "dagre",
@@ -2751,6 +2773,7 @@ dependencies = [
  "serde_json",
  "smol_str",
  "thiserror 2.0.20",
+ "url",
  "vencord_ast_parser",
  "wasm-bindgen",
  "wasm-bindgen-futures",
@@ -2844,16 +2867,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "112b39cec0b298b6c1999fee3e31427f74f676e4cb9879ed1a121b43661a4154"
 
 [[package]]
-name = "lsp-types"
-version = "0.94.1"
+name = "ls-types"
+version = "0.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c66bfd44a06ae10647fe3f8214762e9369fd4248df1350924b4ef9e770a85ea1"
+checksum = "896e16b8e17d8732b9efe4d5b66cb0cc162b3023a2d8122f2aea6f7f185e0a67"
 dependencies = [
- "bitflags 1.3.2",
+ "bitflags 2.13.1",
+ "fluent-uri",
+ "percent-encoding",
  "serde",
  "serde_json",
- "serde_repr",
- "url",
 ]
 
 [[package]]
@@ -2946,6 +2969,16 @@ dependencies = [
  "anyhow",
  "miette",
  "thiserror 2.0.20",
+]
+
+[[package]]
+name = "miette_ui"
+version = "0.1.0"
+dependencies = [
+ "bitcode",
+ "miette",
+ "terminal_size",
+ "zstd",
 ]
 
 [[package]]
@@ -3764,6 +3797,25 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2ee67f1008b1ba2321834326597b8e186293b049a023cdef258527550b9935b4"
 
 [[package]]
+name = "patch_engine"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "ast_parser",
+ "insta",
+ "itertools 0.15.0",
+ "miette",
+ "miette_ui",
+ "oxc",
+ "pretty_printer",
+ "regress",
+ "smol_str",
+ "thiserror 2.0.20",
+ "tracing",
+ "vencord_ast_parser",
+]
+
+[[package]]
 name = "pbjson"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4387,7 +4439,7 @@ dependencies = [
  "prost-types",
  "tonic",
  "tonic-prost",
- "tower 0.5.3",
+ "tower",
  "tracing-opentelemetry",
 ]
 
@@ -4717,12 +4769,14 @@ dependencies = [
  "memchr",
  "miette",
  "miette_ctx",
+ "miette_ui",
  "notify",
  "num_cpus",
  "owo-colors",
  "oxc",
  "oxc_allocator",
  "parser_diag",
+ "patch_engine",
  "pretty_printer",
  "rayon",
  "regress",
@@ -4784,7 +4838,7 @@ dependencies = [
  "tokio",
  "tokio-rustls",
  "tokio-util",
- "tower 0.5.3",
+ "tower",
  "tower-http 0.6.11",
  "tower-service",
  "url",
@@ -5287,17 +5341,6 @@ dependencies = [
  "itoa",
  "serde",
  "serde_core",
-]
-
-[[package]]
-name = "serde_repr"
-version = "0.1.21"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8d3b1629de253c70a0508c3899572da79ca359fdab27c7920ff00406df418906"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 3.0.4",
 ]
 
 [[package]]
@@ -6114,7 +6157,7 @@ dependencies = [
  "tokio",
  "tokio-rustls",
  "tokio-stream",
- "tower 0.5.3",
+ "tower",
  "tower-layer",
  "tower-service",
  "tracing",
@@ -6129,20 +6172,6 @@ dependencies = [
  "bytes",
  "prost",
  "tonic",
-]
-
-[[package]]
-name = "tower"
-version = "0.4.13"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b8fa9be0de6cf49e536ce1851f987bd21a43b771b09473c3549a6c853db37c1c"
-dependencies = [
- "futures-core",
- "futures-util",
- "pin-project",
- "pin-project-lite",
- "tower-layer",
- "tower-service",
 ]
 
 [[package]]
@@ -6176,7 +6205,7 @@ dependencies = [
  "http",
  "http-body",
  "pin-project-lite",
- "tower 0.5.3",
+ "tower",
  "tower-layer",
  "tower-service",
  "url",
@@ -6204,37 +6233,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "121c2a6cda46980bb0fcd1647ffaf6cd3fc79a013de288782836f6df9c48780e"
 
 [[package]]
-name = "tower-lsp"
-version = "0.20.0"
+name = "tower-lsp-server"
+version = "0.23.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d4ba052b54a6627628d9b3c34c176e7eda8359b7da9acd497b9f20998d118508"
+checksum = "2f0e711655c89181a6bc6a2cc348131fcd9680085f5b06b6af13427a393a6e72"
 dependencies = [
- "async-trait",
- "auto_impl",
  "bytes",
- "dashmap 5.5.3",
+ "dashmap 6.2.1",
  "futures",
  "httparse",
- "lsp-types",
+ "ls-types",
  "memchr",
  "serde",
  "serde_json",
  "tokio",
  "tokio-util",
- "tower 0.4.13",
- "tower-lsp-macros",
+ "tower",
  "tracing",
-]
-
-[[package]]
-name = "tower-lsp-macros"
-version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "84fd902d4e0b9a4b27f2f440108dc034e1758628a9b702f8ec61ad66355422fa"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.119",
 ]
 
 [[package]]
@@ -6328,6 +6343,7 @@ dependencies = [
  "sharded-slab",
  "smallvec",
  "thread_local",
+ "time",
  "tracing",
  "tracing-core",
  "tracing-log",
@@ -6828,6 +6844,7 @@ dependencies = [
  "anyhow",
  "arrayvec",
  "ast_parser",
+ "async-trait",
  "daft",
  "derive_more",
  "explorer_types",
@@ -6843,8 +6860,10 @@ dependencies = [
  "serde",
  "serde_json",
  "smol_str",
+ "tokio",
  "tracing",
  "tracing-subscriber",
+ "url",
  "zstd",
 ]
 

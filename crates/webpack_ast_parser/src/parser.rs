@@ -46,6 +46,7 @@ use crate::{
 			span_to_range,
 		},
 	},
+	sync::{ThreadSafeParser, UnsafeFuture},
 };
 use arrayvec::ArrayString;
 use ast_parser::{
@@ -121,7 +122,7 @@ use std::{
 	fmt::Write,
 	iter,
 	mem,
-	rc::Rc,
+	sync::Arc,
 };
 use tracing::{debug, error, trace, warn};
 
@@ -130,8 +131,8 @@ pub struct WebpackAstParser<'ast> {
 	sema: Semantic<'ast>,
 	source: &'ast str,
 	toks: &'ast [Token],
-	module_cache: &'ast dyn IModuleCache<'ast>,
-	module_dep_provider: &'ast dyn IModuleDepProvider,
+	module_cache: Arc<dyn IModuleCache>,
+	module_dep_provider: Arc<dyn IModuleDepProvider>,
 	/// Internal cache
 	c: Cache<'ast>,
 }
@@ -145,8 +146,8 @@ struct Cache<'ast> {
 	wreq_d: cache::Value<Option<WreqD<'ast>>>,
 	mod_arg: cache::Value<Option<SymbolId>>,
 	exports_arg: cache::Value<Option<SymbolId>>,
-	module_id: cache::Value<Option<ModuleId>>,
-	does_re_export_whole_module: cache::Value<Option<ModuleId>>,
+	module_id: cache::Value<Option<SpannedId>>,
+	does_re_export_whole_module: cache::Value<Option<SpannedId>>,
 	modules_that_this_module_requires:
 		cache::Ref<Option<OutgoingModuleDepsWithLocs>>,
 	num_concatenated_modules: cache::Value<u32>,
@@ -179,8 +180,8 @@ impl<'ast> WebpackAstParser<'ast> {
 			sema,
 			source,
 			toks: toks.into_arena_slice(),
-			module_cache: &DefaultModuleCache,
-			module_dep_provider: &DefaultModuleDepProvider,
+			module_cache: Arc::new(DefaultModuleCache),
+			module_dep_provider: Arc::new(DefaultModuleDepProvider),
 			c: Cache::default(),
 		})
 	}
@@ -191,6 +192,40 @@ impl<'ast> WebpackAstParser<'ast> {
 		src.starts_with("// Webpack Module")
 			|| src[0..src.ceil_char_boundary(src.len().min(100))]
 				.contains("//OPEN FULL MODULE:")
+	}
+
+	pub fn parse_module_id(source: &str) -> Option<SpannedId> {
+		const WEBPACK_MODULE_HEADER: &str = "// Webpack Module ";
+		if source.starts_with(WEBPACK_MODULE_HEADER) {
+			// `// Webpack Module 123456` -> parse the 123456
+			let start = WEBPACK_MODULE_HEADER.len();
+			let mut end = start;
+
+			while end < source.len()
+				&& source
+					.chars()
+					.nth(end)
+					.unwrap()
+					.is_ascii_digit()
+			{
+				end += 1;
+			}
+
+			if start == end {
+				return None;
+			}
+
+			debug_assert!(
+				source[start..end]
+					.chars()
+					.all(|c| c.is_ascii_digit())
+			);
+			let id = ModuleId(source[start..end].parse().ok()?);
+			let span = Span::new(start as u32, end as u32);
+
+			return Some(SpannedId { id, span });
+		}
+		None
 	}
 
 	/// Returns the number of bytes inserted at the start of `src`, or `0` if
@@ -219,24 +254,21 @@ impl<'ast> WebpackAstParser<'ast> {
 		self.source
 	}
 
-	pub fn set_module_cache(
-		&mut self,
-		module_cache: &'ast dyn IModuleCache<'ast>,
-	) {
+	pub fn set_module_cache(&mut self, module_cache: Arc<dyn IModuleCache>) {
 		self.module_cache = module_cache;
 	}
 
 	pub fn set_module_dep_provider(
 		&mut self,
-		module_dep_provider: &'ast dyn IModuleDepProvider,
+		module_dep_provider: Arc<dyn IModuleDepProvider>,
 	) {
 		self.module_dep_provider = module_dep_provider;
 	}
 
-	pub fn get_module_id(&self) -> PResult<ModuleId> {
+	pub fn get_module_id(&self) -> PResult<SpannedId> {
 		self.c
 			.module_id
-			.get(|| self.get_module_id_impl())
+			.get(|| Self::parse_module_id(self.source))
 			.ok_or_else(|| {
 				err_ns("Could not find the module id of this module")
 			})
@@ -322,115 +354,132 @@ impl<'ast> WebpackAstParser<'ast> {
 		uses
 	}
 	// TODO: use custom error codes with thiserror
-	pub fn generate_references(
+	// TODO: split to make smaller
+	#[expect(clippy::too_many_lines)]
+	pub async fn generate_references(
 		&self,
 		pos: u32,
-	) -> PResult<Vec<bundle::Reference<'ast>>> {
-		let self_module_id = self.get_module_id().map_err(|e| {
-			err_ns(
-				"Could not find module id of module to search for references of.",
-			)
-			.s(e)
-		})?;
-		let module_exports = self.get_export_map();
-		let where_ = self.get_modules_that_require_this_module()?;
-		let mut locs = Vec::new();
-		// TODO: construct a new map from a ref instead of cloning
-		let filtered_export_map =
-			filter_export_map(module_exports.clone(), pos);
-		let exported_names = flatten_export_map(filtered_export_map, None);
-
-		for mut export_name in exported_names {
-			let mut seen: HashMap<ModuleId, HashSet<ModuleId>> = HashMap::new();
-			// below fixme is copied verbatim from js. it might not be valid
-			// FIXME: this is a workaround for a bug in getUsesOfImport where it doesn't properly hand SYM_CJS_DEFAULT
-			if export_name.len() > 1 && export_name.last().unwrap().is_default()
-			{
-				export_name.pop();
-			}
-
-			let mut left = where_
-				.sync
-				.iter()
-				.map(|x| {
-					SearchElement {
-						module_id: *x,
-						imported_id: self_module_id,
-						// TODO: make this cow?
-						export_name: export_name.clone(),
-					}
-				})
-				.collect_vec();
-			while let Some(cur) = left.pop() {
-				let SearchElement {
-					module_id,
-					imported_id,
-					export_name,
-				} = cur;
-				if seen
-					.get(&imported_id)
-					.is_some_and(|s| s.contains(&module_id))
-				{
-					continue;
-				}
-				seen.entry(imported_id)
-					.or_default()
-					.insert(module_id);
-				let parser = match self
-					.module_cache
-					.get_module_parser(self, module_id, None)
-				{
-					Ok(parser) => parser,
-					Err(e) => {
-						warn!(
-							"Failed to get parser for module id {module_id}. Cause: {e:?}"
-						);
-						continue;
-					}
-				};
-				let uses = parser.get_uses_of_import(imported_id, &export_name);
-				// FIXME: support nested re-exports
-				let exported_as = parser.does_re_export_from_import(
-					imported_id,
-					export_name[0].clone(),
-				);
-
-				if let Some(exported_as) = exported_as
-					&& let Ok(where_) =
-						parser.get_modules_that_require_this_module()
-				{
-					left.extend(
-						where_
-							.sync
-							.iter()
-							.map(|x| SearchElement {
-								module_id: *x,
-								imported_id: parser.get_module_id().unwrap(),
-								export_name: vec![exported_as.clone()],
-							}),
-					);
-				}
-				let maybe_file_path = self
-					.module_cache
-					.get_module_filepath(module_id);
-				locs.extend(uses.iter().map(|&range| {
-					maybe_file_path.clone().map_or(
-						bundle::Reference {
-							range,
-							module_id,
-							location: bundle::Location::Inline(self.source),
-						},
-						|file_path| bundle::Reference {
-							location: bundle::Location::Path(file_path),
-							module_id,
-							range,
-						},
+	) -> PResult<Vec<bundle::Reference>> {
+		// SAFETY: see send + sync impl for WebpackAstParser
+		unsafe {
+			UnsafeFuture::new(async {
+				let self_module_id = self.get_module_id().map_err(|e| {
+					err_ns(
+						"Could not find module id of module to search for references of.",
 					)
-				}));
-			}
-		}
+					.s(e)
+				})?;
+				let module_exports = self.get_export_map();
+				let where_ = self
+					.get_modules_that_require_this_module()
+					.await?;
+				let mut locs = Vec::new();
+				// TODO: construct a new map from a ref instead of cloning
+				let filtered_export_map =
+					filter_export_map(module_exports.clone(), pos);
+				let exported_names =
+					flatten_export_map(filtered_export_map, None);
 
-		Ok(locs)
+				for mut export_name in exported_names {
+					let mut seen: HashMap<ModuleId, HashSet<ModuleId>> =
+						HashMap::new();
+					// below fixme is copied verbatim from js. it might not be valid
+					// FIXME: this is a workaround for a bug in getUsesOfImport where it doesn't properly hand SYM_CJS_DEFAULT
+					if export_name.len() > 1
+						&& export_name.last().unwrap().is_default()
+					{
+						export_name.pop();
+					}
+
+					let mut left = where_
+						.sync
+						.iter()
+						.map(|x| {
+							SearchElement {
+								module_id: *x,
+								imported_id: self_module_id.id,
+								// TODO: make this cow?
+								export_name: export_name.clone(),
+							}
+						})
+						.collect_vec();
+					while let Some(cur) = left.pop() {
+						let SearchElement {
+							module_id,
+							imported_id,
+							export_name,
+						} = cur;
+						if seen
+							.get(&imported_id)
+							.is_some_and(|s| s.contains(&module_id))
+						{
+							continue;
+						}
+						seen.entry(imported_id)
+							.or_default()
+							.insert(module_id);
+						let parser = match self
+							.module_cache
+							.get_module_parser(self, module_id, None)
+							.await
+						{
+							Ok(parser) => parser,
+							Err(e) => {
+								warn!(
+									"Failed to get parser for module id {module_id}. Cause: {e:?}"
+								);
+								continue;
+							}
+						};
+						let p = parser.parser();
+						let uses =
+							p.get_uses_of_import(imported_id, &export_name);
+						// FIXME: support nested re-exports
+						let exported_as = p.does_re_export_from_import(
+							imported_id,
+							export_name[0].clone(),
+						);
+
+						if let Some(exported_as) = exported_as
+							&& let Ok(where_) = p
+								.get_modules_that_require_this_module()
+								.await
+						{
+							left.extend(where_.sync.iter().map(|x| {
+								SearchElement {
+									module_id: *x,
+									imported_id: p.get_module_id().unwrap().id,
+									export_name: vec![exported_as.clone()],
+								}
+							}));
+						}
+						let maybe_file_path = self
+							.module_cache
+							.get_module_filepath(module_id)
+							.await;
+						locs.extend(uses.iter().map(|&range| {
+							maybe_file_path.clone().map_or_else(
+								|| bundle::Reference {
+									range,
+									module_id,
+									location: bundle::Location::Inline(
+										parser.get_source().clone(),
+									),
+								},
+								|file_path| bundle::Reference {
+									location: bundle::Location::Path(file_path),
+									module_id,
+									range,
+								},
+							)
+						}));
+					}
+				}
+
+				Ok(locs)
+			})
+		}
+		.await
 	}
 	pub fn get_modules_that_this_module_requires(
 		&self,
@@ -440,16 +489,18 @@ impl<'ast> WebpackAstParser<'ast> {
 			.get(|| self.get_modules_that_this_module_requires_impl())
 			.as_ref()
 	}
-	pub fn get_modules_that_require_this_module(
+	pub async fn get_modules_that_require_this_module(
 		&self,
-	) -> PResult<Rc<IncomingModuleDeps>> {
-		let module_id = self.get_module_id()?;
+	) -> PResult<Arc<IncomingModuleDeps>> {
+		let SpannedId { id, span } = self.get_module_id()?;
 		self.module_dep_provider
-			.get_module_deps(module_id)
+			.get_module_deps(id)
+			.await
 			.map_err(|e| {
-				err_ns(format!(
-					"Failed to get the modules that require {module_id}"
-				))
+				err(
+					&span,
+					format!("Failed to get the modules that require {id}"),
+				)
 				.s(map_anyhow(e))
 			})
 	}
@@ -469,8 +520,9 @@ impl<'ast> WebpackAstParser<'ast> {
 		{
 			// how???
 			debug_assert_eq!(
-				self.does_re_export_whole_module(),
-				Some(module_id)
+				self.does_re_export_whole_module()
+					.map(|SpannedId { id, .. }| id),
+				Some(module_id),
 			);
 			return Some(export_name);
 		}
@@ -514,7 +566,10 @@ impl<'ast> WebpackAstParser<'ast> {
 							}
 						}
 						v => {
-							warn!("Unhandled type for reExport: {v:?}");
+							warn!(
+								"Unhandled type for reExport: {}",
+								v.debug_name()
+							);
 							false
 						}
 					}
@@ -538,43 +593,70 @@ impl<'ast> WebpackAstParser<'ast> {
 				.into(),
 		)
 	}
-	pub fn generate_definitions(
+	pub async fn generate_definitions(
 		&self,
 		pos: u32,
-	) -> PResult<Vec<bundle::Definition<'ast>>> {
-		let selected_node = self.get_node_at(pos);
-		if let Some(num_lit) = selected_node.as_numeric_literal() {
-			return self.generate_direct_module_definition(num_lit);
-		}
-		let ResolvedDefinition {
-			parser,
-			export_names,
-			raw_export_names: _,
-		} = self
-			.resolve_definition(selected_node)
-			.map_err(|e| {
-				err(
-					&selected_node,
-					format!(
-						"Failed to resolve definition of selected node {}",
-						selected_node.debug_name()
+	) -> PResult<Vec<bundle::Definition>> {
+		// SAFETY: see send + sync impl for WebpackAstParser
+		unsafe {
+			UnsafeFuture::new(async {
+				let selected_node = self.get_node_at(pos);
+				if let Some(num_lit) = selected_node.as_numeric_literal() {
+					return self
+						.generate_direct_module_definition(num_lit)
+						.await;
+				}
+				let ResolvedDefinition {
+					parser,
+					export_names,
+					raw_export_spans: _,
+				} = self
+					.resolve_definition(selected_node)
+					.await
+					.map_err(|e| {
+						err(
+							&selected_node,
+							format!(
+								"Failed to resolve definition of selected node {}",
+								selected_node.debug_name()
+							),
+						)
+						.s(e)
+					})?;
+				let p = parser.parser();
+				let range = if export_names.is_empty() {
+					Span::default()
+				} else {
+					p.find_export_location(&export_names)
+				};
+				let module_id = p
+					.get_module_id()
+					.map_err(|e| {
+						err_ns("Failed to get module id from parser of export")
+							.s(e)
+					})?
+					.id;
+				let loc_uri = try {
+					let module_id = p.get_module_id().ok()?.id;
+					self.module_cache
+						.get_module_filepath(module_id)
+						.await?
+				};
+				Ok(vec![bundle::Definition {
+					range,
+					location: loc_uri.map_or_else(
+						|| {
+							bundle::Location::Inline(
+								parser.get_source().clone(),
+							)
+						},
+						bundle::Location::Path,
 					),
-				)
-				.s(e)
-			})?;
-		let range = if export_names.is_empty() {
-			Span::default()
-		} else {
-			parser.find_export_location(&export_names)
-		};
-		let module_id = parser.get_module_id().map_err(|e| {
-			err_ns("Failed to get module id from parser of export").s(e)
-		})?;
-		Ok(vec![bundle::Definition {
-			range,
-			location: bundle::Location::Inline(parser.source),
-			module_id,
-		}])
+					module_id,
+				}])
+			})
+		}
+		.await
 	}
 	pub fn get_hover_text(&self, keys: &[ExportMapKey]) -> Option<SmolStr> {
 		let mut cur = self.get_export_map();
@@ -611,37 +693,44 @@ impl<'ast> WebpackAstParser<'ast> {
 		last
 	}
 	/// FIXME: extract (Span, `SmolStr`) into a separate struct;
-	pub fn generate_hover(&self, pos: u32) -> PResult<Option<(Span, SmolStr)>> {
-		let selected_node = self.get_node_at(pos);
-		let ResolvedDefinition {
-			parser,
-			export_names,
-			raw_export_names,
-		} = match self.resolve_definition(selected_node) {
-			Ok(it) => it,
-			Err(err) => {
-				trace!("Failed to resolve definition for hover: {err}");
-				return Ok(None);
-			}
-		};
-		if export_names.is_empty() {
-			return Ok(None);
+	pub async fn generate_hover(
+		&self,
+		pos: u32,
+	) -> PResult<Option<(Span, SmolStr)>> {
+		// SAFETY: see send + sync impl for WebpackAstParser
+		unsafe {
+			UnsafeFuture::new(async {
+				let selected_node = self.get_node_at(pos);
+				let ResolvedDefinition {
+					parser,
+					export_names,
+					raw_export_spans,
+				} = match self
+					.resolve_definition(selected_node)
+					.await
+				{
+					Ok(it) => it,
+					Err(err) => {
+						trace!("Failed to resolve definition for hover: {err}");
+						return Ok(None);
+					}
+				};
+				let p = parser.parser();
+				if export_names.is_empty() {
+					return Ok(None);
+				}
+				let Some(hover) = p.get_hover_text(&export_names) else {
+					return Ok(None);
+				};
+				let range = *raw_export_spans.last().unwrap();
+				Ok(Some((range, hover)))
+			})
 		}
-		let Some(hover) = parser.get_hover_text(&export_names) else {
-			return Ok(None);
-		};
-		let range = raw_export_names.last().unwrap().span();
-		Ok(Some((range, hover)))
+		.await
 	}
 
 	/// Get the hashed Discord intl key the cursor at `pos` is sitting on, if
 	/// any.
-	///
-	/// Returns the [`Span`] of the key node (the identifier, or the string
-	/// literal *including* its quotes) and the hashed key itself. The key is
-	/// returned as written in the source; it is not resolved back to its
-	/// original message name — use [`crate::intl::resolve_unhashed_key`] for
-	/// that.
 	pub fn get_i18n_key_at(&self, pos: u32) -> Option<(Span, SmolStr)> {
 		let node = self.get_node_at(pos);
 		let key = match node {
@@ -1278,15 +1367,16 @@ impl<'ast> WebpackAstParser<'ast> {
 		}
 		let imported_id = self.get_module_id_for_import(imported_sym_id)?;
 		let ret = ReExport {
-			import_source_id: imported_id,
+			import_source_id: imported_id.id,
 			export_names: chain,
 		};
 		Some(ret)
 	}
-	fn resolve_definition(
+	#[expect(clippy::future_not_send)]
+	async fn resolve_definition(
 		&self,
 		selected_node: AstKind<'ast>,
-	) -> PResult<ResolvedDefinition<'ast>> {
+	) -> PResult<ResolvedDefinition> {
 		let access_chain = self
 			.find_parent(selected_node.node_id(), MemberExprRef::from_node)
 			.ok_or_else(|| {
@@ -1299,10 +1389,14 @@ impl<'ast> WebpackAstParser<'ast> {
 		let module_id = if let Some(call) = required_module.as_call_expression()
 			&& call.arguments.len() == 1
 		{
-			call.arguments[0]
-				.as_numeric_literal()
-				.and_then(NumericLiteral::as_u32)
-				.map(ModuleId::from)
+			try {
+				let node = call.arguments[0].as_numeric_literal()?;
+				let id = node.as_u32()?.into();
+				SpannedId {
+					id,
+					span: node.span(),
+				}
+			}
 		} else if let Some(ident) = required_module.as_identifier() {
 			self.sym_id_of(ident)
 				.and_then(|sym_id| self.get_module_id_for_import(sym_id))
@@ -1313,40 +1407,56 @@ impl<'ast> WebpackAstParser<'ast> {
 			err(required_module, "Failed to get module id from access chain")
 		})?;
 
-		let mut cur = self.try_get_module_parser(module_id)?;
-		if cur.get_module_id().ok() != Some(module_id)
+		let mut cur = self
+			.try_get_module_parser(module_id)
+			.await?;
+		if cur
+			.parser()
+			.get_module_id()
+			.ok()
+			.map(|x| x.id)
+			!= Some(module_id.id)
 		{
-			warn!(ast=?module_id, parser=?cur.get_module_id().ok(),"Parser did not return the same module id as the AST.");
+			warn!(ast =? module_id, parser =? cur.parser().get_module_id().ok(),"Parser did not return the same module id as the AST.");
 		}
 		debug_assert!(!names.is_empty(), "document how");
 		if names.is_empty() {
 			return Ok(ResolvedDefinition {
 				parser: cur,
 				export_names: vec![],
-				raw_export_names: vec![],
+				raw_export_spans: vec![],
 			});
 		}
-		let mut raw_names: Vec<MemberExprAccessKind<'ast>> = names;
-		let mut mapped_names = raw_names
-			.iter()
-			.map_while(|a| a.try_unwrap_static().ok())
-			.map(|ident| &ident.name)
-			.map(ExportMapKey::from_str)
-			.collect_vec();
-		raw_names.truncate(mapped_names.len());
-		// TODO: extract updating mapped_names into a helper lambda
+		let (mut mapped_names, raw_spans) = Self::map_export_names(&names);
 		loop {
 			// check for an explicit re-export before falling back to checking for a whole module re-export
-			let ret = cur.does_re_export_from_export(&mapped_names);
-			let Some(ReExport {
-				import_source_id,
-				export_names,
-			}) = ret
-			else {
-				let whole_module_export_id = cur.does_re_export_whole_module();
+			// the names of a re-export are allocated in `cur`'s arena, so they
+			// cannot outlive this borrow of it: map them to owned keys and
+			// spans before moving on to the next module
+			let ret = cur
+				.parser()
+				.does_re_export_from_export(&mapped_names)
+				.map(
+					|ReExport {
+					     import_source_id,
+					     export_names,
+					 }| {
+						(
+							import_source_id,
+							Self::map_export_names(&export_names),
+						)
+					},
+				);
+			// the spans of the re-export are in `cur`'s source, not ours,
+			// so they have no relevance to us
+			let Some((import_source_id, (new_mapped, _))) = ret else {
+				let whole_module_export_id = cur
+					.parser()
+					.does_re_export_whole_module();
 				if let Some(whole_module_export_id) = whole_module_export_id {
-					let maybe_module =
-						self.try_get_module_parser(whole_module_export_id);
+					let maybe_module = self
+						.try_get_module_parser(whole_module_export_id)
+						.await;
 					match maybe_module {
 						Ok(module) => {
 							cur = module;
@@ -1359,21 +1469,37 @@ impl<'ast> WebpackAstParser<'ast> {
 				}
 				break;
 			};
-			raw_names = export_names;
-			mapped_names = raw_names
-				.iter()
-				.map_while(|a| a.try_unwrap_static().ok())
-				.map(|ident| &ident.name)
-				.map(ExportMapKey::from_str)
-				.collect_vec();
-			raw_names.truncate(mapped_names.len());
-			cur = self.try_get_module_parser(import_source_id)?;
+			mapped_names = new_mapped;
+			cur = self
+				.try_get_module_parser(SpannedId::unspanned(import_source_id))
+				.await?;
 		}
 		Ok(ResolvedDefinition {
 			export_names: mapped_names,
-			raw_export_names: raw_names,
+			raw_export_spans: raw_spans,
 			parser: cur,
 		})
+	}
+	/// Map an access chain to the [`ExportMapKey`]s it names, along with the
+	/// span of the node each key came from.
+	///
+	/// The chain is cut short at the first non-static access, so both returned
+	/// vectors are only as long as the statically known prefix.
+	fn map_export_names(
+		names: &[MemberExprAccessKind<'_>],
+	) -> (Vec<ExportMapKey>, Vec<Span>) {
+		let mapped = names
+			.iter()
+			.map_while(|a| a.try_unwrap_static().ok())
+			.map(|ident| &ident.name)
+			.map(ExportMapKey::from_str)
+			.collect_vec();
+		let spans = names
+			.iter()
+			.take(mapped.len())
+			.map(GetSpan::span)
+			.collect_vec();
+		(mapped, spans)
 	}
 	fn find_export_location(&self, export_names: &[ExportMapKey]) -> Span {
 		let mut map = self.get_export_map();
@@ -1409,12 +1535,21 @@ impl<'ast> WebpackAstParser<'ast> {
 		}
 		range
 	}
-	fn try_get_module_parser(&self, module_id: ModuleId) -> PResult<Rc<Self>> {
+	async fn try_get_module_parser(
+		&self,
+		SpannedId { id, span }: SpannedId,
+	) -> PResult<Arc<ThreadSafeParser>> {
 		self.module_cache
-			.get_latest_module_parser(self, module_id)
+			.get_latest_module_parser(self, id)
+			.await
 			.map_err(|e| {
-				err_ns(format!("Failed to get parser for module {module_id}"))
-					.s(map_anyhow(e))
+				let msg = format!("Failed to get parser for module {id}");
+				if span.is_unspanned() {
+					err_ns(msg)
+				} else {
+					err(&span, msg)
+				}
+				.s(map_anyhow(e))
 			})
 	}
 	/// Gets the [`ModuleId`] from a require by the returned symbol id
@@ -1423,7 +1558,7 @@ impl<'ast> WebpackAstParser<'ast> {
 	/// ```
 	/// given the symbol id of `mod`, this function would return `Some(ModuleId(123))`
 	// FIXME: make PResult?
-	fn get_module_id_for_import(&self, sym_id: SymbolId) -> Option<ModuleId> {
+	fn get_module_id_for_import(&self, sym_id: SymbolId) -> Option<SpannedId> {
 		let decl = self
 			.sema
 			.symbol_declaration(sym_id)
@@ -1441,15 +1576,18 @@ impl<'ast> WebpackAstParser<'ast> {
 		if args.len() != 1 {
 			return None;
 		}
-		args[0]
-			.as_numeric_literal()
-			.and_then(NumericLiteral::as_u32)
-			.map(ModuleId::from)
+		let node = args[0].as_numeric_literal()?;
+		let id = node.as_u32()?.into();
+		Some(SpannedId {
+			id,
+			span: node.span(),
+		})
 	}
-	fn generate_direct_module_definition(
+	#[expect(clippy::future_not_send)]
+	async fn generate_direct_module_definition(
 		&self,
 		node: &'ast NumericLiteral<'ast>,
-	) -> PResult<Vec<bundle::Definition<'ast>>> {
+	) -> PResult<Vec<bundle::Definition>> {
 		let call = self
 			.p(node.node_id())
 			.as_call_expression()
@@ -1476,6 +1614,7 @@ impl<'ast> WebpackAstParser<'ast> {
 		let file_path = self
 			.module_cache
 			.get_module_filepath(module_id)
+			.await
 			.ok_or_else(|| {
 				err(
 					node,
@@ -1488,42 +1627,6 @@ impl<'ast> WebpackAstParser<'ast> {
 			location: bundle::Location::Path(file_path),
 		}];
 		Ok(ret)
-	}
-	fn get_module_id_impl(&self) -> Option<ModuleId> {
-		const WEBPACK_MODULE_HEADER: &str = "// Webpack Module ";
-		if self
-			.source
-			.starts_with(WEBPACK_MODULE_HEADER)
-		{
-			// `// Webpack Module 123456` -> parse the 123456
-			let start = WEBPACK_MODULE_HEADER.len();
-			let mut end = start;
-
-			while end < self.source.len()
-				&& self
-					.source
-					.chars()
-					.nth(end)
-					.unwrap()
-					.is_ascii_digit()
-			{
-				end += 1;
-			}
-
-			if start == end {
-				return None;
-			}
-
-			debug_assert!(
-				self.source[start..end]
-					.chars()
-					.all(|c| c.is_ascii_digit())
-			);
-			let id = self.source[start..end].parse().ok()?;
-
-			return Some(ModuleId(id));
-		}
-		None
 	}
 	/// `exports` in `function(module, exports, wreq) {...}`
 	/// also commonly `t` in `function(e, t, n) {...}`
@@ -1931,7 +2034,7 @@ impl<'ast> WebpackAstParser<'ast> {
 		self.is_constant_string(sym_id)
 			.is_some_and(|s| s == "displayName")
 	}
-	fn does_re_export_whole_module_impl(&self) -> Option<ModuleId> {
+	fn does_re_export_whole_module_impl(&self) -> Option<SpannedId> {
 		let mod_arg = self.mod_arg().ok()?;
 		for use_ in self.wreq_uses().ok()? {
 			let _: Option<()> = try {
@@ -1966,21 +2069,18 @@ impl<'ast> WebpackAstParser<'ast> {
 				{
 					continue;
 				}
-				let Some(arg) = rhs.arguments[0]
-					.as_numeric_literal()
-					.and_then(NumericLiteral::as_u32)
-					.map(ModuleId::from)
-				else {
-					continue;
-				};
-
-				return Some(arg);
+				let node = rhs.arguments[0].as_numeric_literal()?;
+				let id = node.as_u32()?.into();
+				return Some(SpannedId {
+					id,
+					span: node.span(),
+				});
 			};
 		}
 		None
 	}
 	/// Checks if this module re-exports another whole module and not just parts of it
-	fn does_re_export_whole_module(&self) -> Option<ModuleId> {
+	fn does_re_export_whole_module(&self) -> Option<SpannedId> {
 		self.c
 			.does_re_export_whole_module
 			.get(|| self.does_re_export_whole_module_impl())
@@ -2970,6 +3070,20 @@ impl<'ast> WebpackAstParser<'ast> {
 		}
 	}
 }
+
+// A parser is read-only once `try_new` returns:
+//
+// - `try_new` allocates memory; however, the allocator is not send or sync so that allocation is valid by the caller.
+//    afterward, even if the allocator is reused, it never uses the allocator again
+// - the AST is has cells, but they are never written to.
+//   it is read-only after semantic analysis so the allocator can't be reused via a vec/hashmap.
+// - `Cache` is write-once, everything it stores is send + sync
+// - `module_cache` and `module_dep_provider` are send + sync
+#[expect(clippy::non_send_fields_in_send_ty)]
+/// SAFETY: see the comment above.
+unsafe impl Send for WebpackAstParser<'_> {}
+// SAFETY: see the `Send` impl above.
+unsafe impl Sync for WebpackAstParser<'_> {}
 
 #[cfg(test)]
 mod tests;

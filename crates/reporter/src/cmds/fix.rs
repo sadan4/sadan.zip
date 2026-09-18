@@ -168,7 +168,7 @@ pub(super) async fn fix(
 		name: &plugin_ref.entry_point.to_string_lossy(),
 		source: &plugin_ref.entry_source,
 	};
-	info!("Diagnosed patch with hash {patch_hash:x} as issue \n{printer:?}");
+	info!("Diagnosed patch with hash {patch_hash:x} as issue {printer:?}");
 	info!("Attempting to find last build where the patch still works");
 	let hash = scraped_branch.build_hash.clone();
 	scraped_branch.modules =

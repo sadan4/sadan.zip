@@ -2,6 +2,7 @@ use ast_parser::diag::{OxcSourceSpan, WrappedOxcDiagnostic};
 use derive_more::IsVariant;
 use explorer_types::ModuleId;
 use miette::Diagnostic;
+use patch_engine::ApplyEvent;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -123,6 +124,51 @@ pub enum ReporterError {
 	NoWarn(Box<Self>),
 }
 impl ReporterError {
+	/// Creates [`Self`] from an [`ApplyEvent`], attaching `plugin_id` and `module_id`
+	pub fn from_event(
+		event: ApplyEvent,
+		plugin_id: u16,
+		module_id: ModuleId,
+	) -> Self {
+		match event {
+			ApplyEvent::BadRegex {
+				regex_span,
+				source,
+				expanded,
+			} => Self::BadRegexSyntax {
+				plugin_id,
+				source,
+				regex_span: OxcSourceSpan::from(regex_span),
+				expanded,
+			},
+			ApplyEvent::MatchNotFound { match_span } => {
+				Self::ReplaceMatchNotFound {
+					plugin_id,
+					match_span: OxcSourceSpan::from(match_span),
+					module_id,
+				}
+			}
+			ApplyEvent::MatchAmbiguous { match_span } => {
+				Self::ReplaceMatchAmbiguous {
+					plugin_id,
+					match_span: OxcSourceSpan::from(match_span),
+					module_id,
+				}
+			}
+			ApplyEvent::SyntaxError {
+				replace_span,
+				cause,
+			} => Self::ReplaceSyntaxError {
+				plugin_id,
+				replace_span: OxcSourceSpan::from(replace_span),
+				cause,
+				module_id,
+			},
+			ApplyEvent::NoWarn(e) => Self::NoWarn(Box::new(Self::from_event(
+				*e, plugin_id, module_id,
+			))),
+		}
+	}
 	pub const fn plugin_id(&self) -> u16 {
 		match self {
 			Self::BadRegexSyntax { plugin_id, .. }

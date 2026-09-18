@@ -23,7 +23,7 @@ tokio-stream = { version = "0.1.18", default-features = false }
 tokio-util = { version = "0.7.18", default-features = false }
 reqwest = { version = "0.13.2", features = ["stream", "query"] }
 tracing = "0.1.44"
-tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3.23", features = ["env-filter", "time"] }
 rmp-serde = "1"
 serde_json = { version = "1.0.149", features = ["preserve_order"] }
 sevenz-rust2 = {version = "0.22.2", features = ["zstd", "compress"]}
@@ -46,6 +46,7 @@ oxc_ecmascript = { version = "0.147.0", default-features = false, features = [
   "constant_evaluation",
 ] }
 oxc_allocator = { version = "0.147.0", default-features = false }
+oxc_data_structures= { version = "0.147.0", features = ["stack"] }
 miette = { version = "7.1.0", default-features = false, features = [
   "serde",
   "derive",
@@ -84,6 +85,7 @@ vencord_ast_parser = { path = "crates/vencord_ast_parser" }
 webpack_ast_parser = { path = "crates/webpack_ast_parser" }
 webpack_chunk_parser = { path = "crates/webpack_chunk_parser" }
 pretty_printer = { path = "crates/pretty_printer" }
+patch_engine = { path = "crates/patch_engine" }
 dagre = { path = "crates/dagre", features = ["serde"] }
 discord_scraper = { path = "crates/discord_scraper" }
 miette_ctx = { path = "crates/miette_ctx" }
@@ -95,7 +97,8 @@ qalc = { path = "crates/qalc" }
 qalc_sbox = { path = "crates/qalc_sbox" }
 demangler = { path = "crates/demangler" }
 parser_diag = { path = "crates/parser_diag" }
-tower-lsp = "0.20.0"
+miette_ui = { path = "crates/miette_ui" }
+tower-lsp-server = "0.23.0"
 tokio-tungstenite = "0.30.0"
 futures-util = "0.3.31"
 dashmap = "6.1.0"
@@ -143,6 +146,9 @@ pyo3-tracing-subscriber = { version = "0.9.0" }
 pyo3-tracing-subscriber-build = { version = "0.9.0" }
 oneshot = { version = "0.2.1", features = ["async", "std"] }
 redis = { version = "1.6.0", features = ["tokio-comp"] }
+phf = {version = "0.14", features = ["macros"]}
+async-trait = "0.1"
+percent-encoding = "2"
 
 [patch.crates-io]
 typesize = { git = "https://github.com/GnomedDev/typesize", branch = "master" }
@@ -186,11 +192,6 @@ opt-level = 3
 [profile.dev.package.insta]
 opt-level = 3
 
-# faster dev builds
-[profile.dev.package.'*']
-opt-level = 3
-
-
 # During testing, we parse large javascript files, up to 20mb!
 # Compile oxc with -O3 so the tests run 2-4x faster
 [profile.test.package.oxc_allocator]
@@ -204,9 +205,6 @@ opt-level = 3
 [workspace.lints.cargo]
 non_kebab_case_bins = "allow"
 
-[workspace.lints.rust]
-# too buggy and noisy when used in the editor, but can be uncommented to find unused deps
-# unused_crate_dependencies = "deny"
 [workspace.lints.clippy]
 pedantic = { priority = -1, level = "warn" }
 nursery = { priority = -1, level = "warn" }
