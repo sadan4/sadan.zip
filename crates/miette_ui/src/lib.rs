@@ -3,10 +3,12 @@ use std::{
 	sync::{Arc, LazyLock},
 };
 
+#[cfg(feature = "highlight")]
+use miette::highlighters::SyntectHighlighter;
 use miette::{
 	GraphicalReportHandler,
 	GraphicalTheme,
-	highlighters::{BlankHighlighter, Highlighter, SyntectHighlighter},
+	highlighters::{BlankHighlighter, Highlighter},
 };
 use terminal_size::{Width, terminal_size};
 
@@ -37,6 +39,13 @@ pub fn install_miette_hook(with_color: bool) {
 	.expect("Failed to set miette hook");
 }
 
+fn blank_highlighter() -> ArcHl {
+	static BLANK_HL: LazyLock<ArcHl> =
+		LazyLock::new(|| ArcHl(Arc::new(BlankHighlighter)));
+	BLANK_HL.clone()
+}
+
+#[cfg(feature = "highlight")]
 fn get_highlighter(with_color: bool) -> ArcHl {
 	if with_color {
 		static HL: LazyLock<ArcHl> = LazyLock::new(|| {
@@ -54,10 +63,15 @@ fn get_highlighter(with_color: bool) -> ArcHl {
 		});
 		HL.clone()
 	} else {
-		static BLANK_HL: LazyLock<ArcHl> =
-			LazyLock::new(|| ArcHl(Arc::new(BlankHighlighter)));
-		BLANK_HL.clone()
+		blank_highlighter()
 	}
+}
+
+/// Without the `highlight` feature there is no syntax highlighter to build, so
+/// colored output falls back to the plain renderer.
+#[cfg(not(feature = "highlight"))]
+fn get_highlighter(_with_color: bool) -> ArcHl {
+	blank_highlighter()
 }
 
 fn create_report_handler(with_color: bool) -> GraphicalReportHandler {
