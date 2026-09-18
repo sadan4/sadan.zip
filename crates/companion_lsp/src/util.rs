@@ -3,4 +3,4 @@ mod progress;
 pub mod range;
 pub mod uri;
 pub mod iter;
-pub mod str_util;
+pub mod slice_util;

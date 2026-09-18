@@ -1,5 +1,6 @@
 use std::{
 	borrow::Cow,
+	mem,
 	sync::{Arc, atomic::AtomicU64},
 };
 
@@ -20,19 +21,22 @@ use pretty_printer::format_with_alloc;
 use smol_str::SmolStr;
 use text_diff::DiffHunkKind;
 use tokio::sync::Mutex;
-use tower_lsp_server::ls_types::{ShowDocumentParams, Uri};
+use tower_lsp_server::ls_types::{Range, ShowDocumentParams, Uri};
 use tracing::{debug, warn};
 use vencord_ast_parser::{Match, Patch, VencordAstParser};
 
 use crate::{
-	LspResult, lsp::{
+	LspResult,
+	lsp::{
 		self,
 		custom::{
 			EphemeralDocument,
 			ephemera::{self, EphemeralChange},
 		},
 		lenses::PatchLensArgs,
-	}, util::{iter::IterExt, str_util::offset_into, uri}, wss::types::to_client,
+	},
+	util::{iter::IterExt, slice_util::offset_into, uri},
+	wss::types::to_client,
 };
 
 const INDENT: u8 = 2;
@@ -59,27 +63,10 @@ struct State {
 	current_source: String,
 }
 
-
-fn get_reveal_range(before: &str, after: &str) -> Option<Span> {
-	use text_diff::diff;
-	let changes = diff([before, after]);
-	for change in changes {
-		if change.kind == DiffHunkKind::Different {
-			let new_insertions = change.contents[1];
-			if new_insertions.is_empty(){
-				continue;
-			}
-			let start = offset_into(after.as_bytes(), &new_insertions).expect("not substring of after") as u32;
-			return Some(Span::sized(start, new_insertions.len() as u32));
-		}
-	}
-	todo!("handle no additions, only deletions")
-}
-
 impl State {
 	fn find_patch(&self, new_patches: &[Patch]) -> Option<usize> {
 		if new_patches.len() == 1 {
-			return Some(0)
+			return Some(0);
 		}
 		if new_patches.is_empty() {
 			return None;
@@ -144,6 +131,27 @@ fn view_uri(plugin_file: &Uri, id: u64) -> Result<Uri> {
 }
 
 impl lsp::Server {
+	fn get_reveal_range(&self, before: &str, after: &str) -> Option<Range> {
+		use text_diff::diff;
+		let changes = diff([before, after]);
+		for change in changes {
+			if change.kind == DiffHunkKind::Different {
+				let new_insertions = change.contents[1];
+				if new_insertions.is_empty() {
+					continue;
+				}
+				let start = offset_into(after.as_bytes(), new_insertions)
+					.expect("not substring of after") as u32;
+				let span = Span::sized(start, new_insertions.len() as u32);
+				return Some(
+					self.files
+						.encoding()
+						.range_in(after, span),
+				);
+			}
+		}
+		todo!("handle no additions, only deletions")
+	}
 	pub(super) async fn open_patch_helper(
 		&self,
 		args: PatchLensArgs,
@@ -176,20 +184,29 @@ impl lsp::Server {
 		self.patch_helpers
 			.by_plugin_file
 			.insert(helper.plugin_file.clone(), Arc::clone(&helper));
+		let (current_source, reveal_span) = {
+			let guard = helper.state.lock().await;
+			let current_source = guard.current_source.clone();
+			let unpatched_source = guard.unpatched_source.clone();
+			drop(guard);
+			let alloc = self.pool.get();
+			let formatted_unpatched_source =
+				format_with_alloc(&unpatched_source, &alloc, INDENT)
+					.expect("how did this fail")
+					.code;
+			let reveal_span = self
+				.get_reveal_range(&formatted_unpatched_source, &current_source);
+
+			(current_source, reveal_span)
+		};
 		self.create_ephemeral_document(EphemeralDocument {
 			uri: helper.ephemeral_file.clone(),
-			content: helper
-				.state
-				.lock()
-				.await
-				.current_source
-				.as_str()
-				.into(),
+			content: current_source.as_str().into(),
 		});
 		self.show_document(ShowDocumentParams {
 			external: None,
 			// TODO: initial selection
-			selection: None,
+			selection: reveal_span,
 			take_focus: Some(true),
 			uri: helper.ephemeral_file.clone(),
 		})
@@ -272,7 +289,10 @@ impl lsp::Server {
 		})
 	}
 
-	fn update_state_replacement_text(&self, state: &mut State) -> Result<()> {
+	fn update_state_replacement_text(
+		&self,
+		state: &mut State,
+	) -> Result<String> {
 		let mut alloc = self.pool.get();
 		let mut res = apply_patch(
 			&mut alloc,
@@ -300,17 +320,15 @@ impl lsp::Server {
 			cause
 		};
 
-		if let Some(err) = err {
-			let src = &*err.source.unwrap().source_code;
-			state.current_source.clear();
-			state.current_source.push_str(src);
+		let new_str = if let Some(err) = err {
+			String::from(&*err.source.unwrap().source_code)
 		} else {
-			let fmt = format_with_alloc(&res.src, &alloc, INDENT)
-				.expect("apply_patch didn't report a syntax error");
-			state.current_source = fmt.code;
-		}
+			format_with_alloc(&res.src, &alloc, INDENT)
+				.expect("apply_patch didn't report a syntax error")
+				.code
+		};
 
-		Ok(())
+		Ok(mem::replace(&mut state.current_source, new_str))
 	}
 
 	async fn update_state(&self, state: &PatchHelper) -> Result<()> {
@@ -362,14 +380,24 @@ impl lsp::Server {
 		compile_patch_regexes([&mut guard.patch]);
 		guard.other_patches = patches;
 
-		self.update_state_replacement_text(&mut guard)?;
-		let src = guard.current_source.clone();
+		let old_source = self.update_state_replacement_text(&mut guard)?;
+		let new_src = guard.current_source.clone();
 		drop(guard);
+		let reveal_range = self.get_reveal_range(&old_source, &new_src);
 		self.update_ephemeral_document(EphemeralChange {
 			uri: state.ephemeral_file.clone(),
-			content: Some(src.into()),
+			content: Some(new_src.into()),
 			deleted: None,
+		})?;
+		self.show_document(ShowDocumentParams {
+			uri: state.ephemeral_file.clone(),
+			external: None,
+			take_focus: Some(false),
+			selection: reveal_range,
 		})
+		.await
+		.context("Failed to update reveal range")?;
+		Ok(())
 	}
 
 	pub(super) async fn patch_helper_change_hook(

@@ -292,7 +292,18 @@ function mkClient(cx: ExtensionContext): LanguageClient {
 	const logLevel = Settings.logLevel;
 	if (logLevel) { 
 		serverOptions.options!.env.COMPANION_LSP_LOG = logLevel;
-	}
+    }
+    interface IRange { 
+        start: IPosition;
+        end: IPosition;
+    }
+    interface IPosition {
+        line: number;
+        character: number;
+    }
+    function convertRange(range: IRange): vs.Range { 
+        return new vs.Range(range.start.line, range.start.character, range.end.line, range.end.character);
+    }
 	const clientOptions: LanguageClientOptions = {
 		documentSelector: [
 			...["typescript", "javascript", "typescriptreact", "javascriptreact"]
@@ -302,7 +313,7 @@ function mkClient(cx: ExtensionContext): LanguageClient {
 				})),
 			{ scheme: "vencord-companion" }
 		],
-		middleware: {
+        middleware: {
 			// hovers from the server contain `command:` links and `$(icon)`
 			// codicons, both of which are inert unless the markdown opts in
 			async provideHover(document, position, token, next) {
@@ -311,7 +322,34 @@ function mkClient(cx: ExtensionContext): LanguageClient {
 					trustHover(hover);
 				}
 				return hover;
-			}
+            },
+            window: {
+                async showDocument(params, next) { 
+                    if (params.selection && !params.takeFocus) {
+                        let parsedUri = Uri.parse(params.uri);
+                        // find already open document
+                        let visibleEditor = vsWindow.visibleTextEditors.find((editor) => { 
+                            return editor.document.uri.toString() === parsedUri.toString();
+                        })
+                        if (visibleEditor) {
+                            visibleEditor.revealRange(convertRange(params.selection), vs.TextEditorRevealType.InCenter);
+                            return {
+                                success: true
+                            };
+                        }
+                    }
+                    let tokSource = new vs.CancellationTokenSource();
+                    using _ = defer(() => tokSource.dispose());
+                    // HandlerSignature returns HandlerResult, which permits a
+                    // ResponseError; the middleware type does not, so surface it
+                    // as a rejection and let the client turn it back into one
+                    let res = await next(params, tokSource.token);
+                    if (res instanceof ResponseError) {
+                        throw res;
+                    }
+                    return res;
+                }
+            }
 		}
 	};
     return new LanguageClient("vencord-companion-client", "Vencord Companion", serverOptions, clientOptions);
