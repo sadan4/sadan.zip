@@ -18,7 +18,14 @@ use patch_engine::{
 };
 use pretty_printer::format_with_alloc;
 use smol_str::SmolStr;
-use text_diff::DiffHunkKind;
+use text_diff::{
+	CompareBytesExactly,
+	ContentDiff,
+	DiffHunkKind,
+	find_line_ranges,
+	find_nonword_ranges,
+	find_word_ranges,
+};
 use tokio::sync::Mutex;
 use tower_lsp_server::ls_types::{Range, ShowDocumentParams, Uri};
 use tracing::{debug, instrument, warn};
@@ -33,7 +40,7 @@ use crate::{
 		},
 		lenses::PatchLensArgs,
 	},
-	util::{slice_util::offset_into, uri},
+	util::uri,
 	wss::types::to_client,
 };
 
@@ -142,19 +149,24 @@ fn view_uri(plugin_file: &Uri, id: u64) -> Result<Uri> {
 
 impl lsp::Server {
 	fn get_reveal_range(&self, before: &str, after: &str) -> Option<Range> {
-		use text_diff::diff;
-		let changes = diff([before, after]);
+		let mut changes = ContentDiff::for_tokenizer(
+			[before, after],
+			find_line_ranges,
+			CompareBytesExactly,
+		);
+		changes.refine_changed_regions(find_word_ranges, CompareBytesExactly);
+		changes
+			.refine_changed_regions(find_nonword_ranges, CompareBytesExactly);
 		let mut first_empty = None;
-		for change in changes {
+		for change in changes.hunk_ranges() {
 			if change.kind == DiffHunkKind::Different {
-				let new_insertions = change.contents[1];
+				let new_insertions = &change.ranges[1];
+				let start = new_insertions.start as u32;
 				if new_insertions.is_empty() {
-					first_empty.get_or_insert(new_insertions);
+					first_empty.get_or_insert(start);
 					continue;
 				}
-				let start = offset_into(after.as_bytes(), new_insertions)
-					.expect("not substring of after") as u32;
-				let span = Span::sized(start, new_insertions.len() as u32);
+				let span = Span::new(start, new_insertions.end as u32);
 				return Some(
 					self.files
 						.encoding()
@@ -162,14 +174,7 @@ impl lsp::Server {
 				);
 			}
 		}
-		first_empty.map(|s| {
-			let start = offset_into(after.as_bytes(), s)
-				.expect("not substring of after 2") as u32;
-			debug_assert_eq!(
-				s.len(),
-				0,
-				"first empty insertion should be empty"
-			);
+		first_empty.map(|start| {
 			let span = Span::sized(start, 0);
 			self.files
 				.encoding()
