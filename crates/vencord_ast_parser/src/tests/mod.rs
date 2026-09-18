@@ -484,3 +484,41 @@ export default definePlugin({
 		);
 	}
 }
+
+#[test]
+fn track_cmp_survives_offset_shift() {
+	let code = include_str!("data/plugin10.tsx");
+	let shifted = format!("// a line above the plugin\n{code}");
+	let a = Allocator::new();
+	let before = VencordAstParser::try_new(&a, code, Some("data/plugin10.tsx"))
+		.unwrap()
+		.patches(true)
+		.unwrap();
+	let b = Allocator::new();
+	let after =
+		VencordAstParser::try_new(&b, &shifted, Some("data/plugin10.tsx"))
+			.unwrap()
+			.patches(true)
+			.unwrap();
+	assert_eq!(before.len(), after.len());
+	assert!(
+		before
+			.iter()
+			.any(|p| p.find.v.as_regex().is_some_and(|r| !r
+				.capture_spans
+				.is_empty())
+				|| p.replacement.iter().any(|r| r
+					.match_
+					.v
+					.as_regex()
+					.is_some_and(|r| !r.capture_spans.is_empty()))),
+		"test data needs a regex with capture groups to be meaningful"
+	);
+	for (b, a) in before.iter().zip(&after) {
+		assert_ne!(b.span, a.span, "the patch should have moved");
+		assert!(
+			b.track_cmp(a),
+			"a patch should still track itself after an edit above it"
+		);
+	}
+}

@@ -194,6 +194,7 @@ pub struct MatchRegex {
 	/// TODO: add highlights for whole reference for when the regex has look(?:ahead|behind) assertions
 	/// TODO: make Vec<Vec<Span>> to also highlight backreferences
 	#[serde(deserialize_with = "deserialize_spans")]
+	#[eq(skip)]
 	pub capture_spans: Vec<Span>,
 }
 
