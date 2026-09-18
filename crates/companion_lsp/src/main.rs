@@ -16,7 +16,7 @@ fn main() {
 		unsafe {
 			libc::prctl(libc::PR_SET_PTRACER, libc::PR_SET_PTRACER_ANY);
 		};
-		wait_for_debugger();
+		wait_for_debugger(());
 	};
 	setup_backtrace();
 	tokio_main();
@@ -42,8 +42,11 @@ async fn tokio_main() {
 		.await;
 }
 /// Spin until a debugger attaches, when `COMPANION_LSP_WAIT_DEBUGGER` is set and debug assertions are enabled.
+///
+/// Generic so the assertions is only ever run when it's called
 #[cfg(target_os = "linux")]
-fn wait_for_debugger() {
+#[cfg_attr(not(debug_assertions), allow(unused))]
+fn wait_for_debugger<T>(_: T) {
 	const {
 		assert!(
 			cfg!(debug_assertions),
