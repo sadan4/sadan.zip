@@ -136,10 +136,12 @@ impl lsp::Server {
 	fn get_reveal_range(&self, before: &str, after: &str) -> Option<Range> {
 		use text_diff::diff;
 		let changes = diff([before, after]);
+		let mut first_empty = None;
 		for change in changes {
 			if change.kind == DiffHunkKind::Different {
 				let new_insertions = change.contents[1];
 				if new_insertions.is_empty() {
+					first_empty.get_or_insert(new_insertions);
 					continue;
 				}
 				let start = offset_into(after.as_bytes(), new_insertions)
@@ -152,7 +154,19 @@ impl lsp::Server {
 				);
 			}
 		}
-		todo!("handle no additions, only deletions")
+		first_empty.map(|s| {
+			let start = offset_into(after.as_bytes(), s)
+				.expect("not substring of after 2") as u32;
+			debug_assert_eq!(
+				s.len(),
+				0,
+				"first empty insertion should be empty"
+			);
+			let span = Span::sized(start, 0);
+			self.files
+				.encoding()
+				.range_in(after, span)
+		})
 	}
 	pub(super) async fn open_patch_helper(
 		&self,
