@@ -8,7 +8,6 @@ use anyhow::{Context as _, Result, anyhow, bail};
 use dashmap::DashMap;
 use explorer_types::ModuleId;
 use itertools::Itertools;
-use miette::{Diagnostic, Severity};
 use oxc::span::Span;
 use parser_diag::LocalSource;
 use patch_engine::{
@@ -22,11 +21,10 @@ use smol_str::SmolStr;
 use text_diff::DiffHunkKind;
 use tokio::sync::Mutex;
 use tower_lsp_server::ls_types::{Range, ShowDocumentParams, Uri};
-use tracing::{debug, warn};
+use tracing::{debug, instrument, warn};
 use vencord_ast_parser::{Match, Patch, VencordAstParser};
 
 use crate::{
-	LspResult,
 	lsp::{
 		self,
 		custom::{
@@ -35,7 +33,7 @@ use crate::{
 		},
 		lenses::PatchLensArgs,
 	},
-	util::{iter::IterExt, slice_util::offset_into, uri},
+	util::{slice_util::offset_into, uri},
 	wss::types::to_client,
 };
 
@@ -66,45 +64,55 @@ struct State {
 }
 
 impl State {
+	#[instrument(skip_all)]
 	fn find_patch(&self, new_patches: &[Patch]) -> Option<usize> {
-		if new_patches.len() == 1 {
-			return Some(0);
-		}
-		if new_patches.is_empty() {
-			return None;
-		}
-		let mut patches = Vec::from_iter(new_patches);
-		if let Ok((idx, _)) = patches
-			.iter()
-			.enumerate()
-			.filter(|(_, p)| self.patch.track_cmp(p))
-			.exactly_one()
-		{
-			return Some(idx);
-		}
-		patches.retain(|p| {
-			// does it track to an ignored one
-			!self
+		let ret = || -> Option<usize> {
+			if new_patches.len() == 1 {
+				return Some(0);
+			}
+			if new_patches.is_empty() {
+				return None;
+			}
+			let mut patches = Vec::from_iter(new_patches.iter().enumerate());
+			if let Ok((idx, _)) = patches
+				.iter()
+				.copied()
+				.filter(|(_, p)| self.patch.track_cmp(p))
+				.exactly_one()
+			{
+				return Some(idx);
+			}
+			patches.retain(|(_, p)| {
+				// does it track to an ignored one
+				!self
 				.other_patches
 				.iter()
 				.any(|op| op.track_cmp(p))
 				// do the finds match
 				&& self.patch.find.track_cmp(&p.find)
-		});
-		match patches.len() {
-			1 => Some(0),
-			0 => {
-				debug!("all patches were filtered out, no match found");
-				None
+			});
+			match *patches.as_slice() {
+				[(idx, _)] => Some(idx),
+				[] => {
+					debug!("all patches were filtered out, no match found");
+					None
+				}
+				_ => {
+					debug!(
+						?new_patches,
+						"multiple patches matched, no match found"
+					);
+					None
+				}
 			}
-			_ => {
-				debug!(
-					?new_patches,
-					"multiple patches matched, no match found"
-				);
-				None
-			}
-		}
+		}();
+		debug!(
+			"Traced patch.\noriginal_patch={:#?}\nnew_options={:#?}\nnew_patch={:#?}",
+			self.patch,
+			new_patches,
+			ret.map(|i| &new_patches[i])
+		);
+		ret
 	}
 }
 
@@ -401,6 +409,11 @@ impl lsp::Server {
 		let old_source = self.update_state_replacement_text(&mut guard)?;
 		let new_src = guard.current_source.clone();
 		drop(guard);
+		// FIXME: check patch equality as well as parsed string equality for fast path
+		if old_source == new_src {
+			debug!("No change in replacement text, skipping update");
+			return Ok(());
+		}
 		let reveal_range = self.get_reveal_range(&old_source, &new_src);
 		self.update_ephemeral_document(EphemeralChange {
 			uri: state.ephemeral_file.clone(),

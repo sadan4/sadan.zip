@@ -1,5 +1,5 @@
 use tower_lsp_server::ls_types::{CodeLens, CodeLensParams};
-use tracing::{debug, instrument};
+use tracing::{debug, instrument, trace};
 
 use crate::{LspResult, lsp, util::uri};
 
@@ -19,7 +19,7 @@ impl lsp::Server {
 		let path = match uri::to_path(uri) {
 			Ok(p) => p,
 			Err(e) => {
-				debug!("uri is not a file path, skipping lenses: {e}");
+				trace!("uri is not a file path, skipping lenses: {e}");
 				return Ok(None);
 			}
 		};

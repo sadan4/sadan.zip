@@ -40,7 +40,6 @@ use tower_lsp_server::{
 		ServerCapabilities,
 		ServerInfo,
 		ShowDocumentParams,
-		ShowDocumentResult,
 		TextDocumentSyncCapability,
 		TextDocumentSyncKind,
 		TextDocumentSyncOptions,

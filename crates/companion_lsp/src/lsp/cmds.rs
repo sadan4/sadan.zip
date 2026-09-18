@@ -1,6 +1,5 @@
 use std::{
 	borrow::Cow,
-	error::Error as StdError,
 	pin::Pin,
 	sync::Arc,
 	time::Duration,

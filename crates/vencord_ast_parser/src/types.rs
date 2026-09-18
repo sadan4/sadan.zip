@@ -155,7 +155,7 @@ pub struct MatchLike {
 	pub s: Span,
 }
 
-#[derive(Debug, Serialize, Deserialize, Unwrap)]
+#[derive(Serialize, Deserialize, Unwrap)]
 #[unwrap(ref)]
 pub enum Match {
 	#[serde(with = "FinderDef")]
@@ -163,7 +163,25 @@ pub enum Match {
 	Regex(MatchRegex),
 }
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+impl std::fmt::Debug for Match {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			Self::Str(finder) => f
+				.debug_tuple("Str")
+				.field(
+					&str::from_utf8(finder.needle())
+						.expect("finder is not a utf8 string"),
+				)
+				.finish(),
+			Self::Regex(regex) => f
+				.debug_tuple("Regex")
+				.field(regex)
+				.finish(),
+		}
+	}
+}
+
+#[derive(PartialEq, Eq, Serialize, Deserialize)]
 pub struct MatchRegex {
 	pub pattern: String,
 	#[serde(with = "RegExpFlagsDef")]
@@ -177,6 +195,12 @@ pub struct MatchRegex {
 	/// TODO: make Vec<Vec<Span>> to also highlight backreferences
 	#[serde(deserialize_with = "deserialize_spans")]
 	pub capture_spans: Vec<Span>,
+}
+
+impl std::fmt::Debug for MatchRegex {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		write!(f, "/{}/{}", self.pattern, self.flags)
+	}
 }
 
 #[derive(Serialize, Deserialize)]
@@ -368,6 +392,7 @@ impl Patch {
 		*all == other.all
 			&& *no_warn == other.no_warn
 			&& find.track_cmp(&other.find)
+			&& replacement.len() == other.replacement.len()
 			&& replacement
 				.iter()
 				.zip(other.replacement.iter())

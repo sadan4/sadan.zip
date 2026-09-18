@@ -325,17 +325,42 @@ function mkClient(cx: ExtensionContext): LanguageClient {
             },
             window: {
                 async showDocument(params, next) { 
-                    if (params.selection && !params.takeFocus) {
+                    if (params.selection && !params.takeFocus && !params.external) {
                         let parsedUri = Uri.parse(params.uri);
-                        // find already open document
-                        let visibleEditor = vsWindow.visibleTextEditors.find((editor) => { 
-                            return editor.document.uri.toString() === parsedUri.toString();
-                        })
+                        let uriString = parsedUri.toString();
+                        let range = convertRange(params.selection);
+                        let activeEditor = vsWindow.activeTextEditor;
+                        let visibleEditor = activeEditor?.document.uri.toString() === uriString
+                            ? activeEditor
+                            : vsWindow.visibleTextEditors.find((editor) => {
+                                return editor.document.uri.toString() === uriString;
+                            });
                         if (visibleEditor) {
-                            visibleEditor.revealRange(convertRange(params.selection), vs.TextEditorRevealType.InCenter);
+                            visibleEditor.selection = new vs.Selection(range.start, range.end);
+                            visibleEditor.revealRange(range, vs.TextEditorRevealType.InCenter);
                             return {
                                 success: true
                             };
+                        }
+                        let openTab = vsWindow.tabGroups.all
+                            .flatMap((group) => group.tabs)
+                            .find((tab) => {
+                                return tab.input instanceof vs.TabInputText
+                                    && tab.input.uri.toString() === uriString;
+                            });
+                        if (openTab) {
+                            try {
+                                await vsWindow.showTextDocument(parsedUri, {
+                                    viewColumn: openTab.group.viewColumn,
+                                    preserveFocus: true,
+                                    selection: range
+                                });
+                                return {
+                                    success: true
+                                };
+                            } catch {
+                                // fall through to the default handler
+                            }
                         }
                     }
                     let tokSource = new vs.CancellationTokenSource();
