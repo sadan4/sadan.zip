@@ -1,0 +1,19 @@
+[package]
+name = "miette_ui"
+version = "0.1.0"
+edition.workspace = true
+
+[features]
+default = ["highlight"]
+# Syntax highlighting for rendered diagnostics. Pulls in syntect + oniguruma,
+# which costs ~1MB of binary. Disable for non-interactive consumers.
+highlight = ["miette/syntect-highlighter", "dep:zstd", "dep:bitcode"]
+
+[dependencies]
+zstd = { workspace = true, optional = true }
+bitcode = { workspace = true, optional = true }
+miette = { workspace = true, features = ["fancy"] }
+terminal_size.workspace = true
+
+[lints]
+workspace = true

@@ -242,7 +242,7 @@ mod module_id {
 		let p = parse_!(alloc, "test_data/wp/module.js");
 		let id = p.get_module_id();
 
-		assert_eq!(id.unwrap(), ModuleId(317269));
+		assert_eq!(id.unwrap().id, ModuleId(317269));
 	}
 
 	#[test]
@@ -1782,46 +1782,61 @@ mod import_parsing {
 
 mod direct_module_definition {
 	use super::*;
-	use macros::test;
+	use async_trait::async_trait;
 	use std::collections::HashMap;
+	use url::Url;
 
 	struct TestModuleCache {
-		paths: HashMap<ModuleId, SmolStr>,
+		paths: HashMap<ModuleId, Url>,
 	}
 
-	impl<'ast> IModuleCache<'ast> for TestModuleCache {
-		fn get_module_filepath(&self, id: ModuleId) -> Option<SmolStr> {
+	#[async_trait]
+	impl IModuleCache for TestModuleCache {
+		async fn get_module_filepath(&self, id: ModuleId) -> Option<Url> {
 			self.paths.get(&id).cloned()
 		}
-		fn get_module_parser(
+		async fn get_module_parser(
 			&self,
-			_requestor: &WebpackAstParser<'ast>,
+			_requestor: &WebpackAstParser<'_>,
 			_id: ModuleId,
 			_latest: Option<bool>,
-		) -> anyhow::Result<Rc<WebpackAstParser<'ast>>> {
+		) -> anyhow::Result<Arc<ThreadSafeParser>> {
 			anyhow::bail!("test cache does not provide parsers")
 		}
 	}
 
-	#[test]
-	fn returns_definition_for_wreq_call_arg() {
+	#[tokio::test]
+	async fn returns_definition_for_wreq_call_arg() {
 		let alloc = Allocator::new();
 		let source = include_str!("test_data/wp/module.js");
 		let cache = TestModuleCache {
 			paths: HashMap::from([(
 				ModuleId(200651),
-				SmolStr::new_static("modules/200651.js"),
+				Url::parse("file:///modules/200651.js").unwrap(),
 			)]),
 		};
 		let mut p = WebpackAstParser::try_new(&alloc, source).unwrap();
-		p.set_module_cache(&cache);
+		p.set_module_cache(Arc::new(cache));
 		// pos 188 lies inside `200651` of `n(200651)` on line 11
-		let defs = p.generate_definitions(188).unwrap();
+		let defs = p
+			.generate_definitions(188)
+			.await
+			.unwrap();
 		assert_debug_snapshot!(defs, @r#"
 		[
 		    Definition {
 		        location: Path(
-		            "modules/200651.js",
+		            Url {
+		                scheme: "file",
+		                cannot_be_a_base: false,
+		                username: "",
+		                password: None,
+		                host: None,
+		                port: None,
+		                path: "/modules/200651.js",
+		                query: None,
+		                fragment: None,
+		            },
 		        ),
 		        module_id: ModuleId(
 		            200651,
@@ -1835,17 +1850,23 @@ mod direct_module_definition {
 		"#);
 	}
 
-	#[test]
-	fn errors_when_module_cache_has_no_filepath() {
+	#[tokio::test]
+	async fn errors_when_module_cache_has_no_filepath() {
 		let alloc = Allocator::new();
 		let p = parse_!(alloc, "test_data/wp/module.js");
-		let _ = p.generate_definitions(188).unwrap_err();
+		let _ = p
+			.generate_definitions(188)
+			.await
+			.unwrap_err();
 	}
 
-	#[test]
-	fn errors_when_numeric_literal_parent_is_not_a_call() {
+	#[tokio::test]
+	async fn errors_when_numeric_literal_parent_is_not_a_call() {
 		let alloc = Allocator::new();
 		let p = parse_!(alloc, "test_data/wp/module.js");
-		let _ = p.generate_definitions(38).unwrap_err();
+		let _ = p
+			.generate_definitions(38)
+			.await
+			.unwrap_err();
 	}
 }

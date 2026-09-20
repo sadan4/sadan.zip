@@ -2,8 +2,8 @@ use anyhow::{Context, Result, anyhow, bail};
 use clap::Args;
 use itertools::Itertools as _;
 use miette::Report;
-use oxc::{allocator::Allocator, ast::ast::RegExpFlags};
-use regress::escape;
+use oxc::allocator::Allocator;
+use patch_engine::compile_patch_regexes;
 use serde::{Deserialize, Serialize};
 use std::{
 	env,
@@ -12,7 +12,7 @@ use std::{
 };
 use tokio::task;
 use tracing::{debug, trace, warn};
-use vencord_ast_parser::{Match, MatchRegex, Patch, VencordAstParser};
+use vencord_ast_parser::{Patch, VencordAstParser};
 
 use crate::util::Stage;
 
@@ -197,38 +197,11 @@ pub fn bind_plugin_ids(plugins: &mut [Plugin]) {
 }
 
 pub fn compile_plugin_regexes(plugins: &mut [Plugin]) {
-	for plugin in plugins {
-		for patch in &mut plugin.patches {
-			if let Match::Regex(r) = &mut patch.find.v {
-				r.make_regex();
-			}
-			for replacement in &mut patch.replacement {
-				// transform it to a regex here so we can cache it easier.
-				if let Match::Str(s) = &replacement.match_.v {
-					let regex = MatchRegex {
-						// we only ever create a finder with a utf8 string
-						// so this should never error
-						pattern: escape(str::from_utf8(s.needle()).unwrap()),
-						flags: RegExpFlags::empty(),
-						regex: None,
-						// this is from a plain string so it has no capture groups
-						capture_spans: Vec::new(),
-					};
-					replacement.match_.v = Match::Regex(regex);
-				}
-				match &mut replacement.match_.v {
-					Match::Regex(r) => {
-						r.make_regex();
-						// the match is a string, we need to compile it to a regex
-					}
-					Match::Str(_) => {
-						// we just set any potential Match::Str to Match::Regex above
-						unreachable!()
-					}
-				}
-			}
-		}
-	}
+	compile_patch_regexes(
+		plugins
+			.iter_mut()
+			.flat_map(|plugin| &mut plugin.patches),
+	);
 }
 
 fn default_vencord_dir() -> PathBuf {

@@ -1,6 +1,6 @@
 #![feature(likely_unlikely)]
 use anyhow::Result;
-use oxc::allocator::Allocator;
+use oxc::{allocator::Allocator, span::Span};
 
 use parser_diag::ParserDiagnostic;
 
@@ -28,6 +28,16 @@ impl FormattedContent {
 	pub fn map_pos(&self, original: u32) -> u32 {
 		map_pos(&self.mappings, original)
 	}
+}
+
+pub fn map_span(mappings: &[(u32, u32)], span: Span) -> Span {
+	let start = map_pos(mappings, span.start);
+	let end = if span.is_empty() {
+		start
+	} else {
+		map_pos(mappings, span.end - 1) + 1
+	};
+	Span::new(start, end)
 }
 
 /// `mappings` must be sorted in ascending original position order, which is

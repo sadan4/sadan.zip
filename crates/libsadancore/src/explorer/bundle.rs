@@ -7,7 +7,7 @@ use std::{
 	mem,
 	pin::Pin,
 	ptr,
-	rc::Rc,
+	sync::Arc,
 };
 
 use crate::{
@@ -18,6 +18,7 @@ use crate::{
 };
 use anyhow::{Context, anyhow};
 use ast_parser::{get_line_and_column, get_offset_from_line_and_column};
+use async_trait::async_trait;
 use explorer_types::{
 	DepInfo,
 	FullBundle,
@@ -35,25 +36,27 @@ use parser_diag::ParserDiagnostic;
 use pretty_printer::{FormattedContent, format_with_alloc};
 use regress::Regex;
 use serde::Serialize;
-use smol_str::{SmolStr, format_smolstr};
+use smol_str::SmolStr;
+use url::Url;
 use vencord_ast_parser::patches::{
 	canonicalize_intl,
 	canonicalize_regex_ident,
 };
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 use webpack_ast_parser::{
+	ThreadSafeParser,
 	WebpackAstParser,
 	bundle::{IModuleCache, IModuleDepProvider},
 	export_map::{ExportValue, RangeExportMap, RangeExportMapValue},
 };
 
-struct RcDepInfo {
+struct ArcDepInfo {
 	#[expect(dead_code)]
 	key_modules: KeyModules,
-	module_deps: HashMap<ModuleId, Rc<IncomingModuleDeps>>,
+	module_deps: HashMap<ModuleId, Arc<IncomingModuleDeps>>,
 }
 
-impl From<DepInfo> for RcDepInfo {
+impl From<DepInfo> for ArcDepInfo {
 	fn from(
 		DepInfo {
 			key_modules,
@@ -64,7 +67,7 @@ impl From<DepInfo> for RcDepInfo {
 			key_modules,
 			module_deps: module_deps
 				.into_iter()
-				.map(|(k, v)| (k, Rc::new(v)))
+				.map(|(k, v)| (k, Arc::new(v)))
 				.collect(),
 		}
 	}
@@ -78,7 +81,7 @@ pub struct Bundle {
 struct BundleInner {
 	#[expect(dead_code)]
 	metadata: Meta,
-	dep_info: RcDepInfo,
+	dep_info: ArcDepInfo,
 	#[expect(dead_code)]
 	module_sources: ModuleSources,
 	unformatted_modules: HashMap<ModuleId, String>,
@@ -87,17 +90,22 @@ struct BundleInner {
 	formatted_modules: RefCell<HashMap<ModuleId, Pin<Box<String>>>>,
 	formatted_module_mappings: RefCell<HashMap<ModuleId, Vec<(u32, u32)>>>,
 	formatted_module_line_indices: RefCell<HashMap<ModuleId, LineIndex>>,
-	raw_alloc: Box<Allocator>,
-	parsers: RefCell<HashMap<ModuleId, Rc<WebpackAstParser<'static>>>>,
+	parsers: RefCell<HashMap<ModuleId, Arc<ThreadSafeParser>>>,
 	self_ptr: *const Self,
 	_pin: PhantomPinned,
 }
 
+// SAFETY: rust wasm is single-threaded
+unsafe impl Send for BundleInner {}
+// SAFETY: rust wasm is single-threaded
+unsafe impl Sync for BundleInner {}
+
+#[async_trait]
 impl IModuleDepProvider for BundleInner {
-	fn get_module_deps(
+	async fn get_module_deps(
 		&self,
 		id: ModuleId,
-	) -> anyhow::Result<Rc<explorer_types::IncomingModuleDeps>> {
+	) -> anyhow::Result<Arc<explorer_types::IncomingModuleDeps>> {
 		self.dep_info
 			.module_deps
 			.get(&id)
@@ -106,18 +114,54 @@ impl IModuleDepProvider for BundleInner {
 	}
 }
 
-impl IModuleCache<'static> for BundleInner {
-	fn get_module_filepath(&self, id: ModuleId) -> Option<SmolStr> {
-		Some(format_smolstr!("/.modules/{id}.js"))
+#[async_trait]
+impl IModuleCache for BundleInner {
+	async fn get_module_filepath(&self, id: ModuleId) -> Option<Url> {
+		Some(Url::parse(&format!("file:///.modules/{id}.js")).unwrap())
 	}
 
-	fn get_module_parser(
+	async fn get_module_parser(
 		&self,
-		_requestor: &WebpackAstParser<'static>,
+		_requestor: &WebpackAstParser<'_>,
 		id: ModuleId,
 		_latest: Option<bool>,
-	) -> anyhow::Result<Rc<WebpackAstParser<'static>>> {
+	) -> anyhow::Result<Arc<ThreadSafeParser>> {
 		self.get_or_make_parser(id)
+	}
+}
+
+struct BundleRef(&'static BundleInner);
+
+// SAFETY: rust wasm is single threaded
+unsafe impl Send for BundleRef {}
+// SAFETY: rust wasm is single-threaded
+unsafe impl Sync for BundleRef {}
+
+#[async_trait]
+impl IModuleDepProvider for BundleRef {
+	async fn get_module_deps(
+		&self,
+		id: ModuleId,
+	) -> anyhow::Result<Arc<explorer_types::IncomingModuleDeps>> {
+		self.0.get_module_deps(id).await
+	}
+}
+
+#[async_trait]
+impl IModuleCache for BundleRef {
+	async fn get_module_filepath(&self, id: ModuleId) -> Option<Url> {
+		self.0.get_module_filepath(id).await
+	}
+
+	async fn get_module_parser(
+		&self,
+		requestor: &WebpackAstParser<'_>,
+		id: ModuleId,
+		latest: Option<bool>,
+	) -> anyhow::Result<Arc<ThreadSafeParser>> {
+		self.0
+			.get_module_parser(requestor, id, latest)
+			.await
 	}
 }
 
@@ -252,37 +296,30 @@ pub struct ModuleLocation {
 }
 
 impl BundleInner {
-	fn make_parser(&self, id: ModuleId) -> Result<WebpackAstParser<'static>> {
-		let raw_alloc = &*self.raw_alloc;
-		// SAFETY: TODO
-		let alloc = unsafe {
-			mem::transmute::<&Allocator, &'static Allocator>(raw_alloc)
-		};
-		let raw_source_str = self
+	fn make_parser(&self, id: ModuleId) -> Result<ThreadSafeParser> {
+		let source_str: Arc<str> = self
 			.get_formatted_module(id)
-			.context("Failed to get formatted module source")?;
-		// SAFETY: TODO
-		let source_str =
-			unsafe { mem::transmute::<&str, &'static str>(raw_source_str) };
-		let mut parser = WebpackAstParser::try_new(alloc, source_str)
-			.map_err(|e| render_diag(e, id, source_str))
+			.context("Failed to get formatted module source")?
+			.into();
+		let mut parser = ThreadSafeParser::new(Arc::clone(&source_str))
+			.map_err(|e| render_diag(e, id, &source_str))
 			.context("Failed to create parser")?;
 		// SAFETY: TODO
-		let static_self_ref: &Self = unsafe { &*self.self_ptr };
-		parser.set_module_cache(static_self_ref);
-		parser.set_module_dep_provider(static_self_ref);
+		let static_self_ref: &'static Self = unsafe { &*self.self_ptr };
+		parser.set_module_cache(Arc::new(BundleRef(static_self_ref)));
+		parser.set_module_dep_provider(Arc::new(BundleRef(static_self_ref)));
 		Ok(parser)
 	}
 	fn get_or_make_parser(
 		&self,
 		id: ModuleId,
-	) -> anyhow::Result<Rc<WebpackAstParser<'static>>> {
+	) -> anyhow::Result<Arc<ThreadSafeParser>> {
 		let mut parsers = self.parsers.borrow_mut();
 		if let Some(parser) = parsers.get(&id) {
-			Ok(parser.clone())
+			Ok(Arc::clone(parser))
 		} else {
-			let parser = Rc::new(self.make_parser(id)?);
-			parsers.insert(id, parser.clone());
+			let parser = Arc::new(self.make_parser(id)?);
+			parsers.insert(id, Arc::clone(&parser));
 			Ok(parser)
 		}
 	}
@@ -697,7 +734,7 @@ impl Bundle {
 			.context("Failed to serialize search location")?)
 	}
 	/// line and column are 1-based
-	pub fn provide_definition(
+	pub async fn provide_definition(
 		&mut self,
 		module_id: u32,
 		m_pos: MonacoPosition,
@@ -707,7 +744,9 @@ impl Bundle {
 		let parser = self.inner.get_or_make_parser(m_id)?;
 		let pos = m_pos.to_offset(fmt_src);
 		let locs = parser
+			.parser()
 			.generate_definitions(pos)
+			.await
 			.map_err(|e| render_diag(e, m_id, fmt_src))?;
 		let ret = locs
 			.into_iter()
@@ -728,7 +767,7 @@ impl Bundle {
 		Ok(ret)
 	}
 
-	pub fn provide_references(
+	pub async fn provide_references(
 		&mut self,
 		module_id: u32,
 		m_pos: MonacoPosition,
@@ -739,7 +778,9 @@ impl Bundle {
 		let pos = m_pos.to_offset(fmt_src);
 
 		let locs = parser
+			.parser()
 			.generate_references(pos)
+			.await
 			.map_err(|e| render_diag(e, m_id, fmt_src))?;
 
 		let ret = locs
@@ -762,7 +803,7 @@ impl Bundle {
 		Ok(ret)
 	}
 
-	pub fn provide_hover(
+	pub async fn provide_hover(
 		&mut self,
 		module_id: u32,
 		m_pos: MonacoPosition,
@@ -772,12 +813,14 @@ impl Bundle {
 		let parser = self.inner.get_or_make_parser(m_id)?;
 		let pos = m_pos.to_offset(fmt_src);
 
-		if let Some(hover) = provide_i18n_hover(fmt_src, &parser, pos) {
+		if let Some(hover) = provide_i18n_hover(fmt_src, parser.parser(), pos) {
 			return Ok(Some(hover));
 		}
 
 		let ret = parser
+			.parser()
 			.generate_hover(pos)
+			.await
 			.map_err(|e| render_diag(e, m_id, fmt_src))?
 			.map(|(span, content)| {
 				let range = MonacoRange::from_span(span, fmt_src);
@@ -795,7 +838,7 @@ impl Bundle {
 		let m_id = ModuleId(module_id);
 		let fmt_src = self.inner.get_formatted_module(m_id)?;
 		let parser = self.inner.get_or_make_parser(m_id)?;
-		let tree = build_export_tree(parser.get_export_map(), fmt_src);
+		let tree = build_export_tree(parser.parser().get_export_map(), fmt_src);
 
 		Ok(serde_wasm_bindgen::to_value(&tree)
 			.context("Failed to serialize export map")?)
@@ -807,6 +850,7 @@ impl Bundle {
 		static DEFAULT: OutgoingModuleDepsWithLocs =
 			OutgoingModuleDepsWithLocs::new();
 		let deps = parser
+			.parser()
 			.get_modules_that_this_module_requires()
 			.unwrap_or(&DEFAULT);
 		let sync_uses: Vec<ModuleId> = deps.sync.iter().map(|s| s.id).collect();
@@ -954,7 +998,6 @@ pub async fn get_bundle(
 	} else {
 		module_sources
 	};
-	let raw_alloc = Box::new(Allocator::new());
 	let parsers = RefCell::new(HashMap::new());
 	let formatted_modules = RefCell::new(HashMap::new());
 	let formatted_module_mappings = RefCell::new(HashMap::new());
@@ -964,7 +1007,6 @@ pub async fn get_bundle(
 		dep_info: dep_info.into(),
 		module_sources,
 		unformatted_modules: modules,
-		raw_alloc,
 		parsers,
 		format_alloc: RefCell::new(Allocator::new()),
 		formatted_modules,
@@ -1004,7 +1046,6 @@ mod tests {
 			.into(),
 			module_sources: HashMap::new(),
 			unformatted_modules: modules,
-			raw_alloc: Box::new(Allocator::new()),
 			parsers: RefCell::new(HashMap::new()),
 			format_alloc: RefCell::new(Allocator::new()),
 			formatted_modules: RefCell::new(HashMap::new()),
@@ -1048,7 +1089,8 @@ mod tests {
 			.get_or_make_parser(m_id)
 			.expect("parser should be created");
 
-		let _tree = build_export_tree(parser.get_export_map(), fmt_src);
+		let _tree =
+			build_export_tree(parser.parser().get_export_map(), fmt_src);
 	}
 
 	/// The frontend (`Search.tsx`/`Exports.tsx`) and the hand-written
@@ -1077,7 +1119,7 @@ mod tests {
 			.inner
 			.get_or_make_parser(m_id)
 			.expect("parser should be created");
-		let tree = build_export_tree(parser.get_export_map(), fmt_src);
+		let tree = build_export_tree(parser.parser().get_export_map(), fmt_src);
 
 		let json =
 			serde_json::to_value(&tree).expect("export tree should serialize");

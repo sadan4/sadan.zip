@@ -76,7 +76,7 @@ impl<'ast, T: WebpackChunkParserImpl<'ast>> WebpackChunkParser<'ast> for T {
 						source: self.get_source_text(),
 						name: "file.js"
 					};
-					warn!("Failed to parse chunk entry: {e:?}");
+					warn!("Failed to parse chunk entry:{e:?}");
 					None
 				},
 			})

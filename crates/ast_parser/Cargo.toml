@@ -11,6 +11,7 @@ anyhow.workspace = true
 itertools.workspace = true
 oxc = { workspace = true, features = ["semantic", "ast_visit"] }
 oxc_ecmascript.workspace = true
+oxc_data_structures.workspace = true
 derive_more.workspace = true
 miette.workspace = true
 serde.workspace = true

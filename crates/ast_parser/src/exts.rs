@@ -55,6 +55,42 @@ use std::borrow::Cow;
 
 use crate::ast_kind::IntoAstKind;
 
+pub trait SpanExt: Sized {
+	#[must_use = "This returns the result of the operation, without modifying the original"]
+	/// Shifts the span to the right by the specified offset.
+	///
+	/// if the offset is negative, it shifts left instead.
+	///
+	/// saturates at [`u32::MAX`]
+	fn shift_right(self, offset: i32) -> Self;
+	#[must_use = "This returns the result of the operation, without modifying the original"]
+	/// Shifts the span to the left by the specified offset.
+	///
+	/// if the offset is negative, it shifts right instead.
+	///
+	/// saturates at [`u32::MIN`]
+	fn shift_left(self, offset: i32) -> Self;
+}
+
+impl SpanExt for Span {
+	fn shift_right(self, offset: i32) -> Self {
+		if offset < 0 {
+			self.shift_left(-offset)
+		} else {
+			let offset = offset as u32;
+			Self::sized(self.start.saturating_add(offset), self.size())
+		}
+	}
+	fn shift_left(self, offset: i32) -> Self {
+		if offset < 0 {
+			self.shift_right(-offset)
+		} else {
+			let offset = offset as u32;
+			Self::sized(self.start.saturating_sub(offset), self.size())
+		}
+	}
+}
+
 pub trait ModuleDeclarationExt {
 	fn as_import_declaration(
 		&'_ self,

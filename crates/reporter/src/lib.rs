@@ -1,3 +1,4 @@
+// nix is on 1.97.1
 #![feature(result_option_map_or_default)]
 pub mod cache;
 pub mod cmds;
@@ -13,13 +14,7 @@ use clap::{Parser, ValueEnum};
 use clap_complete::Shell;
 use derive_more::{From, Into};
 use explorer_server_core::Channel;
-use miette::{
-	GraphicalReportHandler,
-	SourceCode,
-	SpanContents,
-	highlighters::SyntectHighlighter,
-};
-use terminal_size::{Width, terminal_size};
+use miette::{SourceCode, SpanContents};
 
 use crate::{
 	fetcher::FetchOpts,
@@ -89,32 +84,4 @@ impl SourceCode for SourceWrapper {
 			.entry_source
 			.read_span(span, context_lines_before, context_lines_after)
 	}
-}
-
-pub fn install_miette_hook() {
-	static SYNTAXES: &[u8] = include_bytes!("./syntaxes.bin");
-	static THEMES: &[u8] = include_bytes!("./theme.bin");
-	miette::set_hook(Box::new(|_| {
-		let syntax_raw = zstd::decode_all(SYNTAXES)
-			.expect("failed to decompress syntax data");
-		let syntaxes = bitcode::deserialize(&syntax_raw)
-			.expect("failed to deserialize syntax data");
-		let themes_raw =
-			zstd::decode_all(THEMES).expect("failed to decompress theme data");
-		let themes = bitcode::deserialize(&themes_raw)
-			.expect("failed to deserialize theme data");
-
-		Box::new(
-			GraphicalReportHandler::new()
-				.with_width(
-					terminal_size()
-						.map_or(80, |(Width(width), _)| usize::from(width)),
-				)
-				.with_cause_chain()
-				.with_syntax_highlighting(SyntectHighlighter::new(
-					syntaxes, themes, false,
-				)),
-		)
-	}))
-	.expect("Failed to set miette hook");
 }

@@ -1,474 +1,448 @@
+import * as vs from "vscode";
 import {
+    CancellationToken,
     commands,
-    ConfigurationTarget,
-    EventEmitter,
+    env,
+    Event,
     ExtensionContext,
-    Position,
+    Hover,
+    MarkdownString,
+    ProviderResult,
     QuickPickItem,
-    Range as VscRange,
-    TabInputText,
     TextDocumentContentProvider,
-    TextEditorRevealType,
     Uri,
-    ViewColumn,
-    window,
-    workspace,
+    window as vsWindow
 } from "vscode";
-import * as path from "node:path";
 import {
+    ErrorCodes,
+    State,
     LanguageClient,
     LanguageClientOptions,
+    ResponseError,
     ServerOptions,
     TransportKind,
 } from "vscode-languageclient/node";
-
-// All Vencord-specific UI flows go through these custom JSON-RPC methods,
-// declared in crates/companion_lsp/src/vencord_ext.rs. The server is the
-// source of truth; this file only mirrors method names.
-const QUICK_PICK_METHOD = "vencord/quickPick";
-const QUICK_PICK_RESPONSE_METHOD = "vencord/quickPick/response";
-const SHOW_DIFF_METHOD = "vencord/showDiff";
-const PATCH_HELPER_OPEN_METHOD = "vencord/patchHelper/open";
-const PATCH_HELPER_CLOSE_METHOD = "vencord/patchHelper/close";
-const PATCH_HELPER_UPDATE_METHOD = "vencord/patchHelper/update";
-
-// The server advertises its `vencord.*` command IDs in
-// ServerCapabilities.executeCommandProvider.commands, and vscode-languageclient
-// auto-registers a VSCode command for each that forwards via
-// workspace/executeCommand. Do NOT also register them here, or activation
-// fails with "command 'vencord.extractModule' already exists".
-
-// Legacy command palette entries kept for backward compatibility.
-const LEGACY_COMMAND_ALIASES: { vscode: string; server: string }[] = [
-    { vscode: "vencord-companion.diffModule",        server: "vencord.diffModule" },
-    { vscode: "vencord-companion.diffModuleSearch",  server: "vencord.diffModule" },
-    { vscode: "vencord-companion.extract",           server: "vencord.extractModule" },
-    { vscode: "vencord-companion.extractSearch",     server: "vencord.extractModule" },
-    { vscode: "vencord-companion.extractFind",       server: "vencord.extractFind" },
-    { vscode: "vencord-companion.disablePlugin",     server: "vencord.disablePlugin" },
-    { vscode: "vencord-companion.testPatch",         server: "vencord.testPatch" },
-    { vscode: "vencord-companion.testFind",          server: "vencord.testFind" },
-    { vscode: "vencord-companion.openPatchHelper",   server: "vencord.openPatchHelper" },
-];
+import { Settings } from "./Settings";
+import { join } from "node:path";
+import * as z from "zod";
 
 let client: LanguageClient | undefined;
-// Stashed at activation so the "Set Log Level" command can rebuild the client
-// (the log level is baked into the server env at spawn time, so changing it
-// means restarting the process).
-let extensionContext: ExtensionContext | undefined;
 
-// Mirrors the levels accepted by the server's EnvFilter (COMPANION_LSP_LOG),
-// set up in crates/companion_lsp/src/main.rs.
-const LOG_LEVELS = ["trace", "debug", "info", "warn", "error", "off"] as const;
-type LogLevel = typeof LOG_LEVELS[number];
+const SERVER_NAME = "vencord-companion";
 
-function getConfiguredLogLevel(): LogLevel {
-    const cfg = workspace.getConfiguration("vencord-user-companion").get<string>("logLevel");
-    return (LOG_LEVELS as readonly string[]).includes(cfg ?? "") ? cfg as LogLevel : "info";
+const QUICK_PICK_METHOD = `$/${SERVER_NAME}/quick_pick`;
+
+const EPHEMERAL_DID_CHANGE_NOTI = `$/${SERVER_NAME}/ephemera/didChange`;
+
+const EPHEMERAL_QUERY_METHOD = `$/${SERVER_NAME}/ephemera/queryDoc`;
+
+/**
+ * Not contributed in package.json on purpose:
+ * `contributes.commands` is generated from the server's `CMD_MAP` by
+ * `cargo xtask gen ext-commands`, and this command is handled entirely by the
+ * client, so it would be clobbered (and it has no useful palette entry anyway).
+ */
+const COPY_COMMAND = "vencord-companion.copy";
+
+const QuickPickRequest = z.object({
+    items: z.array(z.string()),
+    placeholder: z.string().optional(),
+    allowFreeText: z.boolean().optional(),
+});
+
+const EphemeralChange = z.object({
+    /**
+     * the URI of the document that changed
+     */
+    uri: z.url(),
+    /**
+     * if present, the content of the document has changed
+     */
+    content: z.string().nullish(),
+    /**
+     * if true, the document has been closed/"deleted"
+     */
+    deleted: z.boolean().nullish(),
+});
+
+const EphemeralQuery = z.object({
+    /**
+     * the URI of the document to query
+     */
+    uri: z.url(),
+});
+
+const EphemeralDocument = z.object({
+    /**
+     * the URI of the document
+     */
+    uri: z.url(),
+    /**
+     * the content of the document
+     */
+    content: z.string(),
+});
+
+const EphemeralQueryResponse = z.object({
+    doc: EphemeralDocument.nullish(),
+});
+
+
+type EphemeralQuery = z.infer<typeof EphemeralQuery>;
+
+type EphemeralDocument = z.infer<typeof EphemeralDocument>;
+
+type EphemeralQueryResponse = z.infer<typeof EphemeralQueryResponse>;
+
+type EphemeralChange = z.infer<typeof EphemeralChange>;
+
+type QuickPickRequest = z.infer<typeof QuickPickRequest>;
+
+class QuickPickError extends ResponseError { 
+    override name = "QuickPickError";
+    constructor(msg: string, cause?: Error, code: number = ErrorCodes.UnknownErrorCode) { 
+        super(ErrorCodes.UnknownErrorCode, msg)
+        if (cause) { 
+            this.cause = cause;
+        }
+    }
 }
 
-function createClient(context: ExtensionContext): LanguageClient {
-    const serverPath = resolveServerBinary(context);
-    const logLevel = getConfiguredLogLevel();
-    // For an Executable server, vscode-languageclient passes `options.env`
-    // straight to child_process.spawn, which REPLACES the environment rather
-    // than extending it. Spread process.env so the server keeps PATH/HOME/etc.
-    // (the discord bridge needs them) and only override the log level.
-    const env = { ...process.env, COMPANION_LSP_LOG: logLevel };
+
+export async function activate(cx: ExtensionContext): Promise<void> {
+    if (client) { 
+        throw new Error("Vencord Companion LSP client is already active");
+    }
+    const c = client = mkClient(cx);
+    cx.subscriptions.push(commands.registerCommand(COPY_COMMAND, doCopy));
+    client.onRequest(QUICK_PICK_METHOD, async (req: unknown) => {
+        try {
+            const parsed = QuickPickRequest.parse(req);
+            return await doQuickPick(parsed);
+        } catch (parseErr: any) { 
+            let toThrow;
+            if (parseErr instanceof z.ZodError) {
+                toThrow = new QuickPickError("Invalid QuickPickRequest: Failed to parse parameters", parseErr, ErrorCodes.InvalidParams);
+            } else if (parseErr instanceof QuickPickError) {
+                toThrow = parseErr;
+            } else { 
+                toThrow = new QuickPickError("Invalid QuickPickRequest: Unknown error", parseErr);
+            }
+            c.error(`Failed to handle QuickPickRequest`, toThrow);
+            throw toThrow;
+        }
+    })
+    handleEphemeralDocuments(cx, c);
+    client.start();
+}
+
+async function handleEphemeralDocuments(cx: ExtensionContext, c: LanguageClient) { 
+    c.onNotification(EPHEMERAL_DID_CHANGE_NOTI, (change: unknown) => {
+        try {
+            const parsed = EphemeralChange.parse(change);
+            handleEphemeralChange(parsed);
+        } catch (e: any) {
+            if (e instanceof z.ZodError) {
+                let err = z.prettifyError(e);
+                c.error(`Failed to handle EphemeralChange notification: Invalid parameters`, `\n${err}`);
+            } else {
+                c.error(`Failed to handle EphemeralChange notification: ${e}`)
+            }
+        }
+    });
+    let ephemeralEvent = new vs.EventEmitter<Uri>();
+    /**
+     * What the server last told us each document holds, keyed by
+     * {@link Uri.toString}, not {@link EphemeralChange.uri}
+     *
+     * undefined means the document is closed/deleted
+     */
+    let docs = new Map<string, string | undefined>();
+    function handleEphemeralChange(change: EphemeralChange) {
+        let uri = Uri.parse(change.uri);
+        let key = uri.toString();
+        using _ = defer(() => ephemeralEvent.fire(uri));
+        if (change.deleted) {
+            if (!docs.has(key)) {
+                c.warn(`Received EphemeralChange for ${key} with deleted=true, but no document was found`);
+            } else if (docs.get(key) === undefined) {
+                c.warn(`Received EphemeralChange for ${key} with deleted=true, but document was already deleted`);
+            }
+            docs.set(key, undefined);
+            return;
+        }
+        if (change.content != null) {
+            c.debug(`Updating ephemeral document ${key} with new content of length ${change.content.length}`);
+            docs.set(key, change.content);
+        }
+    }
+    async function provideEphemeralDocument(uri: Uri, token: CancellationToken): Promise<string | undefined> {
+        let key = uri.toString();
+        if (docs.has(key)) {
+            return docs.get(key) ?? "";
+        }
+        let raw = await c.sendRequest(
+            EPHEMERAL_QUERY_METHOD,
+            {
+                uri: key
+            } satisfies EphemeralQuery,
+            token
+        );
+        let res = EphemeralQueryResponse.parse(raw);
+        let content = res.doc?.content;
+        if (content != null) { 
+            handleEphemeralChange({
+                uri: key,
+                content,
+            })
+        }
+        return content;
+    }
+    c.onDidChangeState((e) => {
+        if (e.oldState === State.Running) {
+            assert(e.newState === State.Stopped, "Client should only transition from Running to Stopped");
+            c.debug("Client stopped, clearing ephemeral documents");
+            // tombstone rather than clear: the refresh below makes VSCode ask
+            // for each document again, and there is no longer a server to ask
+            for (let key of [...docs.keys()]) {
+                docs.set(key, undefined);
+                ephemeralEvent.fire(Uri.parse(key));
+            }
+        }
+    })
+    cx.subscriptions.push(
+        vs.workspace.registerTextDocumentContentProvider(SERVER_NAME, {
+            onDidChange: ephemeralEvent.event,
+            provideTextDocumentContent: provideEphemeralDocument,
+        })
+    )
+}
+
+/**
+ * Handler for {@link COPY_COMMAND}.
+ */
+async function doCopy(toCopy: unknown): Promise<void> {
+    if (typeof toCopy !== "string") {
+        client?.error(`${COPY_COMMAND} expected a string argument, got ${typeof toCopy}`);
+        void vsWindow.showErrorMessage("Vencord Companion: nothing to copy");
+        return;
+    }
+    await env.clipboard.writeText(toCopy);
+    client?.debug(`Copied "${toCopy}" to the clipboard`);
+}
+
+function doQuickPick(req: QuickPickRequest): Promise<string | undefined> {
+    const qp = vsWindow.createQuickPick();
+    const { promise, resolve, reject } = Promise.withResolvers<string | undefined>();
+    const baseItems = req.items.map((label) => ({ label }));
+    // VSCode quick pick don't support free text input
+    // so for a hacky workaround, create and update an
+    // extra item with the contents of the current input value
+    if (req.allowFreeText) { 
+        qp.items = [
+            {
+                label: "",
+            },
+            ...baseItems,
+        ];
+        qp.onDidChangeValue((label) => { 
+            qp.items = [
+                { label },
+                ...baseItems,
+            ];
+        })
+    }
+
+    qp.onDidAccept(() => { 
+        const items = qp.selectedItems;
+        if (!items.length) {
+            reject(new QuickPickError("No Item Selected"));
+        } else if (items.length > 1) {
+            reject(new QuickPickError("Multiple Items Selected"));
+        } else { 
+            resolve(items[0].label);
+        }
+        qp.dispose();
+    })
+    qp.onDidHide(() => { 
+        resolve(undefined);
+        qp.dispose();
+    })
+    qp.show();
+    return promise;
+}
+
+function trustHover(hover: Hover): void {
+    for (const content of hover.contents) {
+        if (content instanceof MarkdownString) {
+            content.isTrusted = { enabledCommands: [COPY_COMMAND] };
+            content.supportThemeIcons = true;
+        }
+    }
+}
+
+function mkClient(cx: ExtensionContext): LanguageClient {
     const serverOptions: ServerOptions = {
-        run:   { command: serverPath, transport: TransportKind.stdio, options: { env } },
-        debug: { command: serverPath, transport: TransportKind.stdio, options: { env } },
-    };
-
-    const clientOptions: LanguageClientOptions = {
-        documentSelector: [
-            { scheme: "file", language: "typescript" },
-            { scheme: "file", language: "typescriptreact" },
-            { scheme: "file", language: "javascript" },
-            { scheme: "file", language: "javascriptreact" },
-            // Patch Helper virtual documents (vencord-patchhelper:/session/*.js)
-            // so intl hover works on the patched webpack module shown there.
-            { scheme: "vencord-patchhelper", language: "javascript" },
-        ],
-        synchronize: {
-            fileEvents: workspace.createFileSystemWatcher("**/*.{ts,tsx,js,jsx}"),
-        },
-    };
-
-    return new LanguageClient(
-        "companionLsp",
-        "Vencord Companion LSP",
-        serverOptions,
-        clientOptions,
-    );
-}
-
-export async function activate(context: ExtensionContext): Promise<void> {
-    extensionContext = context;
-    client = createClient(context);
-
-    // Command forwarders and the patch helper reference the module-level
-    // `client`, so they survive a restart and only need registering once.
-    registerCommandForwarders(context);
-    registerPatchHelper(context);
-    context.subscriptions.push(
-        commands.registerCommand("vencord-companion.setLogLevel", setLogLevel),
-    );
-
-    await client.start();
-    registerCustomRequests();
+        command: resolveServerBinary(cx),
+		transport: TransportKind.stdio,
+		options: {
+			env: {}
+		}
+	};
+	const logLevel = Settings.logLevel;
+	if (logLevel) { 
+		serverOptions.options!.env.COMPANION_LSP_LOG = logLevel;
+    }
+    interface IRange { 
+        start: IPosition;
+        end: IPosition;
+    }
+    interface IPosition {
+        line: number;
+        character: number;
+    }
+    function convertRange(range: IRange): vs.Range { 
+        return new vs.Range(range.start.line, range.start.character, range.end.line, range.end.character);
+    }
+	const clientOptions: LanguageClientOptions = {
+		documentSelector: [
+			...["typescript", "javascript", "typescriptreact", "javascriptreact"]
+				.map((language) => ({
+					scheme: "file",
+					language
+				})),
+			{ scheme: "vencord-companion" }
+		],
+        middleware: {
+			// hovers from the server contain `command:` links and `$(icon)`
+			// codicons, both of which are inert unless the markdown opts in
+			async provideHover(document, position, token, next) {
+				const hover = await next(document, position, token);
+				if (hover) {
+					trustHover(hover);
+				}
+				return hover;
+            },
+            window: {
+                async showDocument(params, next) { 
+                    if (params.selection && !params.takeFocus && !params.external) {
+                        let parsedUri = Uri.parse(params.uri);
+                        let uriString = parsedUri.toString();
+                        let range = convertRange(params.selection);
+                        let activeEditor = vsWindow.activeTextEditor;
+                        let visibleEditor = activeEditor?.document.uri.toString() === uriString
+                            ? activeEditor
+                            : vsWindow.visibleTextEditors.find((editor) => {
+                                return editor.document.uri.toString() === uriString;
+                            });
+                        if (visibleEditor) {
+                            visibleEditor.selection = new vs.Selection(range.start, range.end);
+                            visibleEditor.revealRange(range, vs.TextEditorRevealType.InCenter);
+                            return {
+                                success: true
+                            };
+                        }
+                        let openTab = vsWindow.tabGroups.all
+                            .flatMap((group) => group.tabs)
+                            .find((tab) => {
+                                return tab.input instanceof vs.TabInputText
+                                    && tab.input.uri.toString() === uriString;
+                            });
+                        if (openTab) {
+                            try {
+                                await vsWindow.showTextDocument(parsedUri, {
+                                    viewColumn: openTab.group.viewColumn,
+                                    preserveFocus: true,
+                                    selection: range
+                                });
+                                return {
+                                    success: true
+                                };
+                            } catch {
+                                // fall through to the default handler
+                            }
+                        }
+                    }
+                    let tokSource = new vs.CancellationTokenSource();
+                    using _ = defer(() => tokSource.dispose());
+                    // HandlerSignature returns HandlerResult, which permits a
+                    // ResponseError; the middleware type does not, so surface it
+                    // as a rejection and let the client turn it back into one
+                    let res = await next(params, tokSource.token);
+                    if (res instanceof ResponseError) {
+                        throw res;
+                    }
+                    return res;
+                }
+            }
+		}
+	};
+    return new LanguageClient("vencord-companion-client", "Vencord Companion", serverOptions, clientOptions);
 }
 
 export async function deactivate(): Promise<void> {
-    if (client) {
-        await client.stop();
-    }
+    await client?.stop();
+    client = undefined;
 }
 
-// ---------------------------------------------------------------------------
-// Log level: pick a level, persist it, restart the server with it applied
-// ---------------------------------------------------------------------------
-
-async function setLogLevel(): Promise<void> {
-    const current = getConfiguredLogLevel();
-    const picked = await window.showQuickPick(
-        LOG_LEVELS.map((level) => ({
-            label:       level,
-            description: level === current ? "(current)" : undefined,
-        })),
-        { placeHolder: "Select the companion_lsp log level" },
-    );
-    if (!picked || picked.label === current) return;
-
-    await workspace.getConfiguration("vencord-user-companion")
-        .update("logLevel", picked.label, ConfigurationTarget.Global);
-    await restartClient();
-    window.showInformationMessage(`Vencord Companion: log level set to "${picked.label}".`);
-}
-
-async function restartClient(): Promise<void> {
-    if (!extensionContext) return;
-    if (client) {
-        await client.stop();
-    }
-    client = createClient(extensionContext);
-    await client.start();
-    registerCustomRequests();
-}
-
-// ---------------------------------------------------------------------------
-// Binary resolution
-// ---------------------------------------------------------------------------
-
-function resolveServerBinary(context: ExtensionContext): string {
-    // 1. Env var override for development.
+function resolveServerBinary(cx: ExtensionContext): string {
     const env = process.env.COMPANION_LSP_BIN;
     if (env) return env;
 
-    // 2. User-configured path.
-    const cfg = workspace.getConfiguration("vencord-user-companion").get<string>("lspPath");
-    if (cfg) return cfg;
+    const cfgLspPath = Settings.lspPath;
+    if (cfgLspPath) return cfgLspPath;
 
-    // 3. Binary bundled with the extension (release path).
-    const bundled = path.join(
-        context.extensionPath,
+    const bundled = join(
+        cx.extensionPath,
         "bin",
         process.platform === "win32" ? "companion_lsp.exe" : "companion_lsp",
     );
     return bundled;
 }
 
-// ---------------------------------------------------------------------------
-// Forward VSCode commands -> server workspace/executeCommand
-// ---------------------------------------------------------------------------
-
-function registerCommandForwarders(context: ExtensionContext): void {
-    const forward = (cmd: string) => (...args: unknown[]) =>
-        client?.sendRequest("workspace/executeCommand", {
-            command:   cmd,
-            arguments: args,
-        });
-
-    for (const { vscode: vsCmd, server: srvCmd } of LEGACY_COMMAND_ALIASES) {
-        context.subscriptions.push(commands.registerCommand(vsCmd, forward(srvCmd)));
-    }
-}
-
-// ---------------------------------------------------------------------------
-// vencord/quickPick: server asks editor to display a QuickPick
-// ---------------------------------------------------------------------------
-
-interface QuickPickRequest {
-    nonce:          string;
-    items:          string[];
-    placeholder?:   string;
-    allowFreeText?: boolean;
-}
-
-async function handleQuickPick(req: QuickPickRequest): Promise<void> {
-    let selected: string | null;
-
-    if (req.allowFreeText) {
-        // Free-text entry (e.g. a module id) — the item list is only a hint and
-        // can be empty (no client) or huge (every known module), neither of
-        // which a QuickPick surfaces the typed value reliably from. Ask for the
-        // value directly.
-        selected = (await window.showInputBox({ placeHolder: req.placeholder }))
-            ?? null;
-    } else {
-        selected = await pickFromQuickPick(req);
-    }
-
-    client?.sendRequest(QUICK_PICK_RESPONSE_METHOD, { nonce: req.nonce, selected });
-}
-
-async function pickFromQuickPick(req: QuickPickRequest): Promise<string | null> {
-    const qp = window.createQuickPick();
-    qp.placeholder    = req.placeholder ?? "";
-    qp.canSelectMany  = false;
-    const items: QuickPickItem[] = [
-        ...(req.allowFreeText ? [{ label: "", alwaysShow: false }] : []),
-        { label: "", kind: -1 as const },
-        ...req.items.map((label) => ({ label })),
-    ];
-    qp.items = items;
-
-    if (req.allowFreeText) {
-        qp.onDidChangeValue(() => {
-            if (!req.items.includes(qp.value)) {
-                items[0].label      = qp.value;
-                items[0].alwaysShow = true;
-            } else {
-                items[0].alwaysShow = false;
-            }
-            qp.items = items;
-        });
-    }
-
-    return await new Promise<string | null>((resolve) => {
-        qp.onDidAccept(() => {
-            // A highlighted list item wins; otherwise fall back to whatever
-            // free text the user typed.
-            const active = qp.selectedItems[0]?.label || qp.activeItems[0]?.label;
-            const v = active || (req.allowFreeText ? qp.value : "") || null;
-            qp.dispose();
-            resolve(v);
-        });
-        qp.onDidHide(() => resolve(null));
-        qp.show();
-    });
-}
-
-// ---------------------------------------------------------------------------
-// vencord/showDiff
-// ---------------------------------------------------------------------------
-
-interface ShowDiffRequest {
-    left:  { uri: string; content?: string };
-    right: { uri: string; content?: string };
-    title: string;
-}
-
-async function handleShowDiff(req: ShowDiffRequest): Promise<void> {
-    const left  = Uri.parse(req.left.uri);
-    const right = Uri.parse(req.right.uri);
-    await commands.executeCommand("vscode.diff", left, right, req.title);
-}
-
-// ---------------------------------------------------------------------------
-// Patch helper: virtual document scheme backed by server-provided content
-// ---------------------------------------------------------------------------
-
-interface PatchHelperOpen {
-    sourceUri:     string;
-    patchId:       string;
-    moduleContent: string;
-}
-
-interface PatchHelperUpdate {
-    sourceUri:     string;
-    patchId:       string;
-    moduleContent: string;
-    // Server-computed 0-based line range covering the difference between the
-    // previous and new patched module. Null on the first update (no previous
-    // content to diff against) or when nothing changed.
-    revealRange?:  { startLine: number; endLine: number } | null;
-}
-
-interface PatchHelperClose {
-    sourceUri: string;
-    patchId:   string;
-}
-
-class PatchHelperProvider implements TextDocumentContentProvider {
-    private readonly contents = new Map<string, string>();
-    private readonly _onDidChange = new EventEmitter<Uri>();
-    readonly onDidChange = this._onDidChange.event;
-
-    open(patchId: string, content: string): Uri {
-        const uri = Uri.parse(`vencord-patchhelper:/session/${patchId}.js`);
-        this.contents.set(uri.toString(), content);
-        return uri;
-    }
-
-    update(patchId: string, content: string): void {
-        const uri = Uri.parse(`vencord-patchhelper:/session/${patchId}.js`);
-        this.contents.set(uri.toString(), content);
-        this._onDidChange.fire(uri);
-    }
-
-    uriFor(patchId: string): Uri {
-        return Uri.parse(`vencord-patchhelper:/session/${patchId}.js`);
-    }
-
-    drop(patchId: string): void {
-        this.contents.delete(this.uriFor(patchId).toString());
-    }
-
-    provideTextDocumentContent(uri: Uri): string {
-        return this.contents.get(uri.toString()) ?? "";
-    }
-}
-
-let patchHelperProvider: PatchHelperProvider | undefined;
-// sourceUri (string) → set of patchIds. Lets the tab-close listener find the
-// patched views to close when the user shuts the plugin source tab — VSCode
-// often holds the underlying TextDocument in memory after the tab is gone,
-// so `workspace.onDidCloseTextDocument` (and the LSP `didClose` it relays)
-// fires too late to be the only signal we react to. A single source can drive
-// several helpers at once (one per patch, even when two patches resolve to the
-// same webpack module), so each source maps to a *set* of patchIds.
-const sourceUriToPatchIds = new Map<string, Set<string>>();
-
-function registerPatchHelper(context: ExtensionContext): void {
-    patchHelperProvider = new PatchHelperProvider();
-    context.subscriptions.push(
-        workspace.registerTextDocumentContentProvider(
-            "vencord-patchhelper",
-            patchHelperProvider,
-        ),
-        window.tabGroups.onDidChangeTabs(onTabsChanged),
-    );
-}
-
-async function handlePatchHelperOpen(req: PatchHelperOpen): Promise<void> {
-    if (!patchHelperProvider) return;
-    let ids = sourceUriToPatchIds.get(req.sourceUri);
-    if (!ids) {
-        ids = new Set();
-        sourceUriToPatchIds.set(req.sourceUri, ids);
-    }
-    ids.add(req.patchId);
-    const uri = patchHelperProvider.open(req.patchId, req.moduleContent);
-    const doc = await workspace.openTextDocument(uri);
-    // Beside, not preview — matches the legacy PatchHelper behaviour so the
-    // patched view sits next to the plugin source instead of replacing it.
-    await window.showTextDocument(doc, {
-        preview: false,
-        viewColumn: ViewColumn.Beside,
-    });
-}
-
-function handlePatchHelperUpdate(req: PatchHelperUpdate): void {
-    patchHelperProvider?.update(req.patchId, req.moduleContent);
-    if (!req.revealRange) return;
-    // VSCode applies the content-provider update in a microtask after `fire`,
-    // so defer the reveal one tick so the editor isn't scrolled before the
-    // new line layout exists.
-    const { startLine, endLine } = req.revealRange;
-    const targetUri = patchHelperProvider?.uriFor(req.patchId).toString();
-    if (!targetUri) return;
-    queueMicrotask(() => {
-        const editor = window.visibleTextEditors.find(
-            (e) => e.document.uri.toString() === targetUri,
-        );
-        if (!editor) return;
-        const range = new VscRange(
-            new Position(startLine, 0),
-            new Position(endLine, 0),
-        );
-        editor.revealRange(range, TextEditorRevealType.InCenter);
-    });
-}
-
-async function handlePatchHelperClose(req: PatchHelperClose): Promise<void> {
-    forgetPatchId(req.sourceUri, req.patchId);
-    await closePatchHelperByPatchId(req.patchId);
-}
-
-// Drop a single patchId from a source's set, cleaning up the source key once
-// its last helper is gone.
-function forgetPatchId(sourceUri: string, patchId: string): void {
-    const ids = sourceUriToPatchIds.get(sourceUri);
-    if (!ids) return;
-    ids.delete(patchId);
-    if (ids.size === 0) sourceUriToPatchIds.delete(sourceUri);
-}
-
-async function closePatchHelperByPatchId(patchId: string): Promise<void> {
-    if (!patchHelperProvider) return;
-    const targetUri = patchHelperProvider.uriFor(patchId).toString();
-    // Walk every tab group looking for the matching virtual document tab.
-    // There's only ever one per patchId since uriFor is deterministic, but
-    // VSCode permits the same tab in multiple groups, so close them all.
-    const tabs = window.tabGroups.all
-        .flatMap((g) => g.tabs)
-        .filter((tab) =>
-            tab.input instanceof TabInputText
-            && tab.input.uri.toString() === targetUri,
-        );
-    if (tabs.length > 0) {
-        await window.tabGroups.close(tabs);
-    }
-    patchHelperProvider.drop(patchId);
-}
-
-async function onTabsChanged(e: { closed: readonly { input: unknown }[] }): Promise<void> {
-    for (const tab of e.closed) {
-        if (!(tab.input instanceof TabInputText)) continue;
-        const closedUri = tab.input.uri.toString();
-
-        // Source tab closed: close every patch helper tab linked to it.
-        const patchIds = sourceUriToPatchIds.get(closedUri);
-        if (patchIds !== undefined) {
-            sourceUriToPatchIds.delete(closedUri);
-            for (const pid of patchIds) {
-                await closePatchHelperByPatchId(pid);
-            }
-            continue;
+function defer(fn: () => void): Disposable { 
+    return {
+        [Symbol.dispose]() {
+            fn();
         }
+    };
+}
 
-        // Patch helper tab closed by the user: drop our cache and the
-        // sourceUri → patchIds mapping for it.
-        if (tab.input.uri.scheme === "vencord-patchhelper") {
-            const id = patchIdFromHelperUri(tab.input.uri);
-            if (id !== undefined) {
-                patchHelperProvider?.drop(id);
-                for (const [src, ids] of sourceUriToPatchIds) {
-                    if (ids.delete(id) && ids.size === 0) {
-                        sourceUriToPatchIds.delete(src);
-                    }
-                }
-            }
-        }
+function error(msg?: string): never { 
+    throw new Error(msg);
+}
+
+/**
+ * An assertion with an expression that is always falsy will always fail.
+ * 
+ * NOTE: NaN is falsy, but not included because there is no literal type for it
+ * 
+ * @throws an {@link AssertionError} always
+ * 
+ * @see {@link unreachable} and {@link error} for better uses if you are passing a literal
+ * @see {@link https://developer.mozilla.org/en-US/docs/Glossary/Falsy|MDN - Falsy}
+ * @see {@link https://developer.mozilla.org/en-US/docs/Web/API/HTMLAllCollection|MDN - HTMLAllCollection}
+ */
+export function assert(cond: null | undefined | false | 0 | 0n | "", msg?: string): never;
+/**
+ * Assert {@link cond} is truthy
+ * 
+ * @throws an {@link AssertionError} if {@link cond} is falsy
+ */
+export function assert(cond: unknown, msg?: string): asserts cond;
+export function assert(cond: unknown, msg?: string): asserts cond {
+    if (!cond) {
+        const err = new AssertionError(msg);
+
+        AssertionError.captureStackTrace(err, assert);
+        throw err;
     }
 }
 
-function patchIdFromHelperUri(uri: Uri): string | undefined {
-    // Mirrors PatchHelperProvider.uriFor: `vencord-patchhelper:/session/<id>.js`.
-    const match = /^\/session\/(.+)\.js$/.exec(uri.path);
-    return match ? match[1] : undefined;
-}
+export class AssertionError extends Error {
+    override name = "AssertionError";
 
-// ---------------------------------------------------------------------------
-// Wire all custom requests onto the client
-// ---------------------------------------------------------------------------
-
-function registerCustomRequests(): void {
-    if (!client) return;
-    client.onRequest(QUICK_PICK_METHOD, handleQuickPick);
-    client.onRequest(SHOW_DIFF_METHOD, handleShowDiff);
-    client.onRequest(PATCH_HELPER_OPEN_METHOD, handlePatchHelperOpen);
-    client.onNotification(PATCH_HELPER_UPDATE_METHOD, handlePatchHelperUpdate);
-    client.onNotification(PATCH_HELPER_CLOSE_METHOD, handlePatchHelperClose);
+    constructor(msg?: string) {
+        super(msg);
+    }
 }

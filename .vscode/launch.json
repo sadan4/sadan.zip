@@ -51,6 +51,45 @@
                 "${workspaceFolder}/packages/VencordCompanion/**",
                 "!**/node_modules/**"
             ]
+        },
+        {
+            "name": "Run VencordCompanion Extension (wait for LSP debugger)",
+            "type": "extensionHost",
+            "request": "launch",
+            "args": [
+                "--extensionDevelopmentPath=${workspaceFolder}/packages/VencordCompanion",
+                // "--disable-extension=asvetliakov.vscode-neovim",
+            ],
+            "env": {
+                "COMPANION_LSP_WAIT_DEBUGGER": "1"
+            },
+            "outFiles": [
+                "${workspaceFolder}/packages/VencordCompanion/dist/**/*.js"
+            ],
+            "preLaunchTask": "build:vencord-companion",
+            "pauseForSourceMap": true,
+            "resolveSourceMapLocations": [
+                "${workspaceFolder}/packages/VencordCompanion/**",
+                "!**/node_modules/**"
+            ]
+        },
+        {
+            "name": "Attach companion_lsp",
+            "type": "lldb",
+            "request": "attach",
+            "program": "${workspaceFolder}/packages/VencordCompanion/bin/companion_lsp",
+            "waitFor": true
+        }
+    ],
+    "compounds": [
+        {
+            // Attach first so waitFor is armed before the server is spawned.
+            "name": "VencordCompanion Extension + LSP",
+            "configurations": [
+                "Attach companion_lsp",
+                "Run VencordCompanion Extension (wait for LSP debugger)"
+            ],
+            "stopAll": true
         }
     ]
 }

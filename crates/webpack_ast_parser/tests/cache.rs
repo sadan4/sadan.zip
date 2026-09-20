@@ -1,15 +1,50 @@
 #![allow(clippy::unreadable_literal, clippy::needless_raw_string_hashes)]
 mod util;
 
+use std::sync::Arc;
+
 use insta::{assert_debug_snapshot, assert_snapshot};
 use macros::cache_test;
 
 use util::Bundle;
 
+/// The whole point of [`webpack_ast_parser::ThreadSafeParser`]: a cached
+/// parser, and the bundle it reaches back into for its module cache and
+/// dependency provider, can both be used from another thread.
 #[cache_test]
-fn simple_export_in_single_file(b: &Bundle) {
+async fn parsers_are_usable_across_threads(b: &Bundle) {
 	let parser = b.parse(222222);
-	let locs = b.dbg_gen_refs(&parser, 6, 8).unwrap();
+	let on_other_thread = Arc::clone(&parser);
+	let handle = tokio::spawn(async move {
+		let p = on_other_thread.parser();
+		(
+			p.get_module_id().unwrap(),
+			format!(
+				"{:?}",
+				p.get_modules_that_require_this_module()
+					.await
+			),
+		)
+	});
+	let p = parser.parser();
+	let expected = (
+		p.get_module_id().unwrap(),
+		format!(
+			"{:?}",
+			p.get_modules_that_require_this_module()
+				.await
+		),
+	);
+	assert_eq!(handle.await.unwrap(), expected);
+}
+
+#[cache_test]
+async fn simple_export_in_single_file(b: &Bundle) {
+	let parser = b.parse(222222);
+	let locs = b
+		.dbg_gen_refs(&parser, 6, 8)
+		.await
+		.unwrap();
 	assert_debug_snapshot!(locs, @r#"
 	[
 	    ReferenceDumper {
@@ -23,9 +58,9 @@ fn simple_export_in_single_file(b: &Bundle) {
 }
 
 #[cache_test]
-fn simple_export_in_many_files(b: &Bundle) {
+async fn simple_export_in_many_files(b: &Bundle) {
 	let parser = b.parse(222222);
-	let locs = b.dbg_gen_refs(&parser, 5, 8);
+	let locs = b.dbg_gen_refs(&parser, 5, 8).await;
 	assert_debug_snapshot!(locs, @r#"
 	Ok(
 	    [
@@ -59,10 +94,12 @@ mod e_exports_default {
 
 	use super::*;
 	#[cache_test]
-	fn test1(b: &Bundle) {
+	async fn test1(b: &Bundle) {
 		let parser = b.parse(111113);
 		let deps = parser
+			.parser()
 			.get_modules_that_require_this_module()
+			.await
 			.unwrap();
 		assert_debug_snapshot!(deps, @"
 		IncomingModuleDeps {
@@ -93,7 +130,10 @@ mod e_exports_default {
 		    ],
 		}
 		"#);
-		let locs = b.dbg_gen_refs(&parser, 5, 8).unwrap();
+		let locs = b
+			.dbg_gen_refs(&parser, 5, 8)
+			.await
+			.unwrap();
 		assert_debug_snapshot!(locs, @r#"
 		[
 		    ReferenceDumper {
@@ -106,9 +146,12 @@ mod e_exports_default {
 		"#);
 	}
 	#[cache_test]
-	fn test2(b: &Bundle) {
+	async fn test2(b: &Bundle) {
 		let parser = b.parse(111113);
-		let locs = b.dbg_gen_refs(&parser, 8, 8).unwrap();
+		let locs = b
+			.dbg_gen_refs(&parser, 8, 8)
+			.await
+			.unwrap();
 		assert_debug_snapshot!(locs, @r#"
 		[
 		    ReferenceDumper {
@@ -121,9 +164,12 @@ mod e_exports_default {
 		"#);
 	}
 	#[cache_test]
-	fn test3(b: &Bundle) {
+	async fn test3(b: &Bundle) {
 		let parser = b.parse(111113);
-		let locs = b.dbg_gen_refs(&parser, 11, 8).unwrap();
+		let locs = b
+			.dbg_gen_refs(&parser, 11, 8)
+			.await
+			.unwrap();
 		assert_debug_snapshot!(locs, @r#"
 		[
 		    ReferenceDumper {
@@ -138,10 +184,16 @@ mod e_exports_default {
 }
 
 #[cache_test]
-fn react_class_component(b: &Bundle) {
+async fn react_class_component(b: &Bundle) {
 	let parser = b.parse(555555);
-	let locs = b.dbg_gen_refs(&parser, 11, 10).unwrap();
-	let locs2 = b.dbg_gen_refs(&parser, 6, 8).unwrap();
+	let locs = b
+		.dbg_gen_refs(&parser, 11, 10)
+		.await
+		.unwrap();
+	let locs2 = b
+		.dbg_gen_refs(&parser, 6, 8)
+		.await
+		.unwrap();
 	assert_eq!(locs, locs2);
 	assert_debug_snapshot!(locs, @r#"
 	[
@@ -160,9 +212,12 @@ mod enum_uses {
 	mod style_1 {
 		use super::*;
 		#[cache_test]
-		fn uses_of_member(b: &Bundle) {
+		async fn uses_of_member(b: &Bundle) {
 			let parser = b.parse(333333);
-			let locs = b.dbg_gen_refs(&parser, 22, 27).unwrap();
+			let locs = b
+				.dbg_gen_refs(&parser, 22, 27)
+				.await
+				.unwrap();
 			assert_debug_snapshot!(locs, @r#"
 			[
 			    ReferenceDumper {
@@ -181,9 +236,12 @@ mod enum_uses {
 			"#);
 		}
 		#[cache_test]
-		fn uses_of_object(b: &Bundle) {
+		async fn uses_of_object(b: &Bundle) {
 			let parser = b.parse(333333);
-			let locs = b.dbg_gen_refs(&parser, 21, 12).unwrap();
+			let locs = b
+				.dbg_gen_refs(&parser, 21, 12)
+				.await
+				.unwrap();
 			assert_debug_snapshot!(locs, @r#"
 			[
 			    ReferenceDumper {
@@ -223,9 +281,12 @@ mod enum_uses {
 	mod style_2 {
 		use super::*;
 		#[cache_test]
-		fn uses_of_member(b: &Bundle) {
+		async fn uses_of_member(b: &Bundle) {
 			let parser = b.parse(333333);
-			let locs = b.dbg_gen_refs(&parser, 28, 14).unwrap();
+			let locs = b
+				.dbg_gen_refs(&parser, 28, 14)
+				.await
+				.unwrap();
 			assert_debug_snapshot!(locs, @r#"
 			[
 			    ReferenceDumper {
@@ -244,9 +305,12 @@ mod enum_uses {
 			"#);
 		}
 		#[cache_test]
-		fn uses_of_object(b: &Bundle) {
+		async fn uses_of_object(b: &Bundle) {
 			let parser = b.parse(333333);
-			let locs = b.dbg_gen_refs(&parser, 26, 14).unwrap();
+			let locs = b
+				.dbg_gen_refs(&parser, 26, 14)
+				.await
+				.unwrap();
 			assert_debug_snapshot!(locs, @r#"
 			[
 			    ReferenceDumper {
@@ -291,9 +355,12 @@ mod definitions {
 	mod wreq_d {
 		use super::*;
 		#[cache_test]
-		fn simple_import(b: &Bundle) {
+		async fn simple_import(b: &Bundle) {
 			let parser = b.parse(111111);
-			let defs = b.dbg_defs(&parser, 23, 29).unwrap();
+			let defs = b
+				.dbg_defs(&parser, 23, 29)
+				.await
+				.unwrap();
 			assert_debug_snapshot!(defs, @r#"
 			[
 			    DefinitionDumper {
@@ -306,9 +373,9 @@ mod definitions {
 			"#);
 		}
 		#[cache_test]
-		fn simple_import_2(b: &Bundle) {
+		async fn simple_import_2(b: &Bundle) {
 			let parser = b.parse(111111);
-			let defs = b.dbg_defs(&parser, 26, 34);
+			let defs = b.dbg_defs(&parser, 26, 34).await;
 			assert_debug_snapshot!(defs, @r#"
 			Ok(
 			    [
@@ -328,9 +395,12 @@ mod definitions {
 			mod style_1 {
 				use super::*;
 				#[cache_test]
-				fn obj_def_from_obj_use(b: &Bundle) {
+				async fn obj_def_from_obj_use(b: &Bundle) {
 					let parser = b.parse(111111);
-					let defs = b.dbg_defs(&parser, 20, 23).unwrap();
+					let defs = b
+						.dbg_defs(&parser, 20, 23)
+						.await
+						.unwrap();
 					assert_debug_snapshot!(defs, @r#"
 					[
 					    DefinitionDumper {
@@ -343,9 +413,12 @@ mod definitions {
 					"#);
 				}
 				#[cache_test]
-				fn obj_def_from_computed_access(b: &Bundle) {
+				async fn obj_def_from_computed_access(b: &Bundle) {
 					let parser = b.parse(222222);
-					let defs = b.dbg_defs(&parser, 20, 23).unwrap();
+					let defs = b
+						.dbg_defs(&parser, 20, 23)
+						.await
+						.unwrap();
 					assert_debug_snapshot!(defs, @r#"
 					[
 					    DefinitionDumper {
@@ -358,9 +431,12 @@ mod definitions {
 					"#);
 				}
 				#[cache_test]
-				fn member_def_from_normal_use(b: &Bundle) {
+				async fn member_def_from_normal_use(b: &Bundle) {
 					let parser = b.parse(111111);
-					let defs = b.dbg_defs(&parser, 20, 27).unwrap();
+					let defs = b
+						.dbg_defs(&parser, 20, 27)
+						.await
+						.unwrap();
 					assert_debug_snapshot!(defs, @r#"
 					[
 					    DefinitionDumper {
@@ -376,9 +452,12 @@ mod definitions {
 			mod style_2 {
 				use super::*;
 				#[cache_test]
-				fn obj_def_from_obj_use(b: &Bundle) {
+				async fn obj_def_from_obj_use(b: &Bundle) {
 					let parser = b.parse(111111);
-					let defs = b.dbg_defs(&parser, 20, 34).unwrap();
+					let defs = b
+						.dbg_defs(&parser, 20, 34)
+						.await
+						.unwrap();
 					assert_debug_snapshot!(defs, @r#"
 					[
 					    DefinitionDumper {
@@ -391,9 +470,12 @@ mod definitions {
 					"#);
 				}
 				#[cache_test]
-				fn obj_def_from_computed_access(b: &Bundle) {
+				async fn obj_def_from_computed_access(b: &Bundle) {
 					let parser = b.parse(222222);
-					let defs = b.dbg_defs(&parser, 20, 32).unwrap();
+					let defs = b
+						.dbg_defs(&parser, 20, 32)
+						.await
+						.unwrap();
 					assert_debug_snapshot!(defs, @r#"
 					[
 					    DefinitionDumper {
@@ -406,9 +488,12 @@ mod definitions {
 					"#);
 				}
 				#[cache_test]
-				fn member_def_from_normal_use(b: &Bundle) {
+				async fn member_def_from_normal_use(b: &Bundle) {
 					let parser = b.parse(111111);
-					let defs = b.dbg_defs(&parser, 20, 38).unwrap();
+					let defs = b
+						.dbg_defs(&parser, 20, 38)
+						.await
+						.unwrap();
 					assert_debug_snapshot!(defs, @r#"
 					[
 					    DefinitionDumper {
@@ -427,9 +512,12 @@ mod definitions {
 mod stores {
 	use super::*;
 	#[cache_test]
-	fn definition_location_of_store_getter(b: &Bundle) {
+	async fn definition_location_of_store_getter(b: &Bundle) {
 		let parser = b.parse(111111);
-		let defs = b.dbg_defs(&parser, 16, 27).unwrap();
+		let defs = b
+			.dbg_defs(&parser, 16, 27)
+			.await
+			.unwrap();
 		assert_debug_snapshot!(defs, @r#"
 		[
 		    DefinitionDumper {
@@ -447,9 +535,10 @@ mod hover_text {
 
 	use super::*;
 	#[cache_test]
-	fn store_in_other_module(b: &Bundle) {
+	async fn store_in_other_module(b: &Bundle) {
 		let parser = b.parse(555555);
 		let hov = dbg_hover(&parser, 38, 8)
+			.await
 			.unwrap()
 			.unwrap();
 		assert_debug_snapshot!(hov, @r#"
@@ -459,13 +548,30 @@ mod hover_text {
 		)
 		"#);
 	}
+	/// The span should be in 900003's source, not 900002's
+	#[cache_test(sub_dir = "re_export_store")]
+	async fn store_behind_explicit_re_export(b: &Bundle) {
+		let parser = b.parse(900003);
+		let hov = dbg_hover(&parser, 8, 17)
+			.await
+			.unwrap()
+			.unwrap();
+		assert_debug_snapshot!(hov, @r#"
+		(
+		    "ReExportedStore",
+		    "[8:17->8:19) St",
+		)
+		"#);
+	}
 	#[cache_test]
-	fn store_in_other_module_2(b: &Bundle) {
+	async fn store_in_other_module_2(b: &Bundle) {
 		let parser = b.parse(111111);
 		let hov = dbg_hover(&parser, 15, 23)
+			.await
 			.unwrap()
 			.unwrap();
 		let hov2 = dbg_hover(&parser, 32, 23)
+			.await
 			.unwrap()
 			.unwrap();
 		assert_debug_snapshot!(hov2, @r#"
@@ -488,9 +594,12 @@ mod references {
 	mod re_exports {
 		use super::*;
 		#[cache_test(sub_dir = "re_export")]
-		fn handles_re_export(b: &Bundle) {
+		async fn handles_re_export(b: &Bundle) {
 			let parser = b.parse(6151);
-			let locs = b.dbg_gen_refs(&parser, 6, 8).unwrap();
+			let locs = b
+				.dbg_gen_refs(&parser, 6, 8)
+				.await
+				.unwrap();
 			assert_debug_snapshot!(locs, @r#"
 			[
 			    ReferenceDumper {

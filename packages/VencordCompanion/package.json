@@ -41,6 +41,7 @@
         "typecheck": "tsc --noEmit -p ./tsconfig.json"
     },
     "dependencies": {
+        "zod": "^4.3.6",
         "vscode-languageclient": "^9.0.1"
     },
     "devDependencies": {
@@ -77,48 +78,39 @@
                     "type": "string"
                 },
                 "vencord-user-companion.logLevel": {
-                    "default": "info",
+                    "default": null,
                     "description": "Log level for the companion_lsp server (sets COMPANION_LSP_LOG). Changing this restarts the server. Use the \"Vencord Companion: Set Log Level\" command for a quick picker.",
-                    "type": "string",
-                    "enum": [
-                        "trace",
-                        "debug",
-                        "info",
-                        "warn",
-                        "error",
-                        "off"
+                    "oneOf": [
+                        {
+                            "type": "string",
+                            "enum": [
+                                "trace",
+                                "debug",
+                                "info",
+                                "warn",
+                                "error",
+                                "off"
+                            ]
+                        },
+                        {
+                            "type": "null"
+                        }
                     ]
                 }
             }
         },
         "commands": [
             {
-                "command": "vencord-companion.diffModuleSearch",
-                "title": "Vencord Companion: Diff Module Search"
+                "command": "vencord-companion.ephemera_test",
+                "title": "Vencord Companion: Create a test epehemeral document"
             },
             {
-                "command": "vencord-companion.diffModule",
-                "title": "Vencord Companion: Diff Module"
+                "command": "vencord-companion.progress_test",
+                "title": "Vencord Companion: Test the progress reporting"
             },
             {
-                "command": "vencord-companion.extract",
-                "title": "Vencord Companion: Extract"
-            },
-            {
-                "command": "vencord-companion.extractSearch",
-                "title": "Vencord Companion: Extract With Search"
-            },
-            {
-                "command": "vencord.downloadModuleCache",
-                "title": "Vencord Companion: Download Module Cache"
-            },
-            {
-                "command": "vencord.purgeModuleCache",
-                "title": "Vencord Companion: Purge Module Cache"
-            },
-            {
-                "command": "vencord-companion.setLogLevel",
-                "title": "Vencord Companion: Set Log Level"
+                "command": "vencord-companion.set_log_level",
+                "title": "Vencord Companion: Set the log level of the server"
             }
         ],
         "snippets": [

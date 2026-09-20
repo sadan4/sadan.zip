@@ -48,6 +48,7 @@ gif.workspace = true
 mini-moka.workspace = true
 url.workspace = true
 webp.workspace = true
+miette_ui.workspace = true
 
 [lints]
 workspace = true
