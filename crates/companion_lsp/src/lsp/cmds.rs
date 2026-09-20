@@ -75,6 +75,11 @@ pub static CMD_MAP: phf::Map<&'static str, CommandDescriptor> = phf::phf_map! {
 		desc: "Open a patch in the patch helper",
 		user_visible: false,
 		func: super::Server::open_patch_helper_cmd,
+	},
+	"test_patch" => CommandDescriptor {
+		desc: "Test a patch against the connected client",
+		user_visible: false,
+		func: super::Server::test_patch_cmd,
 	}
 };
 
@@ -277,6 +282,31 @@ impl super::Server {
 				}
 			};
 			self.open_patch_helper(args).await?;
+			Ok(None)
+		})
+	}
+
+	fn test_patch_cmd(
+		&self,
+		mut params: ExecuteCommandParams,
+	) -> Pin<Box<dyn Future<Output = Result<Option<JValue>>> + Send + '_>> {
+		Box::pin(async move {
+			ensure!(
+				params.arguments.len() == 1,
+				"expected exactly one argument for test_patch"
+			);
+			let args: PatchLensArgs = match params.arguments.swap_remove(0) {
+				JValue::Object(map) => {
+					serde_json::from_value(JValue::Object(map))
+						.context("Failed to parse arguments for test_patch")?
+				}
+				other => {
+					bail!(
+						"expected first argument to be an object, got {other:?}"
+					);
+				}
+			};
+			self.test_patch(args).await?;
 			Ok(None)
 		})
 	}

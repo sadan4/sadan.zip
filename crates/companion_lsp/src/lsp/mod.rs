@@ -6,6 +6,7 @@ mod hover;
 mod lenses;
 mod patch_helper2;
 mod reference;
+mod test_patch;
 
 use std::{borrow::Cow, debug_assert_matches, path::PathBuf, sync::Arc};
 

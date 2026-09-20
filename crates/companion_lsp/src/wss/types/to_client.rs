@@ -113,7 +113,7 @@ pub struct IntlLookup {
 #[serde(rename_all = "camelCase")]
 pub struct PatchReplacement {
 	#[serde(rename = "match")]
-	pub match_: ReplaceNode,
+	pub match_: MatchNode,
 	pub replace: ReplaceNode,
 }
 
@@ -128,9 +128,16 @@ pub struct RegexValue {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "type", rename_all = "camelCase")]
-pub enum ReplaceNode {
+pub enum MatchNode {
 	String { value: String },
 	Regex { value: RegexValue },
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(tag = "type", rename_all = "camelCase")]
+pub enum ReplaceNode {
+	String { value: String },
+	Function { value: String },
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -612,7 +619,7 @@ mod wire_shape {
 				string: "needle".into(),
 			},
 			replace: vec![PatchReplacement {
-				match_: ReplaceNode::Regex {
+				match_: MatchNode::Regex {
 					value: RegexValue {
 						pattern: "a(b)".into(),
 						flags: "g".into(),

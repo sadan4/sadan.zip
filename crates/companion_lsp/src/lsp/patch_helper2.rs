@@ -273,6 +273,17 @@ impl lsp::Server {
 		let txt = res.module;
 		Ok((m_id, txt))
 	}
+
+	pub(super) fn patch_for_hash(
+		&self,
+		uri: &Uri,
+		needle: u64,
+	) -> Result<Patch> {
+		Ok(self
+			.get_starting_patches(uri, needle)?
+			.patch)
+	}
+
 	// FIXME: needle is built from span, which can change while the content stays the same
 	fn get_starting_patches(
 		&self,
