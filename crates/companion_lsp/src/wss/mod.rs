@@ -439,7 +439,7 @@ impl Inner {
 					"Failed to send WS response to waiting task; receiver dropped"
 				);
 			} else {
-				debug!(%nonce, "Dispatched WS message to waiting task");
+				trace!(%nonce, "Dispatched WS message to waiting task");
 			}
 		} else {
 			warn!(%nonce, "Received WS message with unknown nonce, ignoring");

@@ -101,16 +101,16 @@
         },
         "commands": [
             {
-                "command": "vencord-companion.ephemera_test",
-                "title": "Vencord Companion: Create a test epehemeral document"
+                "command": "vencord-companion.clear_cache",
+                "title": "Vencord Companion: Purge Module Cache"
             },
             {
-                "command": "vencord-companion.progress_test",
-                "title": "Vencord Companion: Test the progress reporting"
+                "command": "vencord-companion.download_modules",
+                "title": "Vencord Companion: Download Module Cache"
             },
             {
                 "command": "vencord-companion.set_log_level",
-                "title": "Vencord Companion: Set the log level of the server"
+                "title": "Vencord Companion: Set Log Level"
             }
         ],
         "snippets": [

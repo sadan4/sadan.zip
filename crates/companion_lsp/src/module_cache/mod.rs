@@ -173,6 +173,18 @@ impl SplitModuleCache {
 			.set(client)
 			.expect("client already set");
 	}
+
+	/// Delete the dumped modules and drop everything cached from them.
+	///
+	/// Returns the directory that was removed.
+	pub async fn clear(&self) -> Result<PathBuf> {
+		self.disk.clear().await
+	}
+
+	/// Where a fresh dump of the modules should go.
+	pub fn module_dir_target(&self) -> Result<PathBuf> {
+		self.disk.module_dir_target()
+	}
 }
 
 impl DiskModuleCache {
@@ -234,6 +246,61 @@ impl DiskModuleCache {
 			}
 		}
 		None
+	}
+
+	/// Where a fresh dump of the modules should go: the module root if one is
+	/// already resolved, otherwise [`MODULE_DIR_NAME`] under the first
+	/// workspace root the client gave us, falling back to the cwd.
+	fn module_dir_target(&self) -> Result<PathBuf> {
+		let resolved = self
+			.module_root
+			.lock()
+			.unwrap_or_else(PoisonError::into_inner)
+			.clone();
+		if let Some(root) = resolved {
+			return Ok(root);
+		}
+		let mut root = match self
+			.workspace_roots
+			.get()
+			.and_then(|roots| roots.first().cloned())
+		{
+			Some(root) => root,
+			None => env::current_dir()
+				.context("Failed to get the current working directory")?,
+		};
+		root.push(MODULE_DIR_NAME);
+		Ok(root)
+	}
+
+	/// Delete the module root and drop everything cached from it.
+	///
+	/// Returns the directory that was removed.
+	async fn clear(&self) -> Result<PathBuf> {
+		let module_root = self
+			.module_root()
+			.await
+			.context("No cache to clear")?;
+		// held across the delete so a build in flight cannot re-fill the graph
+		// from files that are about to go away
+		let mut dep_graph = self.dep_graph.write().await;
+		fs::remove_dir_all(&module_root)
+			.await
+			.with_context(|| {
+				format!(
+					"Failed to remove the module root at {}",
+					module_root.display()
+				)
+			})?;
+		*dep_graph = None;
+		self.parsers.clear();
+		// the directory is gone, so look for one again from scratch
+		*self
+			.module_root
+			.lock()
+			.unwrap_or_else(PoisonError::into_inner) = None;
+		info!(path =% module_root.display(), "Cleared the module cache");
+		Ok(module_root)
 	}
 
 	/// Get the client.

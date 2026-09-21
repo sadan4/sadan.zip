@@ -49,6 +49,7 @@ libc.workspace = true
 patch_engine.workspace = true
 text_diff.workspace = true
 xxhash-rust.workspace = true
+rayon.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

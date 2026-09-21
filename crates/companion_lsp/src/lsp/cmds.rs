@@ -1,17 +1,10 @@
-use std::{borrow::Cow, pin::Pin, sync::Arc, time::Duration};
+use std::{borrow::Cow, pin::Pin};
 
 use crate::{
 	JValue,
 	LspResult,
 	SERVER_NAME,
-	lsp::{
-		custom::{
-			EphemeralDocument,
-			QuickPickRequest,
-			ephemera::{self, EphemeralChange},
-		},
-		lenses::PatchLensArgs,
-	},
+	lsp::{custom::QuickPickRequest, lenses::PatchLensArgs},
 	util::err::is_caused_by,
 	wss::NoClientsError,
 };
@@ -19,20 +12,16 @@ use anyhow::{Context as _, Result, anyhow, bail, ensure};
 use const_format::formatc;
 use percent_encoding::{NON_ALPHANUMERIC, percent_encode};
 use smol_str::SmolStr;
-use tokio::time;
 use tower_lsp_server::{
 	jsonrpc,
 	ls_types::{
 		ExecuteCommandOptions,
 		ExecuteCommandParams,
 		MessageType,
-		ShowDocumentParams,
-		WorkDoneProgressBegin,
 		WorkDoneProgressOptions,
-		request::ShowDocument,
 	},
 };
-use tracing::{debug, info, warn};
+use tracing::{debug, warn};
 use tracing_subscriber::EnvFilter;
 
 type CmdFunc = for<'fut> fn(
@@ -52,27 +41,27 @@ pub struct CommandDescriptor {
 
 pub static CMD_MAP: phf::Map<&'static str, CommandDescriptor> = phf::phf_map! {
 	"set_log_level" => CommandDescriptor {
-		desc: "Set the log level of the server",
+		desc: "Set Log Level",
 		user_visible: true,
 		func: super::Server::set_log_level_cmd,
 	},
-	"progress_test" => CommandDescriptor {
-		desc: "Test the progress reporting",
+	"download_modules" => CommandDescriptor {
+		desc: "Download Module Cache",
 		user_visible: true,
-		func: super::Server::progress_test_cmd,
+		func: super::Server::download_modules_cmd,
 	},
-	"ephemera_test" => CommandDescriptor {
-		desc: "Create a test epehemeral document",
+	"clear_cache" => CommandDescriptor {
+		desc: "Purge Module Cache",
 		user_visible: true,
-		func: super::Server::ephemera_test_cmd,
+		func: super::Server::clear_cache_cmd,
 	},
 	"open_patch_helper" => CommandDescriptor {
-		desc: "Open a patch in the patch helper",
+		desc: "",
 		user_visible: false,
 		func: super::Server::open_patch_helper_cmd,
 	},
 	"test_patch" => CommandDescriptor {
-		desc: "Test a patch against the connected client",
+		desc: "",
 		user_visible: false,
 		func: super::Server::test_patch_cmd,
 	}
@@ -190,68 +179,53 @@ impl super::Server {
 		})
 	}
 
-	fn progress_test_cmd(
+	fn download_modules_cmd(
 		&self,
 		_: ExecuteCommandParams,
 	) -> Pin<Box<dyn Future<Output = Result<Option<JValue>>> + Send + '_>> {
 		Box::pin(async move {
-			let handle = Self::start_progress(
-				self.client.clone(),
-				WorkDoneProgressBegin {
-					title: "Test Progress".into(),
-					message: Some(String::from("Test Progress Message")),
-					..Default::default()
-				},
-			);
-			info!("starting progress test");
-			for i in 1..=20 {
-				handle.step(Some(i * 5), format!("Step {i} of 20"));
-				time::sleep(Duration::SECOND).await;
-			}
-			info!("progress test complete");
+			self.download_modules().await?;
 			Ok(None)
 		})
 	}
 
-	fn ephemera_test_cmd(
+	fn clear_cache_cmd(
 		&self,
 		_: ExecuteCommandParams,
 	) -> Pin<Box<dyn Future<Output = Result<Option<JValue>>> + Send + '_>> {
 		Box::pin(async move {
-			let uri = ephemera::uri("/test-ephemeral-doc.txt").unwrap();
-			self.create_ephemeral_document(EphemeralDocument {
-				uri: uri.clone(),
-				content: Arc::from("This is a test ephemeral document"),
-			});
-			self.client
-				.send_request::<ShowDocument>(ShowDocumentParams {
-					uri: uri.clone(),
-					take_focus: Some(true),
-					external: None,
-					selection: None,
+			const CONFIRM: &str = "Delete";
+
+			let answer = self
+				.quick_pick(QuickPickRequest {
+					// cancel first so the default selection is the safe one
+					items: vec![
+						SmolStr::new_static("Cancel"),
+						SmolStr::new_static(CONFIRM),
+					],
+					placeholder: Some(SmolStr::new_static(
+						"Delete the dumped modules and their caches?",
+					)),
+					allow_free_text: false,
 				})
 				.await
-				.context("Failed to show document")?
-				.success
-				.then_some(())
-				.context("Client reported failing to show document")?;
-			for i in 1..=10 {
-				time::sleep(Duration::from_secs(5)).await;
-				debug!("updating ephemeral document");
-				self.update_ephemeral_document(EphemeralChange {
-					uri: uri.clone(),
-					content: Some(
-						format!(
-							"This is a test ephemeral document, updated {i} times"
-						)
-						.into(),
-					),
-					deleted: None,
-				})
-				.context("Failed to update ephemeral document")?;
+				.map_err(|e| {
+					anyhow!("failed to get confirmation from user: {e}")
+				})?;
+			if answer.as_deref() != Some(CONFIRM) {
+				debug!("user cancelled clearing the module cache");
+				return Ok(None);
 			}
-			self.delete_ephemeral_document(uri)
-				.context("Failed to delete ephemeral document")?;
+			let removed = self.module_cache.clear().await?;
+			self.client
+				.show_message(
+					MessageType::INFO,
+					format!(
+						"Cleared the module cache at {}",
+						removed.display()
+					),
+				)
+				.await;
 			Ok(None)
 		})
 	}

@@ -3,6 +3,7 @@ pub mod custom;
 mod definition;
 mod diagnostics;
 mod doc;
+mod download_modules;
 mod hover;
 mod lenses;
 mod patch_helper2;

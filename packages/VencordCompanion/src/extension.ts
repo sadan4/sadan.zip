@@ -238,19 +238,21 @@ function doQuickPick(req: QuickPickRequest): Promise<string | undefined> {
     // VSCode quick pick don't support free text input
     // so for a hacky workaround, create and update an
     // extra item with the contents of the current input value
-    if (req.allowFreeText) { 
+    if (req.allowFreeText) {
         qp.items = [
             {
                 label: "",
             },
             ...baseItems,
         ];
-        qp.onDidChangeValue((label) => { 
+        qp.onDidChangeValue((label) => {
             qp.items = [
                 { label },
                 ...baseItems,
             ];
-        })
+        });
+    } else { 
+        qp.items = baseItems;
     }
 
     qp.onDidAccept(() => { 

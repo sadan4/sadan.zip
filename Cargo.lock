@@ -915,6 +915,7 @@ dependencies = [
  "percent-encoding",
  "phf 0.14.0",
  "pretty_printer",
+ "rayon",
  "regex",
  "regress",
  "serde",
