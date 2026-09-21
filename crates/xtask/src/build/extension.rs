@@ -1,4 +1,7 @@
-use std::{path::PathBuf, process};
+use std::{
+	path::{Path, PathBuf},
+	process,
+};
 
 use anyhow::{Context, Result};
 use clap::Args;
@@ -74,8 +77,22 @@ impl Command {
 			.join("bin")
 	}
 
-	fn extension_bin_path(&self) -> PathBuf {
-		Self::extension_bin_dir().join(self.bin_name())
+	/// Build `companion_lsp` and stage it (plus its `.pdb` on Windows) into
+	/// `bin_dir`.
+	///
+	/// Shared with `cargo xtask build nvim`, which needs the same binary in a
+	/// different directory and has no client to bundle.
+	#[instrument(skip(self))]
+	pub(in crate::build) fn build_and_stage(
+		&self,
+		bin_dir: &Path,
+	) -> Result<()> {
+		self.build_lsp()?;
+		self.stage_lsp_binary_into(bin_dir)?;
+		if self.is_windows() && !self.dev {
+			self.stage_pdb_into(bin_dir)?;
+		}
+		Ok(())
 	}
 
 	#[instrument(skip(self))]
@@ -108,13 +125,10 @@ impl Command {
 	}
 
 	#[instrument(skip(self))]
-	fn stage_lsp_binary(&self) -> Result<()> {
+	fn stage_lsp_binary_into(&self, bin_dir: &Path) -> Result<()> {
 		let src = self.cargo_bin_path();
-		let dst = self.extension_bin_path();
+		let dst = bin_dir.join(self.bin_name());
 		info!("Staging {} -> {}", src.display(), dst.display());
-		let bin_dir = dst
-			.parent()
-			.expect("bin path has a parent");
 		fs::create_dir_all(bin_dir).with_context(|| {
 			format!("Failed to create {}", bin_dir.display())
 		})?;
@@ -129,9 +143,9 @@ impl Command {
 	/// the shipped Windows extension resolve to symbols and line numbers. No
 	/// other platform produces one: there the debuginfo lives in the binary.
 	#[instrument(skip(self))]
-	fn stage_pdb(&self) -> Result<()> {
+	fn stage_pdb_into(&self, bin_dir: &Path) -> Result<()> {
 		let src = self.cargo_out_dir().join(PDB_NAME);
-		let dst = Self::extension_bin_dir().join(PDB_NAME);
+		let dst = bin_dir.join(PDB_NAME);
 		info!("Staging {} -> {}", src.display(), dst.display());
 		fs::rm_if_exists(&dst)?;
 		fs::copy(&src, &dst).with_context(|| {
@@ -163,11 +177,7 @@ impl Runnable for Command {
 	fn run(&self) -> Result<()> {
 		info!(?self, "Building VSCode extension");
 		// FIXME: generate extension settings and commands in parallel before building js
-		self.build_lsp()?;
-		self.stage_lsp_binary()?;
-		if self.is_windows() && !self.dev {
-			self.stage_pdb()?;
-		}
+		self.build_and_stage(&Self::extension_bin_dir())?;
 		self.build_client()?;
 		info!("Done");
 		Ok(())

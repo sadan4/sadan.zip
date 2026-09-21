@@ -13,6 +13,7 @@ mod indent_cache;
 mod monaco_editor;
 mod monaco_themes;
 mod nix_cargo_hashes;
+mod nvim_commands;
 mod syntax;
 mod ts_api;
 mod types;
@@ -42,6 +43,7 @@ impl Runnable for Command {
 			Target::UpdateIntlMappings(c) => c.run(),
 			Target::ExtSettings(c) => c.run(),
 			Target::ExtCommands(c) => c.run(),
+			Target::NvimCommands(c) => c.run(),
 		}
 	}
 }
@@ -78,4 +80,6 @@ enum Target {
 	ExtSettings(ext_settings::Command),
 	/// Update the extension commands in `package.json` from the `companion_lsp` crate
 	ExtCommands(ext_commands::Command),
+	/// Update the Neovim plugin's command list from the `companion_lsp` crate
+	NvimCommands(nvim_commands::Command),
 }
