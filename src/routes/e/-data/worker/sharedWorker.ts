@@ -45,9 +45,9 @@ export interface ModuleDeps {
 export interface IBuildService {
     hasId(moduleId: number): moduleId is TModuleId;
     getFormattedSource(moduleId: TModuleId): string;
-    generateDefinitions(moduleId: TModuleId, position: Monaco.IPosition): ModuleLocation[];
-    generateReferences(moduleId: TModuleId, position: Monaco.IPosition): ModuleLocation[];
-    generateHover(moduleId: TModuleId, position: Monaco.IPosition): HoverInfo | undefined;
+    generateDefinitions(moduleId: TModuleId, position: Monaco.IPosition): Promise<ModuleLocation[]>;
+    generateReferences(moduleId: TModuleId, position: Monaco.IPosition): Promise<ModuleLocation[]>;
+    generateHover(moduleId: TModuleId, position: Monaco.IPosition): Promise<HoverInfo | undefined>;
     getAllModuleIds(): Uint32Array;
     searchModules(query: string, regex: boolean): BundleSearchResults;
     getSearchResultInfo(moduleId: TModuleId, rawIndex: number, longPreview: boolean): BundleSearchResultInfo;
@@ -147,23 +147,23 @@ class BuildService implements IBuildService {
         return this.#bundle.get_module_text(moduleId);
     }
 
-    generateDefinitions(moduleId: TModuleId, position: Monaco.IPosition) {
+    async generateDefinitions(moduleId: TModuleId, position: Monaco.IPosition) {
         const mPos = new MonacoPosition(position.lineNumber, position.column);
-        const rawDefs = this.#bundle.provide_definition(moduleId, mPos);
+        const rawDefs = await this.#bundle.provide_definition(moduleId, mPos);
 
         return rawDefs.map(convertModuleLocation);
     }
 
-    generateReferences(moduleId: TModuleId, position: Monaco.IPosition) {
+    async generateReferences(moduleId: TModuleId, position: Monaco.IPosition) {
         const mPos = new MonacoPosition(position.lineNumber, position.column);
-        const rawRefs = this.#bundle.provide_references(moduleId, mPos);
+        const rawRefs = await this.#bundle.provide_references(moduleId, mPos);
 
         return rawRefs.map(convertModuleLocation);
     }
 
-    generateHover(moduleId: TModuleId, position: Monaco.IPosition) {
+    async generateHover(moduleId: TModuleId, position: Monaco.IPosition) {
         const mPos = new MonacoPosition(position.lineNumber, position.column);
-        const hoverInfo = this.#bundle.provide_hover(moduleId, mPos);
+        const hoverInfo = await this.#bundle.provide_hover(moduleId, mPos);
 
         return hoverInfo && convertHoverInfo(hoverInfo);
     }
