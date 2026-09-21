@@ -1,0 +1,34 @@
+name: Dispatch Extension Publish
+
+# Restores push-a-tag-and-forget releases without giving the publish workflow a
+# tag-scoped Actions cache. This job runs on `refs/tags/vX.Y.Z` (unavoidable for
+# a tag trigger) but does nothing cacheable; it only hands the tag to
+# publish-extension.yml, which it dispatches against the default branch so the
+# heavy matrix runs in the long-lived cache scope. `workflow_dispatch` and
+# `repository_dispatch` are the only events GITHUB_TOKEN is allowed to trigger,
+# which is what makes this indirection work at all.
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  actions: write
+
+jobs:
+  dispatch:
+    name: Dispatch publish for ${{ github.ref_name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Trigger publish workflow
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          gh workflow run publish-extension.yml \
+            --ref "$DEFAULT_BRANCH" \
+            --field tag="$TAG"
+          echo "Dispatched publish-extension.yml for $TAG on $DEFAULT_BRANCH." >> "$GITHUB_STEP_SUMMARY"

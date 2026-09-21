@@ -1,17 +1,26 @@
 name: Publish VSCode Extension
 
+# Dispatch-only, and deliberately NOT triggered by the tag push itself.
+# A tag-triggered run executes on `refs/tags/vX.Y.Z`, and GitHub scopes the
+# Actions cache to the run's own ref plus the default branch. Every tag is a
+# fresh ref, so each release re-cached ~600MB per leg that no later run could
+# ever read, while evicting the caches `web` actually reuses. Dispatching from
+# `web` keeps the run on the default branch ref, so consecutive releases share
+# one cache scope; the tag to publish is checked out explicitly below.
 on:
-  push:
-    tags:
-      - "v*"
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to build and publish (e.g. v2.0.2)"
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 jobs:
   publish:
-    name: Publish (${{ matrix.vscodeTarget }})
+    name: Publish ${{ inputs.tag }} (${{ matrix.vscodeTarget }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
@@ -32,8 +41,23 @@ jobs:
             vscodeTarget: darwin-arm64
 
     steps:
+      # Dispatching from any other ref puts the run in a throwaway cache scope
+      # and silently reintroduces the cold-cache problem, so fail loudly.
+      - name: Require dispatch from the default branch
+        shell: bash
+        run: |
+          if [ "$GITHUB_REF" != "refs/heads/${{ github.event.repository.default_branch }}" ]; then
+            echo "Run this workflow from the ${{ github.event.repository.default_branch }} branch, not $GITHUB_REF." >&2
+            echo "The tag to publish is the 'tag' input; the branch only selects the cache scope." >&2
+            exit 1
+          fi
+
+      # The workflow definition comes from the default branch; the sources come
+      # from the tag being published.
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: refs/tags/${{ inputs.tag }}
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
