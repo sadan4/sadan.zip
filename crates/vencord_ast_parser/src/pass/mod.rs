@@ -82,6 +82,7 @@ mod test_util {
 				indent_width: 1,
 				initial_indent: 0,
 				source_map_path: None,
+				ascii_only: false,
 			})
 			.build(parser)
 			.code

@@ -251,7 +251,7 @@ impl<'a> JavaScriptFormatter<'a> {
 		let mut parsed = Parser::new(alloc, content, SourceType::default())
 			.with_config(TokensParserConfig)
 			.parse();
-		if parsed.panicked {
+		if parsed.fatal_error {
 			let err = parsed
 				.diagnostics
 				.into_iter()
