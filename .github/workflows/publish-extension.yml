@@ -75,10 +75,12 @@ jobs:
           fi
           echo "path=$vsix" >> "$GITHUB_OUTPUT"
 
+      # The .vsix already encodes its target platform, and both vsce and ovsx
+      # reject/ignore an explicit --target alongside --packagePath.
       - name: Publish to Visual Studio Marketplace
         run: >
           pnpm --filter vencord-user-companion exec
-          vsce publish --no-dependencies --target ${{ matrix.vscodeTarget }}
+          vsce publish --no-dependencies
           --packagePath "${{ github.workspace }}/${{ steps.vsix.outputs.path }}"
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
@@ -86,7 +88,7 @@ jobs:
       - name: Publish to Open VSX
         run: >
           pnpm --filter vencord-user-companion exec
-          ovsx publish --target ${{ matrix.vscodeTarget }}
+          ovsx publish
           --packagePath "${{ github.workspace }}/${{ steps.vsix.outputs.path }}"
         env:
           OVSX_PAT: ${{ secrets.OVSX_PAT }}
