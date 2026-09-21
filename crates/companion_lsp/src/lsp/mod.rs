@@ -50,7 +50,7 @@ use tower_lsp_server::{
 		request::ShowDocument,
 	},
 };
-use tracing::{debug, error, instrument, warn};
+use tracing::{debug, error, info, instrument, warn};
 use webpack_ast_parser::ThreadSafeParser;
 
 use crate::{
@@ -328,6 +328,7 @@ impl LanguageServer for Server {
 	}
 
 	async fn shutdown(&self) -> LspResult<()> {
-		todo!()
+		info!("Shutting down");
+		Ok(())
 	}
 }
