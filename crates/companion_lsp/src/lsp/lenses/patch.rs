@@ -29,7 +29,7 @@ pub struct PatchLensArgs {
 
 /// does `path` match the glob
 /// `**/*plugins{,/_*}/{*.ts,*.tsx,**/index.ts,**/index.tsx}`
-fn is_plugin_path(path: &Path) -> bool {
+pub fn is_plugin_path(path: &Path) -> bool {
 	if !matches!(path.extension().and_then(OsStr::to_str), Some("ts" | "tsx")) {
 		return false;
 	}

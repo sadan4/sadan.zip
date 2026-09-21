@@ -1,9 +1,4 @@
-use std::{
-	borrow::Cow,
-	pin::Pin,
-	sync::Arc,
-	time::Duration,
-};
+use std::{borrow::Cow, pin::Pin, sync::Arc, time::Duration};
 
 use crate::{
 	JValue,

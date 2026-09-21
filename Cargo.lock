@@ -931,6 +931,7 @@ dependencies = [
  "url",
  "vencord_ast_parser",
  "webpack_ast_parser",
+ "xxhash-rust",
 ]
 
 [[package]]

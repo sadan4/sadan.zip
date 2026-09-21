@@ -3,6 +3,15 @@ use anyhow::{Result, anyhow};
 use explorer_types::ModuleId;
 use serde::{Deserialize, Serialize};
 use smol_str::SmolStr;
+use thiserror::Error;
+
+/// The client answered, and the answer was a refusal.
+///
+/// Distinct from the errors we raise ourselves (a timeout, a dropped
+/// connection), which say nothing about the message we sent.
+#[derive(Error, Debug)]
+#[error("{0}")]
+pub struct ClientError(pub String);
 
 /// FIXME: cursed, but i don't think there's a better way to represent the js wire types
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -136,7 +145,7 @@ macro_rules! impl_from_wire {
 						error,
 						_data: _,
 						nonce: _,
-					} => Err(anyhow!("Client Error: {error}")),
+					} => Err(anyhow!(ClientError(error))),
 				}
 			}
 		}
@@ -312,7 +321,12 @@ mod wire_shape {
 		assert!(matches!(wire, FullMessage::Err { .. }));
 		let err = DiffModule::from_wire(wire)
 			.expect_err("an error payload is not a DiffModule");
-		assert_eq!(err.to_string(), "Client Error: module not found");
+		assert_eq!(err.to_string(), "module not found");
+		assert!(
+			err.downcast_ref::<ClientError>()
+				.is_some(),
+			"the client's own refusal has to be tellable from ours"
+		);
 	}
 
 	/// `Nonce` rides along on every frame, and dispatch depends on reading it

@@ -37,7 +37,7 @@ pub struct ExtractMessage {
 	pub data: FindQuery,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Hash)]
 #[serde(rename_all = "camelCase")]
 pub struct TextPatchMessage {
 	#[serde(flatten)]
@@ -46,7 +46,7 @@ pub struct TextPatchMessage {
 	pub replace: Vec<PatchReplacement>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Hash)]
 #[serde(rename_all = "camelCase")]
 pub struct TestFindMessage {
 	#[serde(flatten)]
@@ -109,7 +109,7 @@ pub struct IntlLookup {
 	pub hashed_key: SmolStr,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Hash)]
 #[serde(rename_all = "camelCase")]
 pub struct PatchReplacement {
 	#[serde(rename = "match")]
@@ -119,28 +119,28 @@ pub struct PatchReplacement {
 
 /// The `value` of a `RegexNode`, which nests its parts instead of carrying
 /// them alongside the `type` tag
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Hash)]
 #[serde(rename_all = "camelCase")]
 pub struct RegexValue {
 	pub pattern: String,
 	pub flags: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Hash)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum MatchNode {
 	String { value: String },
 	Regex { value: RegexValue },
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Hash)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum ReplaceNode {
 	String { value: String },
 	Function { value: String },
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Hash)]
 #[serde(tag = "findType", rename_all = "camelCase")]
 pub enum PatchFind {
 	String {
@@ -195,7 +195,7 @@ pub enum FindQuery {
 	Find(PrefixedFindData),
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Hash)]
 #[serde(rename_all = "camelCase")]
 pub struct FindData {
 	#[serde(rename = "type")]
@@ -235,7 +235,7 @@ pub enum Search {
 	},
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Hash)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum FindNode {
 	String {

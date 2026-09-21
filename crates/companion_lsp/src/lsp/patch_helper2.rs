@@ -1,5 +1,6 @@
 use std::{
 	borrow::Cow,
+	iter,
 	mem,
 	sync::{Arc, atomic::AtomicU64},
 };
@@ -192,7 +193,7 @@ impl lsp::Server {
 			patch,
 			plugin_name,
 			other_patches,
-		} = self.get_starting_patches(&args.uri, args.hash)?;
+		} = self.get_starting_patches(&args.uri, args.hash, true)?;
 		let (module_id, unpatched_source) = self
 			.extract_module(&patch.find.v)
 			.await?;
@@ -274,21 +275,31 @@ impl lsp::Server {
 		Ok((m_id, txt))
 	}
 
+	/// The patch in `uri` hashing to `needle`, exactly as it was parsed.
+	///
+	/// Uncompiled, so it is the same patch the diagnostics send to the
+	/// client and hashes the same way.
 	pub(super) fn patch_for_hash(
 		&self,
 		uri: &Uri,
 		needle: u64,
 	) -> Result<Patch> {
 		Ok(self
-			.get_starting_patches(uri, needle)?
+			.get_starting_patches(uri, needle, false)?
 			.patch)
 	}
 
+	/// The patch in `uri` hashing to `needle`, and every other patch in the
+	/// file.
+	///
+	/// With `compile`, the returned patches have their regexes built, which
+	/// is what applying them locally needs.
 	// FIXME: needle is built from span, which can change while the content stays the same
 	fn get_starting_patches(
 		&self,
 		uri: &Uri,
 		needle: u64,
+		compile: bool,
 	) -> Result<InitialState> {
 		let doc = self
 			.files
@@ -314,13 +325,19 @@ impl lsp::Server {
 			};
 			anyhow!("Failed to get patches:{e:?}")
 		})?;
-		compile_patch_regexes(&mut patches);
+		// compiling rewrites string matches into regexes, which changes
+		// `content_hash`, so the patch has to be found before that happens
 		let patch_idx = patches
 			.iter()
 			.position(|p| p.content_hash() == needle)
 			.context("patch not found")?;
-		let patch = patches.swap_remove(patch_idx);
-		let other_patches = patches;
+		let mut patch = patches.swap_remove(patch_idx);
+		let mut other_patches = patches;
+		if compile {
+			compile_patch_regexes(
+				iter::once(&mut patch).chain(other_patches.iter_mut()),
+			);
+		}
 		let plugin_name = parser
 			.plugin_info()
 			.ok()

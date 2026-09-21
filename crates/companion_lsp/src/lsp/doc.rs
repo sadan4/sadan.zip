@@ -181,6 +181,11 @@ impl Document {
 		);
 	}
 
+	/// The version the client last sent for this document.
+	pub const fn version(&self) -> i32 {
+		self.version
+	}
+
 	fn len(&self) -> u32 {
 		u32::try_from(self.text.len()).unwrap_or(u32::MAX)
 	}
@@ -315,6 +320,15 @@ impl Files {
 			.get()
 			.copied()
 			.unwrap_or_default()
+	}
+
+	/// The uri of every open document.
+	pub fn open_uris(&self) -> Vec<Uri> {
+		self.0
+			.cache
+			.iter()
+			.map(|e| e.key().clone())
+			.collect()
 	}
 
 	pub fn get(&self, uri: &Uri) -> Option<Arc<Document>> {

@@ -17,7 +17,7 @@ use smol_str::SmolStr;
 use thiserror::Error;
 use tokio::{
 	net::{TcpListener, TcpStream},
-	sync::{RwLock, mpsc, oneshot},
+	sync::{RwLock, broadcast, mpsc, oneshot},
 	task::JoinHandle,
 	time::timeout,
 };
@@ -34,7 +34,15 @@ use tracing::{debug, error, info, trace, warn};
 use crate::wss::types::{MsgFromClient, MsgToClient};
 
 #[derive(Clone)]
-pub struct WsServer(Arc<RwLock<Inner>>);
+pub struct WsServer {
+	inner: Arc<RwLock<Inner>>,
+	/// Fires once every time a client finishes the handshake.
+	///
+	/// It lives out here rather than in [`Inner`], which is replaced
+	/// wholesale on every connect and disconnect and would take the
+	/// subscribers with it.
+	connected: broadcast::Sender<()>,
+}
 
 const NO_CONN_MSG: &str = "No Discord client connected. Make sure Discord is open with the vc-userDevTools plugin enabled.";
 type Semver = (u16, u16, u16);
@@ -70,6 +78,12 @@ type PendingResponse = Result<types::from_client::FullMessage>;
 const DEFAULT_RESPONSE_TIMEOUT: Duration = Duration::from_mins(1);
 /// How long [`WsServer::lookup_intl_value`] waits for a response before giving up.
 const INTL_LOOKUP_TIMEOUT: Duration = Duration::from_secs(2);
+/// How many connect events a subscriber can fall behind by before it starts
+/// missing them.
+///
+/// Only one connection is ever live, so a subscriber that is behind by more
+/// than a couple of events has already lost the one it cares about.
+const CONNECT_EVENT_BACKLOG: usize = 4;
 
 impl WsServer {
 	// TODO: custom default timeout setting from user
@@ -92,7 +106,7 @@ impl WsServer {
 		let (nonce, rx) = {
 			// held across the whole process so we don't
 			// get a nonce from once connection and use it with another
-			let inner = self.0.read().await;
+			let inner = self.inner.read().await;
 			let nonce = inner.mint_nonce();
 			let wire_str = serde_json::to_string(&msg.to_wire(nonce))
 				.context("Failed to serialize WS message")?;
@@ -125,7 +139,7 @@ impl WsServer {
 				bail!("Failed to receive WS response: {e:?}");
 			}
 			Err(_) => {
-				self.0
+				self.inner
 					.read()
 					.await
 					.pending_rx
@@ -133,6 +147,25 @@ impl WsServer {
 				bail!("Timed out waiting for WS response");
 			}
 		}
+	}
+
+	/// Subscribes to client connections.
+	///
+	/// Each event means a client finished the handshake.
+	pub fn on_connect(&self) -> broadcast::Receiver<()> {
+		self.connected.subscribe()
+	}
+
+	/// Whether a client is connected and able to take messages.
+	///
+	/// The connection can still drop between this returning `true` and the
+	/// next [`Self::send_msg`], so callers have to handle
+	/// [`NoClientsError`] either way.
+	pub async fn has_connection(&self) -> bool {
+		self.inner
+			.read()
+			.await
+			.has_active_conn()
 	}
 
 	/// Resolves the value of a 6-char hashed intl key.
@@ -143,7 +176,7 @@ impl WsServer {
 		hashed_key: &SmolStr,
 	) -> Result<SmolStr> {
 		{
-			let inner = self.0.read().await;
+			let inner = self.inner.read().await;
 			if let Some(cached) = inner.intl_cache.get(hashed_key) {
 				trace!(%hashed_key, "intl cache hit");
 				return Ok(cached.clone());
@@ -159,7 +192,7 @@ impl WsServer {
 			.await?
 			.value,
 		);
-		self.0
+		self.inner
 			.read()
 			.await
 			.intl_cache
@@ -239,11 +272,8 @@ impl Inner {
 	/// Handle an incoming connection
 	///
 	/// if the connection is accepted, it will be stored in `this`
-	async fn handle_conn(
-		this: Arc<RwLock<Self>>,
-		stream: TcpStream,
-		from: SocketAddr,
-	) {
+	async fn handle_conn(srv: WsServer, stream: TcpStream, from: SocketAddr) {
+		let this = srv.inner.clone();
 		let ws = match accept_hdr_async(stream, check_valid_origin).await {
 			Ok(guh) => guh,
 			Err(e) => {
@@ -330,11 +360,13 @@ impl Inner {
 			this.write().await.disconnect();
 		});
 		this.write().await.tasks = Some([send_handle, recv_handle]);
-		Self::handshake(WsServer(this)).await;
+		Self::handshake(srv).await;
 	}
 
 	/// Exchange versions with a freshly connected client, dropping the
 	/// connection if it is one we can't talk to
+	///
+	/// Announces the client on [`WsServer::connected`] once it checks out.
 	async fn handshake(srv: WsServer) {
 		let version_check = try {
 			let client_ver = match srv
@@ -351,9 +383,11 @@ impl Inner {
 		};
 		if let Err(e) = version_check {
 			error!("Client version check failed, closing connection: {e:?}");
-			let WsServer(this) = srv;
-			this.write().await.disconnect();
+			srv.inner.write().await.disconnect();
+			return;
 		}
+		// nobody listening is the normal case; the client is still connected
+		srv.connected.send(()).ok();
 	}
 
 	async fn dispatch_text_frame(this: &RwLock<Self>, txt: &str) {
@@ -432,11 +466,13 @@ impl WsServer {
 	pub const PORT: u16 = 8485;
 
 	pub fn disconnected() -> Self {
-		Self(Arc::new(RwLock::new(Inner::disconnected())))
+		Self {
+			inner: Arc::new(RwLock::new(Inner::disconnected())),
+			connected: broadcast::Sender::new(CONNECT_EVENT_BACKLOG),
+		}
 	}
 
 	pub async fn run_loop(self) -> Result<()> {
-		let Self(state) = self;
 		let addr = SocketAddr::from(([127, 0, 0, 1], Self::PORT));
 		let listener = TcpListener::bind(addr)
 			.await
@@ -450,7 +486,7 @@ impl WsServer {
 					continue;
 				}
 			};
-			tokio::spawn(Inner::handle_conn(state.clone(), stream, from));
+			tokio::spawn(Inner::handle_conn(self.clone(), stream, from));
 		}
 	}
 }

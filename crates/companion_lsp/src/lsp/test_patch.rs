@@ -77,7 +77,10 @@ fn replace_to_wire(replace: &ReplaceLike, src: &str) -> Result<ReplaceNode> {
 
 /// `patch` as the `testPatch` payload, taking the text of replace functions
 /// out of `src`.
-fn patch_to_wire(patch: &Patch, src: &str) -> Result<TextPatchMessage> {
+pub(in crate::lsp) fn patch_to_wire(
+	patch: &Patch,
+	src: &str,
+) -> Result<TextPatchMessage> {
 	Ok(TextPatchMessage {
 		find: find_to_wire(&patch.find.v),
 		replace: patch
@@ -114,6 +117,13 @@ impl super::Server {
 
 	pub(super) async fn test_patch(&self, args: PatchLensArgs) -> Result<()> {
 		let msg = self.test_patch_message(&args.uri, args.hash)?;
+		// the lens is how you ask for a fresh verdict, so the one the
+		// linter is holding for this patch has to go
+		// FIXME: this puts two identical testPatch messages on the socket,
+		// ours and the one the re-lint sends. seed the cache with the
+		// result below instead of dropping the entry.
+		self.diagnostics
+			.invalidate_patch(args.uri.clone(), &msg);
 		match self.state.ws.send_msg(msg).await {
 			Ok(_) => {
 				info!("patch applied cleanly");

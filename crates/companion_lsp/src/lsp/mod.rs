@@ -1,6 +1,7 @@
 pub mod cmds;
 pub mod custom;
 mod definition;
+mod diagnostics;
 mod doc;
 mod hover;
 mod lenses;
@@ -58,7 +59,10 @@ use crate::{
 	SERVER_NAME,
 	SERVER_VERSION,
 	State,
-	lsp::custom::{Ephemera, ephemera::EphemeralChange},
+	lsp::{
+		custom::{Ephemera, ephemera::EphemeralChange},
+		diagnostics::Diagnostics,
+	},
 	module_cache::SplitModuleCache,
 	util::uri,
 	wss::WsServer,
@@ -71,8 +75,9 @@ pub struct Server {
 	log_reload_handle: Option<ReloadHandle>,
 	module_cache: SplitModuleCache,
 	ephemera: Ephemera,
+	diagnostics: Diagnostics,
 	patch_helpers: patch_helper2::Helpers,
-	pool: AllocPool,
+	pool: Arc<AllocPool>,
 }
 
 #[must_use = "this is just a builder for the server"]
@@ -83,8 +88,10 @@ pub struct ServerBuilder {
 	module_cache: SplitModuleCache,
 	ephemera: Ephemera,
 	ephemera_changes: mpsc::UnboundedReceiver<EphemeralChange>,
+	diagnostics: Diagnostics,
+	diagnostic_requests: mpsc::UnboundedReceiver<diagnostics::Request>,
 	patch_helpers: patch_helper2::Helpers,
-	pool: AllocPool,
+	pool: Arc<AllocPool>,
 }
 
 impl ServerBuilder {
@@ -103,8 +110,9 @@ impl ServerBuilder {
 		let files = doc::Files::default();
 		let module_cache = SplitModuleCache::new(state.ws.clone());
 		let (ephemera, ephemera_changes) = Ephemera::new();
+		let (diagnostics, diagnostic_requests) = Diagnostics::new();
 		let patch_helpers = patch_helper2::Helpers::default();
-		let pool = AllocPool::new(None);
+		let pool = Arc::new(AllocPool::new(None));
 		Ok(Self {
 			files,
 			state,
@@ -112,6 +120,8 @@ impl ServerBuilder {
 			module_cache,
 			ephemera,
 			ephemera_changes,
+			diagnostics,
+			diagnostic_requests,
 			patch_helpers,
 			pool,
 		})
@@ -131,6 +141,13 @@ impl ServerBuilder {
 		self.module_cache
 			.set_client(client.clone());
 		Ephemera::serve_changes(client.clone(), self.ephemera_changes);
+		Diagnostics::serve(
+			client.clone(),
+			self.files.clone(),
+			self.diagnostic_requests,
+			self.pool.clone(),
+			self.state.ws.clone(),
+		);
 		Server {
 			client,
 			files: self.files,
@@ -138,6 +155,7 @@ impl ServerBuilder {
 			log_reload_handle: self.log_reload_handle,
 			module_cache: self.module_cache,
 			ephemera: self.ephemera,
+			diagnostics: self.diagnostics,
 			patch_helpers: self.patch_helpers,
 			pool: self.pool,
 		}
@@ -242,7 +260,9 @@ impl LanguageServer for Server {
 
 	#[instrument(skip_all, fields(uri =% params.text_document.uri.as_str()))]
 	async fn did_open(&self, params: DidOpenTextDocumentParams) {
+		let uri = params.text_document.uri.clone();
 		self.files.handle_open(params);
+		self.diagnostics_open_hook(uri);
 	}
 
 	#[instrument(skip_all, fields(uri =% params.text_document.uri.as_str()))]
@@ -255,6 +275,7 @@ impl LanguageServer for Server {
 		{
 			warn!("Failed to run patch helper change hook {e:?}");
 		}
+		self.diagnostics_change_hook(uri);
 	}
 
 	#[instrument(skip_all, fields(uri =% params.text_document.uri.as_str()))]
@@ -268,6 +289,7 @@ impl LanguageServer for Server {
 	#[instrument(skip_all, fields(uri =% params.text_document.uri.as_str()))]
 	async fn did_close(&self, params: DidCloseTextDocumentParams) {
 		self.patch_helper_close_hook(&params.text_document.uri);
+		self.diagnostics_close_hook(params.text_document.uri.clone());
 		self.files.handle_close(params);
 	}
 

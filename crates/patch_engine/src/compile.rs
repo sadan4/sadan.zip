@@ -37,3 +37,47 @@ pub fn compile_patch_regexes<'a>(
 		}
 	}
 }
+
+#[cfg(test)]
+mod tests {
+	use vencord_ast_parser::{Allocator, VencordAstParser};
+
+	use super::compile_patch_regexes;
+
+	const SRC: &str = r#"
+import definePlugin from "@utils/types";
+
+export default definePlugin({
+	name: "Test",
+	patches: [{
+		find: "someString",
+		replacement: {
+			match: "abc",
+			replace: "def",
+		},
+	}],
+});
+"#;
+
+	/// Compiling rewrites a string `match` into a regex, which changes the
+	/// patch's identity. Anything looking a patch up by
+	/// [`Patch::content_hash`] has to do it before compiling.
+	#[test]
+	fn compiling_changes_the_content_hash() {
+		let alloc = Allocator::new();
+		let parser =
+			VencordAstParser::try_new(&alloc, SRC, Some("plugins/test.ts"))
+				.expect("the source parses");
+		let mut patches = parser
+			.patches(true)
+			.expect("the plugin has patches");
+		assert_eq!(patches.len(), 1);
+		let before = patches[0].content_hash();
+		compile_patch_regexes(&mut patches);
+		assert_ne!(
+			before,
+			patches[0].content_hash(),
+			"if this ever holds, the lookup order no longer matters"
+		);
+	}
+}
