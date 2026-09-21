@@ -2,24 +2,6 @@
 
 [https://github.com/sadan4/vc-userDevTools/tree/main](https://github.com/sadan4/vc-userDevTools/blob/main)
 
-> **Architecture note (in-flight migration).** The extension has been split
-> into two pieces: a thin VSCode client (`src/extension.ts`) and a Rust
-> language server (`companion_lsp`) that lives in the parent workspace at
-> `../../crates/companion_lsp/`. The server owns all parsing/analysis and the
-> Discord WebSocket bridge; the VSCode client only handles editor-specific
-> UI (QuickPick, tree view, diff viewer, custom Patch Helper editor).
->
-> The server speaks standard LSP over stdio, plus a small set of custom
-> `vencord/*` JSON-RPC methods documented in
-> `crates/companion_lsp/src/vencord_ext.rs`. Other editors (Neovim, Helix,
-> Zed) can implement those custom methods in their own shims to get the
-> full feature set.
->
-> Build the server with `cargo build -p companion_lsp` in the workspace
-> root. For local development point the extension at the binary via the
-> `vencord-user-companion.lspPath` setting or the `COMPANION_LSP_BIN`
-> environment variable.
-
 # VencordCompanion
 
 [Download on the VSCode marketplace](https://marketplace.visualstudio.com/items?itemName=sadan.vencord-user-companion)
