@@ -67,6 +67,12 @@ impl ExtensionTarget {
 		self.triple
 	}
 
+	/// Whether this platform is Windows (MSVC toolchain: debuginfo lives in a
+	/// separate `.pdb` rather than inside the binary).
+	pub const fn is_windows(self) -> bool {
+		self.windows
+	}
+
 	/// The `companion_lsp` binary filename for this target, including the
 	/// `.exe` extension on Windows.
 	pub const fn bin_name(self) -> &'static str {

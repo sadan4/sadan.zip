@@ -35,6 +35,8 @@ const HOST_BIN_NAME: &str = if cfg!(windows) {
 	"companion_lsp"
 };
 
+const PDB_NAME: &str = "companion_lsp.pdb";
+
 impl Command {
 	/// The `companion_lsp` filename to stage: target-specific when a
 	/// `--target` is given, otherwise the host binary name.
@@ -43,22 +45,37 @@ impl Command {
 			.map_or(HOST_BIN_NAME, ExtensionTarget::bin_name)
 	}
 
-	fn cargo_bin_path(&self) -> PathBuf {
+	/// Whether the binary being built targets Windows: the requested
+	/// `--target` when given, otherwise the host platform.
+	fn is_windows(&self) -> bool {
+		self.target
+			.map_or(cfg!(windows), ExtensionTarget::is_windows)
+	}
+
+	/// The directory cargo drops artifacts in. Cross builds land under
+	/// `target/<triple>/<profile>/` rather than `target/<profile>/`.
+	fn cargo_out_dir(&self) -> PathBuf {
 		let profile = if self.dev { "debug" } else { "release" };
 		let mut path = PathBuf::from("target");
-		// Cross builds land under target/<triple>/<profile>/ rather than
-		// target/<profile>/.
 		if let Some(target) = self.target {
 			path.push(target.triple());
 		}
-		path.join(profile).join(self.bin_name())
+		path.join(profile)
 	}
 
-	fn extension_bin_path(&self) -> PathBuf {
+	fn cargo_bin_path(&self) -> PathBuf {
+		self.cargo_out_dir()
+			.join(self.bin_name())
+	}
+
+	fn extension_bin_dir() -> PathBuf {
 		PathBuf::from("packages")
 			.join("VencordCompanion")
 			.join("bin")
-			.join(self.bin_name())
+	}
+
+	fn extension_bin_path(&self) -> PathBuf {
+		Self::extension_bin_dir().join(self.bin_name())
 	}
 
 	#[instrument(skip(self))]
@@ -68,6 +85,21 @@ impl Command {
 		cmd.arg("-p")
 			.arg("companion_lsp")
 			.arg_if(!self.dev, "--release");
+		if !self.dev {
+			// A crash report from a user is all we get, so keep enough
+			// debuginfo for symbolized backtraces without paying for full
+			// DWARF. The workspace release profile strips, which would leave
+			// backtraces bare.
+			//
+			// MSVC always emits debuginfo to a side-car `.pdb`, so `packed` is
+			// the only legal setting there and `stage_pdb` ships the `.pdb`
+			// next to the binary. Everywhere else `off` embeds the line tables
+			// in the binary so there is nothing extra to bundle.
+			let split = if self.is_windows() { "packed" } else { "off" };
+			cmd.env("CARGO_PROFILE_RELEASE_DEBUG", "line-tables-only")
+				.env("CARGO_PROFILE_RELEASE_STRIP", "none")
+				.env("CARGO_PROFILE_RELEASE_SPLIT_DEBUGINFO", split);
+		}
 		if let Some(target) = self.target {
 			cmd.arg("--target").arg(target.triple());
 		}
@@ -86,6 +118,21 @@ impl Command {
 		fs::create_dir_all(bin_dir).with_context(|| {
 			format!("Failed to create {}", bin_dir.display())
 		})?;
+		fs::rm_if_exists(&dst)?;
+		fs::copy(&src, &dst).with_context(|| {
+			format!("Failed to copy {} -> {}", src.display(), dst.display())
+		})?;
+		Ok(())
+	}
+
+	/// Stage the MSVC `.pdb` alongside the binary so release backtraces from
+	/// the shipped Windows extension resolve to symbols and line numbers. No
+	/// other platform produces one: there the debuginfo lives in the binary.
+	#[instrument(skip(self))]
+	fn stage_pdb(&self) -> Result<()> {
+		let src = self.cargo_out_dir().join(PDB_NAME);
+		let dst = Self::extension_bin_dir().join(PDB_NAME);
+		info!("Staging {} -> {}", src.display(), dst.display());
 		fs::rm_if_exists(&dst)?;
 		fs::copy(&src, &dst).with_context(|| {
 			format!("Failed to copy {} -> {}", src.display(), dst.display())
@@ -118,6 +165,9 @@ impl Runnable for Command {
 		// FIXME: generate extension settings and commands in parallel before building js
 		self.build_lsp()?;
 		self.stage_lsp_binary()?;
+		if self.is_windows() && !self.dev {
+			self.stage_pdb()?;
+		}
 		self.build_client()?;
 		info!("Done");
 		Ok(())
