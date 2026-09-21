@@ -1238,9 +1238,7 @@ impl<'ast> VencordAstParser<'ast> {
 							source: self.txt,
 							inner: e,
 						};
-						debug!(
-							"Failed to parse patch, skipping. Cause:{e:?}"
-						);
+						debug!("Failed to parse patch, skipping. Cause:{e:?}");
 					}
 				}
 			}

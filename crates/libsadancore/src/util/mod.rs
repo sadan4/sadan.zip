@@ -70,9 +70,7 @@ where
 	let zstd_raw_data = Uint8Array::new(&arr_buf).to_vec();
 	let mpk_raw_data =
 		zstd::Decoder::new(&*zstd_raw_data).map_err(Error::Zstd)?;
-	let data = rmp_serde::from_read(BufReader::with_capacity(
-		BUF_SIZE,
-		mpk_raw_data,
-	))?;
+	let data =
+		rmp_serde::from_read(BufReader::with_capacity(BUF_SIZE, mpk_raw_data))?;
 	Ok(data)
 }

@@ -74,11 +74,11 @@ impl<'ast, T: WebpackChunkParserImpl<'ast>> WebpackChunkParser<'ast> for T {
 					let e = LocalSource {
 						inner: e.into(),
 						source: self.get_source_text(),
-						name: "file.js"
+						name: "file.js",
 					};
 					warn!("Failed to parse chunk entry:{e:?}");
 					None
-				},
+				}
 			})
 			.map(Into::into);
 		Ok(other)

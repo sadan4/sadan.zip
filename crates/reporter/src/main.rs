@@ -5,12 +5,7 @@ use derive_more::From;
 use indicatif::MultiProgress;
 use miette::{Result, bail};
 use miette_ui::install_miette_hook;
-use reporter::{
-	Cli,
-	cmds,
-	util::MultiProgressWrapper,
-	vc,
-};
+use reporter::{Cli, cmds, util::MultiProgressWrapper, vc};
 use std::{io, process, sync::LazyLock};
 use tracing::error;
 use tracing_subscriber::util::SubscriberInitExt;

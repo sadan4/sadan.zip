@@ -187,10 +187,7 @@ impl OutgoingModuleDepsWithLocs {
 
 impl SpannedId {
 	pub const fn unspanned(id: ModuleId) -> Self {
-		Self {
-			id,
-			span: SPAN
-		}
+		Self { id, span: SPAN }
 	}
 }
 

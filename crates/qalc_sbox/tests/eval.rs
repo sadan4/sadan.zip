@@ -45,8 +45,9 @@ mod blacklisted_functions {
 
 	#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 	async fn load_errors_under_seccomp() {
-		let sbox = Sandbox::try_new_exec(env!("CARGO_BIN_EXE_qalc_sbox_worker"))
-			.expect("spawn sandbox worker");
+		let sbox =
+			Sandbox::try_new_exec(env!("CARGO_BIN_EXE_qalc_sbox_worker"))
+				.expect("spawn sandbox worker");
 
 		let out = sbox
 			.eval("load(\"file\")".to_string())
@@ -60,8 +61,9 @@ mod blacklisted_functions {
 
 	#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 	async fn export_errors_under_seccomp() {
-		let sbox = Sandbox::try_new_exec(env!("CARGO_BIN_EXE_qalc_sbox_worker"))
-			.expect("spawn sandbox worker");
+		let sbox =
+			Sandbox::try_new_exec(env!("CARGO_BIN_EXE_qalc_sbox_worker"))
+				.expect("spawn sandbox worker");
 
 		let out = sbox
 			.eval("export([1 2], \"file\")".to_string())
@@ -75,8 +77,9 @@ mod blacklisted_functions {
 
 	#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 	async fn command_errors_under_seccomp() {
-		let sbox = Sandbox::try_new_exec(env!("CARGO_BIN_EXE_qalc_sbox_worker"))
-			.expect("spawn sandbox worker");
+		let sbox =
+			Sandbox::try_new_exec(env!("CARGO_BIN_EXE_qalc_sbox_worker"))
+				.expect("spawn sandbox worker");
 
 		let out = sbox
 			.eval("command(\"ls\")".to_string())
@@ -90,8 +93,9 @@ mod blacklisted_functions {
 
 	#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 	async fn plot_errors_under_seccomp() {
-		let sbox = Sandbox::try_new_exec(env!("CARGO_BIN_EXE_qalc_sbox_worker"))
-			.expect("spawn sandbox worker");
+		let sbox =
+			Sandbox::try_new_exec(env!("CARGO_BIN_EXE_qalc_sbox_worker"))
+				.expect("spawn sandbox worker");
 
 		let out = sbox
 			.eval("plot(sin(x))".to_string())

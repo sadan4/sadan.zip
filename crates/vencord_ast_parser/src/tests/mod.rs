@@ -502,16 +502,16 @@ fn track_cmp_survives_offset_shift() {
 			.unwrap();
 	assert_eq!(before.len(), after.len());
 	assert!(
-		before
-			.iter()
-			.any(|p| p.find.v.as_regex().is_some_and(|r| !r
-				.capture_spans
-				.is_empty())
-				|| p.replacement.iter().any(|r| r
-					.match_
-					.v
-					.as_regex()
-					.is_some_and(|r| !r.capture_spans.is_empty()))),
+		before.iter().any(|p| p
+			.find
+			.v
+			.as_regex()
+			.is_some_and(|r| !r.capture_spans.is_empty())
+			|| p.replacement.iter().any(|r| r
+				.match_
+				.v
+				.as_regex()
+				.is_some_and(|r| !r.capture_spans.is_empty()))),
 		"test data needs a regex with capture groups to be meaningful"
 	);
 	for (b, a) in before.iter().zip(&after) {

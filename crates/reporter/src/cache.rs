@@ -146,7 +146,9 @@ where
 			raw_zstd_data,
 		))
 		.map_err(CacheError::Deserialize)
-	}).await.map_err(CacheError::JoinError)??;
+	})
+	.await
+	.map_err(CacheError::JoinError)??;
 	Ok(Some(data))
 }
 
@@ -186,7 +188,7 @@ where
 	let compression_level = compression_level.into().unwrap_or(10);
 	let cache_dir = get_cache_dir().await?;
 	let cache_file = cache_dir.join(key);
-	
+
 	task::block_in_place(|| {
 		let file = std::fs::File::options()
 			.write(true)

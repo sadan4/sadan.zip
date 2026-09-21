@@ -38,7 +38,8 @@ impl Runnable for Command {
 		for line in out.lines() {
 			let mut cmd: Cmd =
 				serde_json::from_str(&line?).context("deserializing cmd")?;
-			cmd.title.insert_str(0, "Vencord Companion: ");
+			cmd.title
+				.insert_str(0, "Vencord Companion: ");
 			cmds.push(cmd);
 		}
 		cmds.sort_unstable();

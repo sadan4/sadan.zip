@@ -3,8 +3,8 @@ use anyhow::{Result, bail};
 use async_trait::async_trait;
 use explorer_types::{IncomingModuleDeps, ModuleId};
 use oxc::span::Span;
-use url::Url;
 use std::sync::Arc;
+use url::Url;
 
 #[derive(Debug, Clone)]
 pub enum Location {
@@ -31,12 +31,18 @@ pub struct Definition {
 
 #[async_trait]
 pub trait IModuleDepProvider: Send + Sync {
-	async fn get_module_deps(&self, id: ModuleId) -> Result<Arc<IncomingModuleDeps>>;
+	async fn get_module_deps(
+		&self,
+		id: ModuleId,
+	) -> Result<Arc<IncomingModuleDeps>>;
 }
 
 #[async_trait]
 impl<T: IModuleDepProvider + ?Sized> IModuleDepProvider for &T {
-	async fn get_module_deps(&self, id: ModuleId) -> Result<Arc<IncomingModuleDeps>> {
+	async fn get_module_deps(
+		&self,
+		id: ModuleId,
+	) -> Result<Arc<IncomingModuleDeps>> {
 		(**self).get_module_deps(id).await
 	}
 }
@@ -55,7 +61,8 @@ pub trait IModuleCache: Send + Sync {
 		requestor: &WebpackAstParser<'_>,
 		id: ModuleId,
 	) -> Result<Arc<ThreadSafeParser>> {
-		self.get_module_parser(requestor, id, Some(true)).await
+		self.get_module_parser(requestor, id, Some(true))
+			.await
 	}
 }
 
@@ -71,7 +78,9 @@ impl<T: IModuleCache + ?Sized> IModuleCache for &T {
 		id: ModuleId,
 		latest: Option<bool>,
 	) -> Result<Arc<ThreadSafeParser>> {
-		(**self).get_module_parser(requestor, id, latest).await
+		(**self)
+			.get_module_parser(requestor, id, latest)
+			.await
 	}
 
 	async fn get_latest_module_parser(
@@ -79,7 +88,9 @@ impl<T: IModuleCache + ?Sized> IModuleCache for &T {
 		requestor: &WebpackAstParser<'_>,
 		id: ModuleId,
 	) -> Result<Arc<ThreadSafeParser>> {
-		(**self).get_latest_module_parser(requestor, id).await
+		(**self)
+			.get_latest_module_parser(requestor, id)
+			.await
 	}
 }
 

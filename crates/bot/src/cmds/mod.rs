@@ -108,7 +108,10 @@ async fn snowflake(
 ) -> Result<()> {
 	const DISCORD_EPOCH: u64 = 1_420_070_400_000;
 	const TIMESTAMP_OFFSET: u64 = 22;
-	let id: u64 = args.snowflake.parse().context("Failed to parse snowflake")?;
+	let id: u64 = args
+		.snowflake
+		.parse()
+		.context("Failed to parse snowflake")?;
 	let timestamp = Timestamp::UNIX_EPOCH
 		+ Duration::from_millis((id >> TIMESTAMP_OFFSET) + DISCORD_EPOCH);
 	let zoned = timestamp

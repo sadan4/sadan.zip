@@ -7,8 +7,8 @@ use std::sync::Arc;
 use explorer_server_core::Channel;
 use itertools::Itertools;
 use miette::{Context, Diagnostic, Report, Severity, bail};
-use tracing::{debug, error, info, trace, warn};
 use parser_diag::LocalSource;
+use tracing::{debug, error, info, trace, warn};
 
 use crate::{
 	Cli,

@@ -5,9 +5,10 @@ use crate::Runnable;
 
 mod bot_config;
 mod client;
-mod ext_settings;
 mod client_grammars;
 mod discord_intl;
+mod ext_commands;
+mod ext_settings;
 mod indent_cache;
 mod monaco_editor;
 mod monaco_themes;
@@ -16,7 +17,6 @@ mod syntax;
 mod ts_api;
 mod types;
 mod update_intl_mappings;
-mod ext_commands;
 
 #[derive(Args)]
 pub struct Command {

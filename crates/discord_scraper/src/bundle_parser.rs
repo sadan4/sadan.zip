@@ -11,13 +11,12 @@ pub fn parse_bundle<S: BuildHasher>(
 	let alloc = Allocator::new();
 	let mut parsers = HashMap::with_capacity(modules.len());
 	for (id, code) in modules {
-		let parser =
-			WebpackAstParser::try_new(&alloc, code).map_err(|e| {
-				anyhow!(
-					"{}",
-					pretty_printer::render_diag(e, code, &format!("{id}.js"))
-				)
-			})?;
+		let parser = WebpackAstParser::try_new(&alloc, code).map_err(|e| {
+			anyhow!(
+				"{}",
+				pretty_printer::render_diag(e, code, &format!("{id}.js"))
+			)
+		})?;
 		parsers.insert(*id, parser);
 	}
 	let mut deps: HashMap<_, IncomingModuleDeps> =

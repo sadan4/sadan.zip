@@ -1,6 +1,4 @@
-use crate::{
-	hash::hash_message_key,
-};
+use crate::hash::hash_message_key;
 use ast_parser::exts::{ExpressionExt as _, TemplateLiteralExt as _};
 use itertools::Itertools;
 use oxc::{

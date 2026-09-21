@@ -1,5 +1,8 @@
 use std::{
-	borrow::Cow, fmt::{self, Display, Write}, option::Option, sync::Arc,
+	borrow::Cow,
+	fmt::{self, Display, Write},
+	option::Option,
+	sync::Arc,
 };
 
 use derive_more::Debug;

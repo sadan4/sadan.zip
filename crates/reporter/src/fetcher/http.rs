@@ -75,10 +75,8 @@ pub async fn fetch_full_bundle(build_hash: &str) -> Result<FullBundle> {
 	));
 	let data = tokio::task::spawn_blocking(move || -> Result<_> {
 		let raw = zstd::Decoder::new(body)?;
-		let data: FullBundle = rmp_serde::from_read(BufReader::with_capacity(
-			BUF_SIZE,
-			raw,
-		))?;
+		let data: FullBundle =
+			rmp_serde::from_read(BufReader::with_capacity(BUF_SIZE, raw))?;
 		Ok(data)
 	})
 	.await
