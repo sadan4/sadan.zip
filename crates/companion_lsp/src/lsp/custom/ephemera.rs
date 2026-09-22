@@ -107,6 +107,69 @@ impl Ephemera {
 			warn!("Dropping ephemeral change: the notifier task is gone");
 		}
 	}
+
+	/// The document stored under `uri`, if there is one.
+	pub fn get(&self, uri: &Uri) -> Option<EphemeralDocument> {
+		self.documents
+			.get(&key(uri))
+			.map(|d| d.clone())
+	}
+
+	/// Store `doc`, warning if it replaces one.
+	pub fn create(&self, doc: EphemeralDocument) {
+		if self
+			.documents
+			.insert(key(&doc.uri), doc.clone())
+			.is_some()
+		{
+			warn!(uri =% doc.uri.as_str(), "Overwriting ephemeral document");
+		}
+		self.emit(doc.into());
+	}
+
+	/// Store `doc`, replacing any document already under its URI.
+	///
+	/// Unlike [`Self::create`], replacing is the expected case: a caller that
+	/// re-publishes a document it owns, such as a live module being re-fetched
+	/// after it was invalidated, has not lost track of anything.
+	pub fn upsert(&self, doc: EphemeralDocument) {
+		self.documents
+			.insert(key(&doc.uri), doc.clone());
+		self.emit(doc.into());
+	}
+
+	#[instrument(skip_all, fields(uri =% doc.uri.as_str()))]
+	pub fn update(&self, doc: EphemeralChange) -> Result<()> {
+		if doc.deleted == Some(true) {
+			debug!("Deleting ephemeral document");
+			self.delete(doc.uri)
+				.context("Failed to delete ephemeral document")?;
+		} else {
+			let mut our_doc = self
+				.documents
+				.get_mut(&key(&doc.uri))
+				.context("No such ephemeral document")?;
+			if let Some(new_content) = &doc.content {
+				our_doc.content = new_content.clone();
+			}
+			drop(our_doc);
+			self.emit(doc);
+		}
+		Ok(())
+	}
+
+	#[instrument(skip_all, fields(uri =% uri.as_str()))]
+	pub fn delete(&self, uri: Uri) -> Result<()> {
+		#[rustfmt::skip]
+		ensure!(self.documents.remove(&key(&uri)).is_some());
+		debug!("Deleting ephemeral document");
+		self.emit(EphemeralChange {
+			uri,
+			content: None,
+			deleted: Some(true),
+		});
+		Ok(())
+	}
 }
 
 const SCHEME: &str = SERVER_NAME;
@@ -134,60 +197,24 @@ impl lsp::Server {
 		&self,
 		params: &EphemeralQuery,
 	) -> LspResult<EphemeralQueryResult> {
-		let doc = self
-			.ephemera
-			.documents
-			.get(&key(&params.uri))
-			.map(|d| d.clone());
-		Ok(EphemeralQueryResult { doc })
+		Ok(EphemeralQueryResult {
+			doc: self.ephemera.get(&params.uri),
+		})
 	}
 
 	pub fn create_ephemeral_document(&self, doc: EphemeralDocument) {
-		let is_overwriting = self
-			.ephemera
-			.documents
-			.insert(key(&doc.uri), doc.clone())
-			.is_some();
-		if is_overwriting {
-			warn!(uri =% doc.uri.as_str(), "Overwriting ephemeral document");
-		}
-		self.ephemera.emit(doc.into());
+		self.ephemera.create(doc);
 	}
-	#[instrument(skip_all, fields(uri =% doc.uri.as_str()))]
+
 	pub fn update_ephemeral_document(
 		&self,
 		doc: EphemeralChange,
 	) -> Result<()> {
-		if doc.deleted == Some(true) {
-			debug!("Deleting ephemeral document");
-			self.delete_ephemeral_document(doc.uri)
-				.context("Failed to delete ephemeral document")?;
-		} else {
-			let mut our_doc = self
-				.ephemera
-				.documents
-				.get_mut(&key(&doc.uri))
-				.context("No such ephemeral document")?;
-			if let Some(new_content) = &doc.content {
-				our_doc.content = new_content.clone();
-			}
-			drop(our_doc);
-			self.ephemera.emit(doc);
-		}
-		Ok(())
+		self.ephemera.update(doc)
 	}
 
-	#[instrument(skip_all, fields(uri =% uri.as_str()))]
 	pub fn delete_ephemeral_document(&self, uri: Uri) -> Result<()> {
-		#[rustfmt::skip]
-		ensure!(self.ephemera.documents.remove(&key(&uri)).is_some());
-		debug!("Deleting ephemeral document");
-		self.ephemera.emit(EphemeralChange {
-			uri,
-			content: None,
-			deleted: Some(true),
-		});
-		Ok(())
+		self.ephemera.delete(uri)
 	}
 }
 

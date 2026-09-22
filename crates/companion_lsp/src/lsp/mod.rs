@@ -2,7 +2,7 @@ pub mod cmds;
 pub mod custom;
 mod definition;
 mod diagnostics;
-mod doc;
+pub(crate) mod doc;
 mod download_modules;
 mod hover;
 mod lenses;
@@ -75,7 +75,7 @@ pub struct Server {
 	state: Arc<State>,
 	log_reload_handle: Option<ReloadHandle>,
 	module_cache: SplitModuleCache,
-	ephemera: Ephemera,
+	ephemera: Arc<Ephemera>,
 	diagnostics: Diagnostics,
 	patch_helpers: patch_helper2::Helpers,
 	pool: Arc<AllocPool>,
@@ -87,7 +87,7 @@ pub struct ServerBuilder {
 	state: Arc<State>,
 	log_reload_handle: Option<ReloadHandle>,
 	module_cache: SplitModuleCache,
-	ephemera: Ephemera,
+	ephemera: Arc<Ephemera>,
 	ephemera_changes: mpsc::UnboundedReceiver<EphemeralChange>,
 	diagnostics: Diagnostics,
 	diagnostic_requests: mpsc::UnboundedReceiver<diagnostics::Request>,
@@ -109,11 +109,19 @@ impl ServerBuilder {
 			error!("WebSocket server exited unexpectedly");
 		});
 		let files = doc::Files::default();
-		let module_cache = SplitModuleCache::new(state.ws.clone());
 		let (ephemera, ephemera_changes) = Ephemera::new();
+		let ephemera = Arc::new(ephemera);
+		let pool = Arc::new(AllocPool::new(None));
+		// the live half publishes the modules it fetches as ephemeral
+		// documents, and formats them like the dumped ones
+		let module_cache = SplitModuleCache::new(
+			state.ws.clone(),
+			Arc::clone(&ephemera),
+			Arc::clone(&pool),
+			files.clone(),
+		);
 		let (diagnostics, diagnostic_requests) = Diagnostics::new();
 		let patch_helpers = patch_helper2::Helpers::default();
-		let pool = Arc::new(AllocPool::new(None));
 		Ok(Self {
 			files,
 			state,
@@ -291,6 +299,8 @@ impl LanguageServer for Server {
 	async fn did_close(&self, params: DidCloseTextDocumentParams) {
 		self.patch_helper_close_hook(&params.text_document.uri);
 		self.diagnostics_close_hook(params.text_document.uri.clone());
+		self.module_cache
+			.handle_close(&params.text_document.uri);
 		self.files.handle_close(params);
 	}
 

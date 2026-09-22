@@ -105,6 +105,10 @@
                 "title": "Vencord Companion: Purge Module Cache"
             },
             {
+                "command": "vencord-companion.clear_live_cache",
+                "title": "Vencord Companion: Purge Live Module Cache"
+            },
+            {
                 "command": "vencord-companion.download_modules",
                 "title": "Vencord Companion: Download Module Cache"
             },

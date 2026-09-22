@@ -12,10 +12,12 @@ use std::{
 	time::{Instant, SystemTime},
 };
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
+use ast_parser::pool::AllocPool;
 use async_trait::async_trait;
 use dashmap::DashMap;
 use explorer_types::{IncomingModuleDeps, ModuleId};
+use pretty_printer::format_with_alloc;
 use tokio::{
 	fs,
 	sync::{OnceCell, RwLock},
@@ -26,6 +28,7 @@ use tower_lsp_server::{
 	ls_types::{Uri, WorkDoneProgressBegin},
 };
 use tracing::{debug, info, instrument, warn};
+use url::Url;
 use webpack_ast_parser::{
 	ThreadSafeParser,
 	WebpackAstParser,
@@ -34,14 +37,21 @@ use webpack_ast_parser::{
 
 use crate::{
 	SERVER_VERSION,
-	lsp,
+	lsp::{
+		self,
+		custom::{Ephemera, EphemeralDocument, ephemera},
+		doc,
+	},
 	module_cache::disk::{
 		CACHE_FILE_NAME,
 		CachedDepGraph,
 		ModuleRootFingerprint,
 	},
 	util::err::display_no_backtrace,
-	wss,
+	wss::{
+		self,
+		types::to_client::{ExtractMessage, FindQuery},
+	},
 };
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -63,6 +73,10 @@ impl DeadlockId {
 pub struct SplitModuleCache {
 	disk: Arc<DiskModuleCache>,
 	live: Arc<LiveModuleCache>,
+	/// One per open document that holds its own copy of a module; see
+	/// [`BufferModuleCache`].
+	buffers: DashMap<Uri, Arc<BufferModuleCache>>,
+	files: doc::Files,
 }
 
 struct DiskModuleCache {
@@ -81,6 +95,41 @@ struct DiskModuleCache {
 
 /// The directory modules are dumped into, relative to a workspace root.
 const MODULE_DIR_NAME: &str = ".modules";
+
+/// The directory live modules are published under, in the ephemeral document
+/// tree.
+const LIVE_MODULE_DIR: &str = "/modules";
+
+/// The indent live modules are formatted with; `0` means tabs.
+const INDENT: u8 = 2;
+
+/// Whether a live module is fetched with the patches the client has applied.
+// TODO: user setting, matching what the module dump asks for
+const USE_PATCHED: bool = false;
+
+/// Where the live copy of `id` is published.
+///
+/// The file stem is the bare id so that [`module_id_from_uri`] can read it
+/// back off the URI the client sends us.
+fn live_module_uri(id: ModuleId) -> Result<Uri> {
+	ephemera::uri(format!("{LIVE_MODULE_DIR}/{id}.js"))
+}
+
+/// [`live_module_uri`] as a [`Url`], which is what [`IModuleCache`] hands back.
+fn live_module_url(id: ModuleId) -> Result<Url> {
+	let uri = live_module_uri(id)?;
+	Url::parse(uri.as_str()).context("Live module URI is not a valid URL")
+}
+
+/// Whether `uri` is one of the documents the live cache publishes.
+///
+/// The `vencord-companion` scheme carries more than live modules — patch
+/// helper views live under it too — so the scheme alone does not say which
+/// cache owns a document.
+fn is_live_module_uri(uri: &Uri) -> bool {
+	Path::new(uri.path().as_str()).parent() == Some(Path::new(LIVE_MODULE_DIR))
+		&& module_id_from_uri(uri).is_some()
+}
 
 /// The module a uri points at, taken from its file name the same way
 /// [`DiskModuleCache::scan_module_root`] does.
@@ -117,10 +166,19 @@ impl Drop for DepGraphBuildGuard<'_> {
 	}
 }
 
-#[expect(unused)]
 struct LiveModuleCache {
 	socket: wss::WsServer,
 	parsers: DashMap<ModuleId, Arc<ThreadSafeParser>>,
+	/// The disk cache, for [`IModuleDepProvider`].
+	///
+	/// Nothing on the wire answers "what requires this module", so incoming
+	/// deps come from the dumped graph. Webpack ids are deterministic, so a
+	/// dump from an earlier session is usually still right.
+	disk: Arc<DiskModuleCache>,
+	/// Where a fetched module is published for the client to open.
+	ephemera: Arc<Ephemera>,
+	pool: Arc<AllocPool>,
+	this: Weak<Self>,
 }
 
 #[async_trait]
@@ -131,11 +189,22 @@ pub trait SplitCache: IModuleCache + IModuleDepProvider + Send + Sync {
 }
 
 impl SplitModuleCache {
-	pub fn new(socket: wss::WsServer) -> Self {
+	pub fn new(
+		socket: wss::WsServer,
+		ephemera: Arc<Ephemera>,
+		pool: Arc<AllocPool>,
+		files: doc::Files,
+	) -> Self {
 		// TODO: setting or smth for module_root
 		let disk = DiskModuleCache::new_arc();
-		let live = Arc::new(LiveModuleCache::new(socket));
-		Self { disk, live }
+		let live =
+			LiveModuleCache::new_arc(socket, Arc::clone(&disk), ephemera, pool);
+		Self {
+			disk,
+			live,
+			buffers: DashMap::new(),
+			files,
+		}
 	}
 
 	pub fn set_workspace_roots(&self, roots: Vec<PathBuf>) {
@@ -152,12 +221,25 @@ impl SplitModuleCache {
 			.invalidate(id)
 			.await;
 	}
+	/// Drop the cache a closed document had.
+	pub fn handle_close(&self, uri: &Uri) {
+		if self.buffers.remove(uri).is_some() {
+			debug!(uri =% uri.as_str(), "Dropped the buffer module cache");
+		}
+	}
+
+	/// The cache that owns `uri`'s module.
+	///
+	/// A `vencord-companion` document is either a module the live cache
+	/// published or a buffer holding its own copy of one, such as a patch
+	/// helper view, so the scheme alone does not decide.
 	pub fn get_for_uri(&self, uri: &Uri) -> Arc<dyn SplitCache> {
 		match uri.scheme().as_str() {
 			"file" => Arc::clone(&self.disk) as Arc<dyn SplitCache>,
-			"vencord-companion" => {
+			"vencord-companion" if is_live_module_uri(uri) => {
 				Arc::clone(&self.live) as Arc<dyn SplitCache>
 			}
+			"vencord-companion" => self.buffer_cache(uri),
 			scheme => {
 				warn!(
 					?scheme,
@@ -166,6 +248,23 @@ impl SplitModuleCache {
 				Arc::clone(&self.disk) as Arc<dyn SplitCache>
 			}
 		}
+	}
+
+	/// The cache for `uri`'s own text, created on first use.
+	fn buffer_cache(&self, uri: &Uri) -> Arc<dyn SplitCache> {
+		let cache = Arc::clone(
+			self.buffers
+				.entry(uri.clone())
+				.or_insert_with(|| {
+					BufferModuleCache::new_arc(
+						uri.clone(),
+						self.files.clone(),
+						Arc::clone(&self.live),
+					)
+				})
+				.value(),
+		);
+		cache as Arc<dyn SplitCache>
 	}
 	pub fn set_client(&self, client: Client) {
 		self.disk
@@ -184,6 +283,14 @@ impl SplitModuleCache {
 	/// Where a fresh dump of the modules should go.
 	pub fn module_dir_target(&self) -> Result<PathBuf> {
 		self.disk.module_dir_target()
+	}
+
+	/// Drop every module fetched from the running client.
+	///
+	/// Returns how many were dropped. Nothing on disk is touched; that is
+	/// [`Self::clear`]'s job.
+	pub fn clear_live(&self) -> usize {
+		self.live.clear()
 	}
 }
 
@@ -634,7 +741,7 @@ impl SplitCache for DiskModuleCache {
 				.context("Failed to read module file")?;
 			let mut parser = ThreadSafeParser::new(Arc::from(contents))
 				.context("Failed to parse module")?;
-			let this = Arc::new(WeakDiskCache(self.this.clone()));
+			let this = Arc::new(WeakCache(self.this.clone()));
 			parser.set_module_cache(this.clone());
 			parser.set_module_dep_provider(this);
 			let parser = Arc::new(parser);
@@ -703,14 +810,13 @@ impl IModuleCache for DiskModuleCache {
 	}
 }
 
-/// The handle a parser in [`DiskModuleCache::parsers`] gets back to the cache
-/// holding it.
+/// The handle a cached parser gets back to the cache holding it.
 ///
 /// Weak so that the cache -> parser -> cache path is not a reference cycle
-struct WeakDiskCache(Weak<DiskModuleCache>);
+struct WeakCache<T>(Weak<T>);
 
-impl WeakDiskCache {
-	fn get(&self) -> Result<Arc<DiskModuleCache>> {
+impl<T> WeakCache<T> {
+	fn get(&self) -> Result<Arc<T>> {
 		self.0
 			.upgrade()
 			.context("Module cache has been dropped")
@@ -718,7 +824,7 @@ impl WeakDiskCache {
 }
 
 #[async_trait]
-impl IModuleDepProvider for WeakDiskCache {
+impl<T: IModuleDepProvider + 'static> IModuleDepProvider for WeakCache<T> {
 	async fn get_module_deps(
 		&self,
 		id: ModuleId,
@@ -728,8 +834,8 @@ impl IModuleDepProvider for WeakDiskCache {
 }
 
 #[async_trait]
-impl IModuleCache for WeakDiskCache {
-	async fn get_module_filepath(&self, id: ModuleId) -> Option<url::Url> {
+impl<T: IModuleCache + 'static> IModuleCache for WeakCache<T> {
+	async fn get_module_filepath(&self, id: ModuleId) -> Option<Url> {
 		match self.get() {
 			Ok(cache) => cache.get_module_filepath(id).await,
 			Err(e) => {
@@ -751,28 +857,136 @@ impl IModuleCache for WeakDiskCache {
 	}
 }
 
-const UNIMPLEMENTED: &str = "the live module cache is not implemented yet; open the module from \
-	 `.modules` on disk instead";
+/// What a live module fetch fails with when there is no dep graph to fall back
+/// on.
+const NO_DEP_GRAPH: &str = "live modules take their dependents from the module \
+                            dump; run the Download Module Cache command to \
+                            build one";
 
 impl LiveModuleCache {
-	fn new(socket: wss::WsServer) -> Self {
-		Self {
+	fn new_arc(
+		socket: wss::WsServer,
+		disk: Arc<DiskModuleCache>,
+		ephemera: Arc<Ephemera>,
+		pool: Arc<AllocPool>,
+	) -> Arc<Self> {
+		Arc::new_cyclic(|this| Self {
 			socket,
 			parsers: DashMap::new(),
+			disk,
+			ephemera,
+			pool,
+			this: this.clone(),
+		})
+	}
+
+	/// Ask the client for module `id`, formatted the same way the dumped
+	/// modules are.
+	///
+	/// The header has to go on before the pretty printer runs, or the result
+	/// does not parse as a webpack module and nothing downstream can find its
+	/// id.
+	async fn fetch_module(&self, id: ModuleId) -> Result<Arc<str>> {
+		let res = self
+			.socket
+			.send_msg(ExtractMessage {
+				data: FindQuery::Id {
+					id,
+					use_patched: USE_PATCHED,
+				},
+			})
+			.await
+			.with_context(|| {
+				format!("Failed to extract module {id} from the client")
+			})?;
+		let got = res.module_result.module_number;
+		if got != id {
+			warn!(%id, %got, "Client answered with a different module than we asked for");
 		}
+		let mut src = res.module;
+		// cpu-bound AST work; block_in_place keeps it off the tokio worker
+		let src = task::block_in_place(|| {
+			WebpackAstParser::format_module_header(&mut src, id, false);
+			let alloc = self.pool.get();
+			// an unformatted module parses just as well as a formatted one
+			match format_with_alloc(&src, &alloc, INDENT) {
+				Ok(content) => content.code,
+				Err(e) => {
+					warn!(%id, "Failed to format live module, using it as-is: {e}");
+					src
+				}
+			}
+		});
+		Ok(Arc::from(src))
+	}
+
+	/// Drop every module fetched so far, along with the documents publishing
+	/// them.
+	///
+	/// Returns how many were dropped.
+	fn clear(&self) -> usize {
+		let ids: Vec<ModuleId> = self
+			.parsers
+			.iter()
+			.map(|entry| *entry.key())
+			.collect();
+		self.parsers.clear();
+		for id in &ids {
+			match live_module_uri(*id) {
+				// a document the client already dropped is not a problem
+				Ok(uri) => {
+					if let Err(e) = self.ephemera.delete(uri) {
+						debug!(%id, "Nothing to delete for live module: {e}");
+					}
+				}
+				Err(e) => {
+					warn!(%id, "Failed to build live module URI: {e}");
+				}
+			}
+		}
+		info!(modules = ids.len(), "Cleared the live module cache");
+		ids.len()
 	}
 }
 
 #[async_trait]
 impl SplitCache for LiveModuleCache {
 	#[instrument(skip_all, fields(id))]
-	async fn get_parser(&self, _: ModuleId) -> Result<Arc<ThreadSafeParser>> {
-		bail!(UNIMPLEMENTED)
+	async fn get_parser(&self, id: ModuleId) -> Result<Arc<ThreadSafeParser>> {
+		if let Some(parser) = self.parsers.get(&id) {
+			return Ok(Arc::clone(&parser));
+		}
+		let src = self.fetch_module(id).await?;
+		let mut parser = ThreadSafeParser::new(Arc::clone(&src))
+			.context("Failed to parse module")?;
+		let this = Arc::new(WeakCache(self.this.clone()));
+		parser.set_module_cache(this.clone());
+		parser.set_module_dep_provider(this);
+		// the published text has to be byte for byte what the parser holds, or
+		// `lsp::cursor_offset` rejects every position in the document
+		self.ephemera.upsert(EphemeralDocument {
+			uri: live_module_uri(id)?,
+			content: src,
+		});
+		// whoever got here first keeps the parser it already handed out
+		let parser = Arc::clone(
+			self.parsers
+				.entry(id)
+				.or_insert(Arc::new(parser))
+				.value(),
+		);
+		debug!(%id, "Fetched live module from the client");
+		Ok(parser)
 	}
 
 	async fn invalidate(&self, id: ModuleId) {
-		// nothing is ever cached here yet
-		self.parsers.remove(&id);
+		// the published document is left alone: the user may have it open, and
+		// the next `get_parser` republishes it anyway
+		if self.parsers.remove(&id).is_none() {
+			debug!(%id, "Nothing cached for live module, nothing to invalidate");
+			return;
+		}
+		debug!(%id, "Dropped cached parser for live module");
 	}
 }
 
@@ -780,24 +994,243 @@ impl SplitCache for LiveModuleCache {
 impl IModuleDepProvider for LiveModuleCache {
 	async fn get_module_deps(
 		&self,
-		_id: ModuleId,
+		id: ModuleId,
 	) -> Result<Arc<IncomingModuleDeps>> {
-		bail!(UNIMPLEMENTED)
+		self.disk
+			.get_module_deps(id)
+			.await
+			.context(NO_DEP_GRAPH)
 	}
 }
 
 #[async_trait]
 impl IModuleCache for LiveModuleCache {
-	async fn get_module_filepath(&self, _: ModuleId) -> Option<url::Url> {
-		warn!("{UNIMPLEMENTED}");
-		None
+	#[instrument(skip_all, fields(id))]
+	async fn get_module_filepath(&self, id: ModuleId) -> Option<Url> {
+		// fetching publishes the document, so the URI we hand back is one the
+		// client can actually open
+		if let Err(e) = self.get_parser(id).await {
+			let e = display_no_backtrace(&e);
+			warn!(%id, "Failed to fetch live module: {e}");
+			return None;
+		}
+		live_module_url(id)
+			.inspect_err(|e| warn!(%id, "Failed to build live module URL: {e}"))
+			.ok()
 	}
+
 	async fn get_module_parser(
 		&self,
 		_requestor: &WebpackAstParser<'_>,
-		_id: ModuleId,
+		id: ModuleId,
 		_latest: Option<bool>,
 	) -> Result<Arc<ThreadSafeParser>> {
-		bail!(UNIMPLEMENTED)
+		self.get_parser(id).await
+	}
+}
+
+/// A document holding its own copy of a module, such as a patch helper view.
+///
+/// The text in front of the user *is* the module, so it is parsed from the
+/// buffer. A copy fetched by id would be the unpatched original: it would not
+/// match the open document, and every cursor position in it would be rejected
+/// by [`lsp::cursor_offset`].
+struct BufferModuleCache {
+	uri: Uri,
+	files: doc::Files,
+	/// The modules this buffer is not; a definition or reference in it can
+	/// point at any of them.
+	live: Arc<LiveModuleCache>,
+	parsed: Mutex<Option<ParsedBuffer>>,
+	this: Weak<Self>,
+}
+
+/// A parsed buffer, along with the text it was parsed from so an edited buffer
+/// is noticed.
+struct ParsedBuffer {
+	id: ModuleId,
+	source: Arc<str>,
+	parser: Arc<ThreadSafeParser>,
+}
+
+impl BufferModuleCache {
+	fn new_arc(
+		uri: Uri,
+		files: doc::Files,
+		live: Arc<LiveModuleCache>,
+	) -> Arc<Self> {
+		Arc::new_cyclic(|this| Self {
+			uri,
+			files,
+			live,
+			parsed: Mutex::new(None),
+			this: this.clone(),
+		})
+	}
+
+	/// The parser for this document's own text, reparsed if the buffer has
+	/// changed since the last one was built.
+	fn own(&self) -> Result<(ModuleId, Arc<ThreadSafeParser>)> {
+		let doc = self
+			.files
+			.get(&self.uri)
+			.context("Document is not open")?;
+		{
+			let parsed = self
+				.parsed
+				.lock()
+				.unwrap_or_else(PoisonError::into_inner);
+			if let Some(parsed) = parsed.as_ref()
+				&& &*parsed.source == doc.text.as_str()
+			{
+				return Ok((parsed.id, Arc::clone(&parsed.parser)));
+			}
+		}
+		let id = WebpackAstParser::parse_module_id(&doc.text)
+			.context("Document does not start with a webpack module header")?
+			.id;
+		let source: Arc<str> = Arc::from(doc.text.as_str());
+		// cpu-bound; block_in_place keeps it off the tokio worker
+		let mut parser =
+			task::block_in_place(|| ThreadSafeParser::new(Arc::clone(&source)))
+				.context("Failed to parse the document")?;
+		let this = Arc::new(WeakCache(self.this.clone()));
+		parser.set_module_cache(this.clone());
+		parser.set_module_dep_provider(this);
+		let parser = Arc::new(parser);
+		*self
+			.parsed
+			.lock()
+			.unwrap_or_else(PoisonError::into_inner) = Some(ParsedBuffer {
+			id,
+			source,
+			parser: Arc::clone(&parser),
+		});
+		debug!(uri =% self.uri.as_str(), %id, "Parsed a module out of its document");
+		Ok((id, parser))
+	}
+
+	/// This document's own module id, if it holds one.
+	fn own_id(&self) -> Option<ModuleId> {
+		self.own()
+			.inspect_err(|e| {
+				debug!(uri =% self.uri.as_str(), "Document is not a module: {e}");
+			})
+			.ok()
+			.map(|(id, _)| id)
+	}
+}
+
+#[async_trait]
+impl SplitCache for BufferModuleCache {
+	#[instrument(skip_all, fields(id))]
+	async fn get_parser(&self, id: ModuleId) -> Result<Arc<ThreadSafeParser>> {
+		match self.own() {
+			Ok((own_id, parser)) if own_id == id => Ok(parser),
+			// anything this buffer is not a copy of is a real module
+			Ok(_) => self.live.get_parser(id).await,
+			Err(e) => {
+				debug!(%id, "Not serving module from the document: {e}");
+				self.live.get_parser(id).await
+			}
+		}
+	}
+
+	async fn invalidate(&self, _: ModuleId) {
+		// the buffer is the source of truth, and `own` reparses whenever its
+		// text changes, so there is nothing to do but drop what we have
+		*self
+			.parsed
+			.lock()
+			.unwrap_or_else(PoisonError::into_inner) = None;
+	}
+}
+
+#[async_trait]
+impl IModuleDepProvider for BufferModuleCache {
+	async fn get_module_deps(
+		&self,
+		id: ModuleId,
+	) -> Result<Arc<IncomingModuleDeps>> {
+		self.live.get_module_deps(id).await
+	}
+}
+
+#[async_trait]
+impl IModuleCache for BufferModuleCache {
+	async fn get_module_filepath(&self, id: ModuleId) -> Option<Url> {
+		// a reference back into this module belongs in the document the user
+		// is looking at, not in a fresh copy of it
+		if self.own_id() == Some(id) {
+			return Url::parse(self.uri.as_str())
+				.inspect_err(|e| {
+					warn!(uri =% self.uri.as_str(), "Document URI is not a valid URL: {e}");
+				})
+				.ok();
+		}
+		self.live.get_module_filepath(id).await
+	}
+
+	async fn get_module_parser(
+		&self,
+		_requestor: &WebpackAstParser<'_>,
+		id: ModuleId,
+		_latest: Option<bool>,
+	) -> Result<Arc<ThreadSafeParser>> {
+		self.get_parser(id).await
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use explorer_types::ModuleId;
+
+	use super::{
+		ephemera,
+		is_live_module_uri,
+		live_module_uri,
+		live_module_url,
+		module_id_from_uri,
+	};
+
+	/// The URI a live module is published under is the one
+	/// [`super::SplitModuleCache::get_for_uri`] routes back to the live cache,
+	/// and the id has to survive the round trip.
+	#[test]
+	fn live_module_uris_round_trip() {
+		let id = ModuleId(123);
+		let uri = live_module_uri(id).unwrap();
+		assert_eq!(uri.as_str(), "vencord-companion:/modules/123.js");
+		assert_eq!(uri.scheme().as_str(), "vencord-companion");
+		assert_eq!(module_id_from_uri(&uri), Some(id));
+	}
+
+	/// The `vencord-companion` scheme is shared with the patch helper, whose
+	/// documents are their own copy of a module and must not be answered with
+	/// a fresh one fetched by id.
+	#[test]
+	fn only_published_modules_are_live_module_uris() {
+		assert!(is_live_module_uri(&live_module_uri(ModuleId(123)).unwrap()));
+		for path in [
+			"/patch-helper/plugins-MyPlugin.ts-0.js",
+			// a patch helper view of a module could still be named after one
+			"/patch-helper/123.js",
+			"/modules/not-an-id.js",
+			"/123.js",
+		] {
+			let uri = ephemera::uri(path).unwrap();
+			assert!(!is_live_module_uri(&uri), "{path}");
+		}
+	}
+
+	/// `vencord-companion:` is not a special scheme, so the path is opaque to
+	/// the `url` crate; it still has to serialize back to what we built.
+	#[test]
+	fn live_module_urls_match_their_uris() {
+		let id = ModuleId(123);
+		assert_eq!(
+			live_module_url(id).unwrap().as_str(),
+			live_module_uri(id).unwrap().as_str()
+		);
 	}
 }

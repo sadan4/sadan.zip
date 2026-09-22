@@ -55,6 +55,11 @@ pub static CMD_MAP: phf::Map<&'static str, CommandDescriptor> = phf::phf_map! {
 		user_visible: true,
 		func: super::Server::clear_cache_cmd,
 	},
+	"clear_live_cache" => CommandDescriptor {
+		desc: "Purge Live Module Cache",
+		user_visible: true,
+		func: super::Server::clear_live_cache_cmd,
+	},
 	"open_patch_helper" => CommandDescriptor {
 		desc: "",
 		user_visible: false,
@@ -224,6 +229,26 @@ impl super::Server {
 						"Cleared the module cache at {}",
 						removed.display()
 					),
+				)
+				.await;
+			Ok(None)
+		})
+	}
+
+	/// Drop the modules fetched from the running client.
+	///
+	/// No confirmation, unlike [`Self::clear_cache_cmd`]: nothing on disk goes
+	/// away and every module is re-fetched the next time it is asked for.
+	fn clear_live_cache_cmd(
+		&self,
+		_: ExecuteCommandParams,
+	) -> Pin<Box<dyn Future<Output = Result<Option<JValue>>> + Send + '_>> {
+		Box::pin(async move {
+			let dropped = self.module_cache.clear_live();
+			self.client
+				.show_message(
+					MessageType::INFO,
+					format!("Cleared {dropped} live modules"),
 				)
 				.await;
 			Ok(None)
