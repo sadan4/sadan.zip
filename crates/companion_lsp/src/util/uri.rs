@@ -67,16 +67,28 @@ pub fn from_path<A: AsRef<Path>>(path: A) -> Result<Uri> {
 	))?)
 }
 
+fn encode_virtual_path(path: &str) -> Result<String> {
+	ensure!(path.starts_with('/'), "Virtual path must be absolute: {path}");
+	ensure!(
+		!path.starts_with("//"),
+		"Virtual path must not start with `//`: {path}"
+	);
+
+	Ok(percent_encoding::utf8_percent_encode(path, &ASCII_SET).to_string())
+}
+
 /// A URI for `path` under a scheme other than `file`.
 ///
+/// `path` is a virtual, `/`-separated path, not a filesystem path.
+///
 /// Has no authority component
-pub fn from_path_with_scheme<A: AsRef<Path>>(
+pub fn from_path_with_scheme<A: AsRef<str>>(
 	scheme: &str,
 	path: A,
 ) -> Result<Uri> {
 	Ok(Uri::from_str(&format!(
 		"{scheme}:{}",
-		encode_path(path.as_ref())?
+		encode_virtual_path(path.as_ref())?
 	))?)
 }
 

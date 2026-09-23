@@ -1,4 +1,4 @@
-use std::{path::Path, sync::Arc};
+use std::sync::Arc;
 
 use anyhow::{Context, Result, ensure};
 use const_format::formatc;
@@ -187,7 +187,7 @@ fn key(uri: &Uri) -> Box<str> {
 		.into()
 }
 
-pub fn uri<A: AsRef<Path>>(path: A) -> Result<Uri> {
+pub fn uri<A: AsRef<str>>(path: A) -> Result<Uri> {
 	uri::from_path_with_scheme(SCHEME, path)
 }
 
