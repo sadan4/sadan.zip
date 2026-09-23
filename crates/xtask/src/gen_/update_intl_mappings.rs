@@ -84,6 +84,7 @@ impl Runnable for Command {
 			info!("No new mappings to add");
 			return Ok(());
 		}
+		to_add.sort_by(|a, b| b.1.cmp(&a.1));
 		info!("Adding new mappings: {:#?}", to_add);
 		info!("{} new mappings", to_add.len());
 		let mut writer = io::BufWriter::new(orig_map_file.into_inner());
