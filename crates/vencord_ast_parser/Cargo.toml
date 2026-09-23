@@ -11,6 +11,7 @@ anyhow.workspace = true
 ast_parser.workspace = true
 bitflags.workspace = true
 derive_more.workspace = true
+intl_hash.workspace = true
 itertools.workspace = true
 memchr.workspace = true
 num-bigint.workspace = true

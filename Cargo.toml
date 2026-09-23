@@ -80,6 +80,7 @@ macros = { path = "crates/macros" }
 explorer_types = { path = "crates/explorer_types" }
 explorer_server_core = { path = "crates/explorer_server_core" }
 ast_parser = { path = "crates/ast_parser" }
+intl_hash = { path = "crates/intl_hash" }
 vencord_ast_parser = { path = "crates/vencord_ast_parser" }
 webpack_ast_parser = { path = "crates/webpack_ast_parser" }
 webpack_chunk_parser = { path = "crates/webpack_chunk_parser" }

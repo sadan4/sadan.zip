@@ -1,10 +1,10 @@
 #![feature(try_blocks)]
-pub mod hash;
 pub mod parser;
 mod pass;
 pub mod patches;
 mod types;
 
+pub use intl_hash as hash;
 pub use oxc::allocator::Allocator;
 pub use parser::VencordAstParser;
 pub use types::{

@@ -1813,6 +1813,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "intl_hash"
+version = "0.1.0"
+dependencies = [
+ "xxhash-rust",
+]
+
+[[package]]
 name = "ipnet"
 version = "2.12.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4763,6 +4770,7 @@ dependencies = [
  "bitflags 2.13.2",
  "derive_more",
  "insta",
+ "intl_hash",
  "itertools 0.15.0",
  "memchr",
  "miette",
@@ -5236,6 +5244,7 @@ dependencies = [
  "anyhow",
  "bitcode",
  "clap",
+ "intl_hash",
  "reqwest",
  "rmp-serde",
  "serde",

@@ -1,0 +1,13 @@
+[package]
+name = "intl_hash"
+version = "0.1.0"
+edition.workspace = true
+
+[lib]
+doctest = false
+
+[dependencies]
+xxhash-rust.workspace = true
+
+[lints]
+workspace = true

@@ -5,6 +5,7 @@ use std::{
 
 use anyhow::{Context, bail};
 use clap::Args;
+use intl_hash::hash_message_key;
 use serde_json::Value;
 use tracing::info;
 
@@ -20,6 +21,33 @@ pub struct Command {
 type JsonMap<'a> = serde_json::Map<String, Value>;
 
 const MAPPINGS_PATH: &str = "src/utils/discordI18n/key-mappings.json";
+
+/// Checks that every entry of `map` is a `hash => message key` mapping, where `message key` hashes to `hash`
+fn validate_mappings(map: &JsonMap, what: &str) -> anyhow::Result<()> {
+	let mut bad = Vec::new();
+	for (hash, value) in map {
+		let Value::String(message_key) = value else {
+			bail!("Unexpected value for key {hash:?}: {value:?}");
+		};
+		let expected: String = hash_message_key(message_key)
+			.iter()
+			.collect();
+		if expected != *hash {
+			bad.push(format!(
+				"  {hash:?} => {message_key:?} (hashes to {expected:?})"
+			));
+		}
+	}
+	if !bad.is_empty() {
+		bail!(
+			"{} of {} {what} mappings do not hash correctly:\n{}",
+			bad.len(),
+			map.len(),
+			bad.join("\n")
+		);
+	}
+	Ok(())
+}
 
 impl Runnable for Command {
 	fn run(&self) -> anyhow::Result<()> {
@@ -37,6 +65,8 @@ impl Runnable for Command {
 			.context("Failed to deserialize original mappings")?;
 		let new_map: JsonMap = serde_json::from_slice(&new_map_raw)
 			.context("Failed to deserialize new mappings")?;
+		validate_mappings(&orig_map, "original")?;
+		validate_mappings(&new_map, "new")?;
 		let mut to_add = Vec::new();
 		for (key, value) in new_map {
 			match value {
