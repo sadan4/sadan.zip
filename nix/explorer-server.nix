@@ -49,7 +49,7 @@ rustPlatform.buildRustPackage (finalAttrs: {
 
 		checkPhase = ''
 			runHook preCheck
-			cargo test --release --workspace --exclude qalc --exclude qalc_sbox --exclude qalc_sbox_py --exclude bot --exclude demangler --offline
+			cargo test --release --workspace --offline
 			runHook postCheck
 		'';
 

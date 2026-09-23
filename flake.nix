@@ -55,34 +55,21 @@
 								pkg-config
 								openssl
 								libgit2
-								libqalculate.dev
 								llvmPackages_latest.clang-tools
 								llvmPackages_latest.clang
 								llvmPackages_latest.libclang
-								llvmPackages_latest.libllvm
-								libiberty
-							];
-							buildInputs = with pkgs; [
-								fontconfig
-                                libpng
-								freetype
 							];
 							hardeningDisable = ["all"];
 							shellHook = ''
 								export CC_wasm32_unknown_unknown="${clang-unwrapped}/bin/clang";
 								export CFLAGS_wasm32_unknown_unknown="-I ${clang-unwrapped.lib}/lib/clang/21/include";
 								export LIBCLANG_PATH="${pkgs.llvmPackages_latest.libclang.lib}/lib";
-								# skia-bindings source build needs clang (gcc rejects skia's --target= flags)
 								export CC="${clang}/bin/clang";
 								export CXX="${clang}/bin/clang++";
 								# runtime libs for cargo-built test binaries (no nix rpath):
-								# libstdc++ (clang -lstdc++), libqalculate, skia's C deps
+								# libstdc++ (clang -lstdc++)
 								export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath [
 									pkgs.stdenv.cc.cc.lib
-									pkgs.libqalculate
-									pkgs.fontconfig
-									pkgs.libpng
-									pkgs.freetype
 								]}''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}";
 							'';
 						};
