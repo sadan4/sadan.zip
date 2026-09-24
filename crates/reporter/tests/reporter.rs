@@ -1,8 +1,7 @@
 use std::{fs::File, io::BufReader, path::Path, sync::Arc};
 
 use anyhow::{Context, Result};
-use explorer_server_core::Channel;
-use explorer_types::FullBundle;
+use explorer_types::{FullBundle, Channel};
 use insta::assert_ron_snapshot;
 use reporter::{
 	reporter::{Msg, report_broken_patches},

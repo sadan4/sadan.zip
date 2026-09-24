@@ -138,20 +138,20 @@ impl ReporterError {
 			} => Self::BadRegexSyntax {
 				plugin_id,
 				source,
-				regex_span: OxcSourceSpan::from(regex_span),
+				regex_span,
 				expanded,
 			},
 			ApplyEvent::MatchNotFound { match_span } => {
 				Self::ReplaceMatchNotFound {
 					plugin_id,
-					match_span: OxcSourceSpan::from(match_span),
+					match_span,
 					module_id,
 				}
 			}
 			ApplyEvent::MatchAmbiguous { match_span } => {
 				Self::ReplaceMatchAmbiguous {
 					plugin_id,
-					match_span: OxcSourceSpan::from(match_span),
+					match_span,
 					module_id,
 				}
 			}
@@ -160,7 +160,7 @@ impl ReporterError {
 				cause,
 			} => Self::ReplaceSyntaxError {
 				plugin_id,
-				replace_span: OxcSourceSpan::from(replace_span),
+				replace_span,
 				cause,
 				module_id,
 			},
