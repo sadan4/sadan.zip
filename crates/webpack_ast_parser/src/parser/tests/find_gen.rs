@@ -4,7 +4,7 @@ use std::{
 	fmt::{self, Debug},
 };
 
-use oxc::{allocator::Allocator, parser::Token, span::Span};
+use oxc::{parser::Token, span::Span};
 
 use crate::{WebpackAstParser, parse};
 

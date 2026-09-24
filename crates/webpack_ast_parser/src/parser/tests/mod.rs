@@ -1762,6 +1762,13 @@ mod import_parsing {
 		let p = parse!("test_data/wp/imports/wreqTWrapper.js");
 		let _uses = p.dbg_uses_of_import(582128.into(), &[]);
 	}
+
+	#[test]
+	#[ignore = "TODO"]
+	fn saved_direct_call() {
+		let p = parse!("test_data/wp/imports/savedDirectCall.js");
+		let _uses = p.dbg_uses_of_import(ModuleId(891600), &[]);
+	}
 }
 
 mod direct_module_definition {
