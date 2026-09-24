@@ -6,6 +6,10 @@ const ui = import.meta.env.SSR ? unavailableImport("./-ui") : await import("./-u
 export const Route = createFileRoute("/_/e/")({
     component: RouteComponent,
     ssr: false,
+    staticData: {
+        description: "Browse the webpack modules of any archived Discord build.",
+        pageTitle: "Discord Bundle Explorer",
+    },
 });
 
 function RouteComponent() {

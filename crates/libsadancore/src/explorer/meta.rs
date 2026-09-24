@@ -1,4 +1,4 @@
-use explorer_types::{BuildList, BundleMetadata, TModuleId};
+use explorer_types::{BuildList, BundleMetadata, Channel, TModuleId};
 use js_sys::{ArrayBuffer, Uint8Array};
 use wasm_bindgen::{JsCast as _, prelude::wasm_bindgen};
 
@@ -38,6 +38,21 @@ impl Meta {
 	#[wasm_bindgen(getter)]
 	pub fn entry_point(&self) -> Option<TModuleId> {
 		self.0.entry_point.map(Into::into)
+	}
+	/// The release channels this build was seen on.
+	#[wasm_bindgen(getter)]
+	pub fn channels(&self) -> Vec<String> {
+		self.0
+			.channel
+			.iter()
+			.map(|channel| {
+				match channel {
+					Channel::Stable => "stable",
+					Channel::Canary => "canary",
+				}
+				.to_owned()
+			})
+			.collect()
 	}
 	#[wasm_bindgen]
 	pub fn sort_newest_first(a: &Self, b: &Self) -> i8 {
