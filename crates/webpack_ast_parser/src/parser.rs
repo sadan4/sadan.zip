@@ -870,6 +870,11 @@ impl<'ast> WebpackAstParser<'ast> {
 	/// ```js
 	/// Promise.all([wreq.e("chunk_id_1"), wreq.e("chunk_id_2")]).then(wreq.bind(wreq, module_id))
 	/// ```
+	/// `wreq.bind` can also be `wreq.t.bind` for using interop imports
+	/// (commonly used with intl chunk loaders)
+	/// ```js
+	/// require.e("chunk_id").then(wreq.t.bind(wreq, module_id, 19))
+	/// ```
 	fn is_lazy_require_callee(&self, node: &'ast CallExpression<'ast>) -> bool {
 		let ret = try {
 			let parent = self
@@ -1000,6 +1005,8 @@ impl<'ast> WebpackAstParser<'ast> {
 				let [
 					Argument::Identifier(wreq_use),
 					Argument::NumericLiteral(module_id),
+					// interop arg for `wreq.t.bind` calls
+					..,
 				] = call.arguments.as_slice()
 				else {
 					return None;
@@ -1016,10 +1023,24 @@ impl<'ast> WebpackAstParser<'ast> {
 				let wreq_bind = call
 					.callee
 					.as_static_member_expression()?;
-				let wreq_use = wreq_bind.object.as_identifier()?;
-				if !self.cmp_sym(wreq_use, &wreq)
-					|| wreq_bind.property.name != "bind"
+				if wreq_bind.property.name != "bind" {
+					return None;
+				}
+				// the receiver of `bind` is either `wreq` or `wreq.t`
+				let wreq_use = if let Some(ident) =
+					wreq_bind.object.as_identifier()
 				{
+					ident
+				} else {
+					let wreq_t = wreq_bind
+						.object
+						.as_static_member_expression()?;
+					if wreq_t.property.name != "t" {
+						return None;
+					}
+					wreq_t.object.as_identifier()?
+				};
+				if !self.cmp_sym(wreq_use, &wreq) {
 					return None;
 				}
 				if !self.is_lazy_require_callee(call) {
