@@ -41,7 +41,7 @@ phf.workspace = true
 const_format.workspace = true
 url.workspace = true
 miette.workspace = true
-miette_ui = { workspace = true, default-features = false }
+miette_ui.workspace = true
 itertools.workspace = true
 percent-encoding.workspace = true
 async-trait.workspace = true

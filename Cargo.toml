@@ -93,7 +93,7 @@ git_hash = { path = "crates/git_hash" }
 reporter = { path = "crates/reporter" }
 text_diff = { path = "crates/text_diff" }
 parser_diag = { path = "crates/parser_diag" }
-miette_ui = { path = "crates/miette_ui" }
+miette_ui = { path = "crates/miette_ui", default-features = false }
 tower-lsp-server = "0.23.0"
 tokio-tungstenite = "0.30.0"
 futures-util = "0.3.31"

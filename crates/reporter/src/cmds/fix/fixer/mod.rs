@@ -1,7 +1,7 @@
 mod find_not_found;
 use std::sync::Arc;
 
-use explorer_server_core::Channel;
+use explorer_types::Channel;
 use miette_ctx::ErrCtx;
 
 use crate::{

@@ -3,6 +3,7 @@ use std::{collections::HashMap, fs, io, path::Path};
 use anyhow::{Context, Result, anyhow, bail};
 use explorer_types::{
 	BundleMetadata,
+	Channel,
 	DepInfo,
 	ExportName,
 	FullBundle,
@@ -33,9 +34,10 @@ enum Versions {
 	V3,
 	V4,
 	V5,
+	V6,
 }
 
-const CURRENT_VERSION: Versions = Versions::V5;
+const CURRENT_VERSION: Versions = Versions::V6;
 
 impl Versions {
 	fn get_current() -> Result<Self> {
@@ -52,6 +54,7 @@ impl Versions {
 					3 => Self::V3,
 					4 => Self::V4,
 					5 => Self::V5,
+					6 => Self::V6,
 					_ => {
 						bail!("Unknown version in version file")
 					}
@@ -75,6 +78,7 @@ impl Versions {
 			Self::V3 => Box::new(V3Migration),
 			Self::V4 => Box::new(V4Migration),
 			Self::V5 => Box::new(V5Migration),
+			Self::V6 => Box::new(V6Migration),
 		}
 	}
 	const fn next(self) -> Option<Self> {
@@ -84,7 +88,8 @@ impl Versions {
 			Self::V2 => Some(Self::V3),
 			Self::V3 => Some(Self::V4),
 			Self::V4 => Some(Self::V5),
-			Self::V5 => None,
+			Self::V5 => Some(Self::V6),
+			Self::V6 => None,
 		}
 	}
 }
@@ -109,6 +114,10 @@ struct V4Migration;
 
 /// move [`env_var_text`](FullBundle::env_var_text) from [`BundleMetadata`] to [`FullBundle`]
 struct V5Migration;
+
+/// default [`channel`](BundleMetadata::channel) to `[Channel::Stable]` for any
+/// build written before the field existed, which deserializes as an empty `Vec`
+struct V6Migration;
 
 #[derive(Deserialize)]
 struct V3BundleMetadata {
@@ -241,6 +250,7 @@ impl V3Migration {
 					.entry_point
 					.map(|s| s.parse().map(ModuleId))
 					.transpose()?,
+				channel: vec![Channel::Stable],
 			},
 			env_var_text: info_json.env_var_text,
 			dep_info: DepInfo {
@@ -377,6 +387,7 @@ impl Migration for V4Migration {
 					build_number: metadata.build_number,
 					first_seen: metadata.first_seen,
 					entry_point: metadata.entry_point,
+					channel: vec![Channel::Stable],
 				},
 				dep_info,
 				module_sources,
@@ -433,12 +444,50 @@ impl Migration for V5Migration {
 					build_number: metadata.build_number,
 					first_seen: metadata.first_seen,
 					entry_point: metadata.entry_point,
+					channel: vec![Channel::Stable],
 				},
 				dep_info,
 				module_sources,
 				modules,
 				env_var_text,
 			};
+			write_full_bundle(&full_bundle)
+				.context("Failed to write full bundle")?;
+		}
+		Ok(())
+	}
+}
+
+impl Migration for V6Migration {
+	fn migrate(&self) -> Result<()> {
+		let base_build_path = get_root_build_path()?;
+		for entry in fs::read_dir(&base_build_path)? {
+			let entry = entry?;
+			if !entry.file_type()?.is_dir() {
+				continue;
+			}
+			let entry_path = entry.path();
+			if !build_has_data(&entry_path) {
+				warn!(
+					"Skipping {}: empty build directory, no data file",
+					entry_path.display()
+				);
+				continue;
+			}
+			let data_path = entry_path.join(DATA_FILE_NAME);
+			let mut full_bundle: FullBundle = read_mpk_zst_file(&data_path)
+				.with_context(|| {
+					format!("Failed to read {}", data_path.display())
+				})?;
+			if !full_bundle.metadata.channel.is_empty() {
+				info!("Skipping {}: already migrated", entry_path.display());
+				continue;
+			}
+			info!("Re-encoding build {}", entry_path.display());
+			full_bundle
+				.metadata
+				.channel
+				.push(Channel::Stable);
 			write_full_bundle(&full_bundle)
 				.context("Failed to write full bundle")?;
 		}

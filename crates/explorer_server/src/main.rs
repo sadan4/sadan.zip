@@ -5,6 +5,7 @@ mod state;
 mod watcher;
 
 use clap::Parser;
+use explorer_types::Channel;
 use std::process;
 use tokio::task::JoinSet;
 
@@ -29,6 +30,10 @@ struct Cli {
 	host: String,
 	#[arg(long)]
 	redis_uri: Option<String>,
+	#[arg(long, default_value_t = true)]
+	scrape_stable: bool,
+	#[arg(long, default_value_t = true)]
+	scrape_canary: bool,
 }
 
 #[expect(dead_code)]
@@ -89,11 +94,23 @@ async fn main() {
 		}
 	});
 	debug!("spawned state population");
-	let state_ = state.clone();
-	tasks.spawn(async move {
-		watcher::start_watcher(state_).await;
-	});
-	debug!("spawned watcher");
+	if cli.scrape_stable {
+		let state_ = state.clone();
+		tasks.spawn(async move {
+			watcher::start_watcher(state_, Channel::Stable).await;
+		});
+		debug!("spawned stable watcher");
+	} else {
+		info!("skipping stable watcher");
+	}
+
+	if cli.scrape_canary {
+		let state_ = state.clone();
+		tasks.spawn(async move {
+			watcher::start_watcher(state_, Channel::Canary).await;
+		});
+		debug!("spawned canary watcher");
+	}
 	let state_ = state.clone();
 	tasks.spawn(async move {
 		if let Err(e) =

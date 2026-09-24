@@ -1,8 +1,7 @@
 use super::diagnose_patch;
 use std::{collections::HashSet, sync::Arc, time::SystemTime};
 
-use explorer_server_core::Channel;
-use explorer_types::{BundleMetadata, FullBundle};
+use explorer_types::{BundleMetadata, Channel, FullBundle};
 use jiff::tz::TimeZone;
 use miette::{Diagnostic, Report, Severity, miette};
 use tracing::{error, info, warn};

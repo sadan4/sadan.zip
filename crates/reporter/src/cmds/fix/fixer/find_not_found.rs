@@ -7,8 +7,7 @@ use std::{
 
 use ast_parser::pool::AllocPool;
 use dashmap::DashMap;
-use explorer_server_core::Channel;
-use explorer_types::ModuleId;
+use explorer_types::{Channel, ModuleId};
 use itertools::Itertools;
 use miette_ctx::ErrCtx as _;
 use rayon::iter::{

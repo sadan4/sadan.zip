@@ -10,6 +10,28 @@ use typesize::derive::TypeSize;
 
 pub type TModuleId = u32;
 
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash, TypeSize)]
+pub enum Channel {
+	Stable = 0,
+	Canary = 1,
+}
+
+impl Channel {
+	pub const fn asset_base(self) -> &'static str {
+		match self {
+			Self::Stable => "https://discord.com/assets/",
+			Self::Canary => "https://canary.discord.com/assets/",
+		}
+	}
+	pub const fn app_base(self) -> &'static str {
+		match self {
+			Self::Stable => "https://discord.com/app",
+			Self::Canary => "https://canary.discord.com/app",
+		}
+	}
+}
+
+
 #[derive(Serialize, Deserialize, Default, Debug, Clone, TypeSize)]
 #[serde(rename_all = "camelCase")]
 pub struct BundleMetadata {
@@ -17,6 +39,8 @@ pub struct BundleMetadata {
 	pub build_number: u32,
 	pub first_seen: u64,
 	pub entry_point: Option<ModuleId>,
+	#[serde(default)]
+	pub channel: Vec<Channel>,
 }
 
 #[derive(Serialize, Deserialize, Debug, TypeSize)]
@@ -239,6 +263,7 @@ impl BundleMetadata {
 			build_number: _,
 			first_seen: _,
 			entry_point: _,
+			channel: _,
 		} = self;
 		build_hash.shrink_to_fit();
 	}

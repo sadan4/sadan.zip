@@ -9,8 +9,7 @@ use discord_scraper::{
 	make_reqwest_client,
 	util::ByteStr,
 };
-use explorer_server_core::Channel;
-use explorer_types::ModuleId;
+use explorer_types::{Channel, ModuleId};
 use reqwest_middleware::ClientWithMiddleware;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;

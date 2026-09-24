@@ -2,11 +2,11 @@
 use anyhow::Result;
 use discord_scraper::{NoProgress, make_reqwest_client, scrape_full_bundle};
 use explorer_server_core::{
-	Channel,
 	get_build_path,
 	is_build_downloaded,
 	write_full_bundle,
 };
+use explorer_types::Channel;
 use reqwest::Response;
 use std::{fs, sync::Arc, time::Duration};
 use tokio::time;
@@ -98,12 +98,12 @@ async fn handle_build(c: Channel, state: &State) -> Result<()> {
 	Ok(())
 }
 
-pub async fn start_watcher(state: State) {
+pub async fn start_watcher(state: State, channel: Channel) {
 	info!("starting watcher loop");
 	let mut interval = tokio::time::interval(Duration::from_mins(1));
 	loop {
 		interval.tick().await;
-		match handle_build(Channel::Stable, &state).await {
+		match handle_build(channel, &state).await {
 			Ok(()) => {}
 			Err(e) => {
 				error!("failed to get stable build: {e}");

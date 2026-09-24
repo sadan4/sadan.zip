@@ -1,6 +1,6 @@
 use std::{path::PathBuf, sync::Arc};
 
-use anyhow::{Context as _, bail};
+use anyhow::{Context as _};
 use clap::Parser;
 use discord_scraper::make_reqwest_client_with_ua;
 use explorer_server_core::{DATA_FILE_NAME, METADATA_FILE_NAME};

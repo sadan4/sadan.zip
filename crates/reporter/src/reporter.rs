@@ -7,8 +7,7 @@ use crate::{
 use ast_parser::pool::AllocPool;
 use dashmap::DashMap;
 use derive_more::IsVariant;
-use explorer_server_core::Channel;
-use explorer_types::ModuleId;
+use explorer_types::{Channel, ModuleId};
 use itertools::Itertools as _;
 use miette::{Diagnostic, Severity};
 use oxc::semantic::Stats;

@@ -1,5 +1,5 @@
 use anyhow::{Context, Result, anyhow};
-use explorer_types::FullBundle;
+use explorer_types::{Channel, FullBundle};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
 	cmp::Ordering,
@@ -164,27 +164,6 @@ pub fn write_full_bundle(bundle: &FullBundle) -> Result<()> {
 	)?;
 
 	Ok(())
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Channel {
-	Stable = 0,
-	Canary = 1,
-}
-
-impl Channel {
-	pub const fn asset_base(self) -> &'static str {
-		match self {
-			Self::Stable => "https://discord.com/assets/",
-			Self::Canary => "https://canary.discord.com/assets/",
-		}
-	}
-	pub const fn app_base(self) -> &'static str {
-		match self {
-			Self::Stable => "https://discord.com/app",
-			Self::Canary => "https://canary.discord.com/app",
-		}
-	}
 }
 
 pub fn asset_url(channel: Channel, mut path: &str) -> String {

@@ -13,7 +13,7 @@ use std::sync::Arc;
 use clap::{Parser, ValueEnum};
 use clap_complete::Shell;
 use derive_more::{From, Into};
-use explorer_server_core::Channel;
+use explorer_types::Channel;
 use miette::{SourceCode, SpanContents};
 
 use crate::{

@@ -1,7 +1,7 @@
 use std::{sync::Arc, time::Duration};
 
 use anyhow::{Context, Result};
-use explorer_server_core::Channel;
+use explorer_types::Channel;
 use itertools::Itertools;
 use miette::{Diagnostic as _, NamedSource, Severity::Warning};
 use tokio::{sync::mpsc, time::Instant};

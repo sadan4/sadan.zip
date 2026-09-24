@@ -9,7 +9,7 @@ use std::{
 };
 
 use derive_more::{Deref, From};
-use explorer_server_core::Channel;
+use explorer_types::Channel;
 use miette::{Context as _, Report, Result, bail};
 use notify::{RecommendedWatcher, Watcher as _};
 use rustc_hash::FxHasher;

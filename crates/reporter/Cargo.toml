@@ -23,7 +23,7 @@ tracing-subscriber.workspace = true
 zstd.workspace = true
 serde.workspace = true
 itertools.workspace = true
-miette_ui.workspace = true
+miette_ui = { workspace = true, features = ["highlight"] }
 oxc.workspace = true
 thiserror.workspace = true
 regress.workspace = true

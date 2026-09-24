@@ -4,7 +4,7 @@ mod track_module;
 
 use std::sync::Arc;
 
-use explorer_server_core::Channel;
+use explorer_types::Channel;
 use itertools::Itertools;
 use miette::{Context, Diagnostic, Report, Severity, bail};
 use parser_diag::LocalSource;

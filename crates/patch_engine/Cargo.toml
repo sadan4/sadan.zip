@@ -22,7 +22,7 @@ thiserror.workspace = true
 
 [dev-dependencies]
 insta.workspace = true
-miette_ui.workspace = true
+miette_ui = { workspace = true, features = ["highlight"] }
 
 [lints]
 workspace = true

@@ -12,8 +12,8 @@ use std::{
 
 use anyhow::{Context as _, Result, anyhow, bail};
 use dashmap::DashMap;
-use explorer_server_core::{Channel, asset_url};
-use explorer_types::{BundleMetadata, FullBundle, ModuleId};
+use explorer_server_core::{asset_url};
+use explorer_types::{BundleMetadata, Channel, FullBundle, ModuleId};
 use http::StatusCode;
 use memchr::memmem::Finder;
 use oxc_allocator::AllocatorPool;
@@ -351,6 +351,7 @@ pub async fn scrape_full_bundle(
 			build_number,
 			first_seen,
 			entry_point,
+			channel: vec![channel],
 		},
 		dep_info,
 		module_sources,

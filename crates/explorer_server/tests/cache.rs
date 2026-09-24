@@ -14,7 +14,7 @@ use explorer_server_core::{
 	METADATA_ZSTD_LEVEL,
 	write_mpk_zst_atomic,
 };
-use explorer_types::{BundleMetadata, DepInfo, FullBundle, ModuleId};
+use explorer_types::{BundleMetadata, Channel, DepInfo, FullBundle, ModuleId};
 use redis::AsyncCommands as _;
 use tempfile::TempDir;
 use tokio::time::{Instant, sleep};
@@ -81,6 +81,7 @@ fn write_fixture(root: &Path) {
 		build_number: 1,
 		first_seen: 1_700_000_000_000,
 		entry_point: None,
+		channel: vec![Channel::Stable],
 	};
 
 	let mut modules = HashMap::new();
