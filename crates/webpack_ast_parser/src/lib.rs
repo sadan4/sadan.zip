@@ -1,4 +1,5 @@
 #![feature(try_blocks)]
+#![cfg_attr(test, feature(super_let))]
 // #![warn(missing_docs)]
 pub mod bundle;
 pub mod find;

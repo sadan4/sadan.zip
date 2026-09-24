@@ -6,7 +6,7 @@ use std::{
 
 use oxc::{allocator::Allocator, parser::Token, span::Span};
 
-use crate::{WebpackAstParser, parse_};
+use crate::{WebpackAstParser, parse};
 
 #[derive(Copy, Clone)]
 struct FindDumper<'ast>(u32, Span, &'ast str);
@@ -51,16 +51,14 @@ impl WebpackAstParser<'_> {
 
 #[test]
 fn doesnt_crash() {
-	let alloc = Allocator::new();
-	let parser = parse_!(alloc, "test_data/wp/rawModule.js");
+	let parser = parse!("test_data/wp/rawModule.js");
 	let finds = parser.dbg_finds();
 	_ = &finds;
 }
 
 #[test]
 fn collects_string_and_ident_intl_keys() {
-	let alloc = Allocator::new();
-	let parser = parse_!(alloc, "test_data/wp/finds/intlKeys.js");
+	let parser = parse!("test_data/wp/finds/intlKeys.js");
 	// the find contains an ident intl key (`Go5Vvs`), a string intl key
 	// (`1WjMbC`) — both resolvable to their unhashed names — and an
 	// unresolvable key (`Zzzz99`).
