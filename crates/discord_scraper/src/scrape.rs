@@ -39,7 +39,10 @@ use crate::{
 
 const MAX_PENDING_REQUESTS: usize = 1024;
 
-static WORKER_FINDER: LazyLock<Finder<'static>> =
+/// rspack <2.0.0 by default adds .ruid to every runtime chunk
+/// the only runtime we want is web.js, so we use this to filter 
+/// out other chunks with their own runtimes (workers, sentry, ...)
+static RUNTIME_FINDER: LazyLock<Finder<'static>> =
 	LazyLock::new(|| Finder::new(br#".ruid=""#));
 
 pub struct ScrapedModules {
@@ -151,7 +154,7 @@ impl JsScraper {
 			drop(permit);
 			inner.total_bytes.fetch_add(chunk_bts.len(), Ordering::SeqCst);
 			task::spawn_blocking(move || -> Result<()> {
-				if WORKER_FINDER.find(&chunk_bts).is_some() {
+				if RUNTIME_FINDER.find(&chunk_bts).is_some() {
 					trace!("Skipping worker chunk");
 					return Ok(());
 				}

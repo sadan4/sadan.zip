@@ -23,7 +23,8 @@ const SRC_PREFIX: &str = "/assets/";
 const WEB_JS_PREFIX: &str = "web.";
 const WEB_JS_FULL_PREFIX: &str = formatc!("{SRC_PREFIX}{WEB_JS_PREFIX}");
 static CHUNK_SCRIPT_HREF_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-	Regex::new(r"/assets/((\d{1,6})\.[a-fA-F\d]+?)\.js").expect("invalid regex")
+	Regex::new(r"/assets/(([\w.-]+?)\.[a-fA-F\d]{16})\.js")
+		.expect("invalid regex")
 });
 
 pub fn parse_html(html: &str) -> Result<ParsedHtml> {
@@ -56,6 +57,9 @@ pub fn parse_html(html: &str) -> Result<ParsedHtml> {
 		.into_iter()
 		.filter_map(|s| {
 			let src = s.src?;
+			if src.starts_with(WEB_JS_FULL_PREFIX) {
+				return None;
+			}
 			CHUNK_SCRIPT_HREF_REGEX
 				.find(src)
 				.map(|m| JsHashEntry {
