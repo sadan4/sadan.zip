@@ -22,13 +22,13 @@ importers:
         version: 1.8.0
       '@floating-ui/react':
         specifier: ^0.27.20
-        version: 0.27.20(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224)
+        version: 0.27.20(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@react-spring/shared':
         specifier: ^10.1.2
-        version: 10.1.2(react@19.3.0-canary-e33071c6-20260224)
+        version: 10.1.2(react@19.3.0)
       '@react-spring/web':
         specifier: ^10.1.2
-        version: 10.1.2(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224)
+        version: 10.1.2(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@sadan4/demangler':
         specifier: ^1.0.4
         version: 1.0.4
@@ -40,25 +40,25 @@ importers:
         version: 4.3.3(vite@8.2.1)
       '@tanstack/react-devtools':
         specifier: ^0.10.10
-        version: 0.10.10(@neodrag/core@3.0.0-next.11)(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(csstype@3.2.3)(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224)(solid-js@1.9.12)
+        version: 0.10.10(@neodrag/core@3.0.0-next.11)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(csstype@3.2.3)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(solid-js@1.9.12)
       '@tanstack/react-query':
         specifier: ^5.101.4
-        version: 5.101.4(react@19.3.0-canary-e33071c6-20260224)
+        version: 5.101.4(react@19.3.0)
       '@tanstack/react-router':
         specifier: ^1.170.30
-        version: 1.170.30(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224)
+        version: 1.170.30(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@tanstack/react-router-devtools':
         specifier: ^1.167.1
-        version: 1.167.1(@tanstack/react-router@1.170.30(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224))(@tanstack/router-core@1.171.25)(csstype@3.2.3)(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224)
+        version: 1.167.1(@tanstack/react-router@1.170.30(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@tanstack/router-core@1.171.25)(csstype@3.2.3)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@tanstack/react-start':
         specifier: ^1.168.47
-        version: 1.168.47(esbuild@0.28.1)(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224)(rolldown@1.2.4)(rollup@4.62.4)(supports-color@10.2.2)(vite@8.2.1)
+        version: 1.168.47(esbuild@0.28.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(rolldown@1.2.4)(rollup@4.62.4)(supports-color@10.2.2)(vite@8.2.1)
       '@tanstack/zod-adapter':
         specifier: ^1.167.0
-        version: 1.167.0(@tanstack/react-router@1.170.30(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224))(zod@4.4.3)
+        version: 1.167.0(@tanstack/react-router@1.170.30(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(zod@4.4.3)
       '@xyflow/react':
         specifier: ^12.11.3
-        version: 12.11.3(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224)
+        version: 12.11.3(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       classnames:
         specifier: ^2.5.1
         version: 2.5.1
@@ -73,16 +73,16 @@ importers:
         version: 3.1.3
       lucide-react:
         specifier: ^0.561.0
-        version: 0.561.0(react@19.3.0-canary-e33071c6-20260224)
+        version: 0.561.0(react@19.3.0)
       monaco-editor:
         specifier: 0.54.x
         version: 0.54.0
       react:
-        specifier: 19.3.0-canary-e33071c6-20260224
-        version: 19.3.0-canary-e33071c6-20260224
+        specifier: 19.3.0
+        version: 19.3.0
       react-dom:
-        specifier: 19.3.0-canary-e33071c6-20260224
-        version: 19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224)
+        specifier: 19.3.0
+        version: 19.3.0(react@19.3.0)
       scroll-into-view-if-needed:
         specifier: ^3.1.0
         version: 3.1.0
@@ -103,7 +103,7 @@ importers:
         version: 4.4.3
       zustand:
         specifier: ^5.0.15
-        version: 5.0.15(@types/react@19.2.18)(react@19.3.0-canary-e33071c6-20260224)(use-sync-external-store@1.6.0(react@19.3.0-canary-e33071c6-20260224))
+        version: 5.0.15(@types/react@19.3.0)(react@19.3.0)(use-sync-external-store@1.6.0(react@19.3.0))
     devDependencies:
       '@eslint-react/eslint-plugin':
         specifier: 3.0.0-beta.57
@@ -128,7 +128,7 @@ importers:
         version: 3.23.0
       '@storybook/react-vite':
         specifier: ^10.5.9
-        version: 10.5.9(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(esbuild@0.28.1)(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224)(rollup@4.62.4)(storybook@10.5.9(@types/react@19.2.18)(prettier@3.9.6)(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))(vite@8.2.1)
+        version: 10.5.9(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(esbuild@0.28.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(rollup@4.62.4)(storybook@10.5.9(@types/react@19.3.0)(prettier@3.9.6)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))(vite@8.2.1)
       '@stylistic/eslint-plugin':
         specifier: ^4.4.1
         version: 4.4.1(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
@@ -140,7 +140,7 @@ importers:
         version: 0.5.5(supports-color@10.2.2)(vite@8.2.1)
       '@tanstack/router-plugin':
         specifier: ^1.168.33
-        version: 1.168.33(@tanstack/react-router@1.170.30(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224))(esbuild@0.28.1)(rolldown@1.2.4)(rollup@4.62.4)(supports-color@10.2.2)(vite@8.2.1)
+        version: 1.168.33(@tanstack/react-router@1.170.30(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(esbuild@0.28.1)(rolldown@1.2.4)(rollup@4.62.4)(supports-color@10.2.2)(vite@8.2.1)
       '@types/eslint-plugin-tailwindcss':
         specifier: ^3.17.0
         version: 3.17.0
@@ -151,11 +151,11 @@ importers:
         specifier: ^26.2.0
         version: 26.2.0
       '@types/react':
-        specifier: ^19.2.18
-        version: 19.2.18
+        specifier: ^19.3.0
+        version: 19.3.0
       '@types/react-dom':
-        specifier: ^19.2.4
-        version: 19.2.4(@types/react@19.2.18)
+        specifier: ^19.3.0
+        version: 19.3.0(@types/react@19.3.0)
       '@types/surma__rollup-plugin-off-main-thread':
         specifier: ^2.2.3
         version: 2.2.3
@@ -194,7 +194,7 @@ importers:
         version: 12.1.1(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))
       eslint-plugin-storybook:
         specifier: ^10.5.9
-        version: 10.5.9(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(storybook@10.5.9(@types/react@19.2.18)(prettier@3.9.6)(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
+        version: 10.5.9(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(storybook@10.5.9(@types/react@19.3.0)(prettier@3.9.6)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
       eslint-plugin-tailwindcss:
         specifier: 4.0.0-beta.0
         version: 4.0.0-beta.0(tailwindcss@4.3.3)
@@ -227,7 +227,7 @@ importers:
         version: 4.62.4
       storybook:
         specifier: ^10.5.9
-        version: 10.5.9(@types/react@19.2.18)(prettier@3.9.6)(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224)
+        version: 10.5.9(@types/react@19.3.0)(prettier@3.9.6)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       stylelint:
         specifier: ^16.24.0
         version: 16.26.1(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
@@ -3301,13 +3301,13 @@ packages:
   '@types/postcss-modules-scope@3.0.4':
     resolution: {integrity: sha512-//ygSisVq9kVI0sqx3UPLzWIMCmtSVrzdljtuaAEJtGoGnpjBikZ2sXO5MpH9SnWX9HRfXxHifDAXcQjupWnIQ==}
 
-  '@types/react-dom@19.2.4':
-    resolution: {integrity: sha512-Bsc+QHgp+P/F02XDzNCY9jnZNCUuLki36KT7VKrTXXLdHf+vHMNZnW1rVu5DNW/rCK+fya3DATySbLM4yhtKUw==}
+  '@types/react-dom@19.3.0':
+    resolution: {integrity: sha512-ZI7bU42mZXXKHn/qNLEw2IrbiINU7X5+vfgdixBHkCNpYWXjKgfQ/P+uyGb5CjOLB9UcnTeg3rylQtV2hym44Q==}
     peerDependencies:
-      '@types/react': ^19.2.0
+      '@types/react': ^19.3.0
 
-  '@types/react@19.2.18':
-    resolution: {integrity: sha512-AnzbBERsrLKtk2XSfTbYRLjQPdy116Sty4q+T+Bp3IC4l6jNBvreVPAHmpq9qhXQM7CXZPjLVmGMw9sy+hxQ3w==}
+  '@types/react@19.3.0':
+    resolution: {integrity: sha512-N0rFCuH9YoxG9/m61l9MfpJKfmLOVU0em7ipIz6TRgSSkvReLB9vL85GB+yr8Bs5leqpvg96JSwF4ZS1s4viQg==}
 
   '@types/resolve@1.20.2':
     resolution: {integrity: sha512-60BCwRFOZCQhDncwQdxxeOEEkbc5dIMccYLwbxsS4TUNeVECQ/pBJ0j09mrHOl/JJvpRPGwO9SvE4nR2Nb/a4Q==}
@@ -3357,8 +3357,14 @@ packages:
     peerDependencies:
       typescript: '>=4.8.4 <6.1.0'
 
-  '@typescript-eslint/project-service@8.68.1-alpha.5':
-    resolution: {integrity: sha512-tWHoAcdbScrEaOuueZO6L8c7YMDbPFFVZAgF3vdeiLso75M+KUZoDMzgz2f9NUXyRGraCa9sWm1Wbdok09b0Iw==}
+  '@typescript-eslint/project-service@8.70.1-alpha.0':
+    resolution: {integrity: sha512-JkoqPpJpd0uPNIQXRA9sP1/DFdqexoYfSWfcmgknVnZLYmqAprmHGCRoFwbycR50toHyrfT7zuBHPXMkZ617mw==}
+    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+    peerDependencies:
+      typescript: '>=4.8.4 <6.1.0'
+
+  '@typescript-eslint/project-service@8.70.2-alpha.5':
+    resolution: {integrity: sha512-rYUS4hOTOn87Gxn+oLVoXHPpEjV8/dVQ+UVYkCNPkU0gFp2jBZaFMEy7P3pE/ayHsxE3UCbhPBCh/0z4IFlO+g==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
     peerDependencies:
       typescript: '>=4.8.4 <6.1.0'
@@ -3371,8 +3377,8 @@ packages:
     resolution: {integrity: sha512-EgvsleTwS4E+WzzSvem8fAUubLwatMNF1B5hHSLQxcvs7q2dtRhGyujHwLJSYlG41niJ7GP24Aha2+0mb1b2kg==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
-  '@typescript-eslint/scope-manager@8.68.1-alpha.5':
-    resolution: {integrity: sha512-c6fW8Nd57Pm+HAvQAUnytp4uEFMAYQ100RCx0lf5Gak1k+FHYkRHTuWCMJi6SMauJ24KTlT4+oZPcQFwXj6qog==}
+  '@typescript-eslint/scope-manager@8.70.2-alpha.5':
+    resolution: {integrity: sha512-3THlUzIEzEpfcioiWQKf2XkTIlZd6HNhW6hO2mboOolwhI+GNU5nF96GHixVresk938P4Rcrwh/Tt7E7x8H23Q==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
   '@typescript-eslint/tsconfig-utils@8.59.3':
@@ -3387,8 +3393,14 @@ packages:
     peerDependencies:
       typescript: '>=4.8.4 <6.1.0'
 
-  '@typescript-eslint/tsconfig-utils@8.68.1-alpha.5':
-    resolution: {integrity: sha512-ciwzIml80gaxTknuTMJ//nyOXnvZsrVRMitpbM3ES73WOOqUCIR/+BqftUOF+lz5TXj+O72jblz9LR/TN25W+w==}
+  '@typescript-eslint/tsconfig-utils@8.70.1-alpha.0':
+    resolution: {integrity: sha512-r8j1TiOjctCOI0GsxNn1G8wI6Ns9GnnEO8Gh9BCk6gd0S80TBD7qQi/LQiS8zEWVuyLAZlyqWhdeK9JfrbuP0Q==}
+    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+    peerDependencies:
+      typescript: '>=4.8.4 <6.1.0'
+
+  '@typescript-eslint/tsconfig-utils@8.70.2-alpha.5':
+    resolution: {integrity: sha512-4+Ui2sbtBGymwYQWHTNxSeC3IOy/Nq0omkfRHu6itYnBXB6IsC1WohT61lFBBServrw/KWChDm7DmN2LBPq8Vg==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
     peerDependencies:
       typescript: '>=4.8.4 <6.1.0'
@@ -3400,8 +3412,8 @@ packages:
       eslint: ^8.57.0 || ^9.0.0 || ^10.0.0
       typescript: '>=4.8.4 <6.1.0'
 
-  '@typescript-eslint/type-utils@8.68.1-alpha.5':
-    resolution: {integrity: sha512-qY4rx7nstEHMuRPGkbPq0KF5Y7EleREYRHp4R8zlLExz9OpWe0zyecnu1WvK2UQjwMPqD7zNzWpDR3YuA/oVUA==}
+  '@typescript-eslint/type-utils@8.70.2-alpha.5':
+    resolution: {integrity: sha512-BPwg8cNx5Akh17ZfdiAO5bM9wljp+SDJ28X7zmS22mouKge35+NYGm1y9+w52GRdUQweMyXezDPjZN6SoMBdYA==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
     peerDependencies:
       eslint: ^8.57.0 || ^9.0.0 || ^10.0.0
@@ -3415,8 +3427,12 @@ packages:
     resolution: {integrity: sha512-sBtgslww8nsMYUjhdPBiSyUqSzT8uR6g93A2QXnQC8+cGdjz0CyaOdqHDRJb1AtORbZCNUJBBeFA/tNR2uQmww==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
-  '@typescript-eslint/types@8.68.1-alpha.5':
-    resolution: {integrity: sha512-DjzhaDn000w+2re9x8AGYDpIx9r+8LHbSGIfsOQk+CsGbG5lWtvFRQHL54CBmXt7T7QUv3mjfuBn8mfAPenJNw==}
+  '@typescript-eslint/types@8.70.1-alpha.0':
+    resolution: {integrity: sha512-WPyqJ5ylGN/XOqOMkP1BCVKYmRQVEop+KDVtz23E8N0PtzE0VmWm6Xwx8ZxsBqZIh7sNfQK3Y5N/i66aKQ4efQ==}
+    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+
+  '@typescript-eslint/types@8.70.2-alpha.5':
+    resolution: {integrity: sha512-st0OOXXmN1Tjm/UtrmK7cfjKhowDCHuvB3ePZbOc8GgpPIRj/PKRURBJaWt2WfNB6RqMW6ujyV2DxHTUZ5sg1w==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
   '@typescript-eslint/typescript-estree@8.59.3':
@@ -3431,8 +3447,14 @@ packages:
     peerDependencies:
       typescript: '>=4.8.4 <6.1.0'
 
-  '@typescript-eslint/typescript-estree@8.68.1-alpha.5':
-    resolution: {integrity: sha512-VBntDLdiYbB6Od/OaQDjrxmGy1wb6PcNqSbb8njj6kh9PemJ5w909xzugFdZaFsAjD+weqx6jVo7pAunJT3fbQ==}
+  '@typescript-eslint/typescript-estree@8.70.1-alpha.0':
+    resolution: {integrity: sha512-Ywb/hAtX49coEnklj1viZ7uuo0H7Tq8B5NP8sS8MWukCGuE6E5e9IkoBapdLWzGx7KQMUZ9jrgoYVnMrPcsc0g==}
+    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+    peerDependencies:
+      typescript: '>=4.8.4 <6.1.0'
+
+  '@typescript-eslint/typescript-estree@8.70.2-alpha.5':
+    resolution: {integrity: sha512-+yB/JXuBVdqjDlyRGgneNyfBmLrv3KY6MXxo5vRgiJ2rknebt4frlEpWStym0N81T26cuian9zSINxESHzY/2Q==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
     peerDependencies:
       typescript: '>=4.8.4 <6.1.0'
@@ -3451,8 +3473,8 @@ packages:
       eslint: ^8.57.0 || ^9.0.0 || ^10.0.0
       typescript: '>=4.8.4 <6.1.0'
 
-  '@typescript-eslint/utils@8.68.1-alpha.5':
-    resolution: {integrity: sha512-SgVraXBQLQ5A+SrV15iZsI8DCOsPlgXCPTy+VABK2e8zjRepAtOKE3gLmwITYtWxbaaYnDuIXJmDyPuzEoaOYA==}
+  '@typescript-eslint/utils@8.70.2-alpha.5':
+    resolution: {integrity: sha512-A+pR0WLom/SvlxNu7ObkXqReJVzrG4jZsB1cmt9OPe1/odNaS/V0efryiW2/cXPfEmIvT3JCoZ0TUARZuBiLyw==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
     peerDependencies:
       eslint: ^8.57.0 || ^9.0.0 || ^10.0.0
@@ -3466,8 +3488,12 @@ packages:
     resolution: {integrity: sha512-fkv8dHRDqfGtTHuJeebdrQ7cX6Ad4WAS00rgHh9UGvMycF1mjBfsxry1XsLIFhWZ6Judlh6UdzK+TYlbpCXgnA==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
-  '@typescript-eslint/visitor-keys@8.68.1-alpha.5':
-    resolution: {integrity: sha512-xBuZ/numrrgqf6iACLfCiBa/NjEXl2C7XR5yG3WPIWzhNMhnEi4Ypv7+kGaasLNzZRfox6wRLvSsdhLZgQ8ftw==}
+  '@typescript-eslint/visitor-keys@8.70.1-alpha.0':
+    resolution: {integrity: sha512-CtiisKUJIqnG12UMcAZM/DlaRCMjgrhqjCawWnzs3uWS4h7FNVf9mjnQu8eiB+SKyyDEInkjdvhqsXP9Aoe5UQ==}
+    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+
+  '@typescript-eslint/visitor-keys@8.70.2-alpha.5':
+    resolution: {integrity: sha512-DpcwVpYDfbLk5VMwsTh9CwtfFlUbkyNcBvyz5iDK8A8cQC+eLtIYOMWV6Jr8pwU3k30F5z2SVNu2317+m2+HQg==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
   '@typespec/ts-http-runtime@0.3.5':
@@ -5843,16 +5869,16 @@ packages:
     resolution: {integrity: sha512-aEZ9qP+/M+58x2qgfSFEWH1BxLyHe5+qkLNJOZQb5iGS017jpbRnoKhNRrXPeA6RfBrZO5wZrT9DMC1UqE1f1w==}
     engines: {node: ^20.9.0 || >=22}
 
-  react-dom@19.3.0-canary-e33071c6-20260224:
-    resolution: {integrity: sha512-E045aWweZjCdf0ndUK97K5QAWoUUA4VI1o3Dyif0QxgAfx4/g/GUbvsnCvuo3aWI+dtmfgONkQU1pWl7mRqMQg==}
+  react-dom@19.3.0:
+    resolution: {integrity: sha512-JDk8dgif51OjFoDE70+OT9ICyYr+69HlmihNwp1+Nsfbna3t5sIiCa9ZJktDmQ4/1b/rn26hIAR2uYXDMr5r0Q==}
     peerDependencies:
-      react: 19.3.0-canary-e33071c6-20260224
+      react: ^19.3.0
 
   react-is@17.0.2:
     resolution: {integrity: sha512-w2GsyukL62IJnlaff/nRegPQR94C/XXamvMWmSHRJ4y7Ts/4ocGRmTHvOs8PSE6pB3dWOrD/nueuU5sduBsQ4w==}
 
-  react@19.3.0-canary-e33071c6-20260224:
-    resolution: {integrity: sha512-WjTo+SzVnODk2AyJ5tMcfKmTSPlWyoB26eXlhYs+O7z1mFzrPAbtaEEP6IgwwV25dKhAspDJTJf+hl03EN0PlQ==}
+  react@19.3.0:
+    resolution: {integrity: sha512-E8LUcbtBWt20bbl2YoHfx4ZDBdxVTfOKtCZn9cDSJ4l6/nuoApcpIBcj47t2wZoVX8g2ZHuMHbiShgCR1T5Sog==}
     engines: {node: '>=0.10.0'}
 
   read-pkg@9.0.1:
@@ -5997,8 +6023,8 @@ packages:
     resolution: {integrity: sha512-6R3J5M4AcbtLUdZmRv2SygeVaM7IhrLXu9BmnOGmmACak8fiUtOsYNWUS4uK7upbmHIBbLBeFeI//477BKLBzA==}
     engines: {node: '>=11.0.0'}
 
-  scheduler@0.28.0-canary-e33071c6-20260224:
-    resolution: {integrity: sha512-KDV8F2YgIYrjlSowT0+Oi4+vNkFolICWabM9x2gxzcytCLLLkXydxWUwsSAvETLgw48W5OnCPI6TmmGeTKbTYA==}
+  scheduler@0.28.0:
+    resolution: {integrity: sha512-juorfCmIkIw8tT+p5BXSm6PJjQF/ycEYmKyzURCIt/RaZIhL+PulbQ9Yu2z1HdOJDdqDTlxA1+xKBmHXJsczAw==}
 
   scroll-into-view-if-needed@3.1.0:
     resolution: {integrity: sha512-49oNpRjWRvnU8NyGVmUaYG4jtTkNonFZI86MmGRDqBphEK2EXT9gdEUoQPZhuBM8yWHxCWbobltqYO5M4XrUvQ==}
@@ -7584,9 +7610,9 @@ snapshots:
   '@eslint-react/ast@3.0.0-beta.57(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))':
     dependencies:
       '@eslint-react/eff': 3.0.0-beta.57
-      '@typescript-eslint/types': 8.68.1-alpha.5
-      '@typescript-eslint/typescript-estree': 8.68.1-alpha.5(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
-      '@typescript-eslint/utils': 8.68.1-alpha.5(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
+      '@typescript-eslint/types': 8.70.2-alpha.5
+      '@typescript-eslint/typescript-estree': 8.70.1-alpha.0(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
+      '@typescript-eslint/utils': 8.70.2-alpha.5(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
       eslint: 9.39.4(jiti@2.7.0)(supports-color@10.2.2)
       string-ts: 2.3.1
       typescript: 5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319)
@@ -7599,9 +7625,9 @@ snapshots:
       '@eslint-react/eff': 3.0.0-beta.57
       '@eslint-react/shared': 3.0.0-beta.57(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
       '@eslint-react/var': 3.0.0-beta.57(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
-      '@typescript-eslint/scope-manager': 8.68.1-alpha.5
-      '@typescript-eslint/types': 8.68.1-alpha.5
-      '@typescript-eslint/utils': 8.68.1-alpha.5(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
+      '@typescript-eslint/scope-manager': 8.70.2-alpha.5
+      '@typescript-eslint/types': 8.70.2-alpha.5
+      '@typescript-eslint/utils': 8.70.2-alpha.5(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
       eslint: 9.39.4(jiti@2.7.0)(supports-color@10.2.2)
       ts-pattern: 5.9.0
       typescript: 5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319)
@@ -7614,10 +7640,10 @@ snapshots:
     dependencies:
       '@eslint-react/eff': 3.0.0-beta.57
       '@eslint-react/shared': 3.0.0-beta.57(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
-      '@typescript-eslint/scope-manager': 8.68.1-alpha.5
-      '@typescript-eslint/type-utils': 8.68.1-alpha.5(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
-      '@typescript-eslint/types': 8.68.1-alpha.5
-      '@typescript-eslint/utils': 8.68.1-alpha.5(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
+      '@typescript-eslint/scope-manager': 8.70.2-alpha.5
+      '@typescript-eslint/type-utils': 8.70.2-alpha.5(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
+      '@typescript-eslint/types': 8.70.2-alpha.5
+      '@typescript-eslint/utils': 8.70.2-alpha.5(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
       eslint: 9.39.4(jiti@2.7.0)(supports-color@10.2.2)
       eslint-plugin-react-dom: 3.0.0-beta.57(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
       eslint-plugin-react-naming-convention: 3.0.0-beta.57(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
@@ -7632,7 +7658,7 @@ snapshots:
   '@eslint-react/shared@3.0.0-beta.57(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))':
     dependencies:
       '@eslint-react/eff': 3.0.0-beta.57
-      '@typescript-eslint/utils': 8.68.1-alpha.5(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
+      '@typescript-eslint/utils': 8.70.2-alpha.5(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
       eslint: 9.39.4(jiti@2.7.0)(supports-color@10.2.2)
       ts-pattern: 5.9.0
       typescript: 5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319)
@@ -7645,9 +7671,9 @@ snapshots:
       '@eslint-react/ast': 3.0.0-beta.57(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
       '@eslint-react/eff': 3.0.0-beta.57
       '@eslint-react/shared': 3.0.0-beta.57(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
-      '@typescript-eslint/scope-manager': 8.68.1-alpha.5
-      '@typescript-eslint/types': 8.68.1-alpha.5
-      '@typescript-eslint/utils': 8.68.1-alpha.5(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
+      '@typescript-eslint/scope-manager': 8.70.2-alpha.5
+      '@typescript-eslint/types': 8.70.2-alpha.5
+      '@typescript-eslint/utils': 8.70.2-alpha.5(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
       eslint: 9.39.4(jiti@2.7.0)(supports-color@10.2.2)
       ts-pattern: 5.9.0
       typescript: 5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319)
@@ -7711,18 +7737,18 @@ snapshots:
       '@floating-ui/core': 1.8.0
       '@floating-ui/utils': 0.2.12
 
-  '@floating-ui/react-dom@2.1.9(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224)':
+  '@floating-ui/react-dom@2.1.9(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
     dependencies:
       '@floating-ui/dom': 1.8.0
-      react: 19.3.0-canary-e33071c6-20260224
-      react-dom: 19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224)
+      react: 19.3.0
+      react-dom: 19.3.0(react@19.3.0)
 
-  '@floating-ui/react@0.27.20(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224)':
+  '@floating-ui/react@0.27.20(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
     dependencies:
-      '@floating-ui/react-dom': 2.1.9(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224)
+      '@floating-ui/react-dom': 2.1.9(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@floating-ui/utils': 0.2.12
-      react: 19.3.0-canary-e33071c6-20260224
-      react-dom: 19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224)
+      react: 19.3.0
+      react-dom: 19.3.0(react@19.3.0)
       tabbable: 6.5.0
 
   '@floating-ui/utils@0.2.12': {}
@@ -8496,38 +8522,38 @@ snapshots:
     dependencies:
       quansync: 1.0.0
 
-  '@react-spring/animated@10.1.2(react@19.3.0-canary-e33071c6-20260224)':
+  '@react-spring/animated@10.1.2(react@19.3.0)':
     dependencies:
-      '@react-spring/shared': 10.1.2(react@19.3.0-canary-e33071c6-20260224)
+      '@react-spring/shared': 10.1.2(react@19.3.0)
       '@react-spring/types': 10.1.2
-      react: 19.3.0-canary-e33071c6-20260224
+      react: 19.3.0
 
-  '@react-spring/core@10.1.2(react@19.3.0-canary-e33071c6-20260224)':
+  '@react-spring/core@10.1.2(react@19.3.0)':
     dependencies:
-      '@react-spring/animated': 10.1.2(react@19.3.0-canary-e33071c6-20260224)
-      '@react-spring/shared': 10.1.2(react@19.3.0-canary-e33071c6-20260224)
+      '@react-spring/animated': 10.1.2(react@19.3.0)
+      '@react-spring/shared': 10.1.2(react@19.3.0)
       '@react-spring/types': 10.1.2
-      react: 19.3.0-canary-e33071c6-20260224
+      react: 19.3.0
 
   '@react-spring/rafz@10.1.2': {}
 
-  '@react-spring/shared@10.1.2(react@19.3.0-canary-e33071c6-20260224)':
+  '@react-spring/shared@10.1.2(react@19.3.0)':
     dependencies:
       '@react-spring/rafz': 10.1.2
       '@react-spring/types': 10.1.2
-      react: 19.3.0-canary-e33071c6-20260224
+      react: 19.3.0
 
   '@react-spring/types@10.1.2': {}
 
-  '@react-spring/web@10.1.2(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224)':
+  '@react-spring/web@10.1.2(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
     dependencies:
-      '@react-spring/animated': 10.1.2(react@19.3.0-canary-e33071c6-20260224)
-      '@react-spring/core': 10.1.2(react@19.3.0-canary-e33071c6-20260224)
-      '@react-spring/shared': 10.1.2(react@19.3.0-canary-e33071c6-20260224)
+      '@react-spring/animated': 10.1.2(react@19.3.0)
+      '@react-spring/core': 10.1.2(react@19.3.0)
+      '@react-spring/shared': 10.1.2(react@19.3.0)
       '@react-spring/types': 10.1.2
       csstype: 3.2.3
-      react: 19.3.0-canary-e33071c6-20260224
-      react-dom: 19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224)
+      react: 19.3.0
+      react-dom: 19.3.0(react@19.3.0)
 
   '@rolldown/binding-android-arm64@1.2.4':
     optional: true
@@ -8576,7 +8602,7 @@ snapshots:
   '@rolldown/plugin-babel@0.2.3(@babel/core@7.29.7(supports-color@10.2.2))(@babel/runtime@7.29.2)(rolldown@1.2.4)(vite@8.2.1)':
     dependencies:
       '@babel/core': 7.29.7(supports-color@10.2.2)
-      picomatch: 4.0.4
+      picomatch: 4.0.5
       rolldown: 1.2.4
     optionalDependencies:
       '@babel/runtime': 7.29.2
@@ -8849,10 +8875,10 @@ snapshots:
   '@speed-highlight/core@1.2.24':
     optional: true
 
-  '@storybook/builder-vite@10.5.9(esbuild@0.28.1)(rollup@4.62.4)(storybook@10.5.9(@types/react@19.2.18)(prettier@3.9.6)(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224))(vite@8.2.1)':
+  '@storybook/builder-vite@10.5.9(esbuild@0.28.1)(rollup@4.62.4)(storybook@10.5.9(@types/react@19.3.0)(prettier@3.9.6)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(vite@8.2.1)':
     dependencies:
-      '@storybook/csf-plugin': 10.5.9(esbuild@0.28.1)(rollup@4.62.4)(storybook@10.5.9(@types/react@19.2.18)(prettier@3.9.6)(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224))(vite@8.2.1)
-      storybook: 10.5.9(@types/react@19.2.18)(prettier@3.9.6)(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224)
+      '@storybook/csf-plugin': 10.5.9(esbuild@0.28.1)(rollup@4.62.4)(storybook@10.5.9(@types/react@19.3.0)(prettier@3.9.6)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(vite@8.2.1)
+      storybook: 10.5.9(@types/react@19.3.0)(prettier@3.9.6)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       ts-dedent: 2.3.0
       vite: 8.2.1(patch_hash=92289e52503fc3f2b43a3ba8e4a9cde0366cf0685f70df1892b71dac5734bdc8)(@types/node@26.2.0)(@vitejs/devtools@0.1.22)(esbuild@0.28.1)(jiti@2.7.0)(less@4.6.4)(sass@1.99.0)(stylus@0.62.0(supports-color@10.2.2))
     transitivePeerDependencies:
@@ -8860,9 +8886,9 @@ snapshots:
       - rollup
       - webpack
 
-  '@storybook/csf-plugin@10.5.9(esbuild@0.28.1)(rollup@4.62.4)(storybook@10.5.9(@types/react@19.2.18)(prettier@3.9.6)(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224))(vite@8.2.1)':
+  '@storybook/csf-plugin@10.5.9(esbuild@0.28.1)(rollup@4.62.4)(storybook@10.5.9(@types/react@19.3.0)(prettier@3.9.6)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(vite@8.2.1)':
     dependencies:
-      storybook: 10.5.9(@types/react@19.2.18)(prettier@3.9.6)(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224)
+      storybook: 10.5.9(@types/react@19.3.0)(prettier@3.9.6)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       unplugin: 2.3.11
     optionalDependencies:
       esbuild: 0.28.1
@@ -8871,33 +8897,33 @@ snapshots:
 
   '@storybook/global@5.0.0': {}
 
-  '@storybook/icons@2.0.2(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224)':
+  '@storybook/icons@2.0.2(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
     dependencies:
-      react: 19.3.0-canary-e33071c6-20260224
-      react-dom: 19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224)
+      react: 19.3.0
+      react-dom: 19.3.0(react@19.3.0)
 
-  '@storybook/react-dom-shim@10.5.9(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224)(storybook@10.5.9(@types/react@19.2.18)(prettier@3.9.6)(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224))':
+  '@storybook/react-dom-shim@10.5.9(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(storybook@10.5.9(@types/react@19.3.0)(prettier@3.9.6)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))':
     dependencies:
-      react: 19.3.0-canary-e33071c6-20260224
-      react-dom: 19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224)
-      storybook: 10.5.9(@types/react@19.2.18)(prettier@3.9.6)(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224)
+      react: 19.3.0
+      react-dom: 19.3.0(react@19.3.0)
+      storybook: 10.5.9(@types/react@19.3.0)(prettier@3.9.6)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
     optionalDependencies:
-      '@types/react': 19.2.18
-      '@types/react-dom': 19.2.4(@types/react@19.2.18)
+      '@types/react': 19.3.0
+      '@types/react-dom': 19.3.0(@types/react@19.3.0)
 
-  '@storybook/react-vite@10.5.9(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(esbuild@0.28.1)(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224)(rollup@4.62.4)(storybook@10.5.9(@types/react@19.2.18)(prettier@3.9.6)(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))(vite@8.2.1)':
+  '@storybook/react-vite@10.5.9(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(esbuild@0.28.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(rollup@4.62.4)(storybook@10.5.9(@types/react@19.3.0)(prettier@3.9.6)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))(vite@8.2.1)':
     dependencies:
       '@joshwooding/vite-plugin-react-docgen-typescript': 0.7.0(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))(vite@8.2.1)
       '@rollup/pluginutils': 5.4.0(rollup@4.62.4)
-      '@storybook/builder-vite': 10.5.9(esbuild@0.28.1)(rollup@4.62.4)(storybook@10.5.9(@types/react@19.2.18)(prettier@3.9.6)(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224))(vite@8.2.1)
-      '@storybook/react': 10.5.9(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224)(storybook@10.5.9(@types/react@19.2.18)(prettier@3.9.6)(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
+      '@storybook/builder-vite': 10.5.9(esbuild@0.28.1)(rollup@4.62.4)(storybook@10.5.9(@types/react@19.3.0)(prettier@3.9.6)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(vite@8.2.1)
+      '@storybook/react': 10.5.9(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(storybook@10.5.9(@types/react@19.3.0)(prettier@3.9.6)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
       empathic: 2.0.1
       magic-string: 0.30.21
-      react: 19.3.0-canary-e33071c6-20260224
+      react: 19.3.0
       react-docgen: 8.0.3(supports-color@10.2.2)
-      react-dom: 19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224)
+      react-dom: 19.3.0(react@19.3.0)
       resolve: 1.22.12
-      storybook: 10.5.9(@types/react@19.2.18)(prettier@3.9.6)(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224)
+      storybook: 10.5.9(@types/react@19.3.0)(prettier@3.9.6)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       tsconfig-paths: 4.2.0
       vite: 8.2.1(patch_hash=92289e52503fc3f2b43a3ba8e4a9cde0366cf0685f70df1892b71dac5734bdc8)(@types/node@26.2.0)(@vitejs/devtools@0.1.22)(esbuild@0.28.1)(jiti@2.7.0)(less@4.6.4)(sass@1.99.0)(stylus@0.62.0(supports-color@10.2.2))
     optionalDependencies:
@@ -8910,18 +8936,18 @@ snapshots:
       - supports-color
       - webpack
 
-  '@storybook/react@10.5.9(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224)(storybook@10.5.9(@types/react@19.2.18)(prettier@3.9.6)(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))':
+  '@storybook/react@10.5.9(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(storybook@10.5.9(@types/react@19.3.0)(prettier@3.9.6)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))':
     dependencies:
       '@storybook/global': 5.0.0
-      '@storybook/react-dom-shim': 10.5.9(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224)(storybook@10.5.9(@types/react@19.2.18)(prettier@3.9.6)(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224))
-      react: 19.3.0-canary-e33071c6-20260224
+      '@storybook/react-dom-shim': 10.5.9(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(storybook@10.5.9(@types/react@19.3.0)(prettier@3.9.6)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))
+      react: 19.3.0
       react-docgen: 8.0.3(supports-color@10.2.2)
       react-docgen-typescript: 2.4.0(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
-      react-dom: 19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224)
-      storybook: 10.5.9(@types/react@19.2.18)(prettier@3.9.6)(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224)
+      react-dom: 19.3.0(react@19.3.0)
+      storybook: 10.5.9(@types/react@19.3.0)(prettier@3.9.6)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
     optionalDependencies:
-      '@types/react': 19.2.18
-      '@types/react-dom': 19.2.4(@types/react@19.2.18)
+      '@types/react': 19.3.0
+      '@types/react-dom': 19.3.0(@types/react@19.3.0)
       typescript: 5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319)
     transitivePeerDependencies:
       - supports-color
@@ -9170,13 +9196,13 @@ snapshots:
 
   '@tanstack/query-core@5.101.4': {}
 
-  '@tanstack/react-devtools@0.10.10(@neodrag/core@3.0.0-next.11)(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(csstype@3.2.3)(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224)(solid-js@1.9.12)':
+  '@tanstack/react-devtools@0.10.10(@neodrag/core@3.0.0-next.11)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(csstype@3.2.3)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(solid-js@1.9.12)':
     dependencies:
       '@tanstack/devtools': 0.14.0(@neodrag/core@3.0.0-next.11)(csstype@3.2.3)(solid-js@1.9.12)
-      '@types/react': 19.2.18
-      '@types/react-dom': 19.2.4(@types/react@19.2.18)
-      react: 19.3.0-canary-e33071c6-20260224
-      react-dom: 19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224)
+      '@types/react': 19.3.0
+      '@types/react-dom': 19.3.0(@types/react@19.3.0)
+      react: 19.3.0
+      react-dom: 19.3.0(react@19.3.0)
     transitivePeerDependencies:
       - '@neodrag/core'
       - bufferutil
@@ -9184,51 +9210,51 @@ snapshots:
       - solid-js
       - utf-8-validate
 
-  '@tanstack/react-query@5.101.4(react@19.3.0-canary-e33071c6-20260224)':
+  '@tanstack/react-query@5.101.4(react@19.3.0)':
     dependencies:
       '@tanstack/query-core': 5.101.4
-      react: 19.3.0-canary-e33071c6-20260224
+      react: 19.3.0
 
-  '@tanstack/react-router-devtools@1.167.1(@tanstack/react-router@1.170.30(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224))(@tanstack/router-core@1.171.25)(csstype@3.2.3)(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224)':
+  '@tanstack/react-router-devtools@1.167.1(@tanstack/react-router@1.170.30(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@tanstack/router-core@1.171.25)(csstype@3.2.3)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
     dependencies:
-      '@tanstack/react-router': 1.170.30(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224)
+      '@tanstack/react-router': 1.170.30(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@tanstack/router-devtools-core': 1.168.1(@tanstack/router-core@1.171.25)(csstype@3.2.3)
-      react: 19.3.0-canary-e33071c6-20260224
-      react-dom: 19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224)
+      react: 19.3.0
+      react-dom: 19.3.0(react@19.3.0)
     optionalDependencies:
       '@tanstack/router-core': 1.171.25
     transitivePeerDependencies:
       - csstype
 
-  '@tanstack/react-router@1.170.30(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224)':
+  '@tanstack/react-router@1.170.30(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
     dependencies:
       '@tanstack/history': 1.162.1
-      '@tanstack/react-store': 0.9.3(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224)
+      '@tanstack/react-store': 0.9.3(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@tanstack/router-core': 1.171.25
       isbot: 5.2.1
-      react: 19.3.0-canary-e33071c6-20260224
-      react-dom: 19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224)
+      react: 19.3.0
+      react-dom: 19.3.0(react@19.3.0)
 
-  '@tanstack/react-start-client@1.168.28(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224)':
+  '@tanstack/react-start-client@1.168.28(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
     dependencies:
-      '@tanstack/react-router': 1.170.30(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224)
+      '@tanstack/react-router': 1.170.30(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@tanstack/router-core': 1.171.25
       '@tanstack/start-client-core': 1.170.25
-      react: 19.3.0-canary-e33071c6-20260224
-      react-dom: 19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224)
+      react: 19.3.0
+      react-dom: 19.3.0(react@19.3.0)
 
-  '@tanstack/react-start-rsc@0.1.46(esbuild@0.28.1)(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224)(rolldown@1.2.4)(rollup@4.62.4)(supports-color@10.2.2)(vite@8.2.1)':
+  '@tanstack/react-start-rsc@0.1.46(esbuild@0.28.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(rolldown@1.2.4)(rollup@4.62.4)(supports-color@10.2.2)(vite@8.2.1)':
     dependencies:
-      '@tanstack/react-router': 1.170.30(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224)
+      '@tanstack/react-router': 1.170.30(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@tanstack/router-core': 1.171.25
       '@tanstack/router-utils': 1.162.2(supports-color@10.2.2)
       '@tanstack/start-client-core': 1.170.25
       '@tanstack/start-fn-stubs': 1.162.0
-      '@tanstack/start-plugin-core': 1.171.37(patch_hash=187a8769de0f23406f4c8d3c6e6e43176b532265b332ebe05c6d4189b20770be)(@tanstack/react-router@1.170.30(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224))(esbuild@0.28.1)(rolldown@1.2.4)(rollup@4.62.4)(supports-color@10.2.2)(vite@8.2.1)
+      '@tanstack/start-plugin-core': 1.171.37(patch_hash=187a8769de0f23406f4c8d3c6e6e43176b532265b332ebe05c6d4189b20770be)(@tanstack/react-router@1.170.30(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(esbuild@0.28.1)(rolldown@1.2.4)(rollup@4.62.4)(supports-color@10.2.2)(vite@8.2.1)
       '@tanstack/start-storage-context': 1.167.27
       pathe: 2.0.3
-      react: 19.3.0-canary-e33071c6-20260224
-      react-dom: 19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224)
+      react: 19.3.0
+      react-dom: 19.3.0(react@19.3.0)
     transitivePeerDependencies:
       - '@farmfe/core'
       - '@rsbuild/core'
@@ -9243,29 +9269,29 @@ snapshots:
       - vite-plugin-solid
       - webpack
 
-  '@tanstack/react-start-server@1.167.35(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224)':
+  '@tanstack/react-start-server@1.167.35(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
     dependencies:
-      '@tanstack/react-router': 1.170.30(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224)
+      '@tanstack/react-router': 1.170.30(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@tanstack/router-core': 1.171.25
       '@tanstack/start-server-core': 1.169.29
-      react: 19.3.0-canary-e33071c6-20260224
-      react-dom: 19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224)
+      react: 19.3.0
+      react-dom: 19.3.0(react@19.3.0)
     transitivePeerDependencies:
       - crossws
 
-  '@tanstack/react-start@1.168.47(esbuild@0.28.1)(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224)(rolldown@1.2.4)(rollup@4.62.4)(supports-color@10.2.2)(vite@8.2.1)':
+  '@tanstack/react-start@1.168.47(esbuild@0.28.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(rolldown@1.2.4)(rollup@4.62.4)(supports-color@10.2.2)(vite@8.2.1)':
     dependencies:
-      '@tanstack/react-router': 1.170.30(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224)
-      '@tanstack/react-start-client': 1.168.28(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224)
-      '@tanstack/react-start-rsc': 0.1.46(esbuild@0.28.1)(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224)(rolldown@1.2.4)(rollup@4.62.4)(supports-color@10.2.2)(vite@8.2.1)
-      '@tanstack/react-start-server': 1.167.35(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224)
+      '@tanstack/react-router': 1.170.30(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      '@tanstack/react-start-client': 1.168.28(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      '@tanstack/react-start-rsc': 0.1.46(esbuild@0.28.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(rolldown@1.2.4)(rollup@4.62.4)(supports-color@10.2.2)(vite@8.2.1)
+      '@tanstack/react-start-server': 1.167.35(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@tanstack/router-utils': 1.162.2(supports-color@10.2.2)
       '@tanstack/start-client-core': 1.170.25
-      '@tanstack/start-plugin-core': 1.171.37(patch_hash=187a8769de0f23406f4c8d3c6e6e43176b532265b332ebe05c6d4189b20770be)(@tanstack/react-router@1.170.30(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224))(esbuild@0.28.1)(rolldown@1.2.4)(rollup@4.62.4)(supports-color@10.2.2)(vite@8.2.1)
+      '@tanstack/start-plugin-core': 1.171.37(patch_hash=187a8769de0f23406f4c8d3c6e6e43176b532265b332ebe05c6d4189b20770be)(@tanstack/react-router@1.170.30(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(esbuild@0.28.1)(rolldown@1.2.4)(rollup@4.62.4)(supports-color@10.2.2)(vite@8.2.1)
       '@tanstack/start-server-core': 1.169.29
       pathe: 2.0.3
-      react: 19.3.0-canary-e33071c6-20260224
-      react-dom: 19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224)
+      react: 19.3.0
+      react-dom: 19.3.0(react@19.3.0)
     optionalDependencies:
       vite: 8.2.1(patch_hash=92289e52503fc3f2b43a3ba8e4a9cde0366cf0685f70df1892b71dac5734bdc8)(@types/node@26.2.0)(@vitejs/devtools@0.1.22)(esbuild@0.28.1)(jiti@2.7.0)(less@4.6.4)(sass@1.99.0)(stylus@0.62.0(supports-color@10.2.2))
     transitivePeerDependencies:
@@ -9282,12 +9308,12 @@ snapshots:
       - vite-plugin-solid
       - webpack
 
-  '@tanstack/react-store@0.9.3(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224)':
+  '@tanstack/react-store@0.9.3(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
     dependencies:
       '@tanstack/store': 0.9.3
-      react: 19.3.0-canary-e33071c6-20260224
-      react-dom: 19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224)
-      use-sync-external-store: 1.6.0(react@19.3.0-canary-e33071c6-20260224)
+      react: 19.3.0
+      react-dom: 19.3.0(react@19.3.0)
+      use-sync-external-store: 1.6.0(react@19.3.0)
 
   '@tanstack/router-core@1.171.25':
     dependencies:
@@ -9317,7 +9343,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@tanstack/router-plugin@1.168.33(@tanstack/react-router@1.170.30(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224))(esbuild@0.28.1)(rolldown@1.2.4)(rollup@4.62.4)(supports-color@10.2.2)(vite@8.2.1)':
+  '@tanstack/router-plugin@1.168.33(@tanstack/react-router@1.170.30(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(esbuild@0.28.1)(rolldown@1.2.4)(rollup@4.62.4)(supports-color@10.2.2)(vite@8.2.1)':
     dependencies:
       '@babel/core': 7.29.7(supports-color@10.2.2)
       '@babel/template': 7.29.7
@@ -9329,7 +9355,7 @@ snapshots:
       unplugin: 3.3.0(esbuild@0.28.1)(rolldown@1.2.4)(rollup@4.62.4)(vite@8.2.1)
       zod: 4.4.3
     optionalDependencies:
-      '@tanstack/react-router': 1.170.30(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224)
+      '@tanstack/react-router': 1.170.30(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       vite: 8.2.1(patch_hash=92289e52503fc3f2b43a3ba8e4a9cde0366cf0685f70df1892b71dac5734bdc8)(@types/node@26.2.0)(@vitejs/devtools@0.1.22)(esbuild@0.28.1)(jiti@2.7.0)(less@4.6.4)(sass@1.99.0)(stylus@0.62.0(supports-color@10.2.2))
     transitivePeerDependencies:
       - '@farmfe/core'
@@ -9363,14 +9389,14 @@ snapshots:
 
   '@tanstack/start-fn-stubs@1.162.0': {}
 
-  '@tanstack/start-plugin-core@1.171.37(patch_hash=187a8769de0f23406f4c8d3c6e6e43176b532265b332ebe05c6d4189b20770be)(@tanstack/react-router@1.170.30(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224))(esbuild@0.28.1)(rolldown@1.2.4)(rollup@4.62.4)(supports-color@10.2.2)(vite@8.2.1)':
+  '@tanstack/start-plugin-core@1.171.37(patch_hash=187a8769de0f23406f4c8d3c6e6e43176b532265b332ebe05c6d4189b20770be)(@tanstack/react-router@1.170.30(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(esbuild@0.28.1)(rolldown@1.2.4)(rollup@4.62.4)(supports-color@10.2.2)(vite@8.2.1)':
     dependencies:
       '@babel/code-frame': 7.27.1
       '@babel/core': 7.29.7(supports-color@10.2.2)
       '@babel/types': 7.29.8
       '@tanstack/router-core': 1.171.25
       '@tanstack/router-generator': 1.167.31(supports-color@10.2.2)
-      '@tanstack/router-plugin': 1.168.33(@tanstack/react-router@1.170.30(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224))(esbuild@0.28.1)(rolldown@1.2.4)(rollup@4.62.4)(supports-color@10.2.2)(vite@8.2.1)
+      '@tanstack/router-plugin': 1.168.33(@tanstack/react-router@1.170.30(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(esbuild@0.28.1)(rolldown@1.2.4)(rollup@4.62.4)(supports-color@10.2.2)(vite@8.2.1)
       '@tanstack/router-utils': 1.162.2(supports-color@10.2.2)
       '@tanstack/start-server-core': 1.169.29
       exsolve: 1.1.1
@@ -9421,9 +9447,9 @@ snapshots:
 
   '@tanstack/virtual-file-routes@1.162.0': {}
 
-  '@tanstack/zod-adapter@1.167.0(@tanstack/react-router@1.170.30(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224))(zod@4.4.3)':
+  '@tanstack/zod-adapter@1.167.0(@tanstack/react-router@1.170.30(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(zod@4.4.3)':
     dependencies:
-      '@tanstack/react-router': 1.170.30(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224)
+      '@tanstack/react-router': 1.170.30(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       zod: 4.4.3
 
   '@testing-library/dom@10.4.1':
@@ -9590,11 +9616,11 @@ snapshots:
     dependencies:
       postcss: 8.5.14
 
-  '@types/react-dom@19.2.4(@types/react@19.2.18)':
+  '@types/react-dom@19.3.0(@types/react@19.3.0)':
     dependencies:
-      '@types/react': 19.2.18
+      '@types/react': 19.3.0
 
-  '@types/react@19.2.18':
+  '@types/react@19.3.0':
     dependencies:
       csstype: 3.2.3
 
@@ -9662,10 +9688,19 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@typescript-eslint/project-service@8.68.1-alpha.5(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))':
+  '@typescript-eslint/project-service@8.70.1-alpha.0(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))':
     dependencies:
-      '@typescript-eslint/tsconfig-utils': 8.68.1-alpha.5(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
-      '@typescript-eslint/types': 8.68.1-alpha.5
+      '@typescript-eslint/tsconfig-utils': 8.70.1-alpha.0(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
+      '@typescript-eslint/types': 8.70.1-alpha.0
+      debug: 4.4.3(supports-color@10.2.2)
+      typescript: 5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319)
+    transitivePeerDependencies:
+      - supports-color
+
+  '@typescript-eslint/project-service@8.70.2-alpha.5(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))':
+    dependencies:
+      '@typescript-eslint/tsconfig-utils': 8.70.2-alpha.5(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
+      '@typescript-eslint/types': 8.70.2-alpha.5
       debug: 4.4.3(supports-color@10.2.2)
       typescript: 5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319)
     transitivePeerDependencies:
@@ -9681,10 +9716,10 @@ snapshots:
       '@typescript-eslint/types': 8.67.0
       '@typescript-eslint/visitor-keys': 8.67.0
 
-  '@typescript-eslint/scope-manager@8.68.1-alpha.5':
+  '@typescript-eslint/scope-manager@8.70.2-alpha.5':
     dependencies:
-      '@typescript-eslint/types': 8.68.1-alpha.5
-      '@typescript-eslint/visitor-keys': 8.68.1-alpha.5
+      '@typescript-eslint/types': 8.70.2-alpha.5
+      '@typescript-eslint/visitor-keys': 8.70.2-alpha.5
 
   '@typescript-eslint/tsconfig-utils@8.59.3(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))':
     dependencies:
@@ -9694,7 +9729,11 @@ snapshots:
     dependencies:
       typescript: 5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319)
 
-  '@typescript-eslint/tsconfig-utils@8.68.1-alpha.5(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))':
+  '@typescript-eslint/tsconfig-utils@8.70.1-alpha.0(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))':
+    dependencies:
+      typescript: 5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319)
+
+  '@typescript-eslint/tsconfig-utils@8.70.2-alpha.5(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))':
     dependencies:
       typescript: 5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319)
 
@@ -9710,11 +9749,11 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@typescript-eslint/type-utils@8.68.1-alpha.5(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))':
+  '@typescript-eslint/type-utils@8.70.2-alpha.5(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))':
     dependencies:
-      '@typescript-eslint/types': 8.68.1-alpha.5
-      '@typescript-eslint/typescript-estree': 8.68.1-alpha.5(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
-      '@typescript-eslint/utils': 8.68.1-alpha.5(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
+      '@typescript-eslint/types': 8.70.2-alpha.5
+      '@typescript-eslint/typescript-estree': 8.70.2-alpha.5(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
+      '@typescript-eslint/utils': 8.70.2-alpha.5(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
       debug: 4.4.3(supports-color@10.2.2)
       eslint: 9.39.4(jiti@2.7.0)(supports-color@10.2.2)
       ts-api-utils: 2.5.0(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
@@ -9726,7 +9765,9 @@ snapshots:
 
   '@typescript-eslint/types@8.67.0': {}
 
-  '@typescript-eslint/types@8.68.1-alpha.5': {}
+  '@typescript-eslint/types@8.70.1-alpha.0': {}
+
+  '@typescript-eslint/types@8.70.2-alpha.5': {}
 
   '@typescript-eslint/typescript-estree@8.59.3(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))':
     dependencies:
@@ -9758,12 +9799,27 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@typescript-eslint/typescript-estree@8.68.1-alpha.5(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))':
+  '@typescript-eslint/typescript-estree@8.70.1-alpha.0(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))':
     dependencies:
-      '@typescript-eslint/project-service': 8.68.1-alpha.5(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
-      '@typescript-eslint/tsconfig-utils': 8.68.1-alpha.5(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
-      '@typescript-eslint/types': 8.68.1-alpha.5
-      '@typescript-eslint/visitor-keys': 8.68.1-alpha.5
+      '@typescript-eslint/project-service': 8.70.1-alpha.0(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
+      '@typescript-eslint/tsconfig-utils': 8.70.1-alpha.0(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
+      '@typescript-eslint/types': 8.70.1-alpha.0
+      '@typescript-eslint/visitor-keys': 8.70.1-alpha.0
+      debug: 4.4.3(supports-color@10.2.2)
+      minimatch: 10.2.6
+      semver: 7.8.5
+      tinyglobby: 0.2.17
+      ts-api-utils: 2.5.0(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
+      typescript: 5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319)
+    transitivePeerDependencies:
+      - supports-color
+
+  '@typescript-eslint/typescript-estree@8.70.2-alpha.5(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))':
+    dependencies:
+      '@typescript-eslint/project-service': 8.70.2-alpha.5(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
+      '@typescript-eslint/tsconfig-utils': 8.70.2-alpha.5(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
+      '@typescript-eslint/types': 8.70.2-alpha.5
+      '@typescript-eslint/visitor-keys': 8.70.2-alpha.5
       debug: 4.4.3(supports-color@10.2.2)
       minimatch: 10.2.6
       semver: 7.8.5
@@ -9795,12 +9851,12 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@typescript-eslint/utils@8.68.1-alpha.5(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))':
+  '@typescript-eslint/utils@8.70.2-alpha.5(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))':
     dependencies:
       '@eslint-community/eslint-utils': 4.10.1(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))
-      '@typescript-eslint/scope-manager': 8.68.1-alpha.5
-      '@typescript-eslint/types': 8.68.1-alpha.5
-      '@typescript-eslint/typescript-estree': 8.68.1-alpha.5(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
+      '@typescript-eslint/scope-manager': 8.70.2-alpha.5
+      '@typescript-eslint/types': 8.70.2-alpha.5
+      '@typescript-eslint/typescript-estree': 8.70.2-alpha.5(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
       eslint: 9.39.4(jiti@2.7.0)(supports-color@10.2.2)
       typescript: 5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319)
     transitivePeerDependencies:
@@ -9816,9 +9872,14 @@ snapshots:
       '@typescript-eslint/types': 8.67.0
       eslint-visitor-keys: 5.0.1
 
-  '@typescript-eslint/visitor-keys@8.68.1-alpha.5':
+  '@typescript-eslint/visitor-keys@8.70.1-alpha.0':
     dependencies:
-      '@typescript-eslint/types': 8.68.1-alpha.5
+      '@typescript-eslint/types': 8.70.1-alpha.0
+      eslint-visitor-keys: 5.0.1
+
+  '@typescript-eslint/visitor-keys@8.70.2-alpha.5':
+    dependencies:
+      '@typescript-eslint/types': 8.70.2-alpha.5
       eslint-visitor-keys: 5.0.1
 
   '@typespec/ts-http-runtime@0.3.5(supports-color@10.2.2)':
@@ -10109,16 +10170,16 @@ snapshots:
 
   '@webcontainer/env@1.1.1': {}
 
-  '@xyflow/react@12.11.3(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224)':
+  '@xyflow/react@12.11.3(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
     dependencies:
       '@xyflow/system': 0.0.80
       classcat: 5.0.5
-      react: 19.3.0-canary-e33071c6-20260224
-      react-dom: 19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224)
-      zustand: 4.5.7(@types/react@19.2.18)(react@19.3.0-canary-e33071c6-20260224)
+      react: 19.3.0
+      react-dom: 19.3.0(react@19.3.0)
+      zustand: 4.5.7(@types/react@19.3.0)(react@19.3.0)
     optionalDependencies:
-      '@types/react': 19.2.18
-      '@types/react-dom': 19.2.4(@types/react@19.2.18)
+      '@types/react': 19.3.0
+      '@types/react-dom': 19.3.0(@types/react@19.3.0)
     transitivePeerDependencies:
       - immer
 
@@ -10238,7 +10299,7 @@ snapshots:
 
   babel-plugin-react-compiler@1.0.0:
     dependencies:
-      '@babel/types': 7.29.0
+      '@babel/types': 7.29.8
     optional: true
 
   balanced-match@1.0.2: {}
@@ -10925,9 +10986,9 @@ snapshots:
       '@eslint-react/eff': 3.0.0-beta.57
       '@eslint-react/shared': 3.0.0-beta.57(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
       '@eslint-react/var': 3.0.0-beta.57(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
-      '@typescript-eslint/scope-manager': 8.68.1-alpha.5
-      '@typescript-eslint/types': 8.68.1-alpha.5
-      '@typescript-eslint/utils': 8.68.1-alpha.5(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
+      '@typescript-eslint/scope-manager': 8.70.2-alpha.5
+      '@typescript-eslint/types': 8.70.2-alpha.5
+      '@typescript-eslint/utils': 8.70.2-alpha.5(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
       compare-versions: 6.1.1
       eslint: 9.39.4(jiti@2.7.0)(supports-color@10.2.2)
       ts-pattern: 5.9.0
@@ -10942,10 +11003,10 @@ snapshots:
       '@eslint-react/eff': 3.0.0-beta.57
       '@eslint-react/shared': 3.0.0-beta.57(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
       '@eslint-react/var': 3.0.0-beta.57(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
-      '@typescript-eslint/scope-manager': 8.68.1-alpha.5
-      '@typescript-eslint/type-utils': 8.68.1-alpha.5(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
-      '@typescript-eslint/types': 8.68.1-alpha.5
-      '@typescript-eslint/utils': 8.68.1-alpha.5(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
+      '@typescript-eslint/scope-manager': 8.70.2-alpha.5
+      '@typescript-eslint/type-utils': 8.70.2-alpha.5(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
+      '@typescript-eslint/types': 8.70.2-alpha.5
+      '@typescript-eslint/utils': 8.70.2-alpha.5(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
       compare-versions: 6.1.1
       eslint: 9.39.4(jiti@2.7.0)(supports-color@10.2.2)
       string-ts: 2.3.1
@@ -10960,8 +11021,8 @@ snapshots:
       '@eslint-react/eff': 3.0.0-beta.57
       '@eslint-react/shared': 3.0.0-beta.57(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
       '@eslint-react/var': 3.0.0-beta.57(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
-      '@typescript-eslint/types': 8.68.1-alpha.5
-      '@typescript-eslint/utils': 8.68.1-alpha.5(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
+      '@typescript-eslint/types': 8.70.2-alpha.5
+      '@typescript-eslint/utils': 8.70.2-alpha.5(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
       eslint: 9.39.4(jiti@2.7.0)(supports-color@10.2.2)
       ts-pattern: 5.9.0
       typescript: 5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319)
@@ -10975,9 +11036,9 @@ snapshots:
       '@eslint-react/eff': 3.0.0-beta.57
       '@eslint-react/shared': 3.0.0-beta.57(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
       '@eslint-react/var': 3.0.0-beta.57(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
-      '@typescript-eslint/scope-manager': 8.68.1-alpha.5
-      '@typescript-eslint/types': 8.68.1-alpha.5
-      '@typescript-eslint/utils': 8.68.1-alpha.5(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
+      '@typescript-eslint/scope-manager': 8.70.2-alpha.5
+      '@typescript-eslint/types': 8.70.2-alpha.5
+      '@typescript-eslint/utils': 8.70.2-alpha.5(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
       birecord: 0.1.1
       eslint: 9.39.4(jiti@2.7.0)(supports-color@10.2.2)
       ts-pattern: 5.9.0
@@ -10992,10 +11053,10 @@ snapshots:
       '@eslint-react/eff': 3.0.0-beta.57
       '@eslint-react/shared': 3.0.0-beta.57(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
       '@eslint-react/var': 3.0.0-beta.57(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
-      '@typescript-eslint/scope-manager': 8.68.1-alpha.5
-      '@typescript-eslint/type-utils': 8.68.1-alpha.5(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
-      '@typescript-eslint/types': 8.68.1-alpha.5
-      '@typescript-eslint/utils': 8.68.1-alpha.5(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
+      '@typescript-eslint/scope-manager': 8.70.2-alpha.5
+      '@typescript-eslint/type-utils': 8.70.2-alpha.5(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
+      '@typescript-eslint/types': 8.70.2-alpha.5
+      '@typescript-eslint/utils': 8.70.2-alpha.5(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
       compare-versions: 6.1.1
       eslint: 9.39.4(jiti@2.7.0)(supports-color@10.2.2)
       string-ts: 2.3.1
@@ -11009,12 +11070,12 @@ snapshots:
     dependencies:
       eslint: 9.39.4(jiti@2.7.0)(supports-color@10.2.2)
 
-  eslint-plugin-storybook@10.5.9(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(storybook@10.5.9(@types/react@19.2.18)(prettier@3.9.6)(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319)):
+  eslint-plugin-storybook@10.5.9(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(storybook@10.5.9(@types/react@19.3.0)(prettier@3.9.6)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319)):
     dependencies:
       '@typescript-eslint/types': 8.67.0
       '@typescript-eslint/utils': 8.67.0(eslint@9.39.4(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
       eslint: 9.39.4(jiti@2.7.0)(supports-color@10.2.2)
-      storybook: 10.5.9(@types/react@19.2.18)(prettier@3.9.6)(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224)
+      storybook: 10.5.9(@types/react@19.3.0)(prettier@3.9.6)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
     transitivePeerDependencies:
       - supports-color
       - typescript
@@ -11942,9 +12003,9 @@ snapshots:
     dependencies:
       yallist: 4.0.0
 
-  lucide-react@0.561.0(react@19.3.0-canary-e33071c6-20260224):
+  lucide-react@0.561.0(react@19.3.0):
     dependencies:
-      react: 19.3.0-canary-e33071c6-20260224
+      react: 19.3.0
 
   lz-string@1.5.0: {}
 
@@ -12597,14 +12658,14 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224):
+  react-dom@19.3.0(react@19.3.0):
     dependencies:
-      react: 19.3.0-canary-e33071c6-20260224
-      scheduler: 0.28.0-canary-e33071c6-20260224
+      react: 19.3.0
+      scheduler: 0.28.0
 
   react-is@17.0.2: {}
 
-  react@19.3.0-canary-e33071c6-20260224: {}
+  react@19.3.0: {}
 
   read-pkg@9.0.1:
     dependencies:
@@ -12806,7 +12867,7 @@ snapshots:
 
   sax@1.6.0: {}
 
-  scheduler@0.28.0-canary-e33071c6-20260224: {}
+  scheduler@0.28.0: {}
 
   scroll-into-view-if-needed@3.1.0:
     dependencies:
@@ -13011,10 +13072,10 @@ snapshots:
       es-errors: 1.3.0
       internal-slot: 1.1.0
 
-  storybook@10.5.9(@types/react@19.2.18)(prettier@3.9.6)(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224):
+  storybook@10.5.9(@types/react@19.3.0)(prettier@3.9.6)(react-dom@19.3.0(react@19.3.0))(react@19.3.0):
     dependencies:
       '@storybook/global': 5.0.0
-      '@storybook/icons': 2.0.2(react-dom@19.3.0-canary-e33071c6-20260224(react@19.3.0-canary-e33071c6-20260224))(react@19.3.0-canary-e33071c6-20260224)
+      '@storybook/icons': 2.0.2(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@testing-library/dom': 10.4.1
       '@testing-library/jest-dom': 6.9.1
       '@testing-library/user-event': 14.6.1(@testing-library/dom@10.4.1)
@@ -13028,10 +13089,10 @@ snapshots:
       oxc-resolver: 11.24.2
       recast: 0.23.11
       semver: 7.8.5
-      use-sync-external-store: 1.6.0(react@19.3.0-canary-e33071c6-20260224)
+      use-sync-external-store: 1.6.0(react@19.3.0)
       ws: 8.21.3
     optionalDependencies:
-      '@types/react': 19.2.18
+      '@types/react': 19.3.0
       prettier: 3.9.6
     transitivePeerDependencies:
       - bufferutil
@@ -13557,9 +13618,9 @@ snapshots:
 
   url-join@4.0.1: {}
 
-  use-sync-external-store@1.6.0(react@19.3.0-canary-e33071c6-20260224):
+  use-sync-external-store@1.6.0(react@19.3.0):
     dependencies:
-      react: 19.3.0-canary-e33071c6-20260224
+      react: 19.3.0
 
   util-deprecate@1.0.2: {}
 
@@ -13825,17 +13886,17 @@ snapshots:
 
   zod@4.4.3: {}
 
-  zustand@4.5.7(@types/react@19.2.18)(react@19.3.0-canary-e33071c6-20260224):
+  zustand@4.5.7(@types/react@19.3.0)(react@19.3.0):
     dependencies:
-      use-sync-external-store: 1.6.0(react@19.3.0-canary-e33071c6-20260224)
+      use-sync-external-store: 1.6.0(react@19.3.0)
     optionalDependencies:
-      '@types/react': 19.2.18
-      react: 19.3.0-canary-e33071c6-20260224
+      '@types/react': 19.3.0
+      react: 19.3.0
 
-  zustand@5.0.15(@types/react@19.2.18)(react@19.3.0-canary-e33071c6-20260224)(use-sync-external-store@1.6.0(react@19.3.0-canary-e33071c6-20260224)):
+  zustand@5.0.15(@types/react@19.3.0)(react@19.3.0)(use-sync-external-store@1.6.0(react@19.3.0)):
     optionalDependencies:
-      '@types/react': 19.2.18
-      react: 19.3.0-canary-e33071c6-20260224
-      use-sync-external-store: 1.6.0(react@19.3.0-canary-e33071c6-20260224)
+      '@types/react': 19.3.0
+      react: 19.3.0
+      use-sync-external-store: 1.6.0(react@19.3.0)
 
   zwitch@2.0.4: {}
