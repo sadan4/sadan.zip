@@ -6,12 +6,16 @@ expression: keys
     (
         "[29:57->29:63) IZsalP",
         "IZsalP",
-        None,
+        Some(
+            "CLIPS_REMOVE_FROM_FAVORITES",
+        ),
     ),
     (
         "[29:76->29:82) ihBfyA",
         "ihBfyA",
-        None,
+        Some(
+            "CLIPS_ADD_TO_FAVORITES",
+        ),
     ),
     (
         "[35:48->35:54) k8fFjp",

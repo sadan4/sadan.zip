@@ -1689,8 +1689,7 @@ mod intl_keys {
 	}
 
 	#[test]
-	// keys reached through different accessors (`p.t.KEY`, `d.default.KEY`)
-	// and inside a ternary, all as args to `intl.string(...)`
+	/// `intl.string(foo ? intlMod.t.key1 : intlMod.t.key2)`
 	fn collects_keys_across_accessors_and_ternaries() {
 		let alloc = Allocator::new();
 		let p = parse_!(alloc, "test_data/wp/finds/intlKeys2.js");
