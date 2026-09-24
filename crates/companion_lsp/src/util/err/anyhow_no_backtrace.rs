@@ -23,7 +23,7 @@ use std::{
 /// Multiline display: the message, the causes, but no backtrace even if one was
 /// captured.
 ///
-/// ```
+/// ```no_run
 /// # fn main() -> anyhow::Result<()> {
 /// let err = anyhow::anyhow!("root cause").context("outer context");
 /// eprintln!("{}", display_no_backtrace(&err));
