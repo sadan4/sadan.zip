@@ -53,7 +53,7 @@ in
 
 			useNextest = true;
 
-			extraCheckFlags = [
+			cargoTestFlags = [
 				"-E"
 				"deps(${crate-name})"
 			];

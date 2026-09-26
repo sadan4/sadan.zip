@@ -3,6 +3,7 @@
 	stdenv,
 	installShellFiles,
 	rustPlatform,
+	rev ? null,
 }: let
 	crate-name = "pretty_printer";
 in
@@ -10,7 +11,13 @@ in
 			pname = crate-name;
 			version = "0.1.0";
 
-			env.RUSTC_BOOTSTRAP = 1;
+			env =
+				lib.optionalAttrs (rev != null) {
+					GIT_HASH = rev;
+				}
+				// {
+					RUSTC_BOOTSTRAP = 1;
+				};
 
 			src =
 				lib.fileset.toSource {
@@ -42,7 +49,7 @@ in
 
 			useNextest = true;
 
-			extraCheckFlags = [
+			cargoTestFlags = [
 				"-E"
 				"deps(${crate-name})"
 			];
