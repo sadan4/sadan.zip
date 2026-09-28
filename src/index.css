@@ -49,6 +49,8 @@
     --color-accent-950: oklch(0.2639 0.04 189.61);
     --color-neutral: #161928;
     --color-neutral-content: #c0caf5;
+    --color-blurple: #5865f2;
+    --color-canary: #faa81f;
     --color-info-50: oklch(0.9678 0.02 257.20);
     --color-info-100: oklch(0.9248 0.04 261.30);
     --color-info-200: oklch(0.8685 0.06 260.77);
