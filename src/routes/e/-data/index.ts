@@ -4,6 +4,7 @@ import { TextmateTheme } from "@/utils/textmate/theme";
 import type { Fields, TBundleHash, Thenable, TModuleId } from "@/utils/types";
 
 import { getBuildService, type RemoteBuildService } from "./worker/api";
+import { useBundleLoadStore } from "./loadProgress";
 
 import "core-js/proposals/array-buffer-base64";
 import z from "zod";
@@ -67,7 +68,17 @@ export const useModuleViewerStore = create<ModuleViewerStore>((set, get) => ({
                 buildHash: newBuildHash,
             });
 
-            const _buildService = await getBuildService(newBuildHash);
+            const { setProgress } = useBundleLoadStore.getState();
+
+            setProgress(null);
+
+            let _buildService: RemoteBuildService;
+
+            try {
+                _buildService = await getBuildService(newBuildHash, setProgress);
+            } finally {
+                setProgress(null);
+            }
 
             set({
                 _buildService,

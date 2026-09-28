@@ -1,9 +1,13 @@
 import { Box } from "@/components/layout/Box";
 import { Text } from "@/components/Text";
+import cn from "@/utils/cn";
+import { MiB } from "@/utils/constants";
 import { unavailableImport } from "@/utils/error";
 import { TBundleHash } from "@/utils/types";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
+
+import { type BundleLoadProgress, useBundleLoadStore } from "./-data/loadProgress";
 
 import { LoaderCircle } from "lucide-react";
 import z from "zod";
@@ -96,6 +100,63 @@ function ExplorerWrapper() {
     return <ui.Explorer />;
 }
 
+function formatMiB(bytes: number) {
+    return `${(bytes / MiB).toFixed(1)} MiB`;
+}
+
+/**
+ * @returns progress in [0, 1] or null
+ */
+function getProgressFraction(progress: BundleLoadProgress | null): number | null {
+    if (progress?.stage !== "downloading" || progress.total == null) {
+        return null;
+    }
+    return Math.min(progress.loaded / progress.total, 1);
+}
+
+function getProgressLabel(progress: BundleLoadProgress | null): string {
+    switch (progress?.stage) {
+        case undefined:
+            return "Starting...";
+        case "downloading":
+            return progress.total == null
+                ? `Downloading ${formatMiB(progress.loaded)}`
+                : `Downloading ${formatMiB(progress.loaded)} / ${formatMiB(progress.total)}`;
+        case "processing":
+            return "Processing bundle...";
+    }
+}
+
+function BundleLoadProgressBar() {
+    const progress = useBundleLoadStore((s) => s.progress);
+    const fraction = getProgressFraction(progress);
+
+    return (
+        <div className="w-72 max-w-full">
+            <div
+                role="progressbar"
+                aria-label="Bundle loading progress"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={fraction == null ? undefined : Math.round(fraction * 100)}
+                className="h-2 w-full overflow-hidden rounded-full bg-bg-300"
+            >
+                <div
+                    className={cn(
+                        "h-full rounded-full bg-primary-400",
+                        fraction == null ? "w-full animate-pulse" : "transition-[width] duration-100 ease-linear",
+                    )}
+                    style={fraction == null ? undefined : { width: `${fraction * 100}%` }}
+                />
+            </div>
+            <div className="mt-2 flex justify-between gap-3 text-xs text-fg-700">
+                <span aria-live="polite">{getProgressLabel(progress)}</span>
+                {fraction != null && <span>{Math.round(fraction * 100)}%</span>}
+            </div>
+        </div>
+    );
+}
+
 function BundleLoading() {
     const { buildHash } = Route.useParams();
 
@@ -104,7 +165,6 @@ function BundleLoading() {
             <Box
                 className="flex flex-col items-center gap-4 px-8 py-10"
                 role="status"
-                aria-live="polite"
             >
                 <LoaderCircle
                     className="size-10 animate-spin text-primary-400"
@@ -116,13 +176,7 @@ function BundleLoading() {
                 >
                     Loading build
                 </Text>
-                <Text
-                    size="sm"
-                    color="white-700"
-                    center
-                >
-                    Loading the full bundle. This can take a few seconds.
-                </Text>
+                <BundleLoadProgressBar />
                 <code
                     className="text-xs text-fg-700"
                     title={buildHash}

@@ -68,8 +68,16 @@ where
 		.dyn_into::<ArrayBuffer>()
 		.map_err(|_| BadCast::ArrayBuffer)?;
 	let zstd_raw_data = Uint8Array::new(&arr_buf).to_vec();
+	decode_struct(&zstd_raw_data)
+}
+
+/// Decodes zstd-compressed msgpack, as served by the bundle server.
+pub fn decode_struct<T>(zstd_raw_data: &[u8]) -> Result<T>
+where
+	T: DeserializeOwned,
+{
 	let mpk_raw_data =
-		zstd::Decoder::new(&*zstd_raw_data).map_err(Error::Zstd)?;
+		zstd::Decoder::new(zstd_raw_data).map_err(Error::Zstd)?;
 	let data =
 		rmp_serde::from_read(BufReader::with_capacity(BUF_SIZE, mpk_raw_data))?;
 	Ok(data)
