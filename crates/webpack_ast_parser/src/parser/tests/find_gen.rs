@@ -6,7 +6,7 @@ use std::{
 
 use oxc::{parser::Token, span::Span};
 
-use crate::{WebpackAstParser, parse};
+use crate::WebpackAstParser;
 
 #[derive(Copy, Clone)]
 struct FindDumper<'ast>(u32, Span, &'ast str);

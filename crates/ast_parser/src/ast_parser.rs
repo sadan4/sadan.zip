@@ -153,12 +153,15 @@ pub trait AstParser<'ast> {
 	/// a `cache::Ref<NodeLocationIndex>` and hand back a reference to it so the
 	/// span index is built at most once.
 	fn node_location_index(&self) -> &cache::Ref<NodeLocationIndex<'ast>>;
-	// /// node from id
-	fn n<'a>(&'a self, node_id: NodeId) -> &'a AstNode<'ast>
+	/// node from id
+	fn n<'a>(&'a self, node_id: NodeId) -> AstKind<'ast>
 	where
 		'ast: 'a,
 	{
-		self.sema().nodes().get_node(node_id)
+		self.sema()
+			.nodes()
+			.get_node(node_id)
+			.kind()
 	}
 	/// Parent of node
 	fn p(&self, node_id: NodeId) -> AstKind<'ast> {
@@ -170,6 +173,7 @@ pub trait AstParser<'ast> {
 
 	/// Parent of node, if it matches the predicate
 	/// TODO: add example
+	#[inline]
 	fn p_if<T, F: FnOnce(AstKind<'ast>) -> Option<T>>(
 		&self,
 		node_id: NodeId,
@@ -208,8 +212,9 @@ pub trait AstParser<'ast> {
 		'ast: 'a,
 	{
 		self.refs(sym_id)
-			.map(|node_id| self.n(node_id).kind())
+			.map(|node_id| self.n(node_id))
 	}
+	#[inline]
 	fn find_parent<'a, T>(
 		&'a self,
 		mut node_id: NodeId,
@@ -233,6 +238,7 @@ pub trait AstParser<'ast> {
 			node_id = parent_id;
 		}
 	}
+	#[inline]
 	fn find_parent_limited<'a, T>(
 		&'a self,
 		mut node_id: NodeId,
@@ -268,7 +274,7 @@ pub trait AstParser<'ast> {
 		node_id: NodeId,
 		pred: impl Fn(AstKind<'ast>) -> Option<T>,
 	) -> Option<T> {
-		let mut node = self.n(node_id).kind();
+		let mut node = self.n(node_id);
 		loop {
 			let parent = self.p(node.node_id());
 			if parent.node_id() == node.node_id() {
@@ -309,11 +315,7 @@ pub trait AstParser<'ast> {
 				.sema()
 				.scoping()
 				.symbol_declaration(last);
-			let Some(decl) = self
-				.n(decl_id)
-				.kind()
-				.as_variable_declarator()
-			else {
+			let Some(decl) = self.n(decl_id).as_variable_declarator() else {
 				break;
 			};
 			let Some(init) = &decl
@@ -367,7 +369,8 @@ pub trait ESModuleParser<'ast>: AstParser<'ast> {
 		debug_assert!(
 			self.import_statements()
 				.filter(pred)
-				.count() <= 1,
+				.count()
+				<= 1,
 			"Found multiple import statements with the same source"
 		);
 		// Imports can only be at the top level

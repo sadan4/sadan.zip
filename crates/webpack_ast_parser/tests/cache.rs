@@ -624,4 +624,24 @@ mod references {
 			"#);
 		}
 	}
+	
+	mod weird_usage {
+		use super::*;
+
+		#[cache_test(sub_dir = "weird_use")]
+		async fn handles_weird_use(b: &Bundle) {
+			let parser = b.parse(891600);
+			let locs = b.dbg_gen_refs(&parser, 8, 8).await.unwrap();
+			assert_debug_snapshot!(locs, @r#"
+			[
+			    ReferenceDumper {
+			        id: ModuleId(
+			            807081,
+			        ),
+			        range: "[9:30->9:44) reactParserFor",
+			    },
+			]
+			"#);
+		}
+	}
 }

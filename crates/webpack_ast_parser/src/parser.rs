@@ -67,6 +67,7 @@ use ast_parser::{
 		StatementExt,
 	},
 	parse_with_tokens,
+	sym_id::GetSymId,
 };
 use explorer_types::{
 	IncomingModuleDeps,
@@ -84,6 +85,8 @@ use oxc::{
 		ast::{
 			Argument,
 			ArrowFunctionExpression,
+			AssignmentExpression,
+			AssignmentTarget,
 			BindingIdentifier,
 			CallExpression,
 			Class,
@@ -111,7 +114,7 @@ use oxc::{
 		},
 	},
 	parser::{Kind as TK, Token},
-	semantic::{NodeId, ReferenceId, Semantic, SymbolId},
+	semantic::{NodeId, ReferenceFlags, ReferenceId, Semantic, SymbolId},
 	span::{GetSpan, SourceType, Span},
 };
 use parser_diag::{PResult, ParserDiagnostic, err, err_ns};
@@ -339,12 +342,51 @@ impl<'ast> WebpackAstParser<'ast> {
 						}
 					}
 				}
-				// `wreq(m_id).foo.bar` - used inline
 				AstKind::StaticMemberExpression(access) => {
-					if let Some(span) =
-						self.match_outer_access_chain(access, export_names)
-					{
+					// `wreq(m_id).foo.bar` - used inline
+					let (outermost_matching_node, (_matched, remaining)) =
+						self.match_remaining_access_chain(access, export_names);
+					if remaining.is_empty() {
+						let n = outermost_matching_node.unwrap();
+						let span = n.property.span();
 						uses.push(span);
+					} else {
+						// todo (i = wreq(m_id).foo).bar
+						let _: Option<()> = try {
+							let node = outermost_matching_node?;
+							let assign = self
+								.p(node.node_id())
+								.as_assignment_expression()?;
+							let target = if let AssignmentTarget::AssignmentTargetIdentifier(target) = &assign.left {
+								Some(target.as_ref())
+							} else {
+								None
+							}?;
+							if self.is_write_once(target) {
+								// this should never panic because `is_write_once` should only return true if the target is a symbol
+								let sym_id = self.sym_id_of(target).unwrap();
+								self.collect_wreq_uses_via_alias(
+									sym_id, remaining, &mut uses,
+								);
+
+								if let Some(assign_per) = self
+									.p(assign.node_id())
+									.as_parenthesized_expression()
+									&& let Some(inner_access) = self.p_if(
+										assign_per.node_id(),
+										AstKind::as_static_member_expression,
+									)
+									&& let Some(span) = self
+										.match_outer_access_chain(
+											inner_access,
+											remaining,
+										) {
+									uses.push(span);
+								}
+							} else {
+								warn!("not write once??");
+							}
+						};
 					}
 				}
 				_ => {}
@@ -370,7 +412,7 @@ impl<'ast> WebpackAstParser<'ast> {
 					.s(e)
 				})?;
 				let module_exports = self.get_export_map();
-				let where_ = self
+				let dependents = self
 					.get_modules_that_require_this_module()
 					.await?;
 				let mut locs = Vec::new();
@@ -391,7 +433,7 @@ impl<'ast> WebpackAstParser<'ast> {
 						export_name.pop();
 					}
 
-					let mut left = where_
+					let mut left = dependents
 						.sync
 						.iter()
 						.map(|x| {
@@ -859,6 +901,68 @@ impl<'ast> WebpackAstParser<'ast> {
 /// Private API
 #[expect(clippy::multiple_inherent_impl)]
 impl<'ast> WebpackAstParser<'ast> {
+	/// returns true if `node` is only written to at most once
+	/// ## true
+	/// ```js
+	/// const x = 1;
+	/// ```
+	/// ```js
+	/// let x;
+	/// x = 1;
+	/// ```
+	/// ```js
+	/// var x;
+	/// x = 1;
+	/// ```
+	/// ```js
+	/// let x;
+	/// ```
+	/// ## false
+	/// ```js
+	/// let x;
+	/// x = 1;
+	/// x = 2;
+	/// ```
+	/// ```js
+	/// function x() {
+	///     return 1;
+	/// }
+	/// function x() {
+	///     return 2;
+	/// }
+	/// ```
+	/// ```js
+	/// var x = 1;
+	/// x = 2;
+	/// ```
+	fn is_write_once<ID: GetSymId>(&self, node: &ID) -> bool {
+		let ret: bool = try {
+			let sym_id = node.get_sym_id(self.sema())?;
+			let decl = self
+				.sema()
+				.scoping()
+				.symbol_declaration(sym_id);
+			let declarator = self.n(decl).as_variable_declarator()?;
+			let decl = self.p(decl).as_variable_declaration()?;
+			if decl.kind.is_const() {
+				return true;
+			}
+			// the initializer is not a reference, so count it here
+			let mut found = declarator.init.is_some();
+			for usage in self.sema.symbol_references(sym_id) {
+				if usage.flags() & ReferenceFlags::Write != ReferenceFlags::None
+				{
+					if found {
+						return false;
+					}
+					found = true;
+				}
+			}
+			true
+		}
+		.unwrap_or_default();
+		ret
+	}
 	/// there are three options for a lazy require call
 	/// `node` is the `n.bind(n, module_id)` part of the call
 	/// ```js
@@ -889,7 +993,8 @@ impl<'ast> WebpackAstParser<'ast> {
 			let c_then_obj = c_then.object.as_call_expression()?;
 			if self
 				.is_lazy_chunk_require(c_then_obj)
-				.is_some() || self.is_promise_resolve(c_then_obj)
+				.is_some()
+				|| self.is_promise_resolve(c_then_obj)
 			{
 				return true;
 			}
@@ -1027,19 +1132,18 @@ impl<'ast> WebpackAstParser<'ast> {
 					return None;
 				}
 				// the receiver of `bind` is either `wreq` or `wreq.t`
-				let wreq_use = if let Some(ident) =
-					wreq_bind.object.as_identifier()
-				{
-					ident
-				} else {
-					let wreq_t = wreq_bind
-						.object
-						.as_static_member_expression()?;
-					if wreq_t.property.name != "t" {
-						return None;
-					}
-					wreq_t.object.as_identifier()?
-				};
+				let wreq_use =
+					if let Some(ident) = wreq_bind.object.as_identifier() {
+						ident
+					} else {
+						let wreq_t = wreq_bind
+							.object
+							.as_static_member_expression()?;
+						if wreq_t.property.name != "t" {
+							return None;
+						}
+						wreq_t.object.as_identifier()?
+					};
 				if !self.cmp_sym(wreq_use, &wreq) {
 					return None;
 				}
@@ -1286,7 +1390,6 @@ impl<'ast> WebpackAstParser<'ast> {
 				.scoping()
 				.get_reference(*ref_id)
 				.node_id())
-			.kind()
 			.as_identifier_reference()
 			.unwrap();
 		let call = self
@@ -1352,6 +1455,24 @@ impl<'ast> WebpackAstParser<'ast> {
 		}
 	}
 
+	fn collect_wreq_uses_via_alias(
+		&self,
+		alias: SymbolId,
+		export_names: &[ExportMapKey],
+		uses: &mut Vec<Span>,
+	) {
+		for usage in self.refs(alias) {
+			if let Some(access) = self
+				.p(usage)
+				.as_static_member_expression()
+				&& let Some(span) =
+					self.match_outer_access_chain(access, export_names)
+			{
+				uses.push(span);
+			}
+		}
+	}
+
 	/// Walks outward through any chained static member accesses starting at
 	/// `inner_access`, then matches the resulting chain against `export_names`,
 	/// returning the span of the final matching segment.
@@ -1369,6 +1490,82 @@ impl<'ast> WebpackAstParser<'ast> {
 			.unwrap();
 		let chain = flatten_property_access_expression(outer);
 		match_export_chain(&chain, export_names).map(GetSpan::span)
+	}
+
+	/// Like [`Self::match_outer_access_chain`], but instead of requiring the
+	/// whole of `export_names` to be matched, returns how far the match got.
+	///
+	/// Walks outward through any chained static member accesses starting at
+	/// `innermost_access`, then matches the longest prefix of `export_names`
+	/// against the resulting chain. Returns `(matched, remaining)`, where
+	/// `matched` is that prefix and `remaining` is the rest of
+	/// `export_names`.
+	///
+	/// This is used to follow an import through an intermediate value, eg:
+	/// ```js
+	/// let a = (i = wreq(123).A).foo, b = i.bar;
+	/// ```
+	/// with `export_names = ["A", "bar"]`, the chain `wreq(123).A` matches
+	/// `["A"]`, leaving `["bar"]` to be matched against uses of `i`.
+	///
+	/// - The chain may be longer than `export_names`; extra accesses are
+	///   ignored, and `remaining` is empty.
+	/// - Matching stops at the first mismatching name; any later names are
+	///   left in `remaining` even if they would match.
+	fn match_remaining_access_chain<'a>(
+		&self,
+		innermost_access: &'ast StaticMemberExpression<'ast>,
+		export_names: &'a [ExportMapKey],
+	) -> (
+		Option<&'ast StaticMemberExpression<'ast>>,
+		(&'a [ExportMapKey], &'a [ExportMapKey]),
+	) {
+		debug_assert_ne!(
+			export_names.len(),
+			0,
+			"doesn't make sense for export names to be empty"
+		);
+		// innermost_access itself satisfies the predicate, so last_parent never
+		// returns None
+		let outer = self
+			.last_parent(
+				innermost_access.node_id(),
+				AstKind::as_static_member_expression,
+			)
+			.unwrap();
+		let (_, chain) = flatten_property_access_expression(outer);
+
+		let mut cur = None;
+		let matched = export_names
+			.iter()
+			.zip(chain)
+			.take_while(|(export_name, chain_part)| {
+				let Ok(chain_part) = chain_part.try_unwrap_static() else {
+					return false;
+				};
+				match export_name {
+					ExportMapKey::Named(name) => {
+						let ret = chain_part.name == name.as_str();
+						if ret {
+							// the unwrap should never panic because we ensure
+							// chain_part is MemberExprAccessKind::Static above
+							cur = Some(
+								self.p_if(
+									chain_part.node_id(),
+									AstKind::as_static_member_expression,
+								)
+								.unwrap(),
+							);
+						}
+						ret
+					}
+					ExportMapKey::Default => {
+						panic!("TODO: handle default export")
+					}
+				}
+			})
+			.count();
+		(cur, export_names.split_at(matched))
 	}
 
 	fn does_re_export_from_export(
@@ -2193,12 +2390,18 @@ impl<'ast> WebpackAstParser<'ast> {
 			!matches!(
 				seq[0].kind(),
 				TK::Dot
-					| TK::Comma | TK::Colon
-					| TK::Eq | TK::Eq2
-					| TK::Eq3 | TK::Amp2
-					| TK::LParen | TK::RParen
-					| TK::Pipe2 | TK::Semicolon
-					| TK::Question | TK::Extends
+					| TK::Comma
+					| TK::Colon
+					| TK::Eq
+					| TK::Eq2
+					| TK::Eq3
+					| TK::Amp2
+					| TK::LParen
+					| TK::RParen
+					| TK::Pipe2
+					| TK::Semicolon
+					| TK::Question
+					| TK::Extends
 					| TK::Let
 			)
 		} else {
@@ -2848,7 +3051,7 @@ impl<'ast> WebpackAstParser<'ast> {
 				.sema
 				.scoping()
 				.symbol_declaration(last_sym_id);
-			let last_node = *self.n(last_node_id);
+			let last_node = self.n(last_node_id);
 			return self.raw_make_export_map_recursive(last_node);
 		};
 		RawExportRange::from_node(node).into()
@@ -2927,7 +3130,8 @@ impl<'ast> WebpackAstParser<'ast> {
 			.as_ref()
 			.unwrap()
 			.statements
-			.len() == 1
+			.len()
+			== 1
 			&& let Some(ident) =
 				find_return_identifier(Functionish::Named(func))
 		{
@@ -2973,10 +3177,7 @@ impl<'ast> WebpackAstParser<'ast> {
 			.sema
 			.scoping()
 			.symbol_declaration(store_sym_id);
-		let store_decl = self
-			.n(store_decl_id)
-			.kind()
-			.as_class()?;
+		let store_decl = self.n(store_decl_id).as_class()?;
 		let does_extend = store_decl.heritage.is_some();
 		if !does_extend {
 			debug!("Maybe store does not extend any class.");
