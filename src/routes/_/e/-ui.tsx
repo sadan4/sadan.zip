@@ -1,17 +1,15 @@
 import { Boilerplate } from "@/components/Boilerplate";
 import { Box } from "@/components/layout/Box";
-import { HorizontalLine } from "@/components/Lines";
-import { TextLink } from "@/components/Links";
+import { ScrollArea } from "@/components/layout/ScrollArea";
+import { Link } from "@/components/Links";
 import { Text } from "@/components/Text";
-import { Tooltip } from "@/components/Tooltip";
-import { EM_DASH } from "@/utils/constants";
 import type { TBundleHash } from "@/utils/types";
 import { useQuery } from "@tanstack/react-query";
 
 import type { GetBuildsFn, Meta } from "./-worker";
 
 import * as comlink from "comlink";
-import { ExternalLinkIcon } from "lucide-react";
+import { ArrowRight, Clock3, Hash } from "lucide-react";
 import prodWorkerUrl from "omt:./-worker";
 import { useMemo } from "react";
 
@@ -61,50 +59,58 @@ async function getBuilds() {
     return ret;
 }
 
-const SEPARATOR = (
-    <Text
-        tag="span"
-    >
-        {" | "}
-    </Text>
-);
-
 function BundleItem({ bundleMeta }: BundleItemProps) {
     return (
-        <li className="flex justify-between">
-            <div>
-                <Text tag="span">
-                    Build Number {EM_DASH} {bundleMeta.build_number}
-                </Text>
-                {SEPARATOR}
-                <Tooltip
-                    text={bundleMeta.build_hash}
-                >
-                    <Text
-                        tag="span"
-                        className="underline decoration-dashed underline-offset-2"
-                    >
-                        Build Hash
-                    </Text>
-                </Tooltip>
-                {SEPARATOR}
-                <Text tag="span">
-                    First Seen {EM_DASH} {new Date(Number(bundleMeta.first_seen)).toLocaleString()}
-                </Text>
-            </div>
-            <div>
-                <TextLink
-                    to="/e/view/{-$buildHash}/{-$moduleId}"
-                    params={{
-                        buildHash: bundleMeta.build_hash as TBundleHash,
-                        moduleId: null,
-                    }}
-                    color="primary"
-                    preload={false}
-                >
-                    Open Bundle <ExternalLinkIcon className="inline" />
-                </TextLink>
-            </div>
+        <li>
+            <Link
+                to="/e/view/{-$buildHash}/{-$moduleId}"
+                params={{
+                    buildHash: bundleMeta.build_hash as TBundleHash,
+                    moduleId: null,
+                }}
+                preload={false}
+                aria-label={`Open build ${bundleMeta.build_number}`}
+                className="group flex items-center gap-4 rounded-md border border-fg-700/60 bg-bg-200 px-4 py-3 transition-colors hover:border-primary-400/70 hover:bg-bg-300 focus-visible:border-primary-400 focus-visible:bg-bg-300"
+            >
+                <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-3">
+                        <Text
+                            tag="span"
+                            size="md"
+                            weight="semiBold"
+                            color="primary"
+                        >
+                            Build {bundleMeta.build_number}
+                        </Text>
+                        <span
+                            className="flex items-center gap-1 text-xs text-fg-700"
+                            title={bundleMeta.build_hash}
+                        >
+                            <Hash
+                                className="size-3 shrink-0"
+                                aria-hidden="true"
+                            />
+                            <code>{bundleMeta.build_hash.slice(0, 9)}</code>
+                        </span>
+                    </div>
+                    <div className="mt-1.5">
+                        <span className="flex min-w-0 items-center gap-1 text-xs text-fg-700">
+                            <Clock3
+                                className="size-3 shrink-0"
+                                aria-hidden="true"
+                            />
+                            <span>{new Date(Number(bundleMeta.first_seen)).toLocaleString()}</span>
+                        </span>
+                    </div>
+                </div>
+                <span className="flex shrink-0 items-center gap-1 text-sm text-primary-400">
+                    <span className="hidden sm:inline">Open</span>
+                    <ArrowRight
+                        className="size-4 transition-transform group-hover:translate-x-0.5"
+                        aria-hidden="true"
+                    />
+                </span>
+            </Link>
         </li>
     );
 }
@@ -130,22 +136,32 @@ export function BundleSelector() {
     return (
         <>
             <Boilerplate />
-            <div className="flex justify-center pt-4">
-                <Box className="min-w-1/2">
-                    <Text
-                        size="xl"
-                        center
-                    >
-                        Select a build
-                    </Text>
-                    <HorizontalLine
-                        color="white-700"
-                    />
+            <div className="mx-auto w-full max-w-6xl px-4 pt-8">
+                <Box className="p-4 sm:p-6">
+                    <div className="flex flex-wrap items-end justify-between gap-3">
+                        <div>
+                            <Text
+                                size="xl"
+                                weight="semiBold"
+                            >
+                                Choose a build
+                            </Text>
+                        </div>
+                        {status === "success" && (
+                            <Text
+                                size="sm"
+                                color="white-700"
+                            >
+                                {sortedBundles!.length} available
+                            </Text>
+                        )}
+                    </div>
                     {status === "pending" && (
                         <Text
                             size="lg"
                             color="accent"
                             center
+                            className="py-10"
                         >
                             Loading...
                         </Text>
@@ -155,32 +171,35 @@ export function BundleSelector() {
                             size="lg"
                             color="error"
                             center
+                            className="py-10"
                         >
                             An error occurred while loading the bundles.
                         </Text>
                     )}
                     {status === "success" && (
-                        <ul>
-                            {sortedBundles!.length === 0 && (
-                                <Text
-                                    color="error"
-                                    size="lg"
-                                    center
-                                >
-                                    No Bundles Available.
-                                    <p />
-                                    This is an error. Please report this.
-                                </Text>
-                            )}
-                            {sortedBundles!.map((bundleMeta) => {
-                                return (
-                                    <BundleItem
-                                        key={bundleMeta.build_hash}
-                                        bundleMeta={bundleMeta}
-                                    />
-                                );
-                            })}
-                        </ul>
+                        <ScrollArea className="mt-4 max-h-[calc(100dvh-11.25rem)]">
+                            <ul className="space-y-2">
+                                {sortedBundles!.length === 0 && (
+                                    <Text
+                                        color="error"
+                                        size="lg"
+                                        center
+                                    >
+                                        No Bundles Available.
+                                        <p />
+                                        This is an error. Please report this.
+                                    </Text>
+                                )}
+                                {sortedBundles!.map((bundleMeta) => {
+                                    return (
+                                        <BundleItem
+                                            key={bundleMeta.build_hash}
+                                            bundleMeta={bundleMeta}
+                                        />
+                                    );
+                                })}
+                            </ul>
+                        </ScrollArea>
                     )}
                 </Box>
             </div>

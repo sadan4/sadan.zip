@@ -23,6 +23,7 @@ function ModuleListItem({ moduleId, onSelectModule }: ModuleListItemProps) {
     return (
         <Clickable
             tag="li"
+            className="px-2"
             onClick={() => {
                 onSelectModule(moduleId);
             }}
@@ -130,7 +131,7 @@ export function ModuleList() {
                     tooltipPosition={TooltipPosition.RIGHT}
                     colorType="outline"
                 >
-                    <ArrowBigRight />
+                    <ArrowBigRight className="size-5" />
                 </IconButton>
             </div>
             <div className="min-h-0 grow">
