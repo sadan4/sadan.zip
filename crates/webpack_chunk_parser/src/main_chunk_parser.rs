@@ -211,8 +211,9 @@ impl<'ast> WebpackMainChunkParser<'ast> {
 					.sema
 					.scoping()
 					.symbol_declaration(sym_id);
-				let decl_parent = self.n(decl_id).kind();
-				let decl_parent = decl_parent.as_variable_declarator()?;
+				let decl_parent = self
+					.n(decl_id)
+					.as_variable_declarator()?;
 				let init = decl_parent.init.as_ref()?;
 				let init = init.as_object_expression()?;
 				let Some(cur_decl) = cur else {

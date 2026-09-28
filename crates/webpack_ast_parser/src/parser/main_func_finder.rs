@@ -16,7 +16,6 @@ pub fn find<'ast>(
 	finder.visit_program(parser.prog);
 	let ret = parser
 		.n(finder.ret_val?)
-		.kind()
 		.as_function()
 		.unwrap();
 	Some(ret)
