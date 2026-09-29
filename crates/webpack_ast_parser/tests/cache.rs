@@ -408,6 +408,25 @@ mod definitions {
 			]
 			"#);
 		}
+
+		#[cache_test(sub_dir = "import_separate_decl_assign")]
+		async fn wreq_assigned_after_decl(b: &Bundle) {
+			let parser = b.parse(735547);
+			let defs = b
+				.dbg_defs(&parser, 9, 14)
+				.await
+				.unwrap();
+			assert_debug_snapshot!(defs, @r#"
+			[
+			    DefinitionDumper {
+			        id: ModuleId(
+			            558213,
+			        ),
+			        range: "[8:12->8:19) 1209600",
+			    },
+			]
+			"#);
+		}
 		mod enums {
 			use super::*;
 

@@ -85,7 +85,6 @@ use oxc::{
 		ast::{
 			Argument,
 			ArrowFunctionExpression,
-			AssignmentExpression,
 			AssignmentTarget,
 			BindingIdentifier,
 			CallExpression,
@@ -1779,14 +1778,8 @@ impl<'ast> WebpackAstParser<'ast> {
 	/// given the symbol id of `mod`, this function would return `Some(ModuleId(123))`
 	// FIXME: make PResult?
 	fn get_module_id_for_import(&self, sym_id: SymbolId) -> Option<SpannedId> {
-		let decl = self
-			.sema
-			.symbol_declaration(sym_id)
-			.kind()
-			.as_variable_declarator()?;
-		let init = decl
-			.init
-			.as_ref()?
+		let init = self
+			.sole_value_of(sym_id)?
 			.as_call_expression()?;
 		// make sure init is a call to wreq
 		if !self.cmp_sym(init.callee.as_identifier()?, &self.wreq().ok()?) {
@@ -2223,32 +2216,46 @@ impl<'ast> WebpackAstParser<'ast> {
 	}
 	/// TODO: document
 	fn is_constant_string(&self, sym_id: SymbolId) -> Option<Str<'ast>> {
+		self.sole_value_of(sym_id)?
+			.as_string_literal()
+			.map(|l| l.value)
+	}
+	/// The only value `sym_id` is ever set to
+	/// ```js
+	/// let x = value;
+	/// ```
+	/// ```js
+	/// let x;
+	/// x = value;
+	/// ```
+	fn sole_value_of(
+		&self,
+		sym_id: SymbolId,
+	) -> Option<&'ast Expression<'ast>> {
 		let decl = self
 			.sema
 			.symbol_declaration(sym_id)
 			.kind()
 			.as_variable_declarator()?;
 		if let Some(init) = decl.init.as_ref() {
-			return init
-				.as_string_literal()
-				.map(|l| l.value);
+			return Some(init);
 		}
-		let mut ret = None;
-		for reference in self.sema.symbol_references(sym_id) {
-			if !reference.is_write() {
-				continue;
-			}
-			// if we're written to more than once, we are not constant
-			if ret.is_some() {
-				return None;
-			}
-			ret = self
-				.p(reference.node_id())
-				.as_assignment_expression()
-				.and_then(|assign| assign.right.as_string_literal())
-				.map(|s| s.value);
+		let mut writes = self
+			.sema
+			.symbol_references(sym_id)
+			.filter(|reference| reference.is_write());
+		let write = writes.next()?;
+		// if we're written to more than once, we don't have a single value
+		if writes.next().is_some() {
+			return None;
 		}
-		ret
+		let assign = self
+			.p(write.node_id())
+			.as_assignment_expression()?;
+		assign
+			.operator
+			.is_assign()
+			.then_some(&assign.right)
 	}
 	fn is_display_name_prop_key(&self, sym_id: SymbolId) -> bool {
 		self.is_constant_string(sym_id)
