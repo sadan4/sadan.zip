@@ -97,6 +97,7 @@ use oxc::{
 			ExpressionStatement,
 			Function,
 			FunctionBody,
+			IdentifierName,
 			IdentifierReference,
 			LogicalOperator,
 			MethodDefinition,
@@ -290,113 +291,10 @@ impl<'ast> WebpackAstParser<'ast> {
 		m_id: ModuleId,
 		export_names: &[ExportMapKey],
 	) -> Vec<Span> {
-		let Ok(wreq) = self.wreq() else {
-			return Vec::new();
-		};
-
-		let mut uses = Vec::new();
-
-		for wreq_ref in self.refs(wreq) {
-			let Some(require_call) =
-				self.match_wreq_require_call(wreq_ref, m_id)
-			else {
-				continue;
-			};
-
-			match self.p(require_call.node_id()) {
-				// `var foo = wreq(m_id);` - chase uses of `foo`
-				AstKind::VariableDeclarator(decl) => {
-					let Some(name) = decl.id.as_binding_identifier() else {
-						continue;
-					};
-					let binding_refs = self
-						.sema
-						.scoping()
-						.get_resolved_reference_ids(name.symbol_id());
-
-					// `var foo = wreq(m), bar = wreq.n(foo);`
-					// also chase uses through `bar`
-					if let Some(n_alias) =
-						self.try_resolve_wreq_n_alias(binding_refs, wreq)
-					{
-						self.collect_uses_via_wreq_n_alias(
-							n_alias,
-							export_names,
-							&mut uses,
-						);
-					}
-
-					for ref_id in binding_refs {
-						let ref_node = self
-							.sema
-							.scoping()
-							.get_reference(*ref_id)
-							.node_id();
-						let Some(access) = self
-							.p(ref_node)
-							.as_static_member_expression()
-						else {
-							continue;
-						};
-						if let Some(span) =
-							self.match_outer_access_chain(access, export_names)
-						{
-							uses.push(span);
-						}
-					}
-				}
-				AstKind::StaticMemberExpression(access) => {
-					// `wreq(m_id).foo.bar` - used inline
-					let (outermost_matching_node, (_matched, remaining)) =
-						self.match_remaining_access_chain(access, export_names);
-					if remaining.is_empty() {
-						let n = outermost_matching_node.unwrap();
-						let span = n.property.span();
-						uses.push(span);
-					} else {
-						// todo (i = wreq(m_id).foo).bar
-						let _: Option<()> = try {
-							let node = outermost_matching_node?;
-							let assign = self
-								.p(node.node_id())
-								.as_assignment_expression()?;
-							let target = if let AssignmentTarget::AssignmentTargetIdentifier(target) = &assign.left {
-								Some(target.as_ref())
-							} else {
-								None
-							}?;
-							if self.is_write_once(target) {
-								// this should never panic because `is_write_once` should only return true if the target is a symbol
-								let sym_id = self.sym_id_of(target).unwrap();
-								self.collect_wreq_uses_via_alias(
-									sym_id, remaining, &mut uses,
-								);
-
-								if let Some(assign_per) = self
-									.p(assign.node_id())
-									.as_parenthesized_expression()
-									&& let Some(inner_access) = self.p_if(
-										assign_per.node_id(),
-										AstKind::as_static_member_expression,
-									)
-									&& let Some(span) = self
-										.match_outer_access_chain(
-											inner_access,
-											remaining,
-										) {
-									uses.push(span);
-								}
-							} else {
-								warn!("not write once??");
-							}
-						};
-					}
-				}
-				_ => {}
-			}
-		}
-
-		uses
+		self.get_raw_uses_of_import(m_id, export_names)
+			.into_iter()
+			.map(|n| n.span())
+			.collect()
 	}
 	// TODO: use custom error codes with thiserror
 	// TODO: split to make smaller
@@ -946,6 +844,117 @@ impl<'ast> WebpackAstParser<'ast> {
 /// Private API
 #[expect(clippy::multiple_inherent_impl)]
 impl<'ast> WebpackAstParser<'ast> {
+	fn get_raw_uses_of_import(
+		&self,
+		m_id: ModuleId,
+		export_names: &[ExportMapKey],
+	) -> Vec<AstKind<'ast>> {
+		let Ok(wreq) = self.wreq() else {
+			return Vec::new();
+		};
+
+		let mut uses = Vec::new();
+
+		for wreq_ref in self.refs(wreq) {
+			let Some(require_call) =
+				self.match_wreq_require_call(wreq_ref, m_id)
+			else {
+				continue;
+			};
+
+			match self.p(require_call.node_id()) {
+				// `var foo = wreq(m_id);` - chase uses of `foo`
+				AstKind::VariableDeclarator(decl) => {
+					let Some(name) = decl.id.as_binding_identifier() else {
+						continue;
+					};
+					let binding_refs = self
+						.sema
+						.scoping()
+						.get_resolved_reference_ids(name.symbol_id());
+
+					// `var foo = wreq(m), bar = wreq.n(foo);`
+					// also chase uses through `bar`
+					if let Some(n_alias) =
+						self.try_resolve_wreq_n_alias(binding_refs, wreq)
+					{
+						self.collect_uses_via_wreq_n_alias(
+							n_alias,
+							export_names,
+							&mut uses,
+						);
+					}
+
+					for ref_id in binding_refs {
+						let ref_node = self
+							.sema
+							.scoping()
+							.get_reference(*ref_id)
+							.node_id();
+						let Some(access) = self
+							.p(ref_node)
+							.as_static_member_expression()
+						else {
+							continue;
+						};
+						if let Some(node) =
+							self.match_outer_access_chain(access, export_names)
+						{
+							uses.push(node.into_ast_kind());
+						}
+					}
+				}
+				AstKind::StaticMemberExpression(access) => {
+					// `wreq(m_id).foo.bar` - used inline
+					let (outermost_matching_node, (_matched, remaining)) =
+						self.match_remaining_access_chain(access, export_names);
+					if remaining.is_empty() {
+						let n = outermost_matching_node.unwrap();
+						uses.push(n.into_ast_kind());
+					} else {
+						// todo (i = wreq(m_id).foo).bar
+						let _: Option<()> = try {
+							let node = outermost_matching_node?;
+							let assign = self
+								.p(node.node_id())
+								.as_assignment_expression()?;
+							let target = if let AssignmentTarget::AssignmentTargetIdentifier(target) = &assign.left {
+								Some(target.as_ref())
+							} else {
+								None
+							}?;
+							if self.is_write_once(target) {
+								// this should never panic because `is_write_once` should only return true if the target is a symbol
+								let sym_id = self.sym_id_of(target).unwrap();
+								self.collect_wreq_uses_via_alias(
+									sym_id, remaining, &mut uses,
+								);
+
+								if let Some(assign_per) = self
+									.p(assign.node_id())
+									.as_parenthesized_expression()
+									&& let Some(inner_access) = self.p_if(
+										assign_per.node_id(),
+										AstKind::as_static_member_expression,
+									) && let Some(span) = self
+									.match_outer_access_chain(
+										inner_access,
+										remaining,
+									) {
+									uses.push(span.into_ast_kind());
+								}
+							} else {
+								warn!("not write once??");
+							}
+						};
+					}
+				}
+				_ => {}
+			}
+		}
+
+		uses
+	}
 	/// returns true if `node` is only written to at most once
 	/// ## true
 	/// ```js
@@ -1038,8 +1047,7 @@ impl<'ast> WebpackAstParser<'ast> {
 			let c_then_obj = c_then.object.as_call_expression()?;
 			if self
 				.is_lazy_chunk_require(c_then_obj)
-				.is_some()
-				|| self.is_promise_resolve(c_then_obj)
+				.is_some() || self.is_promise_resolve(c_then_obj)
 			{
 				return true;
 			}
@@ -1473,7 +1481,7 @@ impl<'ast> WebpackAstParser<'ast> {
 		&self,
 		alias: SymbolId,
 		export_names: &[ExportMapKey],
-		uses: &mut Vec<Span>,
+		uses: &mut Vec<AstKind<'ast>>,
 	) {
 		let want_default = export_names.first() == Some(&ExportMapKey::Default);
 		for usage in self.refs(alias) {
@@ -1487,7 +1495,7 @@ impl<'ast> WebpackAstParser<'ast> {
 					.as_call_expression()
 					.is_some()
 				{
-					uses.push(call.span());
+					uses.push(call.into_ast_kind());
 				}
 			} else if let Some(access) = self
 				.p(call.node_id())
@@ -1495,7 +1503,7 @@ impl<'ast> WebpackAstParser<'ast> {
 				&& let Some(span) =
 					self.match_outer_access_chain(access, export_names)
 			{
-				uses.push(span);
+				uses.push(span.into_ast_kind());
 			}
 		}
 	}
@@ -1504,7 +1512,7 @@ impl<'ast> WebpackAstParser<'ast> {
 		&self,
 		alias: SymbolId,
 		export_names: &[ExportMapKey],
-		uses: &mut Vec<Span>,
+		uses: &mut Vec<AstKind<'ast>>,
 	) {
 		for usage in self.refs(alias) {
 			if let Some(access) = self
@@ -1513,7 +1521,7 @@ impl<'ast> WebpackAstParser<'ast> {
 				&& let Some(span) =
 					self.match_outer_access_chain(access, export_names)
 			{
-				uses.push(span);
+				uses.push(span.into_ast_kind());
 			}
 		}
 	}
@@ -1525,7 +1533,7 @@ impl<'ast> WebpackAstParser<'ast> {
 		&self,
 		inner_access: &'ast StaticMemberExpression<'ast>,
 		export_names: &[ExportMapKey],
-	) -> Option<Span> {
+	) -> Option<&'ast IdentifierName<'ast>> {
 		// inner_access itself satisfies the predicate, so last_parent never returns None
 		let outer = self
 			.last_parent(
@@ -1534,7 +1542,7 @@ impl<'ast> WebpackAstParser<'ast> {
 			)
 			.unwrap();
 		let chain = flatten_property_access_expression(outer);
-		match_export_chain(&chain, export_names).map(GetSpan::span)
+		match_export_chain(&chain, export_names)
 	}
 
 	/// Like [`Self::match_outer_access_chain`], but instead of requiring the
