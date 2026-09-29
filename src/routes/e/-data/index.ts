@@ -70,14 +70,29 @@ export const useModuleViewerStore = create<ModuleViewerStore>((set, get) => ({
 
             const { setProgress } = useBundleLoadStore.getState();
 
+            // the user may navigate to a different build while this one is still loading
+            function isCurrent() {
+                return get().buildHash === newBuildHash;
+            }
+
             setProgress(null);
 
             let _buildService: RemoteBuildService;
 
             try {
-                _buildService = await getBuildService(newBuildHash, setProgress);
+                _buildService = await getBuildService(newBuildHash, (progress) => {
+                    if (isCurrent()) {
+                        setProgress(progress);
+                    }
+                });
             } finally {
-                setProgress(null);
+                if (isCurrent()) {
+                    setProgress(null);
+                }
+            }
+
+            if (!isCurrent()) {
+                return;
             }
 
             set({
