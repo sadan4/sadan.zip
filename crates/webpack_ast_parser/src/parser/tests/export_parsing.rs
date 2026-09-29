@@ -1210,7 +1210,7 @@ mod stores {
 		            "[35:12->35:31) \\\"47835198259242069\\\"",
 		        ],
 		    ),
-		    "default": "UserStore"(
+		    "default": UserStore(
 		        {
 		            "LATEST_SNAPSHOT_VERSION": 1(
 		                [
@@ -1284,7 +1284,7 @@ mod stores {
 		let map = p.dbg_export_map();
 		assert_debug_snapshot!(map, @r#"
 		{
-		    "A": "ThemeStore"(
+		    "A": ThemeStore(
 		        {
 		            "displayName": "ThemeStore"(
 		                [

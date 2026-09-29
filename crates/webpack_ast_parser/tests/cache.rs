@@ -610,7 +610,7 @@ mod hover_text {
 			.unwrap();
 		assert_debug_snapshot!(hov, @r#"
 		(
-		    "\"AuthenticationStore\"",
+		    "AuthenticationStore",
 		    "[6:14->6:40) getInstallationForTracking",
 		)
 		"#);

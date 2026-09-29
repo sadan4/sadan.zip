@@ -3206,7 +3206,15 @@ impl<'ast> WebpackAstParser<'ast> {
 						"Store has displayName prop but could not resolve display name. This should not happen"
 					);
 				}
-				ret.hover = name.clone();
+				ret.hover = name.as_deref().map(|name| {
+					// NOTE: this is a cheap hack to remove quotes from the string
+					// this assumes that displayName is always ascii and never has any escapes
+					// we *could* use serde_json to parse name as a string in other cases
+					SmolStr::from(
+						name.trim_start_matches('"')
+							.trim_end_matches('"'),
+					)
+				});
 			} else {
 				warn!(
 					"Store displayName prop is not a range. This should not happen."
