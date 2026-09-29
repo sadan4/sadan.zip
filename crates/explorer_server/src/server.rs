@@ -28,7 +28,7 @@ use explorer_types::{
 	TimestampQueryResults,
 };
 use git_hash::GIT_HASH;
-use http::{StatusCode, header};
+use http::{HeaderValue, StatusCode, header};
 use sevenz_rust2::{
 	ArchiveEntry,
 	ArchiveWriter,
@@ -49,16 +49,27 @@ use tracing::{info, instrument, warn};
 type Result<T = Response> = std::result::Result<T, AppError>;
 
 const ZSTD_MIME_TYPE: &str = "application/zstd";
-const ZSTD_HEADERS: [(header::HeaderName, &str); 1] =
-	[(header::CONTENT_TYPE, ZSTD_MIME_TYPE)];
 const MSGPACK_MIME_TYPE: &str = "application/vnd.msgpack";
-const MSGPACK_HEADERS: [(header::HeaderName, &str); 1] =
-	[(header::CONTENT_TYPE, MSGPACK_MIME_TYPE)];
 const SEVENZ_MIME_TYPE: &str = "application/x-7z-compressed";
-const SEVENZ_HEADERS: [(header::HeaderName, &str); 1] =
-	[(header::CONTENT_TYPE, SEVENZ_MIME_TYPE)];
 
 const MB: usize = 1024 * 1024;
+
+/// Headers for a response of `mime` type with a body of `len` bytes
+fn content_headers(
+	mime: &'static str,
+	len: impl Into<HeaderValue>,
+) -> [(header::HeaderName, HeaderValue); 2] {
+	[
+		(header::CONTENT_TYPE, HeaderValue::from_static(mime)),
+		(header::CONTENT_LENGTH, len.into()),
+	]
+}
+
+/// Builds a response of `mime` type with an in-memory body
+fn sized_response(mime: &'static str, body: impl Into<Bytes>) -> Response {
+	let body: Bytes = body.into();
+	(content_headers(mime, body.len()), Body::from(body)).into_response()
+}
 
 struct AppError(anyhow::Error);
 
@@ -104,9 +115,8 @@ async fn get_build_metadata(Path(build_hash): Path<String>) -> Result {
 	}
 	// not big enough (<5KiB) to bother with streaming, just read it all into memory and send it
 	let meta = fs::read(meta_path).await?;
-	let meta_body = Body::from(meta);
 
-	Ok((ZSTD_HEADERS, meta_body).into_response())
+	Ok(sized_response(ZSTD_MIME_TYPE, meta))
 }
 
 async fn get_build_full(Path(build_hash): Path<String>) -> Result {
@@ -124,6 +134,7 @@ async fn get_build_full(Path(build_hash): Path<String>) -> Result {
 			.into_response());
 	}
 	let data_file = fs::File::open(data_path).await?;
+	let data_len = data_file.metadata().await?.len();
 
 	// the default stream size is 4KiB, which makes our requests VERY slow
 	// as our files are 25-30MiB. use a default of 5MiB to make them not slow.
@@ -131,7 +142,7 @@ async fn get_build_full(Path(build_hash): Path<String>) -> Result {
 
 	let data_body = Body::from_stream(data_stream);
 
-	Ok((ZSTD_HEADERS, data_body).into_response())
+	Ok((content_headers(ZSTD_MIME_TYPE, data_len), data_body).into_response())
 }
 
 // TODO: ratelimit to like 4/hr
@@ -214,8 +225,7 @@ async fn get_before_timestamp(
 	};
 
 	let raw = rmp_serde::to_vec_named(&ret_data)?;
-	let body = Body::from(raw);
-	Ok((MSGPACK_HEADERS, body).into_response())
+	Ok(sized_response(MSGPACK_MIME_TYPE, raw))
 }
 
 async fn get_before_hash(
@@ -236,8 +246,7 @@ async fn get_before_hash(
 		after: None,
 	};
 	let raw = rmp_serde::to_vec_named(&ret_data)?;
-	let body = Body::from(raw);
-	Ok((MSGPACK_HEADERS, body).into_response())
+	Ok(sized_response(MSGPACK_MIME_TYPE, raw))
 }
 
 fn make_archive(data_path: &std::path::Path) -> Result<Vec<u8>> {
@@ -327,7 +336,7 @@ async fn get_bundle_archive(
 	{
 		Ok(Some(archive)) => {
 			info!("serving cached archive for build {build_hash}");
-			return Ok((SEVENZ_HEADERS, Body::from(archive)).into_response());
+			return Ok(sized_response(SEVENZ_MIME_TYPE, archive));
 		}
 		Ok(None) => {}
 		Err(e) => warn!("failed to read archive from cache: {e:?}"),
@@ -355,9 +364,7 @@ async fn get_bundle_archive(
 		}
 	});
 
-	let body = Body::from(archive);
-
-	Ok((SEVENZ_HEADERS, body).into_response())
+	Ok(sized_response(SEVENZ_MIME_TYPE, archive))
 }
 
 async fn get_all_builds() -> Result {
@@ -379,9 +386,8 @@ async fn get_all_builds() -> Result {
 		builds.push(meta_file);
 	}
 	let builds_mpk = rmp_serde::to_vec_named(&BuildList { builds })?;
-	let body = Body::from(builds_mpk);
 
-	Ok((MSGPACK_HEADERS, body).into_response())
+	Ok(sized_response(MSGPACK_MIME_TYPE, builds_mpk))
 }
 
 async fn get_latest_build_meta(State(state): State<crate::State>) -> Result {
@@ -397,14 +403,9 @@ async fn get_latest_build_meta(State(state): State<crate::State>) -> Result {
 			(StatusCode::NOT_FOUND, "server has no builds").into_response()
 		);
 	};
-	Ok((
-		MSGPACK_HEADERS,
-		Body::from(
-			rmp_serde::to_vec_named(&*meta)
-				.context("Failed to serialize meta")?,
-		),
-	)
-		.into_response())
+	let raw =
+		rmp_serde::to_vec_named(&*meta).context("Failed to serialize meta")?;
+	Ok(sized_response(MSGPACK_MIME_TYPE, raw))
 }
 
 #[instrument]
