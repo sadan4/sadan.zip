@@ -1,6 +1,8 @@
+#![allow(clippy::multiple_inherent_impl)]
 mod arg_finder;
 mod enum_iife;
 pub mod export_map;
+mod json;
 mod main_func_finder;
 mod types;
 mod util;
@@ -37,12 +39,14 @@ use crate::{
 			WreqDExportType,
 		},
 		util::{
+			f64_to_i32,
 			filter_export_map,
 			find_return_identifier,
 			flatten_export_map,
 			flatten_property_access_expression,
 			get_inner_func_body,
 			get_nested_export_from_map,
+			is_imported_function_callee,
 			match_export_chain,
 			span_to_range,
 		},
@@ -75,7 +79,7 @@ use explorer_types::{
 	ModuleId,
 	OutgoingModuleDepsWithLocs,
 	SpannedId,
-	experiments::Experiment,
+	experiments::{self, Experiment, ExperimentKind, UserExperiment},
 };
 use export_map::RawExportMap;
 use itertools::Itertools as _;
@@ -121,11 +125,12 @@ use oxc::{
 	semantic::{NodeId, ReferenceFlags, ReferenceId, Semantic, SymbolId},
 	span::{GetSpan, SourceType, Span},
 };
-use parser_diag::{PResult, ParserDiagnostic, err, err_ns};
+use parser_diag::{LocalSource, PResult, ParserDiagnostic, err, err_ns};
 use rangemap::RangeSet;
 use smol_str::{SmolStr, ToSmolStr as _};
 use std::{
 	collections::{HashMap, HashSet},
+	env::var,
 	fmt::Write,
 	iter,
 	mem,
@@ -844,20 +849,235 @@ impl<'ast> WebpackAstParser<'ast> {
 		let mut ret = Vec::with_capacity(uses.len());
 		for usage in uses {
 			try {
-				let parent = self.find_parent(
+				let callee = self.find_parent(
 					usage.node_id(),
 					AstKind::as_parenthesized_expression,
 				)?;
+				is_imported_function_callee(callee).then_some(())?;
+				let call = self
+					.p(callee.node_id())
+					.as_call_expression()?;
+				let [Argument::ObjectExpression(obj)] =
+					call.arguments.as_slice()
+				else {
+					None?
+				};
+				let obj = obj.as_ref();
+				let exp = match self.parse_experiment(obj) {
+					Ok(e) => e,
+					Err(inner) => {
+						let name = match self.get_module_id() {
+							Ok(SpannedId { id, .. }) => format!("{id}.js"),
+							Err(_) => "file.js".to_string(),
+						};
+						let e = LocalSource {
+							inner: inner.into(),
+							source: self.source,
+							name: &name,
+						};
+						warn!("Failed to parse experiment: {e:?}");
+						continue;
+					}
+				};
+				ret.push(exp);
 			};
 		}
-		todo!();
 		ret
 	}
 }
 
 /// Private API
-#[expect(clippy::multiple_inherent_impl)]
 impl<'ast> WebpackAstParser<'ast> {
+	fn parse_experiment(
+		&self,
+		obj: &'ast ObjectExpression<'ast>,
+	) -> PResult<Experiment> {
+		let kind_val = &obj
+			.get_property("kind")
+			.ok_or_else(|| {
+				err(obj, "Experiment object doesn't have `kind` property")
+			})?
+			.value;
+		let kind = kind_val
+			.as_string_literal_like()
+			.ok_or_else(|| err(kind_val, "`kind` is not a string literal"))?;
+		match kind.as_str() {
+			"user" => self.parse_user_experiment(obj),
+			"guild" => Self::parse_guild_experiment(obj),
+			_ => Err(err(
+				kind_val,
+				format!("Unknown experiment kind: {}", kind.as_str()),
+			)),
+		}
+	}
+	fn parse_user_experiment(
+		&self,
+		obj: &'ast ObjectExpression<'ast>,
+	) -> PResult<Experiment> {
+		let name = &obj
+			.get_property("name")
+			.ok_or_else(|| err(obj, "Experiment does not have name property"))?
+			.value;
+		let name = name
+			.as_string_literal_like()
+			.ok_or_else(|| {
+				err(name, "`name` experiment property is not a string literal")
+			})?;
+		let default_config = if let Some(ObjectProperty { value, .. }) =
+			obj.get_property("defaultConfig")
+		{
+			Self::expr_to_json(value).map_err(|e| {
+				err(value, "Failed to parse `defaultConfig`").s(e)
+			})?
+		} else {
+			serde_json::Value::Null
+		};
+		let label = if let Some(ObjectProperty { value, .. }) =
+			obj.get_property("label")
+		{
+			let label = value
+				.as_string_literal_like()
+				.ok_or_else(|| {
+					err(
+						value,
+						"`label` experiment property is not a string literal",
+					)
+				})?;
+			Some(label.to_string())
+		} else {
+			None
+		};
+		let treatments =
+			if let Some(treatments) = obj.get_property("treatments") {
+				let treatments = treatments
+					.value
+					.as_array_expression()
+					.ok_or_else(|| {
+						err(
+							&treatments.value,
+							"`treatments` experiment property is not an array literal",
+						)
+					})?;
+				let mut arr = Vec::with_capacity(treatments.elements.len());
+				for t in &treatments.elements {
+					let t = t
+						.as_expression()
+						.ok_or_else(|| err(t, "Invalid treatment element"))?;
+					arr.push(Self::parse_experiment_treatment(t)?);
+				}
+				arr
+			} else {
+				vec![]
+			};
+		let variations =
+			if let Some(variations) = obj.get_property("variations") {
+				let vars = variations
+					.value
+					.as_object_expression()
+					.ok_or_else(|| {
+						err(
+							&variations.value,
+							"`varitions` is not an object expression",
+						)
+					})?;
+				let mut arr = Vec::with_capacity(vars.properties.len());
+				for prop in &vars.properties {
+					let Some(prop) = prop.as_property() else {
+						return Err(err(prop, "Invalid variation property"));
+					};
+					let key = prop.key.static_name().ok_or_else(|| {
+						err(
+							&prop.key,
+							"Variation property key is not an a static name",
+						)
+					})?;
+					let val = &prop.value;
+					let val = Self::expr_to_json(val).map_err(|e| {
+						err(val, "Failed to parse variation value").s(e)
+					})?;
+					arr.push(experiments::Variation {
+						key: key.to_string(),
+						config: val,
+					});
+				}
+				arr
+			} else {
+				vec![]
+			};
+		Ok(Experiment {
+			loc: SpannedId {
+				id: self.get_module_id()?.id,
+				span: obj.span,
+			},
+			obj: ExperimentKind::User(UserExperiment {
+				common_trigger_point: None,
+				name: name.to_string(),
+				default_config,
+				label,
+				variations,
+				treatments,
+			}),
+		})
+	}
+	fn parse_experiment_treatment(
+		t: &'ast Expression<'ast>,
+	) -> PResult<experiments::Treatment> {
+		let t = t
+			.as_object_expression()
+			.ok_or_else(|| {
+				err(t, "Experiment treatment is not an object literal")
+			})?;
+		let id_prop = t.get_property("id").ok_or_else(|| {
+			err(t, "Experiment treatment does not have `id` property")
+		})?;
+		let id = id_prop
+			.value
+			.as_numeric_literal()
+			.ok_or_else(|| {
+				err(
+					&id_prop.value,
+					"`id` experiment treatment property is not a numeric literal",
+				)
+			})?;
+		let id = f64_to_i32(id.value).ok_or_else(|| {
+			err(&id_prop.value, "Failed to convert `id` to i32")
+		})?;
+		let label_prop = t.get_property("label").ok_or_else(|| {
+			err(t, "Experiment treatment does not have `label` property")
+		})?;
+		let label = label_prop
+			.value
+			.as_string_literal_like()
+			.ok_or_else(|| {
+				err(
+					&label_prop.value,
+					"`label` experiment treatment property is not a string literal",
+				)
+			})?;
+		let config_prop = t
+			.get_property("config")
+			.ok_or_else(|| {
+				err(t, "Experiment treatment does not have `config` property")
+			})?;
+		let config = Self::expr_to_json(&config_prop.value).map_err(|e| {
+			err(&config_prop.value, "Failed to parse `config`").s(e)
+		})?;
+		Ok(experiments::Treatment {
+			id,
+			label: label.to_string(),
+			config,
+		})
+	}
+	fn parse_experiment_config(
+		cfg: &'ast Expression<'ast>,
+	) -> PResult<serde_json::Value> {
+		todo!()
+	}
+	fn parse_guild_experiment(
+		obj: &'ast ObjectExpression<'ast>,
+	) -> PResult<Experiment> {
+		todo!()
+	}
 	fn get_raw_uses_of_import(
 		&self,
 		m_id: ModuleId,
@@ -950,11 +1170,12 @@ impl<'ast> WebpackAstParser<'ast> {
 									&& let Some(inner_access) = self.p_if(
 										assign_per.node_id(),
 										AstKind::as_static_member_expression,
-									) && let Some(span) = self
-									.match_outer_access_chain(
-										inner_access,
-										remaining,
-									) {
+									)
+									&& let Some(span) = self
+										.match_outer_access_chain(
+											inner_access,
+											remaining,
+										) {
 									uses.push(span.into_ast_kind());
 								}
 							} else {
@@ -1061,7 +1282,8 @@ impl<'ast> WebpackAstParser<'ast> {
 			let c_then_obj = c_then.object.as_call_expression()?;
 			if self
 				.is_lazy_chunk_require(c_then_obj)
-				.is_some() || self.is_promise_resolve(c_then_obj)
+				.is_some()
+				|| self.is_promise_resolve(c_then_obj)
 			{
 				return true;
 			}
@@ -2467,12 +2689,18 @@ impl<'ast> WebpackAstParser<'ast> {
 			!matches!(
 				seq[0].kind(),
 				TK::Dot
-					| TK::Comma | TK::Colon
-					| TK::Eq | TK::Eq2
-					| TK::Eq3 | TK::Amp2
-					| TK::LParen | TK::RParen
-					| TK::Pipe2 | TK::Semicolon
-					| TK::Question | TK::Extends
+					| TK::Comma
+					| TK::Colon
+					| TK::Eq
+					| TK::Eq2
+					| TK::Eq3
+					| TK::Amp2
+					| TK::LParen
+					| TK::RParen
+					| TK::Pipe2
+					| TK::Semicolon
+					| TK::Question
+					| TK::Extends
 					| TK::Let
 			)
 		} else {
@@ -2719,7 +2947,6 @@ impl<'ast> WebpackAstParser<'ast> {
 }
 
 /// functions to make the raw export map
-#[expect(clippy::multiple_inherent_impl)]
 impl<'ast> WebpackAstParser<'ast> {
 	fn get_ast_kind_span_for_export_map(node: AstKind<'ast>) -> Span {
 		match node {
@@ -3201,7 +3428,8 @@ impl<'ast> WebpackAstParser<'ast> {
 			.as_ref()
 			.unwrap()
 			.statements
-			.len() == 1
+			.len()
+			== 1
 			&& let Some(ident) =
 				find_return_identifier(Functionish::Named(func))
 		{

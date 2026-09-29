@@ -25,6 +25,7 @@ pub struct Experiment {
 #[derive(
 	Serialize, Deserialize, Debug, TypeSize, Clone, PartialEq, Eq, Hash,
 )]
+#[serde(rename_all = "camelCase")]
 pub struct UserExperiment {
 	pub name: String,
 	#[typesize(with = size_serde_json_value)]

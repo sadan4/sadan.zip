@@ -18,6 +18,7 @@ use oxc::{
 		FunctionBody,
 		IdentifierName,
 		IdentifierReference,
+		ParenthesizedExpression,
 		Statement,
 	},
 	span::Span,
@@ -309,5 +310,60 @@ pub fn get_inner_func_body<'ast>(
 			continue;
 		}
 		return cur.body.as_deref().unwrap();
+	}
+}
+
+/// Determines if `expr` is an indirect call callee used by webpack for imported functions.
+///
+/// ```js
+///    (0, imp.func)();
+/// // ^^^^^^^^^^^^^
+/// ```
+pub fn is_imported_function_callee(expr: &ParenthesizedExpression) -> bool {
+	try {
+		let inner = expr
+			.expression
+			.as_sequence_expression()?
+			.expressions
+			.as_slice();
+		if inner.len() != 2 {
+			return false;
+		}
+		inner[0].as_numeric_literal()?.raw? == "0"
+	}
+	.unwrap_or_default()
+}
+
+/// Convert `v` to an `i32` if it can be converted losslessly, otherwise return `None`.
+/// ```ignore
+/// assert_eq!(f64_to_i32(42.0), Some(42));
+/// assert_eq!(f64_to_i32(42.5), None);
+/// assert_eq!(f64_to_i32(f64::INFINITY), None);
+/// ```
+pub fn f64_to_i32(v: f64) -> Option<i32> {
+	if !v.is_finite() {
+		return None;
+	}
+	if v.fract() != 0. {
+		return None;
+	}
+	if v < i32::MIN as f64 || v > i32::MAX as f64 {
+		return None;
+	}
+	Some(v as i32)
+}
+
+#[cfg(test)] 
+mod tests {
+	use super::*;
+	
+	#[test]
+	fn test_f64_to_i32() {
+		assert_eq!(f64_to_i32(42.0), Some(42));
+		assert_eq!(f64_to_i32(42.5), None);
+		assert_eq!(f64_to_i32(f64::INFINITY), None);
+		assert_eq!(f64_to_i32(f64::NAN), None);
+		assert_eq!(f64_to_i32(i32::MAX as f64), Some(i32::MAX));
+		assert_eq!(f64_to_i32(i32::MIN as f64), Some(i32::MIN));
 	}
 }

@@ -19,6 +19,7 @@ macro_rules! parse {
 
 mod concatenated_modules;
 mod direct_module_definition;
+mod experiments;
 mod export_parsing;
 mod find_gen;
 mod import_parsing;
