@@ -173,6 +173,7 @@ fn stops_at_computed_access() {
 }
 
 #[test]
+#[cfg(debug_assertions)]
 #[should_panic(expected = "doesn't make sense for export names to be empty")]
 fn empty_export_names() {
 	_ = remaining("n(123).A;", 123, &[]);
