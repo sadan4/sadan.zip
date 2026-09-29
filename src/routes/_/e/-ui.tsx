@@ -289,7 +289,7 @@ export function BundleSelector() {
     return (
         <>
             <Boilerplate />
-            <div className="max-w-90vw mx-auto w-full px-4 pt-8">
+            <div className="mx-auto w-full max-w-[90vw] px-4 pt-8">
                 <Box className="p-4 sm:p-6">
                     <div className="flex flex-wrap items-end justify-between gap-3">
                         <div>

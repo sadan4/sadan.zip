@@ -192,8 +192,11 @@ class BuildService implements IBuildService {
     }
 
     async #readWithProgress(rsp: Response): Promise<Uint8Array> {
+        const encoding = rsp.headers.get("Content-Encoding");
+        // Content-Length is wire size, but the stream is decoded
+        const isEncoded = encoding != null && encoding !== "identity";
         const lengthHeader = Number(rsp.headers.get("Content-Length"));
-        let total = Number.isFinite(lengthHeader) && lengthHeader > 0 ? lengthHeader : null;
+        let total = !isEncoded && Number.isFinite(lengthHeader) && lengthHeader > 0 ? lengthHeader : null;
         let loaded = 0;
 
         this.#reportProgress({
