@@ -1604,7 +1604,9 @@ impl<'ast> WebpackAstParser<'ast> {
 			flatten_property_access_expression(access_chain);
 		// TODO: should this check if requiredModule.expression is wreq
 		// i think probably not, no real need
-		let module_id = if let Some(call) = required_module.get_inner_expression().as_call_expression()
+		let module_id = if let Some(call) = required_module
+			.get_inner_expression()
+			.as_call_expression()
 			&& call.arguments.len() == 1
 		{
 			try {
@@ -3150,8 +3152,8 @@ impl<'ast> WebpackAstParser<'ast> {
 	) -> Option<RawExportMap<'ast>> {
 		let init_expr = init.callee.as_identifier()?;
 		let store_sym_id = self.sym_id_of(init_expr)?;
-		if !matches!(init.arguments.len(), 0 | 2) {
-			debug!("Maybe store does not have 0 or 2 ctor args");
+		if !matches!(init.arguments.len(), 0 | 2 | 3) {
+			debug!("Maybe store does not have 0, 2 or 3 ctor args");
 			return None;
 		}
 		let mut ret = RawExportMap {
@@ -3161,8 +3163,9 @@ impl<'ast> WebpackAstParser<'ast> {
 			}),
 			..Default::default()
 		};
-		if init.arguments.len() == 2 {
+		if init.arguments.len() >= 2 {
 			// (flux, {/*events obj */}) for Flux Stores
+			// (flux, {/*events obj */}, priority) for Flux Stores
 			// ({/*events obj */}, mode) for libdiscore stores
 			let events_obj = init.arguments[1]
 				.as_object_expression()

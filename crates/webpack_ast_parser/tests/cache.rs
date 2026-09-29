@@ -582,6 +582,20 @@ mod hover_text {
 		)
 		"#);
 	}
+	#[cache_test(sub_dir = "auth_store_hover")]
+	async fn store_with_three_ctor_args(b: &Bundle) {
+		let parser = b.parse(240921);
+		let hov = dbg_hover(&parser, 6, 14)
+			.await
+			.unwrap()
+			.unwrap();
+		assert_debug_snapshot!(hov, @r#"
+		(
+		    "\"AuthenticationStore\"",
+		    "[6:14->6:40) getInstallationForTracking",
+		)
+		"#);
+	}
 	#[cache_test]
 	async fn store_in_other_module_2(b: &Bundle) {
 		let parser = b.parse(111111);
