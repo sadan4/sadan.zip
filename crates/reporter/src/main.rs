@@ -98,7 +98,8 @@ async fn async_main() {
 }
 
 async fn run(mut cli: Cli) -> Result<i8> {
-	if !vc::is_likely_vencord_dir(&cli.vc_opts.vencord_dir) {
+	let needs_vencord = !matches!(cli.cmd, cmds::Cmd::Print { .. });
+	if needs_vencord && !vc::is_likely_vencord_dir(&cli.vc_opts.vencord_dir) {
 		Cli::command()
 			.print_long_help()
 			.expect("Failed to print help");

@@ -1,6 +1,7 @@
 mod fix;
 mod gen_finds;
 mod lint;
+mod print;
 mod run;
 mod watch;
 
@@ -25,6 +26,16 @@ pub enum Cmd {
 	},
 	GenFinds {
 		module_id: u32,
+	},
+	/// Pretty print the source of a module from a specific build to stdout.
+	Print {
+		/// The hash of the build to fetch the module from
+		build_hash: String,
+		/// The id of the module to print
+		module_id: u32,
+		/// Number of spaces to indent with
+		#[arg(long, default_value_t = 4)]
+		indent: u8,
 	},
 }
 
@@ -62,6 +73,19 @@ pub async fn run(
 				explorer_types::ModuleId(module_id),
 				&cli,
 				global_bar,
+			)
+			.await?;
+			Ok(0)
+		}
+		Cmd::Print {
+			ref build_hash,
+			module_id,
+			indent,
+		} => {
+			print::print_module(
+				build_hash,
+				explorer_types::ModuleId(module_id),
+				indent,
 			)
 			.await?;
 			Ok(0)
