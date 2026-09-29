@@ -389,6 +389,25 @@ mod definitions {
 			)
 			"#);
 		}
+		/// `new (n(100001)).foo("bar")`
+		#[cache_test(sub_dir = "new_wreq")]
+		async fn new_on_wreq_call_member(b: &Bundle) {
+			let parser = b.parse(100002);
+			let defs = b
+				.dbg_defs(&parser, 8, 28)
+				.await
+				.unwrap();
+			assert_debug_snapshot!(defs, @r#"
+			[
+			    DefinitionDumper {
+			        id: ModuleId(
+			            100001,
+			        ),
+			        range: "[9:8->9:19) constructor",
+			    },
+			]
+			"#);
+		}
 		mod enums {
 			use super::*;
 
@@ -624,14 +643,17 @@ mod references {
 			"#);
 		}
 	}
-	
+
 	mod weird_usage {
 		use super::*;
 
 		#[cache_test(sub_dir = "weird_use")]
 		async fn handles_weird_use(b: &Bundle) {
 			let parser = b.parse(891600);
-			let locs = b.dbg_gen_refs(&parser, 8, 8).await.unwrap();
+			let locs = b
+				.dbg_gen_refs(&parser, 8, 8)
+				.await
+				.unwrap();
 			assert_debug_snapshot!(locs, @r#"
 			[
 			    ReferenceDumper {

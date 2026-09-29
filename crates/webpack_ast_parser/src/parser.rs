@@ -1604,7 +1604,7 @@ impl<'ast> WebpackAstParser<'ast> {
 			flatten_property_access_expression(access_chain);
 		// TODO: should this check if requiredModule.expression is wreq
 		// i think probably not, no real need
-		let module_id = if let Some(call) = required_module.as_call_expression()
+		let module_id = if let Some(call) = required_module.get_inner_expression().as_call_expression()
 			&& call.arguments.len() == 1
 		{
 			try {
