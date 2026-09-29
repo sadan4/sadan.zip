@@ -5,6 +5,7 @@
 
     .wrapper {
         anchor-scope: $anchor;
+        position: relative;
 
         > .buttons {
             position: relative;
@@ -25,7 +26,7 @@
             @include u.anim-dur;
 
             transition-timing-function: ease-in;
-            position: fixed;
+            position: absolute;
             position-anchor: $anchor;
             top: calc(anchor(top) - ($padding / 2 - $border-size));
             left: calc(anchor(left) - ($padding / 2 - $border-size));

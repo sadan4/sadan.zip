@@ -1,19 +1,21 @@
 import { Boilerplate } from "@/components/Boilerplate";
+import { Clickable } from "@/components/Clickable";
 import { Box } from "@/components/layout/Box";
-import { HorizontalLine } from "@/components/Lines";
-import { TextLink } from "@/components/Links";
+import { ScrollArea } from "@/components/layout/ScrollArea";
+import { Link } from "@/components/Links";
 import { Text } from "@/components/Text";
-import { Tooltip } from "@/components/Tooltip";
-import { EM_DASH } from "@/utils/constants";
+import { useToaster } from "@/hooks/toaster";
+import { copyWithNotify } from "@/utils/clipboard";
+import cn from "@/utils/cn";
 import type { TBundleHash } from "@/utils/types";
 import { useQuery } from "@tanstack/react-query";
 
-import type { GetBuildsFn, Meta } from "./-worker";
+import type { Channel, GetBuildsFn, Meta } from "./-worker";
 
 import * as comlink from "comlink";
-import { ExternalLinkIcon } from "lucide-react";
+import { ArrowRight, Clock3, Hash } from "lucide-react";
 import prodWorkerUrl from "omt:./-worker";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 let workerUrl: string;
 
@@ -26,6 +28,76 @@ if (!import.meta.env.SSR && import.meta.env.DEV) {
 
 interface BundleItemProps {
     bundleMeta: Meta;
+    latestTags: LatestTag[];
+}
+
+type LatestTag = "latest" | `latest-${Channel}`;
+
+type PillKind = Channel | LatestTag;
+
+const pillStyles: Record<PillKind, string> = {
+    stable: "border-blurple/50 bg-blurple/15 text-[color-mix(in_oklab,var(--color-blurple)_60%,white)]",
+    canary: "border-canary/50 bg-canary/15 text-canary",
+    latest: "border-primary-400/40 bg-primary-400/10 text-primary-300",
+    "latest-stable": "border-blurple bg-blurple/35 text-white",
+    "latest-canary": "border-canary bg-canary/30 text-white",
+};
+
+const pillLabels: Record<PillKind, string> = {
+    stable: "Stable",
+    canary: "Canary",
+    latest: "Latest",
+    "latest-stable": "Latest Stable",
+    "latest-canary": "Latest Canary",
+};
+
+const pillBaseClass = "rounded-full border px-2 py-0.5 text-xs leading-none font-medium";
+
+function Pill({ kind }: { kind: PillKind; }) {
+    return (
+        <span className={cn(pillBaseClass, pillStyles[kind])}>
+            {pillLabels[kind]}
+        </span>
+    );
+}
+
+const channels: Channel[] = ["stable", "canary"];
+
+interface ChannelFilterProps {
+    enabled: ReadonlySet<Channel>;
+    onToggle(channel: Channel): void;
+}
+
+function ChannelFilter({ enabled, onToggle }: ChannelFilterProps) {
+    return (
+        <div
+            role="group"
+            aria-label="Filter by channel"
+            className="flex items-center gap-1.5"
+        >
+            {channels.map((channel) => {
+                const isEnabled = enabled.has(channel);
+
+                return (
+                    <button
+                        key={channel}
+                        type="button"
+                        aria-pressed={isEnabled}
+                        onClick={() => {
+                            onToggle(channel);
+                        }}
+                        className={cn(
+                            pillBaseClass,
+                            "cursor-pointer transition-opacity",
+                            isEnabled ? pillStyles[channel] : "border-fg-800 text-fg-800 line-through",
+                        )}
+                    >
+                        {pillLabels[channel]}
+                    </button>
+                );
+            })}
+        </div>
+    );
 }
 
 declare global {
@@ -61,50 +133,97 @@ async function getBuilds() {
     return ret;
 }
 
-const SEPARATOR = (
-    <Text
-        tag="span"
-    >
-        {" | "}
-    </Text>
-);
+const strftimeOptions: Intl.DateTimeFormatOptions = {
+    weekday: "long", // %A
+    month: "long", // %B
+    day: "2-digit", // %d
+    year: "numeric", // %Y
+    hour: "2-digit", // %I
+    minute: "2-digit", // %M
+    second: "2-digit", // %S
+    hour12: true, // %p
+    timeZoneName: "short", // %Z
+};
 
-function BundleItem({ bundleMeta }: BundleItemProps) {
+function BundleItem({ bundleMeta, latestTags }: BundleItemProps) {
+    // a "Latest <channel>" tag replaces the plain channel pill
+    const pills: PillKind[] = [
+        ...latestTags,
+        ...bundleMeta.channels.filter((channel) => !latestTags.includes(`latest-${channel}`)),
+    ];
+
+    const ToastStore = useToaster();
+    const buildDate = new Date(Number(bundleMeta.first_seen));
+
     return (
-        <li className="flex justify-between">
-            <div>
-                <Text tag="span">
-                    Build Number {EM_DASH} {bundleMeta.build_number}
-                </Text>
-                {SEPARATOR}
-                <Tooltip
-                    text={bundleMeta.build_hash}
-                >
-                    <Text
-                        tag="span"
-                        className="underline decoration-dashed underline-offset-2"
-                    >
-                        Build Hash
-                    </Text>
-                </Tooltip>
-                {SEPARATOR}
-                <Text tag="span">
-                    First Seen {EM_DASH} {new Date(Number(bundleMeta.first_seen)).toLocaleString()}
-                </Text>
-            </div>
-            <div>
-                <TextLink
-                    to="/e/view/{-$buildHash}/{-$moduleId}"
-                    params={{
-                        buildHash: bundleMeta.build_hash as TBundleHash,
-                        moduleId: null,
-                    }}
-                    color="primary"
-                    preload={false}
-                >
-                    Open Bundle <ExternalLinkIcon className="inline" />
-                </TextLink>
-            </div>
+        <li>
+            <Link
+                to="/e/view/{-$buildHash}/{-$moduleId}"
+                params={{
+                    buildHash: bundleMeta.build_hash as TBundleHash,
+                    moduleId: null,
+                }}
+                preload={false}
+                aria-label={`Open build ${bundleMeta.build_number}`}
+                className="group flex h-full items-center gap-4 rounded-md border border-fg-700/60 bg-bg-200 px-4 py-3 transition-colors hover:border-primary-400/70 hover:bg-bg-300 focus-visible:border-primary-400 focus-visible:bg-bg-300"
+            >
+                <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-3">
+                        <Text
+                            tag="span"
+                            size="md"
+                            weight="semiBold"
+                            color="primary"
+                        >
+                            Build {bundleMeta.build_number}
+                        </Text>
+                        {pills.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5">
+                                {pills.map((kind) => (
+                                    <Pill
+                                        key={kind}
+                                        kind={kind}
+                                    />
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                    <div className="mt-1.5 flex items-center gap-3">
+                        <span className="flex min-w-0 items-center gap-1 text-xs text-fg-700">
+                            <Clock3
+                                className="size-3 shrink-0"
+                                aria-hidden="true"
+                            />
+                            <span title={buildDate.toLocaleString(undefined, strftimeOptions)}>
+                                {buildDate.toLocaleString()}
+                            </span>
+                        </span>
+                        <Clickable
+                            tag="span"
+                            className="flex items-center gap-1 text-xs text-fg-700"
+                            onClick={async (e) => {
+                                e.stopPropagation();
+                                e.preventDefault();
+                                await copyWithNotify(bundleMeta.build_hash, ToastStore.getState());
+                            }}
+                            title={bundleMeta.build_hash}
+                        >
+                            <Hash
+                                className="size-3 shrink-0"
+                                aria-hidden="true"
+                            />
+                            <code>{bundleMeta.build_hash.slice(0, 9)}</code>
+                        </Clickable>
+                    </div>
+                </div>
+                <span className="flex shrink-0 items-center gap-1 text-sm text-primary-400">
+                    <span className="hidden sm:inline">Open</span>
+                    <ArrowRight
+                        className="size-4 transition-transform group-hover:translate-x-0.5"
+                        aria-hidden="true"
+                    />
+                </span>
+            </Link>
         </li>
     );
 }
@@ -127,25 +246,83 @@ export function BundleSelector() {
         return -1;
     }), [data]);
 
+    const [enabledChannels, setEnabledChannels] = useState<ReadonlySet<Channel>>(() => new Set(channels));
+
+    const latestTagsByHash = useMemo(() => {
+        const tags = new Map<string, LatestTag[]>();
+
+        function addTag(hash: string | undefined, tag: LatestTag) {
+            if (hash == null) {
+                return;
+            }
+            tags.set(hash, [...tags.get(hash) ?? [], tag]);
+        }
+
+        addTag(sortedBundles?.[0]?.build_hash, "latest");
+        for (const channel of channels) {
+            addTag(sortedBundles?.find((bundle) => bundle.channels.includes(channel))?.build_hash, `latest-${channel}`);
+        }
+        return tags;
+    }, [sortedBundles]);
+
+    // builds with no known channel are always shown
+    // builds with a latest tag are pinned to the top, keeping newest-first order within each group
+    const filteredBundles = useMemo(() => sortedBundles
+        ?.filter(({ channels: buildChannels }) => {
+            return buildChannels.length === 0 || buildChannels.some((channel) => enabledChannels.has(channel));
+        })
+        .toSorted((a, b) => {
+            return Number(latestTagsByHash.has(b.build_hash)) - Number(latestTagsByHash.has(a.build_hash));
+        }), [sortedBundles, enabledChannels, latestTagsByHash]);
+
+    function toggleChannel(channel: Channel) {
+        setEnabledChannels((prev) => {
+            const next = new Set(prev);
+
+            if (!next.delete(channel)) {
+                next.add(channel);
+            }
+            return next;
+        });
+    }
+
     return (
         <>
             <Boilerplate />
-            <div className="flex justify-center pt-4">
-                <Box className="min-w-1/2">
-                    <Text
-                        size="xl"
-                        center
-                    >
-                        Select a build
-                    </Text>
-                    <HorizontalLine
-                        color="white-700"
-                    />
+            <div className="mx-auto w-full max-w-[90vw] px-4 pt-8">
+                <Box className="p-4 sm:p-6">
+                    <div className="flex flex-wrap items-end justify-between gap-3">
+                        <div>
+                            <Text
+                                size="xl"
+                                weight="semiBold"
+                            >
+                                Choose a build
+                            </Text>
+                        </div>
+                        {status === "success" && (
+                            <div className="flex flex-wrap items-center gap-3">
+                                <ChannelFilter
+                                    enabled={enabledChannels}
+                                    onToggle={toggleChannel}
+                                />
+                                <Text
+                                    size="sm"
+                                    color="white-700"
+                                >
+                                    {filteredBundles!.length === sortedBundles!.length
+                                        ? `${sortedBundles!.length} available`
+                                        : `${filteredBundles!.length} of ${sortedBundles!.length} shown`}
+                                </Text>
+                            </div>
+                        )}
+                    </div>
                     {status === "pending" && (
                         <Text
                             size="lg"
                             color="accent"
                             center
+                            className="py-10"
                         >
                             Loading...
                         </Text>
@@ -155,32 +332,47 @@ export function BundleSelector() {
                             size="lg"
                             color="error"
                             center
+                            className="py-10"
                         >
                             An error occurred while loading the bundles.
                         </Text>
                     )}
                     {status === "success" && (
-                        <ul>
-                            {sortedBundles!.length === 0 && (
-                                <Text
-                                    color="error"
-                                    size="lg"
-                                    center
-                                >
-                                    No Bundles Available.
-                                    <p />
-                                    This is an error. Please report this.
-                                </Text>
-                            )}
-                            {sortedBundles!.map((bundleMeta) => {
-                                return (
-                                    <BundleItem
-                                        key={bundleMeta.build_hash}
-                                        bundleMeta={bundleMeta}
-                                    />
-                                );
-                            })}
-                        </ul>
+                        <ScrollArea className="mt-4 max-h-[calc(100dvh-11.25rem)]">
+                            <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                                {sortedBundles!.length === 0 && (
+                                    <Text
+                                        color="error"
+                                        size="lg"
+                                        center
+                                        className="col-span-full"
+                                    >
+                                        No Bundles Available.
+                                        <p />
+                                        This is an error. Please report this.
+                                    </Text>
+                                )}
+                                {sortedBundles!.length > 0 && filteredBundles!.length === 0 && (
+                                    <Text
+                                        color="white-700"
+                                        size="lg"
+                                        center
+                                        className="col-span-full py-10"
+                                    >
+                                        No builds match the selected channels.
+                                    </Text>
+                                )}
+                                {filteredBundles!.map((bundleMeta) => {
+                                    return (
+                                        <BundleItem
+                                            key={bundleMeta.build_hash}
+                                            bundleMeta={bundleMeta}
+                                            latestTags={latestTagsByHash.get(bundleMeta.build_hash) ?? []}
+                                        />
+                                    );
+                                })}
+                            </ul>
+                        </ScrollArea>
                     )}
                 </Box>
             </div>

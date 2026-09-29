@@ -398,7 +398,7 @@ function ExplorerHeader() {
                     ]}
                 />
             </div>
-            <div className="flex gap-2">
+            <div className="flex justify-self-end gap-2 pr-2">
                 <IconButton
                     tag="a"
                     label={`Download${NBSP}Bundle`}
@@ -474,7 +474,7 @@ export function Explorer() {
         <>
             <Boilerplate solidBg />
             <div className="flex h-full flex-col">
-                <div className="flex items-center justify-between">
+                <div className="grid grid-cols-[1fr_auto_1fr] items-center">
                     <ExplorerHeader />
                 </div>
                 <div

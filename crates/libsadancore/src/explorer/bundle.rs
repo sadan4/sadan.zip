@@ -14,7 +14,7 @@ use crate::{
 	constants::FULL_BUNDLE_ENDPOINT,
 	err::Result,
 	explorer::meta::Meta,
-	util::fetch_struct,
+	util::{decode_struct, fetch_struct},
 };
 use anyhow::{Context, anyhow};
 use ast_parser::{get_line_and_column, get_offset_from_line_and_column};
@@ -986,13 +986,42 @@ pub async fn get_bundle(
 	build_hash: &str,
 	drop_sources: bool,
 ) -> Result<Bundle> {
-	let FullBundle {
+	let full_bundle: FullBundle =
+		fetch_struct(&FULL_BUNDLE_ENDPOINT(build_hash)).await?;
+	Ok(bundle_from_full(full_bundle, drop_sources))
+}
+
+/// URL of the full bundle for `build_hash`.
+///
+/// Lets JS download the bundle itself (e.g. to report progress) and pass the
+/// bytes to [`parse_bundle`].
+#[wasm_bindgen]
+#[must_use]
+pub fn full_bundle_endpoint(build_hash: &str) -> String {
+	FULL_BUNDLE_ENDPOINT(build_hash)
+}
+
+/// Builds a [`Bundle`] from the raw (zstd-compressed) response body of
+/// [`full_bundle_endpoint`].
+///
+/// # Errors
+/// If the data fails to decompress or deserialize.
+#[wasm_bindgen]
+pub fn parse_bundle(data: &[u8], drop_sources: bool) -> Result<Bundle> {
+	let full_bundle: FullBundle = decode_struct(data)?;
+	Ok(bundle_from_full(full_bundle, drop_sources))
+}
+
+fn bundle_from_full(
+	FullBundle {
 		metadata,
 		dep_info,
 		module_sources,
 		modules,
 		env_var_text: _,
-	}: FullBundle = fetch_struct(&FULL_BUNDLE_ENDPOINT(build_hash)).await?;
+	}: FullBundle,
+	drop_sources: bool,
+) -> Bundle {
 	let module_sources = if drop_sources {
 		ModuleSources::default()
 	} else {
@@ -1024,8 +1053,7 @@ pub async fn get_bundle(
 			.get_unchecked_mut()
 			.self_ptr = self_ptr;
 	};
-	let ret = Bundle { inner };
-	Ok(ret)
+	Bundle { inner }
 }
 
 #[cfg(test)]

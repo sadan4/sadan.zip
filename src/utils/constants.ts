@@ -29,6 +29,9 @@ export const EM_DASH = "\u2014";
 
 export const REPLACEMENT_CHARACTER = "\uFFFD";
 
+export const KiB = 1024;
+export const MiB = KiB * 1024;
+
 export const DISCORD_ID = "521819891141967883";
 export const MC_UUID = "b7c4f5b1-762f-41ea-b6b4-45aba74198e5";
 export const GITHUB_USERNAME = "sadan4";

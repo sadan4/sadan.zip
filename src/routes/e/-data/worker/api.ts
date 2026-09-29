@@ -1,6 +1,6 @@
 import type { TBundleHash } from "@/utils/types";
 
-import type { IBuildService, RawBuildService } from "./sharedWorker";
+import type { BundleLoadProgressCallback, IBuildService, RawBuildService } from "./sharedWorker";
 
 import * as comlink from "comlink";
 import prodWorkerUrl from "omt:./sharedWorker";
@@ -19,7 +19,10 @@ export type RemoteBuildService = comlink.Remote<IBuildService | RawBuildService>
 
 const workerMap = /* @__PURE__ */ new Map<TBundleHash, RemoteBuildService>();
 
-export async function getBuildService(hash: TBundleHash): Promise<RemoteBuildService> {
+export async function getBuildService(
+    hash: TBundleHash,
+    onProgress?: BundleLoadProgressCallback,
+): Promise<RemoteBuildService> {
     if (workerMap.has(hash)) {
         return workerMap.get(hash)!;
     }
@@ -32,7 +35,7 @@ export async function getBuildService(hash: TBundleHash): Promise<RemoteBuildSer
 
     const buildService = comlink.wrap<RawBuildService>(worker.port);
 
-    await buildService.init(hash);
+    await buildService.init(hash, onProgress && comlink.proxy(onProgress));
 
     workerMap.set(hash, buildService);
 
