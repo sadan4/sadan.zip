@@ -79,7 +79,13 @@ use explorer_types::{
 	ModuleId,
 	OutgoingModuleDepsWithLocs,
 	SpannedId,
-	experiments::{self, Experiment, ExperimentKind, UserExperiment},
+	experiments::{
+		self,
+		ApexExperiment,
+		Experiment,
+		ExperimentKind,
+		ExperimentScope,
+	},
 };
 use export_map::RawExportMap;
 use itertools::Itertools as _;
@@ -853,7 +859,7 @@ impl<'ast> WebpackAstParser<'ast> {
 					None?
 				};
 				let obj = obj.as_ref();
-				let exp = match self.parse_experiment(obj) {
+				let exp = match self.parse_apex_experiment(obj) {
 					Ok(e) => e,
 					Err(inner) => {
 						let name = match self.get_module_id() {
@@ -912,29 +918,7 @@ impl<'ast> WebpackAstParser<'ast> {
 		}
 		None
 	}
-	fn parse_experiment(
-		&self,
-		obj: &'ast ObjectExpression<'ast>,
-	) -> PResult<Experiment> {
-		let kind_val = &obj
-			.get_property("kind")
-			.ok_or_else(|| {
-				err(obj, "Experiment object doesn't have `kind` property")
-			})?
-			.value;
-		let kind = kind_val
-			.as_string_literal_like()
-			.ok_or_else(|| err(kind_val, "`kind` is not a string literal"))?;
-		match kind.as_str() {
-			"user" => self.parse_user_experiment(obj),
-			"guild" => Self::parse_guild_experiment(obj),
-			_ => Err(err(
-				kind_val,
-				format!("Unknown experiment kind: {}", kind.as_str()),
-			)),
-		}
-	}
-	fn parse_user_experiment(
+	fn parse_apex_experiment(
 		&self,
 		obj: &'ast ObjectExpression<'ast>,
 	) -> PResult<Experiment> {
@@ -971,28 +955,7 @@ impl<'ast> WebpackAstParser<'ast> {
 		} else {
 			None
 		};
-		let treatments =
-			if let Some(treatments) = obj.get_property("treatments") {
-				let treatments = treatments
-					.value
-					.as_array_expression()
-					.ok_or_else(|| {
-						err(
-							&treatments.value,
-							"`treatments` experiment property is not an array literal",
-						)
-					})?;
-				let mut arr = Vec::with_capacity(treatments.elements.len());
-				for t in &treatments.elements {
-					let t = t
-						.as_expression()
-						.ok_or_else(|| err(t, "Invalid treatment element"))?;
-					arr.push(Self::parse_experiment_treatment(t)?);
-				}
-				arr
-			} else {
-				vec![]
-			};
+		let kind = Self::parse_experiment_scope(obj)?;
 		let variations =
 			if let Some(variations) = obj.get_property("variations") {
 				let vars = variations
@@ -1033,15 +996,35 @@ impl<'ast> WebpackAstParser<'ast> {
 				id: self.get_module_id()?.id,
 				span: obj.span,
 			},
-			obj: ExperimentKind::User(UserExperiment {
-				common_trigger_point: None,
+			obj: ExperimentKind::Apex(ApexExperiment {
+				kind,
 				name: name.to_string(),
 				default_config,
 				label,
 				variations,
-				treatments,
 			}),
 		})
+	}
+	fn parse_experiment_scope(
+		obj: &'ast ObjectExpression<'ast>,
+	) -> PResult<ExperimentScope> {
+		let kind = &obj
+			.get_property("kind")
+			.ok_or_else(|| err(obj, "Experiment does not have kind property"))?
+			.value;
+		let scope = kind
+			.as_string_literal_like()
+			.ok_or_else(|| {
+				err(kind, "`kind` experiment property is not a string literal")
+			})?;
+		match scope.as_str() {
+			"user" => Ok(ExperimentScope::User),
+			"guild" => Ok(ExperimentScope::Guild),
+			_ => Err(err(
+				kind,
+				"`kind` experiment property is not `user` or `guild`",
+			)),
+		}
 	}
 	fn parse_experiment_treatment(
 		t: &'ast Expression<'ast>,
@@ -1092,12 +1075,7 @@ impl<'ast> WebpackAstParser<'ast> {
 			config,
 		})
 	}
-	fn parse_experiment_config(
-		cfg: &'ast Expression<'ast>,
-	) -> PResult<serde_json::Value> {
-		todo!()
-	}
-	fn parse_guild_experiment(
+	fn parse_normal_experiment(
 		obj: &'ast ObjectExpression<'ast>,
 	) -> PResult<Experiment> {
 		todo!()

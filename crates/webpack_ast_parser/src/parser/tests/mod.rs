@@ -25,10 +25,10 @@ mod find_gen;
 mod import_parsing;
 mod intl_keys;
 mod is_write_once;
+mod key_modules;
 mod module_id;
 mod outgoing_deps;
 mod remaining_access_chain;
-mod key_modules;
 
 #[derive(Copy, Clone)]
 struct SpanDumper<'a>(pub Span, pub &'a str);

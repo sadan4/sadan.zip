@@ -6,12 +6,24 @@ use crate::SpannedId;
 #[derive(
 	Serialize, Deserialize, Debug, TypeSize, Clone, PartialEq, Eq, Hash,
 )]
-#[serde(rename_all = "camelCase", tag = "kind")]
+#[serde(rename_all = "camelCase")]
 pub enum ExperimentKind {
+	/// <https://docs.discord.food/topics/experiments#user-experiments>
+	/// 
+	/// <https://docs.discord.food/topics/experiments#guild-experiments>
+	Apex(ApexExperiment),
+	/// <https://docs.discord.food/topics/experiments#apex-experiments>
+	Normal(NormalExperiment),
+}
+
+#[derive(
+	Serialize, Deserialize, Debug, TypeSize, Clone, PartialEq, Eq, Hash,
+)]
+pub enum ExperimentScope {
 	#[serde(rename = "user")]
-	User(UserExperiment),
+	User,
 	#[serde(rename = "guild")]
-	Guild(GuildExperiment),
+	Guild,
 }
 
 #[derive(
@@ -26,15 +38,13 @@ pub struct Experiment {
 	Serialize, Deserialize, Debug, TypeSize, Clone, PartialEq, Eq, Hash,
 )]
 #[serde(rename_all = "camelCase")]
-pub struct UserExperiment {
+pub struct ApexExperiment {
+	pub kind: ExperimentScope,
 	pub name: String,
 	#[typesize(with = size_serde_json_value)]
 	pub default_config: serde_json::Value,
 	pub label: Option<String>,
 	pub variations: Vec<Variation>,
-	pub treatments: Vec<Treatment>,
-	/// TODO: was seen in 2025-09_hotwheels_nvidia_boost
-	pub common_trigger_point: Option<()>,
 }
 
 #[derive(
@@ -73,12 +83,15 @@ fn size_serde_json_value(value: &serde_json::Value) -> usize {
 #[derive(
 	Serialize, Deserialize, Debug, TypeSize, Clone, PartialEq, Eq, Hash,
 )]
-pub struct GuildExperiment {
+pub struct NormalExperiment {
+	pub kind: ExperimentScope,
 	pub id: String,
 	pub label: String,
 	#[typesize(with = size_serde_json_value)]
 	pub default_config: serde_json::Value,
 	pub treatments: Vec<Treatment>,
+	/// TODO: was seen in 2025-09_hotwheels_nvidia_boost
+	pub common_trigger_point: Option<()>,
 }
 
 #[derive(
