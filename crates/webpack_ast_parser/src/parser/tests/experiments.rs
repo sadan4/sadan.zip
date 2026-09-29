@@ -9,7 +9,7 @@ use serde_json::json;
 #[test]
 fn finds_user_experiment() {
 	let p = parse!("test_data/wp/experiments/userExperiment.js");
-	let experiments = p.get_defined_experiments(945810.into(), "mj".into());
+	let experiments = p.get_defined_apex_experiments(945810.into(), "mj".into());
 	let [Experiment { loc, obj }] = experiments.as_slice() else {
 		panic!("expected exactly one experiment, got {experiments:#?}");
 	};
@@ -39,13 +39,13 @@ fn finds_user_experiment() {
 #[test]
 fn ignores_other_exports_of_create_experiment_module() {
 	let p = parse!("test_data/wp/experiments/userExperiment.js");
-	let experiments = p.get_defined_experiments(945810.into(), "notMj".into());
+	let experiments = p.get_defined_apex_experiments(945810.into(), "notMj".into());
 	assert_eq!(experiments, vec![]);
 }
 
 #[test]
 fn ignores_other_modules() {
 	let p = parse!("test_data/wp/experiments/userExperiment.js");
-	let experiments = p.get_defined_experiments(111111.into(), "mj".into());
+	let experiments = p.get_defined_apex_experiments(111111.into(), "mj".into());
 	assert_eq!(experiments, vec![]);
 }

@@ -745,39 +745,29 @@ impl<'ast> WebpackAstParser<'ast> {
 			.collect()
 	}
 
+	/// Checks if the current module is the module that exports the `createApexExperiment` function
+	///
+	/// returns the export name of the `createApexExperiment` function if found
+	pub fn is_create_apex_experiment_module(&self) -> Option<ExportMapKey> {
+		self.find_exported_func_by_returned_obj_props(&[
+			"definition",
+			"useConfig",
+			"getConfig",
+		])
+	}
+
 	/// Checks if the current module is the module that exports the `createExperiment` function
 	///
 	/// returns the export name of the `createExperiment` function if found
 	pub fn is_create_experiment_module(&self) -> Option<ExportMapKey> {
-		// iterate over the export map keys
-		// find a function that returns an object with the following properties
-		// definition, useConfig, getConfig
-		let map = self.get_export_map_raw();
-		let it = map.exports.iter().filter_map(|(k, v)| {
-			Some((k, *v.try_unwrap_range_ref().ok()?.last()?))
-		});
-		for (key, val) in it {
-			try {
-				debug!("val: {}", val.debug_name());
-				let ident = val.as_binding_identifier()?;
-				let func = self.p(ident.node_id()).as_function()?;
-				debug!("is func");
-				let body = get_inner_func_body(func);
-				let ret_obj = body
-					.statements
-					.last()?
-					.as_return_statement()?
-					.argument
-					.as_ref()?
-					.as_object_expression()?;
-				debug!("ret is obj");
-				ret_obj.get_property("definition")?;
-				ret_obj.get_property("useConfig")?;
-				ret_obj.get_property("getConfig")?;
-				return Some(key.clone().into());
-			};
-		}
-		None
+		self.find_exported_func_by_returned_obj_props(&[
+			"useExperiment",
+			"subscribe",
+			"trackExposure",
+			"getCurrentConfig",
+			"definition",
+			"isAAMode",
+		])
 	}
 
 	/// Attempt to determine if the current module is an intl module
@@ -837,7 +827,7 @@ impl<'ast> WebpackAstParser<'ast> {
 		};
 		ret.unwrap_or(false)
 	}
-	pub fn get_defined_experiments(
+	pub fn get_defined_apex_experiments(
 		&self,
 		create_experiment_module: ModuleId,
 		create_experiment_export: SmolStr,
@@ -888,6 +878,40 @@ impl<'ast> WebpackAstParser<'ast> {
 
 /// Private API
 impl<'ast> WebpackAstParser<'ast> {
+	fn find_exported_func_by_returned_obj_props(
+		&self,
+		props: &[&str],
+	) -> Option<ExportMapKey> {
+		// iterate over the export map keys
+		// find a function that returns an object with the following properties
+		// definition, useConfig, getConfig
+		let map = self.get_export_map_raw();
+		let it = map.exports.iter().filter_map(|(k, v)| {
+			Some((k, *v.try_unwrap_range_ref().ok()?.last()?))
+		});
+		for (key, val) in it {
+			try {
+				debug!("val: {}", val.debug_name());
+				let ident = val.as_binding_identifier()?;
+				let func = self.p(ident.node_id()).as_function()?;
+				debug!("is func");
+				let body = get_inner_func_body(func);
+				let ret_obj = body
+					.statements
+					.last()?
+					.as_return_statement()?
+					.argument
+					.as_ref()?
+					.as_object_expression()?;
+				debug!("ret is obj");
+				for prop in props {
+					ret_obj.get_property(prop)?;
+				}
+				return Some(key.clone().into());
+			};
+		}
+		None
+	}
 	fn parse_experiment(
 		&self,
 		obj: &'ast ObjectExpression<'ast>,
