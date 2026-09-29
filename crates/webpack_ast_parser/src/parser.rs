@@ -834,10 +834,24 @@ impl<'ast> WebpackAstParser<'ast> {
 	}
 	pub fn get_defined_experiments(
 		&self,
-		_create_experiment_module: ModuleId,
-		_create_experiment_export: SmolStr,
+		create_experiment_module: ModuleId,
+		create_experiment_export: SmolStr,
 	) -> Vec<Experiment> {
-		vec![]
+		let uses = self.get_raw_uses_of_import(
+			create_experiment_module,
+			&[create_experiment_export.into()],
+		);
+		let mut ret = Vec::with_capacity(uses.len());
+		for usage in uses {
+			try {
+				let parent = self.find_parent(
+					usage.node_id(),
+					AstKind::as_parenthesized_expression,
+				)?;
+			};
+		}
+		todo!();
+		ret
 	}
 }
 
@@ -1765,7 +1779,7 @@ impl<'ast> WebpackAstParser<'ast> {
 			.iter()
 			.map_while(|a| a.try_unwrap_static().ok())
 			.map(|ident| &ident.name)
-			.map(ExportMapKey::from_str)
+			.map(ExportMapKey::from)
 			.collect_vec();
 		let spans = names
 			.iter()
@@ -2453,18 +2467,12 @@ impl<'ast> WebpackAstParser<'ast> {
 			!matches!(
 				seq[0].kind(),
 				TK::Dot
-					| TK::Comma
-					| TK::Colon
-					| TK::Eq
-					| TK::Eq2
-					| TK::Eq3
-					| TK::Amp2
-					| TK::LParen
-					| TK::RParen
-					| TK::Pipe2
-					| TK::Semicolon
-					| TK::Question
-					| TK::Extends
+					| TK::Comma | TK::Colon
+					| TK::Eq | TK::Eq2
+					| TK::Eq3 | TK::Amp2
+					| TK::LParen | TK::RParen
+					| TK::Pipe2 | TK::Semicolon
+					| TK::Question | TK::Extends
 					| TK::Let
 			)
 		} else {
@@ -3193,8 +3201,7 @@ impl<'ast> WebpackAstParser<'ast> {
 			.as_ref()
 			.unwrap()
 			.statements
-			.len()
-			== 1
+			.len() == 1
 			&& let Some(ident) =
 				find_return_identifier(Functionish::Named(func))
 		{

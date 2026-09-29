@@ -184,9 +184,8 @@ pub enum ExportMapKey {
 	Default,
 }
 
-impl ExportMapKey {
-	#[expect(clippy::should_implement_trait)]
-	pub fn from_str(s: &impl AsRef<str>) -> Self {
+impl<T: AsRef<str>> From<&T> for ExportMapKey {
+	fn from(s: &T) -> Self {
 		Self::Named(s.as_ref().into())
 	}
 }
