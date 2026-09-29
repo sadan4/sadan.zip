@@ -1,3 +1,6 @@
+pub mod experiments;
+mod serde_span;
+
 use derive_more::{Deref, Display, From, Into};
 use jiff::{Timestamp, Zoned, tz::TimeZone};
 use oxc_span::{SPAN, Span};
@@ -10,7 +13,9 @@ use typesize::derive::TypeSize;
 
 pub type TModuleId = u32;
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash, TypeSize)]
+#[derive(
+	Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash, TypeSize,
+)]
 pub enum Channel {
 	Stable = 0,
 	Canary = 1,
@@ -30,7 +35,6 @@ impl Channel {
 		}
 	}
 }
-
 
 #[derive(Serialize, Deserialize, Default, Debug, Clone, TypeSize)]
 #[serde(rename_all = "camelCase")]
@@ -183,11 +187,22 @@ pub struct OutgoingModuleDeps {
 }
 
 #[derive(
-	Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, TypeSize,
+	Serialize,
+	Deserialize,
+	Copy,
+	Clone,
+	Debug,
+	PartialEq,
+	Eq,
+	PartialOrd,
+	Ord,
+	Hash,
+	TypeSize,
 )]
 pub struct SpannedId {
 	pub id: ModuleId,
 	#[typesize(with = size_of_val)]
+	#[serde(deserialize_with = "serde_span::deserialize_span")]
 	pub span: Span,
 }
 

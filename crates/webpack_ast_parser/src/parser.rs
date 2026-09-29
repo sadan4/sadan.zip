@@ -41,6 +41,7 @@ use crate::{
 			find_return_identifier,
 			flatten_export_map,
 			flatten_property_access_expression,
+			get_inner_func_body,
 			get_nested_export_from_map,
 			match_export_chain,
 			span_to_range,
@@ -74,6 +75,7 @@ use explorer_types::{
 	ModuleId,
 	OutgoingModuleDepsWithLocs,
 	SpannedId,
+	experiments::Experiment,
 };
 use export_map::RawExportMap;
 use itertools::Itertools as _;
@@ -87,12 +89,14 @@ use oxc::{
 			ArrowFunctionExpression,
 			AssignmentTarget,
 			BindingIdentifier,
+			BlockStatement,
 			CallExpression,
 			Class,
 			ClassElement,
 			Expression,
 			ExpressionStatement,
 			Function,
+			FunctionBody,
 			IdentifierReference,
 			LogicalOperator,
 			MethodDefinition,
@@ -838,6 +842,41 @@ impl<'ast> WebpackAstParser<'ast> {
 			.collect()
 	}
 
+	/// Checks if the current module is the module that exports the `createExperiment` function
+	///
+	/// returns the export name of the `createExperiment` function if found
+	pub fn is_create_experiment_module(&self) -> Option<ExportMapKey> {
+		// iterate over the export map keys
+		// find a function that returns an object with the following properties
+		// definition, useConfig, getConfig
+		let map = self.get_export_map_raw();
+		let it = map.exports.iter().filter_map(|(k, v)| {
+			Some((k, *v.try_unwrap_range_ref().ok()?.last()?))
+		});
+		for (key, val) in it {
+			try {
+				debug!("val: {}", val.debug_name());
+				let ident = val.as_binding_identifier()?;
+				let func = self.p(ident.node_id()).as_function()?;
+				debug!("is func");
+				let body = get_inner_func_body(func);
+				let ret_obj = body
+					.statements
+					.last()?
+					.as_return_statement()?
+					.argument
+					.as_ref()?
+					.as_object_expression()?;
+				debug!("ret is obj");
+				ret_obj.get_property("definition")?;
+				ret_obj.get_property("useConfig")?;
+				ret_obj.get_property("getConfig")?;
+				return Some(key.clone().into());
+			};
+		}
+		None
+	}
+
 	/// Attempt to determine if the current module is an intl module
 	pub fn is_intl_module(&self) -> bool {
 		let ret = try {
@@ -894,6 +933,13 @@ impl<'ast> WebpackAstParser<'ast> {
 			Self::is_valid_intl_json(intl)
 		};
 		ret.unwrap_or(false)
+	}
+	pub fn get_defined_experiments(
+		&self,
+		_create_experiment_module: ModuleId,
+		_create_experiment_export: SmolStr,
+	) -> Vec<Experiment> {
+		vec![]
 	}
 }
 

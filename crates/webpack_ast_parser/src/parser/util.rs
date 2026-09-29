@@ -14,8 +14,11 @@ use oxc::{
 	ast::ast::{
 		ArrowFunctionExpression,
 		Expression,
+		Function,
+		FunctionBody,
 		IdentifierName,
 		IdentifierReference,
+		Statement,
 	},
 	span::Span,
 };
@@ -271,5 +274,40 @@ pub const fn span_to_range(s: Span) -> ops::Range<u32> {
 	ops::Range {
 		start: s.start,
 		end: s.end,
+	}
+}
+
+/// Get the body of `func`, unwrapping functions that only return an IIFE.
+///
+/// ```js
+/// function outer() {
+///     return (function inner() {
+///         return { ... }; // <- body of `inner` is returned
+///     })();
+/// }
+/// ```
+///
+/// # Panics
+///
+/// If `func` or any unwrapped function has no body (e.g. a TS declaration)
+pub fn get_inner_func_body<'ast>(
+	func: &'ast Function<'ast>,
+) -> &'ast FunctionBody<'ast> {
+	let mut cur = func;
+	loop {
+		let body = cur.body.as_deref().unwrap();
+		if let [Statement::ReturnStatement(ret)] = body.statements.as_slice()
+			&& let Some(new) = try {
+				ret.argument
+					.as_ref()?
+					.as_call_expression()?
+					.callee
+					.get_inner_expression()
+					.as_function_expression()?
+			} {
+			cur = new;
+			continue;
+		}
+		return cur.body.as_deref().unwrap();
 	}
 }

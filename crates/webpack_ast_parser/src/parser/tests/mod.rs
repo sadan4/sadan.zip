@@ -27,6 +27,7 @@ mod is_write_once;
 mod module_id;
 mod outgoing_deps;
 mod remaining_access_chain;
+mod key_modules;
 
 #[derive(Copy, Clone)]
 struct SpanDumper<'a>(pub Span, pub &'a str);
