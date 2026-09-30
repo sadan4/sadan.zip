@@ -24,6 +24,8 @@ pub enum ExperimentScope {
 	User,
 	#[serde(rename = "guild")]
 	Guild,
+	#[serde(rename = "installation")]
+	Installation,
 }
 
 #[derive(

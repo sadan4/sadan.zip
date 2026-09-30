@@ -3,7 +3,7 @@ source: crates/webpack_ast_parser/tests/experiments.rs
 expression: "format!(\"creator modules: {}\\n{apex} apex, {normal} normal\\n\\n{summary}\",\ncreators.iter().join(\", \"),)"
 ---
 creator modules: 240921, 880006
-282 apex, 36 normal
+284 apex, 36 normal
 
 492: apex User 2026-02-mute-tutorial (1 variations)
 1310: normal Guild 2023-02_guest_voice_invites (1 treatments)
@@ -104,6 +104,7 @@ creator modules: 240921, 880006
 291445: apex User 2026-02-friends-list (1 variations)
 292446: apex User 2026-04-ensure-received-messages-added-in-order (1 variations)
 302654: apex User 2025-10-ad-request-behavior-experiment (6 variations)
+304476: apex Installation 2026-03-mobile-web-invite-server-profile (1 variations)
 304476: normal User 2023-09_iar_dsa_webform (2 treatments)
 310480: apex User 2026-05-auto-clips-review (1 variations)
 313205: normal Guild 2026-03_file_upload_250_mb_powerup (1 treatments)
@@ -280,6 +281,7 @@ creator modules: 240921, 880006
 932456: normal User 2024-06_rtc_pacer__simulcast (6 treatments)
 932456: apex User 2026-04-browser-transceiver-padding-removal (1 variations)
 932456: apex User 2026-06-server-ladder (1 variations)
+932456: apex User 2026-03-surface-direct-renderer (1 variations)
 932456: apex User 2026-03-browser-inverted-wants (1 variations)
 936449: normal User 2025-06_native_intents (4 treatments)
 936926: apex User 2026-01-family-center-v3 (2 variations)

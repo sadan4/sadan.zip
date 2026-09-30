@@ -1037,15 +1037,7 @@ impl<'ast> WebpackAstParser<'ast> {
 		&self,
 		obj: &'ast ObjectExpression<'ast>,
 	) -> PResult<Experiment> {
-		let name = &obj
-			.get_property("name")
-			.ok_or_else(|| err(obj, "Experiment does not have name property"))?
-			.value;
-		let name = name
-			.as_string_literal_like()
-			.ok_or_else(|| {
-				err(name, "`name` experiment property is not a string literal")
-			})?;
+		let name = self.parse_experiment_name(obj, "name")?;
 		let default_config = if let Some(ObjectProperty { value, .. }) =
 			obj.get_property("defaultConfig")
 		{
@@ -1113,7 +1105,7 @@ impl<'ast> WebpackAstParser<'ast> {
 			},
 			obj: ExperimentKind::Apex(ApexExperiment {
 				kind,
-				name: name.to_string(),
+				name,
 				default_config,
 				label,
 				variations,
@@ -1135,6 +1127,7 @@ impl<'ast> WebpackAstParser<'ast> {
 		match scope.as_str() {
 			"user" => Ok(ExperimentScope::User),
 			"guild" => Ok(ExperimentScope::Guild),
+			"installation" => Ok(ExperimentScope::Installation),
 			_ => Err(err(
 				kind,
 				"`kind` experiment property is not `user` or `guild`",
@@ -1190,20 +1183,52 @@ impl<'ast> WebpackAstParser<'ast> {
 			config,
 		})
 	}
+
+	fn parse_experiment_name(
+		&self,
+		obj: &'ast ObjectExpression<'ast>,
+		prop: &str,
+	) -> PResult<String> {
+		let name_prop = obj
+			.get_property(prop)
+			.ok_or_else(|| {
+				err(obj, format!("Experiment does not have `{prop}` property"))
+			})?;
+		let ret = match &name_prop.value {
+			Expression::StringLiteral(lit) => lit.value.to_string(),
+			Expression::TemplateLiteral(lit)
+				if lit.is_no_substitution_template() =>
+			{
+				lit.quasis
+					.first()
+					.unwrap()
+					.value
+					.cooked
+					.unwrap()
+					.to_string()
+			}
+			Expression::Identifier(ident) => self
+				.is_constant_string(&**ident)
+				.ok_or_else(|| {
+					err(
+						&**ident,
+						format!("Could not resolve {prop} string from identifier"),
+					)
+				})?
+				.to_string(),
+			other => {
+				return Err(err(other, format!("Could not resolve {prop} string")));
+			}
+		};
+		Ok(ret)
+	}
+
 	fn parse_normal_experiment(
 		&self,
 		obj: &'ast ObjectExpression<'ast>,
 	) -> PResult<Experiment> {
 		let kind = Self::parse_experiment_scope(obj)?;
-		let id = &obj
-			.get_property("id")
-			.ok_or_else(|| err(obj, "Experiment does not have id property"))?
-			.value;
-		let id = id
-			.as_string_literal_like()
-			.ok_or_else(|| {
-				err(id, "`id` experiment property is not a string literal")
-			})?;
+		let id = self.parse_experiment_name(obj, "id")?;
 		let label = &obj
 			.get_property("label")
 			.ok_or_else(|| err(obj, "Experiment does not have label property"))?
@@ -2257,7 +2282,7 @@ impl<'ast> WebpackAstParser<'ast> {
 	// FIXME: make PResult?
 	fn get_module_id_for_import(&self, sym_id: SymbolId) -> Option<SpannedId> {
 		let init = self
-			.sole_value_of(sym_id)?
+			.sole_value_of(&sym_id)?
 			.as_call_expression()?;
 		// make sure init is a call to wreq
 		if !self.cmp_sym(init.callee.as_identifier()?, &self.wreq().ok()?) {
@@ -2685,18 +2710,19 @@ impl<'ast> WebpackAstParser<'ast> {
 				let value_prop_val = value_prop
 					.value
 					.as_identifier()
-					.and_then(|ident| self.sym_id_of(ident))
-					.and_then(|sym_id| self.is_constant_string(sym_id))?;
+					.and_then(|ident| self.is_constant_string(ident))?;
 				return Some(SmolStr::new(value_prop_val));
 			};
 		}
 		None
 	}
 	/// TODO: document
-	fn is_constant_string(&self, sym_id: SymbolId) -> Option<Str<'ast>> {
+	fn is_constant_string<ID: GetSymId>(
+		&self,
+		sym_id: &ID,
+	) -> Option<Str<'ast>> {
 		self.sole_value_of(sym_id)?
-			.as_string_literal()
-			.map(|l| l.value)
+			.as_string_literal_like()
 	}
 	/// The only value `sym_id` is ever set to
 	/// ```js
@@ -2706,10 +2732,11 @@ impl<'ast> WebpackAstParser<'ast> {
 	/// let x;
 	/// x = value;
 	/// ```
-	fn sole_value_of(
+	fn sole_value_of<ID: GetSymId>(
 		&self,
-		sym_id: SymbolId,
+		sym_id: &ID,
 	) -> Option<&'ast Expression<'ast>> {
+		let sym_id = self.sym_id_of(sym_id)?;
 		let decl = self
 			.sema
 			.symbol_declaration(sym_id)
@@ -2736,7 +2763,7 @@ impl<'ast> WebpackAstParser<'ast> {
 			.then_some(&assign.right)
 	}
 	fn is_display_name_prop_key(&self, sym_id: SymbolId) -> bool {
-		self.is_constant_string(sym_id)
+		self.is_constant_string(&sym_id)
 			.is_some_and(|s| s == "displayName")
 	}
 	fn does_re_export_whole_module_impl(&self) -> Option<SpannedId> {
