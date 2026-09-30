@@ -82,6 +82,7 @@ impl<'ast> super::WebpackAstParser<'ast> {
 							"Can't convert unary plus on non-number to json",
 						));
 					}
+					UnaryOperator::Void => Value::Null,
 					op => {
 						return Err(err(
 							&**unary,
@@ -126,6 +127,12 @@ mod tests {
 			.unwrap();
 		let expr = alloc.alloc(expr);
 		WebpackAstParser::expr_to_json(expr).ok()
+	}
+
+
+	#[test]
+	fn void_0() {
+		assert_eq!(to_json("void 0"), Some(json!(null)));
 	}
 
 	#[test]

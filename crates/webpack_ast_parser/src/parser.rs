@@ -32,6 +32,7 @@ use crate::{
 			RawStoreData,
 		},
 		types::{
+			Importer,
 			ReExport,
 			ResolvedDefinition,
 			SearchElement,
@@ -100,14 +101,12 @@ use oxc::{
 			ArrowFunctionExpression,
 			AssignmentTarget,
 			BindingIdentifier,
-			BlockStatement,
 			CallExpression,
 			Class,
 			ClassElement,
 			Expression,
 			ExpressionStatement,
 			Function,
-			FunctionBody,
 			IdentifierName,
 			IdentifierReference,
 			LogicalOperator,
@@ -137,7 +136,6 @@ use rangemap::RangeSet;
 use smol_str::{SmolStr, ToSmolStr as _};
 use std::{
 	collections::{HashMap, HashSet},
-	env::var,
 	fmt::Write,
 	iter,
 	mem,
@@ -309,8 +307,6 @@ impl<'ast> WebpackAstParser<'ast> {
 			.collect()
 	}
 	// TODO: use custom error codes with thiserror
-	// TODO: split to make smaller
-	#[expect(clippy::too_many_lines)]
 	pub async fn generate_references(
 		&self,
 		pos: u32,
@@ -318,16 +314,7 @@ impl<'ast> WebpackAstParser<'ast> {
 		// SAFETY: see send + sync impl for WebpackAstParser
 		unsafe {
 			UnsafeFuture::new(async {
-				let self_module_id = self.get_module_id().map_err(|e| {
-					err_ns(
-						"Could not find module id of module to search for references of.",
-					)
-					.s(e)
-				})?;
 				let module_exports = self.get_export_map();
-				let dependents = self
-					.get_modules_that_require_this_module()
-					.await?;
 				let mut locs = Vec::new();
 				// TODO: construct a new map from a ref instead of cloning
 				let filtered_export_map =
@@ -336,8 +323,6 @@ impl<'ast> WebpackAstParser<'ast> {
 					flatten_export_map(filtered_export_map, None);
 
 				for mut export_name in exported_names {
-					let mut seen: HashMap<ModuleId, HashSet<ModuleId>> =
-						HashMap::new();
 					// below fixme is copied verbatim from js. it might not be valid
 					// FIXME: this is a workaround for a bug in getUsesOfImport where it doesn't properly hand SYM_CJS_DEFAULT
 					if export_name.len() > 1
@@ -346,68 +331,16 @@ impl<'ast> WebpackAstParser<'ast> {
 						export_name.pop();
 					}
 
-					let mut left = dependents
-						.sync
-						.iter()
-						.map(|x| {
-							SearchElement {
-								module_id: *x,
-								imported_id: self_module_id.id,
-								// TODO: make this cow?
-								export_name: export_name.clone(),
-							}
-						})
-						.collect_vec();
-					while let Some(cur) = left.pop() {
-						let SearchElement {
-							module_id,
-							imported_id,
-							export_name,
-						} = cur;
-						if seen
-							.get(&imported_id)
-							.is_some_and(|s| s.contains(&module_id))
-						{
-							continue;
-						}
-						seen.entry(imported_id)
-							.or_default()
-							.insert(module_id);
-						let parser = match self
-							.module_cache
-							.get_module_parser(self, module_id, None)
-							.await
-						{
-							Ok(parser) => parser,
-							Err(e) => {
-								warn!(
-									"Failed to get parser for module id {module_id}. Cause: {e:?}"
-								);
-								continue;
-							}
-						};
-						let p = parser.parser();
-						let uses =
-							p.get_uses_of_import(imported_id, &export_name);
-						// FIXME: support nested re-exports
-						let exported_as = p.does_re_export_from_import(
-							imported_id,
-							export_name[0].clone(),
-						);
-
-						if let Some(exported_as) = exported_as
-							&& let Ok(where_) = p
-								.get_modules_that_require_this_module()
-								.await
-						{
-							left.extend(where_.sync.iter().map(|x| {
-								SearchElement {
-									module_id: *x,
-									imported_id: p.get_module_id().unwrap().id,
-									export_name: vec![exported_as.clone()],
-								}
-							}));
-						}
+					for Importer {
+						parser,
+						module_id,
+						imported_id,
+						export_name,
+					} in self.find_importers(export_name).await?
+					{
+						let uses = parser
+							.parser()
+							.get_uses_of_import(imported_id, &export_name);
 						let maybe_file_path = self
 							.module_cache
 							.get_module_filepath(module_id)
@@ -834,11 +767,67 @@ impl<'ast> WebpackAstParser<'ast> {
 		};
 		ret.unwrap_or(false)
 	}
+	/// Collects every experiment in the bundle created with this module's
+	/// `createApexExperiment` or `createExperiment` export, including through
+	/// re-exports of them
+	///
+	/// Returns an empty list if this module exports neither
+	// FIXME: perf is probably bad here
+	pub async fn get_all_experiments(&self) -> PResult<Vec<Experiment>> {
+		// SAFETY: see send + sync impl for WebpackAstParser
+		unsafe {
+			UnsafeFuture::new(async {
+				let mut ret = Vec::new();
+				if let Some(export) = self.is_create_apex_experiment_module() {
+					for Importer {
+						parser,
+						imported_id,
+						export_name,
+						..
+					} in self
+						.find_importers(vec![export])
+						.await?
+					{
+						ret.extend(
+							parser
+								.parser()
+								.get_defined_apex_experiments(
+									imported_id,
+									&export_name,
+								),
+						);
+					}
+				}
+				if let Some(export) = self.is_create_experiment_module() {
+					for Importer {
+						parser,
+						imported_id,
+						export_name,
+						..
+					} in self
+						.find_importers(vec![export])
+						.await?
+					{
+						ret.extend(
+							parser
+								.parser()
+								.get_defined_normal_experiments(
+									imported_id,
+									&export_name,
+								),
+						);
+					}
+				}
+				Ok(ret)
+			})
+		}
+		.await
+	}
 	/// Finds all experiments defined in this module with `createApexExperiment`
 	pub fn get_defined_apex_experiments(
 		&self,
 		create_experiment_module: ModuleId,
-		create_experiment_export: SmolStr,
+		create_experiment_export: &[ExportMapKey],
 	) -> Vec<Experiment> {
 		self.get_defined_experiments_with(
 			create_experiment_module,
@@ -850,7 +839,7 @@ impl<'ast> WebpackAstParser<'ast> {
 	pub fn get_defined_normal_experiments(
 		&self,
 		create_experiment_module: ModuleId,
-		create_experiment_export: SmolStr,
+		create_experiment_export: &[ExportMapKey],
 	) -> Vec<Experiment> {
 		self.get_defined_experiments_with(
 			create_experiment_module,
@@ -865,12 +854,12 @@ impl<'ast> WebpackAstParser<'ast> {
 	fn get_defined_experiments_with(
 		&self,
 		create_experiment_module: ModuleId,
-		create_experiment_export: SmolStr,
+		create_experiment_export: &[ExportMapKey],
 		parse: impl Fn(&Self, &'ast ObjectExpression<'ast>) -> PResult<Experiment>,
 	) -> Vec<Experiment> {
 		let uses = self.get_raw_uses_of_import(
 			create_experiment_module,
-			&[create_experiment_export.into()],
+			create_experiment_export,
 		);
 		let mut ret = Vec::with_capacity(uses.len());
 		for usage in uses {
@@ -910,6 +899,98 @@ impl<'ast> WebpackAstParser<'ast> {
 		}
 		ret
 	}
+	/// Finds every module that imports `export_name` from this module,
+	/// following re-exports through other modules
+	///
+	/// Each [`Importer`] is the importing module, and the module + export
+	/// name it imports, which may be a re-export of `export_name`
+	async fn find_importers(
+		&self,
+		export_name: Vec<ExportMapKey>,
+	) -> PResult<Vec<Importer>> {
+		let self_module_id = self.get_module_id().map_err(|e| {
+			err_ns(
+				"Could not find module id of module to search for references of.",
+			)
+			.s(e)
+		})?;
+		let dependents = self
+			.get_modules_that_require_this_module()
+			.await?;
+		let mut seen: HashMap<ModuleId, HashSet<ModuleId>> = HashMap::new();
+		let mut importers = Vec::new();
+		let mut left = dependents
+			.sync
+			.iter()
+			.map(|x| {
+				SearchElement {
+					module_id: *x,
+					imported_id: self_module_id.id,
+					// TODO: make this cow?
+					export_name: export_name.clone(),
+				}
+			})
+			.collect_vec();
+		while let Some(cur) = left.pop() {
+			let SearchElement {
+				module_id,
+				imported_id,
+				export_name,
+			} = cur;
+			if seen
+				.get(&imported_id)
+				.is_some_and(|s| s.contains(&module_id))
+			{
+				continue;
+			}
+			seen.entry(imported_id)
+				.or_default()
+				.insert(module_id);
+			let parser = match self
+				.module_cache
+				.get_module_parser(self, module_id, None)
+				.await
+			{
+				Ok(parser) => parser,
+				Err(e) => {
+					warn!(
+						"Failed to get parser for module id {module_id}. Cause: {e:?}"
+					);
+					continue;
+				}
+			};
+			let p = parser.parser();
+			// FIXME: support nested re-exports
+			let exported_as = p.does_re_export_from_import(
+				imported_id,
+				export_name[0].clone(),
+			);
+
+			if let Some(exported_as) = exported_as
+				&& let Ok(where_) = p
+					.get_modules_that_require_this_module()
+					.await
+			{
+				left.extend(
+					where_
+						.sync
+						.iter()
+						.map(|x| SearchElement {
+							module_id: *x,
+							imported_id: p.get_module_id().unwrap().id,
+							export_name: vec![exported_as.clone()],
+						}),
+				);
+			}
+			importers.push(Importer {
+				parser,
+				module_id,
+				imported_id,
+				export_name,
+			});
+		}
+		Ok(importers)
+	}
 	fn find_exported_func_by_returned_obj_props(
 		&self,
 		props: &[&str],
@@ -928,13 +1009,21 @@ impl<'ast> WebpackAstParser<'ast> {
 				let func = self.p(ident.node_id()).as_function()?;
 				debug!("is func");
 				let body = get_inner_func_body(func);
-				let ret_obj = body
+				let mut ret = body
 					.statements
 					.last()?
 					.as_return_statement()?
 					.argument
 					.as_ref()?
-					.as_object_expression()?;
+					.get_inner_expression();
+				// `return foo(), { ... };`
+				if let Expression::SequenceExpression(seq) = ret {
+					ret = seq
+						.expressions
+						.last()?
+						.get_inner_expression();
+				}
+				let ret_obj = ret.as_object_expression()?;
 				debug!("ret is obj");
 				for prop in props {
 					ret_obj.get_property(prop)?;

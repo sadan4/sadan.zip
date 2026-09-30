@@ -16,8 +16,10 @@ use serde_json::json;
 #[test]
 fn finds_user_experiment() {
 	let p = parse!("test_data/wp/experiments/userExperiment.js");
-	let experiments =
-		p.get_defined_apex_experiments(945810.into(), "mj".into());
+	let experiments = p.get_defined_apex_experiments(
+		945810.into(),
+		&[ExportMapKey::Named("mj".into())],
+	);
 	let [Experiment { loc, obj }] = experiments.as_slice() else {
 		panic!("expected exactly one experiment, got {experiments:#?}");
 	};
@@ -46,23 +48,30 @@ fn finds_user_experiment() {
 #[test]
 fn ignores_other_exports_of_create_experiment_module() {
 	let p = parse!("test_data/wp/experiments/userExperiment.js");
-	let experiments =
-		p.get_defined_apex_experiments(945810.into(), "notMj".into());
+	let experiments = p.get_defined_apex_experiments(
+		945810.into(),
+		&[ExportMapKey::Named("notMj".into())],
+	);
 	assert_eq!(experiments, vec![]);
 }
 
 #[test]
 fn ignores_other_modules() {
 	let p = parse!("test_data/wp/experiments/userExperiment.js");
-	let experiments =
-		p.get_defined_apex_experiments(111111.into(), "mj".into());
+	let experiments = p.get_defined_apex_experiments(
+		111111.into(),
+		&[ExportMapKey::Named("mj".into())],
+	);
 	assert_eq!(experiments, vec![]);
 }
 
 #[test]
 fn apex_ignores_normal_experiments() {
 	let p = parse!("test_data/wp/experiments/guildExperiment.js");
-	let experiments = p.get_defined_apex_experiments(600975.into(), "C".into());
+	let experiments = p.get_defined_apex_experiments(
+		600975.into(),
+		&[ExportMapKey::Named("C".into())],
+	);
 	assert_eq!(experiments, vec![]);
 }
 
@@ -72,8 +81,10 @@ fn apex_ignores_normal_experiments() {
 #[test]
 fn finds_guild_experiment() {
 	let p = parse!("test_data/wp/experiments/guildExperiment.js");
-	let experiments =
-		p.get_defined_normal_experiments(600975.into(), "C".into());
+	let experiments = p.get_defined_normal_experiments(
+		600975.into(),
+		&[ExportMapKey::Named("C".into())],
+	);
 	let [Experiment { loc, obj }] = experiments.as_slice() else {
 		panic!("expected exactly one experiment, got {experiments:#?}");
 	};
@@ -100,23 +111,29 @@ fn finds_guild_experiment() {
 #[test]
 fn normal_ignores_other_exports_of_create_experiment_module() {
 	let p = parse!("test_data/wp/experiments/guildExperiment.js");
-	let experiments =
-		p.get_defined_normal_experiments(600975.into(), "notC".into());
+	let experiments = p.get_defined_normal_experiments(
+		600975.into(),
+		&[ExportMapKey::Named("notC".into())],
+	);
 	assert_eq!(experiments, vec![]);
 }
 
 #[test]
 fn normal_ignores_other_modules() {
 	let p = parse!("test_data/wp/experiments/guildExperiment.js");
-	let experiments =
-		p.get_defined_normal_experiments(111111.into(), "C".into());
+	let experiments = p.get_defined_normal_experiments(
+		111111.into(),
+		&[ExportMapKey::Named("C".into())],
+	);
 	assert_eq!(experiments, vec![]);
 }
 
 #[test]
 fn normal_ignores_apex_experiments() {
 	let p = parse!("test_data/wp/experiments/userExperiment.js");
-	let experiments =
-		p.get_defined_normal_experiments(945810.into(), "mj".into());
+	let experiments = p.get_defined_normal_experiments(
+		945810.into(),
+		&[ExportMapKey::Named("mj".into())],
+	);
 	assert_eq!(experiments, vec![]);
 }

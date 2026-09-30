@@ -2,14 +2,15 @@ use std::{
 	borrow::Cow,
 	collections::HashMap,
 	fmt::{self, Debug},
-	fs,
+	fs::{self, File},
+	io::BufReader,
 	path::{Path, PathBuf},
 	sync::{Arc, OnceLock},
 };
 
 use ast_parser::{get_offset_from_line_and_column, span_line_and_column};
 use async_trait::async_trait;
-use explorer_types::{IncomingModuleDeps, ModuleId};
+use explorer_types::{FullBundle, IncomingModuleDeps, ModuleId};
 use itertools::Itertools;
 use miette::{Result, miette};
 use miette_ctx::{ErrCtx as _, into_anyhow};
@@ -25,7 +26,8 @@ use webpack_ast_parser::{
 };
 
 pub struct Bundle {
-	dir: PathBuf,
+	/// The directory the modules were read from, if any
+	dir: Option<PathBuf>,
 	parsers: OnceLock<HashMap<ModuleId, Arc<ThreadSafeParser>>>,
 	deps: HashMap<ModuleId, Arc<IncomingModuleDeps>>,
 }
@@ -41,7 +43,6 @@ impl Bundle {
 			bundle_dir.push(&*sub_dir);
 		}
 		let mut parsers = HashMap::new();
-		let mut deps: HashMap<ModuleId, IncomingModuleDeps> = HashMap::new();
 		// collect parsers
 		for entry in
 			fs::read_dir(&bundle_dir).context("Failed to read bundle dir")?
@@ -77,6 +78,36 @@ impl Bundle {
 			parsers.insert(id, parser);
 		}
 
+		Ok(Self::from_parsers(Some(bundle_dir), parsers))
+	}
+
+	pub fn from_full_bundle(hash: &str) -> Result<&'static Self> {
+		let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+			.join("../reporter/tests/data")
+			.join(format!("{hash}.mpk.zst"));
+		let file = File::open(&path).context("Failed to open bundle")?;
+		let zst =
+			zstd::Decoder::new(file).context("Failed to read zstd stream")?;
+		let bundle: FullBundle =
+			rmp_serde::from_read(BufReader::with_capacity(1024 * 1024, zst))
+				.context("Failed to deserialize bundle")?;
+		let parsers = bundle
+			.modules
+			.into_iter()
+			.map(|(id, mut src)| {
+				WebpackAstParser::format_module_header(&mut src, id, false);
+				let parser = ThreadSafeParser::new(src.into())?;
+				Ok((id, parser))
+			})
+			.collect::<Result<_>>()?;
+		Ok(Self::from_parsers(None, parsers))
+	}
+
+	fn from_parsers(
+		dir: Option<PathBuf>,
+		parsers: HashMap<ModuleId, ThreadSafeParser>,
+	) -> &'static Self {
+		let mut deps: HashMap<ModuleId, IncomingModuleDeps> = HashMap::new();
 		for (id, parser) in &parsers {
 			let Some(o_deps) = parser
 				.parser()
@@ -100,7 +131,7 @@ impl Bundle {
 
 		// TODO: fix leak?
 		let ret: &'static Self = Box::leak(Box::new(Self {
-			dir: bundle_dir,
+			dir,
 			parsers: OnceLock::new(),
 			deps: deps
 				.into_iter()
@@ -121,7 +152,18 @@ impl Bundle {
 			.map_err(|_| miette!("Parsers already set"))
 			.unwrap();
 
-		Ok(ret)
+		ret
+	}
+
+	/// Every module id in the bundle, in ascending order
+	pub fn module_ids(&self) -> Vec<ModuleId> {
+		self.parsers
+			.get()
+			.unwrap()
+			.keys()
+			.copied()
+			.sorted_unstable()
+			.collect()
 	}
 
 	pub fn parse(&self, id: u32) -> Arc<ThreadSafeParser> {
@@ -200,7 +242,10 @@ impl Bundle {
 #[async_trait]
 impl IModuleCache for Bundle {
 	async fn get_module_filepath(&self, id: ModuleId) -> Option<Url> {
-		let path = self.dir.join(format!("{id}.js"));
+		let path = self
+			.dir
+			.as_ref()?
+			.join(format!("{id}.js"));
 		let url = Url::from_file_path(&path).unwrap();
 		Some(url)
 	}
