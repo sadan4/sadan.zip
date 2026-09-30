@@ -85,6 +85,7 @@ use explorer_types::{
 		Experiment,
 		ExperimentKind,
 		ExperimentScope,
+		NormalExperiment,
 	},
 };
 use export_map::RawExportMap;
@@ -833,10 +834,39 @@ impl<'ast> WebpackAstParser<'ast> {
 		};
 		ret.unwrap_or(false)
 	}
+	/// Finds all experiments defined in this module with `createApexExperiment`
 	pub fn get_defined_apex_experiments(
 		&self,
 		create_experiment_module: ModuleId,
 		create_experiment_export: SmolStr,
+	) -> Vec<Experiment> {
+		self.get_defined_experiments_with(
+			create_experiment_module,
+			create_experiment_export,
+			Self::parse_apex_experiment,
+		)
+	}
+	/// Finds all experiments defined in this module with `createExperiment`
+	pub fn get_defined_normal_experiments(
+		&self,
+		create_experiment_module: ModuleId,
+		create_experiment_export: SmolStr,
+	) -> Vec<Experiment> {
+		self.get_defined_experiments_with(
+			create_experiment_module,
+			create_experiment_export,
+			Self::parse_normal_experiment,
+		)
+	}
+}
+
+/// Private API
+impl<'ast> WebpackAstParser<'ast> {
+	fn get_defined_experiments_with(
+		&self,
+		create_experiment_module: ModuleId,
+		create_experiment_export: SmolStr,
+		parse: impl Fn(&Self, &'ast ObjectExpression<'ast>) -> PResult<Experiment>,
 	) -> Vec<Experiment> {
 		let uses = self.get_raw_uses_of_import(
 			create_experiment_module,
@@ -859,7 +889,7 @@ impl<'ast> WebpackAstParser<'ast> {
 					None?
 				};
 				let obj = obj.as_ref();
-				let exp = match self.parse_apex_experiment(obj) {
+				let exp = match parse(self, obj) {
 					Ok(e) => e,
 					Err(inner) => {
 						let name = match self.get_module_id() {
@@ -880,10 +910,6 @@ impl<'ast> WebpackAstParser<'ast> {
 		}
 		ret
 	}
-}
-
-/// Private API
-impl<'ast> WebpackAstParser<'ast> {
 	fn find_exported_func_by_returned_obj_props(
 		&self,
 		props: &[&str],
@@ -1076,9 +1102,80 @@ impl<'ast> WebpackAstParser<'ast> {
 		})
 	}
 	fn parse_normal_experiment(
+		&self,
 		obj: &'ast ObjectExpression<'ast>,
 	) -> PResult<Experiment> {
-		todo!()
+		let kind = Self::parse_experiment_scope(obj)?;
+		let id = &obj
+			.get_property("id")
+			.ok_or_else(|| err(obj, "Experiment does not have id property"))?
+			.value;
+		let id = id
+			.as_string_literal_like()
+			.ok_or_else(|| {
+				err(id, "`id` experiment property is not a string literal")
+			})?;
+		let label = &obj
+			.get_property("label")
+			.ok_or_else(|| err(obj, "Experiment does not have label property"))?
+			.value;
+		let label = label
+			.as_string_literal_like()
+			.ok_or_else(|| {
+				err(
+					label,
+					"`label` experiment property is not a string literal",
+				)
+			})?;
+		let default_config = if let Some(ObjectProperty { value, .. }) =
+			obj.get_property("defaultConfig")
+		{
+			Self::expr_to_json(value).map_err(|e| {
+				err(value, "Failed to parse `defaultConfig`").s(e)
+			})?
+		} else {
+			serde_json::Value::Null
+		};
+		let treatments =
+			if let Some(treatments) = obj.get_property("treatments") {
+				let arr = treatments
+					.value
+					.as_array_expression()
+					.ok_or_else(|| {
+						err(
+							&treatments.value,
+							"`treatments` is not an array expression",
+						)
+					})?;
+				let mut ret = Vec::with_capacity(arr.elements.len());
+				for el in &arr.elements {
+					let Some(el) = el.as_expression() else {
+						return Err(err(el, "Invalid treatment element"));
+					};
+					ret.push(Self::parse_experiment_treatment(el)?);
+				}
+				ret
+			} else {
+				vec![]
+			};
+		// TODO: parse the value once we know its shape
+		let common_trigger_point = obj
+			.get_property("commonTriggerPoint")
+			.map(|_| ());
+		Ok(Experiment {
+			loc: SpannedId {
+				id: self.get_module_id()?.id,
+				span: obj.span,
+			},
+			obj: ExperimentKind::Normal(NormalExperiment {
+				kind,
+				id: id.to_string(),
+				label: label.to_string(),
+				default_config,
+				treatments,
+				common_trigger_point,
+			}),
+		})
 	}
 	fn get_raw_uses_of_import(
 		&self,
