@@ -428,6 +428,26 @@ mod definitions {
 			]
 			"#);
 		}
+
+		/// `premiumSkuToPlan: n.zE` inside an experiment config object
+		#[cache_test(sub_dir = "experiment_config_import")]
+		async fn import_in_experiment_config(b: &Bundle) {
+			let parser = b.parse(56815);
+			let defs = b
+				.dbg_defs(&parser, 15, 32)
+				.await
+				.unwrap();
+			assert_debug_snapshot!(defs, @r#"
+			[
+			    DefinitionDumper {
+			        id: ModuleId(
+			            202541,
+			        ),
+			        range: "[16:8->16:9) X",
+			    },
+			]
+			"#);
+		}
 		mod enums {
 			use super::*;
 

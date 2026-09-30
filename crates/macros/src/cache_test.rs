@@ -38,18 +38,13 @@ pub fn cache_test(attr: TokenStream, item: TokenStream) -> TokenStream {
 	let orig_fn_name = tfn.sig.ident;
 	tfn.sig.ident = syn::Ident::new(TEST_FUNCTION_NAME, orig_fn_name.span());
 	let new_fn_name = &tfn.sig.ident;
-	let test_attr = if async_tok.is_some() {
-		quote! { #[::tokio::test] }
-	} else {
-		quote! { #[::core::prelude::v1::test] }
-	};
 	let invocation = if async_tok.is_some() {
 		quote! { #new_fn_name(b).await }
 	} else {
 		quote! { #new_fn_name(b) }
 	};
 	quote! {
-		#test_attr
+		#[::macros::test]
 		#async_tok fn #orig_fn_name() {
 			#tfn
 			let b = crate::Bundle::try_new(#sub_dir).unwrap();

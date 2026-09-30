@@ -3236,9 +3236,22 @@ impl<'ast> WebpackAstParser<'ast> {
 		}
 		// `Object.freeze({...})` — descend into the wrapped object literal
 		if let Some(frozen) = Self::unwrap_object_freeze(node) {
-			return self
-				.raw_make_export_map_object_expression(frozen)
-				.into();
+			let mut ret = self.raw_make_export_map_object_expression(frozen);
+			// `var a = Object.freeze({...})` set cjs_default at `a`
+			let mut parent = self.p(node.node_id());
+			while let AstKind::ParenthesizedExpression(_) = parent {
+				parent = self.p(parent.node_id());
+			}
+			if ret.cjs_default.is_none()
+				&& let Some(decl) = parent.as_variable_declarator()
+				&& let Some(name) = decl.id.as_binding_identifier()
+			{
+				ret.cjs_default =
+					Some(Box::new(RawExportRange::from_node(name).into()));
+			} else {
+				warn!("Failed to set cjs_default for Object.freeze, parent is not variable declarator");
+			}
+			return ret.into();
 		}
 		RawExportRange::from_node(node).into()
 	}

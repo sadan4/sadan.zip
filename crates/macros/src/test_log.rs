@@ -60,9 +60,9 @@ fn is_test_attribute(attr: &Attribute) -> bool {
 	let syn::Meta::Path(path) = &attr.meta else {
 		return false;
 	};
-	let candidates = [
-		["core", "prelude", "*", "test"],
-		["std", "prelude", "*", "test"],
+	let candidates: &[&[&str]] = &[
+		&["core", "prelude", "*", "test"],
+		&["std", "prelude", "*", "test"],
 	];
 	if path.leading_colon.is_none()
 		&& path.segments.len() == 1
@@ -73,13 +73,13 @@ fn is_test_attribute(attr: &Attribute) -> bool {
 	} else if path.segments.len() != candidates[0].len() {
 		return false;
 	}
-	candidates.into_iter().any(|segments| {
+	candidates.iter().any(|segments| {
 		path.segments
 			.iter()
-			.zip(segments)
+			.zip(*segments)
 			.all(|(segment, path)| {
 				segment.arguments.is_none()
-					&& (path == "*" || segment.ident == path)
+					&& (*path == "*" || segment.ident == path)
 			})
 	})
 }
@@ -102,6 +102,8 @@ fn try_test(attr: TokenStream, input: ItemFn) -> syn::Result<Tokens> {
 			.any(is_test_attribute);
 		let generated_test = if has_test {
 			quote! {}
+		} else if sig.asyncness.is_some() {
+			quote! { #[::tokio::test] }
 		} else {
 			quote! { #[::core::prelude::v1::test]}
 		};
