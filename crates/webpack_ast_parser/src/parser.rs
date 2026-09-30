@@ -1146,7 +1146,7 @@ impl<'ast> WebpackAstParser<'ast> {
 						self.match_remaining_access_chain(access, export_names);
 					if remaining.is_empty() {
 						let n = outermost_matching_node.unwrap();
-						uses.push(n.into_ast_kind());
+						uses.push(n.property.into_ast_kind());
 					} else {
 						// todo (i = wreq(m_id).foo).bar
 						let _: Option<()> = try {
