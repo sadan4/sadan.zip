@@ -4,6 +4,7 @@ use oxc::{
 		Expression,
 		IdentifierReference,
 		ObjectExpression,
+		ObjectPropertyKind,
 		UnaryOperator,
 	},
 	semantic::SymbolId,
@@ -25,16 +26,36 @@ impl<'ast> super::WebpackAstParser<'ast> {
 	) -> PResult<Value> {
 		let mut map = serde_json::Map::new();
 		for prop in &obj.properties {
-			let prop = prop
-				.as_property()
-				.ok_or_else(|| err(prop, "Can't convert spread to json"))?;
-			let key = prop.key.static_name().ok_or_else(|| {
-				err(prop, "Can't convert non-identifier key to json")
-			})?;
-			map.insert(
-				key.to_string(),
-				self.expr_to_json_impl(&prop.value, resolving)?,
-			);
+			match &prop {
+				ObjectPropertyKind::SpreadProperty(spread) => {
+					let spread_value = self
+						.expr_to_json_impl(&spread.argument, resolving)
+						.map_err(|e| {
+							err(
+								&**spread,
+								"Can't conver spread expression to JSON",
+							)
+							.s(e)
+						})?;
+					if let Value::Object(spread_map) = spread_value {
+						map.extend(spread_map);
+					} else {
+						return Err(err(
+							&**spread,
+							"Spread expression must evaluate to an object",
+						));
+					}
+				}
+				ObjectPropertyKind::ObjectProperty(prop) => {
+					let key = prop.key.static_name().ok_or_else(|| {
+						err(&**prop, "Can't convert non-identifier key to json")
+					})?;
+					map.insert(
+						key.to_string(),
+						self.expr_to_json_impl(&prop.value, resolving)?,
+					);
+				}
+			}
 		}
 		Ok(Value::Object(map))
 	}
@@ -285,5 +306,59 @@ mod tests {
 			to_json_with("let a = 1, b = [a, a];", "[b, b]"),
 			Some(json!([[1.0, 1.0], [1.0, 1.0]]))
 		);
+	}
+
+	#[test]
+	fn object_spread() {
+		assert_eq!(
+			to_json("{ ...{ a: 1 }, b: 2 }"),
+			Some(json!({ "a": 1.0, "b": 2.0 }))
+		);
+		assert_eq!(
+			to_json_with("let o = { a: 1 };", "{ ...o, b: 2 }"),
+			Some(json!({ "a": 1.0, "b": 2.0 }))
+		);
+		assert_eq!(to_json("{ ...{} }"), Some(json!({})));
+	}
+
+	#[test]
+	fn object_spread_nested() {
+		assert_eq!(
+			to_json_with(
+				"let a = { x: 1 }, b = { ...a, y: 2 };",
+				"{ ...b, z: 3 }"
+			),
+			Some(json!({ "x": 1.0, "y": 2.0, "z": 3.0 }))
+		);
+	}
+
+	#[test]
+	fn object_spread_later_keys_win() {
+		let prelude = "let o = { a: 1, b: 1 };";
+		assert_eq!(
+			to_json_with(prelude, "{ a: 2, ...o }"),
+			Some(json!({ "a": 1.0, "b": 1.0 }))
+		);
+		assert_eq!(
+			to_json_with(prelude, "{ ...o, a: 2 }"),
+			Some(json!({ "a": 2.0, "b": 1.0 }))
+		);
+		assert_eq!(
+			to_json_with(prelude, "{ ...o, ...{ b: 3 } }"),
+			Some(json!({ "a": 1.0, "b": 3.0 }))
+		);
+	}
+
+	#[test]
+	fn object_spread_unsupported() {
+		// not an object
+		assert_eq!(to_json("{ ...[1] }"), None);
+		assert_eq!(to_json("{ ...null }"), None);
+		assert_eq!(to_json(r#"{ ..."ab" }"#), None);
+		// can't be resolved
+		assert_eq!(to_json("{ ...o }"), None);
+		assert_eq!(to_json("{ ...foo() }"), None);
+		// cyclic
+		assert_eq!(to_json_with("var o = { ...o };", "o"), None);
 	}
 }

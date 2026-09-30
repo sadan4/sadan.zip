@@ -1,10 +1,9 @@
 ---
 source: crates/webpack_ast_parser/tests/experiments.rs
-assertion_line: 85
 expression: "format!(\"creator modules: {}\\n{apex} apex, {normal} normal\\n\\n{summary}\",\ncreators.iter().join(\", \"),)"
 ---
 creator modules: 240921, 880006
-286 apex, 36 normal
+292 apex, 36 normal
 
 492: apex User 2026-02-mute-tutorial (1 variations)
 1310: normal Guild 2023-02_guest_voice_invites (1 treatments)
@@ -89,12 +88,14 @@ creator modules: 240921, 880006
 192444: apex User 2026-06-remove-quest-home-hero (2 variations)
 196042: apex User 2026-03-bogo-promotion-gate-v2 (1 variations)
 201934: apex User 2026-04-consistent-profiles (1 variations)
+205106: apex User 2025-12-windows-audio-effects (1 variations)
 208207: apex User 2026-01-system-service-performance-monitor (1 variations)
 211287: apex User 2025-12-orb-redemption-thru-orders (1 variations)
 220753: apex User 2025-10-mana-date-inputs (1 variations)
 225567: apex User 2026-06-desktop-tti-http-cdt (1 variations)
 225567: apex User 2026-06-desktop-tti-splash-asset (1 variations)
 228756: apex User 2026-03-file-upload-powerup-holdout (1 variations)
+258585: apex User 2025-10-go-live-auto-quality (2 variations)
 258599: apex User 2026-05-mana-type-consolidation (1 variations)
 260451: apex User 2026-02-silp-in-app-redesign (2 variations)
 260451: apex User 2026-03-silp-in-app-redesign-profile (2 variations)
@@ -182,6 +183,7 @@ creator modules: 240921, 880006
 491380: apex User 2026-02-desktop-new-user-onboarding (1 variations)
 497842: apex User 2026-01-valentines-day-drop (3 variations)
 497842: apex User 2026-05-orbs-shop-upsell-banner (1 variations)
+499156: apex User 2025-12-09-ptt-education (2 variations)
 502939: apex User 2025-10-layer-system-v2 (2 variations)
 503089: apex User 2026-04-one-day-fractional-nitro (1 variations)
 504836: apex User 2026-04-trial-continuation-discount (2 variations)
@@ -248,6 +250,7 @@ creator modules: 240921, 880006
 790271: apex User 2026-02-mana-playground-access (1 variations)
 795965: apex User 2026-05-quest-home-reward-claim (1 variations)
 796272: apex User 2025-10-force-sdr-emojis-stickers (2 variations)
+801644: apex User 2026-02-silence-warning-aggression (3 variations)
 803362: apex User 2026-04-badge-discovery (2 variations)
 803362: apex User 2026-05-badge-discovery-milestone-2 (2 variations)
 803362: apex User 2026-06-use-new-badge-image-source (2 variations)
@@ -260,6 +263,7 @@ creator modules: 240921, 880006
 832327: normal Guild 2021-10_study_group (1 treatments)
 832327: normal Guild 2026-02_game_claim_coachmark (1 treatments)
 832547: apex User 2026-02-boost-to-unlock-coachmark (2 variations)
+835438: apex User 2026-03-krisp-stats-collection (1 variations)
 851109: apex User 2026-04-desktop-notification-center (3 variations)
 862990: apex User 2026-04-premium-group-primary-reminder-nagbar (2 variations)
 864145: apex User 2026-03-soundmoji-rendering (1 variations)
@@ -291,6 +295,7 @@ creator modules: 240921, 880006
 940980: apex User 2026-03-shop-fiat-prioritization (2 variations)
 941327: apex User 2025-09-agc2-v2 (6 variations)
 941327: apex User 2026-04-av1-decode-android (1 variations)
+941327: apex User 2026-03-audio-effects-probe (1 variations)
 941327: apex User 2025-08-browser-hevc (1 variations)
 941327: apex User 2026-05-disable-camera-simulcast (1 variations)
 941327: apex User 2026-04-disable-hook-frame-pacer (1 variations)
