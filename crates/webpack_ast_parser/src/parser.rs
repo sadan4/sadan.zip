@@ -244,19 +244,37 @@ impl<'ast> WebpackAstParser<'ast> {
 		m_id: ModuleId,
 		is_find: bool,
 	) -> usize {
-		const BUF_LEN: usize = 128;
 		if Self::is_webpack_module(src) {
 			return 0;
 		}
-		let mut buf = ArrayString::<BUF_LEN>::new_const();
+		let buf = Self::module_header(m_id, is_find);
+		src.insert_str(0, &buf);
+		buf.len()
+	}
+
+	/// Returns the number of bytes [`Self::format_module_header`] would insert
+	/// at the start of `src`
+	pub fn module_header_len(
+		src: &str,
+		m_id: ModuleId,
+		is_find: bool,
+	) -> usize {
+		if Self::is_webpack_module(src) {
+			0
+		} else {
+			Self::module_header(m_id, is_find).len()
+		}
+	}
+
+	fn module_header(m_id: ModuleId, is_find: bool) -> ArrayString<128> {
+		let mut buf = ArrayString::new_const();
 		writeln!(buf, "// Webpack Module {m_id}").unwrap();
 		if is_find {
 			writeln!(buf, "//OPEN FULL MODULE: {m_id}").unwrap();
 		}
 		writeln!(buf, "//EXTRACTED WEBPACK MODULE {m_id}").unwrap();
 		writeln!(buf, "0,").unwrap();
-		src.insert_str(0, &buf);
-		buf.len()
+		buf
 	}
 
 	pub const fn get_source(&self) -> &'ast str {

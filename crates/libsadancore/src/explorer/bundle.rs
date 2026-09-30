@@ -28,6 +28,7 @@ use explorer_types::{
 	ModuleSources,
 	OutgoingModuleDepsWithLocs,
 	TModuleId,
+	experiments::{Experiment, ExperimentKind, ExperimentScope},
 };
 use js_sys::{Object, Reflect, Uint32Array};
 use memchr::memmem::Finder;
@@ -91,6 +92,7 @@ struct BundleInner {
 	formatted_module_mappings: RefCell<HashMap<ModuleId, Vec<(u32, u32)>>>,
 	formatted_module_line_indices: RefCell<HashMap<ModuleId, LineIndex>>,
 	parsers: RefCell<HashMap<ModuleId, Arc<ThreadSafeParser>>>,
+	experiments: Vec<Experiment>,
 	self_ptr: *const Self,
 	_pin: PhantomPinned,
 }
@@ -451,7 +453,8 @@ impl LineIndex {
 		let (line_start, _, line_number) = self.line_bounds(source, index);
 		let column = source[line_start as usize..index as usize]
 			.chars()
-			.count() + 1;
+			.count()
+			+ 1;
 		let column = u32::try_from(column).unwrap_or(u32::MAX);
 
 		MonacoPosition {
@@ -863,6 +866,120 @@ impl Bundle {
 		Ok(serde_wasm_bindgen::to_value(&tmp)
 			.context("Failed to serialize module dependencies")?)
 	}
+
+	/// every apex and normal experiment defined in the bundle
+	#[wasm_bindgen(skip_typescript)]
+	pub fn get_experiments(&self) -> Result<JsValue> {
+		let experiments: Vec<ExperimentJs> = self
+			.inner
+			.experiments
+			.iter()
+			.map(|exp| {
+				let mut js = ExperimentJs::from(exp);
+				// the scraper parses modules with a webpack header prepended,
+				// so spans are offset by its length
+				let header_len = self
+					.inner
+					.unformatted_modules
+					.get(&js.module_id)
+					.map_or(0, |src| {
+						WebpackAstParser::module_header_len(
+							src,
+							js.module_id,
+							false,
+						)
+					});
+				js.raw_index = js
+					.raw_index
+					.saturating_sub(header_len as u32);
+				js
+			})
+			.collect();
+		// json_compatible so `serde_json::Value` objects become plain objects
+		// instead of `Map`s
+		let serializer = serde_wasm_bindgen::Serializer::json_compatible();
+
+		Ok(experiments
+			.serialize(&serializer)
+			.context("Failed to serialize experiments")?)
+	}
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "lowercase")]
+enum ExperimentTypeJs {
+	Apex,
+	Normal,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ExperimentVariantJs<'a> {
+	key: String,
+	label: Option<&'a str>,
+	config: &'a serde_json::Value,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ExperimentJs<'a> {
+	module_id: ModuleId,
+	/// offset into the unformatted module source
+	raw_index: u32,
+	#[serde(rename = "type")]
+	ty: ExperimentTypeJs,
+	scope: &'a ExperimentScope,
+	/// apex name or normal experiment id
+	name: &'a str,
+	label: Option<&'a str>,
+	default_config: &'a serde_json::Value,
+	variants: Vec<ExperimentVariantJs<'a>>,
+}
+
+impl<'a> From<&'a Experiment> for ExperimentJs<'a> {
+	fn from(Experiment { loc, obj }: &'a Experiment) -> Self {
+		let module_id = loc.id;
+		let raw_index = loc.span.start;
+
+		match obj {
+			ExperimentKind::Apex(apex) => Self {
+				module_id,
+				raw_index,
+				ty: ExperimentTypeJs::Apex,
+				scope: &apex.kind,
+				name: &apex.name,
+				label: apex.label.as_deref(),
+				default_config: &apex.default_config,
+				variants: apex
+					.variations
+					.iter()
+					.map(|v| ExperimentVariantJs {
+						key: v.key.clone(),
+						label: None,
+						config: &v.config,
+					})
+					.collect(),
+			},
+			ExperimentKind::Normal(normal) => Self {
+				module_id,
+				raw_index,
+				ty: ExperimentTypeJs::Normal,
+				scope: &normal.kind,
+				name: &normal.id,
+				label: Some(&normal.label),
+				default_config: &normal.default_config,
+				variants: normal
+					.treatments
+					.iter()
+					.map(|t| ExperimentVariantJs {
+						key: t.id.to_string(),
+						label: Some(&t.label),
+						config: &t.config,
+					})
+					.collect(),
+			},
+		}
+	}
 }
 
 #[derive(Serialize)]
@@ -948,6 +1065,27 @@ const MODULE_DEPS_JS_TYPES: &str = r#"
         preview: string;
     }
 
+    export type ExperimentScope = "user" | "guild" | "installation";
+
+    export interface ExperimentVariant {
+        key: string;
+        label: string | null;
+        config: unknown;
+    }
+
+    export interface ExperimentInfo {
+        moduleId: number;
+        /** offset into the unformatted module source */
+        rawIndex: number;
+        type: "apex" | "normal";
+        scope: ExperimentScope;
+        /** apex name or normal experiment id */
+        name: string;
+        label: string | null;
+        defaultConfig: unknown;
+        variants: ExperimentVariant[];
+    }
+
     export interface BundleSearchLocation {
         lineNumber: number;
         column: number;
@@ -978,6 +1116,7 @@ const MODULE_DEPS_JS_TYPES: &str = r#"
         get_search_result_info(module_id: number, raw_index: number, long_preview: boolean): BundleSearchResultInfo;
         get_search_location(module_id: number, raw_index: number): BundleSearchLocation;
         get_module_export_map(module_id: number): ExportTreeNode[];
+        get_experiments(): ExperimentInfo[];
     }
 "#;
 
@@ -1019,7 +1158,7 @@ fn bundle_from_full(
 		module_sources,
 		modules,
 		env_var_text: _,
-		experiments: _,
+		experiments,
 	}: FullBundle,
 	drop_sources: bool,
 ) -> Bundle {
@@ -1042,6 +1181,7 @@ fn bundle_from_full(
 		formatted_modules,
 		formatted_module_mappings,
 		formatted_module_line_indices,
+		experiments,
 		self_ptr: ptr::null(),
 		_pin: PhantomPinned,
 	};
@@ -1080,6 +1220,7 @@ mod tests {
 			formatted_modules: RefCell::new(HashMap::new()),
 			formatted_module_mappings: RefCell::new(HashMap::new()),
 			formatted_module_line_indices: RefCell::new(HashMap::new()),
+			experiments: Vec::new(),
 			self_ptr: ptr::null(),
 			_pin: PhantomPinned,
 		};

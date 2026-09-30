@@ -26,6 +26,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createLink } from "@tanstack/react-router";
 import { Background, Controls, MiniMap, ReactFlow, ReactFlowProvider } from "@xyflow/react";
 
+import { ExperimentList } from "./Experiments";
 import { ExplorerSidebar } from "./Sidebar";
 import {
     ModuleViewerSettingsStore,
@@ -44,6 +45,7 @@ import {
     ChevronLastIcon,
     DownloadIcon,
     FileCodeIcon,
+    FlaskConicalIcon,
     NetworkIcon,
     SettingsIcon,
     TriangleAlertIcon,
@@ -395,10 +397,17 @@ function ExplorerHeader() {
                                 return <NetworkIcon />;
                             },
                         },
+                        {
+                            id: ViewMode.EXPERIMENTS,
+                            label: "Experiments",
+                            renderIcon() {
+                                return <FlaskConicalIcon />;
+                            },
+                        },
                     ]}
                 />
             </div>
-            <div className="flex justify-self-end gap-2 pr-2">
+            <div className="flex gap-2 justify-self-end pr-2">
                 <IconButton
                     tag="a"
                     label={`Download${NBSP}Bundle`}
@@ -491,6 +500,9 @@ export function Explorer() {
                         </Activity>
                         <Activity mode={visibleIf(activePanel === ViewMode.MODULE_GRAPH)}>
                             <ModuleGraphWrapper />
+                        </Activity>
+                        <Activity mode={visibleIf(activePanel === ViewMode.EXPERIMENTS)}>
+                            <ExperimentList />
                         </Activity>
                     </div>
                 </div>

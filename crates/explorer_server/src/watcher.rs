@@ -52,7 +52,7 @@ async fn get_build(channel: Channel) -> Result<Option<Build>> {
 	}))
 }
 
-#[instrument]
+#[instrument(skip_all)]
 async fn handle_build(c: Channel, state: &State) -> Result<()> {
 	if let Some(build) = get_build(c).await? {
 		info!("new {c:?} build: {}", build.build_hash);

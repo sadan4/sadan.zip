@@ -88,7 +88,6 @@ export function SnowCanvas({
         }
 
         const canvas = _canvas;
-
         const _ctx = canvas.getContext("2d");
 
         if (!_ctx) {

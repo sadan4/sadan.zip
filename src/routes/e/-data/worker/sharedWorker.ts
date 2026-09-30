@@ -9,6 +9,7 @@ import {
     type BundleSearchLocation,
     type BundleSearchResultInfo,
     default as initWasm,
+    type ExperimentInfo,
     type ExportTreeNode,
     full_bundle_endpoint,
     type HoverInfo as RawHoverInfo,
@@ -59,6 +60,7 @@ export interface IBuildService {
     getModuleExportMap(moduleId: TModuleId): ExportTreeNode[];
     getModuleDependencies(moduleId: TModuleId): ModuleDeps;
     getModuleDependents(moduleId: TModuleId): ModuleDeps | undefined;
+    getExperiments(): ExperimentInfo[];
 }
 
 const self = globalThis as any as SharedWorkerGlobalScope;
@@ -324,6 +326,10 @@ class BuildService implements IBuildService {
 
     public getModuleDependents(moduleId: TModuleId): ModuleDeps | undefined {
         return this.#bundle.get_module_deps(moduleId) as ModuleDeps | undefined;
+    }
+
+    public getExperiments(): ExperimentInfo[] {
+        return this.#bundle.get_experiments();
     }
 }
 
