@@ -33,12 +33,14 @@ impl<'ast> super::WebpackAstParser<'ast> {
 						.map_err(|e| {
 							err(
 								&**spread,
-								"Can't conver spread expression to JSON",
+								"Can't convert spread expression to JSON",
 							)
 							.s(e)
 						})?;
 					if let Value::Object(spread_map) = spread_value {
 						map.extend(spread_map);
+					} else if spread_value.is_null() {
+						// js allows spreading null or undefined, which does nothing
 					} else {
 						return Err(err(
 							&**spread,
@@ -145,7 +147,13 @@ impl<'ast> super::WebpackAstParser<'ast> {
 				}
 			}
 			Expression::Identifier(ident) => {
-				self.ident_to_json(ident, resolving)?
+				// this is *technically* incorrect because `undefined` can be shadowed by a local
+				// in sloppy mode, but nobody is insane enough to do that, right?
+				if ident.name == "undefined" {
+					Value::Null
+				} else {
+					self.ident_to_json(ident, resolving)?
+				}
 			}
 			other => {
 				return Err(err(other, "Can't convert expression to json"));
@@ -319,6 +327,9 @@ mod tests {
 			Some(json!({ "a": 1.0, "b": 2.0 }))
 		);
 		assert_eq!(to_json("{ ...{} }"), Some(json!({})));
+		assert_eq!(to_json("{ ...null }"), Some(json!({})));
+		assert_eq!(to_json("{ ...undefined }"), Some(json!({})));
+		assert_eq!(to_json("{ ...void 0 }"), Some(json!({})));
 	}
 
 	#[test]
@@ -353,7 +364,6 @@ mod tests {
 	fn object_spread_unsupported() {
 		// not an object
 		assert_eq!(to_json("{ ...[1] }"), None);
-		assert_eq!(to_json("{ ...null }"), None);
 		assert_eq!(to_json(r#"{ ..."ab" }"#), None);
 		// can't be resolved
 		assert_eq!(to_json("{ ...o }"), None);
