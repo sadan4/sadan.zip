@@ -74,9 +74,7 @@ impl<'ast> WebpackAstParser<'ast> {
 		let default_config = if let Some(ObjectProperty { value, .. }) =
 			obj.get_property("defaultConfig")
 		{
-			self.expr_to_json(value).map_err(|e| {
-				err(value, "Failed to parse `defaultConfig`").s(e)
-			})?
+			self.config_to_json(value, "`defaultConfig`")
 		} else {
 			serde_json::Value::Null
 		};
@@ -119,9 +117,7 @@ impl<'ast> WebpackAstParser<'ast> {
 						)
 					})?;
 					let val = &prop.value;
-					let val = self.expr_to_json(val).map_err(|e| {
-						err(val, "Failed to parse variation value").s(e)
-					})?;
+					let val = self.config_to_json(val, "variation value");
 					arr.push(experiments::Variation {
 						key: key.to_string(),
 						config: val,
@@ -208,16 +204,30 @@ impl<'ast> WebpackAstParser<'ast> {
 			.ok_or_else(|| {
 				err(t, "Experiment treatment does not have `config` property")
 			})?;
-		let config = self
-			.expr_to_json(&config_prop.value)
-			.map_err(|e| {
-				err(&config_prop.value, "Failed to parse `config`").s(e)
-			})?;
+		let config = self.config_to_json(&config_prop.value, "`config`");
 		Ok(experiments::Treatment {
 			id,
 			label: label.to_string(),
 			config,
 		})
+	}
+
+	/// Converts an experiment config to json.
+	///
+	/// returns [`null`](serde_json::Value::Null) if the config can't be converted to json
+	fn config_to_json(
+		&self,
+		config: &'ast Expression<'ast>,
+		what: &str,
+	) -> serde_json::Value {
+		self.expr_to_json(config)
+			.unwrap_or_else(|e| {
+				self.warn_diag(
+					&format!("Failed to parse experiment {what}, using null"),
+					e,
+				);
+				serde_json::Value::Null
+			})
 	}
 
 	fn parse_experiment_name(
@@ -283,9 +293,7 @@ impl<'ast> WebpackAstParser<'ast> {
 		let default_config = if let Some(ObjectProperty { value, .. }) =
 			obj.get_property("defaultConfig")
 		{
-			self.expr_to_json(value).map_err(|e| {
-				err(value, "Failed to parse `defaultConfig`").s(e)
-			})?
+			self.config_to_json(value, "`defaultConfig`")
 		} else {
 			serde_json::Value::Null
 		};

@@ -8,7 +8,7 @@ use explorer_types::experiments::{
 	Variation,
 };
 use macros::test;
-use serde_json::json;
+use serde_json::{Value, json};
 
 /// module `521169` from build `aa264a149d444461154df6f2142270838dbad6e1`
 ///
@@ -210,4 +210,70 @@ fn resolves_normal_experiment_id_from_identifier() {
 	};
 	assert_eq!(id, "2026-04_voice_user_duration");
 	assert_eq!(kind, &ExperimentScope::Guild);
+}
+
+/// configs that can't be converted to json are replaced with `null`
+#[test]
+fn apex_unparsable_config_is_null() {
+	let p =
+		parse!("test_data/wp/experiments/unparsableConfigApexExperiment.js");
+	let experiments = p.get_defined_apex_experiments(
+		945810.into(),
+		&[ExportMapKey::Named("mj".into())],
+	);
+	let [Experiment { obj, .. }] = experiments.as_slice() else {
+		panic!("expected exactly one experiment, got {experiments:#?}");
+	};
+	assert_eq!(
+		obj,
+		&ExperimentKind::Apex(ApexExperiment {
+			name: "2026-08-tiny-bronco".to_owned(),
+			default_config: Value::Null,
+			label: None,
+			variations: vec![
+				Variation {
+					key: "0".to_owned(),
+					config: json!({ "enabled": false }),
+				},
+				Variation {
+					key: "1".to_owned(),
+					config: Value::Null,
+				},
+			],
+			kind: ExperimentScope::User,
+		})
+	);
+}
+
+/// configs that can't be converted to json are replaced with `null`
+#[test]
+fn normal_unparsable_config_is_null() {
+	let p =
+		parse!("test_data/wp/experiments/unparsableConfigGuildExperiment.js");
+	let experiments = p.get_defined_normal_experiments(
+		600975.into(),
+		&[ExportMapKey::Named("C".into())],
+	);
+	let [Experiment { obj, .. }] = experiments.as_slice() else {
+		panic!("expected exactly one experiment, got {experiments:#?}");
+	};
+	let ExperimentKind::Normal(NormalExperiment {
+		id,
+		default_config,
+		treatments,
+		..
+	}) = obj
+	else {
+		panic!("expected a normal experiment, got {obj:#?}");
+	};
+	assert_eq!(id, "2026-04_voice_user_duration");
+	assert_eq!(default_config, &Value::Null);
+	let configs = treatments
+		.iter()
+		.map(|t| (t.id, &t.config))
+		.collect::<Vec<_>>();
+	assert_eq!(
+		configs,
+		vec![(1, &Value::Null), (2, &json!({ "enabled": true }))]
+	);
 }

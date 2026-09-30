@@ -1,9 +1,10 @@
 ---
 source: crates/webpack_ast_parser/tests/experiments.rs
+assertion_line: 85
 expression: "format!(\"creator modules: {}\\n{apex} apex, {normal} normal\\n\\n{summary}\",\ncreators.iter().join(\", \"),)"
 ---
 creator modules: 240921, 880006
-292 apex, 36 normal
+296 apex, 36 normal
 
 492: apex User 2026-02-mute-tutorial (1 variations)
 1310: normal Guild 2023-02_guest_voice_invites (1 treatments)
@@ -44,6 +45,7 @@ creator modules: 240921, 880006
 106713: apex User 2026-05-device-form-factor-indicators (1 variations)
 107653: apex User 2026-04-desktop-tti-v8-cache (1 variations)
 108822: apex User 2026-03-debug-experiment (2 variations)
+112142: apex User 2025-12-quest-cta-refactor-rollout (7 variations)
 116891: apex User 2026-04-server-boost-copy-1440p (1 variations)
 117787: normal Guild 2026-04_voice_call_trigger_point (1 treatments)
 124838: apex User 2025-12-proportional-vad-indicator (4 variations)
@@ -202,6 +204,7 @@ creator modules: 240921, 880006
 560595: apex User 2026-02-capture-target-window (1 variations)
 564064: apex User 2026-01-you-bar (3 variations)
 565688: apex User 2025-12-social-layer-storefront-activity-card-entrypoints-user-experiment (4 variations)
+567761: apex User 2026-01-reply-nudge (7 variations)
 571524: apex User 2026-02-gdm-all-reaction-notifications (1 variations)
 573582: apex User 2026-03-orders-dual-write (1 variations)
 578797: apex User 2026-01-cms-layouts (2 variations)
@@ -264,6 +267,7 @@ creator modules: 240921, 880006
 832327: normal Guild 2026-02_game_claim_coachmark (1 treatments)
 832547: apex User 2026-02-boost-to-unlock-coachmark (2 variations)
 835438: apex User 2026-03-krisp-stats-collection (1 variations)
+837859: apex User 2026-02-go-live-video-preset-resolution (1 variations)
 851109: apex User 2026-04-desktop-notification-center (3 variations)
 862990: apex User 2026-04-premium-group-primary-reminder-nagbar (2 variations)
 864145: apex User 2026-03-soundmoji-rendering (1 variations)
@@ -286,6 +290,7 @@ creator modules: 240921, 880006
 932456: apex User 2026-05-av1-bitrate-tuning (2 variations)
 932456: normal User 2024-06_rtc_pacer__simulcast (6 treatments)
 932456: apex User 2026-04-browser-transceiver-padding-removal (1 variations)
+932456: apex User 2026-02-process-boost-on-voice (4 variations)
 932456: apex User 2026-06-server-ladder (1 variations)
 932456: apex User 2026-03-surface-direct-renderer (1 variations)
 932456: apex User 2026-03-browser-inverted-wants (1 variations)

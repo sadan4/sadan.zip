@@ -843,6 +843,19 @@ impl<'ast> WebpackAstParser<'ast> {
 
 /// Private API
 impl<'ast> WebpackAstParser<'ast> {
+	/// Logs `diag` as a warning, using [`LocalSource`]
+	fn warn_diag(&self, msg: &str, diag: ParserDiagnostic) {
+		let name = match self.get_module_id() {
+			Ok(SpannedId { id, .. }) => format!("{id}.js"),
+			Err(_) => "file.js".to_string(),
+		};
+		let e = LocalSource {
+			inner: diag.into(),
+			source: self.source,
+			name: &name,
+		};
+		warn!("{msg}: {e:?}");
+	}
 	fn get_defined_experiments_with(
 		&self,
 		create_experiment_module: ModuleId,
@@ -872,17 +885,8 @@ impl<'ast> WebpackAstParser<'ast> {
 				let obj = obj.as_ref();
 				let exp = match parse(self, obj) {
 					Ok(e) => e,
-					Err(inner) => {
-						let name = match self.get_module_id() {
-							Ok(SpannedId { id, .. }) => format!("{id}.js"),
-							Err(_) => "file.js".to_string(),
-						};
-						let e = LocalSource {
-							inner: inner.into(),
-							source: self.source,
-							name: &name,
-						};
-						warn!("Failed to parse experiment: {e:?}");
+					Err(e) => {
+						self.warn_diag("Failed to parse experiment", e);
 						continue;
 					}
 				};
