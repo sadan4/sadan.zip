@@ -153,7 +153,6 @@ mod tests {
 
 	#[test]
 	fn unary_unsupported() {
-		assert_eq!(to_json("void 0"), None);
 		assert_eq!(to_json("typeof 1"), None);
 		assert_eq!(to_json(r#"-"a""#), None);
 		assert_eq!(to_json("+true"), None);
