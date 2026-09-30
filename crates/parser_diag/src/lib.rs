@@ -173,6 +173,73 @@ impl std::error::Error for LocalSource<'_> {
 	}
 }
 
+/// Lines longer than this are cut down to [`LONG_LINE_PADDING`] around the
+/// span when rendering, see [`LocalSource::long_line_window`]
+const MAX_LINE_LEN: usize = 512;
+/// How much of a long line is shown on each side of the span
+const LONG_LINE_PADDING: usize = 80;
+/// The most of a long line that is shown, even if the span is longer
+const MAX_WINDOW_LEN: usize = 1024;
+
+impl LocalSource<'_> {
+	/// If the lines `span` is on are too long to render, the part of them
+	/// around `span`, its location in [`Self::source`], and the zero-based
+	/// line it's on
+	///
+	/// Minified code is often one line, which miette would render in full. It
+	/// also pads underlines with `{:width$}`, which panics once a span starts
+	/// more than [`u16::MAX`] columns into a line.
+	fn long_line_window(
+		&self,
+		span: &SourceSpan,
+	) -> Option<(&[u8], SourceSpan, usize)> {
+		let src = self.source;
+		let start = span.offset().min(src.len());
+		let end = (start + span.len()).min(src.len());
+		let line_start = src[..start]
+			.rfind('\n')
+			.map_or(0, |i| i + 1);
+		let line_end = src[end..]
+			.find('\n')
+			.map_or(src.len(), |i| end + i);
+		if line_end - line_start <= MAX_LINE_LEN {
+			return None;
+		}
+		let win_start = src.floor_char_boundary(
+			start
+				.saturating_sub(LONG_LINE_PADDING)
+				.max(line_start),
+		);
+		// a span that crosses a newline keeps the newline, so the window ends
+		// on the line the span ends on
+		let win_end = src.ceil_char_boundary(
+			(end + LONG_LINE_PADDING)
+				.min(line_end)
+				.min(win_start + MAX_WINDOW_LEN),
+		);
+		Some((
+			&src.as_bytes()[win_start..win_end],
+			SourceSpan::new(win_start.into(), win_end - win_start),
+			src[..line_start].matches('\n').count(),
+		))
+	}
+
+	/// Whether `span` is a label of this diagnostic or one of its causes
+	fn is_label(&self, span: &SourceSpan) -> bool {
+		let mut diag: Option<&dyn miette::Diagnostic> =
+			Some(self.inner.as_ref());
+		while let Some(d) = diag {
+			if d.labels()
+				.is_some_and(|mut labels| labels.any(|l| l.inner() == span))
+			{
+				return true;
+			}
+			diag = d.diagnostic_source();
+		}
+		false
+	}
+}
+
 impl miette::SourceCode for LocalSource<'_> {
 	fn read_span<'a>(
 		&'a self,
@@ -186,13 +253,31 @@ impl miette::SourceCode for LocalSource<'_> {
 			context_lines_before,
 			context_lines_after,
 		)?;
+		let (data, data_span, line, line_count) =
+			match self.long_line_window(span) {
+				// miette reads the span covering two labels to try to render
+				// them as one snippet, only merging them if that read succeeds.
+				// Refuse when that span doesn't fit in a window, so both labels
+				// are shown.
+				Some((_, data_span, _))
+					if data_span.len() < span.len() && !self.is_label(span) =>
+				{
+					return Err(miette::MietteError::OutOfBounds);
+				}
+				// the window drops the context lines miette asked for, so the
+				// line miette read may be one of those. miette's column is kept,
+				// it's only used for the `[file:line:col]` header, which reads
+				// without context so it's the span's column.
+				Some((data, data_span, line)) => (data, data_span, line, 1),
+				None => (ret.data(), *ret.span(), ret.line(), ret.line_count()),
+			};
 		let ret = miette::MietteSpanContents::new_named(
 			String::from(self.name),
-			ret.data(),
-			*ret.span(),
-			ret.line(),
+			data,
+			data_span,
+			line,
 			ret.column(),
-			ret.line_count(),
+			line_count,
 		);
 		Ok(Box::new(ret))
 	}
@@ -233,3 +318,6 @@ impl miette::Diagnostic for LocalSource<'_> {
 		self.inner.diagnostic_source()
 	}
 }
+
+#[cfg(test)]
+mod tests;

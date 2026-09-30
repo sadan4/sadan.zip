@@ -1,6 +1,9 @@
+#![allow(clippy::multiple_inherent_impl)]
 mod arg_finder;
 mod enum_iife;
+mod experiment_parsing;
 pub mod export_map;
+mod json;
 mod main_func_finder;
 mod types;
 mod util;
@@ -30,6 +33,7 @@ use crate::{
 			RawStoreData,
 		},
 		types::{
+			Importer,
 			ReExport,
 			ResolvedDefinition,
 			SearchElement,
@@ -42,6 +46,7 @@ use crate::{
 			flatten_export_map,
 			flatten_property_access_expression,
 			get_nested_export_from_map,
+			is_imported_function_callee,
 			match_export_chain,
 			span_to_range,
 		},
@@ -74,6 +79,7 @@ use explorer_types::{
 	ModuleId,
 	OutgoingModuleDepsWithLocs,
 	SpannedId,
+	experiments::Experiment,
 };
 use export_map::RawExportMap;
 use itertools::Itertools as _;
@@ -93,6 +99,7 @@ use oxc::{
 			Expression,
 			ExpressionStatement,
 			Function,
+			IdentifierName,
 			IdentifierReference,
 			LogicalOperator,
 			MethodDefinition,
@@ -116,7 +123,7 @@ use oxc::{
 	semantic::{NodeId, ReferenceFlags, ReferenceId, Semantic, SymbolId},
 	span::{GetSpan, SourceType, Span},
 };
-use parser_diag::{PResult, ParserDiagnostic, err, err_ns};
+use parser_diag::{LocalSource, PResult, ParserDiagnostic, err, err_ns};
 use rangemap::RangeSet;
 use smol_str::{SmolStr, ToSmolStr as _};
 use std::{
@@ -237,19 +244,37 @@ impl<'ast> WebpackAstParser<'ast> {
 		m_id: ModuleId,
 		is_find: bool,
 	) -> usize {
-		const BUF_LEN: usize = 128;
 		if Self::is_webpack_module(src) {
 			return 0;
 		}
-		let mut buf = ArrayString::<BUF_LEN>::new_const();
+		let buf = Self::module_header(m_id, is_find);
+		src.insert_str(0, &buf);
+		buf.len()
+	}
+
+	/// Returns the number of bytes [`Self::format_module_header`] would insert
+	/// at the start of `src`
+	pub fn module_header_len(
+		src: &str,
+		m_id: ModuleId,
+		is_find: bool,
+	) -> usize {
+		if Self::is_webpack_module(src) {
+			0
+		} else {
+			Self::module_header(m_id, is_find).len()
+		}
+	}
+
+	fn module_header(m_id: ModuleId, is_find: bool) -> ArrayString<128> {
+		let mut buf = ArrayString::new_const();
 		writeln!(buf, "// Webpack Module {m_id}").unwrap();
 		if is_find {
 			writeln!(buf, "//OPEN FULL MODULE: {m_id}").unwrap();
 		}
 		writeln!(buf, "//EXTRACTED WEBPACK MODULE {m_id}").unwrap();
 		writeln!(buf, "0,").unwrap();
-		src.insert_str(0, &buf);
-		buf.len()
+		buf
 	}
 
 	pub const fn get_source(&self) -> &'ast str {
@@ -286,117 +311,12 @@ impl<'ast> WebpackAstParser<'ast> {
 		m_id: ModuleId,
 		export_names: &[ExportMapKey],
 	) -> Vec<Span> {
-		let Ok(wreq) = self.wreq() else {
-			return Vec::new();
-		};
-
-		let mut uses = Vec::new();
-
-		for wreq_ref in self.refs(wreq) {
-			let Some(require_call) =
-				self.match_wreq_require_call(wreq_ref, m_id)
-			else {
-				continue;
-			};
-
-			match self.p(require_call.node_id()) {
-				// `var foo = wreq(m_id);` - chase uses of `foo`
-				AstKind::VariableDeclarator(decl) => {
-					let Some(name) = decl.id.as_binding_identifier() else {
-						continue;
-					};
-					let binding_refs = self
-						.sema
-						.scoping()
-						.get_resolved_reference_ids(name.symbol_id());
-
-					// `var foo = wreq(m), bar = wreq.n(foo);`
-					// also chase uses through `bar`
-					if let Some(n_alias) =
-						self.try_resolve_wreq_n_alias(binding_refs, wreq)
-					{
-						self.collect_uses_via_wreq_n_alias(
-							n_alias,
-							export_names,
-							&mut uses,
-						);
-					}
-
-					for ref_id in binding_refs {
-						let ref_node = self
-							.sema
-							.scoping()
-							.get_reference(*ref_id)
-							.node_id();
-						let Some(access) = self
-							.p(ref_node)
-							.as_static_member_expression()
-						else {
-							continue;
-						};
-						if let Some(span) =
-							self.match_outer_access_chain(access, export_names)
-						{
-							uses.push(span);
-						}
-					}
-				}
-				AstKind::StaticMemberExpression(access) => {
-					// `wreq(m_id).foo.bar` - used inline
-					let (outermost_matching_node, (_matched, remaining)) =
-						self.match_remaining_access_chain(access, export_names);
-					if remaining.is_empty() {
-						let n = outermost_matching_node.unwrap();
-						let span = n.property.span();
-						uses.push(span);
-					} else {
-						// todo (i = wreq(m_id).foo).bar
-						let _: Option<()> = try {
-							let node = outermost_matching_node?;
-							let assign = self
-								.p(node.node_id())
-								.as_assignment_expression()?;
-							let target = if let AssignmentTarget::AssignmentTargetIdentifier(target) = &assign.left {
-								Some(target.as_ref())
-							} else {
-								None
-							}?;
-							if self.is_write_once(target) {
-								// this should never panic because `is_write_once` should only return true if the target is a symbol
-								let sym_id = self.sym_id_of(target).unwrap();
-								self.collect_wreq_uses_via_alias(
-									sym_id, remaining, &mut uses,
-								);
-
-								if let Some(assign_per) = self
-									.p(assign.node_id())
-									.as_parenthesized_expression()
-									&& let Some(inner_access) = self.p_if(
-										assign_per.node_id(),
-										AstKind::as_static_member_expression,
-									)
-									&& let Some(span) = self
-										.match_outer_access_chain(
-											inner_access,
-											remaining,
-										) {
-									uses.push(span);
-								}
-							} else {
-								warn!("not write once??");
-							}
-						};
-					}
-				}
-				_ => {}
-			}
-		}
-
-		uses
+		self.get_raw_uses_of_import(m_id, export_names)
+			.into_iter()
+			.map(|n| n.span())
+			.collect()
 	}
 	// TODO: use custom error codes with thiserror
-	// TODO: split to make smaller
-	#[expect(clippy::too_many_lines)]
 	pub async fn generate_references(
 		&self,
 		pos: u32,
@@ -404,16 +324,7 @@ impl<'ast> WebpackAstParser<'ast> {
 		// SAFETY: see send + sync impl for WebpackAstParser
 		unsafe {
 			UnsafeFuture::new(async {
-				let self_module_id = self.get_module_id().map_err(|e| {
-					err_ns(
-						"Could not find module id of module to search for references of.",
-					)
-					.s(e)
-				})?;
 				let module_exports = self.get_export_map();
-				let dependents = self
-					.get_modules_that_require_this_module()
-					.await?;
 				let mut locs = Vec::new();
 				// TODO: construct a new map from a ref instead of cloning
 				let filtered_export_map =
@@ -422,8 +333,6 @@ impl<'ast> WebpackAstParser<'ast> {
 					flatten_export_map(filtered_export_map, None);
 
 				for mut export_name in exported_names {
-					let mut seen: HashMap<ModuleId, HashSet<ModuleId>> =
-						HashMap::new();
 					// below fixme is copied verbatim from js. it might not be valid
 					// FIXME: this is a workaround for a bug in getUsesOfImport where it doesn't properly hand SYM_CJS_DEFAULT
 					if export_name.len() > 1
@@ -432,68 +341,16 @@ impl<'ast> WebpackAstParser<'ast> {
 						export_name.pop();
 					}
 
-					let mut left = dependents
-						.sync
-						.iter()
-						.map(|x| {
-							SearchElement {
-								module_id: *x,
-								imported_id: self_module_id.id,
-								// TODO: make this cow?
-								export_name: export_name.clone(),
-							}
-						})
-						.collect_vec();
-					while let Some(cur) = left.pop() {
-						let SearchElement {
-							module_id,
-							imported_id,
-							export_name,
-						} = cur;
-						if seen
-							.get(&imported_id)
-							.is_some_and(|s| s.contains(&module_id))
-						{
-							continue;
-						}
-						seen.entry(imported_id)
-							.or_default()
-							.insert(module_id);
-						let parser = match self
-							.module_cache
-							.get_module_parser(self, module_id, None)
-							.await
-						{
-							Ok(parser) => parser,
-							Err(e) => {
-								warn!(
-									"Failed to get parser for module id {module_id}. Cause: {e:?}"
-								);
-								continue;
-							}
-						};
-						let p = parser.parser();
-						let uses =
-							p.get_uses_of_import(imported_id, &export_name);
-						// FIXME: support nested re-exports
-						let exported_as = p.does_re_export_from_import(
-							imported_id,
-							export_name[0].clone(),
-						);
-
-						if let Some(exported_as) = exported_as
-							&& let Ok(where_) = p
-								.get_modules_that_require_this_module()
-								.await
-						{
-							left.extend(where_.sync.iter().map(|x| {
-								SearchElement {
-									module_id: *x,
-									imported_id: p.get_module_id().unwrap().id,
-									export_name: vec![exported_as.clone()],
-								}
-							}));
-						}
+					for Importer {
+						parser,
+						module_id,
+						imported_id,
+						export_name,
+					} in self.find_importers(export_name).await?
+					{
+						let uses = parser
+							.parser()
+							.get_uses_of_import(imported_id, &export_name);
 						let maybe_file_path = self
 							.module_cache
 							.get_module_filepath(module_id)
@@ -838,6 +695,31 @@ impl<'ast> WebpackAstParser<'ast> {
 			.collect()
 	}
 
+	/// Checks if the current module is the module that exports the `createApexExperiment` function
+	///
+	/// returns the export name of the `createApexExperiment` function if found
+	pub fn is_create_apex_experiment_module(&self) -> Option<ExportMapKey> {
+		self.find_exported_func_by_returned_obj_props(&[
+			"definition",
+			"useConfig",
+			"getConfig",
+		])
+	}
+
+	/// Checks if the current module is the module that exports the `createExperiment` function
+	///
+	/// returns the export name of the `createExperiment` function if found
+	pub fn is_create_experiment_module(&self) -> Option<ExportMapKey> {
+		self.find_exported_func_by_returned_obj_props(&[
+			"useExperiment",
+			"subscribe",
+			"trackExposure",
+			"getCurrentConfig",
+			"definition",
+			"isAAMode",
+		])
+	}
+
 	/// Attempt to determine if the current module is an intl module
 	pub fn is_intl_module(&self) -> bool {
 		let ret = try {
@@ -895,11 +777,346 @@ impl<'ast> WebpackAstParser<'ast> {
 		};
 		ret.unwrap_or(false)
 	}
+	/// Collects every experiment in the bundle created with this module's
+	/// `createApexExperiment` or `createExperiment` export, including through
+	/// re-exports of them
+	///
+	/// Returns an empty list if this module exports neither
+	// FIXME: perf is probably bad here
+	pub async fn get_all_experiments(&self) -> PResult<Vec<Experiment>> {
+		// SAFETY: see send + sync impl for WebpackAstParser
+		unsafe {
+			UnsafeFuture::new(async {
+				let mut ret = Vec::new();
+				if let Some(export) = self.is_create_apex_experiment_module() {
+					for Importer {
+						parser,
+						imported_id,
+						export_name,
+						..
+					} in self
+						.find_importers(vec![export])
+						.await?
+					{
+						ret.extend(
+							parser
+								.parser()
+								.get_defined_apex_experiments(
+									imported_id,
+									&export_name,
+								),
+						);
+					}
+				}
+				if let Some(export) = self.is_create_experiment_module() {
+					for Importer {
+						parser,
+						imported_id,
+						export_name,
+						..
+					} in self
+						.find_importers(vec![export])
+						.await?
+					{
+						ret.extend(
+							parser
+								.parser()
+								.get_defined_normal_experiments(
+									imported_id,
+									&export_name,
+								),
+						);
+					}
+				}
+				Ok(ret)
+			})
+		}
+		.await
+	}
+	/// Finds all experiments defined in this module with `createApexExperiment`
+	pub fn get_defined_apex_experiments(
+		&self,
+		create_experiment_module: ModuleId,
+		create_experiment_export: &[ExportMapKey],
+	) -> Vec<Experiment> {
+		self.get_defined_experiments_with(
+			create_experiment_module,
+			create_experiment_export,
+			Self::parse_apex_experiment,
+		)
+	}
+	/// Finds all experiments defined in this module with `createExperiment`
+	pub fn get_defined_normal_experiments(
+		&self,
+		create_experiment_module: ModuleId,
+		create_experiment_export: &[ExportMapKey],
+	) -> Vec<Experiment> {
+		self.get_defined_experiments_with(
+			create_experiment_module,
+			create_experiment_export,
+			Self::parse_normal_experiment,
+		)
+	}
 }
 
 /// Private API
-#[expect(clippy::multiple_inherent_impl)]
 impl<'ast> WebpackAstParser<'ast> {
+	/// Logs `diag` as a warning, using [`LocalSource`]
+	fn warn_diag(&self, msg: &str, diag: ParserDiagnostic) {
+		let name = match self.get_module_id() {
+			Ok(SpannedId { id, .. }) => format!("{id}.js"),
+			Err(_) => "file.js".to_string(),
+		};
+		let e = LocalSource {
+			inner: diag.into(),
+			source: self.source,
+			name: &name,
+		};
+		warn!("{msg}: {e:?}");
+	}
+	fn get_defined_experiments_with(
+		&self,
+		create_experiment_module: ModuleId,
+		create_experiment_export: &[ExportMapKey],
+		parse: impl Fn(&Self, &'ast ObjectExpression<'ast>) -> PResult<Experiment>,
+	) -> Vec<Experiment> {
+		let uses = self.get_raw_uses_of_import(
+			create_experiment_module,
+			create_experiment_export,
+		);
+		let mut ret = Vec::with_capacity(uses.len());
+		for usage in uses {
+			try {
+				let callee = self.find_parent(
+					usage.node_id(),
+					AstKind::as_parenthesized_expression,
+				)?;
+				is_imported_function_callee(callee).then_some(())?;
+				let call = self
+					.p(callee.node_id())
+					.as_call_expression()?;
+				let [Argument::ObjectExpression(obj)] =
+					call.arguments.as_slice()
+				else {
+					None?
+				};
+				let obj = obj.as_ref();
+				let exp = match parse(self, obj) {
+					Ok(e) => e,
+					Err(e) => {
+						self.warn_diag("Failed to parse experiment", e);
+						continue;
+					}
+				};
+				ret.push(exp);
+			};
+		}
+		ret
+	}
+	/// Finds every module that imports `export_name` from this module,
+	/// following re-exports through other modules
+	///
+	/// Each [`Importer`] is the importing module, and the module + export
+	/// name it imports, which may be a re-export of `export_name`
+	async fn find_importers(
+		&self,
+		export_name: Vec<ExportMapKey>,
+	) -> PResult<Vec<Importer>> {
+		let self_module_id = self.get_module_id().map_err(|e| {
+			err_ns(
+				"Could not find module id of module to search for references of.",
+			)
+			.s(e)
+		})?;
+		let dependents = self
+			.get_modules_that_require_this_module()
+			.await?;
+		let mut seen: HashMap<ModuleId, HashSet<ModuleId>> = HashMap::new();
+		let mut importers = Vec::new();
+		let mut left = dependents
+			.sync
+			.iter()
+			.map(|x| {
+				SearchElement {
+					module_id: *x,
+					imported_id: self_module_id.id,
+					// TODO: make this cow?
+					export_name: export_name.clone(),
+				}
+			})
+			.collect_vec();
+		while let Some(cur) = left.pop() {
+			let SearchElement {
+				module_id,
+				imported_id,
+				export_name,
+			} = cur;
+			if seen
+				.get(&imported_id)
+				.is_some_and(|s| s.contains(&module_id))
+			{
+				continue;
+			}
+			seen.entry(imported_id)
+				.or_default()
+				.insert(module_id);
+			let parser = match self
+				.module_cache
+				.get_module_parser(self, module_id, None)
+				.await
+			{
+				Ok(parser) => parser,
+				Err(e) => {
+					warn!(
+						"Failed to get parser for module id {module_id}. Cause: {e:?}"
+					);
+					continue;
+				}
+			};
+			let p = parser.parser();
+			// FIXME: support nested re-exports
+			let exported_as = p.does_re_export_from_import(
+				imported_id,
+				export_name[0].clone(),
+			);
+
+			if let Some(exported_as) = exported_as
+				&& let Ok(where_) = p
+					.get_modules_that_require_this_module()
+					.await
+			{
+				left.extend(
+					where_
+						.sync
+						.iter()
+						.map(|x| SearchElement {
+							module_id: *x,
+							imported_id: p.get_module_id().unwrap().id,
+							export_name: vec![exported_as.clone()],
+						}),
+				);
+			}
+			importers.push(Importer {
+				parser,
+				module_id,
+				imported_id,
+				export_name,
+			});
+		}
+		Ok(importers)
+	}
+	fn get_raw_uses_of_import(
+		&self,
+		m_id: ModuleId,
+		export_names: &[ExportMapKey],
+	) -> Vec<AstKind<'ast>> {
+		let Ok(wreq) = self.wreq() else {
+			return Vec::new();
+		};
+
+		let mut uses = Vec::new();
+
+		for wreq_ref in self.refs(wreq) {
+			let Some(require_call) =
+				self.match_wreq_require_call(wreq_ref, m_id)
+			else {
+				continue;
+			};
+
+			match self.p(require_call.node_id()) {
+				// `var foo = wreq(m_id);` - chase uses of `foo`
+				AstKind::VariableDeclarator(decl) => {
+					let Some(name) = decl.id.as_binding_identifier() else {
+						continue;
+					};
+					let binding_refs = self
+						.sema
+						.scoping()
+						.get_resolved_reference_ids(name.symbol_id());
+
+					// `var foo = wreq(m), bar = wreq.n(foo);`
+					// also chase uses through `bar`
+					if let Some(n_alias) =
+						self.try_resolve_wreq_n_alias(binding_refs, wreq)
+					{
+						self.collect_uses_via_wreq_n_alias(
+							n_alias,
+							export_names,
+							&mut uses,
+						);
+					}
+
+					for ref_id in binding_refs {
+						let ref_node = self
+							.sema
+							.scoping()
+							.get_reference(*ref_id)
+							.node_id();
+						let Some(access) = self
+							.p(ref_node)
+							.as_static_member_expression()
+						else {
+							continue;
+						};
+						if let Some(node) =
+							self.match_outer_access_chain(access, export_names)
+						{
+							uses.push(node.into_ast_kind());
+						}
+					}
+				}
+				AstKind::StaticMemberExpression(access) => {
+					// `wreq(m_id).foo.bar` - used inline
+					let (outermost_matching_node, (_matched, remaining)) =
+						self.match_remaining_access_chain(access, export_names);
+					if remaining.is_empty() {
+						let n = outermost_matching_node.unwrap();
+						uses.push(n.property.into_ast_kind());
+					} else {
+						// todo (i = wreq(m_id).foo).bar
+						let _: Option<()> = try {
+							let node = outermost_matching_node?;
+							let assign = self
+								.p(node.node_id())
+								.as_assignment_expression()?;
+							let target = if let AssignmentTarget::AssignmentTargetIdentifier(target) = &assign.left {
+								Some(target.as_ref())
+							} else {
+								None
+							}?;
+							if self.is_write_once(target) {
+								// this should never panic because `is_write_once` should only return true if the target is a symbol
+								let sym_id = self.sym_id_of(target).unwrap();
+								self.collect_wreq_uses_via_alias(
+									sym_id, remaining, &mut uses,
+								);
+
+								if let Some(assign_per) = self
+									.p(assign.node_id())
+									.as_parenthesized_expression()
+									&& let Some(inner_access) = self.p_if(
+										assign_per.node_id(),
+										AstKind::as_static_member_expression,
+									)
+									&& let Some(span) = self
+										.match_outer_access_chain(
+											inner_access,
+											remaining,
+										) {
+									uses.push(span.into_ast_kind());
+								}
+							} else {
+								warn!("not write once??");
+							}
+						};
+					}
+				}
+				_ => {}
+			}
+		}
+
+		uses
+	}
 	/// returns true if `node` is only written to at most once
 	/// ## true
 	/// ```js
@@ -1427,7 +1644,7 @@ impl<'ast> WebpackAstParser<'ast> {
 		&self,
 		alias: SymbolId,
 		export_names: &[ExportMapKey],
-		uses: &mut Vec<Span>,
+		uses: &mut Vec<AstKind<'ast>>,
 	) {
 		let want_default = export_names.first() == Some(&ExportMapKey::Default);
 		for usage in self.refs(alias) {
@@ -1441,7 +1658,7 @@ impl<'ast> WebpackAstParser<'ast> {
 					.as_call_expression()
 					.is_some()
 				{
-					uses.push(call.span());
+					uses.push(call.into_ast_kind());
 				}
 			} else if let Some(access) = self
 				.p(call.node_id())
@@ -1449,7 +1666,7 @@ impl<'ast> WebpackAstParser<'ast> {
 				&& let Some(span) =
 					self.match_outer_access_chain(access, export_names)
 			{
-				uses.push(span);
+				uses.push(span.into_ast_kind());
 			}
 		}
 	}
@@ -1458,7 +1675,7 @@ impl<'ast> WebpackAstParser<'ast> {
 		&self,
 		alias: SymbolId,
 		export_names: &[ExportMapKey],
-		uses: &mut Vec<Span>,
+		uses: &mut Vec<AstKind<'ast>>,
 	) {
 		for usage in self.refs(alias) {
 			if let Some(access) = self
@@ -1467,7 +1684,7 @@ impl<'ast> WebpackAstParser<'ast> {
 				&& let Some(span) =
 					self.match_outer_access_chain(access, export_names)
 			{
-				uses.push(span);
+				uses.push(span.into_ast_kind());
 			}
 		}
 	}
@@ -1479,7 +1696,7 @@ impl<'ast> WebpackAstParser<'ast> {
 		&self,
 		inner_access: &'ast StaticMemberExpression<'ast>,
 		export_names: &[ExportMapKey],
-	) -> Option<Span> {
+	) -> Option<&'ast IdentifierName<'ast>> {
 		// inner_access itself satisfies the predicate, so last_parent never returns None
 		let outer = self
 			.last_parent(
@@ -1488,7 +1705,7 @@ impl<'ast> WebpackAstParser<'ast> {
 			)
 			.unwrap();
 		let chain = flatten_property_access_expression(outer);
-		match_export_chain(&chain, export_names).map(GetSpan::span)
+		match_export_chain(&chain, export_names)
 	}
 
 	/// Like [`Self::match_outer_access_chain`], but instead of requiring the
@@ -1711,7 +1928,7 @@ impl<'ast> WebpackAstParser<'ast> {
 			.iter()
 			.map_while(|a| a.try_unwrap_static().ok())
 			.map(|ident| &ident.name)
-			.map(ExportMapKey::from_str)
+			.map(ExportMapKey::from)
 			.collect_vec();
 		let spans = names
 			.iter()
@@ -1779,7 +1996,7 @@ impl<'ast> WebpackAstParser<'ast> {
 	// FIXME: make PResult?
 	fn get_module_id_for_import(&self, sym_id: SymbolId) -> Option<SpannedId> {
 		let init = self
-			.sole_value_of(sym_id)?
+			.constant_value_of(&sym_id)?
 			.as_call_expression()?;
 		// make sure init is a call to wreq
 		if !self.cmp_sym(init.callee.as_identifier()?, &self.wreq().ok()?) {
@@ -2207,18 +2424,19 @@ impl<'ast> WebpackAstParser<'ast> {
 				let value_prop_val = value_prop
 					.value
 					.as_identifier()
-					.and_then(|ident| self.sym_id_of(ident))
-					.and_then(|sym_id| self.is_constant_string(sym_id))?;
+					.and_then(|ident| self.is_constant_string(ident))?;
 				return Some(SmolStr::new(value_prop_val));
 			};
 		}
 		None
 	}
 	/// TODO: document
-	fn is_constant_string(&self, sym_id: SymbolId) -> Option<Str<'ast>> {
-		self.sole_value_of(sym_id)?
-			.as_string_literal()
-			.map(|l| l.value)
+	fn is_constant_string<ID: GetSymId>(
+		&self,
+		sym_id: &ID,
+	) -> Option<Str<'ast>> {
+		self.constant_value_of(sym_id)?
+			.as_string_literal_like()
 	}
 	/// The only value `sym_id` is ever set to
 	/// ```js
@@ -2228,22 +2446,24 @@ impl<'ast> WebpackAstParser<'ast> {
 	/// let x;
 	/// x = value;
 	/// ```
-	fn sole_value_of(
+	fn constant_value_of<ID: GetSymId>(
 		&self,
-		sym_id: SymbolId,
+		sym_id: &ID,
 	) -> Option<&'ast Expression<'ast>> {
+		let sym_id = self.sym_id_of(sym_id)?;
 		let decl = self
 			.sema
 			.symbol_declaration(sym_id)
 			.kind()
 			.as_variable_declarator()?;
-		if let Some(init) = decl.init.as_ref() {
-			return Some(init);
-		}
 		let mut writes = self
 			.sema
 			.symbol_references(sym_id)
 			.filter(|reference| reference.is_write());
+		if let Some(init) = decl.init.as_ref() {
+			// reassigned after the initializer, so not constant
+			return writes.next().is_none().then_some(init);
+		}
 		let write = writes.next()?;
 		// if we're written to more than once, we don't have a single value
 		if writes.next().is_some() {
@@ -2258,7 +2478,7 @@ impl<'ast> WebpackAstParser<'ast> {
 			.then_some(&assign.right)
 	}
 	fn is_display_name_prop_key(&self, sym_id: SymbolId) -> bool {
-		self.is_constant_string(sym_id)
+		self.is_constant_string(&sym_id)
 			.is_some_and(|s| s == "displayName")
 	}
 	fn does_re_export_whole_module_impl(&self) -> Option<SpannedId> {
@@ -2657,7 +2877,6 @@ impl<'ast> WebpackAstParser<'ast> {
 }
 
 /// functions to make the raw export map
-#[expect(clippy::multiple_inherent_impl)]
 impl<'ast> WebpackAstParser<'ast> {
 	fn get_ast_kind_span_for_export_map(node: AstKind<'ast>) -> Span {
 		match node {

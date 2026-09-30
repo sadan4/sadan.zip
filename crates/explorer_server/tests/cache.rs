@@ -101,6 +101,7 @@ fn write_fixture(root: &Path) {
 		module_sources,
 		modules,
 		env_var_text: String::new(),
+		experiments: Vec::new(),
 	};
 
 	write_mpk_zst_atomic(

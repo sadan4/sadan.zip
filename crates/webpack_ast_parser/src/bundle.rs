@@ -1,9 +1,10 @@
 use crate::{parser::WebpackAstParser, sync::ThreadSafeParser};
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, bail};
 use async_trait::async_trait;
 use explorer_types::{IncomingModuleDeps, ModuleId};
 use oxc::span::Span;
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
+use tracing::warn;
 use url::Url;
 
 #[derive(Debug, Clone)]
@@ -121,5 +122,52 @@ impl IModuleCache for DefaultModuleCache {
 		_latest: Option<bool>,
 	) -> Result<Arc<ThreadSafeParser>> {
 		bail!("No module cache provided");
+	}
+}
+
+/// The handle a cached parser gets back to the cache holding it.
+///
+/// Weak so that the cache -> parser -> cache path is not a reference cycle
+pub struct WeakCache<T>(pub Weak<T>);
+
+impl<T> WeakCache<T> {
+	fn get(&self) -> Result<Arc<T>> {
+		self.0
+			.upgrade()
+			.context("Module cache has been dropped")
+	}
+}
+
+#[async_trait]
+impl<T: IModuleDepProvider + 'static> IModuleDepProvider for WeakCache<T> {
+	async fn get_module_deps(
+		&self,
+		id: ModuleId,
+	) -> Result<Arc<IncomingModuleDeps>> {
+		self.get()?.get_module_deps(id).await
+	}
+}
+
+#[async_trait]
+impl<T: IModuleCache + 'static> IModuleCache for WeakCache<T> {
+	async fn get_module_filepath(&self, id: ModuleId) -> Option<Url> {
+		match self.get() {
+			Ok(cache) => cache.get_module_filepath(id).await,
+			Err(e) => {
+				warn!("{e}");
+				None
+			}
+		}
+	}
+
+	async fn get_module_parser(
+		&self,
+		requestor: &WebpackAstParser<'_>,
+		id: ModuleId,
+		latest: Option<bool>,
+	) -> Result<Arc<ThreadSafeParser>> {
+		self.get()?
+			.get_module_parser(requestor, id, latest)
+			.await
 	}
 }

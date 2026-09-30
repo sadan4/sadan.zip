@@ -1,5 +1,5 @@
 ---
-source: crates/webpack_ast_parser/src/parser/tests/mod.rs
+source: crates/webpack_ast_parser/src/parser/tests/module_id.rs
 expression: sync
 ---
 [

@@ -19,11 +19,13 @@ macro_rules! parse {
 
 mod concatenated_modules;
 mod direct_module_definition;
+mod experiments;
 mod export_parsing;
 mod find_gen;
 mod import_parsing;
 mod intl_keys;
 mod is_write_once;
+mod key_modules;
 mod module_id;
 mod outgoing_deps;
 mod remaining_access_chain;

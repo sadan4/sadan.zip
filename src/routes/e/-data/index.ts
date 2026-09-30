@@ -39,6 +39,7 @@ export function getModuleURI(buildHash: TBundleHash, moduleId: TModuleId) {
 export const enum ViewMode {
     CODE,
     MODULE_GRAPH,
+    EXPERIMENTS,
 }
 
 

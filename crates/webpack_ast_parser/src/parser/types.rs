@@ -85,6 +85,18 @@ pub struct SearchElement {
 	pub export_name: Vec<ExportMapKey>,
 }
 
+/// Helper type for [`super::WebpackAstParser::find_importers`]
+pub struct Importer {
+	/// The parser for [`Self::module_id`]
+	pub parser: Arc<ThreadSafeParser>,
+	/// The module that imports [`Self::export_name`]
+	pub module_id: ModuleId,
+	/// The id of the module that [`Self::export_name`] is imported from
+	pub imported_id: ModuleId,
+	/// The imported export name
+	pub export_name: Vec<ExportMapKey>,
+}
+
 /// Helper type for [`super::WebpackAstParser::does_re_export_from_export`]
 pub struct ReExport<'ast> {
 	/// TODO: doc

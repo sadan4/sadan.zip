@@ -1,3 +1,6 @@
+pub mod experiments;
+mod serde_span;
+
 use derive_more::{Deref, Display, From, Into};
 use jiff::{Timestamp, Zoned, tz::TimeZone};
 use oxc_span::{SPAN, Span};
@@ -10,7 +13,9 @@ use typesize::derive::TypeSize;
 
 pub type TModuleId = u32;
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash, TypeSize)]
+#[derive(
+	Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash, TypeSize,
+)]
 pub enum Channel {
 	Stable = 0,
 	Canary = 1,
@@ -30,7 +35,6 @@ impl Channel {
 		}
 	}
 }
-
 
 #[derive(Serialize, Deserialize, Default, Debug, Clone, TypeSize)]
 #[serde(rename_all = "camelCase")]
@@ -99,6 +103,9 @@ pub struct FullBundle {
 	pub module_sources: HashMap<String, Vec<ModuleId>>,
 	pub modules: HashMap<ModuleId, String>,
 	pub env_var_text: String,
+	/// every apex and normal experiment defined in the bundle
+	#[serde(default)]
+	pub experiments: Vec<experiments::Experiment>,
 }
 
 impl FullBundle {
@@ -109,6 +116,7 @@ impl FullBundle {
 			module_sources,
 			modules,
 			env_var_text,
+			experiments,
 		} = self;
 		metadata.shrink_to_fit();
 		dep_info.shrink_to_fit();
@@ -121,6 +129,7 @@ impl FullBundle {
 			v.shrink_to_fit();
 		}
 		env_var_text.shrink_to_fit();
+		experiments.shrink_to_fit();
 	}
 }
 
@@ -183,11 +192,22 @@ pub struct OutgoingModuleDeps {
 }
 
 #[derive(
-	Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, TypeSize,
+	Serialize,
+	Deserialize,
+	Copy,
+	Clone,
+	Debug,
+	PartialEq,
+	Eq,
+	PartialOrd,
+	Ord,
+	Hash,
+	TypeSize,
 )]
 pub struct SpannedId {
 	pub id: ModuleId,
 	#[typesize(with = size_of_val)]
+	#[serde(deserialize_with = "serde_span::deserialize_span")]
 	pub span: Span,
 }
 

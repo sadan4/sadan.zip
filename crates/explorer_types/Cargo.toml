@@ -11,8 +11,9 @@ doctest = false
 serde.workspace = true
 derive_more.workspace = true
 jiff.workspace = true
-oxc_span.workspace = true
+oxc_span = { workspace = true, features = ["serialize"] }
 typesize.workspace = true
+serde_json.workspace = true
 
 [lints]
 workspace = true

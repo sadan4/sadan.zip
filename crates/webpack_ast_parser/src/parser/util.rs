@@ -14,8 +14,12 @@ use oxc::{
 	ast::ast::{
 		ArrowFunctionExpression,
 		Expression,
+		Function,
+		FunctionBody,
 		IdentifierName,
 		IdentifierReference,
+		ParenthesizedExpression,
+		Statement,
 	},
 	span::Span,
 };
@@ -271,5 +275,95 @@ pub const fn span_to_range(s: Span) -> ops::Range<u32> {
 	ops::Range {
 		start: s.start,
 		end: s.end,
+	}
+}
+
+/// Get the body of `func`, unwrapping functions that only return an IIFE.
+///
+/// ```js
+/// function outer() {
+///     return (function inner() {
+///         return { ... }; // <- body of `inner` is returned
+///     })();
+/// }
+/// ```
+///
+/// # Panics
+///
+/// If `func` or any unwrapped function has no body (e.g. a TS declaration)
+pub fn get_inner_func_body<'ast>(
+	func: &'ast Function<'ast>,
+) -> &'ast FunctionBody<'ast> {
+	let mut cur = func;
+	loop {
+		let body = cur.body.as_deref().unwrap();
+		if let [Statement::ReturnStatement(ret)] = body.statements.as_slice()
+			&& let Some(new) = try {
+				ret.argument
+					.as_ref()?
+					.as_call_expression()?
+					.callee
+					.get_inner_expression()
+					.as_function_expression()?
+			} {
+			cur = new;
+			continue;
+		}
+		return cur.body.as_deref().unwrap();
+	}
+}
+
+/// Determines if `expr` is an indirect call callee used by webpack for imported functions.
+///
+/// ```js
+///    (0, imp.func)();
+/// // ^^^^^^^^^^^^^
+/// ```
+pub fn is_imported_function_callee(expr: &ParenthesizedExpression) -> bool {
+	try {
+		let inner = expr
+			.expression
+			.as_sequence_expression()?
+			.expressions
+			.as_slice();
+		if inner.len() != 2 {
+			return false;
+		}
+		inner[0].as_numeric_literal()?.raw? == "0"
+	}
+	.unwrap_or_default()
+}
+
+/// Convert `v` to an `i32` if it can be converted losslessly, otherwise return `None`.
+/// ```ignore
+/// assert_eq!(f64_to_i32(42.0), Some(42));
+/// assert_eq!(f64_to_i32(42.5), None);
+/// assert_eq!(f64_to_i32(f64::INFINITY), None);
+/// ```
+pub fn f64_to_i32(v: f64) -> Option<i32> {
+	if !v.is_finite() {
+		return None;
+	}
+	if v.fract() != 0. {
+		return None;
+	}
+	if v < f64::from(i32::MIN) || v > f64::from(i32::MAX) {
+		return None;
+	}
+	Some(v as i32)
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn test_f64_to_i32() {
+		assert_eq!(f64_to_i32(42.0), Some(42));
+		assert_eq!(f64_to_i32(42.5), None);
+		assert_eq!(f64_to_i32(f64::INFINITY), None);
+		assert_eq!(f64_to_i32(f64::NAN), None);
+		assert_eq!(f64_to_i32(f64::from(i32::MAX)), Some(i32::MAX));
+		assert_eq!(f64_to_i32(f64::from(i32::MIN)), Some(i32::MIN));
 	}
 }

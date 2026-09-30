@@ -12,7 +12,7 @@ use std::{
 
 use anyhow::{Context as _, Result, anyhow, bail};
 use dashmap::DashMap;
-use explorer_server_core::{asset_url};
+use explorer_server_core::asset_url;
 use explorer_types::{BundleMetadata, Channel, FullBundle, ModuleId};
 use http::StatusCode;
 use memchr::memmem::Finder;
@@ -31,7 +31,7 @@ use webpack_chunk_parser::{
 };
 
 use crate::{
-	bundle_parser::parse_bundle,
+	experiments::ParsedBundle,
 	html_parser::{ParsedHtml, parse_html},
 	progress::ScrapeProgress,
 	util::ByteStr,
@@ -40,7 +40,7 @@ use crate::{
 const MAX_PENDING_REQUESTS: usize = 1024;
 
 /// rspack <2.0.0 by default adds .ruid to every runtime chunk
-/// the only runtime we want is web.js, so we use this to filter 
+/// the only runtime we want is web.js, so we use this to filter
 /// out other chunks with their own runtimes (workers, sentry, ...)
 static RUNTIME_FINDER: LazyLock<Finder<'static>> =
 	LazyLock::new(|| Finder::new(br#".ruid=""#));
@@ -323,7 +323,7 @@ pub async fn scrape_full_bundle(
 	progress: Arc<dyn ScrapeProgress>,
 ) -> Result<FullBundle> {
 	let ScrapedModules {
-		mut modules,
+		modules,
 		module_sources,
 		global_env_text,
 		web_js_url: _,
@@ -331,15 +331,13 @@ pub async fn scrape_full_bundle(
 		entry_point,
 	} = JsScraper::scrape(html, channel, client, progress).await?;
 
-	// parse_bundle requires modules to be prefixed with "0," so the AST parser
-	// sees them as the second element of a sequence expression.
-	for code in modules.values_mut() {
-		code.insert_str(0, "0,");
-	}
-	let dep_info = parse_bundle(&modules)?;
-	for code in modules.values_mut() {
-		code.drain(0..2);
-	}
+	let parsed = ParsedBundle::new(&modules)?;
+	let experiments = parsed
+		.find_experiments()
+		.await
+		.inspect_err(|e| warn!("Failed to collect experiments: {e:?}"))
+		.unwrap_or_default();
+	let dep_info = parsed.into_dep_info();
 
 	let current_time = SystemTime::now()
 		.duration_since(UNIX_EPOCH)
@@ -360,5 +358,6 @@ pub async fn scrape_full_bundle(
 		module_sources,
 		modules,
 		env_var_text: global_env_text,
+		experiments,
 	})
 }

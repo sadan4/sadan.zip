@@ -14,8 +14,10 @@ use explorer_types::{
 	Modules,
 };
 use serde::Deserialize;
+use tokio::{runtime::Handle, task};
 use tracing::{Level, error, info, instrument, span, warn};
 
+use discord_scraper::experiments::find_experiments;
 use explorer_server_core::{
 	DATA_FILE_NAME,
 	build_has_data,
@@ -35,9 +37,10 @@ enum Versions {
 	V4,
 	V5,
 	V6,
+	V7,
 }
 
-const CURRENT_VERSION: Versions = Versions::V6;
+const CURRENT_VERSION: Versions = Versions::V7;
 
 impl Versions {
 	fn get_current() -> Result<Self> {
@@ -55,6 +58,7 @@ impl Versions {
 					4 => Self::V4,
 					5 => Self::V5,
 					6 => Self::V6,
+					7 => Self::V7,
 					_ => {
 						bail!("Unknown version in version file")
 					}
@@ -79,6 +83,7 @@ impl Versions {
 			Self::V4 => Box::new(V4Migration),
 			Self::V5 => Box::new(V5Migration),
 			Self::V6 => Box::new(V6Migration),
+			Self::V7 => Box::new(V7Migration),
 		}
 	}
 	const fn next(self) -> Option<Self> {
@@ -89,7 +94,8 @@ impl Versions {
 			Self::V3 => Some(Self::V4),
 			Self::V4 => Some(Self::V5),
 			Self::V5 => Some(Self::V6),
-			Self::V6 => None,
+			Self::V6 => Some(Self::V7),
+			Self::V7 => None,
 		}
 	}
 }
@@ -118,6 +124,10 @@ struct V5Migration;
 /// default [`channel`](BundleMetadata::channel) to `[Channel::Stable]` for any
 /// build written before the field existed, which deserializes as an empty `Vec`
 struct V6Migration;
+
+/// backfill [`experiments`](FullBundle::experiments) for any build written
+/// before the field existed, which deserializes as an empty `Vec`
+struct V7Migration;
 
 #[derive(Deserialize)]
 struct V3BundleMetadata {
@@ -297,6 +307,7 @@ impl V3Migration {
 				})
 				.collect::<Result<_>>()?,
 			modules,
+			experiments: Vec::new(),
 		};
 		Ok(ret)
 	}
@@ -393,6 +404,7 @@ impl Migration for V4Migration {
 				module_sources,
 				modules,
 				env_var_text: metadata.env_var_text,
+				experiments: Vec::new(),
 			};
 			write_full_bundle(&full_bundle)
 				.context("Failed to write full bundle")?;
@@ -450,6 +462,7 @@ impl Migration for V5Migration {
 				module_sources,
 				modules,
 				env_var_text,
+				experiments: Vec::new(),
 			};
 			write_full_bundle(&full_bundle)
 				.context("Failed to write full bundle")?;
@@ -488,6 +501,56 @@ impl Migration for V6Migration {
 				.metadata
 				.channel
 				.push(Channel::Stable);
+			write_full_bundle(&full_bundle)
+				.context("Failed to write full bundle")?;
+		}
+		Ok(())
+	}
+}
+
+impl Migration for V7Migration {
+	fn migrate(&self) -> Result<()> {
+		let base_build_path = get_root_build_path()?;
+		for entry in fs::read_dir(&base_build_path)? {
+			let entry = entry?;
+			if !entry.file_type()?.is_dir() {
+				continue;
+			}
+			let entry_path = entry.path();
+			if !build_has_data(&entry_path) {
+				warn!(
+					"Skipping {}: empty build directory, no data file",
+					entry_path.display()
+				);
+				continue;
+			}
+			let data_path = entry_path.join(DATA_FILE_NAME);
+			let mut full_bundle: FullBundle = read_mpk_zst_file(&data_path)
+				.with_context(|| {
+					format!("Failed to read {}", data_path.display())
+				})?;
+			if !full_bundle.experiments.is_empty() {
+				info!("Skipping {}: already migrated", entry_path.display());
+				continue;
+			}
+			info!("Collecting experiments for {}", entry_path.display());
+			// migrations run synchronously inside the server's runtime
+			let experiments = task::block_in_place(|| {
+				Handle::current().block_on(find_experiments(
+					&full_bundle.modules,
+					&full_bundle.dep_info,
+				))
+			});
+			match experiments {
+				Ok(experiments) => full_bundle.experiments = experiments,
+				Err(e) => {
+					warn!(
+						"Skipping {}: failed to collect experiments: {e:?}",
+						entry_path.display()
+					);
+					continue;
+				}
+			}
 			write_full_bundle(&full_bundle)
 				.context("Failed to write full bundle")?;
 		}

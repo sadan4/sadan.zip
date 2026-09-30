@@ -1,4 +1,5 @@
 #![allow(clippy::unreadable_literal, clippy::needless_raw_string_hashes)]
+#[allow(dead_code, reason = "shared with other integration tests")]
 mod util;
 
 use std::sync::Arc;
