@@ -103,6 +103,9 @@ pub struct FullBundle {
 	pub module_sources: HashMap<String, Vec<ModuleId>>,
 	pub modules: HashMap<ModuleId, String>,
 	pub env_var_text: String,
+	/// every apex and normal experiment defined in the bundle
+	#[serde(default)]
+	pub experiments: Vec<experiments::Experiment>,
 }
 
 impl FullBundle {
@@ -113,6 +116,7 @@ impl FullBundle {
 			module_sources,
 			modules,
 			env_var_text,
+			experiments,
 		} = self;
 		metadata.shrink_to_fit();
 		dep_info.shrink_to_fit();
@@ -125,6 +129,7 @@ impl FullBundle {
 			v.shrink_to_fit();
 		}
 		env_var_text.shrink_to_fit();
+		experiments.shrink_to_fit();
 	}
 }
 

@@ -1012,6 +1012,7 @@ name = "discord_scraper"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "bytes",
  "const_format",
  "dashmap",
@@ -1020,16 +1021,22 @@ dependencies = [
  "html_parser",
  "http",
  "memchr",
+ "miette_ui",
  "oxc_allocator",
  "pretty_printer",
  "regress",
  "reqwest",
  "reqwest-middleware",
  "reqwest-retry",
+ "rmp-serde",
+ "serde_json",
  "tokio",
  "tracing",
+ "tracing-subscriber",
+ "url",
  "webpack_ast_parser",
  "webpack_chunk_parser",
+ "zstd",
 ]
 
 [[package]]

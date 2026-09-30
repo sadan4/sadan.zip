@@ -32,7 +32,7 @@ use url::Url;
 use webpack_ast_parser::{
 	ThreadSafeParser,
 	WebpackAstParser,
-	bundle::{IModuleCache, IModuleDepProvider},
+	bundle::{IModuleCache, IModuleDepProvider, WeakCache},
 };
 
 use crate::{
@@ -807,53 +807,6 @@ impl IModuleCache for DiskModuleCache {
 		_latest: Option<bool>,
 	) -> anyhow::Result<Arc<ThreadSafeParser>> {
 		self.get_parser(id).await
-	}
-}
-
-/// The handle a cached parser gets back to the cache holding it.
-///
-/// Weak so that the cache -> parser -> cache path is not a reference cycle
-struct WeakCache<T>(Weak<T>);
-
-impl<T> WeakCache<T> {
-	fn get(&self) -> Result<Arc<T>> {
-		self.0
-			.upgrade()
-			.context("Module cache has been dropped")
-	}
-}
-
-#[async_trait]
-impl<T: IModuleDepProvider + 'static> IModuleDepProvider for WeakCache<T> {
-	async fn get_module_deps(
-		&self,
-		id: ModuleId,
-	) -> Result<Arc<IncomingModuleDeps>> {
-		self.get()?.get_module_deps(id).await
-	}
-}
-
-#[async_trait]
-impl<T: IModuleCache + 'static> IModuleCache for WeakCache<T> {
-	async fn get_module_filepath(&self, id: ModuleId) -> Option<Url> {
-		match self.get() {
-			Ok(cache) => cache.get_module_filepath(id).await,
-			Err(e) => {
-				warn!("{e}");
-				None
-			}
-		}
-	}
-
-	async fn get_module_parser(
-		&self,
-		requestor: &WebpackAstParser<'_>,
-		id: ModuleId,
-		latest: Option<bool>,
-	) -> Result<Arc<ThreadSafeParser>> {
-		self.get()?
-			.get_module_parser(requestor, id, latest)
-			.await
 	}
 }
 

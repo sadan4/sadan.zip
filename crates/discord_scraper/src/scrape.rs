@@ -12,7 +12,7 @@ use std::{
 
 use anyhow::{Context as _, Result, anyhow, bail};
 use dashmap::DashMap;
-use explorer_server_core::{asset_url};
+use explorer_server_core::asset_url;
 use explorer_types::{BundleMetadata, Channel, FullBundle, ModuleId};
 use http::StatusCode;
 use memchr::memmem::Finder;
@@ -32,6 +32,7 @@ use webpack_chunk_parser::{
 
 use crate::{
 	bundle_parser::parse_bundle,
+	experiments::find_experiments,
 	html_parser::{ParsedHtml, parse_html},
 	progress::ScrapeProgress,
 	util::ByteStr,
@@ -40,7 +41,7 @@ use crate::{
 const MAX_PENDING_REQUESTS: usize = 1024;
 
 /// rspack <2.0.0 by default adds .ruid to every runtime chunk
-/// the only runtime we want is web.js, so we use this to filter 
+/// the only runtime we want is web.js, so we use this to filter
 /// out other chunks with their own runtimes (workers, sentry, ...)
 static RUNTIME_FINDER: LazyLock<Finder<'static>> =
 	LazyLock::new(|| Finder::new(br#".ruid=""#));
@@ -340,6 +341,10 @@ pub async fn scrape_full_bundle(
 	for code in modules.values_mut() {
 		code.drain(0..2);
 	}
+	let experiments = find_experiments(&modules, &dep_info)
+		.await
+		.inspect_err(|e| warn!("Failed to collect experiments: {e:?}"))
+		.unwrap_or_default();
 
 	let current_time = SystemTime::now()
 		.duration_since(UNIX_EPOCH)
@@ -360,5 +365,6 @@ pub async fn scrape_full_bundle(
 		module_sources,
 		modules,
 		env_var_text: global_env_text,
+		experiments,
 	})
 }

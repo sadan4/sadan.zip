@@ -9,5 +9,8 @@ miette.workspace = true
 oxc_span.workspace = true
 thiserror.workspace = true
 
+[dev-dependencies]
+miette = { workspace = true, features = ["fancy"] }
+
 [lints]
 workspace = true

@@ -1019,6 +1019,7 @@ fn bundle_from_full(
 		module_sources,
 		modules,
 		env_var_text: _,
+		experiments: _,
 	}: FullBundle,
 	drop_sources: bool,
 ) -> Bundle {
