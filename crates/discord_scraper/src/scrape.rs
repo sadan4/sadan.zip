@@ -31,8 +31,7 @@ use webpack_chunk_parser::{
 };
 
 use crate::{
-	bundle_parser::parse_bundle,
-	experiments::find_experiments,
+	experiments::ParsedBundle,
 	html_parser::{ParsedHtml, parse_html},
 	progress::ScrapeProgress,
 	util::ByteStr,
@@ -324,7 +323,7 @@ pub async fn scrape_full_bundle(
 	progress: Arc<dyn ScrapeProgress>,
 ) -> Result<FullBundle> {
 	let ScrapedModules {
-		mut modules,
+		modules,
 		module_sources,
 		global_env_text,
 		web_js_url: _,
@@ -332,19 +331,13 @@ pub async fn scrape_full_bundle(
 		entry_point,
 	} = JsScraper::scrape(html, channel, client, progress).await?;
 
-	// parse_bundle requires modules to be prefixed with "0," so the AST parser
-	// sees them as the second element of a sequence expression.
-	for code in modules.values_mut() {
-		code.insert_str(0, "0,");
-	}
-	let dep_info = parse_bundle(&modules)?;
-	for code in modules.values_mut() {
-		code.drain(0..2);
-	}
-	let experiments = find_experiments(&modules, &dep_info)
+	let parsed = ParsedBundle::new(&modules)?;
+	let experiments = parsed
+		.find_experiments()
 		.await
 		.inspect_err(|e| warn!("Failed to collect experiments: {e:?}"))
 		.unwrap_or_default();
+	let dep_info = parsed.into_dep_info();
 
 	let current_time = SystemTime::now()
 		.duration_since(UNIX_EPOCH)

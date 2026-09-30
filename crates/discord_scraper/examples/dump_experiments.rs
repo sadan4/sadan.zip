@@ -17,8 +17,7 @@ use anyhow::{Context, Result, bail};
 use discord_scraper::{
 	JsScraper,
 	NoProgress,
-	bundle_parser::parse_bundle,
-	experiments::find_experiments,
+	experiments::ParsedBundle,
 	make_reqwest_client,
 };
 use explorer_types::{Channel, ModuleId};
@@ -35,6 +34,7 @@ fn install_tracing() {
 	fmt()
 		.with_env_filter(filter)
 		.with_writer(io::stderr)
+		.with_ansi_sanitization(false)
 		.init();
 }
 
@@ -100,8 +100,9 @@ async fn main() -> Result<()> {
 		}
 	});
 
-	let dep_info = parse_bundle(&modules)?;
-	let experiments = find_experiments(&modules, &dep_info).await?;
+	let experiments = ParsedBundle::new(&modules)?
+		.find_experiments()
+		.await?;
 	info!("found {} experiments", experiments.len());
 	serde_json::to_writer_pretty(io::stdout().lock(), &experiments)?;
 	Ok(())
