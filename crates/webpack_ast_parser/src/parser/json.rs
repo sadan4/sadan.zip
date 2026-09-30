@@ -161,6 +161,9 @@ impl<'ast> super::WebpackAstParser<'ast> {
 		};
 		Ok(ret)
 	}
+	// FIXME: this only checks that the binding is never reassigned, not that
+	// the value is never mutated, so `var c = {a: 1}; c.a = 2;` converts `c`
+	// to `{a: 1}`
 	fn ident_to_json(
 		&self,
 		ident: &'ast IdentifierReference<'ast>,

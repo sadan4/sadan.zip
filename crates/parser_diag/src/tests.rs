@@ -82,3 +82,12 @@ fn short_lines_keep_context() {
 	assert!(out.contains("two"), "{out}");
 	assert!(out.contains("four"), "{out}");
 }
+
+#[test]
+fn long_line_gutter_uses_span_line() {
+	let src = format!("one\ntwo\n{}", minified(100_000, 90_000, "needle"));
+	let out = render(err(&Span::new(90_008, 90_014), "here"), &src);
+	assert!(out.contains("[test.js:3:90001]"), "{out}");
+	assert!(out.contains(" 3 │"), "{out}");
+	assert!(!out.contains(" 2 │"), "{out}");
+}

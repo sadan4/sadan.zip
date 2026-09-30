@@ -183,7 +183,8 @@ const MAX_WINDOW_LEN: usize = 1024;
 
 impl LocalSource<'_> {
 	/// If the lines `span` is on are too long to render, the part of them
-	/// around `span` and its location in [`Self::source`]
+	/// around `span`, its location in [`Self::source`], and the zero-based
+	/// line it's on
 	///
 	/// Minified code is often one line, which miette would render in full. It
 	/// also pads underlines with `{:width$}`, which panics once a span starts
@@ -191,7 +192,7 @@ impl LocalSource<'_> {
 	fn long_line_window(
 		&self,
 		span: &SourceSpan,
-	) -> Option<(&[u8], SourceSpan)> {
+	) -> Option<(&[u8], SourceSpan, usize)> {
 		let src = self.source;
 		let start = span.offset().min(src.len());
 		let end = (start + span.len()).min(src.len());
@@ -219,6 +220,7 @@ impl LocalSource<'_> {
 		Some((
 			&src.as_bytes()[win_start..win_end],
 			SourceSpan::new(win_start.into(), win_end - win_start),
+			src[..line_start].matches('\n').count(),
 		))
 	}
 
@@ -251,23 +253,29 @@ impl miette::SourceCode for LocalSource<'_> {
 			context_lines_before,
 			context_lines_after,
 		)?;
-		let (data, data_span, line_count) = match self.long_line_window(span) {
-			// miette reads the span covering two labels to try to render them
-			// as one snippet, only merging them if that read succeeds. Refuse
-			// when that span doesn't fit in a window, so both labels are shown.
-			Some((_, data_span))
-				if data_span.len() < span.len() && !self.is_label(span) =>
-			{
-				return Err(miette::MietteError::OutOfBounds);
-			}
-			Some((data, data_span)) => (data, data_span, 1),
-			None => (ret.data(), *ret.span(), ret.line_count()),
-		};
+		let (data, data_span, line, line_count) =
+			match self.long_line_window(span) {
+				// miette reads the span covering two labels to try to render
+				// them as one snippet, only merging them if that read succeeds.
+				// Refuse when that span doesn't fit in a window, so both labels
+				// are shown.
+				Some((_, data_span, _))
+					if data_span.len() < span.len() && !self.is_label(span) =>
+				{
+					return Err(miette::MietteError::OutOfBounds);
+				}
+				// the window drops the context lines miette asked for, so the
+				// line miette read may be one of those. miette's column is kept,
+				// it's only used for the `[file:line:col]` header, which reads
+				// without context so it's the span's column.
+				Some((data, data_span, line)) => (data, data_span, line, 1),
+				None => (ret.data(), *ret.span(), ret.line(), ret.line_count()),
+			};
 		let ret = miette::MietteSpanContents::new_named(
 			String::from(self.name),
 			data,
 			data_span,
-			ret.line(),
+			line,
 			ret.column(),
 			line_count,
 		);
