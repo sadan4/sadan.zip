@@ -1189,11 +1189,9 @@ impl<'ast> WebpackAstParser<'ast> {
 		obj: &'ast ObjectExpression<'ast>,
 		prop: &str,
 	) -> PResult<String> {
-		let name_prop = obj
-			.get_property(prop)
-			.ok_or_else(|| {
-				err(obj, format!("Experiment does not have `{prop}` property"))
-			})?;
+		let name_prop = obj.get_property(prop).ok_or_else(|| {
+			err(obj, format!("Experiment does not have `{prop}` property"))
+		})?;
 		let ret = match &name_prop.value {
 			Expression::StringLiteral(lit) => lit.value.to_string(),
 			Expression::TemplateLiteral(lit)
@@ -1212,12 +1210,17 @@ impl<'ast> WebpackAstParser<'ast> {
 				.ok_or_else(|| {
 					err(
 						&**ident,
-						format!("Could not resolve {prop} string from identifier"),
+						format!(
+							"Could not resolve {prop} string from identifier"
+						),
 					)
 				})?
 				.to_string(),
 			other => {
-				return Err(err(other, format!("Could not resolve {prop} string")));
+				return Err(err(
+					other,
+					format!("Could not resolve {prop} string"),
+				));
 			}
 		};
 		Ok(ret)
@@ -1283,7 +1286,7 @@ impl<'ast> WebpackAstParser<'ast> {
 			},
 			obj: ExperimentKind::Normal(NormalExperiment {
 				kind,
-				id: id.to_string(),
+				id,
 				label: label.to_string(),
 				default_config,
 				treatments,
