@@ -1041,7 +1041,7 @@ impl<'ast> WebpackAstParser<'ast> {
 		let default_config = if let Some(ObjectProperty { value, .. }) =
 			obj.get_property("defaultConfig")
 		{
-			Self::expr_to_json(value).map_err(|e| {
+			self.expr_to_json(value).map_err(|e| {
 				err(value, "Failed to parse `defaultConfig`").s(e)
 			})?
 		} else {
@@ -1086,7 +1086,7 @@ impl<'ast> WebpackAstParser<'ast> {
 						)
 					})?;
 					let val = &prop.value;
-					let val = Self::expr_to_json(val).map_err(|e| {
+					let val = self.expr_to_json(val).map_err(|e| {
 						err(val, "Failed to parse variation value").s(e)
 					})?;
 					arr.push(experiments::Variation {
@@ -1135,6 +1135,7 @@ impl<'ast> WebpackAstParser<'ast> {
 		}
 	}
 	fn parse_experiment_treatment(
+		&self,
 		t: &'ast Expression<'ast>,
 	) -> PResult<experiments::Treatment> {
 		let t = t
@@ -1174,9 +1175,11 @@ impl<'ast> WebpackAstParser<'ast> {
 			.ok_or_else(|| {
 				err(t, "Experiment treatment does not have `config` property")
 			})?;
-		let config = Self::expr_to_json(&config_prop.value).map_err(|e| {
-			err(&config_prop.value, "Failed to parse `config`").s(e)
-		})?;
+		let config = self
+			.expr_to_json(&config_prop.value)
+			.map_err(|e| {
+				err(&config_prop.value, "Failed to parse `config`").s(e)
+			})?;
 		Ok(experiments::Treatment {
 			id,
 			label: label.to_string(),
@@ -1247,7 +1250,7 @@ impl<'ast> WebpackAstParser<'ast> {
 		let default_config = if let Some(ObjectProperty { value, .. }) =
 			obj.get_property("defaultConfig")
 		{
-			Self::expr_to_json(value).map_err(|e| {
+			self.expr_to_json(value).map_err(|e| {
 				err(value, "Failed to parse `defaultConfig`").s(e)
 			})?
 		} else {
@@ -1269,7 +1272,7 @@ impl<'ast> WebpackAstParser<'ast> {
 					let Some(el) = el.as_expression() else {
 						return Err(err(el, "Invalid treatment element"));
 					};
-					ret.push(Self::parse_experiment_treatment(el)?);
+					ret.push(self.parse_experiment_treatment(el)?);
 				}
 				ret
 			} else {
@@ -2285,7 +2288,7 @@ impl<'ast> WebpackAstParser<'ast> {
 	// FIXME: make PResult?
 	fn get_module_id_for_import(&self, sym_id: SymbolId) -> Option<SpannedId> {
 		let init = self
-			.sole_value_of(&sym_id)?
+			.constant_value_of(&sym_id)?
 			.as_call_expression()?;
 		// make sure init is a call to wreq
 		if !self.cmp_sym(init.callee.as_identifier()?, &self.wreq().ok()?) {
@@ -2724,7 +2727,7 @@ impl<'ast> WebpackAstParser<'ast> {
 		&self,
 		sym_id: &ID,
 	) -> Option<Str<'ast>> {
-		self.sole_value_of(sym_id)?
+		self.constant_value_of(sym_id)?
 			.as_string_literal_like()
 	}
 	/// The only value `sym_id` is ever set to
@@ -2735,7 +2738,7 @@ impl<'ast> WebpackAstParser<'ast> {
 	/// let x;
 	/// x = value;
 	/// ```
-	fn sole_value_of<ID: GetSymId>(
+	fn constant_value_of<ID: GetSymId>(
 		&self,
 		sym_id: &ID,
 	) -> Option<&'ast Expression<'ast>> {
@@ -2745,13 +2748,14 @@ impl<'ast> WebpackAstParser<'ast> {
 			.symbol_declaration(sym_id)
 			.kind()
 			.as_variable_declarator()?;
-		if let Some(init) = decl.init.as_ref() {
-			return Some(init);
-		}
 		let mut writes = self
 			.sema
 			.symbol_references(sym_id)
 			.filter(|reference| reference.is_write());
+		if let Some(init) = decl.init.as_ref() {
+			// reassigned after the initializer, so not constant
+			return writes.next().is_none().then_some(init);
+		}
 		let write = writes.next()?;
 		// if we're written to more than once, we don't have a single value
 		if writes.next().is_some() {

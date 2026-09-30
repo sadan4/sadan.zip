@@ -1,9 +1,10 @@
 ---
 source: crates/webpack_ast_parser/tests/experiments.rs
+assertion_line: 85
 expression: "format!(\"creator modules: {}\\n{apex} apex, {normal} normal\\n\\n{summary}\",\ncreators.iter().join(\", \"),)"
 ---
 creator modules: 240921, 880006
-284 apex, 36 normal
+286 apex, 36 normal
 
 492: apex User 2026-02-mute-tutorial (1 variations)
 1310: normal Guild 2023-02_guest_voice_invites (1 treatments)
@@ -44,6 +45,7 @@ creator modules: 240921, 880006
 106713: apex User 2026-05-device-form-factor-indicators (1 variations)
 107653: apex User 2026-04-desktop-tti-v8-cache (1 variations)
 108822: apex User 2026-03-debug-experiment (2 variations)
+116891: apex User 2026-04-server-boost-copy-1440p (1 variations)
 117787: normal Guild 2026-04_voice_call_trigger_point (1 treatments)
 124838: apex User 2025-12-proportional-vad-indicator (4 variations)
 139716: apex User 2025-11-age-verification-expressive-everywhere (1 variations)
@@ -287,6 +289,7 @@ creator modules: 240921, 880006
 936926: apex User 2026-01-family-center-v3 (2 variations)
 938005: apex User 2026-03-stage-voice-panel (2 variations)
 940980: apex User 2026-03-shop-fiat-prioritization (2 variations)
+941327: apex User 2025-09-agc2-v2 (6 variations)
 941327: apex User 2026-04-av1-decode-android (1 variations)
 941327: apex User 2025-08-browser-hevc (1 variations)
 941327: apex User 2026-05-disable-camera-simulcast (1 variations)
