@@ -452,9 +452,28 @@ export function BufferedScroller<T>({
                     ...domOptions,
                     top: clamp(0, scrollHeight, itemOffset - (viewportHeight / 2)),
                 });
+
+                // scrollend isn't fired for 100% of the time for 
+                // programatic scrolls
+                if (domOptions.behavior !== "smooth") {
+                    setTimeout(() => {
+                        reCalcVisibleChunks(scrollArea);
+                    });
+                }
             },
         } satisfies BufferedScroller.Handle<T>;
-    }, [averageItemHeight, hasNoPadding, items, batchSize, guessChunkHeight]);
+    }, [
+        averageItemHeight,
+        hasNoPadding,
+        items,
+        batchSize,
+        guessChunkHeight,
+        // used by reCalcVisibleChunks
+        firstChunk,
+        numChunks,
+        totalChunks,
+        bufferSize,
+    ]);
 
     useEffect(() => {
         let first = firstChunk;
