@@ -40,6 +40,7 @@ impl ThreadSafeParser {
 	pub fn new(code: Arc<str>) -> PResult<Self> {
 		let allocator = Box::new(Allocator::new());
 		let inner = WebpackAstParser::try_new(&allocator, &code)?;
+		inner.set_arc_source(Arc::clone(&code));
 		// SAFETY: we hold code and allocator for the lifetime
 		// of the parser
 		let inner = unsafe {

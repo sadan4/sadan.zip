@@ -63,6 +63,7 @@ terminal_size = "0.4.4"
 syntect = { version = "5.3.0", default-features = false }
 memchr = "2.8.0"
 num-bigint = "0.5.1"
+num-traits = "0.2.19"
 regex = "1.12.3"
 smol_str = { version = "0.3.6", features = ["std", "serde"] }
 proc-macro2 = { version = "1.0.32", default-features = false }
@@ -123,6 +124,7 @@ redis = { version = "1.6.0", features = ["tokio-comp"] }
 phf = {version = "0.14", features = ["macros"]}
 async-trait = "0.1"
 percent-encoding = "2"
+ordered-float = "5"
 
 [patch.crates-io]
 typesize = { git = "https://github.com/GnomedDev/typesize", branch = "master" }

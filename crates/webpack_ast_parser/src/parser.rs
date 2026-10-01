@@ -7,6 +7,7 @@ mod json;
 mod main_func_finder;
 mod types;
 mod util;
+mod value_tracking;
 
 use crate::{
 	bundle::{
@@ -50,6 +51,7 @@ use crate::{
 			match_export_chain,
 			span_to_range,
 		},
+		value_tracking::ConstantValue,
 	},
 	sync::{ThreadSafeParser, UnsafeFuture},
 };
@@ -84,12 +86,14 @@ use explorer_types::{
 use export_map::RawExportMap;
 use itertools::Itertools as _;
 use miette_ctx::map_anyhow;
+use num_bigint::BigInt;
 use oxc::{
 	allocator::{Allocator, GetAddress, UnstableAddress},
 	ast::{
 		AstKind,
 		ast::{
 			Argument,
+			ArrayExpressionElement,
 			ArrowFunctionExpression,
 			AssignmentTarget,
 			BindingIdentifier,
@@ -118,6 +122,7 @@ use oxc::{
 			VariableDeclarationKind,
 			VariableDeclarator,
 		},
+		match_expression,
 	},
 	parser::{Kind as TK, Token},
 	semantic::{NodeId, ReferenceFlags, ReferenceId, Semantic, SymbolId},
@@ -127,11 +132,12 @@ use parser_diag::{LocalSource, PResult, ParserDiagnostic, err, err_ns};
 use rangemap::RangeSet;
 use smol_str::{SmolStr, ToSmolStr as _};
 use std::{
+	borrow::Cow,
 	collections::{HashMap, HashSet},
 	fmt::Write,
 	iter,
 	mem,
-	sync::Arc,
+	sync::{Arc, OnceLock},
 };
 use tracing::{debug, error, trace, warn};
 
@@ -139,6 +145,7 @@ pub struct WebpackAstParser<'ast> {
 	prog: &'ast Program<'ast>,
 	sema: Semantic<'ast>,
 	source: &'ast str,
+	arc_source: OnceLock<Arc<str>>,
 	toks: &'ast [Token],
 	module_cache: Arc<dyn IModuleCache>,
 	module_dep_provider: Arc<dyn IModuleDepProvider>,
@@ -188,11 +195,18 @@ impl<'ast> WebpackAstParser<'ast> {
 			prog,
 			sema,
 			source,
+			arc_source: OnceLock::new(),
 			toks: toks.into_arena_slice(),
 			module_cache: Arc::new(DefaultModuleCache),
 			module_dep_provider: Arc::new(DefaultModuleDepProvider),
 			c: Cache::default(),
 		})
+	}
+
+	pub fn set_arc_source(&self, arc_source: Arc<str>) {
+		if self.arc_source.set(arc_source).is_err() {
+			warn!("Failed to set arc_source, it was already set");
+		}
 	}
 
 	/// takes the module text `src` and returns if the
@@ -861,6 +875,11 @@ impl<'ast> WebpackAstParser<'ast> {
 
 /// Private API
 impl<'ast> WebpackAstParser<'ast> {
+	fn get_arc_source(&self) -> Arc<str> {
+		self.arc_source
+			.get_or_init(|| Arc::from(self.source))
+			.clone()
+	}
 	/// Logs `diag` as a warning, using [`LocalSource`]
 	fn warn_diag(&self, msg: &str, diag: ParserDiagnostic) {
 		let name = match self.get_module_id() {
@@ -2456,6 +2475,8 @@ impl<'ast> WebpackAstParser<'ast> {
 			.symbol_declaration(sym_id)
 			.kind()
 			.as_variable_declarator()?;
+		// `sym_id` is only part of the value in `let { a } = value;`
+		decl.id.get_binding_identifier()?;
 		let mut writes = self
 			.sema
 			.symbol_references(sym_id)
@@ -3249,7 +3270,9 @@ impl<'ast> WebpackAstParser<'ast> {
 				ret.cjs_default =
 					Some(Box::new(RawExportRange::from_node(name).into()));
 			} else {
-				warn!("Failed to set cjs_default for Object.freeze, parent is not variable declarator");
+				warn!(
+					"Failed to set cjs_default for Object.freeze, parent is not variable declarator"
+				);
 			}
 			return ret.into();
 		}
