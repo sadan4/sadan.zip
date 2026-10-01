@@ -1,7 +1,8 @@
-use crate::{Runnable, util::cmd::resolve_program_in_path};
+use crate::{Runnable};
 use anyhow::{Context, Result, bail};
 use clap::Args;
 use serde::Deserialize;
+use stdx::process::cmd::resolve_program_in_path;
 use std::{
 	collections::{BTreeMap, BTreeSet},
 	fmt::Write as _,

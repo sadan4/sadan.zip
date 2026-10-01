@@ -1,7 +1,7 @@
 use crate::parser::{
 	WebpackAstParser,
 	export_map::ExportMapKey,
-	util::{f64_to_i32, get_inner_func_body},
+	util::{get_inner_func_body},
 };
 use ast_parser::{
 	AstParser,
@@ -20,6 +20,7 @@ use explorer_types::{
 };
 use oxc::ast::ast::{Expression, ObjectExpression, ObjectProperty};
 use parser_diag::{PResult, err};
+use stdx::num::f64_to_i32;
 use tracing::debug;
 
 impl<'ast> WebpackAstParser<'ast> {

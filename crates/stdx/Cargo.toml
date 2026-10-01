@@ -6,6 +6,8 @@ edition.workspace = true
 
 [dependencies]
 tracing.workspace = true
+# thiserror is probably better here
+anyhow.workspace = true
 
 [lints]
 workspace = true

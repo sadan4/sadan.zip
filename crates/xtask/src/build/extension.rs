@@ -5,15 +5,12 @@ use std::{
 
 use anyhow::{Context, Result};
 use clap::Args;
+use stdx::process::cmd::resolve_program_in_path;
 use tracing::{info, instrument};
 
 use crate::{
 	Runnable,
-	util::{
-		cmd::{CommandExt as _, resolve_program_in_path},
-		fs,
-		target::ExtensionTarget,
-	},
+	util::{cmd::CommandExt as _, fs, target::ExtensionTarget},
 };
 
 #[derive(Args, Debug)]

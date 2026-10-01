@@ -1,9 +1,10 @@
 use std::{env, process};
 
 use anyhow::{Context, Result, bail};
+use stdx::process::cmd::resolve_program_in_path;
 use tracing::debug;
 
-use crate::util::cmd::{CommandExt, resolve_program_in_path};
+use crate::util::cmd::{CommandExt};
 
 pub fn pnpm_i() -> Result<()> {
 	if env::var("CI").is_ok() {

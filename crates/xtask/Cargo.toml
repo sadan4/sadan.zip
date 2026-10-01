@@ -23,6 +23,7 @@ smol_str.workspace = true
 serde.workspace = true
 reqwest = {workspace = true, features = ["blocking"]}
 intl_hash.workspace = true
+stdx.workspace = true
 
 [lints]
 workspace = true

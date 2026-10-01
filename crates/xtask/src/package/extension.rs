@@ -2,13 +2,14 @@ use std::process;
 
 use anyhow::{Context, Result};
 use clap::Args;
+use stdx::process::cmd::resolve_program_in_path;
 use tracing::{info, instrument};
 
 use crate::{
 	Runnable,
 	build,
 	util::{
-		cmd::{CommandExt as _, resolve_program_in_path},
+		cmd::{CommandExt as _},
 		target::ExtensionTarget,
 	},
 };
