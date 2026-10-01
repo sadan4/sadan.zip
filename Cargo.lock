@@ -1194,6 +1194,7 @@ dependencies = [
 name = "explorer_types"
 version = "0.1.0"
 dependencies = [
+ "daft",
  "derive_more",
  "jiff",
  "oxc_span",

@@ -14,6 +14,7 @@ jiff.workspace = true
 oxc_span = { workspace = true, features = ["serialize"] }
 typesize.workspace = true
 serde_json.workspace = true
+daft.workspace = true
 
 [lints]
 workspace = true
