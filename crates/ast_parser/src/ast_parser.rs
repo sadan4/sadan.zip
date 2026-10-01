@@ -19,7 +19,6 @@ use oxc::{
 		config::{NoTokensParserConfig, TokensParserConfig},
 	},
 	semantic::{
-		AstNode,
 		NodeId,
 		Reference,
 		Scoping,

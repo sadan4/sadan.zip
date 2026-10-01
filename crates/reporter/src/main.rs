@@ -1,5 +1,3 @@
-// nix is on 1.97.1
-#![feature(result_option_map_or_default)]
 use clap::{CommandFactory as _, Parser as _};
 use derive_more::From;
 use indicatif::MultiProgress;

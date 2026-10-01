@@ -142,7 +142,7 @@ mod tests {
 
 	#[test]
 	async fn numeric_keys_first() {
-		let json = to_json(r#"{ b: 1, 1: 2, a: 3 }"#)
+		let json = to_json(r"{ b: 1, 1: 2, a: 3 }")
 			.await
 			.unwrap();
 		let keys = json

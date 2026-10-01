@@ -29,7 +29,7 @@ use tokio_tungstenite::{
 		http::StatusCode,
 	},
 };
-use tracing::{debug, error, info, trace, warn};
+use tracing::{error, info, trace, warn};
 
 use crate::wss::types::{MsgFromClient, MsgToClient};
 

@@ -944,8 +944,7 @@ fn sweep_layer_graphs(
 	for lg in layer_graphs {
 		let (movable, global) = lg
 			.graph()
-			.map(|g| (g.movable.clone(), g.global.clone()))
-			.unwrap_or_default();
+			.map_or_default(|g| (g.movable.clone(), g.global.clone()));
 		let sorted =
 			sort_subgraph(lg, graph, &global, &movable, &cg, bias_right);
 		// Only the main graph carries `order` now; the next layer's

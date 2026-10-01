@@ -691,8 +691,7 @@ impl<G, N, E> Graph<G, N, E> {
 		match v.flatten() {
 			Some(v) => self
 				.slot(v)
-				.map(|s| s.children.clone())
-				.unwrap_or_default(),
+				.map_or_default(|s| s.children.clone()),
 			None => self
 				.nodes_iter()
 				.filter(|&n| {

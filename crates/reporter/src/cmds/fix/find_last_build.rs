@@ -7,6 +7,7 @@ use miette::{Diagnostic, Report, Severity, miette};
 use tracing::{error, info, warn};
 
 #[derive(Debug)]
+#[expect(clippy::large_enum_variant)]
 pub enum PreviousBundle {
 	Full(FullBundle),
 	Scraped(ScrapedBranch),

@@ -476,8 +476,7 @@ impl lsp::Server {
 			.patch_helpers
 			.by_plugin_file
 			.get(uri)
-			.map(|x| x.value().clone())
-			.unwrap_or_default();
+			.map_or_default(|x| x.value().clone());
 		let mut first_err = None;
 		for helper in helpers {
 			// one failing helper shouldn't stop the others from updating

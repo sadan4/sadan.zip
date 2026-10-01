@@ -51,7 +51,6 @@ use crate::{
 			match_export_chain,
 			span_to_range,
 		},
-		value_tracking::ConstantValue,
 	},
 	sync::{ThreadSafeParser, UnsafeFuture},
 };
@@ -86,14 +85,12 @@ use explorer_types::{
 use export_map::RawExportMap;
 use itertools::Itertools as _;
 use miette_ctx::map_anyhow;
-use num_bigint::BigInt;
 use oxc::{
 	allocator::{Allocator, GetAddress, UnstableAddress},
 	ast::{
 		AstKind,
 		ast::{
 			Argument,
-			ArrayExpressionElement,
 			ArrowFunctionExpression,
 			AssignmentTarget,
 			BindingIdentifier,
@@ -122,7 +119,6 @@ use oxc::{
 			VariableDeclarationKind,
 			VariableDeclarator,
 		},
-		match_expression,
 	},
 	parser::{Kind as TK, Token},
 	semantic::{NodeId, ReferenceFlags, ReferenceId, Semantic, SymbolId},
@@ -132,7 +128,6 @@ use parser_diag::{LocalSource, PResult, ParserDiagnostic, err, err_ns};
 use rangemap::RangeSet;
 use smol_str::{SmolStr, ToSmolStr as _};
 use std::{
-	borrow::Cow,
 	collections::{HashMap, HashSet},
 	fmt::Write,
 	iter,
@@ -899,7 +894,7 @@ impl<'ast> WebpackAstParser<'ast> {
 		};
 		warn!("{msg}: {e:?}");
 	}
-	#[expect(clippy::future_not_send)]
+
 	async fn get_defined_experiments_with(
 		&self,
 		create_experiment_module: ModuleId,
