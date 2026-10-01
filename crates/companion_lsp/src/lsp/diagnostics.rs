@@ -225,7 +225,8 @@ struct Answer {
 /// so a failure to parse either one only drops that half of the probes.
 fn probes(parser: &VencordAstParser, doc: &Document) -> Vec<Pending> {
 	let mut ret = Vec::new();
-	match parser.patches(true) {
+	// being sent over to js, don't apply regress canon
+	match parser.patches(false) {
 		Ok(patches) => {
 			for patch in patches {
 				match patch_to_wire(&patch, doc.text.as_str()) {
