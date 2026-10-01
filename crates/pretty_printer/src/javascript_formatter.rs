@@ -39,6 +39,7 @@ use oxc::{
 	parser::{Kind, Parser, Token, config::TokensParserConfig},
 	span::{GetSpan, SourceType},
 };
+use stdx::macros::debug_assert_implies;
 
 use crate::{
 	FormattedContent,
@@ -603,10 +604,7 @@ impl<'a> JavaScriptFormatter<'a> {
 	fn line_of_pos(&self, pos: u32) -> u32 {
 		// `line_pos_cache` is sorted ascending, so the line containing `pos`
 		// is the last entry whose first-char position is `<= pos`.
-		debug_assert!(
-			!self.line_pos_cache.is_empty() && self.line_pos_cache[0] <= pos,
-			"pos precedes the first line"
-		);
+		debug_assert_implies!(let Some(e) = self.line_pos_cache.first() => *e <= pos, "pos precedes the first line");
 		self.line_pos_cache
 			.partition_point(|&first_char_pos| first_char_pos <= pos) as u32
 			- 1
@@ -616,10 +614,7 @@ impl<'a> JavaScriptFormatter<'a> {
 	/// to [`Self::push`] in ascending source order: the answer is always at
 	/// or after `line_cursor`, so a forward scan replaces the binary search.
 	fn line_of_pos_forward(&mut self, pos: u32) -> u32 {
-		debug_assert!(
-			!self.line_pos_cache.is_empty() && self.line_pos_cache[0] <= pos,
-			"pos precedes the first line"
-		);
+		debug_assert_implies!(let Some(e) = self.line_pos_cache.first() => *e <= pos, "pos precedes the first line");
 		let cache = &self.line_pos_cache;
 		let mut cursor = self.line_cursor;
 		while cursor + 1 < cache.len() && cache[cursor + 1] <= pos {

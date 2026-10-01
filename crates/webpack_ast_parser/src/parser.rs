@@ -1126,12 +1126,11 @@ impl<'ast> WebpackAstParser<'ast> {
 									&& let Some(inner_access) = self.p_if(
 										assign_per.node_id(),
 										AstKind::as_static_member_expression,
-									)
-									&& let Some(span) = self
-										.match_outer_access_chain(
-											inner_access,
-											remaining,
-										) {
+									) && let Some(span) = self
+									.match_outer_access_chain(
+										inner_access,
+										remaining,
+									) {
 									uses.push(span.into_ast_kind());
 								}
 							} else {
@@ -1238,8 +1237,7 @@ impl<'ast> WebpackAstParser<'ast> {
 			let c_then_obj = c_then.object.as_call_expression()?;
 			if self
 				.is_lazy_chunk_require(c_then_obj)
-				.is_some()
-				|| self.is_promise_resolve(c_then_obj)
+				.is_some() || self.is_promise_resolve(c_then_obj)
 			{
 				return true;
 			}
@@ -1766,8 +1764,8 @@ impl<'ast> WebpackAstParser<'ast> {
 		(&'a [ExportMapKey], &'a [ExportMapKey]),
 	) {
 		debug_assert_ne!(
-			export_names.len(),
-			0,
+			export_names,
+			[],
 			"doesn't make sense for export names to be empty"
 		);
 		// innermost_access itself satisfies the predicate, so last_parent never
@@ -2554,8 +2552,9 @@ impl<'ast> WebpackAstParser<'ast> {
 				if !self.cmp_sym(module, &mod_arg) {
 					continue;
 				}
-				debug_assert!(
-					exports_arr.len() == 1,
+				debug_assert_eq!(
+					exports_arr.len(),
+					1,
 					"chain should always have len 1"
 				);
 				if exports_arr
@@ -2674,18 +2673,12 @@ impl<'ast> WebpackAstParser<'ast> {
 			!matches!(
 				seq[0].kind(),
 				TK::Dot
-					| TK::Comma
-					| TK::Colon
-					| TK::Eq
-					| TK::Eq2
-					| TK::Eq3
-					| TK::Amp2
-					| TK::LParen
-					| TK::RParen
-					| TK::Pipe2
-					| TK::Semicolon
-					| TK::Question
-					| TK::Extends
+					| TK::Comma | TK::Colon
+					| TK::Eq | TK::Eq2
+					| TK::Eq3 | TK::Amp2
+					| TK::LParen | TK::RParen
+					| TK::Pipe2 | TK::Semicolon
+					| TK::Question | TK::Extends
 					| TK::Let
 			)
 		} else {
@@ -3433,8 +3426,7 @@ impl<'ast> WebpackAstParser<'ast> {
 			.as_ref()
 			.unwrap()
 			.statements
-			.len()
-			== 1
+			.len() == 1
 			&& let Some(ident) =
 				find_return_identifier(Functionish::Named(func))
 		{

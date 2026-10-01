@@ -1,6 +1,7 @@
 use std::hint::likely;
 
 use derive_more::Debug;
+use stdx::macros::debug_assert_implies;
 use unicode_ident::is_xid_continue;
 
 use crate::indent_cache::INDENT_CACHE;
@@ -168,11 +169,9 @@ impl FormattedContentBuilder {
 		} else if self.soft_space {
 			self.add_text(" ");
 		}
-		if self.hard_spaces != 0 {
-			debug_assert!(!self.soft_space);
-			for _ in 0..self.hard_spaces {
-				self.add_text(" ");
-			}
+		debug_assert_implies!(self.hard_spaces != 0 => !self.soft_space);
+		for _ in 0..self.hard_spaces {
+			self.add_text(" ");
 		}
 		self.new_lines = 0;
 		self.soft_space = false;

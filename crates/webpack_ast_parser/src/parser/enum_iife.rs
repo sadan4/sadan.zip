@@ -1,3 +1,5 @@
+use std::debug_assert_matches;
+
 use ast_parser::{
 	AstParser as _,
 	ast_kind::IntoAstKind as _,
@@ -16,6 +18,7 @@ use oxc::{
 	semantic::SymbolId,
 };
 use smol_str::SmolStr;
+use stdx::macros::debug_assert_implies;
 
 use crate::{WebpackAstParser, parser::export_map::RawExportMap};
 
@@ -86,11 +89,7 @@ impl<'ast> EnumIIFEState1_2<'_, 'ast> {
 			"Duplicate export name while parsing enum iife"
 		);
 		// doesn't cover no-sub templates, but not really important here
-		debug_assert!(
-			right
-				.as_template_literal()
-				.is_none_or(|t| !t.is_no_substitution_template())
-		);
+		debug_assert_implies!(let Expression::TemplateLiteral(t) = right => !t.is_no_substitution_template());
 		if right.is_literal() {
 			export_range.annotate(SmolStr::new(self.p.text(right)));
 		}

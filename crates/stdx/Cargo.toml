@@ -1,0 +1,10 @@
+[package]
+name = "stdx"
+version = "0.1.0"
+description = "A collection of standard library extensions and other useful utils"
+edition.workspace = true
+
+[dependencies]
+
+[lints]
+workspace = true

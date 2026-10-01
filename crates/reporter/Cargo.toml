@@ -61,6 +61,7 @@ bstr.workspace = true
 hashbrown.workspace = true
 text_diff.workspace = true
 parser_diag.workspace = true
+stdx.workspace = true
 
 [dev-dependencies]
 insta.workspace = true

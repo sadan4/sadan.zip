@@ -3220,6 +3220,7 @@ dependencies = [
  "oxc",
  "parser_diag",
  "rayon",
+ "stdx",
  "tracing-subscriber",
  "unicode-ident",
 ]
@@ -3517,6 +3518,7 @@ dependencies = [
  "serde",
  "smallvec",
  "smol_str",
+ "stdx",
  "syntect",
  "terminal_size",
  "text_diff",
@@ -4100,6 +4102,10 @@ name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
+
+[[package]]
+name = "stdx"
+version = "0.1.0"
 
 [[package]]
 name = "strsim"
@@ -4966,6 +4972,7 @@ dependencies = [
  "serde",
  "serde_json",
  "smol_str",
+ "stdx",
  "tokio",
  "tracing",
  "tracing-subscriber",

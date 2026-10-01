@@ -18,6 +18,7 @@ clap.workspace = true
 clap_complete.workspace = true
 unicode-ident.workspace = true
 rayon.workspace = true
+stdx.workspace = true
 
 [dev-dependencies]
 insta.workspace = true
