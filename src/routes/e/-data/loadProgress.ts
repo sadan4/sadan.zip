@@ -34,3 +34,28 @@ export const useBundleLoadStore = create<BundleLoadStore>((set) => ({
         set({ progress });
     },
 }));
+
+export type DiffSide = "a" | "b";
+
+interface DiffLoadStore {
+    readonly progress: Readonly<Record<DiffSide, BundleLoadProgress | null>>;
+    setProgress(side: DiffSide, progress: BundleLoadProgress | null): void;
+}
+
+/**
+ * Progress of the two bundles being loaded by the `/e/diff` route.
+ */
+export const useDiffLoadStore = create<DiffLoadStore>((set) => ({
+    progress: {
+        a: null,
+        b: null,
+    },
+    setProgress(side, progress) {
+        set((state) => ({
+            progress: {
+                ...state.progress,
+                [side]: progress,
+            },
+        }));
+    },
+}));

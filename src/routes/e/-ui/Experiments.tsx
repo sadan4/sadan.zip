@@ -1,167 +1,29 @@
-import { Button, IconButton } from "@/components/Button";
+import { IconButton } from "@/components/Button";
 import { Clickable } from "@/components/Clickable";
-import { Codeblock } from "@/components/Codeblock";
 import { Input } from "@/components/Input";
 import { ScrollArea } from "@/components/layout/ScrollArea";
-import { Text, type TextProps } from "@/components/Text";
+import { Text } from "@/components/Text";
 import { TooltipPosition } from "@/components/Tooltip/constants";
-import { Language } from "@/utils/textmate";
 import type { TModuleId } from "@/utils/types";
 import type { ExperimentInfo, ExperimentScope } from "@sadan4/libsadancore";
 import { useQuery } from "@tanstack/react-query";
 
-import { ModuleViewerStore, useModuleViewerSettingsStore, useModuleViewerStore, ViewMode } from "../-data";
+import { Badge, ConfigBlock, FilterPills } from "./experimentComponents";
+import {
+    countBy,
+    EXPERIMENT_SCOPES,
+    EXPERIMENT_TYPES,
+    experimentScopeLabels,
+    type ExperimentType,
+    experimentTypeLabels,
+    sortByDate,
+    toggledSet,
+} from "./experimentUtils";
+import { ModuleViewerStore, useModuleViewerStore, ViewMode } from "../-data";
 import { Route } from "../view.{-$buildHash}.{-$moduleId}";
 
 import { ChevronDownIcon, ChevronRightIcon, SquareArrowOutUpRightIcon } from "lucide-react";
 import { useDeferredValue, useMemo, useState } from "react";
-
-type ExperimentType = ExperimentInfo["type"];
-
-const EXPERIMENT_TYPES: readonly ExperimentType[] = ["apex", "normal"];
-
-const experimentTypeLabels: Record<ExperimentType, string> = {
-    apex: "Apex",
-    normal: "Normal",
-};
-
-const EXPERIMENT_SCOPES: readonly ExperimentScope[] = ["user", "guild", "installation"];
-
-const experimentScopeLabels: Record<ExperimentScope, string> = {
-    user: "User",
-    guild: "Guild",
-    installation: "Installation",
-};
-
-/**
- * experiment names start with their creation date, e.g. `2026-04-foo` or `2025-09_bar`,
- * sometimes with a day, e.g. `2026-04-12-foo`
- */
-const EXPERIMENT_DATE_REGEX = /^(\d{4})-(\d{2})(?:-(\d{2}))?(?=[-_])/;
-
-/**
- * a sortable number for the date in an experiment's name, or `-1` if it has none
- */
-function experimentDateKey(name: string): number {
-    const match = EXPERIMENT_DATE_REGEX.exec(name);
-
-    if (!match) {
-        return -1;
-    }
-
-    const [, year, month, day = "0"] = match;
-
-    return (((+year * 100) + +month) * 100) + +day;
-}
-
-/**
- * newest first, undated experiments last
- */
-function sortByDate(experiments: readonly ExperimentInfo[]): ExperimentInfo[] {
-    return experiments
-        .map((experiment) => [experimentDateKey(experiment.name), experiment] as const)
-        .toSorted(([a], [b]) => b - a)
-        .map(([, experiment]) => experiment);
-}
-
-function toggledSet<T>(set: ReadonlySet<T>, value: T): ReadonlySet<T> {
-    const next = new Set(set);
-
-    if (!next.delete(value)) {
-        next.add(value);
-    }
-
-    return next;
-}
-
-function countBy<T, K extends string>(items: readonly T[], keys: readonly K[], getKey: (item: T) => K) {
-    const counts = Object.fromEntries(keys.map((key) => [key, 0])) as Record<K, number>;
-
-    for (const item of items) {
-        counts[getKey(item)]++;
-    }
-
-    return counts;
-}
-
-interface FilterPillsProps<K extends string> {
-    keys: readonly K[];
-    labels: Record<K, string>;
-    counts: Record<K, number>;
-    enabled: ReadonlySet<K>;
-    color: "accent" | "secondary";
-    onToggle(key: K): void;
-}
-
-function FilterPills<K extends string>({ keys, labels, counts, enabled, color, onToggle }: FilterPillsProps<K>) {
-    return (
-        <div className="flex gap-2">
-            {keys.map((key) => (
-                <Button
-                    key={key}
-                    size="sm"
-                    color={color}
-                    colorType={enabled.has(key) ? "filled" : "outline"}
-                    className="rounded-full"
-                    aria-pressed={enabled.has(key)}
-                    onClick={() => {
-                        onToggle(key);
-                    }}
-                >
-                    {labels[key]} ({counts[key]})
-                </Button>
-            ))}
-        </div>
-    );
-}
-
-function formatConfig(config: unknown): string {
-    return JSON.stringify(config, null, 4);
-}
-
-interface BadgeProps {
-    children: string;
-    textColor: TextProps["color"];
-}
-
-function Badge({ children, textColor }: BadgeProps) {
-    return (
-        <Text
-            tag="span"
-            size="xs"
-            color={textColor}
-            className="rounded-sm border border-fg-700 px-1"
-        >
-            {children}
-        </Text>
-    );
-}
-
-interface ConfigBlockProps {
-    title: string;
-    config: unknown;
-}
-
-function ConfigBlock({ title, config }: ConfigBlockProps) {
-    const editorTheme = useModuleViewerSettingsStore(({ editorTheme }) => editorTheme);
-
-    return (
-        <div className="flex flex-col gap-1">
-            <Text
-                size="sm"
-                weight="bold"
-            >
-                {title}
-            </Text>
-            <Codeblock
-                lang={Language.JSON}
-                theme={editorTheme}
-            >
-                {formatConfig(config)}
-            </Codeblock>
-        </div>
-    );
-}
 
 interface ExperimentRowProps {
     experiment: ExperimentInfo;

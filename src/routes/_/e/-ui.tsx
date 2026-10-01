@@ -1,4 +1,5 @@
 import { Boilerplate } from "@/components/Boilerplate";
+import { Button } from "@/components/Button";
 import { Clickable } from "@/components/Clickable";
 import { Box } from "@/components/layout/Box";
 import { ScrollArea } from "@/components/layout/ScrollArea";
@@ -9,11 +10,12 @@ import { copyWithNotify } from "@/utils/clipboard";
 import cn from "@/utils/cn";
 import type { TBundleHash } from "@/utils/types";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 
 import type { Channel, GetBuildsFn, Meta } from "./-worker";
 
 import * as comlink from "comlink";
-import { ArrowRight, Clock3, Hash } from "lucide-react";
+import { ArrowRight, Check, Clock3, Hash } from "lucide-react";
 import prodWorkerUrl from "omt:./-worker";
 import { useMemo, useState } from "react";
 
@@ -29,7 +31,19 @@ if (!import.meta.env.SSR && import.meta.env.DEV) {
 interface BundleItemProps {
     bundleMeta: Meta;
     latestTags: LatestTag[];
+    /**
+     * set when picking builds to compare, the item toggles selection instead of opening the build
+     */
+    compare?: {
+        selected: boolean;
+        onToggle(): void;
+    };
 }
+
+/**
+ * two builds are compared at once
+ */
+const COMPARE_COUNT = 2;
 
 type LatestTag = "latest" | `latest-${Channel}`;
 
@@ -145,7 +159,7 @@ const strftimeOptions: Intl.DateTimeFormatOptions = {
     timeZoneName: "short", // %Z
 };
 
-function BundleItem({ bundleMeta, latestTags }: BundleItemProps) {
+function BundleItem({ bundleMeta, latestTags, compare }: BundleItemProps) {
     // a "Latest <channel>" tag replaces the plain channel pill
     const pills: PillKind[] = [
         ...latestTags,
@@ -154,76 +168,111 @@ function BundleItem({ bundleMeta, latestTags }: BundleItemProps) {
 
     const ToastStore = useToaster();
     const buildDate = new Date(Number(bundleMeta.first_seen));
+    const itemClass = "group flex h-full w-full items-center gap-4 rounded-md border border-fg-700/60 bg-bg-200 px-4 py-3 text-left transition-colors hover:border-primary-400/70 hover:bg-bg-300 focus-visible:border-primary-400 focus-visible:bg-bg-300";
+
+    const content = (
+        <>
+            <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-3">
+                    <Text
+                        tag="span"
+                        size="md"
+                        weight="semiBold"
+                        color="primary"
+                    >
+                        Build {bundleMeta.build_number}
+                    </Text>
+                    {pills.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5">
+                            {pills.map((kind) => (
+                                <Pill
+                                    key={kind}
+                                    kind={kind}
+                                />
+                            ))}
+                        </div>
+                    )}
+                </div>
+                <div className="mt-1.5 flex items-center gap-3">
+                    <span className="flex min-w-0 items-center gap-1 text-xs text-fg-700">
+                        <Clock3
+                            className="size-3 shrink-0"
+                            aria-hidden="true"
+                        />
+                        <span title={buildDate.toLocaleString(undefined, strftimeOptions)}>
+                            {buildDate.toLocaleString()}
+                        </span>
+                    </span>
+                    <Clickable
+                        tag="span"
+                        className="flex items-center gap-1 text-xs text-fg-700"
+                        onClick={async (e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            await copyWithNotify(bundleMeta.build_hash, ToastStore.getState());
+                        }}
+                        title={bundleMeta.build_hash}
+                    >
+                        <Hash
+                            className="size-3 shrink-0"
+                            aria-hidden="true"
+                        />
+                        <code>{bundleMeta.build_hash.slice(0, 9)}</code>
+                    </Clickable>
+                </div>
+            </div>
+            {compare
+                ? (
+                    <span
+                        className={cn(
+                            "flex size-5 shrink-0 items-center justify-center rounded-sm border",
+                            compare.selected ? "border-primary-400 bg-primary-400 text-bg-100" : "border-fg-700",
+                        )}
+                        aria-hidden="true"
+                    >
+                        {compare.selected && <Check className="size-4" />}
+                    </span>
+                )
+                : (
+                    <span className="flex shrink-0 items-center gap-1 text-sm text-primary-400">
+                        <span className="hidden sm:inline">Open</span>
+                        <ArrowRight
+                            className="size-4 transition-transform group-hover:translate-x-0.5"
+                            aria-hidden="true"
+                        />
+                    </span>
+                )}
+        </>
+    );
 
     return (
         <li>
-            <Link
-                to="/e/view/{-$buildHash}/{-$moduleId}"
-                params={{
-                    buildHash: bundleMeta.build_hash as TBundleHash,
-                    moduleId: null,
-                }}
-                preload={false}
-                aria-label={`Open build ${bundleMeta.build_number}`}
-                className="group flex h-full items-center gap-4 rounded-md border border-fg-700/60 bg-bg-200 px-4 py-3 transition-colors hover:border-primary-400/70 hover:bg-bg-300 focus-visible:border-primary-400 focus-visible:bg-bg-300"
-            >
-                <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-3">
-                        <Text
-                            tag="span"
-                            size="md"
-                            weight="semiBold"
-                            color="primary"
-                        >
-                            Build {bundleMeta.build_number}
-                        </Text>
-                        {pills.length > 0 && (
-                            <div className="flex flex-wrap gap-1.5">
-                                {pills.map((kind) => (
-                                    <Pill
-                                        key={kind}
-                                        kind={kind}
-                                    />
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                    <div className="mt-1.5 flex items-center gap-3">
-                        <span className="flex min-w-0 items-center gap-1 text-xs text-fg-700">
-                            <Clock3
-                                className="size-3 shrink-0"
-                                aria-hidden="true"
-                            />
-                            <span title={buildDate.toLocaleString(undefined, strftimeOptions)}>
-                                {buildDate.toLocaleString()}
-                            </span>
-                        </span>
-                        <Clickable
-                            tag="span"
-                            className="flex items-center gap-1 text-xs text-fg-700"
-                            onClick={async (e) => {
-                                e.stopPropagation();
-                                e.preventDefault();
-                                await copyWithNotify(bundleMeta.build_hash, ToastStore.getState());
-                            }}
-                            title={bundleMeta.build_hash}
-                        >
-                            <Hash
-                                className="size-3 shrink-0"
-                                aria-hidden="true"
-                            />
-                            <code>{bundleMeta.build_hash.slice(0, 9)}</code>
-                        </Clickable>
-                    </div>
-                </div>
-                <span className="flex shrink-0 items-center gap-1 text-sm text-primary-400">
-                    <span className="hidden sm:inline">Open</span>
-                    <ArrowRight
-                        className="size-4 transition-transform group-hover:translate-x-0.5"
-                        aria-hidden="true"
-                    />
-                </span>
-            </Link>
+            {compare
+                ? (
+                    <button
+                        type="button"
+                        aria-pressed={compare.selected}
+                        aria-label={`Select build ${bundleMeta.build_number} to compare`}
+                        className={cn(itemClass, compare.selected && "border-primary-400 bg-bg-300")}
+                        onClick={compare.onToggle}
+                    >
+                        {content}
+                    </button>
+                )
+                : (
+                    <Link
+                        to="/e/view/{-$buildHash}/{-$moduleId}"
+                        params={{
+                            buildHash: bundleMeta.build_hash as TBundleHash,
+                            moduleId: null,
+                        }}
+                        preload={false}
+                        aria-label={`Open build ${bundleMeta.build_number}`}
+                        className={itemClass}
+                    >
+                        {content}
+                    </Link>
+                )}
         </li>
     );
 }
@@ -275,6 +324,39 @@ export function BundleSelector() {
             return Number(latestTagsByHash.has(b.build_hash)) - Number(latestTagsByHash.has(a.build_hash));
         }), [sortedBundles, enabledChannels, latestTagsByHash]);
 
+    const navigate = useNavigate();
+    const [compareMode, setCompareMode] = useState(false);
+    /**
+     * build hashes picked for comparison, in the order they were picked
+     */
+    const [compareSelection, setCompareSelection] = useState<readonly string[]>([]);
+
+    function toggleCompareSelection(hash: string) {
+        setCompareSelection((prev) => {
+            if (prev.includes(hash)) {
+                return prev.filter((h) => h !== hash);
+            }
+            // picking another build replaces the oldest pick
+            return [...prev, hash].slice(-COMPARE_COUNT);
+        });
+    }
+
+    async function compareSelected() {
+        // older build on the left
+        const [hashA, hashB] = compareSelection
+            .map((hash) => sortedBundles!.find(({ build_hash }) => build_hash === hash)!)
+            .toSorted((a, b) => Number(a.first_seen - b.first_seen))
+            .map(({ build_hash }) => build_hash as TBundleHash);
+
+        await navigate({
+            to: "/e/diff/$hashA/$hashB",
+            params: {
+                hashA,
+                hashB,
+            },
+        });
+    }
+
     function toggleChannel(channel: Channel) {
         setEnabledChannels((prev) => {
             const next = new Set(prev);
@@ -306,6 +388,26 @@ export function BundleSelector() {
                                     enabled={enabledChannels}
                                     onToggle={toggleChannel}
                                 />
+                                <Button
+                                    size="sm"
+                                    colorType={compareMode ? "filled" : "outline"}
+                                    aria-pressed={compareMode}
+                                    onClick={() => {
+                                        setCompareMode((prev) => !prev);
+                                        setCompareSelection([]);
+                                    }}
+                                >
+                                    Compare builds
+                                </Button>
+                                {compareMode && (
+                                    <Button
+                                        size="sm"
+                                        disabled={compareSelection.length !== COMPARE_COUNT}
+                                        onClick={compareSelected}
+                                    >
+                                        Compare ({compareSelection.length}/{COMPARE_COUNT})
+                                    </Button>
+                                )}
                                 <Text
                                     size="sm"
                                     color="white-700"
@@ -368,6 +470,14 @@ export function BundleSelector() {
                                             key={bundleMeta.build_hash}
                                             bundleMeta={bundleMeta}
                                             latestTags={latestTagsByHash.get(bundleMeta.build_hash) ?? []}
+                                            compare={compareMode
+                                                ? {
+                                                    selected: compareSelection.includes(bundleMeta.build_hash),
+                                                    onToggle() {
+                                                        toggleCompareSelection(bundleMeta.build_hash);
+                                                    },
+                                                }
+                                                : undefined}
                                         />
                                     );
                                 })}

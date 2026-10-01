@@ -22,6 +22,7 @@ import { Route as R88x31LangRouteImport } from "./routes/_/88x31/$lang";
 import { Route as DiscordIntlIndexRouteImport } from "./routes/_/discord-intl/index";
 import { Route as EIndexRouteImport } from "./routes/_/e/index";
 import { Route as VisIndexRouteImport } from "./routes/_/vis/index";
+import { Route as EDiffHashAHashBRouteImport } from "./routes/e/diff.$hashA.$hashB";
 import { Route as EViewChar123BuildHashChar125Char123ModuleIdChar125RouteImport } from "./routes/e/view.{-$buildHash}.{-$moduleId}";
 
 const Route = RouteImport.update({
@@ -88,6 +89,11 @@ const VisIndexRoute = VisIndexRouteImport.update({
   path: "/vis/",
   getParentRoute: () => Route,
 } as any);
+const EDiffHashAHashBRoute = EDiffHashAHashBRouteImport.update({
+  id: "/e/diff/$hashA/$hashB",
+  path: "/e/diff/$hashA/$hashB",
+  getParentRoute: () => rootRouteImport,
+} as any);
 const EViewChar123BuildHashChar125Char123ModuleIdChar125Route =
   EViewChar123BuildHashChar125Char123ModuleIdChar125RouteImport.update({
     id: "/e/view/{-$buildHash}/{-$moduleId}",
@@ -108,6 +114,7 @@ export interface FileRoutesByFullPath {
   "/discord-intl/": typeof DiscordIntlIndexRoute;
   "/e/": typeof EIndexRoute;
   "/vis/": typeof VisIndexRoute;
+  "/e/diff/$hashA/$hashB": typeof EDiffHashAHashBRoute;
   "/e/view/{-$buildHash}/{-$moduleId}": typeof EViewChar123BuildHashChar125Char123ModuleIdChar125Route;
 }
 export interface FileRoutesByTo {
@@ -123,6 +130,7 @@ export interface FileRoutesByTo {
   "/discord-intl": typeof DiscordIntlIndexRoute;
   "/e": typeof EIndexRoute;
   "/vis": typeof VisIndexRoute;
+  "/e/diff/$hashA/$hashB": typeof EDiffHashAHashBRoute;
   "/e/view/{-$buildHash}/{-$moduleId}": typeof EViewChar123BuildHashChar125Char123ModuleIdChar125Route;
 }
 export interface FileRoutesById {
@@ -140,6 +148,7 @@ export interface FileRoutesById {
   "/_/discord-intl/": typeof DiscordIntlIndexRoute;
   "/_/e/": typeof EIndexRoute;
   "/_/vis/": typeof VisIndexRoute;
+  "/e/diff/$hashA/$hashB": typeof EDiffHashAHashBRoute;
   "/e/view/{-$buildHash}/{-$moduleId}": typeof EViewChar123BuildHashChar125Char123ModuleIdChar125Route;
 }
 export interface FileRouteTypes {
@@ -157,6 +166,7 @@ export interface FileRouteTypes {
     | "/discord-intl/"
     | "/e/"
     | "/vis/"
+    | "/e/diff/$hashA/$hashB"
     | "/e/view/{-$buildHash}/{-$moduleId}";
   fileRoutesByTo: FileRoutesByTo;
   to:
@@ -172,6 +182,7 @@ export interface FileRouteTypes {
     | "/discord-intl"
     | "/e"
     | "/vis"
+    | "/e/diff/$hashA/$hashB"
     | "/e/view/{-$buildHash}/{-$moduleId}";
   id:
     | "__root__"
@@ -188,12 +199,14 @@ export interface FileRouteTypes {
     | "/_/discord-intl/"
     | "/_/e/"
     | "/_/vis/"
+    | "/e/diff/$hashA/$hashB"
     | "/e/view/{-$buildHash}/{-$moduleId}";
   fileRoutesById: FileRoutesById;
 }
 export interface RootRouteChildren {
   Route: typeof RouteWithChildren;
   AstViewerIndexRoute: typeof AstViewerIndexRoute;
+  EDiffHashAHashBRoute: typeof EDiffHashAHashBRoute;
   EViewChar123BuildHashChar125Char123ModuleIdChar125Route: typeof EViewChar123BuildHashChar125Char123ModuleIdChar125Route;
 }
 
@@ -290,6 +303,13 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof VisIndexRouteImport;
       parentRoute: typeof Route;
     };
+    "/e/diff/$hashA/$hashB": {
+      id: "/e/diff/$hashA/$hashB";
+      path: "/e/diff/$hashA/$hashB";
+      fullPath: "/e/diff/$hashA/$hashB";
+      preLoaderRoute: typeof EDiffHashAHashBRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     "/e/view/{-$buildHash}/{-$moduleId}": {
       id: "/e/view/{-$buildHash}/{-$moduleId}";
       path: "/e/view/{-$buildHash}/{-$moduleId}";
@@ -333,6 +353,7 @@ const RouteWithChildren = Route._addFileChildren(RouteChildren);
 const rootRouteChildren: RootRouteChildren = {
   Route: RouteWithChildren,
   AstViewerIndexRoute: AstViewerIndexRoute,
+  EDiffHashAHashBRoute: EDiffHashAHashBRoute,
   EViewChar123BuildHashChar125Char123ModuleIdChar125Route:
     EViewChar123BuildHashChar125Char123ModuleIdChar125Route,
 };

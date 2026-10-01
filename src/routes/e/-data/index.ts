@@ -14,6 +14,10 @@ import { persist } from "zustand/middleware";
 interface ModuleViewerStore {
     readonly buildHash: TBundleHash;
     readonly _buildService: RemoteBuildService;
+    /**
+     * resolves once `_buildService` is set for `buildHash`
+     */
+    readonly _initPromise: Promise<void> | null;
     readonly _moduleModelMap: Map<TModuleId, Monaco.editor.ITextModel>;
     readonly _pendingModuleModelMap: Map<TModuleId, Promise<Monaco.editor.ITextModel>>;
     // readonly _parserMap: Map<TModuleId, WebpackAstParser>;
@@ -47,6 +51,7 @@ function getValueDefaults(): Fields<ModuleViewerStore> {
     return {
         buildHash: "" as TBundleHash,
         _buildService: null!,
+        _initPromise: null,
         _moduleModelMap: new Map(),
         _pendingModuleModelMap: new Map(),
         // _bundle: null,
@@ -61,21 +66,27 @@ function getValueDefaults(): Fields<ModuleViewerStore> {
 export const useModuleViewerStore = create<ModuleViewerStore>((set, get) => ({
     ...getValueDefaults(),
     async init(newBuildHash) {
-        const { buildHash, reset } = get();
+        const { buildHash, reset, _initPromise } = get();
 
-        if (newBuildHash !== buildHash) {
-            reset();
-            set({
-                buildHash: newBuildHash,
-            });
+        if (newBuildHash === buildHash) {
+            // already loaded, or still loading from an earlier call
+            await _initPromise;
+            return;
+        }
 
-            const { setProgress } = useBundleLoadStore.getState();
+        reset();
+        set({
+            buildHash: newBuildHash,
+        });
 
-            // the user may navigate to a different build while this one is still loading
-            function isCurrent() {
-                return get().buildHash === newBuildHash;
-            }
+        const { setProgress } = useBundleLoadStore.getState();
 
+        // the user may navigate to a different build while this one is still loading
+        function isCurrent() {
+            return get().buildHash === newBuildHash;
+        }
+
+        const initPromise = (async () => {
             setProgress(null);
 
             let _buildService: RemoteBuildService;
@@ -99,6 +110,23 @@ export const useModuleViewerStore = create<ModuleViewerStore>((set, get) => ({
             set({
                 _buildService,
             });
+        })();
+
+        set({
+            _initPromise: initPromise,
+        });
+
+        try {
+            await initPromise;
+        } catch (e) {
+            // allow retrying
+            if (isCurrent()) {
+                set({
+                    buildHash: "" as TBundleHash,
+                    _initPromise: null,
+                });
+            }
+            throw e;
         }
     },
     reset() {
@@ -129,8 +157,27 @@ export const useModuleViewerStore = create<ModuleViewerStore>((set, get) => ({
 
         const modelPromise = async function (): Promise<Monaco.editor.ITextModel> {
             const text = await _buildService.getFormattedSource(moduleId);
+
+            // the store was reset while loading, its models have already been disposed.
+            // creating one now would leak it and make the next createModel for this uri throw
+            if (get()._moduleModelMap !== _moduleModelMap) {
+                throw new Error(`Build changed while loading module ${moduleId}`);
+            }
+
             const uri = getModuleURI(buildHash, moduleId);
-            const model = monaco.editor.createModel(text, "javascript", uri);
+            // the editor creates an empty model when given a uri with no model, adopt it instead of throwing
+            const existing = monaco.editor.getModel(uri);
+            let model: Monaco.editor.ITextModel;
+
+            if (existing) {
+                model = existing;
+                monaco.editor.setModelLanguage(model, "javascript");
+                if (model.getValue() !== text) {
+                    model.setValue(text);
+                }
+            } else {
+                model = monaco.editor.createModel(text, "javascript", uri);
+            }
 
             _moduleModelMap.set(moduleId, model);
             _pendingModuleModelMap.delete(moduleId);

@@ -27,6 +27,7 @@ import { createLink } from "@tanstack/react-router";
 import { Background, Controls, MiniMap, ReactFlow, ReactFlowProvider } from "@xyflow/react";
 
 import { ExperimentList } from "./Experiments";
+import { BundleLoadingScreen } from "./LoadProgress";
 import { ExplorerSidebar } from "./Sidebar";
 import {
     ModuleViewerSettingsStore,
@@ -87,6 +88,9 @@ function ModuleViewer() {
         placeholderData() {
             return pendingUri("// Select a Module");
         },
+        // models are disposed when switching builds, so a cached uri can point at a dead model.
+        // the editor would then create an empty model for it, and the refetch would fail to create the real one
+        gcTime: 0,
     });
 
     const { sl, sc, el, ec } = Route.useSearch();
@@ -470,7 +474,35 @@ function ExplorerHeader() {
     );
 }
 
+/**
+ * the route loader switches the global store to the route's build, but it can resolve without doing so
+ * (e.g. when a navigation is interrupted and the router reuses a superseded load),
+ * so only render the explorer once the store really holds this build
+ */
 export function Explorer() {
+    const { buildHash } = Route.useParams();
+    // `_buildService` is typed non-null, but is null until init finishes
+    // oxlint-disable-next-line typescript/no-unnecessary-condition
+    const ready = useModuleViewerStore((s) => s.buildHash === buildHash && s._buildService != null);
+
+    useEffect(() => {
+        if (!ready) {
+            ModuleViewerStore.getState()
+                .init(buildHash)
+                .catch((e: unknown) => {
+                    console.error("Failed to load build", buildHash, e);
+                });
+        }
+    }, [ready, buildHash]);
+
+    if (!ready) {
+        return <BundleLoadingScreen buildHash={buildHash} />;
+    }
+
+    return <LoadedExplorer />;
+}
+
+function LoadedExplorer() {
     const { moduleId } = Route.useParams();
     const activePanel = useModuleViewerStore(({ activePanel }) => activePanel);
     const moduleSidebarOpen = useModuleViewerStore(({ moduleSidebarOpen }) => moduleSidebarOpen);
