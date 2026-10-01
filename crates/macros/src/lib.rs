@@ -1,3 +1,4 @@
+mod always_never;
 mod cache_test;
 mod command;
 mod test_log;
@@ -47,6 +48,20 @@ pub fn slash_args(item: TokenStream) -> TokenStream {
 #[proc_macro_derive(SlashChoices)]
 pub fn slash_choices(item: TokenStream) -> TokenStream {
 	command::slash_choices_derive(item.into())
+		.unwrap_or_else(|e| e.to_compile_error())
+		.into()
+}
+
+#[proc_macro]
+pub fn always(item: TokenStream) -> TokenStream {
+	always_never::always(item.into())
+		.unwrap_or_else(|e| e.to_compile_error())
+		.into()
+}
+
+#[proc_macro]
+pub fn never(item: TokenStream) -> TokenStream {
+	always_never::never(item.into())
 		.unwrap_or_else(|e| e.to_compile_error())
 		.into()
 }

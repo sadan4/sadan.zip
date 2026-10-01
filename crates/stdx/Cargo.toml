@@ -5,6 +5,7 @@ description = "A collection of standard library extensions and other useful util
 edition.workspace = true
 
 [dependencies]
+tracing.workspace = true
 
 [lints]
 workspace = true
