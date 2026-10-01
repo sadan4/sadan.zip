@@ -15,10 +15,15 @@ function _register() {
 
     monaco.editor.registerEditorOpener(new class implements Monaco.editor.ICodeEditorOpener {
         openCodeEditor(
-            _source: Monaco.editor.ICodeEditor,
+            source: Monaco.editor.ICodeEditor,
             resource: Monaco.Uri,
             selectionOrPosition?: Monaco.IRange | Monaco.IPosition,
         ): boolean | Promise<boolean> {
+            // don't handle requests that are purely local
+            if (source.getModel()?.uri.toString() === resource.toString()) {
+                return false;
+            }
+
             const parsed = parseModuleURI(resource);
 
             if (!parsed) {
