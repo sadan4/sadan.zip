@@ -818,7 +818,8 @@ impl<'ast> WebpackAstParser<'ast> {
 								.get_defined_apex_experiments(
 									imported_id,
 									&export_name,
-								),
+								)
+								.await,
 						);
 					}
 				}
@@ -838,7 +839,8 @@ impl<'ast> WebpackAstParser<'ast> {
 								.get_defined_normal_experiments(
 									imported_id,
 									&export_name,
-								),
+								)
+								.await,
 						);
 					}
 				}
@@ -848,28 +850,32 @@ impl<'ast> WebpackAstParser<'ast> {
 		.await
 	}
 	/// Finds all experiments defined in this module with `createApexExperiment`
-	pub fn get_defined_apex_experiments(
+	pub async fn get_defined_apex_experiments(
 		&self,
 		create_experiment_module: ModuleId,
 		create_experiment_export: &[ExportMapKey],
 	) -> Vec<Experiment> {
-		self.get_defined_experiments_with(
+		let fut = self.get_defined_experiments_with(
 			create_experiment_module,
 			create_experiment_export,
 			Self::parse_apex_experiment,
-		)
+		);
+		// SAFETY: see send + sync impl for WebpackAstParser
+		unsafe { UnsafeFuture::new(fut) }.await
 	}
 	/// Finds all experiments defined in this module with `createExperiment`
-	pub fn get_defined_normal_experiments(
+	pub async fn get_defined_normal_experiments(
 		&self,
 		create_experiment_module: ModuleId,
 		create_experiment_export: &[ExportMapKey],
 	) -> Vec<Experiment> {
-		self.get_defined_experiments_with(
+		let fut = self.get_defined_experiments_with(
 			create_experiment_module,
 			create_experiment_export,
 			Self::parse_normal_experiment,
-		)
+		);
+		// SAFETY: see send + sync impl for WebpackAstParser
+		unsafe { UnsafeFuture::new(fut) }.await
 	}
 }
 
@@ -893,11 +899,15 @@ impl<'ast> WebpackAstParser<'ast> {
 		};
 		warn!("{msg}: {e:?}");
 	}
-	fn get_defined_experiments_with(
+	#[expect(clippy::future_not_send)]
+	async fn get_defined_experiments_with(
 		&self,
 		create_experiment_module: ModuleId,
 		create_experiment_export: &[ExportMapKey],
-		parse: impl Fn(&Self, &'ast ObjectExpression<'ast>) -> PResult<Experiment>,
+		parse: impl AsyncFn(
+			&Self,
+			&'ast ObjectExpression<'ast>,
+		) -> PResult<Experiment>,
 	) -> Vec<Experiment> {
 		let uses = self.get_raw_uses_of_import(
 			create_experiment_module,
@@ -920,7 +930,7 @@ impl<'ast> WebpackAstParser<'ast> {
 					None?
 				};
 				let obj = obj.as_ref();
-				let exp = match parse(self, obj) {
+				let exp = match parse(self, obj).await {
 					Ok(e) => e,
 					Err(e) => {
 						self.warn_diag("Failed to parse experiment", e);

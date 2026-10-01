@@ -69,13 +69,17 @@ pub(super) fn get_property<'v, T>(
 		#[expect(clippy::cast_precision_loss, reason = "lengths are small")]
 		Ok(Property::New(ConstantValue::from(len as f64)))
 	};
-	let is = |name: &str| matches!(key, ConstantPropertyKey::String(s) if s == name);
+	let is =
+		|name: &str| matches!(key, ConstantPropertyKey::String(s) if s == name);
 	let undefined = || Ok(Property::New(ConstantValue::Undefined));
 	match value {
 		ConstantValue::Object(props) => {
 			if let Some(v) = props.get(key) {
 				Ok(Property::Existing(v))
-			} else if OBJECT_PROTOTYPE_PROPS.iter().any(|&p| is(p)) {
+			} else if OBJECT_PROTOTYPE_PROPS
+				.iter()
+				.any(|&p| is(p))
+			{
 				Err(format!(
 					"`{key}` is inherited from `Object.prototype`, which is \
 					 not supported"
@@ -87,11 +91,9 @@ pub(super) fn get_property<'v, T>(
 		}
 		ConstantValue::Array(elts) => match key {
 			// holes and indices past the end are `undefined`
-			ConstantPropertyKey::Number(n) => {
-				index(**n)
-					.and_then(|i| elts.get(i))
-					.map_or_else(undefined, |v| Ok(Property::Existing(v)))
-			}
+			ConstantPropertyKey::Number(n) => index(**n)
+				.and_then(|i| elts.get(i))
+				.map_or_else(undefined, |v| Ok(Property::Existing(v))),
 			_ if is("length") => len(elts.len()),
 			ConstantPropertyKey::String(_) => Err(unsupported_method(key)),
 		},

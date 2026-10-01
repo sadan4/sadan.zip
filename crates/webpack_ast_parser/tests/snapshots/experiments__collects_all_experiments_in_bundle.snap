@@ -4,7 +4,7 @@ assertion_line: 85
 expression: "format!(\"creator modules: {}\\n{apex} apex, {normal} normal\\n\\n{summary}\",\ncreators.iter().join(\", \"),)"
 ---
 creator modules: 240921, 880006
-296 apex, 36 normal
+299 apex, 36 normal
 
 492: apex User 2026-02-mute-tutorial (1 variations)
 1310: normal Guild 2023-02_guest_voice_invites (1 treatments)
@@ -64,6 +64,9 @@ creator modules: 240921, 880006
 156867: apex User 2026-04-mobile-boost-progress-bar (1 variations)
 157941: apex User 2026-03-arborium-highlight (1 variations)
 159273: apex User 2025-10-emoji-search-ranking-tweaks (1 variations)
+159276: apex User 2026-04-valorant-social-sdk (2 variations)
+159276: apex User 2026-05-valorant-social-sdk-us--canada (2 variations)
+159276: apex User 2026-05-valorant-social-sdk-all-regions (2 variations)
 160394: apex User 2026-02-android-app-upsell-banner (1 variations)
 164696: normal Guild 2026-02_past_vc_activity_messages (1 treatments)
 164891: normal Guild 2024-12_guild_voice_channel_ringing (1 treatments)

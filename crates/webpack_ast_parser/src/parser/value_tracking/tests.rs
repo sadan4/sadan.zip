@@ -236,6 +236,18 @@ mod literals {
 	}
 
 	#[test]
+	async fn template_with_substitutions() {
+		assert_resolves("`a${1}b`", string("a1b")).await;
+		assert_resolves("`${1 + 1}${\"x\"}${true}`", string("2xtrue")).await;
+		assert_resolves_in(
+			"const y = [1, 2]; const x = `[${y}]`;",
+			string("[1,2]"),
+		)
+		.await;
+		assert_errors("`a${window}b`").await;
+	}
+
+	#[test]
 	async fn parenthesized() {
 		assert_resolves("(1)", num(1.0)).await;
 		assert_resolves("((\"a\"))", string("a")).await;
@@ -373,11 +385,6 @@ mod unsupported {
 	#[test]
 	async fn tagged_template() {
 		assert_errors("String.raw`foo`").await;
-	}
-
-	#[test]
-	async fn template_with_substitutions() {
-		assert_errors("`a${1}b`").await;
 	}
 
 	#[test]
@@ -894,8 +901,10 @@ mod static_member {
 		}
 	}
 
-	const WREQ_D: (u32, &str) =
-		(2, "n.d(t, { A: () => r, S: () => s }); const r = 5, s = \"abc\";");
+	const WREQ_D: (u32, &str) = (
+		2,
+		"n.d(t, { A: () => r, S: () => s }); const r = 5, s = \"abc\";",
+	);
 
 	#[test]
 	async fn wreq_d_export() {
@@ -904,8 +913,12 @@ mod static_member {
 
 	#[test]
 	async fn export_of_imported_module() {
-		assert_resolves_with("var r = n(2); const x = r.A;", &[WREQ_D], num(5.0))
-			.await;
+		assert_resolves_with(
+			"var r = n(2); const x = r.A;",
+			&[WREQ_D],
+			num(5.0),
+		)
+		.await;
 	}
 
 	#[test]
@@ -940,8 +953,12 @@ mod static_member {
 		let expected = object([("b", num(1.0)), ("c", array([num(2.0)]))]);
 		assert_resolves_with("const x = n(2).A;", &[module], expected.clone())
 			.await;
-		assert_resolves_with("var r = n(2); const x = r.A;", &[module], expected)
-			.await;
+		assert_resolves_with(
+			"var r = n(2); const x = r.A;",
+			&[module],
+			expected,
+		)
+		.await;
 		// nested objects
 		assert_resolves_with(
 			"const x = n(2).A.b;",
@@ -992,11 +1009,8 @@ mod static_member {
 		assert_resolves("\"abc\".length", num(3.0)).await;
 		// JS strings are UTF-16
 		assert_resolves("\"\u{1F600}\".length", num(2.0)).await;
-		assert_resolves_in(
-			"const y = [[1], 2]; const x = y.length;",
-			num(2.0),
-		)
-		.await;
+		assert_resolves_in("const y = [[1], 2]; const x = y.length;", num(2.0))
+			.await;
 	}
 
 	#[test]
@@ -1187,16 +1201,22 @@ mod calls {
 
 	#[test]
 	async fn object_freeze_export() {
-		let module =
-			(2, "n.d(t, { A: () => o }); const o = Object.freeze({ b: 1 });");
+		let module = (
+			2,
+			"n.d(t, { A: () => o }); const o = Object.freeze({ b: 1 });",
+		);
 		static_member::assert_resolves_with(
 			"const x = n(2).A;",
 			&[module],
 			object([("b", num(1.0))]),
 		)
 		.await;
-		static_member::assert_resolves_with("const x = n(2).A.b;", &[module], num(1.0))
-			.await;
+		static_member::assert_resolves_with(
+			"const x = n(2).A.b;",
+			&[module],
+			num(1.0),
+		)
+		.await;
 	}
 
 	#[test]
@@ -1308,17 +1328,28 @@ mod members {
 
 	#[test]
 	async fn computed_export() {
-		let module = (2, "n.d(t, { A: () => r, S: () => s }); const r = 5, s = \"abc\";");
-		assert_resolves_with_module(r#"const x = n(2)["A"];"#, module, num(5.0))
-			.await;
+		let module = (
+			2,
+			"n.d(t, { A: () => r, S: () => s }); const r = 5, s = \"abc\";",
+		);
+		assert_resolves_with_module(
+			r#"const x = n(2)["A"];"#,
+			module,
+			num(5.0),
+		)
+		.await;
 		assert_resolves_with_module(
 			r#"const k = "S"; const x = n(2)[k].length;"#,
 			module,
 			num(3.0),
 		)
 		.await;
-		assert_resolves_with_module(r"const x = n(2).S[0];", module, string("a"))
-			.await;
+		assert_resolves_with_module(
+			r"const x = n(2).S[0];",
+			module,
+			string("a"),
+		)
+		.await;
 	}
 
 	async fn assert_resolves_with_module(

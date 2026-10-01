@@ -80,8 +80,6 @@ impl<T> ConstantValue<T> {
 		matches!(self, Self::Undefined | Self::Null)
 	}
 }
-pub struct ConstantValueCycle(ConstantValue<Self>);
-pub type RawConstantValue = ConstantValue<ConstantValueCycle>;
 pub type ConstantSpannedValue = ConstantValue<SpannedValue>;
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct SpannedValue {
@@ -145,43 +143,43 @@ enum Resolving {
 
 impl<'ast> WebpackAstParser<'ast> {
 	/// <https://262.ecma-international.org/#sec-tostring>
-	fn to_string<'a>(&self, v: &'a SpannedValue) -> PResult<Cow<'a, str>> {
+	fn to_string<'a>(&self, v: &'a SpannedValue) -> Cow<'a, str> {
 		let argument = &v.value;
 		// 1. If argument is a String, return argument.
 		if let ConstantValue::String(s) = &argument {
-			return Ok(Cow::Borrowed(s.as_str()));
+			return Cow::Borrowed(s.as_str());
 		}
 		// 2. If argument is a Symbol, throw a TypeError exception.
 		// we don't support symbols
 		// 3. If argument is undefined, return "undefined".
-		if let ConstantValue::Undefined = &argument {
-			return Ok(Cow::Borrowed("undefined"));
+		if matches!(&argument, ConstantValue::Undefined) {
+			return Cow::Borrowed("undefined");
 		}
 		// 4. If argument is null, return "null".
-		if let ConstantValue::Null = &argument {
-			return Ok(Cow::Borrowed("null"));
+		if matches!(&argument, ConstantValue::Null) {
+			return Cow::Borrowed("null");
 		}
 		// 5. If argument is true, return "true".
-		if let ConstantValue::Boolean(true) = &argument {
-			return Ok(Cow::Borrowed("true"));
+		if matches!(&argument, ConstantValue::Boolean(true)) {
+			return Cow::Borrowed("true");
 		}
 		// 6. If argument is false, return "false".
-		if let ConstantValue::Boolean(false) = &argument {
-			return Ok(Cow::Borrowed("false"));
+		if matches!(&argument, ConstantValue::Boolean(false)) {
+			return Cow::Borrowed("false");
 		}
 		// 7. If argument is a Number, return Number::toString(argument, 10).
 		if let ConstantValue::Number(n) = &argument {
-			return Ok(Cow::Owned(n.to_string()));
+			return Cow::Owned(n.to_string());
 		}
 		// we handle NaN separately
-		if let ConstantValue::NaN = &argument {
-			return Ok(Cow::Borrowed("NaN"));
+		if matches!(&argument, ConstantValue::NaN) {
+			return Cow::Borrowed("NaN");
 		}
 		// 8. If argument is a BigInt, return BigInt::toString(argument, 10).
 		if let ConstantValue::BigInt(n) = &argument {
-			return Ok(Cow::Owned(n.to_string()));
+			return Cow::Owned(n.to_string());
 		}
-		let ret = match argument {
+		match argument {
 			ConstantValue::Array(_) => Cow::Owned(
 				self.array_prototype_join(v, None)
 					.unwrap(),
@@ -190,8 +188,7 @@ impl<'ast> WebpackAstParser<'ast> {
 			ConstantValue::Set(_) => Cow::Borrowed("[object Set]"),
 			// 9. Assert: argument is an Object.
 			_ => unreachable!(),
-		};
-		Ok(ret)
+		}
 	}
 	/// <https://262.ecma-international.org/#sec-array.prototype.join>
 	fn array_prototype_join(
@@ -211,12 +208,13 @@ impl<'ast> WebpackAstParser<'ast> {
 			if i != 0 {
 				ret.push_str(sep);
 			}
-			let str = self.to_string(elt)?;
+			let str = self.to_string(elt);
 			ret.push_str(&str);
 		}
 		Ok(ret)
 	}
-	async fn remote_err(
+	#[expect(clippy::future_not_send)]
+	pub(super) async fn remote_err(
 		&self,
 		span: &impl GetSpan,
 		m_id: ModuleId,
@@ -401,9 +399,7 @@ impl<'ast> WebpackAstParser<'ast> {
 			Expression::Identifier(callee) if self.is_global(callee, "Set")
 		);
 		if !is_set {
-			return Err(
-				self.local_err(new, "only `new Set(...)` is supported")
-			);
+			return Err(self.local_err(new, "only `new Set(...)` is supported"));
 		}
 		let module_id = self.get_module_id()?.id;
 		let arg = self
@@ -440,7 +436,11 @@ impl<'ast> WebpackAstParser<'ast> {
 				return Err(self
 					.local_err(new, "the argument to `new Set` is not iterable")
 					.s(self
-						.remote_err(&arg.span, arg.module_id, "argument defined here")
+						.remote_err(
+							&arg.span,
+							arg.module_id,
+							"argument defined here",
+						)
 						.await));
 			}
 		};
@@ -455,7 +455,10 @@ impl<'ast> WebpackAstParser<'ast> {
 					| ConstantValue::Object(_)
 					| ConstantValue::Set(_)
 			);
-			if is_object || !set.iter().any(|e: &SpannedValue| e.value == elt.value)
+			if is_object
+				|| !set
+					.iter()
+					.any(|e: &SpannedValue| e.value == elt.value)
 			{
 				set.insert(elt);
 			}
@@ -486,7 +489,9 @@ impl<'ast> WebpackAstParser<'ast> {
 					}
 					let key = match &prop.key {
 						PropertyKey::StaticIdentifier(ident) => {
-							ConstantPropertyKey::from_string(ident.name.as_str())
+							ConstantPropertyKey::from_string(
+								ident.name.as_str(),
+							)
 						}
 						PropertyKey::PrivateIdentifier(ident) => {
 							return Err(self.local_err(
@@ -499,7 +504,7 @@ impl<'ast> WebpackAstParser<'ast> {
 							let key =
 								Box::pin(self.resolve_value(key, resolving))
 									.await?;
-							self.property_key(&key)?
+							self.property_key(&key)
 						}
 					};
 					// `{ __proto__: a }` sets the prototype, it does not
@@ -507,8 +512,9 @@ impl<'ast> WebpackAstParser<'ast> {
 					if !prop.computed
 						&& !prop.shorthand
 						&& key
-							== ConstantPropertyKey::String("__proto__".to_owned())
-					{
+							== ConstantPropertyKey::String(
+								"__proto__".to_owned(),
+							) {
 						return Err(self.local_err(
 							&prop.key,
 							"setting the prototype of an object is not \
@@ -549,13 +555,20 @@ impl<'ast> WebpackAstParser<'ast> {
 									 outside the BMP is not supported",
 								));
 							}
-							props.extend(s.chars().enumerate().map(|(i, c)| {
-								(index(i), SpannedValue {
-									value: ConstantValue::String(c.into()),
-									span: spread.span,
-									module_id,
-								})
-							}));
+							props.extend(s.chars().enumerate().map(
+								|(i, c)| {
+									(
+										index(i),
+										SpannedValue {
+											value: ConstantValue::String(
+												c.into(),
+											),
+											span: spread.span,
+											module_id,
+										},
+									)
+								},
+							));
 						}
 						// no own enumerable properties
 						ConstantValue::Number(_)
@@ -576,12 +589,12 @@ impl<'ast> WebpackAstParser<'ast> {
 		})
 	}
 	/// <https://tc39.es/ecma262/#sec-topropertykey>
-	fn property_key(&self, key: &SpannedValue) -> PResult<ConstantPropertyKey> {
-		Ok(match &key.value {
+	fn property_key(&self, key: &SpannedValue) -> ConstantPropertyKey {
+		match &key.value {
 			ConstantValue::Number(n) => ConstantPropertyKey::from_number(**n),
 			ConstantValue::NaN => ConstantPropertyKey::from_number(f64::NAN),
-			_ => ConstantPropertyKey::from_string(&self.to_string(key)?),
-		})
+			_ => ConstantPropertyKey::from_string(&self.to_string(key)),
+		}
 	}
 	/// Resolves `a.b[c]`, either as a property of a constant value or as an
 	/// export of another module
@@ -598,7 +611,9 @@ impl<'ast> WebpackAstParser<'ast> {
 		let mut members = vec![member];
 		loop {
 			let next = match members.last().unwrap().left() {
-				Expression::StaticMemberExpression(m) => MemberExprRef::Static(m),
+				Expression::StaticMemberExpression(m) => {
+					MemberExprRef::Static(m)
+				}
 				Expression::ComputedMemberExpression(m) => {
 					MemberExprRef::Computed(m)
 				}
@@ -608,22 +623,25 @@ impl<'ast> WebpackAstParser<'ast> {
 		}
 		members.reverse();
 		let base = members[0].left();
-		let (mut value, start, keys) =
-			if let Some(module_id) = self.module_ref_of(base) {
-				// modules are never nullish, so every key is evaluated
-				let mut keys = Vec::with_capacity(members.len());
-				for &member in &members {
-					keys.push(self.member_key(member, resolving).await?);
-				}
-				let (value, used) = self
-					.resolve_export(module_id, &members, &keys, resolving)
-					.await?;
-				(value, used, keys)
-			} else {
-				let value =
-					Box::pin(self.resolve_value(base, resolving)).await?;
-				(value, 0, Vec::new())
-			};
+		let (mut value, start, keys) = if let Some(module_id) =
+			self.module_ref_of(base)
+		{
+			// modules are never nullish, so every key is evaluated
+			let mut keys = Vec::with_capacity(members.len());
+			for &member in &members {
+				keys.push(
+					self.member_key(member, resolving)
+						.await?,
+				);
+			}
+			let (value, used) = self
+				.resolve_export(module_id, &members, &keys, resolving)
+				.await?;
+			(value, used, keys)
+		} else {
+			let value = Box::pin(self.resolve_value(base, resolving)).await?;
+			(value, 0, Vec::new())
+		};
 		for (i, &member) in members.iter().enumerate().skip(start) {
 			let info = MemberInfo::new(member);
 			if info.optional && value.value.is_nullish() {
@@ -636,7 +654,10 @@ impl<'ast> WebpackAstParser<'ast> {
 			}
 			let key = match keys.get(i) {
 				Some(key) => key.clone(),
-				None => self.member_key(member, resolving).await?,
+				None => {
+					self.member_key(member, resolving)
+						.await?
+				}
 			};
 			value = self
 				.read_property(value, &info, &key)
@@ -661,8 +682,7 @@ impl<'ast> WebpackAstParser<'ast> {
 					.await
 			}
 			ChainElement::CallExpression(call) => {
-				self.resolve_call(call, resolving)
-					.await
+				self.resolve_call(call, resolving).await
 			}
 			_ => Err(self.local_err(
 				chain,
@@ -685,7 +705,7 @@ impl<'ast> WebpackAstParser<'ast> {
 				let key =
 					Box::pin(self.resolve_value(&m.expression, resolving))
 						.await?;
-				self.property_key(&key)
+				Ok(self.property_key(&key))
 			}
 			MemberExprRef::Private(m) => Err(self.local_err(
 				&m.field,
@@ -865,7 +885,7 @@ impl<'ast> WebpackAstParser<'ast> {
 		found.filter(is_node)
 	}
 	#[expect(clippy::future_not_send)]
-	async fn resolve_constant_value(
+	pub(super) async fn resolve_constant_value(
 		&self,
 		expr: &'ast Expression<'ast>,
 	) -> PResult<SpannedValue> {
@@ -912,7 +932,7 @@ impl<'ast> WebpackAstParser<'ast> {
 						let value =
 							Box::pin(self.resolve_value(expr, resolving))
 								.await?;
-						let str_val = self.to_string(&value)?;
+						let str_val = self.to_string(&value);
 						ret.push_str(&str_val);
 					}
 					ret.push_str(quasi.value.cooked.as_ref().unwrap());
@@ -1143,13 +1163,19 @@ impl<'ast> WebpackAstParser<'ast> {
 			}
 			Expression::ComputedMemberExpression(member) => {
 				Box::pin(
-					self.resolve_member(MemberExprRef::Computed(member), resolving),
+					self.resolve_member(
+						MemberExprRef::Computed(member),
+						resolving,
+					),
 				)
 				.await?
 			}
 			Expression::StaticMemberExpression(member) => {
 				Box::pin(
-					self.resolve_member(MemberExprRef::Static(member), resolving),
+					self.resolve_member(
+						MemberExprRef::Static(member),
+						resolving,
+					),
 				)
 				.await?
 			}
@@ -1158,15 +1184,6 @@ impl<'ast> WebpackAstParser<'ast> {
 					&**regex,
 					"regular expressions are not supported as constant values",
 				));
-			}
-			Expression::TemplateLiteral(lit) => {
-				return Err(
-					self.local_err(
-						&**lit,
-						"template literals with substitutions are not constant values",
-					)
-					.s(self.local_err(&lit.expressions[0], "expression here")),
-				);
 			}
 			Expression::ArrowFunctionExpression(_)
 			| Expression::FunctionExpression(_) => {

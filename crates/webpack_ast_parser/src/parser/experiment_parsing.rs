@@ -66,7 +66,8 @@ impl<'ast> WebpackAstParser<'ast> {
 		}
 		None
 	}
-	pub(crate) fn parse_apex_experiment(
+	#[expect(clippy::future_not_send)]
+	pub(crate) async fn parse_apex_experiment(
 		&self,
 		obj: &'ast ObjectExpression<'ast>,
 	) -> PResult<Experiment> {
@@ -75,6 +76,7 @@ impl<'ast> WebpackAstParser<'ast> {
 			obj.get_property("defaultConfig")
 		{
 			self.config_to_json(value, "`defaultConfig`")
+				.await
 		} else {
 			serde_json::Value::Null
 		};
@@ -94,39 +96,13 @@ impl<'ast> WebpackAstParser<'ast> {
 			None
 		};
 		let kind = Self::parse_experiment_scope(obj)?;
-		let variations =
-			if let Some(variations) = obj.get_property("variations") {
-				let vars = variations
-					.value
-					.as_object_expression()
-					.ok_or_else(|| {
-						err(
-							&variations.value,
-							"`varitions` is not an object expression",
-						)
-					})?;
-				let mut arr = Vec::with_capacity(vars.properties.len());
-				for prop in &vars.properties {
-					let Some(prop) = prop.as_property() else {
-						return Err(err(prop, "Invalid variation property"));
-					};
-					let key = prop.key.static_name().ok_or_else(|| {
-						err(
-							&prop.key,
-							"Variation property key is not an a static name",
-						)
-					})?;
-					let val = &prop.value;
-					let val = self.config_to_json(val, "variation value");
-					arr.push(experiments::Variation {
-						key: key.to_string(),
-						config: val,
-					});
-				}
-				arr
-			} else {
-				vec![]
-			};
+		let variations = match obj.get_property("variations") {
+			Some(variations) => {
+				self.parse_variations(&variations.value)
+					.await?
+			}
+			None => vec![],
+		};
 		Ok(Experiment {
 			loc: SpannedId {
 				id: self.get_module_id()?.id,
@@ -140,6 +116,49 @@ impl<'ast> WebpackAstParser<'ast> {
 				variations,
 			}),
 		})
+	}
+	/// Parses the `variations` of an apex experiment
+	///
+	/// Object literals are parsed property by property, so one bad variation
+	/// does not drop the rest. Anything else (eg: a reference to a constant
+	/// object) is resolved to json as a whole.
+	#[expect(clippy::future_not_send)]
+	async fn parse_variations(
+		&self,
+		variations: &'ast Expression<'ast>,
+	) -> PResult<Vec<experiments::Variation>> {
+		let Some(vars) = variations.as_object_expression() else {
+			let json = self
+				.expr_to_json(variations)
+				.await
+				.map_err(|e| {
+					err(variations, "Failed to resolve `variations`").s(e)
+				})?;
+			let serde_json::Value::Object(map) = json else {
+				return Err(err(variations, "`variations` is not an object"));
+			};
+			return Ok(map
+				.into_iter()
+				.map(|(key, config)| experiments::Variation { key, config })
+				.collect());
+		};
+		let mut arr = Vec::with_capacity(vars.properties.len());
+		for prop in &vars.properties {
+			let Some(prop) = prop.as_property() else {
+				return Err(err(prop, "Invalid variation property"));
+			};
+			let key = prop.key.static_name().ok_or_else(|| {
+				err(&prop.key, "Variation property key is not an a static name")
+			})?;
+			let config = self
+				.config_to_json(&prop.value, "variation value")
+				.await;
+			arr.push(experiments::Variation {
+				key: key.to_string(),
+				config,
+			});
+		}
+		Ok(arr)
 	}
 	fn parse_experiment_scope(
 		obj: &'ast ObjectExpression<'ast>,
@@ -163,7 +182,8 @@ impl<'ast> WebpackAstParser<'ast> {
 			)),
 		}
 	}
-	fn parse_experiment_treatment(
+	#[expect(clippy::future_not_send)]
+	async fn parse_experiment_treatment(
 		&self,
 		t: &'ast Expression<'ast>,
 	) -> PResult<experiments::Treatment> {
@@ -204,7 +224,9 @@ impl<'ast> WebpackAstParser<'ast> {
 			.ok_or_else(|| {
 				err(t, "Experiment treatment does not have `config` property")
 			})?;
-		let config = self.config_to_json(&config_prop.value, "`config`");
+		let config = self
+			.config_to_json(&config_prop.value, "`config`")
+			.await;
 		Ok(experiments::Treatment {
 			id,
 			label: label.to_string(),
@@ -215,12 +237,14 @@ impl<'ast> WebpackAstParser<'ast> {
 	/// Converts an experiment config to json.
 	///
 	/// returns [`null`](serde_json::Value::Null) if the config can't be converted to json
-	fn config_to_json(
+	#[expect(clippy::future_not_send)]
+	async fn config_to_json(
 		&self,
 		config: &'ast Expression<'ast>,
 		what: &str,
 	) -> serde_json::Value {
 		self.expr_to_json(config)
+			.await
 			.unwrap_or_else(|e| {
 				self.warn_diag(
 					&format!("Failed to parse experiment {what}, using null"),
@@ -272,7 +296,8 @@ impl<'ast> WebpackAstParser<'ast> {
 		Ok(ret)
 	}
 
-	pub(crate) fn parse_normal_experiment(
+	#[expect(clippy::future_not_send)]
+	pub(crate) async fn parse_normal_experiment(
 		&self,
 		obj: &'ast ObjectExpression<'ast>,
 	) -> PResult<Experiment> {
@@ -294,6 +319,7 @@ impl<'ast> WebpackAstParser<'ast> {
 			obj.get_property("defaultConfig")
 		{
 			self.config_to_json(value, "`defaultConfig`")
+				.await
 		} else {
 			serde_json::Value::Null
 		};
@@ -313,7 +339,10 @@ impl<'ast> WebpackAstParser<'ast> {
 					let Some(el) = el.as_expression() else {
 						return Err(err(el, "Invalid treatment element"));
 					};
-					ret.push(self.parse_experiment_treatment(el)?);
+					ret.push(
+						self.parse_experiment_treatment(el)
+							.await?,
+					);
 				}
 				ret
 			} else {
