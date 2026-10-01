@@ -388,7 +388,8 @@ export default definePlugin({
 		// Offset inside the `myMethod` reference in the replacement string.
 		let ref_off = (PLUGIN_SRC
 			.find("$self.myMethod")
-			.unwrap() + "$self.".len()) as u32;
+			.unwrap()
+			+ "$self.".len()) as u32;
 		let def = parser
 			.self_reference_definition(ref_off)
 			.expect("expected a definition span");

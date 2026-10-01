@@ -601,7 +601,8 @@ impl<'ast> VencordAstParser<'ast> {
 					Span::new(
 						replace_span.start + start_idx as u32 + 1,
 						replace_span.start
-							+ start_idx as u32 + 1
+							+ start_idx as u32
+							+ 1
 							+ name.len() as u32,
 					),
 					format!("Group `{name}` referenced here").into(),

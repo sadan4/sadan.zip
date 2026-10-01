@@ -68,7 +68,10 @@ pub fn from_path<A: AsRef<Path>>(path: A) -> Result<Uri> {
 }
 
 fn encode_virtual_path(path: &str) -> Result<String> {
-	ensure!(path.starts_with('/'), "Virtual path must be absolute: {path}");
+	ensure!(
+		path.starts_with('/'),
+		"Virtual path must be absolute: {path}"
+	);
 	ensure!(
 		!path.starts_with("//"),
 		"Virtual path must not start with `//`: {path}"

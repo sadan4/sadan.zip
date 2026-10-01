@@ -70,7 +70,8 @@ impl FormattedContentBuilder {
 			if let Some(last_char_of_last_token) = self
 				.formatted_content
 				.chars()
-				.next_back() && should_space_char(last_char_of_last_token)
+				.next_back()
+				&& should_space_char(last_char_of_last_token)
 				&& token
 					.chars()
 					.next()

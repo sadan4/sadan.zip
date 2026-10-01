@@ -249,7 +249,8 @@ impl miette::SourceCode for SourceCode {
 		span: &miette::SourceSpan,
 		context_lines_before: usize,
 		context_lines_after: usize,
-	) -> Result<Box<dyn miette::SpanContents<'a> + 'a>, miette::MietteError> {
+	) -> Result<Box<dyn miette::SpanContents<'a> + 'a>, miette::MietteError>
+	{
 		struct W<'a> {
 			file_name: Option<&'a str>,
 			file_type: Option<&'a str>,

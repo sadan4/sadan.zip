@@ -348,7 +348,8 @@ impl DiskModuleCache {
 				*self
 					.module_root
 					.lock()
-					.unwrap_or_else(PoisonError::into_inner) = Some(candidate.clone());
+					.unwrap_or_else(PoisonError::into_inner) =
+					Some(candidate.clone());
 				return Some(candidate);
 			}
 		}

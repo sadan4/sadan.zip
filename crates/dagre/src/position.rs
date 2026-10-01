@@ -350,7 +350,8 @@ pub fn find_type2_conflicts(
 						next_north_pos = graph
 							.node(first_pred)
 							.and_then(|n| n.order)
-							.unwrap_or(0) as i64;
+							.unwrap_or(0)
+							as i64;
 						scan(
 							graph,
 							&mut conflicts,

@@ -608,7 +608,8 @@ impl<'a> JavaScriptFormatter<'a> {
 			"pos precedes the first line"
 		);
 		self.line_pos_cache
-			.partition_point(|&first_char_pos| first_char_pos <= pos) as u32
+			.partition_point(|&first_char_pos| first_char_pos <= pos)
+			as u32
 			- 1
 	}
 
@@ -759,10 +760,13 @@ impl<'a> JavaScriptFormatter<'a> {
 				if self
 					.parent()
 					.as_function_body()
-					.is_some() && self
-					.ancestor(3)
-					.as_arrow_function_expression()
-					.is_some_and(ArrowFunctionExpression::is_expression) =>
+					.is_some()
+					&& self
+						.ancestor(3)
+						.as_arrow_function_expression()
+						.is_some_and(
+							ArrowFunctionExpression::is_expression,
+						) =>
 			{
 				&[]
 			}
