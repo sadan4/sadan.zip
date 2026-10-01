@@ -40,6 +40,7 @@ pub fn map(
 		cjs_default,
 		hover,
 		extra_data: ed,
+		node: _,
 	}: ExportMap<Span>,
 ) -> ExportMap<()> {
 	ExportMap {
@@ -50,5 +51,6 @@ pub fn map(
 		cjs_default: cjs_default.map(|v| Box::new(value(*v))),
 		hover,
 		extra_data: extra_data(ed),
+		node: None,
 	}
 }

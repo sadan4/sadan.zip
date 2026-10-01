@@ -2966,6 +2966,7 @@ impl<'ast> WebpackAstParser<'ast> {
 			cjs_default,
 			hover,
 			extra_data: _,
+			node: _,
 		}: &RawExportMap<'ast>,
 	) -> RangeExportMap {
 		RangeExportMap {
@@ -2980,6 +2981,7 @@ impl<'ast> WebpackAstParser<'ast> {
 			}),
 			hover: hover.clone(),
 			extra_data: ExtraData::None,
+			node: None,
 		}
 	}
 	fn raw_export_value_to_range_export_value(
@@ -3159,7 +3161,8 @@ impl<'ast> WebpackAstParser<'ast> {
 		node: &'ast ObjectExpression<'ast>,
 	) -> RawExportMap<'ast> {
 		// TODO: we can probably remove this box dyn iter if we use a manual for loop
-		node.properties
+		let mut ret: RawExportMap<'ast> = node
+			.properties
 			.iter()
 			.filter_map(
 				|prop| -> Option<
@@ -3205,7 +3208,9 @@ impl<'ast> WebpackAstParser<'ast> {
 				},
 			)
 			.flatten()
-			.collect()
+			.collect();
+		ret.node = Some(node.into_ast_kind());
+		ret
 	}
 	fn raw_make_export_map_literalish(
 		&self,

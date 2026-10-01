@@ -486,25 +486,22 @@ impl<'ast> WebpackAstParser<'ast> {
 		let p = remote.parser();
 		let mut map = p.get_export_map_raw();
 		let mut used = 0;
-		let range = loop {
+		let node = loop {
 			let Some(key) = keys.get(used) else {
-				// every key named a nested object, use the object itself
-				let Some(rng) = map
-					.cjs_default
-					.as_deref()
-					.and_then(|d| d.try_unwrap_range_ref().ok())
-				else {
-					return Err(self.local_err(
-						members[used - 1],
-						"export is an object that can not be resolved as a \
-						 constant value",
-					));
-				};
-				break rng;
+				// every key named a nested object, use the object itself,
+				// preferring the node it was made from
+				let node = map.node.or_else(|| {
+					map.cjs_default
+						.as_deref()
+						.and_then(|d| d.try_unwrap_range_ref().ok())?
+						.last()
+						.copied()
+				});
+				break node;
 			};
 			used += 1;
 			match map.get(key) {
-				Some(ExportValue::Range(rng)) => break rng,
+				Some(ExportValue::Range(rng)) => break rng.last().copied(),
 				Some(ExportValue::Map(m)) => map = m,
 				None => {
 					return Err(self.local_err(
@@ -519,8 +516,11 @@ impl<'ast> WebpackAstParser<'ast> {
 			}
 		};
 		let at = members[used - 1];
-		let Some(&node) = range.last() else {
-			return Err(self.local_err(at, "export has no value"));
+		let Some(node) = node else {
+			return Err(self.local_err(
+				at,
+				"export has no value that can be resolved as a constant",
+			));
 		};
 		let entry = Resolving::Export(module_id.id, keys[..used].to_vec());
 		if resolving.contains(&entry) {

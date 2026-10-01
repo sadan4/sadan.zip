@@ -25,6 +25,13 @@ pub struct ExportMap<T> {
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub hover: Option<SmolStr>,
 	pub extra_data: ExtraData<T>,
+	/// The node this whole map was made from, such as the object literal in
+	/// `wreq.d(exports, { foo: () => obj }); const obj = { bar: 1 };`
+	///
+	/// Only set on raw export maps
+	#[serde(skip)]
+	#[daft(ignore)]
+	pub node: Option<T>,
 }
 
 impl<T> ExportMap<T> {
@@ -50,6 +57,12 @@ impl<T> ExportMap<T> {
 				);
 			}
 		}
+		// a merged map is not made from any single node
+		self.node = if self.is_empty() && self.node.is_none() {
+			other.node
+		} else {
+			None
+		};
 		self.exports.extend(other.exports);
 		if self.cjs_default.is_none() {
 			self.cjs_default = other.cjs_default;
@@ -125,6 +138,7 @@ impl<T> FromIterator<(SmolStr, ExportValue<T>)> for ExportMap<T> {
 			cjs_default: None,
 			hover: None,
 			extra_data: ExtraData::default(),
+			node: None,
 		}
 	}
 }
@@ -197,6 +211,7 @@ impl<T> Default for ExportMap<T> {
 			cjs_default: None,
 			hover: None,
 			extra_data: ExtraData::default(),
+			node: None,
 		}
 	}
 }

@@ -932,6 +932,39 @@ mod static_member {
 	}
 
 	#[test]
+	async fn object_export() {
+		let module = (2, "n.d(t, { A: () => o }); const o = { b: 1, c: [2] };");
+		let expected = object([("b", num(1.0)), ("c", array([num(2.0)]))]);
+		assert_resolves_with("const x = n(2).A;", &[module], expected.clone())
+			.await;
+		assert_resolves_with("var r = n(2); const x = r.A;", &[module], expected)
+			.await;
+		// nested objects
+		assert_resolves_with(
+			"const x = n(2).A.b;",
+			&[(2, "n.d(t, { A: () => o }); const o = { b: { c: 1 } };")],
+			object([("c", num(1.0))]),
+		)
+		.await;
+		// spreads are flattened into the export map
+		assert_resolves_with(
+			"const x = n(2).A;",
+			&[(
+				2,
+				"n.d(t, { A: () => o }); const p = { a: 1 }, o = { ...p, b: 2 };",
+			)],
+			object([("a", num(1.0)), ("b", num(2.0))]),
+		)
+		.await;
+		assert_resolves_with(
+			"const x = n(2).a;",
+			&[(2, "e.exports = { a: { b: 1 } };")],
+			object([("b", num(1.0))]),
+		)
+		.await;
+	}
+
+	#[test]
 	async fn re_export() {
 		assert_resolves_with(
 			"const x = n(2).A;",
@@ -969,12 +1002,6 @@ mod static_member {
 		assert_errors_with("const x = n(2).B;", &[WREQ_D]).await;
 		// module not in the cache
 		assert_errors_with("const x = n(4).A;", &[WREQ_D]).await;
-		// an object export with no node for the whole object
-		assert_errors_with(
-			"const x = n(2).A;",
-			&[(2, "n.d(t, { A: () => o }); const o = { b: 1 };")],
-		)
-		.await;
 		// functions
 		assert_errors_with(
 			"const x = n(2).f;",
