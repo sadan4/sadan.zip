@@ -461,9 +461,12 @@ async fn nan_and_infinity() {
 }
 
 #[test]
-async fn await_expression() {
-	assert_resolves_in("async function f() { const x = await 5; }", num(5.0))
-		.await;
+async fn await_expression_errors() {
+	assert!(
+		resolve_in("async function f() { const x = await 5; }")
+			.await
+			.is_err()
+	);
 }
 
 #[test]
@@ -871,7 +874,7 @@ mod static_member {
 	use super::*;
 	use macros::test;
 
-	async fn assert_resolves_with(
+	pub(super) async fn assert_resolves_with(
 		body: &str,
 		modules: &[(u32, &str)],
 		expected: Plain,
@@ -1156,5 +1159,201 @@ mod objects {
 		assert_errors("{ [window]: 1 }").await;
 		assert_errors(r#"{ ..."\u{1F600}" }"#).await;
 		assert_errors("({}).toString").await;
+	}
+}
+
+mod calls {
+	use super::*;
+	use macros::test;
+
+	fn set(elts: impl IntoIterator<Item = Plain>) -> Plain {
+		Plain(ConstantValue::Set(elts.into_iter().collect()))
+	}
+
+	#[test]
+	async fn object_freeze() {
+		assert_resolves("Object.freeze([1])", array([num(1.0)])).await;
+		// non-objects are returned as is
+		assert_resolves("Object.freeze(1)", num(1.0)).await;
+		assert_resolves("Object.freeze()", Plain(ConstantValue::Undefined))
+			.await;
+		assert_resolves("Object.freeze({ a: 1 }).a", num(1.0)).await;
+		assert_resolves_in(
+			"const y = Object.freeze({ a: 1 }); const x = y.a;",
+			num(1.0),
+		)
+		.await;
+	}
+
+	#[test]
+	async fn object_freeze_export() {
+		let module =
+			(2, "n.d(t, { A: () => o }); const o = Object.freeze({ b: 1 });");
+		static_member::assert_resolves_with(
+			"const x = n(2).A;",
+			&[module],
+			object([("b", num(1.0))]),
+		)
+		.await;
+		static_member::assert_resolves_with("const x = n(2).A.b;", &[module], num(1.0))
+			.await;
+	}
+
+	#[test]
+	async fn call_errors() {
+		assert_errors("Object.seal({})").await;
+		assert_errors("foo()").await;
+		assert_errors("Object.freeze(...[1])").await;
+		assert_errors("Object.freeze(1, 2)").await;
+		assert!(
+			resolve_in(
+				"const Object = { freeze: 1 }; const x = Object.freeze(1);"
+			)
+			.await
+			.is_err()
+		);
+	}
+
+	#[test]
+	async fn new_set() {
+		assert_resolves("new Set", set([])).await;
+		assert_resolves("new Set()", set([])).await;
+		assert_resolves("new Set(null)", set([])).await;
+		assert_resolves("new Set(undefined)", set([])).await;
+		assert_resolves("new Set([2, 1, 2])", set([num(1.0), num(2.0)])).await;
+		assert_resolves("new Set(new Set([1]))", set([num(1.0)])).await;
+		// strings are iterated by code point
+		assert_resolves(
+			r#"new Set("abca")"#,
+			set([string("a"), string("b"), string("c")]),
+		)
+		.await;
+		assert_resolves(r#"new Set("\u{1F600}")"#, set([string("\u{1F600}")]))
+			.await;
+	}
+
+	#[test]
+	async fn set_elements_are_unique() {
+		// SameValueZero
+		assert_resolves("new Set([NaN, NaN, 0, -0]).size", num(2.0)).await;
+		assert_resolves(r#"new Set([1, "1"]).size"#, num(2.0)).await;
+		// objects are compared by identity
+		assert_resolves("new Set([{}, {}]).size", num(2.0)).await;
+		assert_resolves_in(
+			"const o = {}; const x = new Set([o, o]).size;",
+			num(1.0),
+		)
+		.await;
+	}
+
+	#[test]
+	async fn new_errors() {
+		assert_errors("new Set(1)").await;
+		assert_errors("new Set({})").await;
+		assert_errors("new Map()").await;
+		assert_errors("new Set(...[[1]])").await;
+		assert!(
+			resolve_in("const Set = Array; const x = new Set();")
+				.await
+				.is_err()
+		);
+	}
+}
+
+mod members {
+	use super::*;
+	use macros::test;
+
+	fn undefined() -> Plain {
+		Plain(ConstantValue::Undefined)
+	}
+
+	#[test]
+	async fn array_index() {
+		assert_resolves("[1, 2][1]", num(2.0)).await;
+		assert_resolves(r#"[1, 2]["1"]"#, num(2.0)).await;
+		assert_resolves("[1, 2][0 + 1]", num(2.0)).await;
+		assert_resolves(r#"[1, 2]["length"]"#, num(2.0)).await;
+		assert_resolves("[[1]][0][0]", num(1.0)).await;
+		// missing elements are `undefined`
+		assert_resolves("[1, 2][2]", undefined()).await;
+		assert_resolves("[1, 2][-1]", undefined()).await;
+		assert_resolves("[1, 2][1.5]", undefined()).await;
+	}
+
+	#[test]
+	async fn string_index() {
+		assert_resolves(r#""abc"[1]"#, string("b")).await;
+		assert_resolves(r#""abc"[5]"#, undefined()).await;
+		assert_resolves(r#""abc"["length"]"#, num(3.0)).await;
+		// indexed by UTF-16 code unit
+		assert_resolves(r#""\u{1F600}a"[2]"#, string("a")).await;
+	}
+
+	#[test]
+	async fn object_key() {
+		assert_resolves(r#"({ a: 1 })["a"]"#, num(1.0)).await;
+		assert_resolves(r#"({ 1: "x" })[1]"#, string("x")).await;
+		assert_resolves(r#"({ 1: "x" })["1"]"#, string("x")).await;
+		assert_resolves(r#"({ a: { b: 2 } })["a"]["b"]"#, num(2.0)).await;
+		assert_resolves(r#"({ a: { b: 2 } })["a"].b"#, num(2.0)).await;
+		assert_resolves(r#"({ a: 1 })["b"]"#, undefined()).await;
+		assert_resolves_in(
+			r#"const k = "a"; const x = ({ a: 1 })[k];"#,
+			num(1.0),
+		)
+		.await;
+		assert_resolves(r#"new Set([1])["size"]"#, num(1.0)).await;
+	}
+
+	#[test]
+	async fn computed_export() {
+		let module = (2, "n.d(t, { A: () => r, S: () => s }); const r = 5, s = \"abc\";");
+		assert_resolves_with_module(r#"const x = n(2)["A"];"#, module, num(5.0))
+			.await;
+		assert_resolves_with_module(
+			r#"const k = "S"; const x = n(2)[k].length;"#,
+			module,
+			num(3.0),
+		)
+		.await;
+		assert_resolves_with_module(r"const x = n(2).S[0];", module, string("a"))
+			.await;
+	}
+
+	async fn assert_resolves_with_module(
+		body: &str,
+		module: (u32, &str),
+		expected: Plain,
+	) {
+		static_member::assert_resolves_with(body, &[module], expected).await;
+	}
+
+	#[test]
+	async fn optional_chains() {
+		assert_resolves("({ a: 1 })?.a", num(1.0)).await;
+		assert_resolves("[1, 2]?.[1]", num(2.0)).await;
+		assert_resolves("null?.a", undefined()).await;
+		assert_resolves("undefined?.[0]", undefined()).await;
+		// the whole chain short-circuits
+		assert_resolves("null?.a.b.c", undefined()).await;
+		assert_resolves("({ a: null }).a?.b.c", undefined()).await;
+		// keys after a short-circuit are not evaluated
+		assert_resolves("null?.[window]", undefined()).await;
+		assert_resolves("Object?.freeze?.([1])", array([num(1.0)])).await;
+	}
+
+	#[test]
+	async fn errors() {
+		// only the optional access short-circuits
+		assert_errors("({ a: null })?.a.b").await;
+		// parentheses end the chain
+		assert_errors("(null?.a).b").await;
+		assert_errors("[1][window]").await;
+		assert_errors(r#"[]["map"]"#).await;
+		assert_errors(r#"({})["toString"]"#).await;
+		assert_errors("null[0]").await;
+		assert_errors(r#""\u{1F600}"[0]"#).await;
+		assert_errors("[1]?.[window]").await;
 	}
 }

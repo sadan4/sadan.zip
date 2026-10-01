@@ -1,10 +1,21 @@
 //! Reading properties of constant values
 
+use std::{borrow::Cow, fmt};
+
 use ordered_float::NotNan;
 use oxc::syntax::number::ToJsString;
 use oxc_ecmascript::StringToNumber;
 
 use super::{ConstantPropertyKey, ConstantValue, primitive::FoldResult};
+
+impl fmt::Display for ConstantPropertyKey {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		match self {
+			Self::String(s) => f.write_str(s),
+			Self::Number(n) => f.write_str(&n.to_js_string()),
+		}
+	}
+}
 
 impl ConstantPropertyKey {
 	/// The key for the property named `s`
@@ -49,41 +60,59 @@ pub(super) enum Property<'v, T> {
 	New(ConstantValue<T>),
 }
 
-/// Reads `value.key`, returning a human readable reason on failure
+/// Reads `value[key]`, returning a human readable reason on failure
 pub(super) fn get_property<'v, T>(
 	value: &'v ConstantValue<T>,
-	key: &str,
+	key: &ConstantPropertyKey,
 ) -> FoldResult<Property<'v, T>> {
 	let len = |len: usize| {
 		#[expect(clippy::cast_precision_loss, reason = "lengths are small")]
 		Ok(Property::New(ConstantValue::from(len as f64)))
 	};
+	let is = |name: &str| matches!(key, ConstantPropertyKey::String(s) if s == name);
+	let undefined = || Ok(Property::New(ConstantValue::Undefined));
 	match value {
 		ConstantValue::Object(props) => {
-			if let Some(v) = props.get(&ConstantPropertyKey::from_string(key)) {
+			if let Some(v) = props.get(key) {
 				Ok(Property::Existing(v))
-			} else if OBJECT_PROTOTYPE_PROPS.contains(&key) {
+			} else if OBJECT_PROTOTYPE_PROPS.iter().any(|&p| is(p)) {
 				Err(format!(
 					"`{key}` is inherited from `Object.prototype`, which is \
 					 not supported"
 				)
 				.into())
 			} else {
-				Ok(Property::New(ConstantValue::Undefined))
+				undefined()
 			}
 		}
-		ConstantValue::Array(elts) if key == "length" => len(elts.len()),
+		ConstantValue::Array(elts) => match key {
+			// holes and indices past the end are `undefined`
+			ConstantPropertyKey::Number(n) => {
+				index(**n)
+					.and_then(|i| elts.get(i))
+					.map_or_else(undefined, |v| Ok(Property::Existing(v)))
+			}
+			_ if is("length") => len(elts.len()),
+			ConstantPropertyKey::String(_) => Err(unsupported_method(key)),
+		},
 		// JS strings are UTF-16
-		ConstantValue::String(s) if key == "length" => {
-			len(s.encode_utf16().count())
-		}
-		ConstantValue::Set(s) if key == "size" => len(s.len()),
-		ConstantValue::Array(_)
-		| ConstantValue::String(_)
-		| ConstantValue::Set(_) => Err(format!(
-			"`{key}` is not supported, methods are not constant values"
-		)
-		.into()),
+		ConstantValue::String(s) => match key {
+			ConstantPropertyKey::Number(n) => {
+				let Some(unit) =
+					index(**n).and_then(|i| s.encode_utf16().nth(i))
+				else {
+					return undefined();
+				};
+				let c = char::from_u32(unit.into()).ok_or(
+					"indexing half of a surrogate pair is not supported",
+				)?;
+				Ok(Property::New(ConstantValue::String(c.into())))
+			}
+			_ if is("length") => len(s.encode_utf16().count()),
+			ConstantPropertyKey::String(_) => Err(unsupported_method(key)),
+		},
+		ConstantValue::Set(s) if is("size") => len(s.len()),
+		ConstantValue::Set(_) => Err(unsupported_method(key)),
 		ConstantValue::Undefined => {
 			Err(format!("cannot read property `{key}` of undefined").into())
 		}
@@ -98,4 +127,19 @@ pub(super) fn get_property<'v, T>(
 		)
 		.into()),
 	}
+}
+
+fn unsupported_method(key: &ConstantPropertyKey) -> Cow<'static, str> {
+	format!("`{key}` is not supported, methods are not constant values").into()
+}
+
+/// The array index `n` is, if it is one
+fn index(n: f64) -> Option<usize> {
+	#[expect(
+		clippy::cast_possible_truncation,
+		clippy::cast_sign_loss,
+		clippy::cast_precision_loss,
+		reason = "checked to be a non-negative integer in range"
+	)]
+	(n >= 0. && n.fract() == 0. && n < usize::MAX as f64).then_some(n as usize)
 }

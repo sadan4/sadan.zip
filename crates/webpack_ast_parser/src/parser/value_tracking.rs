@@ -4,7 +4,7 @@ use std::{
 	sync::Arc,
 };
 
-use ast_parser::AstParser as _;
+use ast_parser::{AstParser as _, exts::MemberExprRef};
 use explorer_types::{ModuleId, SpannedId};
 use num_bigint::BigInt;
 use ordered_float::NotNan;
@@ -16,14 +16,17 @@ use oxc::{
 			Argument,
 			ArrayExpressionElement,
 			AssignmentOperator,
+			CallExpression,
+			ChainElement,
+			ChainExpression,
 			Expression,
 			IdentifierReference,
 			LogicalOperator,
+			NewExpression,
 			ObjectExpression,
 			ObjectPropertyKind,
 			PropertyKey,
 			PropertyKind,
-			StaticMemberExpression,
 			UnaryOperator,
 		},
 		match_expression,
@@ -102,6 +105,33 @@ impl<T> From<f64> for ConstantValue<T> {
 		} else {
 			debug_assert!(value.is_nan());
 			Self::NaN
+		}
+	}
+}
+
+/// The parts of a member expression needed after its key is resolved
+struct MemberInfo {
+	/// The whole member expression
+	span: Span,
+	/// `b` in `a.b` and `a[b]`
+	key_span: Span,
+	/// `a?.b`
+	optional: bool,
+}
+
+impl MemberInfo {
+	fn new(member: MemberExprRef<'_>) -> Self {
+		let (span, key_span, optional) = match member {
+			MemberExprRef::Static(m) => (m.span, m.property.span, m.optional),
+			MemberExprRef::Computed(m) => {
+				(m.span, m.expression.span(), m.optional)
+			}
+			MemberExprRef::Private(m) => (m.span, m.field.span, m.optional),
+		};
+		Self {
+			span,
+			key_span,
+			optional,
 		}
 	}
 }
@@ -287,6 +317,155 @@ impl<'ast> WebpackAstParser<'ast> {
 		resolving.pop();
 		ret
 	}
+	/// Whether `ident` is the global `name`, and not a local shadowing it
+	fn is_global(&self, ident: &IdentifierReference<'_>, name: &str) -> bool {
+		ident.name == name
+			&& self
+				.sema
+				.scoping()
+				.get_reference(ident.reference_id())
+				.symbol_id()
+				.is_none()
+	}
+	/// Resolves the only argument of `call`, `what` names the call in errors
+	#[expect(clippy::future_not_send)]
+	async fn resolve_only_arg(
+		&self,
+		call: &impl GetSpan,
+		args: &'ast [Argument<'ast>],
+		what: &str,
+		resolving: &mut Vec<Resolving>,
+	) -> PResult<Option<SpannedValue>> {
+		match args {
+			[] => Ok(None),
+			[Argument::SpreadElement(spread)] => Err(self.local_err(
+				&**spread,
+				format!("spread arguments to {what} are not supported"),
+			)),
+			[arg] => {
+				let arg = arg.to_expression();
+				Ok(Some(Box::pin(self.resolve_value(arg, resolving)).await?))
+			}
+			_ => Err(self.local_err(
+				call,
+				format!("{what} with more than one argument is not supported"),
+			)),
+		}
+	}
+	/// Resolves calls with constant results, only `Object.freeze(value)`
+	#[expect(clippy::future_not_send)]
+	async fn resolve_call(
+		&self,
+		call: &'ast CallExpression<'ast>,
+		resolving: &mut Vec<Resolving>,
+	) -> PResult<SpannedValue> {
+		// `Object.freeze` is never nullish, so `Object?.freeze?.(a)` is the
+		// same as `Object.freeze(a)`
+		let is_object_freeze = matches!(
+			&call.callee,
+			Expression::StaticMemberExpression(callee)
+				if callee.property.name == "freeze"
+					&& matches!(
+						&callee.object,
+						Expression::Identifier(object)
+							if self.is_global(object, "Object")
+					)
+		);
+		if !is_object_freeze {
+			return Err(self.local_err(
+				call,
+				"only calls to `Object.freeze` are supported",
+			));
+		}
+		// freezing doesn't change the value, and non-objects are returned
+		// as is
+		let value = self
+			.resolve_only_arg(call, &call.arguments, "Object.freeze", resolving)
+			.await?
+			.map_or(ConstantValue::Undefined, |arg| arg.value);
+		Ok(SpannedValue {
+			value,
+			span: call.span,
+			module_id: self.get_module_id()?.id,
+		})
+	}
+	/// Resolves `new Set(iterable)`
+	#[expect(clippy::future_not_send)]
+	async fn resolve_new(
+		&self,
+		new: &'ast NewExpression<'ast>,
+		resolving: &mut Vec<Resolving>,
+	) -> PResult<SpannedValue> {
+		let is_set = matches!(
+			&new.callee,
+			Expression::Identifier(callee) if self.is_global(callee, "Set")
+		);
+		if !is_set {
+			return Err(
+				self.local_err(new, "only `new Set(...)` is supported")
+			);
+		}
+		let module_id = self.get_module_id()?.id;
+		let arg = self
+			.resolve_only_arg(new, &new.arguments, "new Set", resolving)
+			.await?;
+		let elts = match arg {
+			None
+			| Some(SpannedValue {
+				value: ConstantValue::Undefined | ConstantValue::Null,
+				..
+			}) => Vec::new(),
+			Some(SpannedValue {
+				value: ConstantValue::Array(elts),
+				..
+			}) => elts,
+			Some(SpannedValue {
+				value: ConstantValue::Set(elts),
+				..
+			}) => elts.into_iter().collect(),
+			// strings are iterated by code point
+			Some(SpannedValue {
+				value: ConstantValue::String(s),
+				span,
+				module_id,
+			}) => s
+				.chars()
+				.map(|c| SpannedValue {
+					value: ConstantValue::String(c.into()),
+					span,
+					module_id,
+				})
+				.collect(),
+			Some(arg) => {
+				return Err(self
+					.local_err(new, "the argument to `new Set` is not iterable")
+					.s(self
+						.remote_err(&arg.span, arg.module_id, "argument defined here")
+						.await));
+			}
+		};
+		let mut set = BTreeSet::new();
+		for elt in elts {
+			// primitives are the same element when they are the same value.
+			// objects are the same when they are the same object, which is
+			// approximated by being defined at the same place
+			let is_object = matches!(
+				elt.value,
+				ConstantValue::Array(_)
+					| ConstantValue::Object(_)
+					| ConstantValue::Set(_)
+			);
+			if is_object || !set.iter().any(|e: &SpannedValue| e.value == elt.value)
+			{
+				set.insert(elt);
+			}
+		}
+		Ok(SpannedValue {
+			value: ConstantValue::Set(set),
+			span: new.span,
+			module_id,
+		})
+	}
 	/// Resolves `{ a: 1, [b]: 2, ...c }`
 	#[expect(clippy::future_not_send)]
 	async fn resolve_object(
@@ -404,67 +583,137 @@ impl<'ast> WebpackAstParser<'ast> {
 			_ => ConstantPropertyKey::from_string(&self.to_string(key)?),
 		})
 	}
-	/// Resolves `a.b.c`, either as a property of a constant value or as an
+	/// Resolves `a.b[c]`, either as a property of a constant value or as an
 	/// export of another module
+	///
+	/// Optional accesses in the chain short-circuit the whole chain, as they
+	/// do in a [`ChainExpression`]
 	#[expect(clippy::future_not_send)]
-	async fn resolve_static_member(
+	async fn resolve_member(
 		&self,
-		member: &'ast StaticMemberExpression<'ast>,
+		member: MemberExprRef<'ast>,
 		resolving: &mut Vec<Resolving>,
 	) -> PResult<SpannedValue> {
-		// innermost first, so `a.b.c` is `[a.b, a.b.c]`
+		// innermost first, so `a.b[c]` is `[a.b, a.b[c]]`
 		let mut members = vec![member];
-		while let Expression::StaticMemberExpression(inner) =
-			&members.last().unwrap().object
-		{
-			members.push(inner);
+		loop {
+			let next = match members.last().unwrap().left() {
+				Expression::StaticMemberExpression(m) => MemberExprRef::Static(m),
+				Expression::ComputedMemberExpression(m) => {
+					MemberExprRef::Computed(m)
+				}
+				_ => break,
+			};
+			members.push(next);
 		}
 		members.reverse();
-		let base = &members[0].object;
-		let (mut value, rest) = if let Some(module_id) =
-			self.module_ref_of(base)
-		{
-			let (value, used) = self
-				.resolve_export(module_id, &members, resolving)
-				.await?;
-			(value, &members[used..])
-		} else {
-			let value = Box::pin(self.resolve_value(base, resolving)).await?;
-			(value, &members[..])
-		};
-		for member in rest {
+		let base = members[0].left();
+		let (mut value, start, keys) =
+			if let Some(module_id) = self.module_ref_of(base) {
+				// modules are never nullish, so every key is evaluated
+				let mut keys = Vec::with_capacity(members.len());
+				for &member in &members {
+					keys.push(self.member_key(member, resolving).await?);
+				}
+				let (value, used) = self
+					.resolve_export(module_id, &members, &keys, resolving)
+					.await?;
+				(value, used, keys)
+			} else {
+				let value =
+					Box::pin(self.resolve_value(base, resolving)).await?;
+				(value, 0, Vec::new())
+			};
+		for (i, &member) in members.iter().enumerate().skip(start) {
+			let info = MemberInfo::new(member);
+			if info.optional && value.value.is_nullish() {
+				// the rest of the chain, including its keys, is skipped
+				return Ok(SpannedValue {
+					value: ConstantValue::Undefined,
+					span: MemberInfo::new(member).span,
+					module_id: self.get_module_id()?.id,
+				});
+			}
+			let key = match keys.get(i) {
+				Some(key) => key.clone(),
+				None => self.member_key(member, resolving).await?,
+			};
 			value = self
-				.read_property(value, member)
+				.read_property(value, &info, &key)
 				.await?;
 		}
 		Ok(value)
 	}
-	/// Reads `member.property` of `obj`, the value of `member.object`
+	/// Resolves `a?.b`, `a?.[b]` and `a?.()`
 	#[expect(clippy::future_not_send)]
+	async fn resolve_chain(
+		&self,
+		chain: &'ast ChainExpression<'ast>,
+		resolving: &mut Vec<Resolving>,
+	) -> PResult<SpannedValue> {
+		match &chain.expression {
+			ChainElement::StaticMemberExpression(m) => {
+				self.resolve_member(MemberExprRef::Static(m), resolving)
+					.await
+			}
+			ChainElement::ComputedMemberExpression(m) => {
+				self.resolve_member(MemberExprRef::Computed(m), resolving)
+					.await
+			}
+			ChainElement::CallExpression(call) => {
+				self.resolve_call(call, resolving)
+					.await
+			}
+			_ => Err(self.local_err(
+				chain,
+				"unsupported optional chain for constant value",
+			)),
+		}
+	}
+	/// The key `member` accesses, `b` in `a.b` and `a[b]`
+	#[expect(clippy::future_not_send)]
+	async fn member_key(
+		&self,
+		member: MemberExprRef<'ast>,
+		resolving: &mut Vec<Resolving>,
+	) -> PResult<ConstantPropertyKey> {
+		match member {
+			MemberExprRef::Static(m) => {
+				Ok(ConstantPropertyKey::from_string(m.property.name.as_str()))
+			}
+			MemberExprRef::Computed(m) => {
+				let key =
+					Box::pin(self.resolve_value(&m.expression, resolving))
+						.await?;
+				self.property_key(&key)
+			}
+			MemberExprRef::Private(m) => Err(self.local_err(
+				&m.field,
+				"private fields are not supported for constant values",
+			)),
+		}
+	}
+	/// Reads `key` of `obj`, the value of the object of the member expression
+	/// described by `info`
 	async fn read_property(
 		&self,
 		obj: SpannedValue,
-		member: &'ast StaticMemberExpression<'ast>,
+		info: &MemberInfo,
+		key: &ConstantPropertyKey,
 	) -> PResult<SpannedValue> {
-		let new = |value| -> PResult<SpannedValue> {
-			Ok(SpannedValue {
-				value,
-				span: member.span,
-				module_id: self.get_module_id()?.id,
-			})
-		};
-		if member.optional && obj.value.is_nullish() {
-			return new(ConstantValue::Undefined);
-		}
-		match member::get_property(&obj.value, &member.property.name) {
+		match member::get_property(&obj.value, key) {
 			Ok(Property::Existing(v)) => Ok(v.clone()),
-			Ok(Property::New(value)) => new(value),
-			Err(msg) => Err(self.local_err(member, msg).s(self
+			Ok(Property::New(value)) => Ok(SpannedValue {
+				value,
+				span: info.span,
+				module_id: self.get_module_id()?.id,
+			}),
+			Err(msg) => Err(self.local_err(&info.span, msg).s(self
 				.remote_err(&obj.span, obj.module_id, "object defined here")
 				.await)),
 		}
 	}
-	/// Resolves the export of `module_id` named by the properties of
+	/// Resolves the export of `module_id` named by `keys`, the keys of
 	/// `members`, the innermost member accessing the module itself
 	///
 	/// Returns the value and how many of `members` were used to name the
@@ -473,12 +722,13 @@ impl<'ast> WebpackAstParser<'ast> {
 	async fn resolve_export(
 		&self,
 		module_id: SpannedId,
-		members: &[&'ast StaticMemberExpression<'ast>],
+		members: &[MemberExprRef<'ast>],
+		keys: &[ConstantPropertyKey],
 		resolving: &mut Vec<Resolving>,
 	) -> PResult<(SpannedValue, usize)> {
-		let keys = members
+		let keys = keys
 			.iter()
-			.map(|m| ExportMapKey::from(&m.property.name))
+			.map(|key| ExportMapKey::from(&key.to_string()))
 			.collect::<Vec<_>>();
 		let remote = self
 			.try_get_module_parser(module_id)
@@ -504,28 +754,30 @@ impl<'ast> WebpackAstParser<'ast> {
 				Some(ExportValue::Range(rng)) => break rng.last().copied(),
 				Some(ExportValue::Map(m)) => map = m,
 				None => {
+					let ExportMapKey::Named(name) = key else {
+						unreachable!("keys are always named")
+					};
 					return Err(self.local_err(
-						&members[used - 1].property,
+						&MemberInfo::new(members[used - 1]).key_span,
 						format!(
-							"module {} has no export `{}`",
-							module_id.id,
-							members[used - 1].property.name
+							"module {} has no export `{name}`",
+							module_id.id
 						),
 					));
 				}
 			}
 		};
-		let at = members[used - 1];
+		let at = MemberInfo::new(members[used - 1]).span;
 		let Some(node) = node else {
 			return Err(self.local_err(
-				at,
+				&at,
 				"export has no value that can be resolved as a constant",
 			));
 		};
 		let entry = Resolving::Export(module_id.id, keys[..used].to_vec());
 		if resolving.contains(&entry) {
 			return Err(
-				self.local_err(at, "export is defined in terms of itself")
+				self.local_err(&at, "export is defined in terms of itself")
 			);
 		}
 		resolving.push(entry);
@@ -533,7 +785,7 @@ impl<'ast> WebpackAstParser<'ast> {
 		resolving.pop();
 		let value = ret.map_err(|e| {
 			self.local_err(
-				at,
+				&at,
 				format!("failed to resolve export of module {}", module_id.id),
 			)
 			.s(e)
@@ -748,9 +1000,6 @@ impl<'ast> WebpackAstParser<'ast> {
 					));
 				}
 			},
-			Expression::AwaitExpression(await_expression) => {
-				todo!("resolve awaited value?");
-			}
 			Expression::BinaryExpression(bin) => {
 				let lhs =
 					Box::pin(self.resolve_value(&bin.left, resolving)).await?;
@@ -783,11 +1032,11 @@ impl<'ast> WebpackAstParser<'ast> {
 					}
 				}
 			}
-			Expression::CallExpression(call_expression) => {
-				todo!("we can resolve some calls")
+			Expression::CallExpression(call) => {
+				Box::pin(self.resolve_call(call, resolving)).await?
 			}
-			Expression::ChainExpression(chain_expression) => {
-				todo!("resolve last")
+			Expression::ChainExpression(chain) => {
+				Box::pin(self.resolve_chain(chain, resolving)).await?
 			}
 			Expression::ConditionalExpression(cond) => {
 				let test =
@@ -832,8 +1081,8 @@ impl<'ast> WebpackAstParser<'ast> {
 					}
 				}
 			}
-			Expression::NewExpression(new_expression) => {
-				todo!("resolve new set")
+			Expression::NewExpression(new) => {
+				Box::pin(self.resolve_new(new, resolving)).await?
 			}
 			Expression::ObjectExpression(obj) => {
 				Box::pin(self.resolve_object(obj, resolving)).await?
@@ -892,13 +1141,17 @@ impl<'ast> WebpackAstParser<'ast> {
 					module_id: self.get_module_id()?.id,
 				}
 			}
-			Expression::ComputedMemberExpression(
-				computed_member_expression,
-			) => {
-				todo!("resolve computed member expression")
+			Expression::ComputedMemberExpression(member) => {
+				Box::pin(
+					self.resolve_member(MemberExprRef::Computed(member), resolving),
+				)
+				.await?
 			}
 			Expression::StaticMemberExpression(member) => {
-				Box::pin(self.resolve_static_member(member, resolving)).await?
+				Box::pin(
+					self.resolve_member(MemberExprRef::Static(member), resolving),
+				)
+				.await?
 			}
 			Expression::RegExpLiteral(regex) => {
 				return Err(self.local_err(
