@@ -1,8 +1,13 @@
 #![allow(clippy::future_not_send)]
 
 use super::*;
+use crate::{bundle::IModuleCache, sync::ThreadSafeParser};
+use anyhow::Context as _;
+use async_trait::async_trait;
 use macros::test;
 use oxc::allocator::Allocator;
+use std::collections::HashMap;
+use url::Url;
 
 const MODULE_ID: u32 = 123_456;
 
@@ -60,11 +65,54 @@ fn object<'a>(props: impl IntoIterator<Item = (&'a str, Plain)>) -> Plain {
 /// Wraps `body` in a webpack module and resolves the constant value of the
 /// initializer of the only symbol named `x`
 async fn resolve_in(body: &str) -> PResult<SpannedValue> {
+	resolve_in_modules(body, &[]).await
+}
+
+/// Wraps `body` in a webpack module with the id `id`
+fn module_source(id: u32, body: &str) -> String {
+	format!("// Webpack Module {id}\n0,function(e, t, n) {{ {body} }}")
+}
+
+/// A module cache that parses modules from their source on every request
+#[derive(Clone)]
+struct SourceCache(HashMap<ModuleId, Arc<str>>);
+
+#[async_trait]
+impl IModuleCache for SourceCache {
+	async fn get_module_filepath(&self, _id: ModuleId) -> Option<Url> {
+		None
+	}
+	async fn get_module_parser(
+		&self,
+		_requestor: &WebpackAstParser<'_>,
+		id: ModuleId,
+		_latest: Option<bool>,
+	) -> anyhow::Result<Arc<ThreadSafeParser>> {
+		let source = self
+			.0
+			.get(&id)
+			.with_context(|| format!("no module {id} in the test cache"))?;
+		let mut p = ThreadSafeParser::new(Arc::clone(source))
+			.map_err(|e| anyhow::anyhow!("{e:?}"))?;
+		p.set_module_cache(Arc::new(self.clone()));
+		Ok(Arc::new(p))
+	}
+}
+
+/// [`resolve_in`], with `modules` (`(id, body)` pairs) available to require
+async fn resolve_in_modules(
+	body: &str,
+	modules: &[(u32, &str)],
+) -> PResult<SpannedValue> {
 	let alloc = Allocator::new();
-	let source = format!(
-		"// Webpack Module {MODULE_ID}\n0,function(e, t, n) {{ {body} }}"
-	);
-	let p = WebpackAstParser::try_new(&alloc, &source).unwrap();
+	let source = module_source(MODULE_ID, body);
+	let mut p = WebpackAstParser::try_new(&alloc, &source).unwrap();
+	p.set_module_cache(Arc::new(SourceCache(
+		modules
+			.iter()
+			.map(|&(id, body)| (ModuleId(id), module_source(id, body).into()))
+			.collect(),
+	)));
 	let scoping = p.sema.scoping();
 	let syms = scoping
 		.symbol_ids()
@@ -816,5 +864,270 @@ mod identifiers {
 		assert_errors_in("let y; y = y + 1; const x = y;").await;
 		assert_errors_in("let a, b; a = b; b = a; const x = a;").await;
 		assert_errors_in("let a, b; a = [b]; b = [a]; const x = a;").await;
+	}
+}
+
+mod static_member {
+	use super::*;
+	use macros::test;
+
+	async fn assert_resolves_with(
+		body: &str,
+		modules: &[(u32, &str)],
+		expected: Plain,
+	) {
+		match resolve_in_modules(body, modules).await {
+			Ok(v) => assert_eq!(Plain::from(v), expected, "for `{body}`"),
+			Err(e) => panic!("failed to resolve in `{body}`: {e:?}"),
+		}
+	}
+
+	async fn assert_errors_with(body: &str, modules: &[(u32, &str)]) {
+		if let Ok(v) = resolve_in_modules(body, modules).await {
+			panic!(
+				"expected `{body}` to fail to resolve, got {:?}",
+				Plain::from(v)
+			);
+		}
+	}
+
+	const WREQ_D: (u32, &str) =
+		(2, "n.d(t, { A: () => r, S: () => s }); const r = 5, s = \"abc\";");
+
+	#[test]
+	async fn wreq_d_export() {
+		assert_resolves_with("const x = n(2).A;", &[WREQ_D], num(5.0)).await;
+	}
+
+	#[test]
+	async fn export_of_imported_module() {
+		assert_resolves_with("var r = n(2); const x = r.A;", &[WREQ_D], num(5.0))
+			.await;
+	}
+
+	#[test]
+	async fn exports_assignment() {
+		assert_resolves_with(
+			"const x = n(2).foo;",
+			&[(2, "t.foo = \"x\";")],
+			string("x"),
+		)
+		.await;
+		assert_resolves_with(
+			"const x = n(2).a;",
+			&[(2, "e.exports = { a: 1 };")],
+			num(1.0),
+		)
+		.await;
+	}
+
+	#[test]
+	async fn nested_export() {
+		assert_resolves_with(
+			"const x = n(2).A.b;",
+			&[(2, "n.d(t, { A: () => o }); const o = { b: 1 };")],
+			num(1.0),
+		)
+		.await;
+	}
+
+	#[test]
+	async fn re_export() {
+		assert_resolves_with(
+			"const x = n(2).A;",
+			&[
+				(2, "n.d(t, { A: () => r.B }); var r = n(3);"),
+				(3, "n.d(t, { B: () => b }); const b = true;"),
+			],
+			boolean(true),
+		)
+		.await;
+	}
+
+	#[test]
+	async fn property_of_export() {
+		assert_resolves_with("const x = n(2).S.length;", &[WREQ_D], num(3.0))
+			.await;
+	}
+
+	#[test]
+	async fn length() {
+		assert_resolves("[1, 2, 3].length", num(3.0)).await;
+		assert_resolves("\"abc\".length", num(3.0)).await;
+		// JS strings are UTF-16
+		assert_resolves("\"\u{1F600}\".length", num(2.0)).await;
+		assert_resolves_in(
+			"const y = [[1], 2]; const x = y.length;",
+			num(2.0),
+		)
+		.await;
+	}
+
+	#[test]
+	async fn export_errors() {
+		// missing export
+		assert_errors_with("const x = n(2).B;", &[WREQ_D]).await;
+		// module not in the cache
+		assert_errors_with("const x = n(4).A;", &[WREQ_D]).await;
+		// an object export with no node for the whole object
+		assert_errors_with(
+			"const x = n(2).A;",
+			&[(2, "n.d(t, { A: () => o }); const o = { b: 1 };")],
+		)
+		.await;
+		// functions
+		assert_errors_with(
+			"const x = n(2).f;",
+			&[(2, "n.d(t, { f: () => f }); function f() {}")],
+		)
+		.await;
+	}
+
+	#[test]
+	async fn export_cycle_errors() {
+		assert_errors_with(
+			"const x = n(2).A;",
+			&[
+				(2, "n.d(t, { A: () => r.B }); var r = n(3);"),
+				(3, "n.d(t, { B: () => r.A }); var r = n(2);"),
+			],
+		)
+		.await;
+	}
+
+	#[test]
+	async fn property_errors() {
+		assert_errors("null.a").await;
+		assert_errors("undefined.a").await;
+		assert_errors("(1).toFixed").await;
+		assert_errors("[].map").await;
+		assert_errors("\"a\".at").await;
+	}
+}
+
+mod objects {
+	use super::*;
+	use macros::test;
+
+	/// An object with keys that may be numbers
+	fn keyed(
+		props: impl IntoIterator<Item = (ConstantPropertyKey, Plain)>,
+	) -> Plain {
+		Plain(ConstantValue::Object(props.into_iter().collect()))
+	}
+	fn n_key(n: f64) -> ConstantPropertyKey {
+		ConstantPropertyKey::Number(NotNan::new(n).unwrap())
+	}
+	fn s_key(s: &str) -> ConstantPropertyKey {
+		ConstantPropertyKey::String(s.to_owned())
+	}
+
+	#[test]
+	async fn numeric_keys() {
+		assert_resolves(r#"{ "1": 2 }"#, keyed([(n_key(1.0), num(2.0))])).await;
+		assert_resolves(
+			r#"{ 1: "a", "1": "b" }"#,
+			keyed([(n_key(1.0), string("b"))]),
+		)
+		.await;
+		assert_resolves("{ 1.50: 1 }", keyed([(n_key(1.5), num(1.0))])).await;
+		assert_resolves("{ 0x10: 1 }", keyed([(n_key(16.0), num(1.0))])).await;
+		// not canonical numbers
+		assert_resolves(r#"{ "01": 1 }"#, keyed([(s_key("01"), num(1.0))]))
+			.await;
+		assert_resolves(r#"{ "-0": 1 }"#, keyed([(s_key("-0"), num(1.0))]))
+			.await;
+		assert_resolves(r#"{ "": 1 }"#, keyed([(s_key(""), num(1.0))])).await;
+	}
+
+	#[test]
+	async fn computed_keys() {
+		assert_resolves(r#"{ ["a" + "b"]: 1 }"#, object([("ab", num(1.0))]))
+			.await;
+		assert_resolves("{ [1 + 1]: 1 }", keyed([(n_key(2.0), num(1.0))]))
+			.await;
+		assert_resolves("{ [[1, 2]]: 1 }", object([("1,2", num(1.0))])).await;
+		assert_resolves("{ [true]: 1 }", object([("true", num(1.0))])).await;
+		assert_resolves(
+			r#"{ ["__proto__"]: 1 }"#,
+			object([("__proto__", num(1.0))]),
+		)
+		.await;
+	}
+
+	#[test]
+	async fn shorthand() {
+		assert_resolves_in(
+			"const a = 1; const x = { a };",
+			object([("a", num(1.0))]),
+		)
+		.await;
+		assert_resolves_in(
+			"const __proto__ = 1; const x = { __proto__ };",
+			object([("__proto__", num(1.0))]),
+		)
+		.await;
+	}
+
+	#[test]
+	async fn later_properties_win() {
+		assert_resolves("{ a: 1, a: 2 }", object([("a", num(2.0))])).await;
+		assert_resolves("{ a: 1, ...{ a: 2 } }", object([("a", num(2.0))]))
+			.await;
+		assert_resolves("{ ...{ a: 2 }, a: 1 }", object([("a", num(1.0))]))
+			.await;
+	}
+
+	#[test]
+	async fn spreads() {
+		assert_resolves(
+			"{ ...[1, 2] }",
+			keyed([(n_key(0.0), num(1.0)), (n_key(1.0), num(2.0))]),
+		)
+		.await;
+		assert_resolves(
+			r#"{ ..."ab" }"#,
+			keyed([(n_key(0.0), string("a")), (n_key(1.0), string("b"))]),
+		)
+		.await;
+		assert_resolves(
+			"{ ...null, ...undefined, ...1, ...true, a: 1 }",
+			object([("a", num(1.0))]),
+		)
+		.await;
+		assert_resolves_in(
+			"const y = { a: [1] }; const x = { ...y, b: 2 };",
+			object([("a", array([num(1.0)])), ("b", num(2.0))]),
+		)
+		.await;
+	}
+
+	#[test]
+	async fn nested() {
+		assert_resolves(
+			"{ a: { b: [{}] } }",
+			object([("a", object([("b", array([object([])]))]))]),
+		)
+		.await;
+	}
+
+	#[test]
+	async fn properties() {
+		assert_resolves("({ a: 1 }).a", num(1.0)).await;
+		assert_resolves("({ a: 1 }).b", Plain(ConstantValue::Undefined)).await;
+		assert_resolves("({ Infinity: 1 }).Infinity", num(1.0)).await;
+		assert_resolves("({ a: { b: 2 } }).a.b", num(2.0)).await;
+	}
+
+	#[test]
+	async fn errors() {
+		assert_errors("{ __proto__: null }").await;
+		assert_errors(r#"{ "__proto__": null }"#).await;
+		assert_errors("{ get a() { return 1; } }").await;
+		assert_errors("{ set a(v) {} }").await;
+		assert_errors("{ a() {} }").await;
+		assert_errors("{ [window]: 1 }").await;
+		assert_errors(r#"{ ..."\u{1F600}" }"#).await;
+		assert_errors("({}).toString").await;
 	}
 }

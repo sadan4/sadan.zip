@@ -2017,11 +2017,22 @@ impl<'ast> WebpackAstParser<'ast> {
 		let init = self
 			.constant_value_of(&sym_id)?
 			.as_call_expression()?;
-		// make sure init is a call to wreq
-		if !self.cmp_sym(init.callee.as_identifier()?, &self.wreq().ok()?) {
+		self.module_id_of_wreq_call(init)
+	}
+	/// Gets the [`ModuleId`] required by a call to wreq
+	/// ```js
+	/// wreq(123);
+	/// ```
+	/// would return `Some(ModuleId(123))`
+	fn module_id_of_wreq_call(
+		&self,
+		call: &CallExpression<'_>,
+	) -> Option<SpannedId> {
+		// make sure this is a call to wreq
+		if !self.cmp_sym(call.callee.as_identifier()?, &self.wreq().ok()?) {
 			return None;
 		}
-		let args = &init.arguments;
+		let args = &call.arguments;
 		if args.len() != 1 {
 			return None;
 		}
@@ -2031,6 +2042,19 @@ impl<'ast> WebpackAstParser<'ast> {
 			id,
 			span: node.span(),
 		})
+	}
+	/// Gets the [`ModuleId`] of the module `expr` refers to, either
+	/// `wreq(123)` itself or an identifier holding it
+	fn module_ref_of(&self, expr: &Expression<'_>) -> Option<SpannedId> {
+		match expr.get_inner_expression() {
+			Expression::Identifier(ident) => {
+				self.get_module_id_for_import(self.sym_id_of(&**ident)?)
+			}
+			Expression::CallExpression(call) => {
+				self.module_id_of_wreq_call(call)
+			}
+			_ => None,
+		}
 	}
 	#[expect(clippy::future_not_send)]
 	async fn generate_direct_module_definition(
