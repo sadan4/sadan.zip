@@ -1,10 +1,4 @@
-//! Resolution of hashed Discord i18n keys back to their original (unhashed)
-//! message names.
-//!
-//! The mapping is embedded at compile time from the repo's
-//! `src/utils/discordI18n/key-mappings.json`, which maps the 6-char hashed key
-//! (e.g. `Go5Vvs`) to the original `SCREAMING_SNAKE_CASE` message name.
-
+pub mod ast;
 use std::{collections::HashMap, sync::LazyLock};
 
 use smol_str::SmolStr;

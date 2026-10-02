@@ -18,6 +18,7 @@ use crate::{
 		IModuleDepProvider,
 	},
 	find::{IntlKey, ScoredFindSequence},
+	intl::ast::hydrate::hydrate_ast,
 	parser::{
 		enum_iife::EnumIIFEState1_2,
 		export_map::{
@@ -1431,10 +1432,11 @@ impl<'ast> WebpackAstParser<'ast> {
 		let Ok(Value::Object(obj)) = from_str(json) else {
 			return false;
 		};
-		// naive impl.
-		// TODO: check https://github.com/discord/discord-intl/tree/main and look into the format exported by the tool
 		for (_, v) in obj {
-			if !v.is_array() {
+			let Value::Array(v) = v else {
+				return false;
+			};
+			if hydrate_ast(v).is_err() {
 				return false;
 			}
 		}
