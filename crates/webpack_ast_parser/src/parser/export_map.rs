@@ -190,8 +190,9 @@ impl IntoIterator for RangeExportMap {
 	}
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, From, IsVariant)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, From, IsVariant, TryUnwrap)]
 #[doc(alias("AnyExportKey"))]
+#[try_unwrap(ref, ref_mut)]
 /// Clone is `O(1)`
 pub enum ExportMapKey {
 	Named(SmolStr),

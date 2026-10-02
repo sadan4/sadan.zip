@@ -95,6 +95,8 @@ use oxc::{
 			ArrowFunctionExpression,
 			AssignmentTarget,
 			BindingIdentifier,
+			BindingPattern,
+			BindingProperty,
 			CallExpression,
 			Class,
 			ClassElement,
@@ -1041,7 +1043,7 @@ impl<'ast> WebpackAstParser<'ast> {
 
 		let mut uses = Vec::new();
 
-		for wreq_ref in self.refs(wreq) {
+		'outer: for wreq_ref in self.refs(wreq) {
 			let Some(require_call) =
 				self.match_wreq_require_call(wreq_ref, m_id)
 			else {
@@ -1051,6 +1053,37 @@ impl<'ast> WebpackAstParser<'ast> {
 			match self.p(require_call.node_id()) {
 				// `var foo = wreq(m_id);` - chase uses of `foo`
 				AstKind::VariableDeclarator(decl) => {
+					if let BindingPattern::ObjectPattern(obj) = &decl.id {
+						for prop in &obj.properties {
+							let Some(ident) = prop.key.static_name() else {
+								error!(
+									"computed destructure property in wreq import?????"
+								);
+								continue;
+							};
+							if export_names
+								.first()
+								.and_then(|k| k.try_unwrap_named_ref().ok())
+								.is_some_and(|name| **name == *ident)
+							{
+								let Some(ident) =
+									prop.value.as_binding_identifier()
+								else {
+									error!(
+										"nested destructure property in wreq import?????"
+									);
+									continue 'outer;
+								};
+								self.collect_wreq_uses_via_alias(
+									ident,
+									&export_names[1..],
+									&mut uses,
+								);
+								continue 'outer;
+							}
+						}
+						continue 'outer;
+					}
 					let Some(name) = decl.id.as_binding_identifier() else {
 						continue;
 					};
@@ -1111,9 +1144,9 @@ impl<'ast> WebpackAstParser<'ast> {
 							}?;
 							if self.is_write_once(target) {
 								// this should never panic because `is_write_once` should only return true if the target is a symbol
-								let sym_id = self.sym_id_of(target).unwrap();
+								debug_assert!(self.sym_id_of(target).is_some());
 								self.collect_wreq_uses_via_alias(
-									sym_id, remaining, &mut uses,
+									target, remaining, &mut uses,
 								);
 
 								if let Some(assign_per) = self
@@ -1697,20 +1730,32 @@ impl<'ast> WebpackAstParser<'ast> {
 		}
 	}
 
-	fn collect_wreq_uses_via_alias(
+	fn collect_wreq_uses_via_alias<ID: GetSymId>(
 		&self,
-		alias: SymbolId,
+		alias: &ID,
 		export_names: &[ExportMapKey],
 		uses: &mut Vec<AstKind<'ast>>,
 	) {
-		for usage in self.refs(alias) {
-			if let Some(access) = self
-				.p(usage)
-				.as_static_member_expression()
-				&& let Some(span) =
-					self.match_outer_access_chain(access, export_names)
-			{
-				uses.push(span.into_ast_kind());
+		let Some(alias) = self.sym_id_of(alias) else {
+			return;
+		};
+		// if export_names is empty, every reference to `alias` is a use
+		if export_names.is_empty() {
+			debug!(
+				"ref_nodes(alias) {:?}",
+				self.ref_nodes(alias).collect_vec()
+			);
+			uses.extend(self.ref_nodes(alias))
+		} else {
+			for usage in self.refs(alias) {
+				if let Some(access) = self
+					.p(usage)
+					.as_static_member_expression()
+					&& let Some(span) =
+						self.match_outer_access_chain(access, export_names)
+				{
+					uses.push(span.into_ast_kind());
+				}
 			}
 		}
 	}
@@ -2287,7 +2332,18 @@ impl<'ast> WebpackAstParser<'ast> {
 			};
 			let key = &export_access.property;
 			let key_txt = SmolStr::new(&self.source[key.span()]);
-			let export_val = &export_assignment.right;
+			let mut export_val = &export_assignment.right;
+			// `exports.foo = exports.bar = void 0;`
+			//          ^^^ <- key
+			//  ^^^^^^^^^^^ <- export_access
+			//                ^^^^^^^^^^^^^^^^^^^^ <- export_val
+			// we can't follow `exports.bar` because then we mess 
+			// up spans when we compute the export map for `bar` itself,
+			// so we resolve `right` while it's an assignment
+			while let Expression::AssignmentExpression(assign) = export_val {
+				export_val = &assign.right;
+			}
+
 			let mut val = self.raw_make_export_map_recursive(export_val);
 			val.prepend_with(key.into_ast_kind());
 			ret.exports.insert(key_txt, val);

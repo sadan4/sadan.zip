@@ -742,6 +742,7 @@ mod wreq_d {
 mod e_exports {
 	use super::*;
 	use macros::test;
+
 	#[test]
 	/// class names
 	fn object_literal_exports() {
@@ -988,6 +989,21 @@ mod e_exports {
 	fn intl_chunk() {
 		let p = parse!("test_data/wp/e.exports/i18nModule.js");
 		assert!(p.is_intl_module());
+	}
+
+	#[test]
+	fn filters_chained_assignments() {
+		let p = parse!("test_data/wp/e.exports/chain.js");
+		let pos = p.source.find("createLoader").unwrap() as u32 + 1;
+		let map = p.get_export_map();
+		let filtered_map = filter_export_map(map.clone(), pos);
+		debug!("filtered_map: {:#?}", filtered_map);
+		assert!(
+			filtered_map
+				.exports
+				.contains_key("createLoader")
+		);
+		assert_eq!(filtered_map.exports.len(), 1);
 	}
 }
 mod exports {

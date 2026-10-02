@@ -9,9 +9,6 @@ use macros::cache_test;
 
 use util::Bundle;
 
-/// The whole point of [`webpack_ast_parser::ThreadSafeParser`]: a cached
-/// parser, and the bundle it reaches back into for its module cache and
-/// dependency provider, can both be used from another thread.
 #[cache_test]
 async fn parsers_are_usable_across_threads(b: &Bundle) {
 	let parser = b.parse(222222);
@@ -715,6 +712,50 @@ mod references {
 			            807081,
 			        ),
 			        range: "[9:30->9:44) reactParserFor",
+			    },
+			]
+			"#);
+		}
+	}
+
+	mod intl_create_loader {
+		use super::*;
+
+		/// `let {foo: x} = n(m_id)`
+		#[cache_test(sub_dir = "intl_destructured_require")]
+		async fn destructured_require(b: &Bundle) {
+			let parser = b.parse(632296);
+			let locs = b
+				.dbg_gen_refs(&parser, 4, 6)
+				.await
+				.unwrap();
+			assert_debug_snapshot!(locs, @r#"
+			[
+			    ReferenceDumper {
+			        id: ModuleId(
+			            39470,
+			        ),
+			        range: "[5:4->5:5) i",
+			    },
+			]
+			"#);
+		}
+
+		/// Exports chained with `t.foo = t.bar = void 0;`
+		#[cache_test(sub_dir = "intl_chained_export")]
+		async fn chained_export_assignment(b: &Bundle) {
+			let parser = b.parse(632296);
+			let locs = b
+				.dbg_gen_refs(&parser, 4, 34)
+				.await
+				.unwrap();
+			assert_debug_snapshot!(locs, @r#"
+			[
+			    ReferenceDumper {
+			        id: ModuleId(
+			            724066,
+			        ),
+			        range: "[6:10->6:22) createLoader",
 			    },
 			]
 			"#);
