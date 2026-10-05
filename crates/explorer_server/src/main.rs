@@ -40,6 +40,15 @@ struct Cli {
 #[expect(dead_code)]
 const BIN_EXT: &str = if cfg!(windows) { ".exe" } else { "" };
 
+/// glibc loves to log gbs of memory and not return to the os, bloating RSS
+pub fn trim_heap() {
+	#[cfg(all(target_os = "linux", target_env = "gnu"))]
+	// SAFETY: no args + thread-safe
+	unsafe {
+		libc::malloc_trim(0);
+	}
+}
+
 fn install_tracing() {
 	let filter_layer = EnvFilter::try_from_default_env()
 		.or_else(|_| {

@@ -18,7 +18,7 @@ use std::{fs, sync::Arc, time::Duration};
 use tokio::time;
 use tracing::{error, info, instrument, trace};
 
-use crate::state::State;
+use crate::{state::State, trim_heap};
 
 const fn get_app_url(c: Channel) -> &'static str {
 	match c {
@@ -105,6 +105,7 @@ async fn handle_build(c: Channel, state: &State) -> Result<()> {
 					error!("Failed to spawn js handler: {e:?}");
 				}
 			}
+			trim_heap();
 		});
 	}
 	Ok(())

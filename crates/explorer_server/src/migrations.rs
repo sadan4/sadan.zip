@@ -37,6 +37,8 @@ use explorer_server_core::{
 	write_intl_messages,
 };
 
+use crate::trim_heap;
+
 #[derive(Clone, Copy, Debug)]
 #[repr(u16)]
 enum Versions {
@@ -592,16 +594,6 @@ where
 					.unwrap_or_else(|payload| panic::resume_unwind(payload))
 			})
 	})
-}
-
-/// glibc keeps the memory freed after parsing a build (~2gb) instead of
-/// returning it to the OS, so the server would keep growing with every build
-fn trim_heap() {
-	#[cfg(all(target_os = "linux", target_env = "gnu"))]
-	// SAFETY: malloc_trim has no preconditions, and is thread safe
-	unsafe {
-		libc::malloc_trim(0);
-	}
 }
 
 impl Migration for V7Migration {
