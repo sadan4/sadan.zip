@@ -7,4 +7,9 @@ pub mod util;
 
 pub use client::{make_reqwest_client, make_reqwest_client_with_ua};
 pub use progress::{NoProgress, ScrapeProgress};
-pub use scrape::{JsScraper, ScrapedModules, scrape_full_bundle};
+pub use scrape::{
+	JsScraper,
+	ScrapedBundle,
+	ScrapedModules,
+	scrape_full_bundle,
+};

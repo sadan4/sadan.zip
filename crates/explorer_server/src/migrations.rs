@@ -1,4 +1,12 @@
-use std::{collections::HashMap, fs, io, path::Path};
+use std::{
+	collections::HashMap,
+	fs,
+	io,
+	panic,
+	path::Path,
+	sync::atomic::{AtomicBool, AtomicUsize, Ordering},
+	thread,
+};
 
 use anyhow::{Context, Result, anyhow, bail};
 use explorer_types::{
@@ -14,17 +22,19 @@ use explorer_types::{
 	Modules,
 };
 use serde::Deserialize;
-use tokio::{runtime::Handle, task};
-use tracing::{Level, error, info, instrument, span, warn};
+use tokio::runtime::Handle;
+use tracing::{Level, Span, error, info, instrument, span, warn};
 
-use discord_scraper::experiments::find_experiments;
+use discord_scraper::experiments::{find_experiments, find_intl};
 use explorer_server_core::{
 	DATA_FILE_NAME,
+	INTL_FILE_NAME,
 	build_has_data,
 	get_root_build_path,
 	get_version_file_path,
 	read_mpk_zst_file,
 	write_full_bundle,
+	write_intl_messages,
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -38,9 +48,10 @@ enum Versions {
 	V5,
 	V6,
 	V7,
+	V8,
 }
 
-const CURRENT_VERSION: Versions = Versions::V7;
+const CURRENT_VERSION: Versions = Versions::V8;
 
 impl Versions {
 	fn get_current() -> Result<Self> {
@@ -59,6 +70,7 @@ impl Versions {
 					5 => Self::V5,
 					6 => Self::V6,
 					7 => Self::V7,
+					8 => Self::V8,
 					_ => {
 						bail!("Unknown version in version file")
 					}
@@ -84,6 +96,7 @@ impl Versions {
 			Self::V5 => Box::new(V5Migration),
 			Self::V6 => Box::new(V6Migration),
 			Self::V7 => Box::new(V7Migration),
+			Self::V8 => Box::new(V8Migration),
 		}
 	}
 	const fn next(self) -> Option<Self> {
@@ -95,7 +108,8 @@ impl Versions {
 			Self::V4 => Some(Self::V5),
 			Self::V5 => Some(Self::V6),
 			Self::V6 => Some(Self::V7),
-			Self::V7 => None,
+			Self::V7 => Some(Self::V8),
+			Self::V8 => None,
 		}
 	}
 }
@@ -128,6 +142,10 @@ struct V6Migration;
 /// backfill [`experiments`](FullBundle::experiments) for any build written
 /// before the field existed, which deserializes as an empty `Vec`
 struct V7Migration;
+
+/// backfill the intl messages file ([`INTL_FILE_NAME`]) for any build written
+/// before it existed, leaving the data file untouched
+struct V8Migration;
 
 #[derive(Deserialize)]
 struct V3BundleMetadata {
@@ -508,53 +526,151 @@ impl Migration for V6Migration {
 	}
 }
 
+/// How many builds [`par_for_each_build`] migrates at once. Parsing a build
+/// peaks at ~2gb
+const PARALLEL_BUILDS: usize = 3;
+
+/// Runs `f` on every build directory that has a data file,
+/// [`PARALLEL_BUILDS`] at a time
+///
+/// Stops handing out builds after the first error, and returns it
+fn par_for_each_build<F>(f: F) -> Result<()>
+where
+	F: Fn(&Path) -> Result<()> + Sync,
+{
+	let mut dirs = Vec::new();
+	for entry in fs::read_dir(get_root_build_path()?)? {
+		let entry = entry?;
+		if !entry.file_type()?.is_dir() {
+			continue;
+		}
+		let path = entry.path();
+		if !build_has_data(&path) {
+			warn!(
+				"Skipping {}: empty build directory, no data file",
+				path.display()
+			);
+			continue;
+		}
+		dirs.push(path);
+	}
+
+	let next = AtomicUsize::new(0);
+	let failed = AtomicBool::new(false);
+	let span = Span::current();
+	thread::scope(|s| {
+		let worker = || {
+			let _span = span.enter();
+			while !failed.load(Ordering::Relaxed) {
+				let Some(dir) = dirs.get(next.fetch_add(1, Ordering::Relaxed))
+				else {
+					break;
+				};
+				let res = f(dir);
+				trim_heap();
+				if let Err(e) = res {
+					failed.store(true, Ordering::Relaxed);
+					return Err(e);
+				}
+			}
+			Ok(())
+		};
+		#[expect(
+			clippy::needless_collect,
+			reason = "all threads must be spawned before any are joined"
+		)]
+		let handles = (0..PARALLEL_BUILDS)
+			.map(|_| s.spawn(worker))
+			.collect::<Vec<_>>();
+		// the scope still waits for every worker after an early return, and
+		// they stop picking up builds once `failed` is set
+		handles
+			.into_iter()
+			.try_for_each(|handle| {
+				handle
+					.join()
+					.unwrap_or_else(|payload| panic::resume_unwind(payload))
+			})
+	})
+}
+
+/// glibc keeps the memory freed after parsing a build (~2gb) instead of
+/// returning it to the OS, so the server would keep growing with every build
+fn trim_heap() {
+	#[cfg(all(target_os = "linux", target_env = "gnu"))]
+	// SAFETY: malloc_trim has no preconditions, and is thread safe
+	unsafe {
+		libc::malloc_trim(0);
+	}
+}
+
 impl Migration for V7Migration {
 	fn migrate(&self) -> Result<()> {
-		let base_build_path = get_root_build_path()?;
-		for entry in fs::read_dir(&base_build_path)? {
-			let entry = entry?;
-			if !entry.file_type()?.is_dir() {
-				continue;
-			}
-			let entry_path = entry.path();
-			if !build_has_data(&entry_path) {
-				warn!(
-					"Skipping {}: empty build directory, no data file",
-					entry_path.display()
-				);
-				continue;
-			}
-			let data_path = entry_path.join(DATA_FILE_NAME);
+		// migrations run synchronously inside the server's runtime
+		let handle = Handle::current();
+		par_for_each_build(|dir| {
+			let data_path = dir.join(DATA_FILE_NAME);
 			let mut full_bundle: FullBundle = read_mpk_zst_file(&data_path)
 				.with_context(|| {
 					format!("Failed to read {}", data_path.display())
 				})?;
 			if !full_bundle.experiments.is_empty() {
-				info!("Skipping {}: already migrated", entry_path.display());
-				continue;
+				info!("Skipping {}: already migrated", dir.display());
+				return Ok(());
 			}
-			info!("Collecting experiments for {}", entry_path.display());
-			// migrations run synchronously inside the server's runtime
-			let experiments = task::block_in_place(|| {
-				Handle::current().block_on(find_experiments(
-					&full_bundle.modules,
-					&full_bundle.dep_info,
-				))
-			});
+			info!("Collecting experiments for {}", dir.display());
+			let experiments = handle.block_on(find_experiments(
+				&full_bundle.modules,
+				&full_bundle.dep_info,
+			));
 			match experiments {
 				Ok(experiments) => full_bundle.experiments = experiments,
 				Err(e) => {
 					warn!(
 						"Skipping {}: failed to collect experiments: {e:?}",
-						entry_path.display()
+						dir.display()
 					);
-					continue;
+					return Ok(());
 				}
 			}
 			write_full_bundle(&full_bundle)
-				.context("Failed to write full bundle")?;
-		}
-		Ok(())
+				.context("Failed to write full bundle")
+		})
+	}
+}
+
+impl Migration for V8Migration {
+	fn migrate(&self) -> Result<()> {
+		// migrations run synchronously inside the server's runtime
+		let handle = Handle::current();
+		par_for_each_build(|dir| {
+			if dir.join(INTL_FILE_NAME).is_file() {
+				info!("Skipping {}: already migrated", dir.display());
+				return Ok(());
+			}
+			let data_path = dir.join(DATA_FILE_NAME);
+			let full_bundle: FullBundle = read_mpk_zst_file(&data_path)
+				.with_context(|| {
+					format!("Failed to read {}", data_path.display())
+				})?;
+			info!("Collecting intl messages for {}", dir.display());
+			let intl = handle.block_on(find_intl(
+				&full_bundle.modules,
+				&full_bundle.dep_info,
+			));
+			let intl = match intl {
+				Ok(intl) => intl,
+				Err(e) => {
+					warn!(
+						"Skipping {}: failed to collect intl messages: {e:?}",
+						dir.display()
+					);
+					return Ok(());
+				}
+			};
+			write_intl_messages(&full_bundle.metadata.build_hash, &intl)
+				.context("Failed to write intl messages")
+		})
 	}
 }
 

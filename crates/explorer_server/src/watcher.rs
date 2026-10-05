@@ -1,10 +1,16 @@
 // mod spawn;
 use anyhow::Result;
-use discord_scraper::{NoProgress, make_reqwest_client, scrape_full_bundle};
+use discord_scraper::{
+	NoProgress,
+	ScrapedBundle,
+	make_reqwest_client,
+	scrape_full_bundle,
+};
 use explorer_server_core::{
 	get_build_path,
 	is_build_downloaded,
 	write_full_bundle,
+	write_intl_messages,
 };
 use explorer_types::Channel;
 use reqwest::Response;
@@ -74,10 +80,16 @@ async fn handle_build(c: Channel, state: &State) -> Result<()> {
 			}
 			.await;
 			match result {
-				Ok(build) => {
-					let meta = build.metadata.clone();
+				Ok(ScrapedBundle { bundle, intl }) => {
+					let meta = bundle.metadata.clone();
 					tokio::spawn(async move { state.add_build(meta).await });
-					if let Err(e) = write_full_bundle(&build) {
+					// before the bundle, so a build with data always has intl
+					if let Err(e) =
+						write_intl_messages(&bundle.metadata.build_hash, &intl)
+					{
+						error!("Failed to write intl messages: {e:?}");
+					}
+					if let Err(e) = write_full_bundle(&bundle) {
 						error!("Failed to write full bundle: {e:?}");
 					}
 					info!(

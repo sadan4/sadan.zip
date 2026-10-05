@@ -13,7 +13,13 @@ use std::{
 use anyhow::{Context as _, Result, anyhow, bail};
 use dashmap::DashMap;
 use explorer_server_core::asset_url;
-use explorer_types::{BundleMetadata, Channel, FullBundle, ModuleId};
+use explorer_types::{
+	BundleMetadata,
+	Channel,
+	FullBundle,
+	ModuleId,
+	intl::IntlMessages,
+};
 use http::StatusCode;
 use memchr::memmem::Finder;
 use oxc_allocator::AllocatorPool;
@@ -315,13 +321,19 @@ impl JsScraper {
 	}
 }
 
+/// A freshly scraped build, along with the intl messages stored next to it
+pub struct ScrapedBundle {
+	pub bundle: FullBundle,
+	pub intl: IntlMessages,
+}
+
 pub async fn scrape_full_bundle(
 	html: &str,
 	channel: Channel,
 	build_hash: String,
 	client: Arc<ClientWithMiddleware>,
 	progress: Arc<dyn ScrapeProgress>,
-) -> Result<FullBundle> {
+) -> Result<ScrapedBundle> {
 	let ScrapedModules {
 		modules,
 		module_sources,
@@ -337,6 +349,11 @@ pub async fn scrape_full_bundle(
 		.await
 		.inspect_err(|e| warn!("Failed to collect experiments: {e:?}"))
 		.unwrap_or_default();
+	let intl = parsed
+		.find_intl()
+		.await
+		.inspect_err(|e| warn!("Failed to collect intl messages: {e:?}"))
+		.unwrap_or_default();
 	let dep_info = parsed.into_dep_info();
 
 	let current_time = SystemTime::now()
@@ -346,7 +363,7 @@ pub async fn scrape_full_bundle(
 	debug_assert!(u64::try_from(current_time).is_ok());
 	let first_seen = current_time as u64;
 
-	Ok(FullBundle {
+	let bundle = FullBundle {
 		metadata: BundleMetadata {
 			build_hash,
 			build_number,
@@ -359,5 +376,6 @@ pub async fn scrape_full_bundle(
 		modules,
 		env_var_text: global_env_text,
 		experiments,
-	})
+	};
+	Ok(ScrapedBundle { bundle, intl })
 }

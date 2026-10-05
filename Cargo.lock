@@ -1030,6 +1030,7 @@ dependencies = [
  "reqwest-retry",
  "rmp-serde",
  "serde_json",
+ "smol_str",
  "tokio",
  "tracing",
  "tracing-subscriber",
@@ -1162,6 +1163,7 @@ dependencies = [
  "explorer_types",
  "git_hash",
  "http",
+ "libc",
  "redis",
  "reqwest",
  "rmp-serde",
@@ -1186,6 +1188,8 @@ dependencies = [
  "explorer_types",
  "rmp-serde",
  "serde",
+ "serde_json",
+ "smol_str",
  "tempfile",
  "zstd",
 ]
@@ -1200,6 +1204,7 @@ dependencies = [
  "oxc_span",
  "serde",
  "serde_json",
+ "smol_str",
  "typesize",
 ]
 

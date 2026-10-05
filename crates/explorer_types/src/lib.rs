@@ -1,4 +1,5 @@
 pub mod experiments;
+pub mod intl;
 mod serde_span;
 
 use derive_more::{Deref, Display, From, Into};
@@ -307,4 +308,28 @@ impl BundleMetadata {
 pub struct TimestampQueryResults {
 	pub before: Option<BundleMetadata>,
 	pub after: Option<BundleMetadata>,
+}
+
+pub(crate) fn size_serde_json_value(value: &serde_json::Value) -> usize {
+	use serde_json::Value;
+	size_of::<Value>()
+		+ match value {
+			Value::Null | Value::Bool(_) | Value::Number(_) => 0,
+			Value::String(s) => s.capacity(),
+			Value::Array(values) => {
+				let len = values.len();
+				let cap = values.capacity();
+				let values_size: usize = values
+					.iter()
+					.map(size_serde_json_value)
+					.sum();
+				(cap - len) * size_of::<Value>() + values_size
+			}
+			Value::Object(map) => {
+				// map doesn't provide capacity, so we just have to iterate over the values
+				map.iter()
+					.map(|(k, v)| k.capacity() + size_serde_json_value(v))
+					.sum()
+			}
+		}
 }

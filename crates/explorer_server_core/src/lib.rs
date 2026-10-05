@@ -1,5 +1,5 @@
 use anyhow::{Context, Result, anyhow};
-use explorer_types::{Channel, FullBundle};
+use explorer_types::{Channel, FullBundle, intl::IntlMessages};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
 	cmp::Ordering,
@@ -8,8 +8,10 @@ use std::{
 	fmt::Debug,
 	fs,
 	io::{self, BufReader, BufWriter, IntoInnerError},
+	num::NonZero,
 	ops::Bound,
 	path::{Path, PathBuf},
+	thread,
 };
 
 pub const DATA_FILE_NAME: &str = "data.mpk.zst";
@@ -18,8 +20,12 @@ pub const METADATA_FILE_NAME: &str = "meta.mpk.zst";
 pub const METADATA_ZSTD_LEVEL: i32 = 0;
 /// 150-200mb uncompressed
 pub const DATA_ZSTD_LEVEL: i32 = 10;
+pub const INTL_FILE_NAME: &str = "intl.mpk.zst";
+/// ~1.5mb uncompressed
+pub const INTL_ZSTD_LEVEL: i32 = 10;
 
 const BUF_SIZE: usize = 1024 * 1024;
+const ZSTD_MAX_WORKERS: usize = 16;
 
 pub fn get_root_build_path() -> Result<PathBuf> {
 	let build_path = env::current_dir()
@@ -83,6 +89,12 @@ where
 {
 	let mut enc = zstd::Encoder::new(writer, level)
 		.context("Failed to start zstd stream")?;
+	// compressing a 30mb bundle takes ~2.5s on one thread, ~0.7s on 16
+	let workers = thread::available_parallelism()
+		.map_or(1, NonZero::get)
+		.min(ZSTD_MAX_WORKERS);
+	enc.multithread(u32::try_from(workers).unwrap_or(1))
+		.context("Failed to enable zstd workers")?;
 	rmp_serde::encode::write_named(&mut enc, value)
 		.context("Failed to encode msgpack")?;
 	enc.finish()
@@ -91,6 +103,10 @@ where
 
 pub fn read_full_bundle_from_dir(dir: &Path) -> Result<FullBundle> {
 	read_mpk_zst_file(&dir.join(DATA_FILE_NAME))
+}
+
+pub fn read_intl_messages_from_dir(dir: &Path) -> Result<IntlMessages> {
+	read_mpk_zst_file(&dir.join(INTL_FILE_NAME))
 }
 
 /// Runs `f` against a temp file next to `path`, then renames it over `path`.
@@ -164,6 +180,27 @@ pub fn write_full_bundle(bundle: &FullBundle) -> Result<()> {
 	)?;
 
 	Ok(())
+}
+
+/// Write the intl messages for `build_hash` next to its data file
+///
+/// Call this before [`write_full_bundle`], so any build with a data file also
+/// has its intl messages
+pub fn write_intl_messages(
+	build_hash: &str,
+	intl: &IntlMessages,
+) -> Result<()> {
+	let build_path = get_build_path(build_hash)?;
+
+	if !build_path.exists() {
+		fs::create_dir_all(&build_path)?;
+	}
+
+	write_mpk_zst_atomic(
+		&build_path.join(INTL_FILE_NAME),
+		intl,
+		INTL_ZSTD_LEVEL,
+	)
 }
 
 pub fn asset_url(channel: Channel, mut path: &str) -> String {
@@ -281,6 +318,44 @@ mod tests {
 		assert_eq!(value, back);
 		// the temp file must not be left behind
 		assert!(!path.with_extension("zst.tmp").exists());
+	}
+
+	#[test]
+	fn intl_messages_round_trip() {
+		use explorer_types::{ModuleId, intl::IntlMessage};
+		use serde_json::json;
+		use smol_str::SmolStr;
+
+		let dir = tempfile::tempdir().unwrap();
+		let intl = IntlMessages {
+			modules: vec![ModuleId(1), ModuleId(2)],
+			messages: [
+				(
+					SmolStr::new_static("+Qr6vP"),
+					IntlMessage {
+						module: ModuleId(1),
+						value: json!(["Hello, ", [1, "name"], "!"]),
+					},
+				),
+				(
+					// longer than SmolStr's inline capacity
+					SmolStr::new("not_a_hashed_key_but_still_valid"),
+					IntlMessage {
+						module: ModuleId(2),
+						value: json!([[8, "$b", ["bold"], null]]),
+					},
+				),
+			]
+			.into(),
+		};
+		write_mpk_zst_atomic(
+			&dir.path().join(INTL_FILE_NAME),
+			&intl,
+			INTL_ZSTD_LEVEL,
+		)
+		.unwrap();
+		let back = read_intl_messages_from_dir(dir.path()).unwrap();
+		assert_eq!(intl, back);
 	}
 
 	#[test]

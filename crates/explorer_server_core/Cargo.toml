@@ -8,10 +8,12 @@ explorer_types.workspace = true
 anyhow.workspace = true
 serde.workspace = true
 rmp-serde.workspace = true
-zstd.workspace = true
+zstd = { workspace = true, features = ["zstdmt"] }
 
 [dev-dependencies]
 tempfile.workspace = true
+serde_json.workspace = true
+smol_str.workspace = true
 
 [lints]
 workspace = true

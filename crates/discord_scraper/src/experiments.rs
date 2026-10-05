@@ -14,7 +14,11 @@ use explorer_types::{
 	ModuleId,
 	Modules,
 	experiments::Experiment,
+	intl::{IntlMessage, IntlMessages},
 };
+use serde_json::{Map, Value};
+use smol_str::SmolStr;
+use tracing::warn;
 use url::Url;
 use webpack_ast_parser::{
 	ThreadSafeParser,
@@ -250,20 +254,16 @@ impl ParsedBundle {
 	/// # Errors
 	/// If no module defines `createLoader`, or collecting from it fails
 	pub async fn find_intl_modules(&self) -> Result<Vec<ModuleId>> {
-		for parser in self.store.parsers()?.values() {
-			let Some(mut ids) = parser
-				.parser()
-				.collect_intl_modules()
-				.await
-				.map_err(|e| anyhow!("{e}"))?
-			else {
-				continue;
-			};
-			ids.sort_unstable();
-			ids.dedup();
-			return Ok(ids);
-		}
-		Err(anyhow!("No module defines createLoader"))
+		collect_intl_modules(self.store.parsers()?).await
+	}
+
+	/// Collects every english intl module in the bundle, sorted by id, along
+	/// with every message they define
+	///
+	/// # Errors
+	/// If no module defines `createLoader`, or collecting from it fails
+	pub async fn find_intl(&self) -> Result<IntlMessages> {
+		collect_intl(self.store.parsers()?).await
 	}
 
 	pub fn get_parser(&self, id: ModuleId) -> Option<Arc<ThreadSafeParser>> {
@@ -273,6 +273,63 @@ impl ParsedBundle {
 			.get(&id)
 			.cloned()
 	}
+}
+
+/// Collects every english intl module in `parsers`, sorted by id
+async fn collect_intl_modules(parsers: &Parsers) -> Result<Vec<ModuleId>> {
+	for parser in parsers.values() {
+		let Some(mut ids) = parser
+			.parser()
+			.collect_intl_modules()
+			.await
+			.map_err(|e| anyhow!("{e}"))?
+		else {
+			continue;
+		};
+		ids.sort_unstable();
+		ids.dedup();
+		return Ok(ids);
+	}
+	Err(anyhow!("No module defines createLoader"))
+}
+
+/// Collects every english intl module in `parsers`, sorted by id, along with
+/// every message they define
+///
+/// Modules whose JSON can't be read are skipped, but stay in
+/// [`IntlMessages::modules`]
+async fn collect_intl(parsers: &Parsers) -> Result<IntlMessages> {
+	let modules = collect_intl_modules(parsers).await?;
+	let mut messages = HashMap::new();
+	for &id in &modules {
+		let Some(parser) = parsers.get(&id) else {
+			warn!(%id, "Intl module not found in bundle");
+			continue;
+		};
+		let Some(json) = parser.parser().as_json_module() else {
+			warn!(%id, "Intl module is not a JSON module");
+			continue;
+		};
+		let json = match serde_json::from_str::<Map<String, Value>>(json) {
+			Ok(json) => json,
+			Err(e) => {
+				warn!(%id, "Failed to parse intl module JSON: {e}");
+				continue;
+			}
+		};
+		for (key, value) in json {
+			let key = SmolStr::from(key);
+			let msg = IntlMessage { module: id, value };
+			if let Some(prev) = messages.insert(key.clone(), msg) {
+				warn!(
+					%key,
+					"Intl key defined in both {} and {id}, keeping {id}",
+					prev.module
+				);
+			}
+		}
+	}
+	Ok(IntlMessages { modules, messages })
 }
 
 /// Collects every apex and normal experiment defined in `modules`, sorted by
@@ -291,4 +348,23 @@ pub async fn find_experiments(
 	store.set_deps(dep_info);
 	parse_modules(modules, &store, false)?;
 	collect_experiments(store.parsers()?).await
+}
+
+/// Collects every english intl module in `modules`, sorted by id, along with
+/// every message they define
+///
+/// Use [`ParsedBundle`] instead when the dep graph has not been built yet, so
+/// the modules are only parsed once.
+///
+/// # Errors
+/// If a module fails to parse, no module defines `createLoader`, or collecting
+/// from it fails
+pub async fn find_intl(
+	modules: &Modules,
+	dep_info: &DepInfo,
+) -> Result<IntlMessages> {
+	let store = InMemoryBundle::new();
+	store.set_deps(dep_info);
+	parse_modules(modules, &store, false)?;
+	collect_intl(store.parsers()?).await
 }
