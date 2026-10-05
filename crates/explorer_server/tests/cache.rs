@@ -20,7 +20,7 @@ use tempfile::TempDir;
 use tokio::time::{Instant, sleep};
 
 /// must match `ARCHIVE_KEY_PREFIX` in `src/cache.rs`
-const KEY_PREFIX: &str = "discord-build-archive:v2:";
+const KEY_PREFIX: &str = "discord-build-archive:v3:";
 /// must match `ARCHIVE_TTL` in `src/cache.rs`
 const ARCHIVE_TTL: i64 = 60 * 60 * 24 * 7;
 

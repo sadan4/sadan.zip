@@ -9,7 +9,7 @@ use anyhow::Context;
 use axum::{
 	Router,
 	body::{Body, Bytes},
-	extract::{Path, State},
+	extract::{FromRequestParts, Path, Query, State},
 	response::{IntoResponse, Response},
 	routing::{get, post},
 };
@@ -20,16 +20,21 @@ use explorer_server_core::{
 	get_around,
 	get_build_path,
 	get_root_build_path,
+	read_intl_messages_from_dir,
 	read_mpk_zst_file,
 };
 use explorer_types::{
 	BuildList,
 	BundleMetadata,
+	Channel,
 	FullBundle,
 	TimestampQueryResults,
+	intl::IntlMessage,
 };
 use git_hash::GIT_HASH;
-use http::{HeaderValue, StatusCode, header};
+use http::{HeaderValue, StatusCode, header, request::Parts};
+use serde::Deserialize;
+use serde_json::{Map, Value};
 use sevenz_rust2::{
 	ArchiveEntry,
 	ArchiveWriter,
@@ -46,12 +51,15 @@ use tokio_stream::{StreamExt, wrappers::ReadDirStream};
 use tokio_util::io::ReaderStream;
 use tower_http::cors;
 use tracing::{info, instrument, warn};
+use webpack_ast_parser::intl::{ast::hydrate::hydrate_ast, render_message};
 
 type Result<T = Response> = std::result::Result<T, AppError>;
 
 const ZSTD_MIME_TYPE: &str = "application/zstd";
 const MSGPACK_MIME_TYPE: &str = "application/vnd.msgpack";
 const SEVENZ_MIME_TYPE: &str = "application/x-7z-compressed";
+const JSON_MIME_TYPE: &str = "application/json";
+const TEXT_MIME_TYPE: &str = "text/plain; charset=utf-8";
 
 const MB: usize = 1024 * 1024;
 
@@ -99,13 +107,60 @@ fn is_valid_build_hash(build_hash: &str) -> bool {
 		.all(|c| c.is_ascii_hexdigit())
 }
 
-#[axum::debug_handler]
-async fn get_build_metadata(Path(build_hash): Path<String>) -> Result {
-	if !is_valid_build_hash(&build_hash) {
-		return Ok(
-			(StatusCode::BAD_REQUEST, "invalid build hash").into_response()
-		);
+/// Resolves `latest`, `latest-stable` and `latest-canary` to the hash of
+/// the newest matching build, passing anything else through as a hash
+///
+/// The `Err` is a response to send as-is: no build matches, or the hash is
+/// invalid
+async fn resolve_build_hash(
+	state: &crate::State,
+	id: String,
+) -> std::result::Result<String, (StatusCode, String)> {
+	let channel = match id.as_str() {
+		"latest" => None,
+		"latest-stable" => Some(Channel::Stable),
+		"latest-canary" => Some(Channel::Canary),
+		_ if is_valid_build_hash(&id) => return Ok(id),
+		_ => {
+			return Err((
+				StatusCode::BAD_REQUEST,
+				"invalid build hash".to_owned(),
+			));
+		}
+	};
+	let lock = state.read().await;
+	lock.meta_by_time
+		.values()
+		.rev()
+		.find(|m| channel.is_none_or(|c| m.channel.contains(&c)))
+		.map(|m| m.build_hash.clone())
+		.ok_or_else(|| {
+			(StatusCode::NOT_FOUND, format!("no build matches {id}"))
+		})
+}
+
+/// A valid build hash, extracted from a single path param that is either a
+/// hash or an alias accepted by [`resolve_build_hash`]
+struct BuildHash(String);
+
+impl FromRequestParts<crate::State> for BuildHash {
+	type Rejection = (StatusCode, String);
+
+	async fn from_request_parts(
+		parts: &mut Parts,
+		state: &crate::State,
+	) -> std::result::Result<Self, Self::Rejection> {
+		let Path(id) = Path::<String>::from_request_parts(parts, state)
+			.await
+			.map_err(|e| (e.status(), e.body_text()))?;
+		resolve_build_hash(state, id)
+			.await
+			.map(Self)
 	}
+}
+
+#[axum::debug_handler(state = crate::State)]
+async fn get_build_metadata(BuildHash(build_hash): BuildHash) -> Result {
 	let meta_path = get_build_path(&build_hash)?.join(METADATA_FILE_NAME);
 	if !fs::try_exists(&meta_path).await? {
 		return Ok((
@@ -122,11 +177,6 @@ async fn get_build_metadata(Path(build_hash): Path<String>) -> Result {
 
 /// Streams `file_name` from the build directory of `build_hash`
 async fn stream_build_file(build_hash: &str, file_name: &str) -> Result {
-	if !is_valid_build_hash(build_hash) {
-		return Ok(
-			(StatusCode::BAD_REQUEST, "invalid build hash").into_response()
-		);
-	}
 	let path = get_build_path(build_hash)?.join(file_name);
 	if !fs::try_exists(&path).await? {
 		return Ok((
@@ -149,12 +199,83 @@ async fn stream_build_file(build_hash: &str, file_name: &str) -> Result {
 		.into_response())
 }
 
-async fn get_build_full(Path(build_hash): Path<String>) -> Result {
+async fn get_build_full(BuildHash(build_hash): BuildHash) -> Result {
 	stream_build_file(&build_hash, DATA_FILE_NAME).await
 }
 
-async fn get_build_intl(Path(build_hash): Path<String>) -> Result {
+async fn get_build_intl(BuildHash(build_hash): BuildHash) -> Result {
 	stream_build_file(&build_hash, INTL_FILE_NAME).await
+}
+
+#[derive(Deserialize)]
+struct IntlKeyQuery {
+	/// the hashed intl key
+	key: String,
+}
+
+async fn find_intl_message(
+	build_hash: String,
+	key: &str,
+) -> Result<std::result::Result<IntlMessage, Response>> {
+	let build_path = get_build_path(&build_hash)?;
+	if !fs::try_exists(build_path.join(INTL_FILE_NAME)).await? {
+		return Ok(Err((
+			StatusCode::NOT_FOUND,
+			format!("intl messages for build {build_hash} not found"),
+		)
+			.into_response()));
+	}
+	let mut intl =
+		spawn_blocking(move || read_intl_messages_from_dir(&build_path))
+			.await??;
+	Ok(intl
+		.messages
+		.remove(key)
+		.ok_or_else(|| {
+			(
+				StatusCode::NOT_FOUND,
+				format!("intl key {key} not found in build {build_hash}"),
+			)
+				.into_response()
+		}))
+}
+
+async fn get_intl_raw(
+	BuildHash(build_hash): BuildHash,
+	Query(IntlKeyQuery { key }): Query<IntlKeyQuery>,
+) -> Result {
+	let message = match find_intl_message(build_hash, &key).await? {
+		Ok(message) => message,
+		Err(res) => return Ok(res),
+	};
+	let raw = serde_json::to_vec(&message.value)?;
+	Ok(sized_response(JSON_MIME_TYPE, raw))
+}
+
+async fn get_intl_rendered(
+	BuildHash(build_hash): BuildHash,
+	Query(IntlKeyQuery { key }): Query<IntlKeyQuery>,
+) -> Result {
+	let message = match find_intl_message(build_hash, &key).await? {
+		Ok(message) => message,
+		Err(res) => return Ok(res),
+	};
+	let ast = match message.value {
+		Value::Array(nodes) => nodes,
+		// a message that is a single literal isn't wrapped in an array
+		lit @ Value::String(_) => vec![lit],
+		other => {
+			return Err(anyhow::anyhow!(
+				"unexpected intl message value: {other}"
+			)
+			.into());
+		}
+	};
+	let nodes = hydrate_ast(ast).context("Failed to hydrate intl message")?;
+	let mut rendered = String::new();
+	render_message(&mut rendered, &nodes, &Map::new())
+		.context("Failed to render intl message")?;
+	Ok(sized_response(TEXT_MIME_TYPE, rendered))
 }
 
 // TODO: ratelimit to like 4/hr
@@ -241,7 +362,7 @@ async fn get_before_timestamp(
 }
 
 async fn get_before_hash(
-	Path(hash): Path<String>,
+	BuildHash(hash): BuildHash,
 	State(state): State<crate::State>,
 ) -> Result {
 	let state = state.read().await;
@@ -261,8 +382,14 @@ async fn get_before_hash(
 	Ok(sized_response(MSGPACK_MIME_TYPE, raw))
 }
 
-fn make_archive(data_path: &std::path::Path) -> Result<Vec<u8>> {
-	let b: FullBundle = read_mpk_zst_file(data_path)?;
+fn make_archive(build_path: &std::path::Path) -> Result<Vec<u8>> {
+	let b: FullBundle = read_mpk_zst_file(&build_path.join(DATA_FILE_NAME))?;
+	// builds from before intl scraping may not have been backfilled yet
+	let intl = build_path
+		.join(INTL_FILE_NAME)
+		.is_file()
+		.then(|| read_intl_messages_from_dir(build_path))
+		.transpose()?;
 	// Most archives are around 22MB, allocate a bit more
 	let buf = Vec::with_capacity(25 * MB);
 	let mut a = ArchiveWriter::new(io::Cursor::new(buf))?;
@@ -285,11 +412,18 @@ fn make_archive(data_path: &std::path::Path) -> Result<Vec<u8>> {
 	let deps_json = serde_json::to_vec(&b.dep_info)?;
 	let info_json = serde_json::to_vec(&b.metadata)?;
 	let modules_json = serde_json::to_vec(&b.module_sources)?;
-	let top_level: [(&str, &[u8]); 3] = [
+	let intl_json = intl
+		.as_ref()
+		.map(serde_json::to_vec)
+		.transpose()?;
+	let mut top_level: Vec<(&str, &[u8])> = vec![
 		("deps.json", &deps_json),
 		("info.json", &info_json),
 		("modules.json", &modules_json),
 	];
+	if let Some(intl_json) = &intl_json {
+		top_level.push(("intl.json", intl_json));
+	}
 
 	const DICT_SIZE: u32 = 1 << 24;
 
@@ -327,18 +461,18 @@ async fn get_bundle_archive(
 	Path(file_name): Path<String>,
 	State(state): State<crate::State>,
 ) -> Result {
-	let Some(build_hash) = file_name.strip_suffix(".7z") else {
+	let Some(id) = file_name.strip_suffix(".7z") else {
 		return Ok((
 			StatusCode::BAD_REQUEST,
-			"invalid archive name. expected {hash}.7z",
+			"invalid archive name. expected <hash>.7z",
 		)
 			.into_response());
 	};
-	if !is_valid_build_hash(build_hash) {
-		return Ok(
-			(StatusCode::BAD_REQUEST, "invalid build hash").into_response()
-		);
-	}
+	let build_hash = match resolve_build_hash(&state, id.to_owned()).await {
+		Ok(hash) => hash,
+		Err(res) => return Ok(res.into_response()),
+	};
+	let build_hash = build_hash.as_str();
 	// a broken cache shouldn't take the endpoint down with it, so treat any
 	// error here as a miss
 	match state
@@ -353,8 +487,8 @@ async fn get_bundle_archive(
 		Ok(None) => {}
 		Err(e) => warn!("failed to read archive from cache: {e:?}"),
 	}
-	let data_path = get_build_path(build_hash)?.join(DATA_FILE_NAME);
-	if !fs::try_exists(&data_path).await? {
+	let build_path = get_build_path(build_hash)?;
+	if !fs::try_exists(build_path.join(DATA_FILE_NAME)).await? {
 		return Ok((
 			StatusCode::NOT_FOUND,
 			format!("build {build_hash} not found"),
@@ -362,7 +496,7 @@ async fn get_bundle_archive(
 			.into_response());
 	}
 	let archive =
-		Bytes::from(spawn_blocking(move || make_archive(&data_path)).await??);
+		Bytes::from(spawn_blocking(move || make_archive(&build_path)).await??);
 
 	let cache = state.cache.clone();
 	let cached_archive = archive.clone();
@@ -426,6 +560,8 @@ pub async fn serve(bind_addr: &str, state: crate::State) -> anyhow::Result<()> {
 		.route("/build/{id}/metadata", get(get_build_metadata))
 		.route("/build/{id}/full", get(get_build_full))
 		.route("/build/{id}/intl", get(get_build_intl))
+		.route("/build/{id}/intl/raw", get(get_intl_raw))
+		.route("/build/{id}/intl/rendered", get(get_intl_rendered))
 		.route("/build/archive/{file_name}", get(get_bundle_archive))
 		.route("/builds", get(get_all_builds))
 		.route("/builds/before/time/{timestamp}", get(get_before_timestamp))

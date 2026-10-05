@@ -6,6 +6,7 @@ edition.workspace = true
 [dependencies]
 clap.workspace = true
 discord_scraper.workspace = true
+webpack_ast_parser.workspace = true
 explorer_types.workspace = true
 explorer_server_core.workspace = true
 tokio = { workspace = true, features = [
