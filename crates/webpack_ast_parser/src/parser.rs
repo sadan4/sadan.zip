@@ -92,11 +92,11 @@ use oxc::{
 		AstKind,
 		ast::{
 			Argument,
+			ArrowFunctionBody,
 			ArrowFunctionExpression,
 			AssignmentTarget,
 			BindingIdentifier,
 			BindingPattern,
-			BindingProperty,
 			CallExpression,
 			Class,
 			ClassElement,
@@ -734,60 +734,8 @@ impl<'ast> WebpackAstParser<'ast> {
 
 	/// Attempt to determine if the current module is an intl module
 	pub fn is_intl_module(&self) -> bool {
-		let ret = try {
-			// function () { ... }
-			let [es] = self
-				.get_main_func()
-				.ok()?
-				.body
-				.as_ref()
-				.unwrap()
-				.statements
-				.as_slice()
-			else {
-				return false;
-			};
-			// expr;
-			let es = es.as_expression_statement()?;
-			// ... = ...;
-			let assign = es
-				.expression
-				.as_assignment_expression()?;
-			// foo.bar = ...;
-			let module_exports_use = assign
-				.left
-				.as_static_member_expression()?;
-			let module_use = module_exports_use
-				.object
-				.as_identifier()?;
-			let json_parse_intl = assign.right.as_call_expression()?;
-			let json_parse = json_parse_intl
-				.callee
-				.as_static_member_expression()?;
-			let json_ref = json_parse.object.as_identifier()?;
-			if !self
-				.sema
-				.is_reference_to_global_variable(json_ref)
-				|| json_ref.name != "JSON"
-				|| json_parse.property.name != "parse"
-			{
-				return false;
-			}
-			let [Argument::StringLiteral(intl)] =
-				json_parse_intl.arguments.as_slice()
-			else {
-				return false;
-			};
-			let module = self.mod_arg().ok()?;
-			if !self.cmp_sym(module_use, &module)
-				|| module_exports_use.property.name != "exports"
-			{
-				return false;
-			}
-			let intl = intl.value.as_str();
-			Self::is_valid_intl_json(intl)
-		};
-		ret.unwrap_or(false)
+		self.as_json_module()
+			.is_some_and(Self::is_valid_intl_json)
 	}
 	/// Collects every experiment in the bundle created with this module's
 	/// `createApexExperiment` or `createExperiment` export, including through
@@ -875,10 +823,314 @@ impl<'ast> WebpackAstParser<'ast> {
 		// SAFETY: see send + sync impl for WebpackAstParser
 		unsafe { UnsafeFuture::new(fut) }.await
 	}
+
+	/// if this module is the one that defines the `createLoader` function
+	///
+	/// walk the module graph and collect every **english** intl module
+	pub async fn collect_intl_modules(&self) -> PResult<Option<Vec<ModuleId>>> {
+		const LOADER_FUNC: &str = "createLoader";
+		const WANT_EXPORT_KEYS: &[&str] = &[
+			"makeMessagesProxy",
+			"chainMessagesObjects",
+			"MessageLoader",
+			"waitForAllDefaultIntlMessagesLoaded",
+			"loadAllMessagesInLocale",
+			LOADER_FUNC,
+			"InternalIntlMessage",
+			"DEFAULT_LOCALE",
+			"IntlManager",
+			"runtimeHashMessageKey",
+			"bindFormatValues",
+			"FormatBuilder",
+			"dataFormatterCache",
+			"makeDataFormatters",
+		];
+		let map = self.get_export_map_raw();
+		let is_intl_module = WANT_EXPORT_KEYS
+			.iter()
+			.all(|key| map.exports.contains_key(*key));
+		if !is_intl_module {
+			return Ok(None);
+		}
+		let importers = self
+			.find_importers(vec![ExportMapKey::Named(SmolStr::new_static(
+				LOADER_FUNC,
+			))])
+			.await?;
+		let mut ret = Vec::with_capacity(importers.len());
+		// this can probably be parallelized
+		for Importer {
+			parser,
+			module_id: _,
+			imported_id,
+			export_name,
+		} in importers
+		{
+			match parser
+				.parser()
+				.collect_own_intl_modules(imported_id, &export_name)
+			{
+				Ok(m) => ret.extend(m),
+				Err(e) => {
+					parser
+						.parser()
+						.warn_diag("Failed to collect own intl modules", e);
+				}
+			}
+		}
+		Ok(Some(ret))
+	}
+
+	pub fn as_json_module(&self) -> Option<&'ast str> {
+		self.as_json_module_e_exports()
+			.or_else(|| self.as_json_module_export_default())
+	}
 }
 
 /// Private API
 impl<'ast> WebpackAstParser<'ast> {
+	fn as_json_module_e_exports(&self) -> Option<&'ast str> {
+		// function () { ... }
+		let [es] = self
+			.get_main_func()
+			.ok()?
+			.body
+			.as_ref()
+			.unwrap()
+			.statements
+			.as_slice()
+		else {
+			return None;
+		};
+		// expr;
+		let es = es.as_expression_statement()?;
+		// ... = ...;
+		let assign = es
+			.expression
+			.as_assignment_expression()?;
+		// foo.bar = ...;
+		let module_exports_use = assign
+			.left
+			.as_static_member_expression()?;
+		let module_use = module_exports_use
+			.object
+			.as_identifier()?;
+		let json_parse_intl = assign.right.as_call_expression()?;
+		let module = self.mod_arg().ok()?;
+		if !self.cmp_sym(module_use, &module)
+			|| module_exports_use.property.name != "exports"
+		{
+			return None;
+		}
+		self.try_parse_json_parse(json_parse_intl)
+	}
+	fn as_json_module_export_default(&self) -> Option<&'ast str> {
+		let map = self.get_export_map_raw();
+		let default_export = map
+			.exports
+			.get("default")?
+			.try_unwrap_range_ref()
+			.ok()?;
+		let parse_fn = default_export
+			.last()?
+			.as_call_expression()?;
+		self.try_parse_json_parse(parse_fn)
+	}
+	fn try_parse_json_parse(
+		&self,
+		call: &'ast CallExpression<'ast>,
+	) -> Option<&'ast str> {
+		let json_parse = call
+			.callee
+			.as_static_member_expression()?;
+		let json_ref = json_parse.object.as_identifier()?;
+		if !self
+			.sema
+			.is_reference_to_global_variable(json_ref)
+			|| json_ref.name != "JSON"
+			|| json_parse.property.name != "parse"
+		{
+			return None;
+		}
+		let [Argument::StringLiteral(lit)] =
+			call.arguments.as_slice()
+		else {
+			return None;
+		};
+		Some(lit.value.as_str())
+	}
+	fn collect_own_intl_modules(
+		&self,
+		from_id: ModuleId,
+		export_names: &[ExportMapKey],
+	) -> PResult<Vec<ModuleId>> {
+		const WANT_LANG: &str = "en-US";
+		let mut ret = Vec::new();
+		let uses = self.get_raw_uses_of_import(from_id, export_names);
+		// we should never be here if we don't have wreq
+		let wreq = self.wreq().unwrap();
+		for u in uses {
+			let Some(ident) = u.as_identifier_reference() else {
+				warn!(
+					"only expected identifier references for createLoader uses, got {}",
+					u.debug_name()
+				);
+				continue;
+			};
+			let Some(call) =
+				self.p_if(ident.node_id(), AstKind::as_call_expression)
+			else {
+				warn!(
+					"Expected a call expression for createLoader use, got {}",
+					u.debug_name()
+				);
+				continue;
+			};
+			let [
+				Argument::ObjectExpression(loader_obj),
+				Argument::StringLiteral(fallback_lang),
+			] = call.arguments.as_slice()
+			else {
+				warn!(
+					"invalid args for createLoader call, expected 2 args, got len: {} ;[{}, {}]",
+					call.arguments.len(),
+					call.arguments.first().map_or_else(
+						|| "NONE".into(),
+						|x| x
+							.into_ast_kind()
+							.debug_name()
+							.into_owned()
+					),
+					call.arguments.get(1).map_or_else(
+						|| "NONE".into(),
+						|x| x
+							.into_ast_kind()
+							.debug_name()
+							.into_owned()
+					),
+				);
+				continue;
+			};
+			if fallback_lang.value.as_str() != WANT_LANG {
+				warn!(
+					"invalid fallback lang for createLoader call, expected {WANT_LANG}, got {}",
+					fallback_lang.value.as_str()
+				);
+				continue;
+			}
+
+			let Some(ObjectProperty {
+				value: Expression::ArrowFunctionExpression(loader),
+				..
+			}) = loader_obj.get_property(WANT_LANG)
+			else {
+				warn!("Loader object missing property for {WANT_LANG}");
+				continue;
+			};
+			let ArrowFunctionBody::CallExpression(then_call) = &loader.body
+			else {
+				warn!(
+					"Failed to parse loader body. {}",
+					loader.body.into_ast_kind().debug_name()
+				);
+				continue;
+			};
+			if !then_call
+				.callee
+				.as_static_member_expression()
+				.is_some_and(|sme| sme.property.name == "then")
+			{
+				warn!(
+					"Loader body is not a call to .then(), got {}",
+					then_call
+						.callee
+						.into_ast_kind()
+						.debug_name()
+				);
+				continue;
+			}
+			let [Argument::CallExpression(n_bind)] =
+				then_call.arguments.as_slice()
+			else {
+				warn!(
+					"Loader body .then() call does not have a single argument, got: {}",
+					then_call.arguments.first().map_or_else(
+						|| "NONE".into(),
+						|x| x
+							.into_ast_kind()
+							.debug_name()
+							.into_owned()
+					)
+				);
+				continue;
+			};
+
+			let Some(n_bind_callee) = n_bind
+				.callee
+				.as_static_member_expression()
+			else {
+				warn!(
+					"Loader body .then() call argument is not a call to .bind(), got: {}",
+					n_bind
+						.callee
+						.into_ast_kind()
+						.debug_name()
+				);
+				continue;
+			};
+			if n_bind_callee.property.name != "bind"
+				|| !n_bind_callee
+					.object
+					.as_identifier()
+					.is_some_and(|id| self.cmp_sym(id, &wreq))
+			{
+				warn!(
+					"Loader body .then() call argument is not a call to wreq.bind(), got: {}",
+					n_bind_callee
+						.into_ast_kind()
+						.debug_name()
+				);
+				continue;
+			}
+
+			let [
+				Argument::Identifier(wreq_use),
+				Argument::NumericLiteral(id_lit),
+			] = n_bind.arguments.as_slice()
+			else {
+				warn!(
+					"Loader body .then() call argument is not a call to wreq.bind() with 2 args, got: [{}, {}]",
+					n_bind.arguments.first().map_or_else(
+						|| "NONE".into(),
+						|x| x
+							.into_ast_kind()
+							.debug_name()
+							.into_owned()
+					),
+					n_bind.arguments.get(1).map_or_else(
+						|| "NONE".into(),
+						|x| x
+							.into_ast_kind()
+							.debug_name()
+							.into_owned()
+					),
+				);
+				continue;
+			};
+
+			if !self.cmp_sym(&**wreq_use, &wreq) {
+				warn!("wreq failed to match ?!?");
+				continue;
+			}
+
+			let Some(id) = id_lit.as_u32().map(ModuleId) else {
+				warn!("id literal is not a u32, got: {}", id_lit.value);
+				continue;
+			};
+			ret.push(id);
+		}
+		Ok(ret)
+	}
 	fn get_arc_source(&self) -> Arc<str> {
 		self.arc_source
 			.get_or_init(|| Arc::from(self.source))
@@ -1745,7 +1997,7 @@ impl<'ast> WebpackAstParser<'ast> {
 				"ref_nodes(alias) {:?}",
 				self.ref_nodes(alias).collect_vec()
 			);
-			uses.extend(self.ref_nodes(alias))
+			uses.extend(self.ref_nodes(alias));
 		} else {
 			for usage in self.refs(alias) {
 				if let Some(access) = self
@@ -2337,7 +2589,7 @@ impl<'ast> WebpackAstParser<'ast> {
 			//          ^^^ <- key
 			//  ^^^^^^^^^^^ <- export_access
 			//                ^^^^^^^^^^^^^^^^^^^^ <- export_val
-			// we can't follow `exports.bar` because then we mess 
+			// we can't follow `exports.bar` because then we mess
 			// up spans when we compute the export map for `bar` itself,
 			// so we resolve `right` while it's an assignment
 			while let Expression::AssignmentExpression(assign) = export_val {

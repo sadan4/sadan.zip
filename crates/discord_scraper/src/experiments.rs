@@ -244,6 +244,35 @@ impl ParsedBundle {
 	pub async fn find_experiments(&self) -> Result<Vec<Experiment>> {
 		collect_experiments(self.store.parsers()?).await
 	}
+
+	/// Collects every english intl module in the bundle, sorted by id
+	///
+	/// # Errors
+	/// If no module defines `createLoader`, or collecting from it fails
+	pub async fn find_intl_modules(&self) -> Result<Vec<ModuleId>> {
+		for parser in self.store.parsers()?.values() {
+			let Some(mut ids) = parser
+				.parser()
+				.collect_intl_modules()
+				.await
+				.map_err(|e| anyhow!("{e}"))?
+			else {
+				continue;
+			};
+			ids.sort_unstable();
+			ids.dedup();
+			return Ok(ids);
+		}
+		Err(anyhow!("No module defines createLoader"))
+	}
+
+	pub fn get_parser(&self, id: ModuleId) -> Option<Arc<ThreadSafeParser>> {
+		self.store
+			.parsers()
+			.ok()?
+			.get(&id)
+			.cloned()
+	}
 }
 
 /// Collects every apex and normal experiment defined in `modules`, sorted by

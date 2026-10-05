@@ -470,7 +470,7 @@ impl<'ast> WebpackAstParser<'ast> {
 		})
 	}
 	/// Resolves `{ a: 1, [b]: 2, ...c }`
-	#[expect(clippy::future_not_send)]
+	#[expect(clippy::future_not_send, clippy::too_many_lines)]
 	async fn resolve_object(
 		&self,
 		obj: &'ast ObjectExpression<'ast>,
@@ -892,7 +892,7 @@ impl<'ast> WebpackAstParser<'ast> {
 		self.resolve_value(expr, &mut Vec::new())
 			.await
 	}
-	#[expect(clippy::future_not_send)]
+	#[expect(clippy::future_not_send, clippy::too_many_lines)]
 	async fn resolve_value(
 		&self,
 		expr: &'ast Expression<'ast>,

@@ -1,15 +1,9 @@
 use oxc::{
 	ast::{
-		AstKind,
-		ast::{
-			BindingPattern,
-			Expression as E,
-			MemberExpression,
-			PropertyKey,
-			Statement as S,
+		AstKind, ast::{
+			Argument, ArrowFunctionBody, BindingPattern, Expression as E, MemberExpression, PropertyKey, Statement as S,
 		},
-	},
-	semantic::AstNode,
+	}, semantic::AstNode,
 };
 
 /// Generic trait for anything that be represented as an [`AstKind`].
@@ -243,6 +237,10 @@ make_impl!(JSDocNullableType);
 make_impl!(JSDocNonNullableType);
 make_impl_no_lt!(JSDocUnknownType);
 
+// NOTE: impl with this regex
+// (\w+::\w+\()\w+(\) => )todo!\(\)(,)
+// $1e$2e.into_ast_kind()$3
+
 impl<'ast> IntoAstKind<'ast> for &'ast MemberExpression<'ast> {
 	fn into_ast_kind(self) -> AstKind<'ast> {
 		match self {
@@ -364,6 +362,110 @@ impl<'ast> IntoAstKind<'ast> for &'ast BindingPattern<'ast> {
 			BindingPattern::ObjectPattern(e) => e.into_ast_kind(),
 			BindingPattern::ArrayPattern(e) => e.into_ast_kind(),
 			BindingPattern::AssignmentPattern(e) => e.into_ast_kind(),
+		}
+	}
+}
+
+impl<'ast> IntoAstKind<'ast> for &'ast Argument<'ast> {
+	fn into_ast_kind(self) -> AstKind<'ast> {
+		match self {
+			Argument::SpreadElement(e) => e.into_ast_kind(),
+			Argument::BooleanLiteral(e) => e.into_ast_kind(),
+			Argument::NullLiteral(e) => e.into_ast_kind(),
+			Argument::NumericLiteral(e) => e.into_ast_kind(),
+			Argument::BigIntLiteral(e) => e.into_ast_kind(),
+			Argument::RegExpLiteral(e) => e.into_ast_kind(),
+			Argument::StringLiteral(e) => e.into_ast_kind(),
+			Argument::TemplateLiteral(e) => e.into_ast_kind(),
+			Argument::Identifier(e) => e.into_ast_kind(),
+			Argument::Super(e) => e.into_ast_kind(),
+			Argument::ArrayExpression(e) => e.into_ast_kind(),
+			Argument::ArrowFunctionExpression(e) => e.into_ast_kind(),
+			Argument::AssignmentExpression(e) => e.into_ast_kind(),
+			Argument::AwaitExpression(e) => e.into_ast_kind(),
+			Argument::BinaryExpression(e) => e.into_ast_kind(),
+			Argument::CallExpression(e) => e.into_ast_kind(),
+			Argument::ChainExpression(e) => e.into_ast_kind(),
+			Argument::ClassExpression(e) => e.into_ast_kind(),
+			Argument::ConditionalExpression(e) => e.into_ast_kind(),
+			Argument::FunctionExpression(e) => e.into_ast_kind(),
+			Argument::ImportExpression(e) => e.into_ast_kind(),
+			Argument::LogicalExpression(e) => e.into_ast_kind(),
+			Argument::NewExpression(e) => e.into_ast_kind(),
+			Argument::ObjectExpression(e) => e.into_ast_kind(),
+			Argument::ParenthesizedExpression(e) => e.into_ast_kind(),
+			Argument::SequenceExpression(e) => e.into_ast_kind(),
+			Argument::TaggedTemplateExpression(e) => e.into_ast_kind(),
+			Argument::ThisExpression(e) => e.into_ast_kind(),
+			Argument::UnaryExpression(e) => e.into_ast_kind(),
+			Argument::UpdateExpression(e) => e.into_ast_kind(),
+			Argument::YieldExpression(e) => e.into_ast_kind(),
+			Argument::PrivateInExpression(e) => e.into_ast_kind(),
+			Argument::ImportMeta(e) => e.into_ast_kind(),
+			Argument::NewTarget(e) => e.into_ast_kind(),
+			Argument::JSXElement(e) => e.into_ast_kind(),
+			Argument::JSXFragment(e) => e.into_ast_kind(),
+			Argument::TSAsExpression(e) => e.into_ast_kind(),
+			Argument::TSSatisfiesExpression(e) => e.into_ast_kind(),
+			Argument::TSTypeAssertion(e) => e.into_ast_kind(),
+			Argument::TSNonNullExpression(e) => e.into_ast_kind(),
+			Argument::TSInstantiationExpression(e) => e.into_ast_kind(),
+			Argument::V8IntrinsicExpression(e) => e.into_ast_kind(),
+			Argument::ComputedMemberExpression(e) => e.into_ast_kind(),
+			Argument::StaticMemberExpression(e) => e.into_ast_kind(),
+			Argument::PrivateFieldExpression(e) => e.into_ast_kind(),
+		}
+	}
+}
+
+impl<'ast> IntoAstKind<'ast> for &'ast ArrowFunctionBody<'ast> {
+	fn into_ast_kind(self) -> AstKind<'ast> {
+		match self {
+			ArrowFunctionBody::FunctionBody(e) => e.into_ast_kind(),
+			ArrowFunctionBody::BooleanLiteral(e) => e.into_ast_kind(),
+			ArrowFunctionBody::NullLiteral(e) => e.into_ast_kind(),
+			ArrowFunctionBody::NumericLiteral(e) => e.into_ast_kind(),
+			ArrowFunctionBody::BigIntLiteral(e) => e.into_ast_kind(),
+			ArrowFunctionBody::RegExpLiteral(e) => e.into_ast_kind(),
+			ArrowFunctionBody::StringLiteral(e) => e.into_ast_kind(),
+			ArrowFunctionBody::TemplateLiteral(e) => e.into_ast_kind(),
+			ArrowFunctionBody::Identifier(e) => e.into_ast_kind(),
+			ArrowFunctionBody::Super(e) => e.into_ast_kind(),
+			ArrowFunctionBody::ArrayExpression(e) => e.into_ast_kind(),
+			ArrowFunctionBody::ArrowFunctionExpression(e) => e.into_ast_kind(),
+			ArrowFunctionBody::AssignmentExpression(e) => e.into_ast_kind(),
+			ArrowFunctionBody::AwaitExpression(e) => e.into_ast_kind(),
+			ArrowFunctionBody::BinaryExpression(e) => e.into_ast_kind(),
+			ArrowFunctionBody::CallExpression(e) => e.into_ast_kind(),
+			ArrowFunctionBody::ChainExpression(e) => e.into_ast_kind(),
+			ArrowFunctionBody::ClassExpression(e) => e.into_ast_kind(),
+			ArrowFunctionBody::ConditionalExpression(e) => e.into_ast_kind(),
+			ArrowFunctionBody::FunctionExpression(e) => e.into_ast_kind(),
+			ArrowFunctionBody::ImportExpression(e) => e.into_ast_kind(),
+			ArrowFunctionBody::LogicalExpression(e) => e.into_ast_kind(),
+			ArrowFunctionBody::NewExpression(e) => e.into_ast_kind(),
+			ArrowFunctionBody::ObjectExpression(e) => e.into_ast_kind(),
+			ArrowFunctionBody::ParenthesizedExpression(e) => e.into_ast_kind(),
+			ArrowFunctionBody::SequenceExpression(e) => e.into_ast_kind(),
+			ArrowFunctionBody::TaggedTemplateExpression(e) => e.into_ast_kind(),
+			ArrowFunctionBody::ThisExpression(e) => e.into_ast_kind(),
+			ArrowFunctionBody::UnaryExpression(e) => e.into_ast_kind(),
+			ArrowFunctionBody::UpdateExpression(e) => e.into_ast_kind(),
+			ArrowFunctionBody::YieldExpression(e) => e.into_ast_kind(),
+			ArrowFunctionBody::PrivateInExpression(e) => e.into_ast_kind(),
+			ArrowFunctionBody::ImportMeta(e) => e.into_ast_kind(),
+			ArrowFunctionBody::NewTarget(e) => e.into_ast_kind(),
+			ArrowFunctionBody::JSXElement(e) => e.into_ast_kind(),
+			ArrowFunctionBody::JSXFragment(e) => e.into_ast_kind(),
+			ArrowFunctionBody::TSAsExpression(e) => e.into_ast_kind(),
+			ArrowFunctionBody::TSSatisfiesExpression(e) => e.into_ast_kind(),
+			ArrowFunctionBody::TSTypeAssertion(e) => e.into_ast_kind(),
+			ArrowFunctionBody::TSNonNullExpression(e) => e.into_ast_kind(),
+			ArrowFunctionBody::TSInstantiationExpression(e) => e.into_ast_kind(),
+			ArrowFunctionBody::V8IntrinsicExpression(e) => e.into_ast_kind(),
+			ArrowFunctionBody::ComputedMemberExpression(e) => e.into_ast_kind(),
+			ArrowFunctionBody::StaticMemberExpression(e) => e.into_ast_kind(),
+			ArrowFunctionBody::PrivateFieldExpression(e) => e.into_ast_kind(),
 		}
 	}
 }

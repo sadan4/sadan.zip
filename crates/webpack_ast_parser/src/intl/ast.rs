@@ -4,6 +4,7 @@ use std::{collections::HashMap, str::FromStr};
 struct NodeType;
 impl NodeType {
 	#![expect(non_upper_case_globals)]
+	#[expect(unused)]
 	pub const Literal: u8 = 0;
 	pub const Argument: u8 = 1;
 	pub const Number: u8 = 2;
@@ -155,6 +156,37 @@ pub mod hydrate {
 			.collect()
 	}
 
+	fn hydrate_tag(mut v: Vec<Value>) -> Result<FormatJsNode> {
+		let l = v.len();
+		if l != 3 && l != 4 {
+			bail!("Tag node must have 3 or 4 elements, got {v:?}");
+		}
+		let control = if l == 4 {
+			match v.pop().unwrap() {
+				Value::Array(v) => Some(v),
+				Value::Null => None,
+				other => bail!(
+					"expected fourth element to be an array or null, got {other:?}"
+				),
+			}
+		} else {
+			None
+		};
+		let Value::Array(children) = v.pop().unwrap() else {
+			bail!("expected third element to be an array, got {v:?}");
+		};
+		let Value::String(value) = v.pop().unwrap() else {
+			bail!("expected second element to be a string, got {v:?}");
+		};
+		let hydrated_children = hydrate_array(children)?;
+		let hydrated_control = control.map(hydrate_array).transpose()?;
+		Ok(FormatJsNode::Tag {
+			value,
+			children: hydrated_children,
+			control: hydrated_control,
+		})
+	}
+
 	fn hydrate_single(v: Value) -> Result<FormatJsNode> {
 		if let Value::String(s) = v {
 			Ok(FormatJsNode::Literal(s))
@@ -223,48 +255,10 @@ pub mod hydrate {
 				NT::Time => {
 					num_date_time!(Time)
 				}
-				NT::Select => {
-					return hydrate_select(v);
-				}
-				NT::Plural => {
-					return hydrate_plural(v);
-				}
+				NT::Select => hydrate_select(v)?,
+				NT::Plural => hydrate_plural(v)?,
 				NT::Pound => FormatJsNode::Pound,
-				NT::Tag => {
-					let l = v.len();
-					if l != 3 && l != 4 {
-						bail!("Tag node must have 3 or 4 elements, got {v:?}");
-					}
-					let control = if l == 4 {
-						match v.pop().unwrap() {
-							Value::Array(v) => Some(v),
-							Value::Null => None,
-							other => bail!(
-								"expected fourth element to be an array or null, got {other:?}"
-							),
-						}
-					} else {
-						None
-					};
-					let Value::Array(children) = v.pop().unwrap() else {
-						bail!(
-							"expected third element to be an array, got {v:?}"
-						);
-					};
-					let Value::String(value) = v.pop().unwrap() else {
-						bail!(
-							"expected second element to be a string, got {v:?}"
-						);
-					};
-					let hydrated_children = hydrate_array(children)?;
-					let hydrated_control =
-						control.map(hydrate_array).transpose()?;
-					FormatJsNode::Tag {
-						value,
-						children: hydrated_children,
-						control: hydrated_control,
-					}
-				}
+				NT::Tag => hydrate_tag(v)?,
 				_ => {
 					bail!("Unsupported node type {tag}");
 				}
