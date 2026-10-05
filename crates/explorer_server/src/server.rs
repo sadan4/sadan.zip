@@ -29,10 +29,10 @@ use explorer_types::{
 	Channel,
 	FullBundle,
 	TimestampQueryResults,
-	intl::IntlMessage,
+	intl::{IntlMessage, IntlMessages},
 };
 use git_hash::GIT_HASH;
-use http::{HeaderValue, StatusCode, header, request::Parts};
+use http::{HeaderMap, HeaderValue, StatusCode, header, request::Parts};
 use serde::Deserialize;
 use serde_json::{Map, Value};
 use sevenz_rust2::{
@@ -50,7 +50,7 @@ use tokio::{
 use tokio_stream::{StreamExt, wrappers::ReadDirStream};
 use tokio_util::io::ReaderStream;
 use tower_http::cors;
-use tracing::{info, instrument, warn};
+use tracing::{error, info, instrument, warn};
 use webpack_ast_parser::intl::{ast::hydrate::hydrate_ast, render_message};
 
 type Result<T = Response> = std::result::Result<T, AppError>;
@@ -62,6 +62,15 @@ const JSON_MIME_TYPE: &str = "application/json";
 const TEXT_MIME_TYPE: &str = "text/plain; charset=utf-8";
 
 const MB: usize = 1024 * 1024;
+
+const fn zstd_headers(
+	mime: &'static str,
+) -> [(header::HeaderName, HeaderValue); 2] {
+	[
+		(header::CONTENT_TYPE, HeaderValue::from_static(mime)),
+		(header::CONTENT_ENCODING, HeaderValue::from_static("zstd")),
+	]
+}
 
 /// Headers for a response of `mime` type with a body of `len` bytes
 fn content_headers(
@@ -203,8 +212,48 @@ async fn get_build_full(BuildHash(build_hash): BuildHash) -> Result {
 	stream_build_file(&build_hash, DATA_FILE_NAME).await
 }
 
-async fn get_build_intl(BuildHash(build_hash): BuildHash) -> Result {
-	stream_build_file(&build_hash, INTL_FILE_NAME).await
+async fn intl_as_json(build_hash: &str) -> Result {
+	let path = get_build_path(build_hash)?.join(INTL_FILE_NAME);
+	if !fs::try_exists(&path).await? {
+		return Ok((
+			StatusCode::NOT_FOUND,
+			format!("intl messages for build {build_hash} not found"),
+		)
+			.into_response());
+	}
+	let bts = spawn_blocking(move || {
+		let guh = read_mpk_zst_file::<IntlMessages>(&path)?;
+		let guh = serde_json::to_vec(&guh)?;
+		anyhow::Ok(Bytes::from(guh))
+	})
+	.await??;
+	Ok((
+		[(
+			header::CONTENT_TYPE,
+			HeaderValue::from_static(JSON_MIME_TYPE),
+		)],
+		Body::from(bts),
+	)
+		.into_response())
+}
+
+async fn get_build_intl(
+	headers: HeaderMap,
+	BuildHash(build_hash): BuildHash,
+) -> Result {
+	let wants_json = try {
+		headers
+			.get(header::ACCEPT)?
+			.to_str()
+			.ok()?
+			== JSON_MIME_TYPE
+	}
+	.unwrap_or_default();
+	if wants_json {
+		intl_as_json(&build_hash).await
+	} else {
+		stream_build_file(&build_hash, INTL_FILE_NAME).await
+	}
 }
 
 #[derive(Deserialize)]

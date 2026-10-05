@@ -17,7 +17,7 @@ tokio = { workspace = true, features = [
   "process",
 ] }
 tokio-stream = { workspace = true, features = ["fs"] }
-tokio-util = { workspace = true }
+tokio-util = { workspace = true, features = ["io", "io-util"] }
 reqwest.workspace = true
 anyhow.workspace = true
 tracing.workspace = true

@@ -1,3 +1,4 @@
+#![feature(try_blocks)]
 mod cache;
 mod migrations;
 mod server;
