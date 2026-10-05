@@ -15,6 +15,7 @@ use axum::{
 };
 use explorer_server_core::{
 	DATA_FILE_NAME,
+	INTL_FILE_NAME,
 	METADATA_FILE_NAME,
 	get_around,
 	get_build_path,
@@ -119,30 +120,41 @@ async fn get_build_metadata(Path(build_hash): Path<String>) -> Result {
 	Ok(sized_response(ZSTD_MIME_TYPE, meta))
 }
 
-async fn get_build_full(Path(build_hash): Path<String>) -> Result {
-	if !is_valid_build_hash(&build_hash) {
+/// Streams `file_name` from the build directory of `build_hash`
+async fn stream_build_file(build_hash: &str, file_name: &str) -> Result {
+	if !is_valid_build_hash(build_hash) {
 		return Ok(
 			(StatusCode::BAD_REQUEST, "invalid build hash").into_response()
 		);
 	}
-	let data_path = get_build_path(&build_hash)?.join(DATA_FILE_NAME);
-	if !fs::try_exists(&data_path).await? {
+	let path = get_build_path(build_hash)?.join(file_name);
+	if !fs::try_exists(&path).await? {
 		return Ok((
 			StatusCode::NOT_FOUND,
-			format!("build {build_hash} not found"),
+			format!("{file_name} for build {build_hash} not found"),
 		)
 			.into_response());
 	}
-	let data_file = fs::File::open(data_path).await?;
-	let data_len = data_file.metadata().await?.len();
+	let file = fs::File::open(path).await?;
+	let len = file.metadata().await?.len();
 
 	// the default stream size is 4KiB, which makes our requests VERY slow
 	// as our files are 25-30MiB. use a default of 5MiB to make them not slow.
-	let data_stream = ReaderStream::with_capacity(data_file, 5 * MB);
+	let stream = ReaderStream::with_capacity(file, 5 * MB);
 
-	let data_body = Body::from_stream(data_stream);
+	Ok((
+		content_headers(ZSTD_MIME_TYPE, len),
+		Body::from_stream(stream),
+	)
+		.into_response())
+}
 
-	Ok((content_headers(ZSTD_MIME_TYPE, data_len), data_body).into_response())
+async fn get_build_full(Path(build_hash): Path<String>) -> Result {
+	stream_build_file(&build_hash, DATA_FILE_NAME).await
+}
+
+async fn get_build_intl(Path(build_hash): Path<String>) -> Result {
+	stream_build_file(&build_hash, INTL_FILE_NAME).await
 }
 
 // TODO: ratelimit to like 4/hr
@@ -413,6 +425,7 @@ pub async fn serve(bind_addr: &str, state: crate::State) -> anyhow::Result<()> {
 	let app = Router::new()
 		.route("/build/{id}/metadata", get(get_build_metadata))
 		.route("/build/{id}/full", get(get_build_full))
+		.route("/build/{id}/intl", get(get_build_intl))
 		.route("/build/archive/{file_name}", get(get_bundle_archive))
 		.route("/builds", get(get_all_builds))
 		.route("/builds/before/time/{timestamp}", get(get_before_timestamp))
