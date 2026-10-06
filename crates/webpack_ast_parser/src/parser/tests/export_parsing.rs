@@ -738,6 +738,16 @@ mod wreq_d {
 		}
 		"#);
 	}
+
+	#[test]
+	#[should_panic(expected = "recursive export map; would stack overflow")]
+	fn self_referential_export() {
+		let alloc = Allocator::new();
+		let source = "0,function(e, t, n) { n.d(t, { Foo: () => r }); \
+		              let r = { getInstance: () => r }; }";
+		let p = WebpackAstParser::try_new(&alloc, source).unwrap();
+		_ = p.get_export_map();
+	}
 }
 mod e_exports {
 	use super::*;
