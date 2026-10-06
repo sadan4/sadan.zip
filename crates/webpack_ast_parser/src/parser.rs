@@ -21,18 +21,11 @@ use crate::{
 	find::{IntlKey, ScoredFindSequence},
 	intl::ast::hydrate::hydrate_ast,
 	parser::{
-		enum_iife::EnumIIFEState1_2,
 		export_map::{
-			ExportMap,
 			ExportMapKey,
 			ExportRange,
 			ExportValue,
-			ExtraData,
 			RangeExportMap,
-			RangeExportMapValue,
-			RangeExportRange,
-			RawExportMapValue,
-			RawExportRange,
 			RawStoreData,
 		},
 		types::{
@@ -41,11 +34,9 @@ use crate::{
 			ResolvedDefinition,
 			SearchElement,
 			WreqD,
-			WreqDExportType,
 		},
 		util::{
 			filter_export_map,
-			find_return_identifier,
 			flatten_export_map,
 			flatten_property_access_expression,
 			get_nested_export_from_map,

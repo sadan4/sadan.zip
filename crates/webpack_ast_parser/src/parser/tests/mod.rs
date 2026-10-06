@@ -1,5 +1,7 @@
 #![allow(clippy::unreadable_literal, clippy::too_many_lines)]
 
+use crate::export_map::RangeExportMapValue;
+
 use super::*;
 use ast_parser::span_line_and_column;
 use insta::assert_debug_snapshot;
