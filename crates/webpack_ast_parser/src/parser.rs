@@ -28,14 +28,9 @@ use crate::{
 			RangeExportMap,
 			RawStoreData,
 		},
-		types::{
-			Importer,
-			ReExport,
-			ResolvedDefinition,
-			SearchElement,
-			WreqD,
-		},
+		types::{Importer, ReExport, ResolvedDefinition, SearchElement, WreqD},
 		util::{
+			args_span,
 			filter_export_map,
 			flatten_export_map,
 			flatten_property_access_expression,
@@ -947,53 +942,39 @@ impl<'ast> WebpackAstParser<'ast> {
 		// we should never be here if we don't have wreq
 		let wreq = self.wreq().unwrap();
 		for u in uses {
-			let Some(ident) = u.as_identifier_reference() else {
-				warn!(
-					"only expected identifier references for createLoader uses, got {}",
-					u.debug_name()
-				);
-				continue;
-			};
-			let Some(call) =
-				self.p_if(ident.node_id(), AstKind::as_call_expression)
-			else {
-				warn!(
-					"Expected a call expression for createLoader use, got {}",
-					u.debug_name()
-				);
-				continue;
-			};
+			let ident = u
+				.as_identifier_reference()
+				.ok_or_else(|| {
+					err(
+						&u,
+						"Expected an identifier reference for createLoader uses",
+					)
+				})?;
+			let call = self
+				.p_if(ident.node_id(), AstKind::as_call_expression)
+				.ok_or_else(|| {
+					err(
+						ident,
+						"Expected parent to be a call expression for createLoader use",
+					)
+				})?;
 			let [
 				Argument::ObjectExpression(loader_obj),
 				Argument::StringLiteral(fallback_lang),
 			] = call.arguments.as_slice()
 			else {
-				warn!(
-					"invalid args for createLoader call, expected 2 args, got len: {} ;[{}, {}]",
-					call.arguments.len(),
-					call.arguments.first().map_or_else(
-						|| "NONE".into(),
-						|x| x
-							.into_ast_kind()
-							.debug_name()
-							.into_owned()
-					),
-					call.arguments.get(1).map_or_else(
-						|| "NONE".into(),
-						|x| x
-							.into_ast_kind()
-							.debug_name()
-							.into_owned()
-					),
-				);
-				continue;
+				return Err(err(
+					&args_span(call),
+					"invalid args for createLoader call, expected 2 args",
+				));
 			};
 			if fallback_lang.value.as_str() != WANT_LANG {
-				warn!(
-					"invalid fallback lang for createLoader call, expected {WANT_LANG}, got {}",
-					fallback_lang.value.as_str()
-				);
-				continue;
+				return Err(err(
+					&**fallback_lang,
+					format!(
+						"invalid fallback lang for createLoader call, expected {WANT_LANG}"
+					),
+				));
 			}
 
 			let Some(ObjectProperty {
@@ -1001,59 +982,45 @@ impl<'ast> WebpackAstParser<'ast> {
 				..
 			}) = loader_obj.get_property(WANT_LANG)
 			else {
-				warn!("Loader object missing property for {WANT_LANG}");
-				continue;
+				return Err(err(
+					&**loader_obj,
+					format!("Loader object missing property for {WANT_LANG}"),
+				));
 			};
 			let ArrowFunctionBody::CallExpression(then_call) = &loader.body
 			else {
-				warn!(
-					"Failed to parse loader body. {}",
-					loader.body.into_ast_kind().debug_name()
-				);
-				continue;
+				return Err(err(
+					&loader.body,
+					"Loader body is not a call expression",
+				));
 			};
 			if !then_call
 				.callee
 				.as_static_member_expression()
 				.is_some_and(|sme| sme.property.name == "then")
 			{
-				warn!(
-					"Loader body is not a call to .then(), got {}",
-					then_call
-						.callee
-						.into_ast_kind()
-						.debug_name()
-				);
-				continue;
+				return Err(err(
+					&then_call.callee,
+					"Loader body is not a call to .then()",
+				));
 			}
 			let [Argument::CallExpression(n_bind)] =
 				then_call.arguments.as_slice()
 			else {
-				warn!(
-					"Loader body .then() call does not have a single argument, got: {}",
-					then_call.arguments.first().map_or_else(
-						|| "NONE".into(),
-						|x| x
-							.into_ast_kind()
-							.debug_name()
-							.into_owned()
-					)
-				);
-				continue;
+				return Err(err(
+					&args_span(then_call),
+					"Loader body .then() call does not have a single argument",
+				));
 			};
 
 			let Some(n_bind_callee) = n_bind
 				.callee
 				.as_static_member_expression()
 			else {
-				warn!(
-					"Loader body .then() call argument is not a call to .bind(), got: {}",
-					n_bind
-						.callee
-						.into_ast_kind()
-						.debug_name()
-				);
-				continue;
+				return Err(err(
+					&n_bind.callee,
+					"Loader body .then() call argument is not a call to .bind()",
+				));
 			};
 			if n_bind_callee.property.name != "bind"
 				|| !n_bind_callee
@@ -1061,13 +1028,10 @@ impl<'ast> WebpackAstParser<'ast> {
 					.as_identifier()
 					.is_some_and(|id| self.cmp_sym(id, &wreq))
 			{
-				warn!(
-					"Loader body .then() call argument is not a call to wreq.bind(), got: {}",
-					n_bind_callee
-						.into_ast_kind()
-						.debug_name()
-				);
-				continue;
+				return Err(err(
+					n_bind_callee,
+					"Loader body .then() call argument is not a call to wreq.bind()",
+				));
 			}
 
 			let [
@@ -1075,34 +1039,24 @@ impl<'ast> WebpackAstParser<'ast> {
 				Argument::NumericLiteral(id_lit),
 			] = n_bind.arguments.as_slice()
 			else {
-				warn!(
-					"Loader body .then() call argument is not a call to wreq.bind() with 2 args, got: [{}, {}]",
-					n_bind.arguments.first().map_or_else(
-						|| "NONE".into(),
-						|x| x
-							.into_ast_kind()
-							.debug_name()
-							.into_owned()
-					),
-					n_bind.arguments.get(1).map_or_else(
-						|| "NONE".into(),
-						|x| x
-							.into_ast_kind()
-							.debug_name()
-							.into_owned()
-					),
-				);
-				continue;
+				return Err(err(
+					&args_span(n_bind),
+					"Loader body .then() call argument is not a call to wreq.bind() with 2 args",
+				));
 			};
 
 			if !self.cmp_sym(&**wreq_use, &wreq) {
-				warn!("wreq failed to match ?!?");
-				continue;
+				return Err(err(
+					&**wreq_use,
+					"expected this to be wreq",
+				));
 			}
 
 			let Some(id) = id_lit.as_u32().map(ModuleId) else {
-				warn!("id literal is not a u32, got: {}", id_lit.value);
-				continue;
+				return Err(err(
+					&**id_lit,
+					"expected this to be a u32 module id",
+				));
 			};
 			ret.push(id);
 		}
@@ -3181,10 +3135,10 @@ impl<'ast> WebpackAstParser<'ast> {
 				| TK::Var
 				| TK::Const // swc bug <1.16.0 not transforming const -> let
 				| TK::Bang => 1,
-				TK::Percent 
+				TK::Percent
 				| TK::PercentEq
-				| TK::Do 
-				| TK::ShiftRight 
+				| TK::Do
+				| TK::ShiftRight
 				| TK::Tilde
 				| TK::ShiftRight3
 				| TK::ShiftLeftEq

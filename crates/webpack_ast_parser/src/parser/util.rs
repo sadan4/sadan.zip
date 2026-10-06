@@ -13,6 +13,7 @@ use itertools::Itertools as _;
 use oxc::{
 	ast::ast::{
 		ArrowFunctionExpression,
+		CallExpression,
 		Expression,
 		Function,
 		FunctionBody,
@@ -21,7 +22,7 @@ use oxc::{
 		ParenthesizedExpression,
 		Statement,
 	},
-	span::Span,
+	span::{GetSpan, Span},
 };
 
 use crate::{
@@ -351,6 +352,14 @@ pub fn f64_to_i32(v: f64) -> Option<i32> {
 		return None;
 	}
 	Some(v as i32)
+}
+
+/// Get the span of the arguments of a [`CallExpression`].
+///
+/// if the call has no arguments, returns the span from the end of the callee to the end of the call expression
+pub fn args_span(call: &CallExpression) -> Span {
+	call.arguments_span()
+		.unwrap_or_else(|| Span::new(call.callee.span().end, call.span.end))
 }
 
 #[cfg(test)]

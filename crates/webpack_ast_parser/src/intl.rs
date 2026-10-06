@@ -38,7 +38,10 @@ pub fn render_message(
 				Some(Value::Number(n)) => write!(to, "{n}")?,
 				Some(Value::Bool(b)) => write!(to, "{b}")?,
 				Some(_) => {
-					write!(to, "[unsupported value type for argument '{arg}']")?;
+					write!(
+						to,
+						"[unsupported value type for argument '{arg}']"
+					)?;
 				}
 				None => write!(to, "[<{arg}>]")?,
 			},

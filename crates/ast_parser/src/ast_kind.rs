@@ -1,9 +1,17 @@
 use oxc::{
 	ast::{
-		AstKind, ast::{
-			Argument, ArrowFunctionBody, BindingPattern, Expression as E, MemberExpression, PropertyKey, Statement as S,
+		AstKind,
+		ast::{
+			Argument,
+			ArrowFunctionBody,
+			BindingPattern,
+			Expression as E,
+			MemberExpression,
+			PropertyKey,
+			Statement as S,
 		},
-	}, semantic::AstNode,
+	},
+	semantic::AstNode,
 };
 
 /// Generic trait for anything that be represented as an [`AstKind`].
@@ -461,7 +469,9 @@ impl<'ast> IntoAstKind<'ast> for &'ast ArrowFunctionBody<'ast> {
 			ArrowFunctionBody::TSSatisfiesExpression(e) => e.into_ast_kind(),
 			ArrowFunctionBody::TSTypeAssertion(e) => e.into_ast_kind(),
 			ArrowFunctionBody::TSNonNullExpression(e) => e.into_ast_kind(),
-			ArrowFunctionBody::TSInstantiationExpression(e) => e.into_ast_kind(),
+			ArrowFunctionBody::TSInstantiationExpression(e) => {
+				e.into_ast_kind()
+			}
 			ArrowFunctionBody::V8IntrinsicExpression(e) => e.into_ast_kind(),
 			ArrowFunctionBody::ComputedMemberExpression(e) => e.into_ast_kind(),
 			ArrowFunctionBody::StaticMemberExpression(e) => e.into_ast_kind(),
