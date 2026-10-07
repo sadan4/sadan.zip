@@ -2,53 +2,11 @@ use anyhow::Result;
 use derive_more::{From, TryUnwrap};
 use itertools::Itertools as _;
 use oxc::{
-	allocator::Box as OxcBox,
-	ast::{
-		AstKind,
-		ast::{
-			Argument,
-			ArrayExpression,
-			ArrayExpressionElement,
-			ArrowFunctionBody,
-			ArrowFunctionExpression,
-			AssignmentExpression,
-			AssignmentTarget,
-			BigIntLiteral,
-			BinaryExpression,
-			BindingIdentifier,
-			BindingPattern,
-			CallExpression,
-			ComputedMemberExpression,
-			ConditionalExpression,
-			Expression,
-			ExpressionStatement,
-			Function,
-			FunctionBody,
-			IdentifierName,
-			IdentifierReference,
-			ImportDeclaration,
-			ImportDeclarationSpecifier,
-			MemberExpression,
-			ModuleDeclaration,
-			NumericLiteral,
-			ObjectExpression,
-			ObjectProperty,
-			PrivateFieldExpression,
-			PrivateIdentifier,
-			PropertyKey,
-			ReturnStatement,
-			SequenceExpression,
-			SpreadElement,
-			Statement,
-			StaticMemberExpression,
-			Str,
-			StringLiteral,
-			TaggedTemplateExpression,
-			TemplateLiteral,
+	allocator::Box as OxcBox, ast::{
+		AstKind, ast::{
+			Argument, ArrayExpression, ArrayExpressionElement, ArrowFunctionBody, ArrowFunctionExpression, AssignmentExpression, AssignmentTarget, BigIntLiteral, BinaryExpression, BindingIdentifier, BindingPattern, CallExpression, ComputedMemberExpression, ConditionalExpression, Expression, ExpressionStatement, Function, FunctionBody, IdentifierName, IdentifierReference, ImportDeclaration, ImportDeclarationSpecifier, LogicalExpression, MemberExpression, ModuleDeclaration, NumericLiteral, ObjectExpression, ObjectProperty, PrivateFieldExpression, PrivateIdentifier, PropertyKey, ReturnStatement, SequenceExpression, SpreadElement, Statement, StaticMemberExpression, Str, StringLiteral, TaggedTemplateExpression, TemplateLiteral, UnaryExpression,
 		},
-	},
-	semantic::{NodeId, ScopeId, SymbolId},
-	span::{GetSpan, Span},
+	}, semantic::{NodeId, ScopeId, SymbolId}, span::{GetSpan, Span},
 };
 use oxc_ecmascript::{GlobalContext, constant_evaluation::IsLiteralValue};
 use std::borrow::Cow;
@@ -864,6 +822,37 @@ pub trait ExpressionExt<'ast> {
 					)
 				})
 			})
+	}
+
+	fn as_unary_expression(&self) -> Option<&UnaryExpression<'ast>> {
+		match self.as_expr_()? {
+			Expression::UnaryExpression(e) => Some(e.as_ref()),
+			_ => None,
+		}
+	}
+
+	fn as_unary_expression_mut(
+		&mut self,
+	) -> Option<&mut UnaryExpression<'ast>> {
+		match self.as_expr_mut_()? {
+			Expression::UnaryExpression(e) => Some(e.as_mut()),
+			_ => None,
+		}
+	}
+
+	fn as_logical_expression(&self) -> Option<&LogicalExpression<'ast>> {
+		match self.as_expr_()? {
+			Expression::LogicalExpression(e) => Some(e.as_ref()),
+			_ => None,
+		}
+	}
+	fn as_logical_expression_mut(
+		&mut self,
+	) -> Option<&mut LogicalExpression<'ast>> {
+		match self.as_expr_mut_()? {
+			Expression::LogicalExpression(e) => Some(e.as_mut()),
+			_ => None,
+		}
 	}
 
 	fn dbg_name(&self) -> &'static str {

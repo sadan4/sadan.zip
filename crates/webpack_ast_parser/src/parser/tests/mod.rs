@@ -24,6 +24,7 @@ mod direct_module_definition;
 mod experiments;
 mod export_parsing;
 mod find_gen;
+mod icons;
 mod import_parsing;
 mod intl_keys;
 mod is_write_once;
