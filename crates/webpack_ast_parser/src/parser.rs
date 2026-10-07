@@ -3,6 +3,7 @@ mod arg_finder;
 mod enum_iife;
 mod experiment_parsing;
 pub mod export_map;
+mod icons;
 mod json;
 mod main_func_finder;
 mod types;
@@ -1046,10 +1047,7 @@ impl<'ast> WebpackAstParser<'ast> {
 			};
 
 			if !self.cmp_sym(&**wreq_use, &wreq) {
-				return Err(err(
-					&**wreq_use,
-					"expected this to be wreq",
-				));
+				return Err(err(&**wreq_use, "expected this to be wreq"));
 			}
 
 			let Some(id) = id_lit.as_u32().map(ModuleId) else {

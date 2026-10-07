@@ -9,6 +9,7 @@ use anyhow::{Context, Result, anyhow};
 use async_trait::async_trait;
 use explorer_types::{
 	DepInfo,
+	ExportName,
 	IncomingModuleDeps,
 	KeyModules,
 	ModuleId,
@@ -161,6 +162,28 @@ fn parse_modules(
 	Ok(())
 }
 
+/// Collects every default icon props module in `parsers`, sorted by id
+fn collect_default_icon_props(
+	parsers: &Parsers,
+) -> Vec<(ModuleId, ExportName)> {
+	let mut found = parsers
+		.iter()
+		.filter_map(|(&id, parser)| {
+			let export = parser
+				.parser()
+				.default_icon_props_export()?;
+			let export = if export == "default" {
+				ExportName::Default
+			} else {
+				ExportName::Named(export.into())
+			};
+			Some((id, export))
+		})
+		.collect::<Vec<_>>();
+	found.sort_unstable_by_key(|&(id, _)| id);
+	found
+}
+
 /// Builds the incoming dep graph from each parser's outgoing deps
 fn build_dep_info(parsers: &Parsers) -> DepInfo {
 	let mut deps: HashMap<_, IncomingModuleDeps> =
@@ -188,7 +211,10 @@ fn build_dep_info(parsers: &Parsers) -> DepInfo {
 		}
 	}
 	DepInfo {
-		key_modules: KeyModules::default(),
+		key_modules: KeyModules {
+			default_icon_props: collect_default_icon_props(parsers),
+			..KeyModules::default()
+		},
 		module_deps: deps,
 	}
 }

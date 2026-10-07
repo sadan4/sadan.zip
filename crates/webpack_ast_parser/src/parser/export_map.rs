@@ -221,6 +221,7 @@ impl IntoIterator for RangeExportMap {
 
 	type IntoIter = Box<dyn Iterator<Item = Self::Item>>;
 
+	// FIXME: husk
 	fn into_iter(self) -> Self::IntoIter {
 		let def: Box<dyn Iterator<Item = Self::Item>> = if let Some(def) =
 			self.cjs_default

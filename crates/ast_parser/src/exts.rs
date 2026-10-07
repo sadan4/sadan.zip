@@ -28,6 +28,7 @@ use oxc::{
 			IdentifierReference,
 			ImportDeclaration,
 			ImportDeclarationSpecifier,
+			LogicalExpression,
 			MemberExpression,
 			ModuleDeclaration,
 			NumericLiteral,
@@ -45,6 +46,7 @@ use oxc::{
 			StringLiteral,
 			TaggedTemplateExpression,
 			TemplateLiteral,
+			UnaryExpression,
 		},
 	},
 	semantic::{NodeId, ScopeId, SymbolId},
@@ -864,6 +866,37 @@ pub trait ExpressionExt<'ast> {
 					)
 				})
 			})
+	}
+
+	fn as_unary_expression(&self) -> Option<&UnaryExpression<'ast>> {
+		match self.as_expr_()? {
+			Expression::UnaryExpression(e) => Some(e.as_ref()),
+			_ => None,
+		}
+	}
+
+	fn as_unary_expression_mut(
+		&mut self,
+	) -> Option<&mut UnaryExpression<'ast>> {
+		match self.as_expr_mut_()? {
+			Expression::UnaryExpression(e) => Some(e.as_mut()),
+			_ => None,
+		}
+	}
+
+	fn as_logical_expression(&self) -> Option<&LogicalExpression<'ast>> {
+		match self.as_expr_()? {
+			Expression::LogicalExpression(e) => Some(e.as_ref()),
+			_ => None,
+		}
+	}
+	fn as_logical_expression_mut(
+		&mut self,
+	) -> Option<&mut LogicalExpression<'ast>> {
+		match self.as_expr_mut_()? {
+			Expression::LogicalExpression(e) => Some(e.as_mut()),
+			_ => None,
+		}
 	}
 
 	fn dbg_name(&self) -> &'static str {

@@ -60,14 +60,18 @@ pub enum ExportName {
 #[serde(rename_all = "camelCase")]
 pub struct KeyModules {
 	pub flux_dispatcher_class: Vec<(ModuleId, ExportName)>,
+	#[serde(default)]
+	pub default_icon_props: Vec<(ModuleId, ExportName)>,
 }
 
 impl KeyModules {
 	pub fn shrink_to_fit(&mut self) {
 		let Self {
 			flux_dispatcher_class,
+			default_icon_props,
 		} = self;
 		flux_dispatcher_class.shrink_to_fit();
+		default_icon_props.shrink_to_fit();
 	}
 }
 
