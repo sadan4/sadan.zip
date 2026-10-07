@@ -9,6 +9,7 @@ mod main_func_finder;
 mod types;
 mod util;
 mod value_tracking;
+mod lottie;
 
 use crate::{
 	bundle::{
