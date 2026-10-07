@@ -293,6 +293,7 @@ impl V3Migration {
 							Ok((k.parse().map(ModuleId)?, ExportName::Named(v)))
 						})
 						.collect::<Result<_>>()?,
+					default_icon_props: Vec::new(),
 				},
 				module_deps: deps_json
 					.deps
