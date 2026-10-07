@@ -1,7 +1,11 @@
 use std::convert::Infallible;
 
 use oxc::{
-	ast::{AstKind, ast::{BindingIdentifier, IdentifierReference}}, semantic::{Reference, ReferenceId, Semantic, SymbolId},
+	ast::{
+		AstKind,
+		ast::{BindingIdentifier, IdentifierReference},
+	},
+	semantic::{Reference, ReferenceId, Semantic, SymbolId},
 };
 
 pub trait GetSymId {
@@ -13,7 +17,7 @@ impl GetSymId for AstKind<'_> {
 		match self {
 			AstKind::IdentifierReference(r) => r.get_sym_id(sema),
 			AstKind::BindingIdentifier(r) => Some(r.symbol_id()),
-			_ => None
+			_ => None,
 		}
 	}
 }
