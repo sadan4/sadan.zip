@@ -126,25 +126,23 @@ impl<'ast> WebpackAstParser<'ast> {
 		{
 			let parser = parser.parser();
 			async {
-				let e = try {
-					let uses = parser
-						.get_raw_uses_of_import(imported_id, &export_name);
-					ret.reserve(uses.len());
-					for u in uses {
-						let icon = parser
-							.try_get_icon_from_default_props_use(u)
-							.await?;
-						ret.push(icon);
+				let uses =
+					parser.get_raw_uses_of_import(imported_id, &export_name);
+				ret.reserve(uses.len());
+				for u in uses {
+					match parser
+						.try_get_icon_from_default_props_use(u)
+						.await
+					{
+						Ok(icon) => ret.push(icon),
+						Err(e) => warn!(
+							"Failed to scrape icon from module {parser_id}, {:?}",
+							e.with_local_source(
+								parser.source,
+								&format!("{parser_id}.js")
+							)
+						),
 					}
-				};
-				if let Err(e) = e {
-					warn!(
-						"Failed to scrape icons from module {parser_id}, {:?}",
-						e.with_local_source(
-							parser.source,
-							&format!("{parser_id}.js")
-						)
-					);
 				}
 			}
 			.instrument(info_span!("scrape_icons", %parser_id))
