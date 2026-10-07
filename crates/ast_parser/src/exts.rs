@@ -2,11 +2,55 @@ use anyhow::Result;
 use derive_more::{From, TryUnwrap};
 use itertools::Itertools as _;
 use oxc::{
-	allocator::Box as OxcBox, ast::{
-		AstKind, ast::{
-			Argument, ArrayExpression, ArrayExpressionElement, ArrowFunctionBody, ArrowFunctionExpression, AssignmentExpression, AssignmentTarget, BigIntLiteral, BinaryExpression, BindingIdentifier, BindingPattern, CallExpression, ComputedMemberExpression, ConditionalExpression, Expression, ExpressionStatement, Function, FunctionBody, IdentifierName, IdentifierReference, ImportDeclaration, ImportDeclarationSpecifier, LogicalExpression, MemberExpression, ModuleDeclaration, NumericLiteral, ObjectExpression, ObjectProperty, PrivateFieldExpression, PrivateIdentifier, PropertyKey, ReturnStatement, SequenceExpression, SpreadElement, Statement, StaticMemberExpression, Str, StringLiteral, TaggedTemplateExpression, TemplateLiteral, UnaryExpression,
+	allocator::Box as OxcBox,
+	ast::{
+		AstKind,
+		ast::{
+			Argument,
+			ArrayExpression,
+			ArrayExpressionElement,
+			ArrowFunctionBody,
+			ArrowFunctionExpression,
+			AssignmentExpression,
+			AssignmentTarget,
+			BigIntLiteral,
+			BinaryExpression,
+			BindingIdentifier,
+			BindingPattern,
+			CallExpression,
+			ComputedMemberExpression,
+			ConditionalExpression,
+			Expression,
+			ExpressionStatement,
+			Function,
+			FunctionBody,
+			IdentifierName,
+			IdentifierReference,
+			ImportDeclaration,
+			ImportDeclarationSpecifier,
+			LogicalExpression,
+			MemberExpression,
+			ModuleDeclaration,
+			NumericLiteral,
+			ObjectExpression,
+			ObjectProperty,
+			PrivateFieldExpression,
+			PrivateIdentifier,
+			PropertyKey,
+			ReturnStatement,
+			SequenceExpression,
+			SpreadElement,
+			Statement,
+			StaticMemberExpression,
+			Str,
+			StringLiteral,
+			TaggedTemplateExpression,
+			TemplateLiteral,
+			UnaryExpression,
 		},
-	}, semantic::{NodeId, ScopeId, SymbolId}, span::{GetSpan, Span},
+	},
+	semantic::{NodeId, ScopeId, SymbolId},
+	span::{GetSpan, Span},
 };
 use oxc_ecmascript::{GlobalContext, constant_evaluation::IsLiteralValue};
 use std::borrow::Cow;
@@ -417,7 +461,7 @@ impl<'ast, T: ExpressionExt<'ast>> MemberExpressionExt<'ast> for T {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub enum Functionish<'a, 'ast > {
+pub enum Functionish<'a, 'ast> {
 	Named(&'a Function<'ast>),
 	Arrow(&'a ArrowFunctionExpression<'ast>),
 }
