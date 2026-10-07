@@ -1,6 +1,7 @@
 use oxc::{
 	ast::ast::{Expression, ObjectExpression, StringLiteral},
 	span::{GetSpan, Span},
+	syntax::GetNodeId,
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -25,6 +26,15 @@ impl GetSpan for Call<'_> {
 pub enum Tag<'ast> {
 	Dom(&'ast StringLiteral<'ast>),
 	Component(&'ast Expression<'ast>),
+}
+
+impl GetNodeId for Tag<'_> {
+	fn node_id(&self) -> oxc::semantic::NodeId {
+		match self {
+			Tag::Dom(s) => s.node_id(),
+			Tag::Component(s) => s.node_id(),
+		}
+	}
 }
 
 impl GetSpan for Tag<'_> {

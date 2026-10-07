@@ -3,7 +3,11 @@ mod jsx;
 
 use std::{borrow::Cow, collections::HashMap};
 
-use ast_parser::{AstParser as _, ast_kind::IntoAstKind, exts::ExpressionExt};
+use ast_parser::{
+	AstParser as _,
+	ast_kind::IntoAstKind,
+	exts::{ExpressionExt, Functionish, MemberExpressionExt},
+};
 use explorer_types::SpannedId;
 use oxc::{
 	ast::{
@@ -13,6 +17,7 @@ use oxc::{
 			AssignmentExpression,
 			AssignmentOperator,
 			BinaryOperator,
+			BindingIdentifier,
 			BindingPattern,
 			Expression,
 			LogicalOperator,
@@ -25,10 +30,11 @@ use oxc::{
 	},
 	semantic::{NodeId, SymbolId},
 	span::{GetSpan, Span},
+	syntax::GetNodeId,
 };
 use parser_diag::{PResult, ParserDiagnostic, err};
 use smol_str::{SmolStr, ToSmolStr};
-use tracing::{Instrument, info_span, warn};
+use tracing::{Instrument, debug, info_span, warn};
 
 use crate::{
 	WebpackAstParser,
@@ -458,13 +464,128 @@ impl<'ast> WebpackAstParser<'ast> {
 			props: self.component_props(node.node_id()),
 		};
 		let dom = self.jsx_to_dom(&par, &mut cx).await?;
+		let name = match self.extract_icon_name(&par).await {
+			Ok(n) => n,
+			Err(e) => {
+				let e = e.with_local_source(self.source, "module.js");
+				debug!("Failed to extract icon name: {:?}", e);
+				None
+			}
+		};
 		Ok(Icon {
-			name: None,
+			name,
 			defined_in: self.get_module_id()?,
 			node: dom,
 			span: par.span(),
 			issues: cx.issues,
 		})
+	}
+
+	fn functionish_sym_id(&self, func: Functionish) -> Option<SymbolId> {
+		match func {
+			Functionish::Named(f) if f.id.is_some() => Some(
+				self.sym_id_of(f.id.as_ref().unwrap())
+					.unwrap(),
+			),
+			func => {
+				if let AstKind::VariableDeclarator(p) = self.p(func.node_id()) {
+					p.id.get_binding_identifier()
+						.map(BindingIdentifier::symbol_id)
+				} else {
+					None
+				}
+			}
+		}
+	}
+	#[expect(clippy::future_not_send)]
+	async fn extract_icon_name(
+		&self,
+		call: &jsx::Call<'ast>,
+	) -> PResult<Option<SmolStr>> {
+		let func = self
+			.find_parent(call.tag.node_id(), |n| match n {
+				AstKind::Function(f) => Some(Functionish::Named(f)),
+				AstKind::ArrowFunctionExpression(f) => {
+					Some(Functionish::Arrow(f))
+				}
+				_ => None,
+			})
+			.ok_or_else(|| {
+				err(&call.tag, "Failed to find component function from tag")
+			})?;
+		let sym = self
+			.functionish_sym_id(func)
+			.ok_or_else(|| err(&func, "could not find binding ident"))?;
+		let raw_map = self.get_export_map_raw();
+		let exported_key = raw_map
+			.exports
+			.iter()
+			.find_map(|(k, v)| {
+				let v = v.try_unwrap_range_ref().ok()?;
+				if v.iter()
+					.any(|r| self.sym_id_of(r) == Some(sym))
+				{
+					Some(k.clone())
+				} else {
+					None
+				}
+			});
+		if let Some(key) = exported_key {
+			let users = self
+				.find_importers(vec![ExportMapKey::Named(key)])
+				.await?;
+			for user in users {
+				let [ExportMapKey::Named(name)] = user.export_name.as_slice()
+				else {
+					continue;
+				};
+				if name.ends_with("Icon") {
+					return Ok(Some(name.clone()));
+				} else if name.len() > 3 {
+					warn!(
+						"Icon component exported as {name}, which does not end with 'Icon'"
+					);
+				}
+				let parser = user.parser.parser();
+				for node in parser
+					.get_raw_uses_of_import(user.imported_id, &user.export_name)
+				{
+					if let Some(prop) = parser
+						.find_parent(node.node_id(), AstKind::as_switch_case)
+					{
+						try {
+							let sme = prop
+								.test
+								.as_ref()?
+								.as_static_member_expression()?;
+							let prop_name = sme.property.name.as_str();
+							if prop_name.len() > 3 {
+								return Ok(Some(prop_name.to_smolstr()));
+							}
+						};
+					}
+				}
+			}
+		} else {
+			for node in self.ref_nodes(sym) {
+				let Some(prop) = self
+					.find_parent(node.node_id(), AstKind::as_object_property)
+				else {
+					continue;
+				};
+				let Some(key) = prop.key.static_name() else {
+					continue;
+				};
+				if key.ends_with("Icon") {
+					return Ok(Some(key.to_smolstr()));
+				} else if key.len() > 3 {
+					warn!(
+						"Icon component exported as {key}, which does not end with 'Icon'"
+					);
+				}
+			}
+		}
+		Ok(None)
 	}
 	/// Returns the export name of the default icon props function, if this
 	/// module is the default icon props module

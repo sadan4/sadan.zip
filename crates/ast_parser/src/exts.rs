@@ -417,7 +417,7 @@ impl<'ast, T: ExpressionExt<'ast>> MemberExpressionExt<'ast> for T {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub enum Functionish<'a, 'ast> {
+pub enum Functionish<'a, 'ast > {
 	Named(&'a Function<'ast>),
 	Arrow(&'a ArrowFunctionExpression<'ast>),
 }
