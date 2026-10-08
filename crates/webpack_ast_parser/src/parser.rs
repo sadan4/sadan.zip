@@ -1923,10 +1923,6 @@ impl<'ast> WebpackAstParser<'ast> {
 		};
 		// if export_names is empty, every reference to `alias` is a use
 		if export_names.is_empty() {
-			debug!(
-				"ref_nodes(alias) {:?}",
-				self.ref_nodes(alias).collect_vec()
-			);
 			uses.extend(self.ref_nodes(alias));
 		} else {
 			for usage in self.refs(alias) {

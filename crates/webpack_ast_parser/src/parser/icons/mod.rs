@@ -529,6 +529,7 @@ impl<'ast> WebpackAstParser<'ast> {
 					None
 				}
 			});
+		let mut names = Vec::new();
 		if let Some(key) = exported_key {
 			let users = self
 				.find_importers(vec![ExportMapKey::Named(key)])
@@ -549,27 +550,55 @@ impl<'ast> WebpackAstParser<'ast> {
 				for node in parser
 					.get_raw_uses_of_import(user.imported_id, &user.export_name)
 				{
-					if let Some(name) = parser.name_from_node(node) {
-						return Ok(Some(name));
-					}
+					parser.name_from_node(node, &mut names);
 				}
 			}
 		} else {
 			for node in self.ref_nodes(sym) {
-				if let Some(name) = self.name_from_node(node) {
-					return Ok(Some(name));
-				}
+				self.name_from_node(node, &mut names);
 			}
 		}
-		Ok(None)
+		fn rank_name(name: &str) -> i8 {
+			if name == "Icon" || name == "renderIcon" {
+				return -1;
+			}
+			let mut score = 0;
+			if name.ends_with("Icon") {
+				score += 2;
+			}
+			if name.chars().next().is_some_and(|c| c.is_ascii_uppercase()) {
+				score += 1;
+			}
+			score
+		}
+		let mut best = None;
+		for name in names {
+			let score = rank_name(&name);
+			if score < 0 {
+				continue;
+			}
+			if let Some((best_score, best_name)) = &mut best {
+				if score > *best_score {
+					*best_score = score;
+					*best_name = name;
+				}
+			} else {
+				best = Some((score, name));
+			}
+		}
+		Ok(best.map(|(_, name)| name))
 	}
-	fn name_from_node(&self, node: AstKind<'ast>) -> Option<SmolStr> {
+	fn name_from_node(
+		&self,
+		node: AstKind<'ast>,
+		buf: &mut Vec<SmolStr>,
+	) -> Option<()> {
 		if let Some(prop) =
 			self.find_parent(node.node_id(), AstKind::as_object_property)
 		{
 			let key = prop.key.static_name()?;
 			if key.ends_with("Icon") {
-				return Some(key.to_smolstr());
+				buf.push(key.to_smolstr());
 			} else if key.len() > 3 {
 				warn!(
 					"Icon component exported as {key}, which does not end with 'Icon'"
@@ -585,9 +614,9 @@ impl<'ast> WebpackAstParser<'ast> {
 				let prop_name = sme.property.name.as_str();
 				(prop_name.len() > 3).then(|| prop_name.to_smolstr())?
 			} {
-			return Some(name);
+			buf.push(name.to_smolstr());
 		}
-		None
+		Some(())
 	}
 	/// Returns the export name of the default icon props function, if this
 	/// module is the default icon props module
