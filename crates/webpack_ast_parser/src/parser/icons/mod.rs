@@ -25,6 +25,7 @@ use oxc::{
 			ObjectExpression,
 			ObjectPropertyKind,
 			Statement,
+			SwitchCase,
 			UnaryOperator,
 		},
 	},
@@ -528,6 +529,14 @@ impl<'ast> WebpackAstParser<'ast> {
 					None
 				}
 			});
+		let name_from_switch_case = |prop: &SwitchCase| -> Option<SmolStr> {
+			let sme = prop
+				.test
+				.as_ref()?
+				.as_static_member_expression()?;
+			let prop_name = sme.property.name.as_str();
+			(prop_name.len() > 3).then(|| prop_name.to_smolstr())
+		};
 		if let Some(key) = exported_key {
 			let users = self
 				.find_importers(vec![ExportMapKey::Named(key)])
@@ -550,36 +559,32 @@ impl<'ast> WebpackAstParser<'ast> {
 				{
 					if let Some(prop) = parser
 						.find_parent(node.node_id(), AstKind::as_switch_case)
+						&& let Some(name) = name_from_switch_case(prop)
 					{
-						try {
-							let sme = prop
-								.test
-								.as_ref()?
-								.as_static_member_expression()?;
-							let prop_name = sme.property.name.as_str();
-							if prop_name.len() > 3 {
-								return Ok(Some(prop_name.to_smolstr()));
-							}
-						};
+						return Ok(Some(name));
 					}
 				}
 			}
 		} else {
 			for node in self.ref_nodes(sym) {
-				let Some(prop) = self
+				if let Some(prop) = self
 					.find_parent(node.node_id(), AstKind::as_object_property)
-				else {
-					continue;
-				};
-				let Some(key) = prop.key.static_name() else {
-					continue;
-				};
-				if key.ends_with("Icon") {
-					return Ok(Some(key.to_smolstr()));
-				} else if key.len() > 3 {
-					warn!(
-						"Icon component exported as {key}, which does not end with 'Icon'"
-					);
+				{
+					let Some(key) = prop.key.static_name() else {
+						continue;
+					};
+					if key.ends_with("Icon") {
+						return Ok(Some(key.to_smolstr()));
+					} else if key.len() > 3 {
+						warn!(
+							"Icon component exported as {key}, which does not end with 'Icon'"
+						);
+					}
+				} else if let Some(case) =
+					self.find_parent(node.node_id(), AstKind::as_switch_case)
+					&& let Some(name) = name_from_switch_case(case)
+				{
+					return Ok(Some(name));
 				}
 			}
 		}
