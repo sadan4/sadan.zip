@@ -40,6 +40,7 @@ export const enum ViewMode {
     CODE,
     MODULE_GRAPH,
     EXPERIMENTS,
+    ICONS,
 }
 
 

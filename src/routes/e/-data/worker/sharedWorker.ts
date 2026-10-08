@@ -46,6 +46,13 @@ export interface ModuleDeps {
     lazyUses: TModuleId[];
 }
 
+export interface IIcon {
+    name?: string;
+    svg: string;
+    pos: Monaco.IRange;
+    definedIn: TModuleId;
+}
+
 export interface IBuildService {
     hasId(moduleId: number): moduleId is TModuleId;
     getFormattedSource(moduleId: TModuleId): string;
@@ -61,6 +68,7 @@ export interface IBuildService {
     getModuleDependencies(moduleId: TModuleId): ModuleDeps;
     getModuleDependents(moduleId: TModuleId): ModuleDeps | undefined;
     getExperiments(): ExperimentInfo[];
+    getIcons(): Promise<IIcon[]>;
 }
 
 const self = globalThis as any as SharedWorkerGlobalScope;
@@ -330,6 +338,17 @@ class BuildService implements IBuildService {
 
     public getExperiments(): ExperimentInfo[] {
         return this.#bundle.get_experiments();
+    }
+
+    public async getIcons(): Promise<IIcon[]> {
+        const icons = await this.#bundle.get_icons();
+
+        return icons.map((icon) => ({
+            definedIn: icon.defined_in as TModuleId,
+            pos: convertRange(icon.pos),
+            name: icon.name,
+            svg: icon.svg,
+        }) satisfies IIcon);
     }
 }
 

@@ -597,6 +597,26 @@ fn search_results_to_js(results: &BundleSearchResults) -> Result<JsValue> {
 }
 
 #[wasm_bindgen]
+pub struct Icon {
+	pub(crate) name: Option<String>,
+	pub defined_in: u32,
+	pub pos: MonacoRange,
+	pub(crate) svg: String,
+}
+
+#[wasm_bindgen]
+impl Icon {
+	#[wasm_bindgen(getter)]
+	pub fn name(&self) -> Option<String> {
+		self.name.clone()
+	}
+	#[wasm_bindgen(getter)]
+	pub fn svg(&self) -> String {
+		self.svg.clone()
+	}
+}
+
+#[wasm_bindgen]
 impl Bundle {
 	pub fn get_module_text(&self, module_id: u32) -> Result<String> {
 		// TODO: better errors
@@ -902,6 +922,44 @@ impl Bundle {
 		Ok(experiments
 			.serialize(&serializer)
 			.context("Failed to serialize experiments")?)
+	}
+
+	pub async fn get_icons(&self) -> Result<Vec<Icon>> {
+		let (id, _) = self
+			.inner
+			.dep_info
+			.key_modules
+			.default_icon_props
+			.first()
+			.expect("TODO: find module ourselves");
+		let parser = self
+			.inner
+			.get_or_make_parser(*id)
+			.context("Failed to get or make parser")?;
+		let parser = parser.parser();
+		Ok(parser
+			.scrape_icons()
+			.await
+			.transpose()
+			.context("Failed to scrape icons")?
+			.unwrap_or_default()
+			.into_iter()
+			.map(|icon| {
+				let formatted_src = self
+					.inner
+					.get_formatted_module(icon.defined_in.id)
+					.expect("how do we have the icon but not the source");
+				let pos = MonacoRange::from_span(icon.span, formatted_src);
+				let svg = icon.node.to_html();
+				let name = icon.name.map(|s| s.to_string());
+				Icon {
+					name,
+					defined_in: *icon.defined_in.id,
+					pos,
+					svg,
+				}
+			})
+			.collect())
 	}
 }
 

@@ -27,6 +27,7 @@ import { createLink } from "@tanstack/react-router";
 import { Background, Controls, MiniMap, ReactFlow, ReactFlowProvider } from "@xyflow/react";
 
 import { ExperimentList } from "./Experiments";
+import { IconBrowser } from "./Icons";
 import { ExplorerSidebar } from "./Sidebar";
 import {
     ModuleViewerSettingsStore,
@@ -45,6 +46,7 @@ import {
     ChevronLastIcon,
     DownloadIcon,
     FileCodeIcon,
+    FileImageIcon,
     FlaskConicalIcon,
     NetworkIcon,
     SettingsIcon,
@@ -404,6 +406,13 @@ function ExplorerHeader() {
                                 return <FlaskConicalIcon />;
                             },
                         },
+                        {
+                            id: ViewMode.ICONS,
+                            label: "Icons",
+                            renderIcon() {
+                                return <FileImageIcon />;
+                            },
+                        },
                     ]}
                 />
             </div>
@@ -503,6 +512,9 @@ export function Explorer() {
                         </Activity>
                         <Activity mode={visibleIf(activePanel === ViewMode.EXPERIMENTS)}>
                             <ExperimentList />
+                        </Activity>
+                        <Activity mode={visibleIf(activePanel === ViewMode.ICONS)}>
+                            <IconBrowser />
                         </Activity>
                     </div>
                 </div>
