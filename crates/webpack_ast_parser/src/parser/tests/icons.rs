@@ -1,5 +1,9 @@
 use super::*;
+use async_trait::async_trait;
+use explorer_types::IncomingModuleDeps;
 use macros::test;
+use std::collections::HashMap;
+use url::Url;
 
 use crate::parser::{
 	icons::{Issue, dom},
@@ -218,4 +222,85 @@ async fn icon_dom_to_html() {
 		icon.node.to_html(),
 		r#"<svg fill="none" viewBox="0 0 24 24"><path d="M0 0h24" fill="currentColor"/><circle fill="transparent" r="2"/>label</svg>"#
 	);
+}
+
+/// Modules from build `d57732b1f302ccc204f5f3fb656bcf5da283b39d`, required by
+/// the modules they map to
+#[derive(Clone)]
+struct IconModules(Arc<HashMap<ModuleId, (&'static str, Vec<ModuleId>)>>);
+
+#[async_trait]
+impl IModuleCache for IconModules {
+	async fn get_module_filepath(&self, _id: ModuleId) -> Option<Url> {
+		None
+	}
+	async fn get_module_parser(
+		&self,
+		_requestor: &WebpackAstParser<'_>,
+		id: ModuleId,
+		_latest: Option<bool>,
+	) -> anyhow::Result<Arc<ThreadSafeParser>> {
+		let (source, _) = self.0.get(&id).ok_or_else(|| {
+			anyhow::anyhow!("no module {id} in the test cache")
+		})?;
+		let mut p = ThreadSafeParser::new(Arc::from(*source))
+			.map_err(|e| anyhow::anyhow!("{e:?}"))?;
+		p.set_module_cache(Arc::new(self.clone()));
+		p.set_module_dep_provider(Arc::new(self.clone()));
+		Ok(Arc::new(p))
+	}
+}
+
+#[async_trait]
+impl IModuleDepProvider for IconModules {
+	async fn get_module_deps(
+		&self,
+		id: ModuleId,
+	) -> anyhow::Result<Arc<IncomingModuleDeps>> {
+		let sync = self
+			.0
+			.get(&id)
+			.map_or_else(Vec::new, |(_, by)| by.clone());
+		Ok(Arc::new(IncomingModuleDeps {
+			sync,
+			lazy: Vec::new(),
+		}))
+	}
+}
+
+#[test]
+async fn icon_name_from_namespace_object_re_export() {
+	let modules = IconModules(Arc::new(HashMap::from([
+		(
+			ModuleId(428610),
+			(
+				include_str!("test_data/wp/icons/name_from_inlined_module/428610.js"),
+				vec![ModuleId(547533)],
+			),
+		),
+		(
+			ModuleId(547533),
+			(include_str!("test_data/wp/icons/name_from_inlined_module/547533.js"), Vec::new()),
+		),
+	])));
+	let alloc = Allocator::new();
+	let mut p = WebpackAstParser::try_new(
+		&alloc,
+		include_str!("test_data/wp/icons/name_from_inlined_module/428610.js"),
+	)
+	.unwrap();
+	p.set_module_cache(Arc::new(modules.clone()));
+	p.set_module_dep_provider(Arc::new(modules));
+	let [props_use] = p
+		.get_raw_uses_of_import(
+			996682.into(),
+			&[ExportMapKey::Named("A".into())],
+		)
+		.try_into()
+		.unwrap();
+	let icon = p
+		.try_get_icon_from_default_props_use(props_use)
+		.await
+		.unwrap();
+	assert_eq!(icon.name.as_deref(), Some("CropIcon"));
 }

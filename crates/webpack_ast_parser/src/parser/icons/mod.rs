@@ -529,14 +529,6 @@ impl<'ast> WebpackAstParser<'ast> {
 					None
 				}
 			});
-		let name_from_switch_case = |prop: &SwitchCase| -> Option<SmolStr> {
-			let sme = prop
-				.test
-				.as_ref()?
-				.as_static_member_expression()?;
-			let prop_name = sme.property.name.as_str();
-			(prop_name.len() > 3).then(|| prop_name.to_smolstr())
-		};
 		if let Some(key) = exported_key {
 			let users = self
 				.find_importers(vec![ExportMapKey::Named(key)])
@@ -557,38 +549,45 @@ impl<'ast> WebpackAstParser<'ast> {
 				for node in parser
 					.get_raw_uses_of_import(user.imported_id, &user.export_name)
 				{
-					if let Some(prop) = parser
-						.find_parent(node.node_id(), AstKind::as_switch_case)
-						&& let Some(name) = name_from_switch_case(prop)
-					{
+					if let Some(name) = parser.name_from_node(node) {
 						return Ok(Some(name));
 					}
 				}
 			}
 		} else {
 			for node in self.ref_nodes(sym) {
-				if let Some(prop) = self
-					.find_parent(node.node_id(), AstKind::as_object_property)
-				{
-					let Some(key) = prop.key.static_name() else {
-						continue;
-					};
-					if key.ends_with("Icon") {
-						return Ok(Some(key.to_smolstr()));
-					} else if key.len() > 3 {
-						warn!(
-							"Icon component exported as {key}, which does not end with 'Icon'"
-						);
-					}
-				} else if let Some(case) =
-					self.find_parent(node.node_id(), AstKind::as_switch_case)
-					&& let Some(name) = name_from_switch_case(case)
-				{
+				if let Some(name) = self.name_from_node(node) {
 					return Ok(Some(name));
 				}
 			}
 		}
 		Ok(None)
+	}
+	fn name_from_node(&self, node: AstKind<'ast>) -> Option<SmolStr> {
+		if let Some(prop) =
+			self.find_parent(node.node_id(), AstKind::as_object_property)
+		{
+			let key = prop.key.static_name()?;
+			if key.ends_with("Icon") {
+				return Some(key.to_smolstr());
+			} else if key.len() > 3 {
+				warn!(
+					"Icon component exported as {key}, which does not end with 'Icon'"
+				);
+			}
+		} else if let Some(case) =
+			self.find_parent(node.node_id(), AstKind::as_switch_case)
+			&& let Some(name) = try {
+				let sme = case
+					.test
+					.as_ref()?
+					.as_static_member_expression()?;
+				let prop_name = sme.property.name.as_str();
+				(prop_name.len() > 3).then(|| prop_name.to_smolstr())?
+			} {
+			return Some(name);
+		}
+		None
 	}
 	/// Returns the export name of the default icon props function, if this
 	/// module is the default icon props module
