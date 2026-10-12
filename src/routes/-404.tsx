@@ -57,7 +57,7 @@ export function NotFoundPage() {
                 size="lg"
                 color="white-600"
             >
-                This page doesn't exist...
+                This paige doesn't exist...
             </Text>
             <Link
                 to="/"
