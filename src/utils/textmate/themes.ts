@@ -65,6 +65,16 @@ const textmateThemes: Record<TextmateTheme, () => Promise<TMTheme>> = {
 
         return theme.default;
     },
+    async [TextmateTheme.VSCODE_DARK](): Promise<TMTheme> {
+        const theme = await import("@shikijs/themes/dark-plus");
+
+        return theme.default;
+    },
+    async [TextmateTheme.VSCODE_LIGHT](): Promise<TMTheme> {
+        const theme = await import("@shikijs/themes/light-plus");
+
+        return theme.default;
+    },
 };
 
 export function lazyLoadTextmateTheme(theme: TextmateTheme): Promise<TMTheme> {

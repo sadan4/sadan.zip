@@ -5,14 +5,18 @@ export enum TextmateTheme {
     ROSE_PINE_MOON,
     NORD,
     CATPPUCCIN_MOCHA,
+    // This *MUST* be after catppuccin mocha so the enum numbers stay sequential
+    CATPPUCCIN = CATPPUCCIN_MOCHA,
     CATPPUCCIN_FRAPPE,
     CATPPUCCIN_MACCHIATO,
     CATPPUCCIN_LATTE,
     DRACULA,
     GRUVBOX,
     OXOCARBON,
-    CATPPUCCIN = CATPPUCCIN_MOCHA,
+    VSCODE_DARK,
+    VSCODE_LIGHT,
 }
+
 export const themeDisplayNames = Object.freeze({
     [TextmateTheme.TOKYO_NIGHT]: "Tokyo Night",
     [TextmateTheme.ROSE_PINE]: "Rose Pine",
@@ -26,4 +30,6 @@ export const themeDisplayNames = Object.freeze({
     [TextmateTheme.GRUVBOX]: "Gruvbox",
     [TextmateTheme.OXOCARBON]: "Oxocarbon",
     [TextmateTheme.DRACULA]: "Dracula",
+    [TextmateTheme.VSCODE_DARK]: "VSCode Dark",
+    [TextmateTheme.VSCODE_LIGHT]: "VSCode Light",
 } satisfies Record<TextmateTheme, string>);

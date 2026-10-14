@@ -36,6 +36,8 @@ export const themeMap: Record<TextmateTheme, BundledTheme | "Oxocarbon Dark"> = 
     [TextmateTheme.GRUVBOX]: "gruvbox-dark-hard",
     [TextmateTheme.OXOCARBON]: "Oxocarbon Dark",
     [TextmateTheme.DRACULA]: "dracula",
+    [TextmateTheme.VSCODE_DARK]: "dark-plus",
+    [TextmateTheme.VSCODE_LIGHT]: "light-plus",
 });
 export let highlighter: HighlighterCore | undefined;
 
