@@ -5,14 +5,21 @@ import { useResizeObserverFromRef } from "@/hooks/resizeObserver";
 import { findIndex } from "@/utils/array";
 import cn from "@/utils/cn";
 import { assert, debug_assert } from "@/utils/error";
-import { clamp, inRange, inRangeExclusive } from "@/utils/math";
+import { clamp, inRange, inRangeExclusive, roundDownToMultipleOf } from "@/utils/math";
 import { mapObject } from "@/utils/obj";
 import { defer } from "@/utils/scope";
 
+import * as styles from "./styles.module.scss";
 import { ScrollArea, type ScrollAreaProps } from "../ScrollArea";
 import { ScrollAreaContext } from "../ScrollArea/context";
 
 import { type PropsWithChildren, type ReactNode, type Ref, type UIEvent, use, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+
+declare module "react" {
+    interface CSSProperties {
+        "--buffered-scroller-num-cols"?: string;
+    }
+}
 
 export namespace BufferedScroller {
     export interface RenderItemProps<T> {
@@ -44,6 +51,12 @@ export interface BufferedScrollProps<T> extends ScrollAreaProps {
     renderFooter?(): ReactNode;
     alwaysRenderFooter?: boolean;
     items: Readonly<ArrayLike<T>>;
+    /**
+     * number of columns to split the data into
+     * 
+     * @default 1
+     */
+    cols?: number;
     /**
      * Number of items to render in each batch. Default is min(floor({@link items}.length / 20), {@link items}.length).
      */
@@ -111,6 +124,7 @@ function ScrollerChunk({ children, idx, onHeightChange }: ScrollerChunkProps) {
         <div
             data-scroller-chunk={idx}
             ref={ref}
+            className={styles.chunk}
         >
             {children}
         </div>
@@ -174,6 +188,7 @@ export function BufferedScroller<T>({
     ref,
     handle,
     onScrollEnd: _onScrollEnd,
+    cols = 1,
     ...props
 }: BufferedScrollProps<T>) {
     type VisibleChunks = Partial<Record<number, Partial<Record<"top" | "bottom", boolean>>>>;
@@ -185,7 +200,8 @@ export function BufferedScroller<T>({
 
     // FIXME: Why are we using a hook for this
     const [batchSize] = useControlledState({
-        initialValue: Math.max(1, Math.min(Math.floor(items.length / 20), items.length)),
+        // eslint-disable-next-line @stylistic/max-len
+        initialValue: Math.max(cols, Math.min(roundDownToMultipleOf(cols, Math.floor(items.length / 20)), items.length)),
         managedValue: _batchSize && Math.floor(_batchSize),
     });
 
@@ -534,8 +550,12 @@ export function BufferedScroller<T>({
         <ScrollArea
             ref={useComposedRefs(ref, scrollAreaRef)}
             onScrollEnd={onScrollEnd}
-            className={cn(className)}
+            className={cn(className, cols !== 1 && styles.scrollerGrid)}
             {...props}
+            style={{
+                ...props.style,
+                "--buffered-scroller-num-cols": `${cols}`,
+            }}
         >
             <>{renderHeader?.()}</>
             <ScrollerPadding height={paddingTop} />
@@ -553,13 +573,8 @@ export function BufferedScroller<T>({
                 }
 
                 return (
-                    <ScrollerChunk
-                        key={`chunk-${startIdx}`}
-                        idx={chunkIdx}
-                        onHeightChange={onChunkHeight}
-                    >
+                    <div key={`chunk-${startIdx}`}>
                         <Flag
-                            key="chunk-start"
                             onEnter={() => {
                                 if (bufferSize !== Infinity) {
                                     if (chunkIdx === firstChunk || chunkIdx === firstChunk + bufferSize) {
@@ -572,9 +587,13 @@ export function BufferedScroller<T>({
                                 setChunkVisibility(chunkIdx, "top", false);
                             }}
                         />
-                        {renderedItems}
+                        <ScrollerChunk
+                            idx={chunkIdx}
+                            onHeightChange={onChunkHeight}
+                        >
+                            {renderedItems}
+                        </ScrollerChunk>
                         <Flag
-                            key="chunk-end"
                             onEnter={() => {
                                 setChunkVisibility(chunkIdx, "bottom", true);
                                 if (chunkIdx === numChunks - 1) {
@@ -587,7 +606,7 @@ export function BufferedScroller<T>({
                                 setChunkVisibility(chunkIdx, "bottom", false);
                             }}
                         />
-                    </ScrollerChunk>
+                    </div>
                 );
             })}
             <ScrollerPadding height={paddingBottom} />

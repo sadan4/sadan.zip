@@ -296,35 +296,35 @@ function MaskedBadgeExample() {
             <div className="flex flex-wrap gap-8">
                 {badgePositions.map(({ position, label }) => (
                     <div
-                        className="flex size-24 items-center justify-center gap-4 bg-linear-270 from-green-800 to-white"
+                        className="from-green-800 to-white flex size-24 items-center justify-center gap-4 bg-linear-270"
                         key={position}
                     >
                         <MaskedBadge
                             position={position}
                             renderMask={() => (
-                                <div className="h-lh rounded-full bg-red-500 px-2">
+                                <div className="bg-red-500 h-lh rounded-full px-2">
                                     {label}
                                 </div>
                             )}
                         >
-                            <div className="h-20 w-20 bg-blue-500" />
+                            <div className="bg-blue-500 h-20 w-20" />
                         </MaskedBadge>
                     </div>
                 ))}
                 {badgePositions.map(({ position, label }) => (
                     <div
-                        className="flex size-24 items-center justify-center gap-4 bg-linear-270 from-green-800 to-white"
+                        className="from-green-800 to-white flex size-24 items-center justify-center gap-4 bg-linear-270"
                         key={position}
                     >
                         <MaskedBadge
                             position={position}
                             renderMask={() => (
-                                <div className="h-lh rounded-full bg-red-500 px-2">
+                                <div className="bg-red-500 h-lh rounded-full px-2">
                                     {label}
                                 </div>
                             )}
                         >
-                            <div className="h-20 w-20 rounded-full bg-blue-500" />
+                            <div className="bg-blue-500 h-20 w-20 rounded-full" />
                         </MaskedBadge>
                     </div>
                 ))}

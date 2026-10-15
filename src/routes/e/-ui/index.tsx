@@ -11,7 +11,9 @@ import { LabeledSwitch } from "@/components/Switch/index";
 import { Text } from "@/components/Text";
 import { ToggleButtonGroup } from "@/components/ToggleButtonGroup";
 import { TooltipPosition } from "@/components/Tooltip/constants";
+import { useCurrentTheme } from "@/hooks/currentTheme";
 import { type GeneratedGraph, useModuleGraph2 } from "@/hooks/moduleGraph2";
+import { themeStore } from "@/stores/ThemeStore";
 import { makeRange } from "@/utils/array";
 import cn from "@/utils/cn";
 import { BUNDLE_ARCHIVE_FILENAME, BUNDLE_ARCHIVE_URL, GITHUB_REPO_URL, NBSP } from "@/utils/constants";
@@ -91,7 +93,6 @@ function ModuleViewer() {
 
     const { sl, sc, el, ec } = Route.useSearch();
     const [codeEditor, setCodeEditor] = useState<MonacoCodeEditor.Handle | null>(null);
-    const editorTheme = useModuleViewerSettingsStore(({ editorTheme }) => editorTheme);
 
 
     useEffect(() => {
@@ -127,7 +128,6 @@ function ModuleViewer() {
         <MonacoCodeEditor
             ref={setCodeEditor}
             language={Language.JAVASCRIPT}
-            theme={editorTheme}
             uri={data}
             options={{ readOnly: true }}
         />
@@ -142,7 +142,7 @@ function ModuleGraph2({ graph: { nodes, edges } }: ModuleGraph2Props) {
     const navigate = Route.useNavigate();
 
     return (
-        <div className="size-full bg-black">
+        <div className="bg-black size-full">
             <ReactFlow
                 nodes={nodes}
                 edges={edges}
@@ -209,7 +209,7 @@ interface SettingWithWarningProps extends PropsWithChildren {
 
 function SettingWithWarning({ warning, children }: SettingWithWarningProps) {
     return (
-        <div className="flex w-full flex-col rounded-md border-2 border-warning-300/50 p-2">
+        <div className="border-warning-300/50 flex w-full flex-col rounded-md border-2 p-2">
             <Text
                 color="warning"
                 className="mb-2 flex items-center gap-2"
@@ -234,7 +234,7 @@ function ExperimentalSetting({ children }: ExperimentalSettingProps) {
 
 function SettingsModal() {
     const openModulesInNewTab = useModuleViewerSettingsStore(({ openModulesInNewTab }) => openModulesInNewTab);
-    const selectedTheme = useModuleViewerSettingsStore(({ editorTheme }) => editorTheme);
+    const selectedTheme = useCurrentTheme();
     const graphDepth = useModuleViewerSettingsStore(({ graphDepth }) => graphDepth);
     const ctx = use(ModalContext)!;
 
@@ -252,15 +252,13 @@ function SettingsModal() {
                     <div>
                         <IconButton
                             label="Close"
-                            colorType="text"
-                            color="error"
                             onClick={() => {
                                 ctx.close();
                                 // TODO: Weird behavior with state not resetting when we return true;
                                 return null;
                             }}
                         >
-                            <XIcon />
+                            <XIcon className="text-editorError-foreground" />
                         </IconButton>
                     </div>
                 </div>
@@ -277,7 +275,6 @@ function SettingsModal() {
                         </LabeledSwitch>
                         <Text
                             size="sm"
-                            color="white-600"
                         >
                             When enabled, modules opened via jump to definition(ctrl-click)
                             inside of the editor will be opened in a new tab instead of the current tab
@@ -291,7 +288,7 @@ function SettingsModal() {
                             <Select
                                 selectedValue={selectedTheme}
                                 onChange={(editorTheme) => {
-                                    ModuleViewerSettingsStore.setState({ editorTheme });
+                                    themeStore.setState({ theme: editorTheme });
                                 }}
                                 items={Object
                                     .values(TextmateTheme)
@@ -311,7 +308,6 @@ function SettingsModal() {
                             />
                         </div>
                         <Text
-                            color="white-600"
                             size="sm"
                         >
                             The color theme for the code editor.
@@ -324,7 +320,6 @@ function SettingsModal() {
                         </Text>
                         <Text
                             size="sm"
-                            color="white-600"
                             className="py-2"
                         >
                             The depth of the module graph.
@@ -363,9 +358,9 @@ function ExplorerHeader() {
                 <IconButton
                     label={`${moduleSidebarOpen ? "Hide" : "Show"} Module Sidebar`}
                     colorType="outline"
-                    className="border-2 border-fg-700"
+                    color="secodnary"
+                    className="border-2"
                     tooltipPosition={TooltipPosition.RIGHT}
-                    color="neutral"
                     onClick={() => {
                         ModuleViewerStore.getState().updateModuleSidebarOpen(!moduleSidebarOpen);
                         return null;
@@ -377,7 +372,7 @@ function ExplorerHeader() {
             <div>
                 <ToggleButtonGroup
                     tooltipPosition={TooltipPosition.BOTTOM}
-                    className="m-2 rounded-lg border-2 border-fg-700 p-2"
+                    className="m-2 rounded-lg border-2 border-editor-foreground p-2 *:text-foreground"
                     selectedItem={activePanel}
                     onSelectItem={(panel) => {
                         ModuleViewerStore.getState().updateActivePanel(panel);
@@ -455,8 +450,7 @@ function ExplorerHeader() {
                     tooltipPosition={TooltipPosition.BOTTOM}
                     label={`Source${NBSP}Code.${NBSP}Star${NBSP}Me!`}
                     onClick={undefined}
-                    color="secondary"
-                    colorType="outline"
+                    color="primary"
                     href={GITHUB_REPO_URL}
                     // Monaco has a sidebar with z-5, which blocks our tooltip sometimes
                     tooltipClassName="z-6"
@@ -494,7 +488,7 @@ export function Explorer() {
                     </Activity>
                     <div className="shrink grow">
                         <Activity mode={visibleIf(activePanel === ViewMode.CODE)}>
-                            <div className="size-full bg-bg-100">
+                            <div className="bg-bg-100 size-full">
                                 <ModuleViewer />
                             </div>
                         </Activity>

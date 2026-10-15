@@ -1,3 +1,4 @@
+import { ThemeContext } from "@/components/Theme/context";
 import { useControlledState } from "@/hooks/controlledState";
 import { useLock } from "@/hooks/lock";
 import { useRecent } from "@/hooks/recent";
@@ -12,7 +13,7 @@ import { ClientOnly } from "@tanstack/react-router";
 
 import { registry, wireTmGrammars } from "./grammars";
 import * as styles from "./styles.module.scss";
-import { DEFAULT_MONACO_THEME, type MonacoTheme, useMonacoTheme } from "./themes";
+import { type MonacoTheme, useMonacoTheme } from "./themes";
 import type { CodeEditorProps } from "../base";
 
 import { Suspense, use, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -40,7 +41,7 @@ function MonacoCodeEditorInner({
     code: userCode,
     language = Language.UNKNOWN,
     onChange,
-    theme = DEFAULT_MONACO_THEME,
+    theme,
     width = "100%",
     height = "100%",
     options = EMPTY_NULL_OBJECT,
@@ -54,6 +55,11 @@ function MonacoCodeEditorInner({
         monacoSetup();
     }
     use(loadOnigasmPromise());
+
+    // eslint-disable-next-line logical-assignment-operators -- react compiler doesn't like them
+    if (theme == null) {
+        theme = use(ThemeContext).theme;
+    }
 
     const [ref, setRef] = useState<HTMLDivElement | null>(null);
     const uriRef = useRecent(uri);

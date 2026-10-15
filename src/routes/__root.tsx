@@ -1,5 +1,6 @@
 import { Devtools } from "@/components/Devtools";
 import { LayerContext } from "@/components/Layer/context";
+import { RootThemeProvider } from "@/components/Theme";
 import { ToastContainer } from "@/components/Toast";
 import { NotFoundPage } from "@/routes/-404";
 import { installF8Break, uninstallF8Break } from "@/utils/devtools";
@@ -111,8 +112,6 @@ function RootComponent({ children }: { children: React.ReactNode; }) {
 
         assert(root instanceof HTMLBodyElement, "Failed to find root element");
 
-        // this is only ever called once
-        // oxlint-disable-next-line react/react-compiler
         setLayerCtx({
             level: 0,
             root,
@@ -130,14 +129,16 @@ function RootComponent({ children }: { children: React.ReactNode; }) {
                 <HeadContent />
             </head>
             <body id="root">
-                <QueryClientProvider client={queryClient}>
-                    <LayerContext value={layerCtx}>
-                        <ToastContainer>
-                            {children}
-                        </ToastContainer>
-                    </LayerContext>
-                    <Devtools />
-                </QueryClientProvider>
+                <RootThemeProvider>
+                    <QueryClientProvider client={queryClient}>
+                        <LayerContext value={layerCtx}>
+                            <ToastContainer>
+                                {children}
+                            </ToastContainer>
+                        </LayerContext>
+                        <Devtools />
+                    </QueryClientProvider>
+                </RootThemeProvider>
                 <Scripts />
             </body>
         </html>

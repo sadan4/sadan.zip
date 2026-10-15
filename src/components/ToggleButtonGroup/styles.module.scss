@@ -33,7 +33,7 @@
             pointer-events: none;
             border-radius: inherit;
             padding: $padding;
-            border: $border-size solid var(--color-accent-500)
+            border: $border-size solid rgb(from var(--color-editorOverviewRuler-currentContentForeground) r g b / 1)
         }
     }
 }

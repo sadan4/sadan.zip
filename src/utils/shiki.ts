@@ -93,12 +93,15 @@ export function loadAllThemes(): Promise<void> {
 }
 
 export async function loadTheme(...themes: TextmateTheme[]): Promise<void> {
+    console.warn("loading themes", themes.map((t) => TextmateTheme[t]).join(", "));
+
     const hl = highlighter ?? await highlighterPromise();
 
     for (const theme of themes) {
         if (themeNeedsLoad(theme)) {
             const loadedTheme = await lazyLoadTextmateTheme(theme);
 
+            console.log(loadedTheme.name);
             hl.loadThemeSync(loadedTheme);
             loadedThemes.add(theme);
         }

@@ -139,19 +139,24 @@ function BundleLoadProgressBar() {
                 aria-valuemin={0}
                 aria-valuemax={100}
                 aria-valuenow={fraction == null ? undefined : Math.round(fraction * 100)}
-                className="h-2 w-full overflow-hidden rounded-full bg-bg-300"
+                className="h-2 w-full overflow-hidden rounded-full bg-progressBar-background/40"
             >
                 <div
                     className={cn(
-                        "h-full rounded-full bg-primary-400",
+                        "h-full rounded-full bg-progressBar-background",
                         fraction == null ? "w-full animate-pulse" : "transition-[width] duration-100 ease-linear",
                     )}
                     style={fraction == null ? undefined : { width: `${fraction * 100}%` }}
                 />
             </div>
-            <div className="mt-2 flex justify-between gap-3 text-xs text-fg-700">
-                <span aria-live="polite">{getProgressLabel(progress)}</span>
-                {fraction != null && <span>{Math.round(fraction * 100)}%</span>}
+            <div className="text-fg-700 mt-2 flex justify-between gap-3 text-xs">
+                <Text
+                    tag="span"
+                    aria-live="polite"
+                >
+                    {getProgressLabel(progress)}
+                </Text>
+                {fraction != null && <Text tag="span">{Math.round(fraction * 100)}%</Text>}
             </div>
         </div>
     );
@@ -167,7 +172,7 @@ function BundleLoading() {
                 role="status"
             >
                 <LoaderCircle
-                    className="size-10 animate-spin text-primary-400"
+                    className="size-10 animate-spin text-progressBar-background"
                     aria-hidden="true"
                 />
                 <Text
@@ -177,12 +182,9 @@ function BundleLoading() {
                     Loading build
                 </Text>
                 <BundleLoadProgressBar />
-                <code
-                    className="text-xs text-fg-700"
-                    title={buildHash}
-                >
+                <Text tag="code">
                     {buildHash}
-                </code>
+                </Text>
             </Box>
         </div>
     );

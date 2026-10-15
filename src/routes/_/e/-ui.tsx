@@ -1,12 +1,15 @@
 import { Boilerplate } from "@/components/Boilerplate";
 import { Clickable } from "@/components/Clickable";
-import { Box } from "@/components/layout/Box";
-import { ScrollArea } from "@/components/layout/ScrollArea";
+import { BufferedScroller } from "@/components/layout/BufferedScroller";
 import { Link } from "@/components/Links";
 import { Text } from "@/components/Text";
+import { Tooltip } from "@/components/Tooltip";
+import { TooltipPosition } from "@/components/Tooltip/constants";
+import { useMediaQuery } from "@/hooks/mediaQuery";
 import { useToaster } from "@/hooks/toaster";
 import { copyWithNotify } from "@/utils/clipboard";
 import cn from "@/utils/cn";
+import { EM_DASH, NBSP } from "@/utils/constants";
 import type { TBundleHash } from "@/utils/types";
 import { useQuery } from "@tanstack/react-query";
 
@@ -156,7 +159,7 @@ function BundleItem({ bundleMeta, latestTags }: BundleItemProps) {
     const buildDate = new Date(Number(bundleMeta.first_seen));
 
     return (
-        <li>
+        <div>
             <Link
                 to="/e/view/{-$buildHash}/{-$moduleId}"
                 params={{
@@ -165,7 +168,7 @@ function BundleItem({ bundleMeta, latestTags }: BundleItemProps) {
                 }}
                 preload={false}
                 aria-label={`Open build ${bundleMeta.build_number}`}
-                className="group flex h-full items-center gap-4 rounded-md border border-fg-700/60 bg-bg-200 px-4 py-3 transition-colors hover:border-primary-400/70 hover:bg-bg-300 focus-visible:border-primary-400 focus-visible:bg-bg-300"
+                className="group hover:border-primary-400/70 focus-visible:border-primary-400 focus-visible:bg-bg-300 flex h-full items-center gap-4 rounded-md border border-editorHoverWidget-border bg-editorHoverWidget-background px-4 py-3 transition-colors hover:bg-toolbar-hoverBackground"
             >
                 <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-3">
@@ -189,34 +192,49 @@ function BundleItem({ bundleMeta, latestTags }: BundleItemProps) {
                         )}
                     </div>
                     <div className="mt-1.5 flex items-center gap-3">
-                        <span className="flex min-w-0 items-center gap-1 text-xs text-fg-700">
-                            <Clock3
-                                className="size-3 shrink-0"
-                                aria-hidden="true"
-                            />
-                            <span title={buildDate.toLocaleString(undefined, strftimeOptions)}>
-                                {buildDate.toLocaleString()}
-                            </span>
-                        </span>
-                        <Clickable
-                            tag="span"
-                            className="flex items-center gap-1 text-xs text-fg-700"
-                            onClick={async (e) => {
-                                e.stopPropagation();
-                                e.preventDefault();
-                                await copyWithNotify(bundleMeta.build_hash, ToastStore.getState());
-                            }}
-                            title={bundleMeta.build_hash}
+                        <Tooltip
+                            text={buildDate.toLocaleString(undefined, strftimeOptions)}
+                            position={TooltipPosition.BOTTOM}
                         >
-                            <Hash
-                                className="size-3 shrink-0"
-                                aria-hidden="true"
-                            />
-                            <code>{bundleMeta.build_hash.slice(0, 9)}</code>
-                        </Clickable>
+                            <span className="text-fg-700 flex min-w-0 items-center gap-1 text-xs">
+                                <Text color="description">
+                                    <Clock3
+                                        className="inline size-5 shrink-0"
+                                        aria-hidden="true"
+                                    />
+                                    {NBSP}
+                                    {buildDate.toLocaleString()}
+                                </Text>
+                            </span>
+                        </Tooltip>
+                        <Tooltip
+                            position={TooltipPosition.BOTTOM}
+                            text={`Click to copy ${EM_DASH} ${bundleMeta.build_hash}`}
+                        >
+                            <Clickable
+                                tag="span"
+                                className="text-fg-700 flex items-center gap-1 text-xs"
+                                onClick={async (e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                    await copyWithNotify(bundleMeta.build_hash, ToastStore.getState());
+                                }}
+                            >
+                                <Text
+                                    color="description"
+                                    className="flex items-center justify-center"
+                                >
+                                    <Hash
+                                        className="inline size-5 shrink-0"
+                                        aria-hidden="true"
+                                    />
+                                    <code>{bundleMeta.build_hash.slice(0, 9)}</code>
+                                </Text>
+                            </Clickable>
+                        </Tooltip>
                     </div>
                 </div>
-                <span className="flex shrink-0 items-center gap-1 text-sm text-primary-400">
+                <span className="text-primary-400 flex shrink-0 items-center gap-1 text-sm">
                     <span className="hidden sm:inline">Open</span>
                     <ArrowRight
                         className="size-4 transition-transform group-hover:translate-x-0.5"
@@ -224,7 +242,7 @@ function BundleItem({ bundleMeta, latestTags }: BundleItemProps) {
                     />
                 </span>
             </Link>
-        </li>
+        </div>
     );
 }
 
@@ -235,6 +253,9 @@ export function BundleSelector() {
             return getBuilds();
         },
     });
+
+    const large = useMediaQuery("(width >= 64rem)");
+    const numCols = large ? 3 : 1;
 
     const sortedBundles = useMemo(() => data?.toSorted(({ first_seen: fa }, { first_seen: fb }) => {
         if (fa === fb) {
@@ -290,7 +311,7 @@ export function BundleSelector() {
         <>
             <Boilerplate />
             <div className="mx-auto w-full max-w-[90vw] px-4 pt-8">
-                <Box className="p-4 sm:p-6">
+                <div className="rounded-lg border-2 border-editorWidget-border bg-editor-background p-4 sm:p-6">
                     <div className="flex flex-wrap items-end justify-between gap-3">
                         <div>
                             <Text
@@ -308,7 +329,6 @@ export function BundleSelector() {
                                 />
                                 <Text
                                     size="sm"
-                                    color="white-700"
                                 >
                                     {filteredBundles!.length === sortedBundles!.length
                                         ? `${sortedBundles!.length} available`
@@ -320,7 +340,6 @@ export function BundleSelector() {
                     {status === "pending" && (
                         <Text
                             size="lg"
-                            color="accent"
                             center
                             className="py-10"
                         >
@@ -338,43 +357,49 @@ export function BundleSelector() {
                         </Text>
                     )}
                     {status === "success" && (
-                        <ScrollArea className="mt-4 max-h-[calc(100dvh-11.25rem)]">
-                            <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                                {sortedBundles!.length === 0 && (
-                                    <Text
-                                        color="error"
-                                        size="lg"
-                                        center
-                                        className="col-span-full"
-                                    >
-                                        No Bundles Available.
-                                        <p />
-                                        This is an error. Please report this.
-                                    </Text>
-                                )}
-                                {sortedBundles!.length > 0 && filteredBundles!.length === 0 && (
-                                    <Text
-                                        color="white-700"
-                                        size="lg"
-                                        center
-                                        className="col-span-full py-10"
-                                    >
-                                        No builds match the selected channels.
-                                    </Text>
-                                )}
-                                {filteredBundles!.map((bundleMeta) => {
+                        <BufferedScroller
+                            items={filteredBundles!}
+                            cols={numCols}
+                            renderHeader={() => {
+                                if (sortedBundles!.length === 0) {
                                     return (
-                                        <BundleItem
-                                            key={bundleMeta.build_hash}
-                                            bundleMeta={bundleMeta}
-                                            latestTags={latestTagsByHash.get(bundleMeta.build_hash) ?? []}
-                                        />
+                                        <Text
+                                            size="lg"
+                                            center
+                                            className="col-span-full"
+                                        >
+                                            No Bundles Available.
+                                            <p />
+                                            This is an error. Please report this.
+                                        </Text>
                                     );
-                                })}
-                            </ul>
-                        </ScrollArea>
+                                }
+                                if (sortedBundles!.length > 0 && filteredBundles!.length === 0) {
+                                    return (
+                                        <Text
+                                            size="lg"
+                                            center
+                                            className="col-span-full py-10"
+                                        >
+                                            No builds match the selected channels.
+                                        </Text>
+                                    );
+                                }
+                                return null;
+                            }}
+                            className="mt-4 max-h-[calc(100dvh-11.25rem)]"
+                            renderItem={({ item: bundleMeta }) => {
+                                return (
+                                    <BundleItem
+                                        key={bundleMeta.build_hash}
+                                        bundleMeta={bundleMeta}
+                                        latestTags={latestTagsByHash.get(bundleMeta.build_hash) ?? []}
+                                    />
+                                );
+                            }}
+                        />
                     )}
-                </Box>
+                </div>
             </div>
         </>
     );
