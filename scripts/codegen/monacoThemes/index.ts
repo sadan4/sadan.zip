@@ -173,13 +173,13 @@ async function generateThemeCss(tmTheme: ThemeRegistration, name: keyof typeof T
     const themeFilePath = resolve(themeGenPath, moduleName);
 
     themeDeclRet.push(dedent/*ts*/`
-            // import ${themeDisplayName}_href from "./${moduleName}?url";
+            import ${themeDisplayName}_href from "./${moduleName}?url";
             export const ${themeDisplayName}: ThemeDeclaration = {
                 async loader(): Promise<string> {
                     const { theme } = (await import("./${moduleName}")) as any as Record<string, string>;
                     return theme;
                 },
-                // href: ${themeDisplayName}_href,
+                href: ${themeDisplayName}_href,
             };
         `);
 

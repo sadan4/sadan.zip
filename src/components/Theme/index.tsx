@@ -1,39 +1,30 @@
-import { themeStore } from "@/stores/ThemeStore";
 import { getCachedThemeLoader } from "@/styles/themes";
 import { cn } from "@/utils/cn";
 import { TextmateTheme } from "@/utils/textmate/theme";
 
 import { ThemeContext } from "./context";
 
-import { type PropsWithChildren, use, useEffect, useMemo } from "react";
+import { type PropsWithChildren, startTransition, use, useEffect, useMemo, useOptimistic, useRef } from "react";
 
 export function RootThemeProvider({ children }: PropsWithChildren) {
-    const globalTheme = themeStore((x) => x.theme);
+    const rootCx = useRouteContext({ from: "__root__" });
+    const [theme, setOptimisticTheme]  = useOptimistic(rootCx.theme);
     let themeName: string | undefined;
+    const reqRef = useRef(0);
+    const router = useRouter();
 
-    // don't suspend for the default theme
-    if (globalTheme !== TextmateTheme.TOKYO_NIGHT) {
-        themeName = use(getCachedThemeLoader(globalTheme));
-    }
-
-    useEffect(() => {
-        if (!themeName) {
-            return;
-        }
-
-        const cl = document.body.classList;
-
-        if (cl.contains(themeName)) {
-            console.warn(`theme ${TextmateTheme[globalTheme]} already in body class list`);
-            return;
-        }
-        cl.add(themeName);
-        return () => {
-            cl.remove(themeName);
-        };
-    }, [themeName, globalTheme]);
-
-    const contextVal = useMemo(() => ({ theme: globalTheme } satisfies ThemeContext), [globalTheme]);
+    const contextVal = useMemo(() => ({ theme, updateTheme(newTheme) {
+        setThemeForNav(newTheme);
+        let id = ++reqRef.current;
+        setThemeForNav(newTheme);
+        startTransition(async () => {
+            setOptimisticTheme(newTheme);
+            await setThemeServerFn({data: newTheme });
+            if (id === reqRef.current) {
+                await router.invalidate();
+            }
+        })
+    }, } satisfies ThemeContext), [theme]);
 
     return (
         <ThemeContext value={contextVal}>
@@ -48,6 +39,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { getCookie, setCookie } from "@tanstack/react-start/server";
 
 import * as z from "zod";
+import { useRouteContext, useRouter } from "@tanstack/react-router";
 
 const COOKIE_NAME = "theme";
 
@@ -69,9 +61,14 @@ const COOKIE_NAME = "theme";
 //     },
 // ));
 
+let themeCache = TextmateTheme.TOKYO_NIGHT;
 
 export function getThemeForNav(): TextmateTheme {
+    return themeCache;
+}
 
+export function setThemeForNav(t: TextmateTheme) {
+    themeCache = t;
 }
 
 const themeSchema = z.enum(TextmateTheme);

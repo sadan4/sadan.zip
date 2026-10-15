@@ -10,143 +10,143 @@ export interface ThemeDeclaration {
 }
 
 
-// import tokyo_night_href from "./tokyo_night.module.css?url";
+import tokyo_night_href from "./tokyo_night.module.css?url";
 export const tokyo_night: ThemeDeclaration = {
     async loader(): Promise<string> {
         const { theme } = (await import("./tokyo_night.module.css")) as any as Record<string, string>;
         return theme;
     },
-    // href: tokyo_night_href,
+    href: tokyo_night_href,
 };
 
 
-// import rose_pine_href from "./rose_pine.module.css?url";
+import rose_pine_href from "./rose_pine.module.css?url";
 export const rose_pine: ThemeDeclaration = {
     async loader(): Promise<string> {
         const { theme } = (await import("./rose_pine.module.css")) as any as Record<string, string>;
         return theme;
     },
-    // href: rose_pine_href,
+    href: rose_pine_href,
 };
 
 
-// import rose_pine_dawn_href from "./rose_pine_dawn.module.css?url";
+import rose_pine_dawn_href from "./rose_pine_dawn.module.css?url";
 export const rose_pine_dawn: ThemeDeclaration = {
     async loader(): Promise<string> {
         const { theme } = (await import("./rose_pine_dawn.module.css")) as any as Record<string, string>;
         return theme;
     },
-    // href: rose_pine_dawn_href,
+    href: rose_pine_dawn_href,
 };
 
 
-// import rose_pine_moon_href from "./rose_pine_moon.module.css?url";
+import rose_pine_moon_href from "./rose_pine_moon.module.css?url";
 export const rose_pine_moon: ThemeDeclaration = {
     async loader(): Promise<string> {
         const { theme } = (await import("./rose_pine_moon.module.css")) as any as Record<string, string>;
         return theme;
     },
-    // href: rose_pine_moon_href,
+    href: rose_pine_moon_href,
 };
 
 
-// import nord_href from "./nord.module.css?url";
+import nord_href from "./nord.module.css?url";
 export const nord: ThemeDeclaration = {
     async loader(): Promise<string> {
         const { theme } = (await import("./nord.module.css")) as any as Record<string, string>;
         return theme;
     },
-    // href: nord_href,
+    href: nord_href,
 };
 
 
-// import catppuccin_href from "./catppuccin.module.css?url";
+import catppuccin_href from "./catppuccin.module.css?url";
 export const catppuccin: ThemeDeclaration = {
     async loader(): Promise<string> {
         const { theme } = (await import("./catppuccin.module.css")) as any as Record<string, string>;
         return theme;
     },
-    // href: catppuccin_href,
+    href: catppuccin_href,
 };
 
 
-// import catppuccin_frappe_href from "./catppuccin_frappe.module.css?url";
+import catppuccin_frappe_href from "./catppuccin_frappe.module.css?url";
 export const catppuccin_frappe: ThemeDeclaration = {
     async loader(): Promise<string> {
         const { theme } = (await import("./catppuccin_frappe.module.css")) as any as Record<string, string>;
         return theme;
     },
-    // href: catppuccin_frappe_href,
+    href: catppuccin_frappe_href,
 };
 
 
-// import catppuccin_macchiato_href from "./catppuccin_macchiato.module.css?url";
+import catppuccin_macchiato_href from "./catppuccin_macchiato.module.css?url";
 export const catppuccin_macchiato: ThemeDeclaration = {
     async loader(): Promise<string> {
         const { theme } = (await import("./catppuccin_macchiato.module.css")) as any as Record<string, string>;
         return theme;
     },
-    // href: catppuccin_macchiato_href,
+    href: catppuccin_macchiato_href,
 };
 
 
-// import catppuccin_latte_href from "./catppuccin_latte.module.css?url";
+import catppuccin_latte_href from "./catppuccin_latte.module.css?url";
 export const catppuccin_latte: ThemeDeclaration = {
     async loader(): Promise<string> {
         const { theme } = (await import("./catppuccin_latte.module.css")) as any as Record<string, string>;
         return theme;
     },
-    // href: catppuccin_latte_href,
+    href: catppuccin_latte_href,
 };
 
 
-// import dracula_href from "./dracula.module.css?url";
+import dracula_href from "./dracula.module.css?url";
 export const dracula: ThemeDeclaration = {
     async loader(): Promise<string> {
         const { theme } = (await import("./dracula.module.css")) as any as Record<string, string>;
         return theme;
     },
-    // href: dracula_href,
+    href: dracula_href,
 };
 
 
-// import gruvbox_href from "./gruvbox.module.css?url";
+import gruvbox_href from "./gruvbox.module.css?url";
 export const gruvbox: ThemeDeclaration = {
     async loader(): Promise<string> {
         const { theme } = (await import("./gruvbox.module.css")) as any as Record<string, string>;
         return theme;
     },
-    // href: gruvbox_href,
+    href: gruvbox_href,
 };
 
 
-// import oxocarbon_href from "./oxocarbon.module.css?url";
+import oxocarbon_href from "./oxocarbon.module.css?url";
 export const oxocarbon: ThemeDeclaration = {
     async loader(): Promise<string> {
         const { theme } = (await import("./oxocarbon.module.css")) as any as Record<string, string>;
         return theme;
     },
-    // href: oxocarbon_href,
+    href: oxocarbon_href,
 };
 
 
-// import vscode_dark_href from "./vscode_dark.module.css?url";
+import vscode_dark_href from "./vscode_dark.module.css?url";
 export const vscode_dark: ThemeDeclaration = {
     async loader(): Promise<string> {
         const { theme } = (await import("./vscode_dark.module.css")) as any as Record<string, string>;
         return theme;
     },
-    // href: vscode_dark_href,
+    href: vscode_dark_href,
 };
 
 
-// import vscode_light_href from "./vscode_light.module.css?url";
+import vscode_light_href from "./vscode_light.module.css?url";
 export const vscode_light: ThemeDeclaration = {
     async loader(): Promise<string> {
         const { theme } = (await import("./vscode_light.module.css")) as any as Record<string, string>;
         return theme;
     },
-    // href: vscode_light_href,
+    href: vscode_light_href,
 };
 
 

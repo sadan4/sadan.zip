@@ -1,6 +1,6 @@
 import { Devtools } from "@/components/Devtools";
 import { LayerContext } from "@/components/Layer/context";
-import { RootThemeProvider } from "@/components/Theme";
+import { getThemeForNav, getThemeServerFn, RootThemeProvider } from "@/components/Theme";
 import { ToastContainer } from "@/components/Toast";
 import { NotFoundPage } from "@/routes/-404";
 import { installF8Break, uninstallF8Break } from "@/utils/devtools";
@@ -14,6 +14,15 @@ import rootCss from "../index.css?url";
 import { useEffect, useState } from "react";
 
 export const Route = createRootRoute({
+    async beforeLoad() {
+        let theme
+        if (import.meta.env.SSR) {
+           theme = await getThemeServerFn();
+        } else {
+            theme = getThemeForNav();
+        }
+        return {theme};
+    },
     loader({ location: { publicHref } }) {
         return {
             publicHref,

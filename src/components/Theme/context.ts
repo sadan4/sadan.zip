@@ -8,4 +8,5 @@ ThemeContext.displayName = "ThemeContext";
 
 export interface ThemeContext {
     theme: TextmateTheme;
+    updateTheme(newTheme: TextmateTheme): void;
 }

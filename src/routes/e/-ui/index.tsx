@@ -13,7 +13,6 @@ import { ToggleButtonGroup } from "@/components/ToggleButtonGroup";
 import { TooltipPosition } from "@/components/Tooltip/constants";
 import { useCurrentTheme } from "@/hooks/currentTheme";
 import { type GeneratedGraph, useModuleGraph2 } from "@/hooks/moduleGraph2";
-import { themeStore } from "@/stores/ThemeStore";
 import { makeRange } from "@/utils/array";
 import cn from "@/utils/cn";
 import { BUNDLE_ARCHIVE_FILENAME, BUNDLE_ARCHIVE_URL, GITHUB_REPO_URL, NBSP } from "@/utils/constants";
@@ -55,6 +54,7 @@ import {
     XIcon,
 } from "lucide-react";
 import { Activity, type PropsWithChildren, use, useEffect, useRef, useState } from "react";
+import { ThemeContext } from "@/components/Theme/context";
 
 
 function pendingUri(str: string) {
@@ -234,7 +234,7 @@ function ExperimentalSetting({ children }: ExperimentalSettingProps) {
 
 function SettingsModal() {
     const openModulesInNewTab = useModuleViewerSettingsStore(({ openModulesInNewTab }) => openModulesInNewTab);
-    const selectedTheme = useCurrentTheme();
+    const themeCtx = use(ThemeContext);
     const graphDepth = useModuleViewerSettingsStore(({ graphDepth }) => graphDepth);
     const ctx = use(ModalContext)!;
 
@@ -286,9 +286,9 @@ function SettingsModal() {
                                 Editor Theme
                             </Text>
                             <Select
-                                selectedValue={selectedTheme}
-                                onChange={(editorTheme) => {
-                                    themeStore.setState({ theme: editorTheme });
+                                selectedValue={themeCtx.theme}
+                                onChange={(newTheme) => {
+                                    themeCtx.updateTheme(newTheme);
                                 }}
                                 items={Object
                                     .values(TextmateTheme)
