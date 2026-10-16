@@ -5,7 +5,7 @@ mod server;
 mod state;
 mod watcher;
 
-use clap::Parser;
+use clap::{ArgAction, Parser};
 use explorer_types::Channel;
 use std::process;
 use tokio::task::JoinSet;
@@ -31,9 +31,9 @@ struct Cli {
 	host: String,
 	#[arg(long)]
 	redis_uri: Option<String>,
-	#[arg(long, default_value_t = true)]
+	#[arg(long, default_value_t = true, action = ArgAction::Set)]
 	scrape_stable: bool,
-	#[arg(long, default_value_t = true)]
+	#[arg(long, default_value_t = true, action = ArgAction::Set)]
 	scrape_canary: bool,
 }
 
