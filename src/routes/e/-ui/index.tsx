@@ -54,7 +54,7 @@ import {
     XIcon,
 } from "lucide-react";
 import { Activity, type PropsWithChildren, use, useEffect, useRef, useState } from "react";
-import { ThemeContext } from "@/components/Theme/context";
+import { ThemeContext } from "@/components/Theme/misc";
 
 
 function pendingUri(str: string) {

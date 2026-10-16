@@ -62,6 +62,7 @@ const genPath = resolve(rootPath, "src", "components", "CodeEditor", "Monaco", "
 const themeGenPath = resolve(rootPath, "src", "styles", "themes", "generated");
 
 await mkdir(genPath, { recursive: true });
+await mkdir(themeGenPath, { recursive: true });
 
 const typeFile = "types.ts";
 const typeFilePath = resolve(genPath, typeFile);
@@ -102,10 +103,9 @@ const themeDeclRet = [
 
         import { TextmateTheme } from "@/utils/textmate/theme";
 
-        export type ThemeLoader = () => Promise<string>;
-
         export interface ThemeDeclaration {
-            loader: ThemeLoader;
+            href: string;
+            className: string;
         }
     `,
 ];
@@ -169,24 +169,15 @@ async function generateThemeCss(tmTheme: ThemeRegistration, name: keyof typeof T
     lines.push("}");
 
     const text = lines.join("\n");
-    const moduleName = `${themeDisplayName}.module.css`;
+    const moduleName = `${themeDisplayName}.theme.css`;
     const themeFilePath = resolve(themeGenPath, moduleName);
 
-    themeDeclRet.push(dedent/*ts*/`
-            import ${themeDisplayName}_href from "./${moduleName}?url";
-            export const ${themeDisplayName}: ThemeDeclaration = {
-                async loader(): Promise<string> {
-                    const { theme } = (await import("./${moduleName}")) as any as Record<string, string>;
-                    return theme;
-                },
-                href: ${themeDisplayName}_href,
-            };
-        `);
+    themeDeclRet.push(/*ts*/`import * as ${themeDisplayName} from "./${moduleName}";`);
 
     await writeFile(themeFilePath, `${text}\n`);
 }
 async function generateTailwindEntry() {
-    const css = await readFile(resolve(themeGenPath, "tokyo_night.module.css"), "utf8");
+    const css = await readFile(resolve(themeGenPath, "tokyo_night.theme.css"), "utf8");
 
     await writeFile(resolve(themeGenPath, "tailwind.css"), css.replace(".theme", "@theme"));
 }
@@ -194,7 +185,7 @@ async function generateTailwindEntry() {
 themeDeclRet.push(dedent/*ts*/`
     export function getThemeDeclaration(theme: TextmateTheme): ThemeDeclaration {
         switch (theme) {
-            ${themes.map((t) => dedent/*ts*/`case TextmateTheme.${t}: return ${t.toLowerCase()};`).join("\n")}
+            ${themes.map((t) => dedent/*ts*/`case TextmateTheme.${t}: return ${t.toLowerCase()} as ThemeDeclaration;`).join("\n")}
             default:
                 throw new Error("Unknown theme: " + (TextmateTheme[theme] ?? theme))
         }

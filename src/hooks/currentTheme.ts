@@ -1,4 +1,4 @@
-import { ThemeContext } from "@/components/Theme/context";
+import { ThemeContext } from "@/components/Theme/misc";
 import type { TextmateTheme } from "@/utils/textmate/theme";
 
 import { use } from "react";

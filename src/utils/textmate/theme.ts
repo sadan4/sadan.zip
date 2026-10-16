@@ -17,6 +17,8 @@ export enum TextmateTheme {
     VSCODE_LIGHT,
 }
 
+export const DEFAULT_THEME = TextmateTheme.TOKYO_NIGHT;
+
 export const themeDisplayNames = Object.freeze({
     [TextmateTheme.TOKYO_NIGHT]: "Tokyo Night",
     [TextmateTheme.ROSE_PINE]: "Rose Pine",

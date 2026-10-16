@@ -3,169 +3,70 @@
 
 import { TextmateTheme } from "@/utils/textmate/theme";
 
-export type ThemeLoader = () => Promise<string>;
-
 export interface ThemeDeclaration {
-    loader: ThemeLoader;
+    href: string;
+    className: string;
 }
 
 
-import tokyo_night_href from "./tokyo_night.module.css?url";
-export const tokyo_night: ThemeDeclaration = {
-    async loader(): Promise<string> {
-        const { theme } = (await import("./tokyo_night.module.css")) as any as Record<string, string>;
-        return theme;
-    },
-    href: tokyo_night_href,
-};
+import * as tokyo_night from "./tokyo_night.theme.css";
 
 
-import rose_pine_href from "./rose_pine.module.css?url";
-export const rose_pine: ThemeDeclaration = {
-    async loader(): Promise<string> {
-        const { theme } = (await import("./rose_pine.module.css")) as any as Record<string, string>;
-        return theme;
-    },
-    href: rose_pine_href,
-};
+import * as rose_pine from "./rose_pine.theme.css";
 
 
-import rose_pine_dawn_href from "./rose_pine_dawn.module.css?url";
-export const rose_pine_dawn: ThemeDeclaration = {
-    async loader(): Promise<string> {
-        const { theme } = (await import("./rose_pine_dawn.module.css")) as any as Record<string, string>;
-        return theme;
-    },
-    href: rose_pine_dawn_href,
-};
+import * as rose_pine_dawn from "./rose_pine_dawn.theme.css";
 
 
-import rose_pine_moon_href from "./rose_pine_moon.module.css?url";
-export const rose_pine_moon: ThemeDeclaration = {
-    async loader(): Promise<string> {
-        const { theme } = (await import("./rose_pine_moon.module.css")) as any as Record<string, string>;
-        return theme;
-    },
-    href: rose_pine_moon_href,
-};
+import * as rose_pine_moon from "./rose_pine_moon.theme.css";
 
 
-import nord_href from "./nord.module.css?url";
-export const nord: ThemeDeclaration = {
-    async loader(): Promise<string> {
-        const { theme } = (await import("./nord.module.css")) as any as Record<string, string>;
-        return theme;
-    },
-    href: nord_href,
-};
+import * as nord from "./nord.theme.css";
 
 
-import catppuccin_href from "./catppuccin.module.css?url";
-export const catppuccin: ThemeDeclaration = {
-    async loader(): Promise<string> {
-        const { theme } = (await import("./catppuccin.module.css")) as any as Record<string, string>;
-        return theme;
-    },
-    href: catppuccin_href,
-};
+import * as catppuccin from "./catppuccin.theme.css";
 
 
-import catppuccin_frappe_href from "./catppuccin_frappe.module.css?url";
-export const catppuccin_frappe: ThemeDeclaration = {
-    async loader(): Promise<string> {
-        const { theme } = (await import("./catppuccin_frappe.module.css")) as any as Record<string, string>;
-        return theme;
-    },
-    href: catppuccin_frappe_href,
-};
+import * as catppuccin_frappe from "./catppuccin_frappe.theme.css";
 
 
-import catppuccin_macchiato_href from "./catppuccin_macchiato.module.css?url";
-export const catppuccin_macchiato: ThemeDeclaration = {
-    async loader(): Promise<string> {
-        const { theme } = (await import("./catppuccin_macchiato.module.css")) as any as Record<string, string>;
-        return theme;
-    },
-    href: catppuccin_macchiato_href,
-};
+import * as catppuccin_macchiato from "./catppuccin_macchiato.theme.css";
 
 
-import catppuccin_latte_href from "./catppuccin_latte.module.css?url";
-export const catppuccin_latte: ThemeDeclaration = {
-    async loader(): Promise<string> {
-        const { theme } = (await import("./catppuccin_latte.module.css")) as any as Record<string, string>;
-        return theme;
-    },
-    href: catppuccin_latte_href,
-};
+import * as catppuccin_latte from "./catppuccin_latte.theme.css";
 
 
-import dracula_href from "./dracula.module.css?url";
-export const dracula: ThemeDeclaration = {
-    async loader(): Promise<string> {
-        const { theme } = (await import("./dracula.module.css")) as any as Record<string, string>;
-        return theme;
-    },
-    href: dracula_href,
-};
+import * as dracula from "./dracula.theme.css";
 
 
-import gruvbox_href from "./gruvbox.module.css?url";
-export const gruvbox: ThemeDeclaration = {
-    async loader(): Promise<string> {
-        const { theme } = (await import("./gruvbox.module.css")) as any as Record<string, string>;
-        return theme;
-    },
-    href: gruvbox_href,
-};
+import * as gruvbox from "./gruvbox.theme.css";
 
 
-import oxocarbon_href from "./oxocarbon.module.css?url";
-export const oxocarbon: ThemeDeclaration = {
-    async loader(): Promise<string> {
-        const { theme } = (await import("./oxocarbon.module.css")) as any as Record<string, string>;
-        return theme;
-    },
-    href: oxocarbon_href,
-};
+import * as oxocarbon from "./oxocarbon.theme.css";
 
 
-import vscode_dark_href from "./vscode_dark.module.css?url";
-export const vscode_dark: ThemeDeclaration = {
-    async loader(): Promise<string> {
-        const { theme } = (await import("./vscode_dark.module.css")) as any as Record<string, string>;
-        return theme;
-    },
-    href: vscode_dark_href,
-};
+import * as vscode_dark from "./vscode_dark.theme.css";
 
 
-import vscode_light_href from "./vscode_light.module.css?url";
-export const vscode_light: ThemeDeclaration = {
-    async loader(): Promise<string> {
-        const { theme } = (await import("./vscode_light.module.css")) as any as Record<string, string>;
-        return theme;
-    },
-    href: vscode_light_href,
-};
+import * as vscode_light from "./vscode_light.theme.css";
 
 
 export function getThemeDeclaration(theme: TextmateTheme): ThemeDeclaration {
     switch (theme) {
-        case TextmateTheme.TOKYO_NIGHT: return tokyo_night;
-        case TextmateTheme.ROSE_PINE: return rose_pine;
-        case TextmateTheme.ROSE_PINE_DAWN: return rose_pine_dawn;
-        case TextmateTheme.ROSE_PINE_MOON: return rose_pine_moon;
-        case TextmateTheme.NORD: return nord;
-        case TextmateTheme.CATPPUCCIN: return catppuccin;
-        case TextmateTheme.CATPPUCCIN_FRAPPE: return catppuccin_frappe;
-        case TextmateTheme.CATPPUCCIN_MACCHIATO: return catppuccin_macchiato;
-        case TextmateTheme.CATPPUCCIN_LATTE: return catppuccin_latte;
-        case TextmateTheme.DRACULA: return dracula;
-        case TextmateTheme.GRUVBOX: return gruvbox;
-        case TextmateTheme.OXOCARBON: return oxocarbon;
-        case TextmateTheme.VSCODE_DARK: return vscode_dark;
-        case TextmateTheme.VSCODE_LIGHT: return vscode_light;
+        case TextmateTheme.TOKYO_NIGHT: return tokyo_night as ThemeDeclaration;
+        case TextmateTheme.ROSE_PINE: return rose_pine as ThemeDeclaration;
+        case TextmateTheme.ROSE_PINE_DAWN: return rose_pine_dawn as ThemeDeclaration;
+        case TextmateTheme.ROSE_PINE_MOON: return rose_pine_moon as ThemeDeclaration;
+        case TextmateTheme.NORD: return nord as ThemeDeclaration;
+        case TextmateTheme.CATPPUCCIN: return catppuccin as ThemeDeclaration;
+        case TextmateTheme.CATPPUCCIN_FRAPPE: return catppuccin_frappe as ThemeDeclaration;
+        case TextmateTheme.CATPPUCCIN_MACCHIATO: return catppuccin_macchiato as ThemeDeclaration;
+        case TextmateTheme.CATPPUCCIN_LATTE: return catppuccin_latte as ThemeDeclaration;
+        case TextmateTheme.DRACULA: return dracula as ThemeDeclaration;
+        case TextmateTheme.GRUVBOX: return gruvbox as ThemeDeclaration;
+        case TextmateTheme.OXOCARBON: return oxocarbon as ThemeDeclaration;
+        case TextmateTheme.VSCODE_DARK: return vscode_dark as ThemeDeclaration;
+        case TextmateTheme.VSCODE_LIGHT: return vscode_light as ThemeDeclaration;
         default:
             throw new Error("Unknown theme: " + (TextmateTheme[theme] ?? theme))
     }

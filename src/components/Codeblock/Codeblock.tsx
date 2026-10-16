@@ -15,7 +15,7 @@ import * as styles from "./styles.module.scss";
 import { IconButton } from "../Button";
 import { ScrollAreaDirection } from "../layout/ScrollArea/types";
 import { Text } from "../Text";
-import { ThemeContext } from "../Theme/context";
+import { ThemeContext } from "../Theme/misc";
 import { TooltipPosition } from "../Tooltip/constants";
 
 import { CopyIcon } from "lucide-react";

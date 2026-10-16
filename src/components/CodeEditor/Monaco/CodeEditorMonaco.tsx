@@ -1,4 +1,4 @@
-import { ThemeContext } from "@/components/Theme/context";
+import { ThemeContext } from "@/components/Theme/misc";
 import { useControlledState } from "@/hooks/controlledState";
 import { useLock } from "@/hooks/lock";
 import { useRecent } from "@/hooks/recent";

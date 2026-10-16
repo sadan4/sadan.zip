@@ -28,7 +28,7 @@ import {
 import * as styles from "./styles.module.scss";
 
 import { ArrowRightIcon } from "lucide-react";
-import type { ReactNode } from "react";
+import { type ReactNode } from "react";
 
 interface ContactLinkProps {
     name: string;
