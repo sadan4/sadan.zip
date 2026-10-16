@@ -7,6 +7,9 @@
 	inherit (lib) mkDefault mkEnableOption mkOption mkIf types;
 
 	cfg = config.services.explorer-server;
+	boolFlag = name: val: "--${name} ${if val then "true" else "false"}";
+	scrapeCanaryFlag = boolFlag "scrape-canary";
+	scrapeStableFlag = boolFlag "scrape-stable";
 in {
 	options.services.explorer-server = {
 		enable = mkEnableOption "todo";
@@ -53,6 +56,16 @@ in {
 					type = types.nullOr types.str;
 					description = "URI to use for the cache. If null, no cache is used.\nSee <https://docs.rs/redis/1.6.0/redis/#connection-parameters> for the supported protocols.";
 				};
+			scrapeCanary = mkOption {
+				default = false;
+				type = types.bool;
+				description = "wether to scrape the discord canary branch";
+			};
+			scrapeStable = mkOption {
+				default = true;
+				type = types.bool;
+				description = "wether to scrape the discord stable branch";
+			};
 		};
 	};
 
@@ -100,7 +113,7 @@ in {
 					User = cfg.user;
 					Group = cfg.group;
 					WorkingDirectory = cfg.stateDir;
-					ExecStart = "${lib.getExe cfg.package} --host ${cfg.settings.host} --port ${toString cfg.settings.port} ${lib.optionalString (cfg.settings.cacheUri != null) "--redis-uri ${cfg.settings.cacheUri}"}";
+					ExecStart = "${lib.getExe cfg.package} --host ${cfg.settings.host} --port ${toString cfg.settings.port} ${lib.optionalString (cfg.settings.cacheUri != null) "--redis-uri ${cfg.settings.cacheUri}"} ${scrapeCanaryFlag cfg.settings.scrapeCanary} ${scrapeStableFlag cfg.settings.scrapeStable}";
 					Restart = "always";
 					# Access write directories
 					ReadWritePaths = [
