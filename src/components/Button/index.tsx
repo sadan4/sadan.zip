@@ -48,7 +48,7 @@ export interface ButtonProps extends BaseButtonProps<"button"> {
 /**
  * A simple button
  */
-export function Button({ children, className, color = "primary", size = "md", wrap = false, colorType = "filled", disabled = false, label, ...props }: ButtonProps) {
+export function Button({ children, className, color = "primary", colorType = "filled", size = "md", wrap = false, disabled = false, label, ...props }: ButtonProps) {
     const id = useId();
 
     return (
@@ -94,11 +94,11 @@ export type IconButtonProps<Tag extends "a" | "button"> = BaseButtonProps<Tag> &
      */
     dispatchDuringAnim?: boolean;
     /**
-     * color of the check icon
+     * className for the checkIcon on success
      * 
-     * @default "success"
+     * @default class that applies a success color
      */
-    checkColor?: BaseButtonProps<Tag>["color"];
+    checkColor?: string;
     /**
      * show a loading animation while the promise is pending
      * 
@@ -114,9 +114,9 @@ export type IconButtonProps<Tag extends "a" | "button"> = BaseButtonProps<Tag> &
 export function IconButton<T extends "a" | "button" = "button">({
     children,
     className,
-    color = "primary",
-    checkColor = "success",
+    color = "secodnary",
     colorType = "filled",
+    checkColor = styles.checkSuccess,
     disabled = false,
     label,
     onClick,
@@ -201,10 +201,10 @@ export function IconButton<T extends "a" | "button" = "button">({
                 <div className={styles.icon}>
                     {children}
                 </div>
-                <div className={cn(styles.statusIcon, styles.checkIcon, colors[checkColor])}>
+                <div className={cn(styles.statusIcon, styles.checkIcon, checkColor)}>
                     <CheckIcon />
                 </div>
-                <div className={cn(styles.statusIcon, styles.errorIcon, colors.error)}>
+                <div className={cn(styles.statusIcon, styles.errorIcon, styles.checkError)}>
                     <XIcon />
                 </div>
                 <div className={cn(styles.statusIcon, styles.loadingIcon)}>

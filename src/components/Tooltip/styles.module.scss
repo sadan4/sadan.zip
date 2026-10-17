@@ -5,11 +5,13 @@
     }
 
     .container {
+        $border-color: color-mix(in oklab, var(--color-editorCursor-foreground) 25%, transparent);
+
         > .arrow {
-            fill: var(--color-bg-100);
+            fill: var(--color-editorHoverWidget-background);
 
             > path:first-of-type {
-                stroke: color-mix(in oklab, var(--color-fg-600) 25%, transparent);
+                stroke: $border-color;
             }
         }
 
@@ -17,6 +19,9 @@
             $box-padding: 1rem;
 
             padding: calc($box-padding / 2) $box-padding;
+            background-color: var(--color-editorHoverWidget-background);
+            outline-color: $border-color;
+            color: var(--color-editor-foreground);
 
             > .wrapper {
                 text-align: center;

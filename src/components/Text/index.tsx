@@ -5,28 +5,33 @@ import * as styles from "./styles.module.scss";
 import type { ComponentProps, PropsWithChildren } from "react";
 
 const textColors = {
-    black: styles.black,
-    "black-200": styles.black200,
-    "black-300": styles.black300,
-    white: styles.white,
-    "white-600": styles.white600,
-    "white-700": styles.white700,
-    "white-800": styles.white800,
+    // black: styles.black,
+    // "black-200": styles.black200,
+    // "black-300": styles.black300,
+    // white: styles.white,
+    // "white-600": styles.white600,
+    // "white-700": styles.white700,
+    // "white-800": styles.white800,
     primary: styles.primary,
-    secondary: styles.secondary,
-    accent: styles.accent,
-    neutral: styles.neutral,
-    "neutral-content": styles.neutralContent,
-    "info-400": styles.info400,
-    info: styles.info,
-    "info-600": styles.info600,
-    "info-700": styles.info700,
-    success: styles.success,
-    warning: styles.warning,
+    // secondary: styles.secondary,
+    // accent: styles.accent,
+    // neutral: styles.neutral,
+    // "neutral-content": styles.neutralContent,
+    // "info-400": styles.info400,
+    // info: styles.info,
+    // "info-600": styles.info600,
+    // "info-700": styles.info700,
+    // success: styles.success,
+    // warning: styles.warning,
+    // error: styles.error,
+    foreground: styles.foreground,
+    description: styles.description,
+    link: styles.link,
     error: styles.error,
+    warning: styles.warning,
 } as const;
 
-export type TextTags = "div" | "span" | "p";
+export type TextTags = "div" | "span" | "p" | "code";
 
 export interface StandardTextProps extends SizeProp, WeightProp {
     /**
@@ -61,7 +66,7 @@ export function Text<T extends TextTags = "div">(props: TextProps<T>) {
         tag = "div",
         size = "sm",
         weight = "normal",
-        color = "white",
+        color = "foreground",
         children,
         noselect = false,
         nowrap = false,

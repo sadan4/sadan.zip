@@ -2,12 +2,7 @@ import * as styles from "./styles.module.scss";
 
 export const colors = {
     primary: styles.primary,
-    secondary: styles.secondary,
-    accent: styles.accent,
-    neutral: styles.neutral,
-    info: styles.info,
-    "info-700": styles.info700,
-    success: styles.success,
+    secodnary: styles.secondary,
     warning: styles.warning,
     error: styles.error,
 } as const;
@@ -16,5 +11,4 @@ export const colorTypes = {
     outline: styles.outline,
     filled: styles.filled,
     text: styles.text,
-} as const;
-
+};

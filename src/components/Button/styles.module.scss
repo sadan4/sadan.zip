@@ -168,62 +168,93 @@
 
         &.primary,
         .primary {
-            --button-color-base: var(--color-primary-400);
+            --button-text-color: var(--color-button-foreground);
+
+            background-color: var(--color-button-background);
+
+            &:hover {
+                background-color: var(--color-button-hoverBackground);
+            }
         }
 
         &.secondary,
         .secondary {
-            --button-color-base: var(--color-secondary-500);
-        }
+            background-color: var(--color-button-secondaryBackground);
+            color: var(--color-button-secondaryForeground);
 
-        &.accent,
-        .accent {
-            --button-color-base: var(--color-accent-300);
-        }
-
-        &:is(.outline, .text):hover.accent,
-        &:is(.outline, .text):hover .accent {
-            --hover-bg-opacity: 10%;
-        }
-
-        &.neutral,
-        .neutral {
-            --button-color-base: var(--color-neutral-content);
-        }
-
-        &.filled.neutral,
-        &.filled .neutral {
-            --button-text-color: var(--color-neutral);
-        }
-
-        &.info,
-        .info {
-            --button-color-base: var(--color-info-500);
-        }
-
-        &.info,
-        .info-700 {
-            --button-color-base: var(--color-info-700);
-        }
-
-        &.filled.info-700,
-        &.filled .info-700 {
-            --button-text-color: var(--color-fg-500);
-        }
-
-        &.success,
-        .success {
-            --button-color-base: var(--color-success-300);
+            &:hover {
+                background-color: var(--color-button-secondaryHoverBackground);
+            }
         }
 
         &.warning,
         .warning {
-            --button-color-base: var(--color-warning-300);
+            --button-color-base: var(--color-editorWarning-foreground);
         }
 
         &.error,
         .error {
-            --button-color-base: var(--color-error-400);
+            --button-color-base: var(--color-editorError-foreground);
         }
+
+        // &.primary,
+        // .primary {
+        //     --button-color-base: var(--color-primary-400);
+        // }
+
+        // &.secondary,
+        // .secondary {
+        //     --button-color-base: var(--color-secondary-500);
+        // }
+
+        // &.accent,
+        // .accent {
+        //     --button-color-base: var(--color-accent-300);
+        // }
+
+        // &:is(.outline, .text):hover.accent,
+        // &:is(.outline, .text):hover .accent {
+        //     --hover-bg-opacity: 10%;
+        // }
+
+        // &.neutral,
+        // .neutral {
+        //     --button-color-base: var(--color-neutral-content);
+        // }
+
+        // &.filled.neutral,
+        // &.filled .neutral {
+        //     --button-text-color: var(--color-neutral);
+        // }
+
+        // &.info,
+        // .info {
+        //     --button-color-base: var(--color-info-500);
+        // }
+
+        // &.info,
+        // .info-700 {
+        //     --button-color-base: var(--color-info-700);
+        // }
+
+        // &.filled.info-700,
+        // &.filled .info-700 {
+        //     --button-text-color: var(--color-fg-500);
+        // }
+
+        // &.success,
+        // .success {
+        //     --button-color-base: var(--color-success-300);
+        // }
+
+        // &.warning,
+        // .warning {
+        //     --button-color-base: var(--color-warning-300);
+        // }
+
+        // &.error,
+        // .error {
+        //     --button-color-base: var(--color-error-400);
+        // }
     }
 }

@@ -52,16 +52,17 @@ function SelectItem<T>({ item: { label, value, disabled }, isSelected, onChange 
     return (
         <Clickable
             ref={ref}
-            className={cn("flex items-center p-2", disabled ? "brightness-50" : "hover:bg-bg-200")}
+            className={cn("flex items-center p-2", disabled ? "brightness-50" : "hover:bg-list-hoverBackground")}
             onClick={() => {
                 onChange(value);
             }}
         >
             <div
                 className="flex-1/1"
-            >{label}
+            >
+                {typeof label === "string" ? <Text>{label}</Text> : label}
             </div>
-            {isSelected && <CircleCheck className="text-info-500"/>}
+            {isSelected && <CircleCheck className="text-icon-foreground"/>}
         </Clickable>
     );
 }
@@ -75,7 +76,7 @@ interface SelectMenuProps<T> {
 
 function SelectMenu<T>({ items, onChange, selectedItem, scrollAreaClassName }: SelectMenuProps<T>) {
     return (
-        <ScrollArea className={cn("flex flex-col rounded-md border-3 border-fg-700 bg-bg-300 sb-track-bg-300", scrollAreaClassName)}>
+        <ScrollArea className={cn("sb-track-bg-300 flex flex-col rounded-md border-3 border-editorHoverWidget-foreground bg-editorHoverWidget-background", scrollAreaClassName)}>
             {items.map((item) => {
                 return (
                     <SelectItem
@@ -230,7 +231,7 @@ export function Select<T extends PropertyKey>({
                             </div>
                             <animated.svg
                                 viewBox="-2.4 -2.4 28.8 28.8"
-                                className="h-8 w-8 fill-none stroke-fg-500"
+                                className="h-8 w-8 fill-none stroke-icon-foreground"
                                 style={{
                                     transform: rotation.to((r) => `rotate(${r}deg)`),
                                 }}
