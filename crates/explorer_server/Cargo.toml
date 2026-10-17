@@ -15,6 +15,7 @@ tokio = { workspace = true, features = [
   "fs",
   "time",
   "process",
+  "sync",
 ] }
 tokio-stream = { workspace = true, features = ["fs"] }
 tokio-util = { workspace = true, features = ["io", "io-util"] }

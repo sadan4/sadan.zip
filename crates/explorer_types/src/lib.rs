@@ -1,5 +1,6 @@
 pub mod experiments;
 pub mod intl;
+mod serde_sorted;
 mod serde_span;
 
 use derive_more::{Deref, Display, From, Into};
@@ -79,6 +80,7 @@ impl KeyModules {
 #[serde(rename_all = "camelCase")]
 pub struct DepInfo {
 	pub key_modules: KeyModules,
+	#[serde(serialize_with = "serde_sorted::serialize_sorted_map")]
 	pub module_deps: HashMap<ModuleId, IncomingModuleDeps>,
 }
 
@@ -105,7 +107,9 @@ pub type Modules = HashMap<ModuleId, String>;
 pub struct FullBundle {
 	pub metadata: BundleMetadata,
 	pub dep_info: DepInfo,
+	#[serde(serialize_with = "serde_sorted::serialize_sorted_map")]
 	pub module_sources: HashMap<String, Vec<ModuleId>>,
+	#[serde(serialize_with = "serde_sorted::serialize_sorted_map")]
 	pub modules: HashMap<ModuleId, String>,
 	pub env_var_text: String,
 	/// every apex and normal experiment defined in the bundle

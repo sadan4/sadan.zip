@@ -9,6 +9,7 @@ anyhow.workspace = true
 serde.workspace = true
 rmp-serde.workspace = true
 zstd = { workspace = true, features = ["zstdmt"] }
+xxhash-rust.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

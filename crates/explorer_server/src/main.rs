@@ -96,14 +96,15 @@ async fn main() {
 		Cache::new()
 	};
 	let state = State::new(cache);
+	// the watchers need the full build list: the canary watcher picks its
+	// delta base from it, and populating replaces it wholesale, which would
+	// drop builds a watcher added in the meantime
+	if let Err(e) = state.populate_from_disk().await {
+		error!("Failed to populate state from disk: {e:?}");
+		error!("Exiting.");
+		process::exit(1);
+	}
 	let mut tasks = JoinSet::new();
-	let state_ = state.clone();
-	tasks.spawn(async move {
-		if let Err(e) = state_.populate_from_disk().await {
-			error!("Failed to populate state from disk: {e:?}");
-		}
-	});
-	debug!("spawned state population");
 	if cli.scrape_stable {
 		let state_ = state.clone();
 		tasks.spawn(async move {

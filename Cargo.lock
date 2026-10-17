@@ -1192,6 +1192,7 @@ dependencies = [
  "serde_json",
  "smol_str",
  "tempfile",
+ "xxhash-rust",
  "zstd",
 ]
 
