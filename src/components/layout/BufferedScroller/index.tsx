@@ -5,14 +5,21 @@ import { useResizeObserverFromRef } from "@/hooks/resizeObserver";
 import { findIndex } from "@/utils/array";
 import cn from "@/utils/cn";
 import { assert, debug_assert } from "@/utils/error";
-import { clamp, inRange, inRangeExclusive } from "@/utils/math";
+import { clamp, inRange, inRangeExclusive, roundDownToMultipleOf } from "@/utils/math";
 import { mapObject } from "@/utils/obj";
 import { defer } from "@/utils/scope";
 
+import * as styles from "./styles.module.scss";
 import { ScrollArea, type ScrollAreaProps } from "../ScrollArea";
 import { ScrollAreaContext } from "../ScrollArea/context";
 
 import { type PropsWithChildren, type ReactNode, type Ref, type UIEvent, use, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+
+declare module "react" {
+    interface CSSProperties {
+        "--buffered-scroller-num-cols"?: string;
+    }
+}
 
 export namespace BufferedScroller {
     export interface RenderItemProps<T> {
@@ -45,7 +52,15 @@ export interface BufferedScrollProps<T> extends ScrollAreaProps {
     alwaysRenderFooter?: boolean;
     items: Readonly<ArrayLike<T>>;
     /**
+     * number of columns to split the data into
+     * 
+     * @default 1
+     */
+    cols?: number;
+    /**
      * Number of items to render in each batch. Default is min(floor({@link items}.length / 20), {@link items}.length).
+     *
+     * Rounded down to a multiple of {@link cols} (minimum {@link cols}) so every chunk fills whole rows.
      */
     batchSize?: number;
     /**
@@ -111,6 +126,7 @@ function ScrollerChunk({ children, idx, onHeightChange }: ScrollerChunkProps) {
         <div
             data-scroller-chunk={idx}
             ref={ref}
+            className={styles.chunk}
         >
             {children}
         </div>
@@ -174,6 +190,7 @@ export function BufferedScroller<T>({
     ref,
     handle,
     onScrollEnd: _onScrollEnd,
+    cols = 1,
     ...props
 }: BufferedScrollProps<T>) {
     type VisibleChunks = Partial<Record<number, Partial<Record<"top" | "bottom", boolean>>>>;
@@ -184,10 +201,12 @@ export function BufferedScroller<T>({
     type ChunkHeights = Partial<Record<number, number>>;
 
     // FIXME: Why are we using a hook for this
-    const [batchSize] = useControlledState({
+    const [baseBatchSize] = useControlledState({
         initialValue: Math.max(1, Math.min(Math.floor(items.length / 20), items.length)),
         managedValue: _batchSize && Math.floor(_batchSize),
     });
+
+    const batchSize = Math.max(cols, roundDownToMultipleOf(cols, baseBatchSize));
 
     assert(batchSize === Math.floor(batchSize) && batchSize > 0, "batchSize must be a positive integer");
 
@@ -197,6 +216,16 @@ export function BufferedScroller<T>({
     const [chunkHeights, setChunkHeights] = useState<ChunkHeights>({});
     const [firstChunk, setFirstChunk] = useState(0);
     const [numChunks, setNumChunks] = useState(1);
+    const [prevBatchSize, setPrevBatchSize] = useState(batchSize);
+
+    if (prevBatchSize !== batchSize) {
+        const newFirstChunk = Math.floor((firstChunk * prevBatchSize) / batchSize);
+        const newEndChunk = Math.ceil(((firstChunk + numChunks) * prevBatchSize) / batchSize);
+
+        setPrevBatchSize(batchSize);
+        setFirstChunk(newFirstChunk);
+        setNumChunks(Math.max(1, newEndChunk - newFirstChunk));
+    }
 
     const chunks = useMemo(
         () => makeChunks(items.length, batchSize, numChunks, firstChunk),
@@ -534,8 +563,12 @@ export function BufferedScroller<T>({
         <ScrollArea
             ref={useComposedRefs(ref, scrollAreaRef)}
             onScrollEnd={onScrollEnd}
-            className={cn(className)}
+            className={cn(className, cols !== 1 && styles.scrollerGrid)}
             {...props}
+            style={{
+                ...props.style,
+                "--buffered-scroller-num-cols": `${cols}`,
+            }}
         >
             <>{renderHeader?.()}</>
             <ScrollerPadding height={paddingTop} />
@@ -553,13 +586,8 @@ export function BufferedScroller<T>({
                 }
 
                 return (
-                    <ScrollerChunk
-                        key={`chunk-${startIdx}`}
-                        idx={chunkIdx}
-                        onHeightChange={onChunkHeight}
-                    >
+                    <div key={`chunk-${startIdx}`}>
                         <Flag
-                            key="chunk-start"
                             onEnter={() => {
                                 if (bufferSize !== Infinity) {
                                     if (chunkIdx === firstChunk || chunkIdx === firstChunk + bufferSize) {
@@ -572,9 +600,13 @@ export function BufferedScroller<T>({
                                 setChunkVisibility(chunkIdx, "top", false);
                             }}
                         />
-                        {renderedItems}
+                        <ScrollerChunk
+                            idx={chunkIdx}
+                            onHeightChange={onChunkHeight}
+                        >
+                            {renderedItems}
+                        </ScrollerChunk>
                         <Flag
-                            key="chunk-end"
                             onEnter={() => {
                                 setChunkVisibility(chunkIdx, "bottom", true);
                                 if (chunkIdx === numChunks - 1) {
@@ -587,7 +619,7 @@ export function BufferedScroller<T>({
                                 setChunkVisibility(chunkIdx, "bottom", false);
                             }}
                         />
-                    </ScrollerChunk>
+                    </div>
                 );
             })}
             <ScrollerPadding height={paddingBottom} />

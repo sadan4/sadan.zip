@@ -53,7 +53,6 @@ use tokio::{
 	net,
 	task::{JoinSet, spawn_blocking},
 };
-use tokio_stream::{StreamExt, wrappers::ReadDirStream};
 use tokio_util::io::ReaderStream;
 use tower_http::cors;
 use tracing::{info, instrument, warn};
@@ -225,7 +224,9 @@ async fn get_build_full(
 		return stream_build_file(&build_hash, DATA_FILE_NAME).await;
 	}
 
-	let cell = state.rebuilt_full_data.cell(&build_hash);
+	let cell = state
+		.rebuilt_full_data
+		.cell(&build_hash);
 	let data = cell
 		.get_or_try_init(|| rebuild_full_data(&state, build_hash, build_path))
 		.await?
@@ -639,25 +640,61 @@ async fn get_bundle_archive(
 	Ok(sized_response(SEVENZ_MIME_TYPE, archive))
 }
 
-async fn get_all_builds() -> Result {
-	let dirs = fs::read_dir(get_root_build_path()?).await?;
-	let mut st = ReadDirStream::new(dirs);
-	let mut builds = Vec::new();
-	while let Some(p) = st.next().await {
-		let p = p?;
-		if !p.file_type().await?.is_dir() {
-			continue;
-		}
-		let meta_path = p.path().join(METADATA_FILE_NAME);
-		if !fs::try_exists(&meta_path).await? {
-			continue;
-		}
-		let meta_file = fs::read(meta_path)
-			.await?
-			.into_boxed_slice();
-		builds.push(meta_file);
+const DEFAULT_BUILDS_PAGE_SIZE: usize = 100;
+const MAX_BUILDS_PAGE_SIZE: usize = 500;
+
+#[derive(Deserialize)]
+struct BuildsQuery {
+	/// only list builds first seen before this unix timestamp in ms, from
+	/// [`BuildList::next_cursor`]
+	before: Option<u64>,
+	/// max builds in the page, clamped to [`MAX_BUILDS_PAGE_SIZE`]
+	limit: Option<NonZeroUsize>,
+}
+
+/// Lists builds newest first, one page at a time
+async fn get_all_builds(
+	Query(BuildsQuery { before, limit }): Query<BuildsQuery>,
+	State(state): State<crate::State>,
+) -> Result {
+	let limit = limit
+		.map_or(DEFAULT_BUILDS_PAGE_SIZE, NonZeroUsize::get)
+		.min(MAX_BUILDS_PAGE_SIZE);
+	let before =
+		before.map(|ms| SystemTime::UNIX_EPOCH + Duration::from_millis(ms));
+	let lock = state.read().await;
+	// take one extra to know if there is a next page
+	let mut page: Vec<_> = match before {
+		Some(before) => lock.meta_by_time.range(..before).rev(),
+		None => lock.meta_by_time.range(..).rev(),
 	}
-	let builds_mpk = rmp_serde::to_vec_named(&BuildList { builds })?;
+	.take(limit + 1)
+	.map(|(_, m)| (m.build_hash.clone(), m.first_seen))
+	.collect();
+	drop(lock);
+	let has_more = page.len() > limit;
+	page.truncate(limit);
+	let next_cursor = has_more
+		.then(|| {
+			page.last()
+				.map(|&(_, first_seen)| first_seen)
+		})
+		.flatten();
+
+	let mut builds = Vec::with_capacity(page.len());
+	for (build_hash, _) in page {
+		let meta_path = get_build_path(&build_hash)?.join(METADATA_FILE_NAME);
+		match fs::read(meta_path).await {
+			Ok(meta) => builds.push(meta.into_boxed_slice()),
+			// deleted since the state was populated
+			Err(e) if e.kind() == io::ErrorKind::NotFound => {}
+			Err(e) => return Err(e.into()),
+		}
+	}
+	let builds_mpk = rmp_serde::to_vec_named(&BuildList {
+		builds,
+		next_cursor,
+	})?;
 
 	Ok(sized_response(MSGPACK_MIME_TYPE, builds_mpk))
 }

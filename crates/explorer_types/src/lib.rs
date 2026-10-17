@@ -147,6 +147,10 @@ impl FullBundle {
 pub struct BuildList {
 	/// array of zstd compressed msgpack serialized [`BundleMetadata`]
 	pub builds: Vec<Box<[u8]>>,
+	/// `first_seen` of the oldest build in this page, passed as `before` to
+	/// get the next page. `None` on the last page
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub next_cursor: Option<u64>,
 }
 
 #[derive(

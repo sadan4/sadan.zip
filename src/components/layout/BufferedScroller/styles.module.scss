@@ -1,0 +1,12 @@
+@layer components {
+    $cols: var(--buffered-scroller-num-cols);
+
+    .scroller-grid {
+        > div {
+            > .chunk {
+                display: grid;
+                grid-template-columns: repeat($cols, minmax(0, 1fr));
+            }
+        }
+    }
+}

@@ -1,21 +1,24 @@
 import { Boilerplate } from "@/components/Boilerplate";
 import { Clickable } from "@/components/Clickable";
 import { Box } from "@/components/layout/Box";
-import { ScrollArea } from "@/components/layout/ScrollArea";
+import { BufferedScroller } from "@/components/layout/BufferedScroller";
+import { ScrollAreaContext } from "@/components/layout/ScrollArea/context";
 import { Link } from "@/components/Links";
 import { Text } from "@/components/Text";
+import { getNewestEntry, useIntersection } from "@/hooks/intersection";
+import { useMediaQuery } from "@/hooks/mediaQuery";
 import { useToaster } from "@/hooks/toaster";
 import { copyWithNotify } from "@/utils/clipboard";
 import cn from "@/utils/cn";
 import type { TBundleHash } from "@/utils/types";
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 
-import type { Channel, GetBuildsFn, Meta } from "./-worker";
+import type { Channel, GetBuildsPageFn, Meta } from "./-worker";
 
 import * as comlink from "comlink";
 import { ArrowRight, Clock3, Hash } from "lucide-react";
 import prodWorkerUrl from "omt:./-worker";
-import { useMemo, useState } from "react";
+import { use, useEffect, useMemo, useState } from "react";
 
 let workerUrl: string;
 
@@ -115,22 +118,20 @@ declare global {
     }
 }
 
-let getBuildsFn: comlink.Remote<GetBuildsFn> | null = null;
+let getBuildsPageFn: comlink.Remote<GetBuildsPageFn> | null = null;
 
-async function getBuilds() {
-    if (!getBuildsFn) {
+async function getBuildsPage(before: bigint | undefined) {
+    if (!getBuildsPageFn) {
         const worker = new SharedWorker(workerUrl, {
             type: "module",
             name: "fetch-builds-worker",
             extendedLifetime: !import.meta.env.DEV,
         });
 
-        getBuildsFn = comlink.wrap<GetBuildsFn>(worker.port);
+        getBuildsPageFn = comlink.wrap<GetBuildsPageFn>(worker.port);
     }
 
-    const ret = await getBuildsFn();
-
-    return ret;
+    return await getBuildsPageFn(before);
 }
 
 const strftimeOptions: Intl.DateTimeFormatOptions = {
@@ -156,7 +157,7 @@ function BundleItem({ bundleMeta, latestTags }: BundleItemProps) {
     const buildDate = new Date(Number(bundleMeta.first_seen));
 
     return (
-        <li>
+        <div>
             <Link
                 to="/e/view/{-$buildHash}/{-$moduleId}"
                 params={{
@@ -224,28 +225,61 @@ function BundleItem({ bundleMeta, latestTags }: BundleItemProps) {
                     />
                 </span>
             </Link>
-        </li>
+        </div>
+    );
+}
+
+interface LoadMoreProps {
+    canLoadMore: boolean;
+    loadMore(): void;
+}
+
+/**
+ * Footer of the build list that loads the next page while it's in view
+ */
+function LoadMore({ canLoadMore, loadMore }: LoadMoreProps) {
+    const scrollAreaHandle = use(ScrollAreaContext);
+    const [inView, setInView] = useState(false);
+
+    const setIntersectionRef = useIntersection((entries) => {
+        setInView(getNewestEntry(entries).isIntersecting);
+    }, {
+        rootRef: scrollAreaHandle.ref,
+    });
+
+    // re-checked after every page, as a page may add nothing that passes the channel filter
+    useEffect(() => {
+        if (inView && canLoadMore) {
+            loadMore();
+        }
+    }, [inView, canLoadMore, loadMore]);
+
+    return (
+        <Text
+            ref={setIntersectionRef}
+            size="sm"
+            center
+            className="col-span-full py-4"
+        >
+            {canLoadMore ? "Loading more..." : "No more builds."}
+        </Text>
     );
 }
 
 export function BundleSelector() {
-    const { status, data } = useQuery({
+    const { status, data, hasNextPage, isFetchingNextPage, fetchNextPage } = useInfiniteQuery({
         queryKey: ["getAvailableBundles"],
-        queryFn() {
-            return getBuilds();
+        queryFn({ pageParam }) {
+            return getBuildsPage(pageParam);
         },
+        initialPageParam: undefined as bigint | undefined,
+        getNextPageParam: ({ nextCursor }) => nextCursor,
     });
 
-    const sortedBundles = useMemo(() => data?.toSorted(({ first_seen: fa }, { first_seen: fb }) => {
-        if (fa === fb) {
-            return 0;
-        }
-        if (fb > fa) {
-            return 1;
-        }
-        return -1;
-    }), [data]);
-
+    const large = useMediaQuery("(width >= 64rem)");
+    const numCols = large ? 3 : 1;
+    // pages come newest first
+    const sortedBundles = useMemo(() => data?.pages.flatMap(({ builds }) => builds), [data]);
     const [enabledChannels, setEnabledChannels] = useState<ReadonlySet<Channel>>(() => new Set(channels));
 
     const latestTagsByHash = useMemo(() => {
@@ -311,8 +345,8 @@ export function BundleSelector() {
                                     color="white-700"
                                 >
                                     {filteredBundles!.length === sortedBundles!.length
-                                        ? `${sortedBundles!.length} available`
-                                        : `${filteredBundles!.length} of ${sortedBundles!.length} shown`}
+                                        ? `${sortedBundles!.length}${hasNextPage ? "+" : ""} available`
+                                        : `${filteredBundles!.length} of ${sortedBundles!.length}${hasNextPage ? "+" : ""} shown`}
                                 </Text>
                             </div>
                         )}
@@ -338,41 +372,58 @@ export function BundleSelector() {
                         </Text>
                     )}
                     {status === "success" && (
-                        <ScrollArea className="mt-4 max-h-[calc(100dvh-11.25rem)]">
-                            <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                                {sortedBundles!.length === 0 && (
-                                    <Text
-                                        color="error"
-                                        size="lg"
-                                        center
-                                        className="col-span-full"
-                                    >
-                                        No Bundles Available.
-                                        <p />
-                                        This is an error. Please report this.
-                                    </Text>
-                                )}
-                                {sortedBundles!.length > 0 && filteredBundles!.length === 0 && (
-                                    <Text
-                                        color="white-700"
-                                        size="lg"
-                                        center
-                                        className="col-span-full py-10"
-                                    >
-                                        No builds match the selected channels.
-                                    </Text>
-                                )}
-                                {filteredBundles!.map((bundleMeta) => {
+                        <BufferedScroller
+                            items={filteredBundles!}
+                            cols={numCols}
+                            renderHeader={() => {
+                                if (sortedBundles!.length === 0) {
                                     return (
-                                        <BundleItem
-                                            key={bundleMeta.build_hash}
-                                            bundleMeta={bundleMeta}
-                                            latestTags={latestTagsByHash.get(bundleMeta.build_hash) ?? []}
-                                        />
+                                        <Text
+                                            size="lg"
+                                            center
+                                            className="col-span-full"
+                                        >
+                                            No Bundles Available.
+                                            <p />
+                                            This is an error. Please report this.
+                                        </Text>
                                     );
-                                })}
-                            </ul>
-                        </ScrollArea>
+                                }
+                                if (sortedBundles!.length > 0 && filteredBundles!.length === 0) {
+                                    return (
+                                        <Text
+                                            size="lg"
+                                            center
+                                            className="col-span-full py-10"
+                                        >
+                                            No builds match the selected channels.
+                                        </Text>
+                                    );
+                                }
+                                return null;
+                            }}
+                            renderFooter={() => {
+                                if (sortedBundles!.length === 0) {
+                                    return null;
+                                }
+                                return (
+                                    <LoadMore
+                                        canLoadMore={hasNextPage && !isFetchingNextPage}
+                                        loadMore={fetchNextPage}
+                                    />
+                                );
+                            }}
+                            className="mt-4 max-h-[calc(100dvh-11.25rem)]"
+                            renderItem={({ item: bundleMeta }) => {
+                                return (
+                                    <BundleItem
+                                        key={bundleMeta.build_hash}
+                                        bundleMeta={bundleMeta}
+                                        latestTags={latestTagsByHash.get(bundleMeta.build_hash) ?? []}
+                                    />
+                                );
+                            }}
+                        />
                     )}
                 </Box>
             </div>

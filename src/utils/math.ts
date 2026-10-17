@@ -43,3 +43,7 @@ export const PI2 = Math.PI * 2;
 export function polarToCartesian(r: number, theta: number): [x: number, y: number] {
     return [Math.cos(theta) * r, Math.sin(theta) * r];
 }
+
+export function roundDownToMultipleOf(n: number, value: number): number {
+    return value - (value % n);
+}
