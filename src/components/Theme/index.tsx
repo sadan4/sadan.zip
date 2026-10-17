@@ -37,6 +37,8 @@ export function RootThemeProvider({ children }: PropsWithChildren) {
             setCachedTheme(newTheme);
             startTransition(async () => {
                 setOptimisticTheme(newTheme);
+                // we have to invalidate optimistically so it doesn't flash
+                await router.invalidate();
                 await setThemeServerFn({ data: newTheme });
                 if (id === reqRef.current) {
                     await router.invalidate();

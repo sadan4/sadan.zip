@@ -5,23 +5,20 @@ import Github from "@/components/icons/Github";
 import { Box } from "@/components/layout/Box";
 import { HorizontalLine } from "@/components/Lines";
 import { Modal, ModalContext } from "@/components/modal";
-import { Select, type SelectOption } from "@/components/Select";
 import { Slider } from "@/components/Slider";
 import { LabeledSwitch } from "@/components/Switch/index";
 import { Text } from "@/components/Text";
+import { ThemeContext } from "@/components/Theme/misc";
+import { ThemeSelector } from "@/components/Theme/Selector";
 import { ToggleButtonGroup } from "@/components/ToggleButtonGroup";
 import { TooltipPosition } from "@/components/Tooltip/constants";
-import { useCurrentTheme } from "@/hooks/currentTheme";
 import { type GeneratedGraph, useModuleGraph2 } from "@/hooks/moduleGraph2";
 import { makeRange } from "@/utils/array";
-import cn from "@/utils/cn";
 import { BUNDLE_ARCHIVE_FILENAME, BUNDLE_ARCHIVE_URL, GITHUB_REPO_URL, NBSP } from "@/utils/constants";
 import { debug_assert } from "@/utils/error";
-import { isNumber } from "@/utils/functional";
 import type { Monaco } from "@/utils/monaco";
 import { visibleIf } from "@/utils/react";
 import { Language } from "@/utils/textmate";
-import { TextmateTheme, themeDisplayNames } from "@/utils/textmate/theme";
 import type { TModuleId } from "@/utils/types";
 import { useQuery } from "@tanstack/react-query";
 import { createLink } from "@tanstack/react-router";
@@ -54,7 +51,6 @@ import {
     XIcon,
 } from "lucide-react";
 import { Activity, type PropsWithChildren, use, useEffect, useRef, useState } from "react";
-import { ThemeContext } from "@/components/Theme/misc";
 
 
 function pendingUri(str: string) {
@@ -234,7 +230,6 @@ function ExperimentalSetting({ children }: ExperimentalSettingProps) {
 
 function SettingsModal() {
     const openModulesInNewTab = useModuleViewerSettingsStore(({ openModulesInNewTab }) => openModulesInNewTab);
-    const themeCtx = use(ThemeContext);
     const graphDepth = useModuleViewerSettingsStore(({ graphDepth }) => graphDepth);
     const ctx = use(ModalContext)!;
 
@@ -285,34 +280,8 @@ function SettingsModal() {
                             <Text size="md">
                                 Editor Theme
                             </Text>
-                            <Select
-                                selectedValue={themeCtx.theme}
-                                onChange={(newTheme) => {
-                                    themeCtx.updateTheme(newTheme);
-                                }}
-                                items={Object
-                                    .values(TextmateTheme)
-                                    .filter(isNumber)
-                                    .map((theme: TextmateTheme) => {
-                                        const name = themeDisplayNames[theme];
-
-                                        return {
-                                            label: name,
-                                            typedValue: name,
-                                            value: theme,
-                                            key: theme,
-                                        } satisfies SelectOption<TextmateTheme>;
-                                    })}
-                                className="w-48"
-                                scrollAreaClassName={cn("max-h-[25vh]")}
-                            />
+                            <ThemeSelector />
                         </div>
-                        <Text
-                            size="sm"
-                        >
-                            The color theme for the code editor.
-                            This does not change the theme of the rest of the app. Sorry :(
-                        </Text>
                     </div>
                     <SettingWithWarning warning="High values (>1) can result in massive lag/hanging.">
                         <Text size="md">

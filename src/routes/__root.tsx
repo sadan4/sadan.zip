@@ -1,6 +1,7 @@
 import { Devtools } from "@/components/Devtools";
 import { LayerContext } from "@/components/Layer/context";
-import { getThemeForNav, getThemeServerFn, RootThemeProvider } from "@/components/Theme";
+import { RootThemeProvider } from "@/components/Theme";
+import { getCachedTheme, getThemeServerFn } from "@/components/Theme/misc";
 import { ToastContainer } from "@/components/Toast";
 import { NotFoundPage } from "@/routes/-404";
 import { getThemeDeclaration } from "@/styles/themes/generated";
@@ -23,7 +24,7 @@ export const Route = createRootRoute({
             theme = await getThemeServerFn();
             console.log("got theme from server:", TextmateTheme[theme]);
         } else {
-            theme = getThemeForNav();
+            theme = getCachedTheme();
             console.log("got theme from client", TextmateTheme[theme]);
         }
         return { theme };
