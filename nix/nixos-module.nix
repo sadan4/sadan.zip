@@ -57,7 +57,7 @@ in {
 					description = "URI to use for the cache. If null, no cache is used.\nSee <https://docs.rs/redis/1.6.0/redis/#connection-parameters> for the supported protocols.";
 				};
 			scrapeCanary = mkOption {
-				default = false;
+				default = true;
 				type = types.bool;
 				description = "wether to scrape the discord canary branch";
 			};
