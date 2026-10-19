@@ -390,6 +390,7 @@ export function BundleSelector() {
                         <BufferedScroller
                             items={filteredBundles!}
                             cols={numCols}
+                            batchSize={50}
                             renderHeader={() => {
                                 if (sortedBundles!.length === 0) {
                                     return (

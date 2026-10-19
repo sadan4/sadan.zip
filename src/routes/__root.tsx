@@ -7,7 +7,6 @@ import { NotFoundPage } from "@/routes/-404";
 import { getThemeDeclaration } from "@/styles/themes/generated";
 import { installF8Break, uninstallF8Break } from "@/utils/devtools";
 import { assert } from "@/utils/error";
-import { TextmateTheme } from "@/utils/textmate/theme";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { type AnyRouteMatch, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 
@@ -22,10 +21,8 @@ export const Route = createRootRoute({
 
         if (import.meta.env.SSR) {
             theme = await getThemeServerFn();
-            console.log("got theme from server:", TextmateTheme[theme]);
         } else {
             theme = getCachedTheme();
-            console.log("got theme from client", TextmateTheme[theme]);
         }
         return { theme };
     },

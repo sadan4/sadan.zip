@@ -30,26 +30,19 @@ const themeSchema = z.enum(TextmateTheme);
 export const getThemeServerFn = createServerFn()
     .handler((): TextmateTheme => {
         const cookie = getCookie(COOKIE_NAME);
-
-        if (!cookie) {
-            console.warn("cookie not set");
-        } else {
-            console.warn(`cookie: ${TextmateTheme[+cookie]}`);
-        }
-
         let raw = cookie ?? DEFAULT_THEME;
 
         // cookie is a string, enum parses as a number
         if (typeof raw === "string" && !isNaN(raw as any)) {
             raw = +raw;
         }
-        console.log("raw theme val", { raw });
 
         const parsed = themeSchema.safeParse(raw);
 
         if (parsed.success) {
             return parsed.data;
         }
+
         deleteCookie(COOKIE_NAME);
         return DEFAULT_THEME;
     });
