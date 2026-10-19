@@ -1,24 +1,26 @@
 import { Boilerplate } from "@/components/Boilerplate";
 import { Clickable } from "@/components/Clickable";
 import { BufferedScroller } from "@/components/layout/BufferedScroller";
+import { ScrollAreaContext } from "@/components/layout/ScrollArea/context";
 import { Link } from "@/components/Links";
 import { Text } from "@/components/Text";
 import { Tooltip } from "@/components/Tooltip";
 import { TooltipPosition } from "@/components/Tooltip/constants";
+import { getNewestEntry, useIntersection } from "@/hooks/intersection";
 import { useMediaQuery } from "@/hooks/mediaQuery";
 import { useToaster } from "@/hooks/toaster";
 import { copyWithNotify } from "@/utils/clipboard";
 import cn from "@/utils/cn";
 import { EM_DASH, NBSP } from "@/utils/constants";
 import type { TBundleHash } from "@/utils/types";
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 
-import type { Channel, GetBuildsFn, Meta } from "./-worker";
+import type { Channel, GetBuildsPageFn, Meta } from "./-worker";
 
 import * as comlink from "comlink";
 import { ArrowRight, Clock3, Hash } from "lucide-react";
 import prodWorkerUrl from "omt:./-worker";
-import { useMemo, useState } from "react";
+import { use, useEffect, useMemo, useState } from "react";
 
 let workerUrl: string;
 
@@ -118,22 +120,20 @@ declare global {
     }
 }
 
-let getBuildsFn: comlink.Remote<GetBuildsFn> | null = null;
+let getBuildsPageFn: comlink.Remote<GetBuildsPageFn> | null = null;
 
-async function getBuilds() {
-    if (!getBuildsFn) {
+async function getBuildsPage(before: bigint | undefined) {
+    if (!getBuildsPageFn) {
         const worker = new SharedWorker(workerUrl, {
             type: "module",
             name: "fetch-builds-worker",
             extendedLifetime: !import.meta.env.DEV,
         });
 
-        getBuildsFn = comlink.wrap<GetBuildsFn>(worker.port);
+        getBuildsPageFn = comlink.wrap<GetBuildsPageFn>(worker.port);
     }
 
-    const ret = await getBuildsFn();
-
-    return ret;
+    return await getBuildsPageFn(before);
 }
 
 const strftimeOptions: Intl.DateTimeFormatOptions = {
@@ -246,27 +246,57 @@ function BundleItem({ bundleMeta, latestTags }: BundleItemProps) {
     );
 }
 
+interface LoadMoreProps {
+    canLoadMore: boolean;
+    loadMore(): void;
+}
+
+/**
+ * Footer of the build list that loads the next page while it's in view
+ */
+function LoadMore({ canLoadMore, loadMore }: LoadMoreProps) {
+    const scrollAreaHandle = use(ScrollAreaContext);
+    const [inView, setInView] = useState(false);
+
+    const setIntersectionRef = useIntersection((entries) => {
+        setInView(getNewestEntry(entries).isIntersecting);
+    }, {
+        rootRef: scrollAreaHandle.ref,
+    });
+
+    // re-checked after every page, as a page may add nothing that passes the channel filter
+    useEffect(() => {
+        if (inView && canLoadMore) {
+            loadMore();
+        }
+    }, [inView, canLoadMore, loadMore]);
+
+    return (
+        <Text
+            ref={setIntersectionRef}
+            size="sm"
+            center
+            className="col-span-full py-4"
+        >
+            {canLoadMore ? "Loading more..." : "No more builds."}
+        </Text>
+    );
+}
+
 export function BundleSelector() {
-    const { status, data } = useQuery({
+    const { status, data, hasNextPage, isFetchingNextPage, fetchNextPage } = useInfiniteQuery({
         queryKey: ["getAvailableBundles"],
-        queryFn() {
-            return getBuilds();
+        queryFn({ pageParam }) {
+            return getBuildsPage(pageParam);
         },
+        initialPageParam: undefined as bigint | undefined,
+        getNextPageParam: ({ nextCursor }) => nextCursor,
     });
 
     const large = useMediaQuery("(width >= 64rem)");
     const numCols = large ? 3 : 1;
-
-    const sortedBundles = useMemo(() => data?.toSorted(({ first_seen: fa }, { first_seen: fb }) => {
-        if (fa === fb) {
-            return 0;
-        }
-        if (fb > fa) {
-            return 1;
-        }
-        return -1;
-    }), [data]);
-
+    // pages come newest first
+    const sortedBundles = useMemo(() => data?.pages.flatMap(({ builds }) => builds), [data]);
     const [enabledChannels, setEnabledChannels] = useState<ReadonlySet<Channel>>(() => new Set(channels));
 
     const latestTagsByHash = useMemo(() => {
@@ -331,8 +361,8 @@ export function BundleSelector() {
                                     size="sm"
                                 >
                                     {filteredBundles!.length === sortedBundles!.length
-                                        ? `${sortedBundles!.length} available`
-                                        : `${filteredBundles!.length} of ${sortedBundles!.length} shown`}
+                                        ? `${sortedBundles!.length}${hasNextPage ? "+" : ""} available`
+                                        : `${filteredBundles!.length} of ${sortedBundles!.length}${hasNextPage ? "+" : ""} shown`}
                                 </Text>
                             </div>
                         )}
@@ -386,6 +416,17 @@ export function BundleSelector() {
                                     );
                                 }
                                 return null;
+                            }}
+                            renderFooter={() => {
+                                if (sortedBundles!.length === 0) {
+                                    return null;
+                                }
+                                return (
+                                    <LoadMore
+                                        canLoadMore={hasNextPage && !isFetchingNextPage}
+                                        loadMore={fetchNextPage}
+                                    />
+                                );
                             }}
                             className="mt-4 max-h-[calc(100dvh-11.25rem)]"
                             renderItem={({ item: bundleMeta }) => {

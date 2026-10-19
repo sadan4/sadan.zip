@@ -9,6 +9,7 @@ use crate::{
 };
 
 #[wasm_bindgen]
+#[derive(Clone)]
 pub struct Meta(BundleMetadata);
 
 impl From<BundleMetadata> for Meta {
@@ -60,11 +61,41 @@ impl Meta {
 	}
 }
 
+/// One page of builds, newest first
 #[wasm_bindgen]
-pub async fn get_builds() -> Result<Box<[Meta]>> {
-	// fetch list of builds from the server
+pub struct BuildsPage {
+	builds: Box<[Meta]>,
+	next_cursor: Option<u64>,
+}
+
+#[wasm_bindgen]
+#[expect(
+	clippy::missing_const_for_fn,
+	reason = "wasm bindgen does not support const fn"
+)]
+impl BuildsPage {
+	#[wasm_bindgen(getter)]
+	pub fn builds(&self) -> Box<[Meta]> {
+		self.builds.clone()
+	}
+	/// Pass as `before` to [`get_builds_page`] for the next page. `undefined`
+	/// on the last page
+	#[wasm_bindgen(getter)]
+	pub fn next_cursor(&self) -> Option<u64> {
+		self.next_cursor
+	}
+}
+
+/// Fetches the page of builds first seen before `before`, or the newest
+/// builds if it's `undefined`
+#[wasm_bindgen]
+pub async fn get_builds_page(before: Option<u64>) -> Result<BuildsPage> {
+	let url = match before {
+		Some(before) => format!("{LIST_BUILDS_ENDPOINT}?before={before}"),
+		None => LIST_BUILDS_ENDPOINT.to_owned(),
+	};
 	// TODO: streaming decode
-	let arr_buf = fetch(LIST_BUILDS_ENDPOINT)
+	let arr_buf = fetch(&url)
 		.await?
 		.array_buffer()?
 		.fut()
@@ -74,13 +105,17 @@ pub async fn get_builds() -> Result<Box<[Meta]>> {
 	// this request is NOT zstd compressed as of now, it is just raw MessagePack data
 	let mpk_data_buf = Uint8Array::new(&arr_buf).to_vec();
 	let data: BuildList = rmp_serde::from_slice(&mpk_data_buf)?;
-	data.builds
+	let builds = data
+		.builds
 		.into_iter()
 		.map(|zstd_raw_meta| -> Result<_> {
 			let mpk_raw_meta =
 				zstd::Decoder::new(&*zstd_raw_meta).map_err(Error::Zstd)?;
-			let d = rmp_serde::from_read(mpk_raw_meta)?;
-			Ok(Meta(d))
+			Ok(Meta(rmp_serde::from_read(mpk_raw_meta)?))
 		})
-		.collect()
+		.collect::<Result<_>>()?;
+	Ok(BuildsPage {
+		builds,
+		next_cursor: data.next_cursor,
+	})
 }

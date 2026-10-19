@@ -32,16 +32,29 @@ async fn main() -> anyhow::Result<()> {
 	let builds_endpoint = format!("{base_url}builds");
 	dbg!(&builds_endpoint);
 
-	let res = client
-		.get(&builds_endpoint)
-		.send()
-		.await
-		.context("Failed to send builds get request")?
-		.bytes()
-		.await
-		.context("Failed to read builds bytes")?;
-	let build_list: BuildList = rmp_serde::from_slice(&res)
-		.context("Failed to deserialize BuildList")?;
+	let mut build_list = BuildList::default();
+	let mut cursor = None;
+	loop {
+		let url = match cursor {
+			Some(before) => format!("{builds_endpoint}?before={before}"),
+			None => builds_endpoint.clone(),
+		};
+		let res = client
+			.get(&url)
+			.send()
+			.await
+			.context("Failed to send builds get request")?
+			.bytes()
+			.await
+			.context("Failed to read builds bytes")?;
+		let page: BuildList = rmp_serde::from_slice(&res)
+			.context("Failed to deserialize BuildList")?;
+		build_list.builds.extend(page.builds);
+		cursor = page.next_cursor;
+		if cursor.is_none() {
+			break;
+		}
+	}
 	let mut js = JoinSet::new();
 	for build_bytes in build_list.builds {
 		let base_url = Arc::clone(&base_url);

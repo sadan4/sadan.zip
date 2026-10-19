@@ -14,12 +14,19 @@ use axum::{
 	routing::{get, post},
 };
 use explorer_server_core::{
+	DATA_DELTA_FILE_NAME,
 	DATA_FILE_NAME,
 	INTL_FILE_NAME,
 	METADATA_FILE_NAME,
+	build_has_data,
+	build_has_full_data,
+	compress_zst,
 	get_around,
 	get_build_path,
 	get_root_build_path,
+	is_valid_build_hash,
+	read_full_bundle_from_dir,
+	read_full_bundle_raw,
 	read_intl_messages_from_dir,
 	read_mpk_zst_file,
 };
@@ -27,7 +34,6 @@ use explorer_types::{
 	BuildList,
 	BundleMetadata,
 	Channel,
-	FullBundle,
 	TimestampQueryResults,
 	intl::{IntlMessage, IntlMessages},
 };
@@ -47,11 +53,12 @@ use tokio::{
 	net,
 	task::{JoinSet, spawn_blocking},
 };
-use tokio_stream::{StreamExt, wrappers::ReadDirStream};
 use tokio_util::io::ReaderStream;
 use tower_http::cors;
-use tracing::{error, info, instrument, warn};
+use tracing::{info, instrument, warn};
 use webpack_ast_parser::intl::{ast::hydrate::hydrate_ast, render_message};
+
+use crate::{cache::CacheKind, trim_heap};
 
 type Result<T = Response> = std::result::Result<T, AppError>;
 
@@ -108,12 +115,6 @@ where
 	fn from(err: E) -> Self {
 		Self(err.into())
 	}
-}
-
-fn is_valid_build_hash(build_hash: &str) -> bool {
-	build_hash
-		.chars()
-		.all(|c| c.is_ascii_hexdigit())
 }
 
 /// Resolves `latest`, `latest-stable` and `latest-canary` to the hash of
@@ -208,8 +209,83 @@ async fn stream_build_file(build_hash: &str, file_name: &str) -> Result {
 		.into_response())
 }
 
-async fn get_build_full(BuildHash(build_hash): BuildHash) -> Result {
-	stream_build_file(&build_hash, DATA_FILE_NAME).await
+/// zstd level for delta builds rebuilt on request. Every level up to 10 is
+/// within 25% of the size, but 10 takes ~8x as long
+const REBUILT_DATA_ZSTD_LEVEL: i32 = 3;
+
+async fn get_build_full(
+	BuildHash(build_hash): BuildHash,
+	State(state): State<crate::State>,
+) -> Result {
+	let build_path = get_build_path(&build_hash)?;
+	if build_has_full_data(&build_path)
+		|| !fs::try_exists(build_path.join(DATA_DELTA_FILE_NAME)).await?
+	{
+		return stream_build_file(&build_hash, DATA_FILE_NAME).await;
+	}
+
+	let cell = state
+		.rebuilt_full_data
+		.cell(&build_hash);
+	let data = cell
+		.get_or_try_init(|| rebuild_full_data(&state, build_hash, build_path))
+		.await?
+		.clone();
+	Ok(sized_response(ZSTD_MIME_TYPE, data))
+}
+
+/// Only this many of the newest builds have their rebuilt data cached in
+/// redis, so walking `/full` over every build can't fill it up
+const REDIS_FULL_DATA_RECENT_BUILDS: usize = 8;
+
+/// Rebuilds the data of a delta build, going through redis first
+async fn rebuild_full_data(
+	state: &crate::State,
+	build_hash: String,
+	build_path: std::path::PathBuf,
+) -> anyhow::Result<Bytes> {
+	// a broken cache shouldn't take the endpoint down with it, so treat any
+	// error here as a miss
+	match state
+		.cache
+		.get(CacheKind::FullData, &build_hash)
+		.await
+	{
+		Ok(Some(data)) => {
+			info!("serving cached data for build {build_hash}");
+			return Ok(Bytes::from(data));
+		}
+		Ok(None) => {}
+		Err(e) => warn!("failed to read data from cache: {e:?}"),
+	}
+
+	let permit = state.rebuild_permits.acquire().await?;
+	let data = spawn_blocking(move || {
+		let raw = read_full_bundle_raw(&build_path)?;
+		compress_zst(&raw, REBUILT_DATA_ZSTD_LEVEL)
+	})
+	.await??;
+	drop(permit);
+	trim_heap();
+	let data = Bytes::from(data);
+
+	if state
+		.is_recent_build(&build_hash, REDIS_FULL_DATA_RECENT_BUILDS)
+		.await
+	{
+		let cache = state.cache.clone();
+		let cached_data = data.clone();
+		tokio::spawn(async move {
+			if let Err(e) = cache
+				.set(CacheKind::FullData, &build_hash, &cached_data)
+				.await
+			{
+				warn!("failed to cache data: {e:?}");
+			}
+		});
+	}
+
+	Ok(data)
 }
 
 async fn intl_as_json(build_hash: &str) -> Result {
@@ -432,7 +508,7 @@ async fn get_before_hash(
 }
 
 fn make_archive(build_path: &std::path::Path) -> Result<Vec<u8>> {
-	let b: FullBundle = read_mpk_zst_file(&build_path.join(DATA_FILE_NAME))?;
+	let b = read_full_bundle_from_dir(build_path)?;
 	// builds from before intl scraping may not have been backfilled yet
 	let intl = build_path
 		.join(INTL_FILE_NAME)
@@ -526,7 +602,7 @@ async fn get_bundle_archive(
 	// error here as a miss
 	match state
 		.cache
-		.get_cached_archive(build_hash)
+		.get(CacheKind::Archive, build_hash)
 		.await
 	{
 		Ok(Some(archive)) => {
@@ -537,22 +613,24 @@ async fn get_bundle_archive(
 		Err(e) => warn!("failed to read archive from cache: {e:?}"),
 	}
 	let build_path = get_build_path(build_hash)?;
-	if !fs::try_exists(build_path.join(DATA_FILE_NAME)).await? {
+	if !build_has_data(&build_path) {
 		return Ok((
 			StatusCode::NOT_FOUND,
 			format!("build {build_hash} not found"),
 		)
 			.into_response());
 	}
+	let permit = state.rebuild_permits.acquire().await?;
 	let archive =
 		Bytes::from(spawn_blocking(move || make_archive(&build_path)).await??);
+	drop(permit);
 
 	let cache = state.cache.clone();
 	let cached_archive = archive.clone();
 	let cached_hash = build_hash.to_owned();
 	tokio::spawn(async move {
 		if let Err(e) = cache
-			.cache_archive(&cached_hash, &cached_archive)
+			.set(CacheKind::Archive, &cached_hash, &cached_archive)
 			.await
 		{
 			warn!("failed to cache archive: {e:?}");
@@ -562,25 +640,61 @@ async fn get_bundle_archive(
 	Ok(sized_response(SEVENZ_MIME_TYPE, archive))
 }
 
-async fn get_all_builds() -> Result {
-	let dirs = fs::read_dir(get_root_build_path()?).await?;
-	let mut st = ReadDirStream::new(dirs);
-	let mut builds = Vec::new();
-	while let Some(p) = st.next().await {
-		let p = p?;
-		if !p.file_type().await?.is_dir() {
-			continue;
-		}
-		let meta_path = p.path().join(METADATA_FILE_NAME);
-		if !fs::try_exists(&meta_path).await? {
-			continue;
-		}
-		let meta_file = fs::read(meta_path)
-			.await?
-			.into_boxed_slice();
-		builds.push(meta_file);
+const DEFAULT_BUILDS_PAGE_SIZE: usize = 100;
+const MAX_BUILDS_PAGE_SIZE: usize = 500;
+
+#[derive(Deserialize)]
+struct BuildsQuery {
+	/// only list builds first seen before this unix timestamp in ms, from
+	/// [`BuildList::next_cursor`]
+	before: Option<u64>,
+	/// max builds in the page, clamped to [`MAX_BUILDS_PAGE_SIZE`]
+	limit: Option<NonZeroUsize>,
+}
+
+/// Lists builds newest first, one page at a time
+async fn get_all_builds(
+	Query(BuildsQuery { before, limit }): Query<BuildsQuery>,
+	State(state): State<crate::State>,
+) -> Result {
+	let limit = limit
+		.map_or(DEFAULT_BUILDS_PAGE_SIZE, NonZeroUsize::get)
+		.min(MAX_BUILDS_PAGE_SIZE);
+	let before =
+		before.map(|ms| SystemTime::UNIX_EPOCH + Duration::from_millis(ms));
+	let lock = state.read().await;
+	// take one extra to know if there is a next page
+	let mut page: Vec<_> = match before {
+		Some(before) => lock.meta_by_time.range(..before).rev(),
+		None => lock.meta_by_time.range(..).rev(),
 	}
-	let builds_mpk = rmp_serde::to_vec_named(&BuildList { builds })?;
+	.take(limit + 1)
+	.map(|(_, m)| (m.build_hash.clone(), m.first_seen))
+	.collect();
+	drop(lock);
+	let has_more = page.len() > limit;
+	page.truncate(limit);
+	let next_cursor = has_more
+		.then(|| {
+			page.last()
+				.map(|&(_, first_seen)| first_seen)
+		})
+		.flatten();
+
+	let mut builds = Vec::with_capacity(page.len());
+	for (build_hash, _) in page {
+		let meta_path = get_build_path(&build_hash)?.join(METADATA_FILE_NAME);
+		match fs::read(meta_path).await {
+			Ok(meta) => builds.push(meta.into_boxed_slice()),
+			// deleted since the state was populated
+			Err(e) if e.kind() == io::ErrorKind::NotFound => {}
+			Err(e) => return Err(e.into()),
+		}
+	}
+	let builds_mpk = rmp_serde::to_vec_named(&BuildList {
+		builds,
+		next_cursor,
+	})?;
 
 	Ok(sized_response(MSGPACK_MIME_TYPE, builds_mpk))
 }

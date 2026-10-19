@@ -1,4 +1,6 @@
-use anyhow::{Context, Result, anyhow};
+mod delta;
+
+use anyhow::{Context, Result, anyhow, ensure};
 use explorer_types::{Channel, FullBundle, intl::IntlMessages};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
@@ -14,7 +16,20 @@ use std::{
 	thread,
 };
 
+pub use delta::{
+	DeltaHeader,
+	hash_base,
+	read_delta_body,
+	read_delta_file,
+	read_delta_header,
+	read_delta_header_file,
+	write_delta,
+};
+
 pub const DATA_FILE_NAME: &str = "data.mpk.zst";
+/// A [`DATA_FILE_NAME`] stored as a delta against another build's data, see
+/// [`write_full_bundle_delta`]
+pub const DATA_DELTA_FILE_NAME: &str = "data.delta.zst";
 pub const METADATA_FILE_NAME: &str = "meta.mpk.zst";
 /// <100b compressed
 pub const METADATA_ZSTD_LEVEL: i32 = 0;
@@ -26,6 +41,10 @@ pub const INTL_ZSTD_LEVEL: i32 = 10;
 
 const BUF_SIZE: usize = 1024 * 1024;
 const ZSTD_MAX_WORKERS: usize = 16;
+/// first of the 16 zstd skippable frame magic numbers
+const SKIPPABLE_FRAME_MAGIC: u32 = 0x184D_2A50;
+/// largest window zstd supports on 64 bit targets
+const ZSTD_MAX_WINDOW_LOG: u32 = 31;
 
 pub fn get_root_build_path() -> Result<PathBuf> {
 	let build_path = env::current_dir()
@@ -50,10 +69,26 @@ pub fn get_version_file_path() -> Result<PathBuf> {
 	Ok(get_root_build_path()?.join(".ver"))
 }
 
-pub fn build_has_data(build_hash: &Path) -> bool {
-	build_hash
-		.join(DATA_FILE_NAME)
-		.is_file()
+/// Whether the build directory has a data file, either full or a delta
+pub fn build_has_data(build_dir: &Path) -> bool {
+	build_dir.join(DATA_FILE_NAME).is_file()
+		|| build_dir
+			.join(DATA_DELTA_FILE_NAME)
+			.is_file()
+}
+
+/// Whether the build directory has a full data file, which other builds can
+/// be stored as deltas against
+pub fn build_has_full_data(build_dir: &Path) -> bool {
+	build_dir.join(DATA_FILE_NAME).is_file()
+}
+
+/// How many zstd workers to compress with
+fn zstd_workers() -> u32 {
+	let workers = thread::available_parallelism()
+		.map_or(1, NonZero::get)
+		.min(ZSTD_MAX_WORKERS);
+	u32::try_from(workers).unwrap_or(1)
 }
 
 /// Deserializes a zstd compressed msgpack value straight out of `reader`,
@@ -90,10 +125,7 @@ where
 	let mut enc = zstd::Encoder::new(writer, level)
 		.context("Failed to start zstd stream")?;
 	// compressing a 30mb bundle takes ~2.5s on one thread, ~0.7s on 16
-	let workers = thread::available_parallelism()
-		.map_or(1, NonZero::get)
-		.min(ZSTD_MAX_WORKERS);
-	enc.multithread(u32::try_from(workers).unwrap_or(1))
+	enc.multithread(zstd_workers())
 		.context("Failed to enable zstd workers")?;
 	rmp_serde::encode::write_named(&mut enc, value)
 		.context("Failed to encode msgpack")?;
@@ -101,8 +133,68 @@ where
 		.context("Failed to finish zstd stream")
 }
 
+/// Compresses `raw` in memory with every zstd worker
+pub fn compress_zst(raw: &[u8], level: i32) -> Result<Vec<u8>> {
+	let mut enc = zstd::Encoder::new(Vec::new(), level)
+		.context("Failed to start zstd stream")?;
+	enc.multithread(zstd_workers())
+		.context("Failed to enable zstd workers")?;
+	enc.set_pledged_src_size(Some(u64::try_from(raw.len())?))?;
+	io::Write::write_all(&mut enc, raw).context("Failed to compress")?;
+	enc.finish()
+		.context("Failed to finish zstd stream")
+}
+
+/// Decompresses a whole zstd file into memory
+pub fn read_raw_zst_file(path: &Path) -> Result<Vec<u8>> {
+	let f = fs::File::open(path)
+		.with_context(|| format!("Failed to open {}", path.display()))?;
+	let mut raw = Vec::new();
+	zstd::Decoder::new(f)
+		.and_then(|mut dec| io::Read::read_to_end(&mut dec, &mut raw))
+		.with_context(|| format!("Failed to decompress {}", path.display()))?;
+	Ok(raw)
+}
+
+/// The decompressed msgpack of the [`FullBundle`] in `dir`, whether it's
+/// stored in full or as a delta
+///
+/// The base of a delta is looked up next to `dir`
+pub fn read_full_bundle_raw(dir: &Path) -> Result<Vec<u8>> {
+	let full_path = dir.join(DATA_FILE_NAME);
+	if full_path.is_file() {
+		return read_raw_zst_file(&full_path);
+	}
+	read_delta_file(&dir.join(DATA_DELTA_FILE_NAME), |header| {
+		ensure!(
+			is_valid_build_hash(&header.base_hash),
+			"invalid delta base hash {:?}",
+			header.base_hash
+		);
+		read_raw_zst_file(
+			&dir.with_file_name(&header.base_hash)
+				.join(DATA_FILE_NAME),
+		)
+		.context("Failed to read delta base")
+	})
+}
+
 pub fn read_full_bundle_from_dir(dir: &Path) -> Result<FullBundle> {
-	read_mpk_zst_file(&dir.join(DATA_FILE_NAME))
+	let full_path = dir.join(DATA_FILE_NAME);
+	if full_path.is_file() {
+		// streamed, so only the deserialized bundle is in memory
+		return read_mpk_zst_file(&full_path);
+	}
+	let raw = read_full_bundle_raw(dir)?;
+	rmp_serde::from_slice(&raw).context("Failed to decode msgpack")
+}
+
+/// Build hashes are hex, which also makes them safe to join onto a path
+pub fn is_valid_build_hash(build_hash: &str) -> bool {
+	!build_hash.is_empty()
+		&& build_hash
+			.chars()
+			.all(|c| c.is_ascii_hexdigit())
 }
 
 pub fn read_intl_messages_from_dir(dir: &Path) -> Result<IntlMessages> {
@@ -178,8 +270,94 @@ pub fn write_full_bundle(bundle: &FullBundle) -> Result<()> {
 		bundle,
 		DATA_ZSTD_LEVEL,
 	)?;
+	// the full file wins when both exist, so this only frees space
+	remove_if_exists(&build_path.join(DATA_DELTA_FILE_NAME))?;
 
 	Ok(())
+}
+
+fn remove_if_exists(path: &Path) -> Result<()> {
+	match fs::remove_file(path) {
+		Err(e) if e.kind() != io::ErrorKind::NotFound => Err(e)
+			.with_context(|| format!("Failed to remove {}", path.display())),
+		_ => Ok(()),
+	}
+}
+
+/// Write `bundle` as a delta against the full data of `base_hash`, which
+/// must not be rewritten while any delta against it exists
+///
+/// Falls back to [`write_full_bundle`] when the delta doesn't save much.
+/// Returns whether a delta was written.
+pub fn write_full_bundle_delta(
+	bundle: &FullBundle,
+	base_hash: &str,
+) -> Result<bool> {
+	let base_raw =
+		read_raw_zst_file(&get_build_path(base_hash)?.join(DATA_FILE_NAME))
+			.context("Failed to read delta base")?;
+	write_full_bundle_delta_with_base(bundle, base_hash, &base_raw)
+}
+
+/// [`write_full_bundle_delta`] with the base's data already decompressed
+pub fn write_full_bundle_delta_with_base(
+	bundle: &FullBundle,
+	base_hash: &str,
+	base_raw: &[u8],
+) -> Result<bool> {
+	ensure!(
+		base_hash != bundle.metadata.build_hash,
+		"build {base_hash} can't be a delta against itself"
+	);
+	let raw =
+		rmp_serde::to_vec_named(bundle).context("Failed to encode msgpack")?;
+	let delta =
+		write_delta(Vec::new(), &raw, base_hash, base_raw, DATA_ZSTD_LEVEL)?;
+	// a full data file is ~1/5 of the raw size, a useful delta is far
+	// smaller than that
+	if delta.len() > raw.len() / 10 {
+		drop(raw);
+		write_full_bundle(bundle)?;
+		return Ok(false);
+	}
+
+	let build_path = get_build_path(&bundle.metadata.build_hash)?;
+	if !build_path.exists() {
+		fs::create_dir_all(&build_path)?;
+	}
+	write_mpk_zst_atomic(
+		&build_path.join(METADATA_FILE_NAME),
+		&bundle.metadata,
+		METADATA_ZSTD_LEVEL,
+	)?;
+	let delta_path = build_path.join(DATA_DELTA_FILE_NAME);
+	write_atomic_with(&delta_path, |w| {
+		io::Write::write_all(w, &delta)?;
+		Ok(())
+	})?;
+	drop(delta);
+
+	// this may be about to delete the only other copy of the data, so make
+	// sure what landed on disk decodes
+	let verify = || -> Result<()> {
+		let mut reader = BufReader::new(fs::File::open(&delta_path)?);
+		let header = read_delta_header(&mut reader)?;
+		let back = read_delta_body(reader, &header, base_raw)?;
+		ensure!(back == raw, "decoded to different data than was written");
+		Ok(())
+	};
+	if let Err(e) = verify() {
+		remove_if_exists(&delta_path)?;
+		return Err(
+			e.context(format!("Failed to verify {}", delta_path.display()))
+		);
+	}
+	drop(raw);
+
+	// the full file wins when both exist, remove it so the delta is used
+	remove_if_exists(&build_path.join(DATA_FILE_NAME))?;
+
+	Ok(true)
 }
 
 /// Write the intl messages for `build_hash` next to its data file

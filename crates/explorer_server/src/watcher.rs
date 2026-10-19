@@ -10,13 +10,14 @@ use explorer_server_core::{
 	get_build_path,
 	is_build_downloaded,
 	write_full_bundle,
+	write_full_bundle_delta,
 	write_intl_messages,
 };
-use explorer_types::Channel;
+use explorer_types::{Channel, FullBundle};
 use reqwest::Response;
 use std::{fs, sync::Arc, time::Duration};
-use tokio::time;
-use tracing::{error, info, instrument, trace};
+use tokio::{task::spawn_blocking, time};
+use tracing::{error, info, instrument, trace, warn};
 
 use crate::{state::State, trim_heap};
 
@@ -58,6 +59,30 @@ async fn get_build(channel: Channel) -> Result<Option<Build>> {
 	}))
 }
 
+/// Writes `bundle` as a delta against `base` when given, otherwise in full
+fn write_bundle(bundle: &FullBundle, base: Option<&str>) -> Result<()> {
+	let hash = &bundle.metadata.build_hash;
+	let Some(base) = base else {
+		return write_full_bundle(bundle);
+	};
+	match write_full_bundle_delta(bundle, base) {
+		Ok(true) => {
+			info!("stored {hash} as a delta against {base}");
+			Ok(())
+		}
+		Ok(false) => {
+			info!(
+				"delta against {base} saved too little, stored {hash} in full"
+			);
+			Ok(())
+		}
+		Err(e) => {
+			warn!("Failed to store {hash} as a delta against {base}: {e:?}");
+			write_full_bundle(bundle)
+		}
+	}
+}
+
 #[instrument(skip_all)]
 async fn handle_build(c: Channel, state: &State) -> Result<()> {
 	if let Some(build) = get_build(c).await? {
@@ -82,15 +107,30 @@ async fn handle_build(c: Channel, state: &State) -> Result<()> {
 			match result {
 				Ok(ScrapedBundle { bundle, intl }) => {
 					let meta = bundle.metadata.clone();
+					// canary changes every few minutes, store it as a delta
+					// against stable to save ~30mb a build
+					let base = match c {
+						Channel::Canary => state.latest_full_stable().await,
+						Channel::Stable => None,
+					};
 					tokio::spawn(async move { state.add_build(meta).await });
-					// before the bundle, so a build with data always has intl
-					if let Err(e) =
-						write_intl_messages(&bundle.metadata.build_hash, &intl)
-					{
-						error!("Failed to write intl messages: {e:?}");
-					}
-					if let Err(e) = write_full_bundle(&bundle) {
-						error!("Failed to write full bundle: {e:?}");
+					let written = spawn_blocking(move || {
+						// before the bundle, so a build with data always has intl
+						if let Err(e) = write_intl_messages(
+							&bundle.metadata.build_hash,
+							&intl,
+						) {
+							error!("Failed to write intl messages: {e:?}");
+						}
+						write_bundle(&bundle, base.as_deref())
+					})
+					.await;
+					match written {
+						Ok(Ok(())) => {}
+						Ok(Err(e)) => {
+							error!("Failed to write full bundle: {e:?}");
+						}
+						Err(e) => error!("Bundle writer panicked: {e:?}"),
 					}
 					info!(
 						"finished handling {c:?} build in {:?}",

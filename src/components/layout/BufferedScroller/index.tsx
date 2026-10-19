@@ -59,6 +59,8 @@ export interface BufferedScrollProps<T> extends ScrollAreaProps {
     cols?: number;
     /**
      * Number of items to render in each batch. Default is min(floor({@link items}.length / 20), {@link items}.length).
+     *
+     * Rounded down to a multiple of {@link cols} (minimum {@link cols}) so every chunk fills whole rows.
      */
     batchSize?: number;
     /**
@@ -199,11 +201,12 @@ export function BufferedScroller<T>({
     type ChunkHeights = Partial<Record<number, number>>;
 
     // FIXME: Why are we using a hook for this
-    const [batchSize] = useControlledState({
-        // eslint-disable-next-line @stylistic/max-len
-        initialValue: Math.max(cols, Math.min(roundDownToMultipleOf(cols, Math.floor(items.length / 20)), items.length)),
+    const [baseBatchSize] = useControlledState({
+        initialValue: Math.max(1, Math.min(Math.floor(items.length / 20), items.length)),
         managedValue: _batchSize && Math.floor(_batchSize),
     });
+
+    const batchSize = Math.max(cols, roundDownToMultipleOf(cols, baseBatchSize));
 
     assert(batchSize === Math.floor(batchSize) && batchSize > 0, "batchSize must be a positive integer");
 
@@ -213,6 +216,16 @@ export function BufferedScroller<T>({
     const [chunkHeights, setChunkHeights] = useState<ChunkHeights>({});
     const [firstChunk, setFirstChunk] = useState(0);
     const [numChunks, setNumChunks] = useState(1);
+    const [prevBatchSize, setPrevBatchSize] = useState(batchSize);
+
+    if (prevBatchSize !== batchSize) {
+        const newFirstChunk = Math.floor((firstChunk * prevBatchSize) / batchSize);
+        const newEndChunk = Math.ceil(((firstChunk + numChunks) * prevBatchSize) / batchSize);
+
+        setPrevBatchSize(batchSize);
+        setFirstChunk(newFirstChunk);
+        setNumChunks(Math.max(1, newEndChunk - newFirstChunk));
+    }
 
     const chunks = useMemo(
         () => makeChunks(items.length, batchSize, numChunks, firstChunk),

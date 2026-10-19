@@ -8,21 +8,39 @@ use anyhow::{Context as _, Result};
 use derive_more::Deref;
 use explorer_server_core::{
 	METADATA_FILE_NAME,
+	build_has_full_data,
+	get_build_path,
 	get_root_build_path,
 	read_mpk_zst_file,
 };
-use explorer_types::BundleMetadata;
-use tokio::{fs, sync::RwLock, task::JoinSet};
+use explorer_types::{BundleMetadata, Channel};
+use tokio::{
+	fs,
+	sync::{RwLock, Semaphore},
+	task::JoinSet,
+};
 use tracing::{info, instrument, warn};
 
-use crate::cache::Cache;
+use crate::cache::{Cache, RecentBlobs};
 
-#[derive(Debug, Clone, Default, Deref)]
+#[derive(Debug, Clone, Deref)]
 pub struct State {
 	#[deref]
 	inner: Arc<RwLock<StateInner>>,
 	pub cache: Arc<Cache>,
+	/// bounds how many delta builds are rebuilt at once, each one holds
+	/// ~500mb while it's rebuilt
+	pub rebuild_permits: Arc<Semaphore>,
+	/// rebuilt data of the newest delta builds served by `/full`, which works
+	/// without redis and merges concurrent requests for one build
+	pub rebuilt_full_data: Arc<RecentBlobs>,
 }
+
+/// see [`State::rebuild_permits`]
+const MAX_CONCURRENT_REBUILDS: usize = 2;
+
+/// see [`State::rebuilt_full_data`]. Each one is ~39mb
+const RECENT_REBUILT_FULL_DATA: usize = 3;
 
 #[derive(Debug, Default)]
 pub struct StateInner {
@@ -63,7 +81,37 @@ impl State {
 		Self {
 			inner: Arc::default(),
 			cache: Arc::new(cache),
+			rebuild_permits: Arc::new(Semaphore::new(MAX_CONCURRENT_REBUILDS)),
+			rebuilt_full_data: Arc::new(RecentBlobs::new(
+				RECENT_REBUILT_FULL_DATA,
+			)),
 		}
+	}
+
+	/// The newest stable build stored in full, which new canary builds are
+	/// stored as deltas against
+	pub async fn latest_full_stable(&self) -> Option<String> {
+		let this = self.read().await;
+		this.meta_by_time
+			.values()
+			.rev()
+			.filter(|m| m.channel.contains(&Channel::Stable))
+			.find(|m| {
+				get_build_path(&m.build_hash)
+					.is_ok_and(|p| build_has_full_data(&p))
+			})
+			.map(|m| m.build_hash.clone())
+	}
+
+	/// Whether `build_hash` is one of the `n` newest builds
+	pub async fn is_recent_build(&self, build_hash: &str, n: usize) -> bool {
+		self.read()
+			.await
+			.meta_by_time
+			.values()
+			.rev()
+			.take(n)
+			.any(|m| m.build_hash == build_hash)
 	}
 
 	pub async fn populate_from_disk(&self) -> Result<()> {

@@ -5,7 +5,7 @@ mod server;
 mod state;
 mod watcher;
 
-use clap::Parser;
+use clap::{ArgAction, Parser};
 use explorer_types::Channel;
 use std::process;
 use tokio::task::JoinSet;
@@ -31,9 +31,9 @@ struct Cli {
 	host: String,
 	#[arg(long)]
 	redis_uri: Option<String>,
-	#[arg(long, default_value_t = true)]
+	#[arg(long, default_value_t = true, action = ArgAction::Set)]
 	scrape_stable: bool,
-	#[arg(long, default_value_t = true)]
+	#[arg(long, default_value_t = true, action = ArgAction::Set)]
 	scrape_canary: bool,
 }
 
@@ -96,14 +96,15 @@ async fn main() {
 		Cache::new()
 	};
 	let state = State::new(cache);
+	// the watchers need the full build list: the canary watcher picks its
+	// delta base from it, and populating replaces it wholesale, which would
+	// drop builds a watcher added in the meantime
+	if let Err(e) = state.populate_from_disk().await {
+		error!("Failed to populate state from disk: {e:?}");
+		error!("Exiting.");
+		process::exit(1);
+	}
 	let mut tasks = JoinSet::new();
-	let state_ = state.clone();
-	tasks.spawn(async move {
-		if let Err(e) = state_.populate_from_disk().await {
-			error!("Failed to populate state from disk: {e:?}");
-		}
-	});
-	debug!("spawned state population");
 	if cli.scrape_stable {
 		let state_ = state.clone();
 		tasks.spawn(async move {

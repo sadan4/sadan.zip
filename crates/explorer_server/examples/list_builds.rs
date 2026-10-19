@@ -21,23 +21,35 @@ async fn main() -> Result<()> {
 	let cli = Cli::parse();
 
 	let endpoint = format!("{}/builds", cli.base_url.trim_end_matches('/'));
-	let res = reqwest::get(&endpoint)
-		.await
-		.with_context(|| format!("Failed to GET {endpoint}"))?;
-	let status = res.status();
-	let body = res
-		.bytes()
-		.await
-		.context("Failed to read response body")?;
-	if !status.is_success() {
-		bail!(
-			"{endpoint} returned {status}: {}",
-			String::from_utf8_lossy(&body)
-		);
+	let mut build_list = BuildList::default();
+	let mut cursor = None;
+	loop {
+		let url = match cursor {
+			Some(before) => format!("{endpoint}?before={before}"),
+			None => endpoint.clone(),
+		};
+		let res = reqwest::get(&url)
+			.await
+			.with_context(|| format!("Failed to GET {url}"))?;
+		let status = res.status();
+		let body = res
+			.bytes()
+			.await
+			.context("Failed to read response body")?;
+		if !status.is_success() {
+			bail!(
+				"{url} returned {status}: {}",
+				String::from_utf8_lossy(&body)
+			);
+		}
+		let page: BuildList = rmp_serde::from_slice(&body)
+			.context("Failed to deserialize BuildList")?;
+		build_list.builds.extend(page.builds);
+		cursor = page.next_cursor;
+		if cursor.is_none() {
+			break;
+		}
 	}
-
-	let build_list: BuildList = rmp_serde::from_slice(&body)
-		.context("Failed to deserialize BuildList")?;
 
 	if cli.raw {
 		println!("{build_list:#?}");

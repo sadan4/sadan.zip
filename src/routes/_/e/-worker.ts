@@ -1,4 +1,4 @@
-import { default as initWasm, get_builds } from "@sadan4/libsadancore";
+import { default as initWasm, get_builds_page } from "@sadan4/libsadancore";
 
 import * as comlink from "comlink";
 
@@ -14,19 +14,46 @@ export interface Meta {
     first_seen: bigint;
 }
 
-async function getBuilds(): Promise<Meta[]> {
-    await initWasm();
-    return (await get_builds()).map(({ build_hash, build_number, channels, entry_point, first_seen }) => ({
-        build_hash,
-        build_number,
-        channels: channels as Channel[],
-        entry_point,
-        first_seen,
-    }));
+export interface BuildsPage {
+    builds: Meta[];
+    /**
+     * pass as `before` to get the next page, `undefined` on the last page
+     */
+    nextCursor: bigint | undefined;
 }
 
-export type GetBuildsFn = typeof getBuilds;
+/**
+ * @param before only get builds first seen before this, from {@link BuildsPage.nextCursor}
+ */
+async function getBuildsPage(before?: bigint): Promise<BuildsPage> {
+    await initWasm();
+
+    const page = await get_builds_page(before);
+
+    const builds = page.builds.map((meta) => {
+        const { build_hash, build_number, channels, entry_point, first_seen } = meta;
+
+        meta.free();
+        return {
+            build_hash,
+            build_number,
+            channels: channels as Channel[],
+            entry_point,
+            first_seen,
+        };
+    });
+
+    const nextCursor = page.next_cursor;
+
+    page.free();
+    return {
+        builds,
+        nextCursor,
+    };
+}
+
+export type GetBuildsPageFn = typeof getBuildsPage;
 
 self.onconnect = function ({ ports: [port] }) {
-    comlink.expose(getBuilds, port);
+    comlink.expose(getBuildsPage, port);
 };

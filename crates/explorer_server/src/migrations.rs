@@ -1,9 +1,9 @@
 use std::{
-	collections::HashMap,
+	collections::{BTreeMap, HashMap},
 	fs,
 	io,
 	panic,
-	path::Path,
+	path::{Path, PathBuf},
 	sync::atomic::{AtomicBool, AtomicUsize, Ordering},
 	thread,
 };
@@ -27,13 +27,20 @@ use tracing::{Level, Span, error, info, instrument, span, warn};
 
 use discord_scraper::experiments::{find_experiments, find_intl};
 use explorer_server_core::{
+	DATA_DELTA_FILE_NAME,
 	DATA_FILE_NAME,
 	INTL_FILE_NAME,
+	METADATA_FILE_NAME,
 	build_has_data,
+	build_has_full_data,
+	get_build_path,
 	get_root_build_path,
 	get_version_file_path,
+	read_full_bundle_from_dir,
+	read_full_bundle_raw,
 	read_mpk_zst_file,
 	write_full_bundle,
+	write_full_bundle_delta_with_base,
 	write_intl_messages,
 };
 
@@ -51,9 +58,10 @@ enum Versions {
 	V6,
 	V7,
 	V8,
+	V9,
 }
 
-const CURRENT_VERSION: Versions = Versions::V8;
+const CURRENT_VERSION: Versions = Versions::V9;
 
 impl Versions {
 	fn get_current() -> Result<Self> {
@@ -73,6 +81,7 @@ impl Versions {
 					6 => Self::V6,
 					7 => Self::V7,
 					8 => Self::V8,
+					9 => Self::V9,
 					_ => {
 						bail!("Unknown version in version file")
 					}
@@ -99,6 +108,7 @@ impl Versions {
 			Self::V6 => Box::new(V6Migration),
 			Self::V7 => Box::new(V7Migration),
 			Self::V8 => Box::new(V8Migration),
+			Self::V9 => Box::new(V9Migration),
 		}
 	}
 	const fn next(self) -> Option<Self> {
@@ -111,7 +121,8 @@ impl Versions {
 			Self::V5 => Some(Self::V6),
 			Self::V6 => Some(Self::V7),
 			Self::V7 => Some(Self::V8),
-			Self::V8 => None,
+			Self::V8 => Some(Self::V9),
+			Self::V9 => None,
 		}
 	}
 }
@@ -122,6 +133,10 @@ impl From<Versions> for u16 {
 	}
 }
 
+/// From [`V9Migration`] on, canary builds are stored as deltas against the
+/// decompressed data of a stable build. A migration that rewrites a stable
+/// build's data must rebuild every delta against it with the old data first,
+/// then re-delta them against the new data, or they fail to decode.
 trait Migration {
 	fn migrate(&self) -> Result<()>;
 }
@@ -148,6 +163,11 @@ struct V7Migration;
 /// backfill the intl messages file ([`INTL_FILE_NAME`]) for any build written
 /// before it existed, leaving the data file untouched
 struct V8Migration;
+
+/// store every canary build's data as a delta ([`DATA_DELTA_FILE_NAME`])
+/// against the newest stable build seen before it, after rewriting stable
+/// builds with sorted maps so deltas against them are smaller
+struct V9Migration;
 
 #[derive(Deserialize)]
 struct V3BundleMetadata {
@@ -533,14 +553,8 @@ impl Migration for V6Migration {
 /// peaks at ~2gb
 const PARALLEL_BUILDS: usize = 3;
 
-/// Runs `f` on every build directory that has a data file,
-/// [`PARALLEL_BUILDS`] at a time
-///
-/// Stops handing out builds after the first error, and returns it
-fn par_for_each_build<F>(f: F) -> Result<()>
-where
-	F: Fn(&Path) -> Result<()> + Sync,
-{
+/// Every build directory that has a data file
+fn build_dirs() -> Result<Vec<PathBuf>> {
 	let mut dirs = Vec::new();
 	for entry in fs::read_dir(get_root_build_path()?)? {
 		let entry = entry?;
@@ -557,19 +571,44 @@ where
 		}
 		dirs.push(path);
 	}
+	Ok(dirs)
+}
 
+/// Runs `f` on every build directory that has a data file,
+/// [`PARALLEL_BUILDS`] at a time
+///
+/// Stops handing out builds after the first error, and returns it
+fn par_for_each_build<F>(f: F) -> Result<()>
+where
+	F: Fn(&Path) -> Result<()> + Sync,
+{
+	par_for_each(&build_dirs()?, |(), dir: &PathBuf| f(dir))
+}
+
+/// Runs `f` on every item, in order, [`PARALLEL_BUILDS`] at a time. Each
+/// worker passes its own `S` to every call it makes
+///
+/// Stops handing out items after the first error, and returns it
+fn par_for_each<T, S, F>(items: &[T], f: F) -> Result<()>
+where
+	T: Sync,
+	S: Default,
+	F: Fn(&mut S, &T) -> Result<()> + Sync,
+{
 	let next = AtomicUsize::new(0);
 	let failed = AtomicBool::new(false);
 	let span = Span::current();
 	thread::scope(|s| {
 		let worker = || {
 			let _span = span.enter();
+			let mut state = S::default();
 			while !failed.load(Ordering::Relaxed) {
-				let Some(dir) = dirs.get(next.fetch_add(1, Ordering::Relaxed))
+				let Some(item) =
+					items.get(next.fetch_add(1, Ordering::Relaxed))
 				else {
 					break;
 				};
-				let res = f(dir);
+				let res = f(&mut state, item);
 				trim_heap();
 				if let Err(e) = res {
 					failed.store(true, Ordering::Relaxed);
@@ -663,6 +702,130 @@ impl Migration for V8Migration {
 			};
 			write_intl_messages(&full_bundle.metadata.build_hash, &intl)
 				.context("Failed to write intl messages")
+		})
+	}
+}
+
+/// A build's directory and metadata, for [`V9Migration`]
+struct BuildEntry {
+	dir: PathBuf,
+	meta: BundleMetadata,
+}
+
+/// The decompressed data of the base a [`V9Migration`] worker used last
+#[derive(Default)]
+struct LoadedBase {
+	hash: String,
+	raw: Vec<u8>,
+}
+
+impl V9Migration {
+	fn read_entries() -> Result<Vec<BuildEntry>> {
+		let mut entries = Vec::new();
+		for dir in build_dirs()? {
+			match read_mpk_zst_file(&dir.join(METADATA_FILE_NAME)) {
+				Ok(meta) => entries.push(BuildEntry { dir, meta }),
+				Err(e) => warn!("Skipping {}: {e:?}", dir.display()),
+			}
+		}
+		Ok(entries)
+	}
+
+	/// Stores `entry` as a delta against `base`, reusing `loaded` when it
+	/// already holds that base
+	fn store_as_delta(
+		loaded: &mut LoadedBase,
+		entry: &BuildEntry,
+		base: &str,
+	) -> Result<bool> {
+		if loaded.hash != base {
+			// free the old base before loading the next one
+			*loaded = LoadedBase::default();
+			loaded.raw = read_full_bundle_raw(&get_build_path(base)?)
+				.with_context(|| format!("Failed to read base {base}"))?;
+			base.clone_into(&mut loaded.hash);
+		}
+		let bundle = read_full_bundle_from_dir(&entry.dir)?;
+		write_full_bundle_delta_with_base(&bundle, base, &loaded.raw)
+	}
+}
+
+impl Migration for V9Migration {
+	fn migrate(&self) -> Result<()> {
+		let (stable, canary): (Vec<_>, Vec<_>) = Self::read_entries()?
+			.into_iter()
+			.partition(|e| {
+				e.meta
+					.channel
+					.contains(&Channel::Stable)
+			});
+
+		// a delta means an earlier run already rewrote the stable builds, and
+		// rewriting a base under its deltas is exactly what must not happen
+		let resumed = canary.iter().any(|e| {
+			e.dir
+				.join(DATA_DELTA_FILE_NAME)
+				.is_file()
+		});
+		if resumed {
+			info!("Skipping stable re-encode: resuming an earlier run");
+		} else {
+			par_for_each(&stable, |(), e: &BuildEntry| {
+				info!("Re-encoding stable build {}", e.dir.display());
+				let bundle = read_full_bundle_from_dir(&e.dir)?;
+				write_full_bundle(&bundle)
+					.context("Failed to write full bundle")
+			})?;
+		}
+
+		let bases: BTreeMap<u64, &str> = stable
+			.iter()
+			.filter(|e| build_has_full_data(&e.dir))
+			.map(|e| (e.meta.first_seen, e.meta.build_hash.as_str()))
+			.collect();
+		let mut jobs = Vec::new();
+		for e in &canary {
+			if !build_has_full_data(&e.dir) {
+				// stored as a delta by an earlier run
+				continue;
+			}
+			let Some((_, &base)) = bases
+				.range(..=e.meta.first_seen)
+				.next_back()
+			else {
+				info!(
+					"Keeping {} in full: no stable build before it",
+					e.dir.display()
+				);
+				continue;
+			};
+			jobs.push((e, base));
+		}
+		// workers hold on to the last base they used, so keep each base's
+		// builds together
+		jobs.sort_unstable_by_key(|&(e, base)| (base, e.meta.first_seen));
+
+		let total = jobs.len();
+		let done = AtomicUsize::new(0);
+		par_for_each(&jobs, |loaded: &mut LoadedBase, &(entry, base)| {
+			let n = done.fetch_add(1, Ordering::Relaxed) + 1;
+			// a build that can't be stored as a delta is still fine in full,
+			// so don't fail the whole migration over it
+			match Self::store_as_delta(loaded, entry, base) {
+				Ok(true) => info!(
+					"[{n}/{total}] Stored {} as a delta against {base}",
+					entry.dir.display()
+				),
+				Ok(false) => info!(
+					"[{n}/{total}] Keeping {} in full: delta saved too little",
+					entry.dir.display()
+				),
+				Err(e) => warn!(
+					"[{n}/{total}] Keeping {} in full: {e:?}",
+					entry.dir.display()
+				),
+			}
+			Ok(())
 		})
 	}
 }
