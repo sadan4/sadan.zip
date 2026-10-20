@@ -10,6 +10,7 @@ mod types;
 mod util;
 mod value_tracking;
 mod lottie;
+pub mod css;
 
 use crate::{
 	bundle::{
@@ -18,20 +19,14 @@ use crate::{
 		DefaultModuleDepProvider,
 		IModuleCache,
 		IModuleDepProvider,
-	},
-	export_map::raw_export_map_to_range_export_map,
-	find::{IntlKey, ScoredFindSequence},
-	intl::ast::hydrate::hydrate_ast,
-	parser::{
-		export_map::{
+	}, export_map::raw_export_map_to_range_export_map, find::{IntlKey, ScoredFindSequence}, intl::ast::hydrate::hydrate_ast, parser::{
+		css::CssModule, export_map::{
 			ExportMapKey,
 			ExportRange,
 			ExportValue,
 			RangeExportMap,
 			RawStoreData,
-		},
-		types::{Importer, ReExport, ResolvedDefinition, SearchElement, WreqD},
-		util::{
+		}, types::{Importer, ReExport, ResolvedDefinition, SearchElement, WreqD}, util::{
 			args_span,
 			filter_export_map,
 			flatten_export_map,
@@ -41,8 +36,7 @@ use crate::{
 			match_export_chain,
 			span_to_range,
 		},
-	},
-	sync::{ThreadSafeParser, UnsafeFuture},
+	}, sync::{ThreadSafeParser, UnsafeFuture},
 };
 use arrayvec::ArrayString;
 use ast_parser::{
@@ -860,6 +854,13 @@ impl<'ast> WebpackAstParser<'ast> {
 	pub fn as_json_module(&self) -> Option<&'ast str> {
 		self.as_json_module_e_exports()
 			.or_else(|| self.as_json_module_export_default())
+	}
+
+	pub async fn as_css_module(&self) -> PResult<CssModule> {
+		let fut = self.impl_as_css_module();
+		// SAFETY: see send+sync impl for [`Self`]
+		let fut = unsafe { UnsafeFuture::new(fut) };
+		fut.await
 	}
 }
 

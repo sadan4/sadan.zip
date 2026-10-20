@@ -1,7 +1,7 @@
 pub mod experiments;
 pub mod intl;
 mod serde_sorted;
-mod serde_span;
+pub mod serde_span;
 
 use derive_more::{Deref, Display, From, Into};
 use jiff::{Timestamp, Zoned, tz::TimeZone};

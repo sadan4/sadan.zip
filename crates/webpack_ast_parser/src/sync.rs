@@ -123,7 +123,7 @@ const _: () = {
 	assert_send_sync::<ThreadSafeParser>();
 };
 
-/// Asserts that a future is [`Send`] and [`Sync`].
+/// Asserts that a future is [`Send`]
 ///
 /// oxc uses ! [`Send`] and ! [`Sync`] for it's AST; however,
 /// the way we use them, they are send + sync
@@ -151,8 +151,6 @@ where
 )]
 /// SAFETY: guaranteed by the caller of [`UnsafeFuture::new`].
 unsafe impl<T, O> Send for UnsafeFuture<T, O> where T: Future<Output = O> {}
-/// SAFETY: see the `Send` impl above.
-unsafe impl<T, O> Sync for UnsafeFuture<T, O> where T: Future<Output = O> {}
 
 impl<T, O> Future for UnsafeFuture<T, O>
 where

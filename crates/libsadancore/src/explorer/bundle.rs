@@ -11,10 +11,7 @@ use std::{
 };
 
 use crate::{
-	constants::FULL_BUNDLE_ENDPOINT,
-	err::Result,
-	explorer::meta::Meta,
-	util::{decode_struct, fetch_struct},
+	constants::FULL_BUNDLE_ENDPOINT, err::Result, explorer::meta::Meta, util::{console_log, decode_struct, fetch_struct},
 };
 use anyhow::{Context, anyhow};
 use ast_parser::{get_line_and_column, get_offset_from_line_and_column};
@@ -32,7 +29,7 @@ use explorer_types::{
 };
 use js_sys::{Object, Reflect, Uint32Array};
 use memchr::memmem::Finder;
-use oxc::{allocator::Allocator, span::Span};
+use oxc::{allocator::Allocator, ast::CommentContent::Webpack, span::Span};
 use parser_diag::ParserDiagnostic;
 use pretty_printer::{FormattedContent, format_with_alloc};
 use regress::Regex;
@@ -865,6 +862,34 @@ impl Bundle {
 
 		Ok(serde_wasm_bindgen::to_value(&tmp)
 			.context("Failed to serialize module dependencies")?)
+	}
+
+	#[wasm_bindgen]
+	pub async fn get_class_names(&self) -> Result<Vec<JsValue>> {
+		let ser = serde_wasm_bindgen::Serializer::json_compatible();
+		let mut ret = Vec::new();
+		let mut alloc = Allocator::new();
+		for m_id in self
+			.inner
+			.unformatted_modules
+			.keys()
+			.copied()
+		{
+			alloc.reset();
+			let src = self.inner.get_formatted_module(m_id)?;
+			// we can't store the parser else we oom
+			let parser = WebpackAstParser::try_new(&alloc, src)
+				.context("Failed to parse module")?;
+			// we can't use get_or_make_parser here because we would oom storing the parser for every module
+			let Ok(guh) = parser.as_css_module().await else {
+				continue;
+			};
+			ret.push(
+				guh.serialize(&ser)
+					.context("Failed to serialize css module")?,
+			);
+		}
+		Ok(ret)
 	}
 
 	/// every apex and normal experiment defined in the bundle
