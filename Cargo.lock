@@ -1031,6 +1031,7 @@ dependencies = [
  "rmp-serde",
  "serde_json",
  "smol_str",
+ "term_progress",
  "tokio",
  "tracing",
  "tracing-subscriber",
@@ -3499,7 +3500,6 @@ dependencies = [
  "explorer_server_core",
  "explorer_types",
  "hashbrown 0.17.1",
- "indicatif",
  "insta",
  "itertools 0.15.0",
  "jiff",
@@ -3524,6 +3524,7 @@ dependencies = [
  "smallvec",
  "smol_str",
  "syntect",
+ "term_progress",
  "terminal_size",
  "text_diff",
  "textwrap",
@@ -4238,6 +4239,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "term_progress"
+version = "0.1.0"
+dependencies = [
+ "derive_more",
+ "indicatif",
+]
+
+[[package]]
 name = "terminal_size"
 version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4680,15 +4689,16 @@ checksum = "b6f5e870be6c3b371b77fe0ee0bafb859fa4964b4404c27de1d380043c4dda20"
 [[package]]
 name = "typesize"
 version = "0.1.15"
-source = "git+https://github.com/GnomedDev/typesize?branch=master#4e032bc507cc693d3f66aac905ed7df8473f9df7"
+source = "git+https://github.com/sadan4/typesize?branch=feat%2Fsmolstr#5f3dd10ad55982bf4c11a63ad0a6f8ddae3c5f70"
 dependencies = [
+ "smol_str",
  "typesize-derive",
 ]
 
 [[package]]
 name = "typesize-derive"
 version = "0.1.11"
-source = "git+https://github.com/GnomedDev/typesize?branch=master#4e032bc507cc693d3f66aac905ed7df8473f9df7"
+source = "git+https://github.com/sadan4/typesize?branch=feat%2Fsmolstr#5f3dd10ad55982bf4c11a63ad0a6f8ddae3c5f70"
 dependencies = [
  "proc-macro2",
  "quote",

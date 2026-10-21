@@ -92,6 +92,7 @@ discord_scraper = { path = "crates/discord_scraper" }
 miette_ctx = { path = "crates/miette_ctx" }
 git_hash = { path = "crates/git_hash" }
 reporter = { path = "crates/reporter" }
+term_progress = { path = "crates/term_progress" }
 text_diff = { path = "crates/text_diff" }
 parser_diag = { path = "crates/parser_diag" }
 miette_ui = { path = "crates/miette_ui", default-features = false }
@@ -117,7 +118,7 @@ rangemap = "1.7.1"
 hashbrown = "0.17.1"
 bstr = "1.12.3"
 unicode-ident = "1.0.24"
-typesize = "0.1.15"
+typesize = { version= "0.1.15", features = ["smol_str"] }
 libc = "0.2.189"
 url = "2.5.8"
 redis = { version = "1.6.0", features = ["tokio-comp"] }
@@ -127,7 +128,7 @@ percent-encoding = "2"
 ordered-float = "5"
 
 [patch.crates-io]
-typesize = { git = "https://github.com/GnomedDev/typesize", branch = "master" }
+typesize = { git = "https://github.com/sadan4/typesize", branch = "feat/smolstr" }
 
 
 [profile.release]

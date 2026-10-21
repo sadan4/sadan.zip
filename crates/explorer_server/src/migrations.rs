@@ -25,7 +25,11 @@ use serde::Deserialize;
 use tokio::runtime::Handle;
 use tracing::{Level, Span, error, info, instrument, span, warn};
 
-use discord_scraper::experiments::{find_experiments, find_intl};
+use discord_scraper::{
+	NoProgress,
+	ScrapeProgress,
+	experiments::{find_experiments, find_intl},
+};
 use explorer_server_core::{
 	DATA_DELTA_FILE_NAME,
 	DATA_FILE_NAME,
@@ -349,6 +353,7 @@ impl V3Migration {
 				.collect::<Result<_>>()?,
 			modules,
 			experiments: Vec::new(),
+			css_chunks: HashMap::new(),
 		};
 		Ok(ret)
 	}
@@ -446,6 +451,7 @@ impl Migration for V4Migration {
 				modules,
 				env_var_text: metadata.env_var_text,
 				experiments: Vec::new(),
+				css_chunks: HashMap::new(),
 			};
 			write_full_bundle(&full_bundle)
 				.context("Failed to write full bundle")?;
@@ -504,6 +510,7 @@ impl Migration for V5Migration {
 				modules,
 				env_var_text,
 				experiments: Vec::new(),
+				css_chunks: HashMap::new(),
 			};
 			write_full_bundle(&full_bundle)
 				.context("Failed to write full bundle")?;
@@ -636,6 +643,8 @@ where
 	})
 }
 
+static NO_PROGRESS: &dyn ScrapeProgress = &NoProgress;
+
 impl Migration for V7Migration {
 	fn migrate(&self) -> Result<()> {
 		// migrations run synchronously inside the server's runtime
@@ -654,6 +663,7 @@ impl Migration for V7Migration {
 			let experiments = handle.block_on(find_experiments(
 				&full_bundle.modules,
 				&full_bundle.dep_info,
+				NO_PROGRESS,
 			));
 			match experiments {
 				Ok(experiments) => full_bundle.experiments = experiments,
@@ -689,6 +699,7 @@ impl Migration for V8Migration {
 			let intl = handle.block_on(find_intl(
 				&full_bundle.modules,
 				&full_bundle.dep_info,
+				NO_PROGRESS,
 			));
 			let intl = match intl {
 				Ok(intl) => intl,

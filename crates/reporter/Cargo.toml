@@ -29,7 +29,7 @@ thiserror.workspace = true
 regress.workspace = true
 derive_more.workspace = true
 miette = {workspace = true, features = ["fancy", "syntect-highlighter"]}
-indicatif.workspace = true
+term_progress.workspace = true
 owo-colors.workspace = true
 unicode-width.workspace = true
 textwrap.workspace = true

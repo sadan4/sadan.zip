@@ -70,15 +70,6 @@ const TEXT_MIME_TYPE: &str = "text/plain; charset=utf-8";
 
 const MB: usize = 1024 * 1024;
 
-const fn zstd_headers(
-	mime: &'static str,
-) -> [(header::HeaderName, HeaderValue); 2] {
-	[
-		(header::CONTENT_TYPE, HeaderValue::from_static(mime)),
-		(header::CONTENT_ENCODING, HeaderValue::from_static("zstd")),
-	]
-}
-
 /// Headers for a response of `mime` type with a body of `len` bytes
 fn content_headers(
 	mime: &'static str,

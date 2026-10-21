@@ -7,6 +7,7 @@ use derive_more::{Deref, Display, From, Into};
 use jiff::{Timestamp, Zoned, tz::TimeZone};
 use oxc_span::{SPAN, Span};
 use serde::{Deserialize, Serialize};
+use smol_str::SmolStr;
 use std::{
 	collections::HashMap,
 	time::{Duration, SystemTime},
@@ -115,6 +116,12 @@ pub struct FullBundle {
 	/// every apex and normal experiment defined in the bundle
 	#[serde(default)]
 	pub experiments: Vec<experiments::Experiment>,
+	#[serde(default)]
+	/// the css files for this build
+	/// 
+	/// will be empty if this bundle was scraped before css files started being scraped
+	#[serde(serialize_with = "serde_sorted::serialize_sorted_map")]
+	pub css_chunks: HashMap<SmolStr, String>,
 }
 
 impl FullBundle {
@@ -126,6 +133,7 @@ impl FullBundle {
 			modules,
 			env_var_text,
 			experiments,
+			css_chunks: css_files,
 		} = self;
 		metadata.shrink_to_fit();
 		dep_info.shrink_to_fit();
@@ -139,6 +147,10 @@ impl FullBundle {
 		}
 		env_var_text.shrink_to_fit();
 		experiments.shrink_to_fit();
+		css_files.shrink_to_fit();
+		for v in modules.values_mut() {
+			v.shrink_to_fit();
+		}
 	}
 }
 

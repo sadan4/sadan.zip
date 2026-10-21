@@ -3,8 +3,9 @@ pub mod http;
 use anyhow::{Context as _, Result, bail};
 use clap::Args;
 use discord_scraper::{
+	BarProgress,
 	JsScraper,
-	ScrapeProgress,
+	ScrapeProgress as _,
 	ScrapedModules,
 	make_reqwest_client,
 	util::ByteStr,
@@ -13,17 +14,14 @@ use explorer_types::{Channel, ModuleId};
 use reqwest_middleware::ClientWithMiddleware;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
-use std::{
-	collections::HashMap,
-	sync::{Arc, Mutex, OnceLock},
-};
+use std::{collections::HashMap, sync::Arc};
 use tokio::task;
 use tracing::{debug, error, info, warn};
 
 use crate::{
 	Branch,
 	cache,
-	util::{MultiProgressWrapper, Stage},
+	util::MultiProgressWrapper,
 };
 
 pub type ScrapedOutput = HashMap<ModuleId, String>;
@@ -86,16 +84,14 @@ async fn fetch_for_channel(
 	bars: MultiProgressWrapper,
 ) -> Result<ScrapedBranch> {
 	info!("Fetching build from {channel:?} channel");
-	let pre_bar =
-		Stage::new(format!("[{channel:?}]: Scraping build data: "), None)
-			.and_attach(&bars);
-	pre_bar.msg("Fetching index HTML");
+	let progress = Arc::new(BarProgress::new(bars, channel));
+	progress.set_stage("Fetching index HTML");
 	let client =
 		make_reqwest_client().context("Failed to create HTTP client")?;
 	let IndexResponse { text, build_hash } =
 		fetch_index(&client, channel).await?;
 	let cache_key = make_cache_key(build_hash.clone());
-	pre_bar.msg("Reading cache");
+	progress.set_stage("Reading cache");
 	match cache::read(&cache_key).await {
 		Ok(Some(data)) => {
 			info!("Cache hit on fetching build");
@@ -116,14 +112,6 @@ async fn fetch_for_channel(
 			);
 		}
 	}
-	pre_bar.msg("Fetching index HTML");
-	let progress = Arc::new(ReporterProgress {
-		bars,
-		channel,
-		pre_bar: Mutex::new(Some(pre_bar)),
-		chunk_bar: OnceLock::new(),
-		pre_chunk_count: Mutex::new(0),
-	});
 	let ScrapedModules { modules, .. } =
 		JsScraper::scrape(text.as_ref(), channel, client, progress).await?;
 	let output = ScrapedBranch {
@@ -179,44 +167,4 @@ pub async fn fetch_index(
 	let bytes = res.bytes().await?;
 	let text = ByteStr::try_from(bytes).context("Invalid response body")?;
 	Ok(IndexResponse { text, build_hash })
-}
-
-struct ReporterProgress {
-	bars: MultiProgressWrapper,
-	channel: Channel,
-	pre_bar: Mutex<Option<Stage>>,
-	chunk_bar: OnceLock<Stage>,
-	pre_chunk_count: Mutex<usize>,
-}
-
-impl ScrapeProgress for ReporterProgress {
-	fn set_stage(&self, msg: &'static str) {
-		if let Some(b) = self.pre_bar.lock().unwrap().as_ref() {
-			b.msg(msg);
-		}
-	}
-
-	fn set_chunk_total(&self, mut total: usize) {
-		let _ = self.pre_bar.lock().unwrap().take();
-		let lock = self.pre_chunk_count.lock().unwrap();
-		let extra_total = *lock;
-		total += extra_total;
-		let bar = Stage::new(
-			format!("[{:?}]: Parsing Lazy Chunks: ", self.channel),
-			Some(total),
-		)
-		.and_attach(&self.bars);
-		for _ in 0..extra_total {
-			bar.step();
-		}
-		self.chunk_bar.set(bar).expect("race");
-	}
-
-	fn chunk_finished(&self) {
-		if let Some(b) = self.chunk_bar.get() {
-			b.step();
-		} else {
-			*self.pre_chunk_count.lock().unwrap() += 1;
-		}
-	}
 }

@@ -9,29 +9,30 @@
 //! ```sh
 //! cargo run -p discord_scraper --example dump_icons [stable|canary]
 //! ```
-use std::{env, io, sync::Arc, thread};
+use std::{env, sync::Arc, thread};
 
 use anyhow::{Context, Result, bail};
 use discord_scraper::{
+	BarProgress,
 	JsScraper,
-	NoProgress,
 	experiments::ParsedBundle,
 	make_reqwest_client,
 };
 use explorer_types::{Channel, ModuleId};
 use miette_ui::install_miette_hook;
+use term_progress::MultiProgressWrapper;
 use tracing::{info, warn};
 use tracing_subscriber::{EnvFilter, fmt};
 use webpack_ast_parser::WebpackAstParser;
 
 const INDENT: u8 = 4;
 
-fn install_tracing() {
+fn install_tracing(bars: MultiProgressWrapper) {
 	let filter = EnvFilter::try_from_default_env()
 		.unwrap_or_else(|_| EnvFilter::new("info"));
 	fmt()
 		.with_env_filter(filter)
-		.with_writer(io::stderr)
+		.with_writer(move || bars.writer())
 		.with_ansi_sanitization(false)
 		.init();
 }
@@ -56,7 +57,8 @@ fn format_module(id: ModuleId, src: &mut String) {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-	install_tracing();
+	let bars = MultiProgressWrapper::default();
+	install_tracing(bars.clone());
 	install_miette_hook(true);
 	let channel = parse_channel()?;
 
@@ -74,8 +76,14 @@ async fn main() -> Result<()> {
 	info!("{channel:?} build hash: {build_hash}");
 	let html = res.text().await?;
 
-	let scraped =
-		JsScraper::scrape(&html, channel, client, Arc::new(NoProgress)).await?;
+	let progress = Arc::new(BarProgress::new(bars, channel));
+	let scraped = JsScraper::scrape(
+		&html,
+		channel,
+		client,
+		progress.clone(),
+	)
+	.await?;
 	info!(
 		"scraped {} modules from build {}",
 		scraped.modules.len(),
@@ -97,7 +105,7 @@ async fn main() -> Result<()> {
 		}
 	});
 
-	let bundle = ParsedBundle::new(&modules)?;
+	let bundle = ParsedBundle::new(&modules, progress)?;
 
 	let mut ids = modules
 		.keys()
