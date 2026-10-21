@@ -2,7 +2,8 @@ import * as z from "zod";
 
 export const TBundleHash = z.string().brand<"TBundleHash">();
 export type TBundleHash = z.infer<typeof TBundleHash>;
-export type TModuleId = number & z.$brand<"TModuleId">;
+export const TModuleId = z.number().brand<"TModuleId">();
+export type TModuleId = z.infer<typeof TModuleId>;
 
 interface Elements {
     a: HTMLAnchorElement;

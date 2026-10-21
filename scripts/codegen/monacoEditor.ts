@@ -27,7 +27,7 @@ interface MonacoEditorOptions {
 }
 
 const OPTIONS = Object.freeze({
-    languages: ["typescript", "javascript", "css"],
+    languages: ["typescript", "javascript"],
 } satisfies MonacoEditorOptions as MonacoEditorOptions);
 
 

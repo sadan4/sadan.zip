@@ -1,3 +1,5 @@
+import { TModuleId } from "@/utils/types";
+
 import { z } from "zod";
 
 export const Span = z.object({
@@ -7,7 +9,7 @@ export const Span = z.object({
 export type Span = z.infer<typeof Span>;
 
 export const ClassName = z.object({
-    module: z.int32(),
+    module: TModuleId,
     exported_as: z.string(),
     span: Span,
     value: z.string(),

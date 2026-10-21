@@ -6,7 +6,7 @@ import { entries, mapValues } from "@/utils/obj";
 import { WebpackExportHover } from "./ast/webpack/hover/ExportHover";
 import { WebpackDefinitionProvider } from "./ast/webpack/lsp/DefinitionProvider";
 import { WebpackReferenceProvider } from "./ast/webpack/lsp/ReferenceProvider";
-import { ModuleViewerSettingsStore, parseModuleURI } from "../-data";
+import { ModuleViewerSettingsStore, ModuleViewerStore, parseModuleURI, ViewMode } from "../-data";
 
 function _register() {
     WebpackExportHover.register();
@@ -48,6 +48,8 @@ function _register() {
                     } as const
                 : undefined;
 
+            const { activePanel, updateActivePanel } = ModuleViewerStore.getState();
+
             if (ModuleViewerSettingsStore.getState().openModulesInNewTab) {
                 // FIXME: look into Router.buildLocation
                 const url = new URL(
@@ -70,7 +72,12 @@ function _register() {
                         moduleId: +parsed.moduleId,
                     },
                     search,
-                });
+                })
+                    .then(() => {
+                        if (activePanel !== ViewMode.CODE) {
+                            updateActivePanel(ViewMode.CODE);
+                        }
+                    });
             }
 
             return true;
