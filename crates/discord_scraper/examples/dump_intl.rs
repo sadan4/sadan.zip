@@ -8,29 +8,30 @@
 //! ```
 //!
 //! `out_dir` defaults to `intl`.
-use std::{env, fs, io, path::PathBuf, sync::Arc};
+use std::{env, fs, path::PathBuf, sync::Arc};
 
 use anyhow::{Context, Result, bail};
 use discord_scraper::{
+	BarProgress,
 	JsScraper,
-	NoProgress,
 	experiments::ParsedBundle,
 	make_reqwest_client,
 };
 use explorer_types::Channel;
 use miette_ui::install_miette_hook;
+use term_progress::MultiProgressWrapper;
 use tracing::{info, warn};
 use tracing_subscriber::{EnvFilter, fmt};
 use webpack_ast_parser::WebpackAstParser;
 
 const INDENT: u8 = 4;
 
-fn install_tracing() {
+fn install_tracing(bars: MultiProgressWrapper) {
 	let filter = EnvFilter::try_from_default_env()
 		.unwrap_or_else(|_| EnvFilter::new("info"));
 	fmt()
 		.with_env_filter(filter)
-		.with_writer(io::stderr)
+		.with_writer(move || bars.writer())
 		.with_ansi_sanitization(false)
 		.init();
 }
@@ -45,7 +46,8 @@ fn parse_channel(arg: Option<&str>) -> Result<Channel> {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-	install_tracing();
+	let bars = MultiProgressWrapper::default();
+	install_tracing(bars.clone());
 	install_miette_hook(true);
 	let mut args = env::args().skip(1);
 	let channel = parse_channel(args.next().as_deref())?;
@@ -68,8 +70,10 @@ async fn main() -> Result<()> {
 	info!("{channel:?} build hash: {build_hash}");
 	let html = res.text().await?;
 
+	let progress = Arc::new(BarProgress::new(bars, channel));
+
 	let scraped =
-		JsScraper::scrape(&html, channel, client, Arc::new(NoProgress)).await?;
+		JsScraper::scrape(&html, channel, client, progress.clone()).await?;
 	info!(
 		"scraped {} modules from build {}",
 		scraped.modules.len(),
@@ -77,7 +81,7 @@ async fn main() -> Result<()> {
 	);
 	let modules = scraped.modules;
 
-	let bundle = ParsedBundle::new(&modules)?;
+	let bundle = ParsedBundle::new(&modules, progress)?;
 	let ids = bundle.find_intl_modules().await?;
 	info!("found {} intl modules", ids.len());
 

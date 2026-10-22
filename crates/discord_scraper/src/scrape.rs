@@ -1,6 +1,7 @@
 use std::{
 	collections::HashMap,
 	mem,
+	string::FromUtf8Error,
 	sync::{
 		Arc,
 		LazyLock,
@@ -24,13 +25,14 @@ use http::StatusCode;
 use memchr::memmem::Finder;
 use oxc_allocator::AllocatorPool;
 use reqwest_middleware::ClientWithMiddleware;
+use smol_str::{SmolStr, format_smolstr};
 use tokio::{
 	sync::Semaphore,
 	task::{self, JoinSet},
 };
 use tracing::{debug, info, trace, warn};
 use webpack_chunk_parser::{
-	JsHashEntry,
+	ChunkHashEntry,
 	WebpackLazyChunkParser,
 	WebpackMainChunkParser,
 	base::WebpackChunkParser,
@@ -58,15 +60,18 @@ pub struct ScrapedModules {
 	pub web_js_url: String,
 	pub build_number: u32,
 	pub entry_point: Option<ModuleId>,
+	pub css_chunks: HashMap<SmolStr, String>,
 }
 
 pub struct JsScraper {
 	inner: Arc<JsScraperInner>,
 	chunk_futures: JoinSet<Result<()>>,
 	num_extra_chunks: usize,
+	num_extra_css_chunks: usize,
 	global_env_text: String,
 	web_js_url: String,
-	extra_chunks: Vec<JsHashEntry>,
+	extra_chunks: Vec<ChunkHashEntry>,
+extra_css_chunks: Vec<ChunkHashEntry>,
 }
 
 struct JsScraperInner {
@@ -80,6 +85,7 @@ struct JsScraperInner {
 	modules: DashMap<ModuleId, String>,
 	channel: Channel,
 	total_bytes: AtomicUsize,
+	css_chunks: DashMap<SmolStr, String>,
 }
 
 struct MainChunkData {
@@ -100,8 +106,10 @@ impl JsScraper {
 			global_env_text,
 			web_js_url,
 			extra_chunks,
+			extra_css_chunks,
 		} = parse_html(html).context("Failed to parse index HTML")?;
 		let num_extra_chunks = extra_chunks.len();
+		let num_extra_css_chunks = extra_css_chunks.len();
 		let pending_limit = Semaphore::const_new(MAX_PENDING_REQUESTS);
 		let nproc = thread::available_parallelism().map_or(1, usize::from);
 		let pool = AllocatorPool::new(nproc);
@@ -109,6 +117,7 @@ impl JsScraper {
 		// let chunk_futures: Vec<task::JoinHandle<Result<_>>>;
 		let modules = DashMap::new();
 		let module_sources = DashMap::new();
+		let css_chunks = DashMap::new();
 		Ok(Self {
 			inner: Arc::new(JsScraperInner {
 				client,
@@ -119,28 +128,37 @@ impl JsScraper {
 				modules,
 				channel,
 				total_bytes: AtomicUsize::new(0),
+				css_chunks
 			}),
 			chunk_futures,
 			num_extra_chunks,
+			num_extra_css_chunks,
 			global_env_text,
 			web_js_url,
 			extra_chunks,
+			extra_css_chunks,
 		})
 	}
 
-	fn spawn_extra_chunk_tasks(&mut self) {
+	fn spawn_extra_js_chunk_tasks(&mut self) {
 		for extra_chunk in mem::take(&mut self.extra_chunks) {
-			self.spawn_scrape_task(extra_chunk);
+			self.spawn_js_scrape_task(extra_chunk);
 		}
 	}
 
-	fn spawn_main_chunk_tasks(&mut self, tasks: Vec<JsHashEntry>) {
+	fn spawn_extra_css_chunk_tasks(&mut self) {
+		for extra_chunk in mem::take(&mut self.extra_css_chunks) {
+			self.spawn_css_chunk_task(extra_chunk);
+		}
+	}
+
+	fn spawn_main_chunk_tasks(&mut self, tasks: Vec<ChunkHashEntry>) {
 		for entry in tasks {
-			self.spawn_scrape_task(entry);
+			self.spawn_js_scrape_task(entry);
 		}
 	}
 
-	fn spawn_scrape_task(&mut self, entry: JsHashEntry) {
+	fn spawn_js_scrape_task(&mut self, entry: ChunkHashEntry) {
 		let hash = entry.hash.clone(); // O(1) clone
 		let inner = self.inner.clone();
 		self.chunk_futures.spawn(async move {
@@ -162,6 +180,7 @@ impl JsScraper {
 			task::spawn_blocking(move || -> Result<()> {
 				if RUNTIME_FINDER.find(&chunk_bts).is_some() {
 					trace!("Skipping worker chunk");
+					inner.progress.chunk_finished();
 					return Ok(());
 				}
 				let alloc_guard = inner.pool.get();
@@ -210,6 +229,48 @@ impl JsScraper {
 			.context("Response is not valid utf8")?;
 		Ok(bstr)
 	}
+	fn spawn_css_chunk_tasks(&mut self, chunks: Vec<ChunkHashEntry>) {
+		for chunk in chunks {
+			self.spawn_css_chunk_task(chunk);
+		}
+	}
+
+	fn spawn_css_chunk_task(&mut self, chunk: ChunkHashEntry) {
+		let hash = chunk.hash;
+		let inner = self.inner.clone();
+		self.chunk_futures.spawn(async move {
+			let permit = inner
+				.pending_limit
+				.acquire()
+				.await
+				.unwrap();
+			let chunk_name = format_smolstr!("{hash}.css");
+			let chunk_url = asset_url(inner.channel, &chunk_name);
+			let resp = inner
+				.client
+				.get(&chunk_url)
+				.send()
+				.await?;
+			if resp.status() == StatusCode::NOT_FOUND {
+				bail!("Chunk not found: {chunk_url}");
+			}
+			let css_bts = resp.bytes().await?;
+			drop(permit);
+			// TODO: css bytes total?
+			let css_bts = Vec::from(css_bts);
+			match String::from_utf8(css_bts) {
+				Ok(s) => {
+					inner.css_chunks.insert(chunk_name, s);
+				}
+				Err(FromUtf8Error { .. }) => {
+					warn!("css chunk {chunk_url:?} is not valid utf8");
+				}
+			}
+			inner.progress.chunk_finished();
+			Ok(())
+		});
+	}
+
 	fn parse_main_js_chunk(
 		&mut self,
 		main_js_text: &ByteStr,
@@ -230,18 +291,25 @@ impl JsScraper {
 				anyhow!("{:?}", e.with_local_source(src, &self.web_js_url))
 			})
 			.context("Failed to parse main js chunk")?;
-		let chunks = main_parser
+		let js_chunks = main_parser
 			.get_js_chunk_hashes()
 			.map_err(|e| {
 				anyhow!("{:?}", e.with_local_source(src, &self.web_js_url))
 			})
 			.context("Failed to get js chunk hashes")?;
-		let num_chunks = chunks.len() + self.num_extra_chunks;
-		debug!("found {num_chunks} chunks");
-		self.inner
-			.progress
-			.set_chunk_total(chunks.len());
-		self.spawn_main_chunk_tasks(chunks);
+		let css_chunks = main_parser
+			.get_css_chunk_hashes()
+			.map_err(|e| {
+				anyhow!("{:?}", e.with_local_source(src, &self.web_js_url))
+			})
+			.context("Failed to get css chunk hashes")?;
+		let num_js_chunks = js_chunks.len() + self.num_extra_chunks;
+		let num_css_chunks = css_chunks.len() + self.num_extra_css_chunks;
+		let num_chunks = num_js_chunks + num_css_chunks;
+		debug!("found {num_js_chunks} js chunks, {num_css_chunks} css chunks");
+		self.inner.progress.set_chunk_total(num_chunks);
+		self.spawn_main_chunk_tasks(js_chunks);
+		self.spawn_css_chunk_tasks(css_chunks);
 		let build_number = main_parser
 			.get_build_number()
 			.map_err(|e| e.with_local_source(src, &self.web_js_url))
@@ -260,9 +328,17 @@ impl JsScraper {
 				anyhow!("{:?}", e.with_local_source(src, &self.web_js_url))
 			})
 			.context("Failed to get modules from main chunk")?;
+		let size_hint = main_modules.size_hint();
+		let mut keys = Vec::with_capacity(size_hint.1.unwrap_or(size_hint.0));
 		for (m_id, src) in main_modules {
 			self.inner.modules.insert(m_id, src);
+			keys.push(m_id);
 		}
+
+		self.inner
+			.module_sources
+			.insert(self.web_js_url.clone(), keys);
+
 		Ok(MainChunkData {
 			build_number,
 			entry_point,
@@ -277,7 +353,8 @@ impl JsScraper {
 	) -> Result<ScrapedModules> {
 		let mut scraper = Self::new(html, channel, client, progress)
 			.context("Failed to create scraper")?;
-		scraper.spawn_extra_chunk_tasks();
+		scraper.spawn_extra_js_chunk_tasks();
+		scraper.spawn_extra_css_chunk_tasks();
 
 		scraper
 			.inner
@@ -309,6 +386,7 @@ impl JsScraper {
 			.expect("inner has outstanding references");
 		let module_sources = inner.module_sources;
 		let modules = inner.modules;
+		let css_chunks = inner.css_chunks;
 
 		Ok(ScrapedModules {
 			modules: HashMap::from_iter(modules),
@@ -317,6 +395,7 @@ impl JsScraper {
 			web_js_url: scraper.web_js_url,
 			build_number,
 			entry_point,
+			css_chunks: HashMap::from_iter(css_chunks),
 		})
 	}
 }
@@ -341,9 +420,10 @@ pub async fn scrape_full_bundle(
 		web_js_url: _,
 		build_number,
 		entry_point,
-	} = JsScraper::scrape(html, channel, client, progress).await?;
+		css_chunks,
+	} = JsScraper::scrape(html, channel, client, progress.clone()).await?;
 
-	let parsed = ParsedBundle::new(&modules)?;
+	let parsed = ParsedBundle::new(&modules, progress)?;
 	let experiments = parsed
 		.find_experiments()
 		.await
@@ -376,6 +456,7 @@ pub async fn scrape_full_bundle(
 		modules,
 		env_var_text: global_env_text,
 		experiments,
+		css_chunks,
 	};
 	Ok(ScrapedBundle { bundle, intl })
 }

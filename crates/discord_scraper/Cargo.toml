@@ -27,6 +27,7 @@ async-trait.workspace = true
 url.workspace = true
 serde_json.workspace = true
 smol_str.workspace = true
+term_progress.workspace = true
 
 [dev-dependencies]
 miette_ui.workspace = true

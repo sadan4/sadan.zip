@@ -85,6 +85,7 @@ fn bundle(
 		modules,
 		env_var_text: String::new(),
 		experiments: Vec::new(),
+		css_chunks: HashMap::new(),
 	}
 }
 

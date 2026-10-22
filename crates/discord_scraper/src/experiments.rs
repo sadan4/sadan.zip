@@ -1,4 +1,5 @@
 use std::{
+	borrow::Cow,
 	collections::HashMap,
 	panic,
 	sync::{Arc, OnceLock},
@@ -26,6 +27,8 @@ use webpack_ast_parser::{
 	WebpackAstParser,
 	bundle::{IModuleCache, IModuleDepProvider, WeakCache},
 };
+
+use crate::ScrapeProgress;
 
 type Parsers = HashMap<ModuleId, Arc<ThreadSafeParser>>;
 
@@ -103,15 +106,28 @@ fn parse_modules(
 	modules: &Modules,
 	store: &Arc<InMemoryBundle>,
 	warm_deps: bool,
+	progress: &dyn ScrapeProgress,
 ) -> Result<()> {
 	let cache = Arc::new(WeakCache(Arc::downgrade(store)));
 	let entries = modules.iter().collect::<Vec<_>>();
 	let threads = thread::available_parallelism().map_or(1, usize::from);
 	let chunk_size = entries.len().div_ceil(threads).max(1);
+	let stage = progress.make_stage(
+		Cow::Owned(format!(
+			"Parsing individual modules {}",
+			if warm_deps {
+				"and computing dependencies"
+			} else {
+				""
+			}
+		)),
+		Some(entries.len()),
+	);
 	let parse_chunk = |chunk: &[(&ModuleId, &String)]| {
 		chunk
 			.iter()
 			.map(|&(&id, src)| {
+				let _step = stage.step_guard();
 				let mut src = src.clone();
 				WebpackAstParser::format_module_header(&mut src, id, false);
 				let src: Arc<str> = src.into();
@@ -158,7 +174,7 @@ fn parse_modules(
 	.into_iter()
 	.flatten()
 	.collect();
-	let _ = store.parsers.set(parsers);
+	_ = store.parsers.set(parsers);
 	Ok(())
 }
 
@@ -185,10 +201,15 @@ fn collect_default_icon_props(
 }
 
 /// Builds the incoming dep graph from each parser's outgoing deps
-fn build_dep_info(parsers: &Parsers) -> DepInfo {
+fn build_dep_info(parsers: &Parsers, progress: &dyn ScrapeProgress) -> DepInfo {
 	let mut deps: HashMap<_, IncomingModuleDeps> =
 		HashMap::with_capacity(parsers.len());
+	let stage = progress.make_stage(
+		Cow::Borrowed("Building dependency graph"),
+		Some(parsers.len()),
+	);
 	for (id, parser) in parsers {
+		let _guard = stage.step_guard();
 		let Some(outgoing_deps) = parser
 			.parser()
 			.get_modules_that_this_module_requires()
@@ -220,9 +241,17 @@ fn build_dep_info(parsers: &Parsers) -> DepInfo {
 }
 
 /// Collects every experiment defined in `parsers`, sorted by location
-async fn collect_experiments(parsers: &Parsers) -> Result<Vec<Experiment>> {
+async fn collect_experiments(
+	parsers: &Parsers,
+	progress: &dyn ScrapeProgress,
+) -> Result<Vec<Experiment>> {
 	let mut experiments = Vec::new();
+	let stage = progress.make_stage(
+		Cow::Borrowed("Collecting experiments"),
+		Some(parsers.len()),
+	);
 	for parser in parsers.values() {
+		let _guard = stage.step_guard();
 		experiments.extend(
 			parser
 				.parser()
@@ -241,6 +270,7 @@ async fn collect_experiments(parsers: &Parsers) -> Result<Vec<Experiment>> {
 pub struct ParsedBundle {
 	store: Arc<InMemoryBundle>,
 	dep_info: DepInfo,
+	progress: Arc<dyn ScrapeProgress>,
 }
 
 impl ParsedBundle {
@@ -248,12 +278,19 @@ impl ParsedBundle {
 	///
 	/// # Errors
 	/// If a module fails to parse
-	pub fn new(modules: &Modules) -> Result<Self> {
+	pub fn new(
+		modules: &Modules,
+		progress: Arc<dyn ScrapeProgress>,
+	) -> Result<Self> {
 		let store = InMemoryBundle::new();
-		parse_modules(modules, &store, true)?;
-		let dep_info = build_dep_info(store.parsers()?);
+		parse_modules(modules, &store, true, &*progress)?;
+		let dep_info = build_dep_info(store.parsers()?, &*progress);
 		store.set_deps(&dep_info);
-		Ok(Self { store, dep_info })
+		Ok(Self {
+			store,
+			dep_info,
+			progress,
+		})
 	}
 
 	#[must_use]
@@ -272,7 +309,7 @@ impl ParsedBundle {
 	/// # Errors
 	/// If collecting a module's experiments fails
 	pub async fn find_experiments(&self) -> Result<Vec<Experiment>> {
-		collect_experiments(self.store.parsers()?).await
+		collect_experiments(self.store.parsers()?, &*self.progress).await
 	}
 
 	/// Collects every english intl module in the bundle, sorted by id
@@ -280,7 +317,7 @@ impl ParsedBundle {
 	/// # Errors
 	/// If no module defines `createLoader`, or collecting from it fails
 	pub async fn find_intl_modules(&self) -> Result<Vec<ModuleId>> {
-		collect_intl_modules(self.store.parsers()?).await
+		collect_intl_modules(self.store.parsers()?, &*self.progress).await
 	}
 
 	/// Collects every english intl module in the bundle, sorted by id, along
@@ -289,7 +326,7 @@ impl ParsedBundle {
 	/// # Errors
 	/// If no module defines `createLoader`, or collecting from it fails
 	pub async fn find_intl(&self) -> Result<IntlMessages> {
-		collect_intl(self.store.parsers()?).await
+		collect_intl(self.store.parsers()?, &*self.progress).await
 	}
 
 	pub fn get_parser(&self, id: ModuleId) -> Option<Arc<ThreadSafeParser>> {
@@ -302,8 +339,16 @@ impl ParsedBundle {
 }
 
 /// Collects every english intl module in `parsers`, sorted by id
-async fn collect_intl_modules(parsers: &Parsers) -> Result<Vec<ModuleId>> {
+async fn collect_intl_modules(
+	parsers: &Parsers,
+	progress: &dyn ScrapeProgress,
+) -> Result<Vec<ModuleId>> {
+	let stage = progress.make_stage(
+		Cow::Borrowed("Collecting intl modules"),
+		Some(parsers.len()),
+	);
 	for parser in parsers.values() {
+		let _guard = stage.step_guard();
 		let Some(mut ids) = parser
 			.parser()
 			.collect_intl_modules()
@@ -324,10 +369,18 @@ async fn collect_intl_modules(parsers: &Parsers) -> Result<Vec<ModuleId>> {
 ///
 /// Modules whose JSON can't be read are skipped, but stay in
 /// [`IntlMessages::modules`]
-async fn collect_intl(parsers: &Parsers) -> Result<IntlMessages> {
-	let modules = collect_intl_modules(parsers).await?;
+async fn collect_intl(
+	parsers: &Parsers,
+	progress: &dyn ScrapeProgress,
+) -> Result<IntlMessages> {
+	let modules = collect_intl_modules(parsers, progress).await?;
 	let mut messages = HashMap::new();
+	let stage = progress.make_stage(
+		Cow::Borrowed("amalgamating intl modules"),
+		Some(modules.len()),
+	);
 	for &id in &modules {
+		let _guard = stage.step_guard();
 		let Some(parser) = parsers.get(&id) else {
 			warn!(%id, "Intl module not found in bundle");
 			continue;
@@ -369,11 +422,12 @@ async fn collect_intl(parsers: &Parsers) -> Result<IntlMessages> {
 pub async fn find_experiments(
 	modules: &Modules,
 	dep_info: &DepInfo,
+	progress: &dyn ScrapeProgress,
 ) -> Result<Vec<Experiment>> {
 	let store = InMemoryBundle::new();
 	store.set_deps(dep_info);
-	parse_modules(modules, &store, false)?;
-	collect_experiments(store.parsers()?).await
+	parse_modules(modules, &store, false, progress)?;
+	collect_experiments(store.parsers()?, progress).await
 }
 
 /// Collects every english intl module in `modules`, sorted by id, along with
@@ -388,9 +442,10 @@ pub async fn find_experiments(
 pub async fn find_intl(
 	modules: &Modules,
 	dep_info: &DepInfo,
+	progress: &dyn ScrapeProgress,
 ) -> Result<IntlMessages> {
 	let store = InMemoryBundle::new();
 	store.set_deps(dep_info);
-	parse_modules(modules, &store, false)?;
-	collect_intl(store.parsers()?).await
+	parse_modules(modules, &store, false, progress)?;
+	collect_intl(store.parsers()?, progress).await
 }

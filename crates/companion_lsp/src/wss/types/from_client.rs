@@ -170,7 +170,7 @@ impl MsgFromClient for () {
 
 pub trait MsgFromClient: Sized {
 	fn from_wire(msg: FullMessage) -> Result<Self>;
-	/// used for the marker type [`()`] for messages **to** the client that don't expect a response
+	/// used for the marker type [`()`](prim@unit) for messages **to** the client that don't expect a response
 	fn notification_type() -> Option<Self> {
 		None
 	}

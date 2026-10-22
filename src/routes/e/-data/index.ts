@@ -39,6 +39,7 @@ export const enum ViewMode {
     CODE,
     MODULE_GRAPH,
     EXPERIMENTS,
+    CSS_EDITOR,
 }
 
 

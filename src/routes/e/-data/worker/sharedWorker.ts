@@ -21,6 +21,7 @@ import {
 } from "@sadan4/libsadancore";
 import type { Edge, Node } from "@xyflow/react";
 
+import { CssModule } from "./schema";
 import type { BundleLoadProgress } from "../loadProgress";
 
 import * as comlink from "comlink";
@@ -61,6 +62,8 @@ export interface IBuildService {
     getModuleDependencies(moduleId: TModuleId): ModuleDeps;
     getModuleDependents(moduleId: TModuleId): ModuleDeps | undefined;
     getExperiments(): ExperimentInfo[];
+    getCssModules(): Promise<CssModule[]>;
+    getCssVars(): string[];
 }
 
 const self = globalThis as any as SharedWorkerGlobalScope;
@@ -134,6 +137,8 @@ function convertGraph(raw: LaidOutGraph): GeneratedGraph {
 class BuildService implements IBuildService {
     #bundleHash!: TBundleHash;
     #bundle!: Bundle;
+    #classNamesPromise?: Promise<CssModule[]>;
+    #cssVars?: string[];
     /**
      * shared between all tabs connected to this worker, so the bundle is only downloaded once
      */
@@ -331,12 +336,32 @@ class BuildService implements IBuildService {
     public getExperiments(): ExperimentInfo[] {
         return this.#bundle.get_experiments();
     }
+
+    public getCssModules(): Promise<CssModule[]> {
+        return (this.#classNamesPromise ??= (async (): Promise<CssModule[]> => {
+            const raw_data = await this.#bundle.get_class_names();
+
+            return CssModule.array().parse(raw_data);
+        })().catch((e: unknown) => {
+            // don't cache failures
+            this.#classNamesPromise = undefined;
+            throw e;
+        }));
+    }
+
+    public getCssVars(): string[] {
+        return (this.#cssVars ??= this.#bundle.get_css_vars());
+    }
 }
 
 // use a type alias to avoid including BuildService in auto imports
 export type RawBuildService = BuildService;
 {
     const service = new BuildService();
+
+    if (import.meta.env.DEV && Error.stackTraceLimit < 30) {
+        Error.stackTraceLimit = 30;
+    }
 
     self.onconnect = ({ ports: [port] }) => {
         comlink.expose(service, port);

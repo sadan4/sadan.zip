@@ -1,6 +1,6 @@
 #![allow(clippy::unreadable_literal, reason = "we want verbatim module ids")]
 use crate::{
-	JsHashEntry,
+	ChunkHashEntry,
 	Sealed,
 	base::{WebpackChunkParser, WebpackChunkParserImpl},
 };
@@ -57,6 +57,28 @@ static BUILD_NUMBER_REGEX: LazyLock<Regex> = LazyLock::new(|| {
 	Regex::new(r#"(?:parseInt\("|"Trying to open a changelog for an invalid build number )(\d+?)"\)"#).unwrap()
 });
 
+#[derive(Clone, Copy, Debug)]
+enum HashTarget {
+	Js,
+	Css,
+}
+
+impl HashTarget {
+	const fn get_proprety_key(self) -> &'static str {
+		match self {
+			Self::Js => "u",
+			Self::Css => "k",
+		}
+	}
+
+	const fn get_ext(self) -> &'static str {
+		match self {
+			Self::Js => ".js",
+			Self::Css => ".css"
+		}
+	}
+}
+
 fn as_valid_module_id<'ast>(expr: &'ast Expression<'ast>) -> Option<ModuleId> {
 	match expr {
 		Expression::NumericLiteral(n) => n.as_u32().map(ModuleId),
@@ -68,7 +90,8 @@ fn as_valid_module_id<'ast>(expr: &'ast Expression<'ast>) -> Option<ModuleId> {
 fn handle_chunk_cond_rhs(
 	module_id: &str,
 	rhs: &Expression,
-) -> PResult<JsHashEntry> {
+	target: HashTarget,
+) -> PResult<ChunkHashEntry> {
 	match rhs {
 		Expression::BinaryExpression(cur) => {
 			let cur = cur.as_ref();
@@ -80,12 +103,12 @@ fn handle_chunk_cond_rhs(
 				})?
 				.value;
 			let chunk_hash = chunk_hash_with_ext
-				.strip_suffix(".js")
+				.strip_suffix(target.get_ext())
 				.unwrap_or(chunk_hash_with_ext);
 			let mut sb = SmolStrBuilder::new();
 			sb.push_str(module_id);
 			sb.push_str(chunk_hash);
-			Ok(JsHashEntry {
+			Ok(ChunkHashEntry {
 				chunk_id: module_id.to_smolstr(),
 				hash: sb.finish(),
 			})
@@ -93,8 +116,8 @@ fn handle_chunk_cond_rhs(
 		// if the module id is small enough, it might be inlined instead of concatenated
 		Expression::StringLiteral(cur) => {
 			let cur = &*cur.as_ref().value;
-			let chunk_hash = cur.strip_suffix(".js").unwrap_or(cur);
-			Ok(JsHashEntry {
+			let chunk_hash = cur.strip_suffix(target.get_ext()).unwrap_or(cur);
+			Ok(ChunkHashEntry {
 				chunk_id: module_id.to_smolstr(),
 				hash: chunk_hash.to_smolstr(),
 			})
@@ -243,7 +266,7 @@ impl<'ast> WebpackMainChunkParser<'ast> {
 		.ok_or_else(|| err_ns("Failed to find webpack modules object"))
 	}
 
-	fn parse_js_hash_map_entry(prop: &ObjectProperty) -> PResult<JsHashEntry> {
+	fn parse_hash_map_entry(prop: &ObjectProperty) -> PResult<ChunkHashEntry> {
 		if prop.method
 			|| prop.shorthand
 			|| prop.computed
@@ -266,23 +289,30 @@ impl<'ast> WebpackMainChunkParser<'ast> {
 			.ok_or_else(|| {
 				err(&prop.value, "chunk hash is not a string literal")
 			})?;
-		let ret = JsHashEntry {
+		let ret = ChunkHashEntry {
 			chunk_id: id.into(),
 			hash: hash.as_str().into(),
 		};
 		Ok(ret)
 	}
 
-	fn process_wreq_u_map_expr(
+	fn process_wreq_chunk_hash_map_expr(
 		expr: &'ast Expression<'ast>,
-	) -> PResult<Vec<JsHashEntry>> {
+		target: &'static str,
+	) -> PResult<Vec<ChunkHashEntry>> {
 		let bin_expr = expr
 			.as_binary_expression()
 			.ok_or_else(|| {
-				err(expr, "`wreq.u` body is not a binary expression")
+				err(
+					expr,
+					format!("`wreq.{target}` body is not a binary expression"),
+				)
 			})?;
 		if bin_expr.operator != BinaryOperator::Addition {
-			return Err(err(bin_expr, "`wreq.u` body is not a concatenation"));
+			return Err(err(
+				bin_expr,
+				format!("`wreq.{target}` body is not a concatenation"),
+			));
 		}
 		let concat_with_hash_map = bin_expr
 			.left
@@ -290,13 +320,15 @@ impl<'ast> WebpackMainChunkParser<'ast> {
 			.ok_or_else(|| {
 				err(
 					&bin_expr.left,
-					"`wreq.u` body lhs is not a binary expression",
+					format!(
+						"`wreq.{target}` body lhs is not a binary expression"
+					),
 				)
 			})?;
 		if concat_with_hash_map.operator != BinaryOperator::Addition {
 			return Err(err(
 				concat_with_hash_map,
-				"`wreq.u` body lhs is not a concatenation",
+				format!("`wreq.{target}` body lhs is not a concatenation"),
 			));
 		}
 		let member = concat_with_hash_map
@@ -319,12 +351,17 @@ impl<'ast> WebpackMainChunkParser<'ast> {
 			let prop = prop.as_property().ok_or_else(|| {
 				err(prop, "chunk hash map entry is not an object property")
 			})?;
-			ret.push(Self::parse_js_hash_map_entry(prop)?);
+			ret.push(Self::parse_hash_map_entry(prop)?);
 		}
 		Ok(ret)
 	}
 
-	pub fn get_js_chunk_hashes(&self) -> PResult<Vec<JsHashEntry>> {
+	fn get_chunk_hashes(
+		&self,
+		target: HashTarget,
+	) -> PResult<Vec<ChunkHashEntry>> {
+		let raw_target = target;
+		let target = target.get_proprety_key();
 		let wreq = self.get_webpack_require()?;
 		let uses = self
 			.sema
@@ -336,7 +373,7 @@ impl<'ast> WebpackMainChunkParser<'ast> {
 					let parent = self
 						.p(u.node_id())
 						.as_static_member_expression()?;
-					if parent.property.name != "u" {
+					if parent.property.name != target {
 						continue;
 					}
 					let assign = self
@@ -348,11 +385,14 @@ impl<'ast> WebpackMainChunkParser<'ast> {
 					break 'u func;
 				};
 			}
-			return Err(err_ns("Failed to find `wreq.u`"));
+			return Err(err_ns(format!("Failed to find `wreq.{target}`")));
 		};
 		// expect body to be BinExp>[BinExp>["" + {id:hash}[id]] + ".js"]
 		let mut cur = u_func.get_expression().ok_or_else(|| {
-			err(u_func, "`wreq.u` body is not a single expression")
+			err(
+				u_func,
+				format!("`wreq.{target}` body is not a single expression"),
+			)
 		})?;
 		let mut ret = Vec::new();
 		while let Some(expr) = cur.as_conditional_expression() {
@@ -384,13 +424,22 @@ impl<'ast> WebpackMainChunkParser<'ast> {
 					)
 				})?;
 			let rhs = &expr.consequent;
-			let entry = handle_chunk_cond_rhs(chunk_id, rhs)?;
+			let entry = handle_chunk_cond_rhs(chunk_id, rhs, raw_target)?;
 			ret.push(entry);
 			cur = &expr.alternate;
 		}
-		let from_map_expr = Self::process_wreq_u_map_expr(cur)?;
+		let from_map_expr =
+			Self::process_wreq_chunk_hash_map_expr(cur, target)?;
 		ret.extend(from_map_expr);
 		Ok(ret)
+	}
+
+	pub fn get_js_chunk_hashes(&self) -> PResult<Vec<ChunkHashEntry>> {
+		self.get_chunk_hashes(HashTarget::Js)
+	}
+
+	pub fn get_css_chunk_hashes(&self) -> PResult<Vec<ChunkHashEntry>> {
+		self.get_chunk_hashes(HashTarget::Css)
 	}
 
 	fn get_entrypoint_id_1(&self) -> PResult<ModuleId> {
@@ -707,6 +756,40 @@ mod tests {
 				.collect_vec();
 			assert_ron_snapshot!(modules);
 		};
+	}
+
+	/// inlined css chunk hashes (the conditional branches of `wreq.k`) must
+	/// have their `.css` extension stripped, like `.js` is for `wreq.u`, since
+	/// the scraper appends the extension itself
+	#[test]
+	fn css_inlined_chunk_hash_strips_extension() {
+		const SOURCE: &str = r#"(() => {
+			function r(e) {}
+			r.nmd = (e) => e;
+			r.hmd = (e) => e;
+			r.k = (e) =>
+				e === "123"
+					? "123.0123456789abcdef.css"
+					: e === "7"
+						? e + ".fedcba9876543210.css"
+						: "" + { 456: "456.aaaaaaaaaaaaaaaa" }[e] + ".css";
+		})();"#;
+		let alloc = Allocator::new();
+		let parser = WebpackMainChunkParser::try_new(&alloc, SOURCE).unwrap();
+		let mut hashes = parser.get_css_chunk_hashes().unwrap();
+		hashes.sort_by(|a, b| a.chunk_id.cmp(&b.chunk_id));
+		let hashes = hashes
+			.iter()
+			.map(|e| (e.chunk_id.as_str(), e.hash.as_str()))
+			.collect_vec();
+		assert_eq!(
+			hashes,
+			[
+				("123", "123.0123456789abcdef"),
+				("456", "456.aaaaaaaaaaaaaaaa"),
+				("7", "7.fedcba9876543210"),
+			]
+		);
 	}
 
 	#[test]

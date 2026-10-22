@@ -2,7 +2,7 @@ mod graph;
 
 use std::{
 	cell::RefCell,
-	collections::HashMap,
+	collections::{HashMap, HashSet},
 	marker::PhantomPinned,
 	mem,
 	pin::Pin,
@@ -14,7 +14,8 @@ use crate::{
 	constants::FULL_BUNDLE_ENDPOINT,
 	err::Result,
 	explorer::meta::Meta,
-	util::{decode_struct, fetch_struct},
+	util::{console_log, decode_struct, fetch_struct},
+	var_collector::collect_css_vars,
 };
 use anyhow::{Context, anyhow};
 use ast_parser::{get_line_and_column, get_offset_from_line_and_column};
@@ -95,6 +96,7 @@ struct BundleInner {
 	experiments: Vec<Experiment>,
 	self_ptr: *const Self,
 	_pin: PhantomPinned,
+	css_chunks: HashMap<SmolStr, String>,
 }
 
 // SAFETY: rust wasm is single-threaded
@@ -867,6 +869,51 @@ impl Bundle {
 			.context("Failed to serialize module dependencies")?)
 	}
 
+	#[wasm_bindgen]
+	pub async fn get_class_names(&self) -> Result<Vec<JsValue>> {
+		let ser = serde_wasm_bindgen::Serializer::json_compatible();
+		let mut ret = Vec::new();
+		let mut alloc = Allocator::new();
+		for m_id in self
+			.inner
+			.unformatted_modules
+			.keys()
+			.copied()
+		{
+			alloc.reset();
+			// don't cache the formatted source, even though it would not 
+			// oom, it's still a lot memory
+			let cached = self
+				.inner
+				.formatted_modules
+				.borrow()
+				.get(&m_id)
+				.map(|s| s.as_str().to_owned());
+			// a module that fails to format or parse can't be a css module we
+			// can use, so skip it instead of failing the whole scan
+			let src = match cached {
+				Some(src) => src,
+				None => match self.inner.format_module(m_id) {
+					Ok(FormattedContent { code, .. }) => code,
+					Err(_) => continue,
+				},
+			};
+			// we can't store the parser else we oom
+			let Ok(parser) = WebpackAstParser::try_new(&alloc, &src) else {
+				continue;
+			};
+			// we can't use get_or_make_parser here because we would oom storing the parser for every module
+			let Ok(guh) = parser.as_css_module().await else {
+				continue;
+			};
+			ret.push(
+				guh.serialize(&ser)
+					.context("Failed to serialize css module")?,
+			);
+		}
+		Ok(ret)
+	}
+
 	/// every apex and normal experiment defined in the bundle
 	#[wasm_bindgen(skip_typescript)]
 	pub fn get_experiments(&self) -> Result<JsValue> {
@@ -902,6 +949,18 @@ impl Bundle {
 		Ok(experiments
 			.serialize(&serializer)
 			.context("Failed to serialize experiments")?)
+	}
+
+	pub fn get_css_vars(&self) -> Result<Vec<String>> {
+		let mut vars = HashSet::new();
+		for (chunk, css) in &self.inner.css_chunks {
+			// there is an rspack bug where it produces css with invalid syntax
+			// SEE: web-infra-dev/rspack#16202
+			collect_css_vars(&mut vars, css).with_context(|| {
+				format!("Failed to scrape css file {chunk}")
+			})?;
+		}
+		Ok(Vec::from_iter(vars))
 	}
 }
 
@@ -1159,6 +1218,7 @@ fn bundle_from_full(
 		modules,
 		env_var_text: _,
 		experiments,
+		css_chunks,
 	}: FullBundle,
 	drop_sources: bool,
 ) -> Bundle {
@@ -1184,6 +1244,7 @@ fn bundle_from_full(
 		experiments,
 		self_ptr: ptr::null(),
 		_pin: PhantomPinned,
+		css_chunks,
 	};
 	let mut inner = Box::pin(inner);
 	let self_ptr = &raw const *inner;
@@ -1223,6 +1284,7 @@ mod tests {
 			experiments: Vec::new(),
 			self_ptr: ptr::null(),
 			_pin: PhantomPinned,
+			css_chunks: HashMap::new(),
 		};
 		let mut inner = Box::pin(inner);
 		let self_ptr = &raw const *inner;

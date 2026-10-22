@@ -1,10 +1,13 @@
 #![allow(clippy::future_not_send)]
+#![feature(never_type)]
+#![feature(unwrap_infallible)]
 use wasm_bindgen::prelude::wasm_bindgen;
 
 pub mod constants;
 pub(crate) mod err;
 pub mod explorer;
 pub(crate) mod util;
+mod var_collector;
 
 #[wasm_bindgen(start)]
 fn start_() {
