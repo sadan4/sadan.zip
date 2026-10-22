@@ -881,10 +881,27 @@ impl Bundle {
 			.copied()
 		{
 			alloc.reset();
-			let src = self.inner.get_formatted_module(m_id)?;
+			// don't cache the formatted source, even though it would not 
+			// oom, it's still a lot memory
+			let cached = self
+				.inner
+				.formatted_modules
+				.borrow()
+				.get(&m_id)
+				.map(|s| s.as_str().to_owned());
+			// a module that fails to format or parse can't be a css module we
+			// can use, so skip it instead of failing the whole scan
+			let src = match cached {
+				Some(src) => src,
+				None => match self.inner.format_module(m_id) {
+					Ok(FormattedContent { code, .. }) => code,
+					Err(_) => continue,
+				},
+			};
 			// we can't store the parser else we oom
-			let parser = WebpackAstParser::try_new(&alloc, src)
-				.context("Failed to parse module")?;
+			let Ok(parser) = WebpackAstParser::try_new(&alloc, &src) else {
+				continue;
+			};
 			// we can't use get_or_make_parser here because we would oom storing the parser for every module
 			let Ok(guh) = parser.as_css_module().await else {
 				continue;

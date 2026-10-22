@@ -118,7 +118,7 @@ pub struct FullBundle {
 	pub experiments: Vec<experiments::Experiment>,
 	#[serde(default)]
 	/// the css files for this build
-	/// 
+	///
 	/// will be empty if this bundle was scraped before css files started being scraped
 	#[serde(serialize_with = "serde_sorted::serialize_sorted_map")]
 	pub css_chunks: HashMap<SmolStr, String>,
@@ -148,7 +148,7 @@ impl FullBundle {
 		env_var_text.shrink_to_fit();
 		experiments.shrink_to_fit();
 		css_files.shrink_to_fit();
-		for v in modules.values_mut() {
+		for v in css_files.values_mut() {
 			v.shrink_to_fit();
 		}
 	}

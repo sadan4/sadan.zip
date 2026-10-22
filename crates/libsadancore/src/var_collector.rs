@@ -32,7 +32,8 @@ impl<'ast> Visitor<'ast> for Collector<'_> {
 			self.0
 				.insert(var.name.ident.to_string());
 		}
-		Ok(())
+		// the fallback can contain more variables
+		var.visit_children(self)
 	}
 	fn visit_property(
 		&mut self,
@@ -88,5 +89,17 @@ mod collects_vars {
 		assert!(vars.contains("--bar"));
 		assert!(vars.contains("--baz"));
 		assert_eq!(vars.len(), 2);
+	}
+
+	#[test]
+	fn fallback() {
+		let code = r".card { color: var(--a, var(--b, var(--c))); }";
+		let mut vars = HashSet::new();
+		collect_css_vars(&mut vars, code).unwrap();
+		dbg!(&vars);
+		assert!(vars.contains("--a"));
+		assert!(vars.contains("--b"));
+		assert!(vars.contains("--c"));
+		assert_eq!(vars.len(), 3);
 	}
 }

@@ -342,7 +342,11 @@ class BuildService implements IBuildService {
             const raw_data = await this.#bundle.get_class_names();
 
             return CssModule.array().parse(raw_data);
-        })());
+        })().catch((e: unknown) => {
+            // don't cache failures
+            this.#classNamesPromise = undefined;
+            throw e;
+        }));
     }
 
     public getCssVars(): string[] {
