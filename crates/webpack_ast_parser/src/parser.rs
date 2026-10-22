@@ -1,16 +1,16 @@
 #![allow(clippy::multiple_inherent_impl)]
 mod arg_finder;
+pub mod css;
 mod enum_iife;
 mod experiment_parsing;
 pub mod export_map;
 mod icons;
 mod json;
+mod lottie;
 mod main_func_finder;
 mod types;
 mod util;
 mod value_tracking;
-mod lottie;
-pub mod css;
 
 use crate::{
 	bundle::{
@@ -19,14 +19,21 @@ use crate::{
 		DefaultModuleDepProvider,
 		IModuleCache,
 		IModuleDepProvider,
-	}, export_map::raw_export_map_to_range_export_map, find::{IntlKey, ScoredFindSequence}, intl::ast::hydrate::hydrate_ast, parser::{
-		css::CssModule, export_map::{
+	},
+	export_map::raw_export_map_to_range_export_map,
+	find::{IntlKey, ScoredFindSequence},
+	intl::ast::hydrate::hydrate_ast,
+	parser::{
+		css::CssModule,
+		export_map::{
 			ExportMapKey,
 			ExportRange,
 			ExportValue,
 			RangeExportMap,
 			RawStoreData,
-		}, types::{Importer, ReExport, ResolvedDefinition, SearchElement, WreqD}, util::{
+		},
+		types::{Importer, ReExport, ResolvedDefinition, SearchElement, WreqD},
+		util::{
 			args_span,
 			filter_export_map,
 			flatten_export_map,
@@ -36,7 +43,8 @@ use crate::{
 			match_export_chain,
 			span_to_range,
 		},
-	}, sync::{ThreadSafeParser, UnsafeFuture},
+	},
+	sync::{ThreadSafeParser, UnsafeFuture},
 };
 use arrayvec::ArrayString;
 use ast_parser::{
@@ -1338,12 +1346,11 @@ impl<'ast> WebpackAstParser<'ast> {
 									&& let Some(inner_access) = self.p_if(
 										assign_per.node_id(),
 										AstKind::as_static_member_expression,
-									)
-									&& let Some(span) = self
-										.match_outer_access_chain(
-											inner_access,
-											remaining,
-										) {
+									) && let Some(span) = self
+									.match_outer_access_chain(
+										inner_access,
+										remaining,
+									) {
 									uses.push(span.into_ast_kind());
 								}
 							} else {
@@ -1450,8 +1457,7 @@ impl<'ast> WebpackAstParser<'ast> {
 			let c_then_obj = c_then.object.as_call_expression()?;
 			if self
 				.is_lazy_chunk_require(c_then_obj)
-				.is_some()
-				|| self.is_promise_resolve(c_then_obj)
+				.is_some() || self.is_promise_resolve(c_then_obj)
 			{
 				return true;
 			}
@@ -2913,18 +2919,12 @@ impl<'ast> WebpackAstParser<'ast> {
 			!matches!(
 				seq[0].kind(),
 				TK::Dot
-					| TK::Comma
-					| TK::Colon
-					| TK::Eq
-					| TK::Eq2
-					| TK::Eq3
-					| TK::Amp2
-					| TK::LParen
-					| TK::RParen
-					| TK::Pipe2
-					| TK::Semicolon
-					| TK::Question
-					| TK::Extends
+					| TK::Comma | TK::Colon
+					| TK::Eq | TK::Eq2
+					| TK::Eq3 | TK::Amp2
+					| TK::LParen | TK::RParen
+					| TK::Pipe2 | TK::Semicolon
+					| TK::Question | TK::Extends
 					| TK::Let
 			)
 		} else {
