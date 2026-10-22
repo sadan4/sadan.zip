@@ -358,7 +358,6 @@ function ExplorerHeader() {
     const settingsModalRef = useRef<ModalContext>(null);
     const moduleSidebarOpen = useModuleViewerStore(({ moduleSidebarOpen }) => moduleSidebarOpen);
     const activePanel = useModuleViewerStore(({ activePanel }) => activePanel);
-    const buildService = useModuleViewerStore(({ _buildService }) => _buildService);
 
     return (
         <>

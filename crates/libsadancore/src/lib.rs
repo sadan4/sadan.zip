@@ -1,4 +1,6 @@
 #![allow(clippy::future_not_send)]
+#![feature(never_type)]
+#![feature(unwrap_infallible)]
 use wasm_bindgen::prelude::wasm_bindgen;
 
 pub mod constants;
