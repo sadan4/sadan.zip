@@ -1,6 +1,7 @@
 :root {
-    --scrollbar-track-color: var(--color-bg-200);
-    --scrollbar-thumb-color: var(--color-fg-600);
+    --scrollbar-track-color: var(--color-scrollbar-shadow);
+    --scrollbar-thumb-color-active: var(--color-scrollbarSlider-activeBackground);
+    --scrollbar-thumb-color-hover: var(--color-scrollbarSlider-hoverBackground);
 }
 
 @layer base {
@@ -21,13 +22,23 @@
         position: relative;
         max-height: 100%;
     }
+
+    :where(.scrollbar) {
+        --scrollbar-thumb-color: var(--color-scrollbarSlider-background);
+    }
 }
+
 
 .scrollbar {
     /**
      * not compatible with scrollbar styles
      */
     resize: none;
+
+    &:hover {
+        --scrollbar-thumb-color: var(--scrollbar-thumb-color-hover);
+
+    }
 
     &.vertical {
         overflow: hidden scroll;
@@ -53,6 +64,10 @@
     &::-webkit-scrollbar-thumb {
         background-color: var(--scrollbar-thumb-color);
         min-height: 40px;
+
+        &:active {
+            --scrollbar-thumb-color: var(--scrollbar-thumb-color-active);
+        }
     }
 
     &::-webkit-scrollbar-thumb,

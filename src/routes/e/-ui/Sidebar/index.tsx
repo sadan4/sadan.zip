@@ -21,7 +21,7 @@ export function ExplorerSidebar() {
         <div className="flex w-72 shrink-0 flex-col">
             <div className="flex items-center justify-center">
                 <ToggleButtonGroup<SidebarTab>
-                    className="m-2 mb-0 rounded-lg border-2 border-fg-700 p-2"
+                    className="m-2 mb-0 rounded-lg border-2 border-editor-foreground p-2 *:text-editor-foreground"
                     selectedItem={tab}
                     onSelectItem={setTab}
                     items={[

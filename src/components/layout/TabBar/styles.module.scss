@@ -35,7 +35,7 @@
                 transition-duration: 500ms;
                 position-anchor: $anchor-name;
                 pointer-events: none;
-                border-bottom: 2px solid var(--color-fg-500);
+                border-bottom: 2px solid var(--color-editorLink-activeForeground);
                 position: fixed;
                 inset: anchor(top) anchor(right) anchor(bottom) anchor(left);
 

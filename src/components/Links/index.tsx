@@ -87,7 +87,12 @@ export const TextLink = createLink(TextLinkComponent);
 export function ThemeLink() {
     return (
         <ExternalLink to="https://github.com/enkia/tokyo-night-vscode-theme/tree/master">
-            <Text tag="span">Color Scheme</Text>
+            <Text
+                tag="span"
+                color="link"
+            >
+                Color Scheme
+            </Text>
         </ExternalLink>
     );
 }
@@ -95,7 +100,12 @@ export function ThemeLink() {
 export function SourceLink() {
     return (
         <ExternalLink to="https://github.com/sadan4/sadan.zip">
-            <Text tag="span">Source Code</Text>
+            <Text
+                tag="span"
+                color="link"
+            >
+                Source Code
+            </Text>
         </ExternalLink>
     );
 }
@@ -103,7 +113,12 @@ export function SourceLink() {
 export function PersonalButtonLink() {
     return (
         <Link to="/88x31">
-            <Text tag="span">88x31</Text>
+            <Text
+                tag="span"
+                color="link"
+            >
+                88x31
+            </Text>
         </Link>
     );
 }
