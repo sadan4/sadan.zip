@@ -5,6 +5,7 @@ pub mod constants;
 pub(crate) mod err;
 pub mod explorer;
 pub(crate) mod util;
+mod var_collector;
 
 #[wasm_bindgen(start)]
 fn start_() {

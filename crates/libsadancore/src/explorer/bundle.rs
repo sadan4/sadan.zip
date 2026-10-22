@@ -2,7 +2,7 @@ mod graph;
 
 use std::{
 	cell::RefCell,
-	collections::HashMap,
+	collections::{HashMap, HashSet},
 	marker::PhantomPinned,
 	mem,
 	pin::Pin,
@@ -11,7 +11,11 @@ use std::{
 };
 
 use crate::{
-	constants::FULL_BUNDLE_ENDPOINT, err::Result, explorer::meta::Meta, util::{decode_struct, fetch_struct},
+	constants::FULL_BUNDLE_ENDPOINT,
+	err::Result,
+	explorer::meta::Meta,
+	util::{console_log, decode_struct, fetch_struct},
+	var_collector::collect_css_vars,
 };
 use anyhow::{Context, anyhow};
 use ast_parser::{get_line_and_column, get_offset_from_line_and_column};
@@ -92,6 +96,7 @@ struct BundleInner {
 	experiments: Vec<Experiment>,
 	self_ptr: *const Self,
 	_pin: PhantomPinned,
+	css_chunks: HashMap<SmolStr, String>,
 }
 
 // SAFETY: rust wasm is single-threaded
@@ -928,6 +933,18 @@ impl Bundle {
 			.serialize(&serializer)
 			.context("Failed to serialize experiments")?)
 	}
+
+	pub fn get_css_vars(&self) -> Result<Vec<String>> {
+		let mut vars = HashSet::new();
+		for (chunk, css) in &self.inner.css_chunks {
+			// there is an rspack bug where it produces css with invalid syntax
+			// SEE: web-infra-dev/rspack#16202
+			collect_css_vars(&mut vars, css).with_context(|| {
+				format!("Failed to scrape css file {chunk}")
+			})?;
+		}
+		Ok(Vec::from_iter(vars))
+	}
 }
 
 #[derive(Serialize)]
@@ -1184,7 +1201,7 @@ fn bundle_from_full(
 		modules,
 		env_var_text: _,
 		experiments,
-		css_chunks: _,
+		css_chunks,
 	}: FullBundle,
 	drop_sources: bool,
 ) -> Bundle {
@@ -1210,6 +1227,7 @@ fn bundle_from_full(
 		experiments,
 		self_ptr: ptr::null(),
 		_pin: PhantomPinned,
+		css_chunks,
 	};
 	let mut inner = Box::pin(inner);
 	let self_ptr = &raw const *inner;
@@ -1249,6 +1267,7 @@ mod tests {
 			experiments: Vec::new(),
 			self_ptr: ptr::null(),
 			_pin: PhantomPinned,
+			css_chunks: HashMap::new(),
 		};
 		let mut inner = Box::pin(inner);
 		let self_ptr = &raw const *inner;

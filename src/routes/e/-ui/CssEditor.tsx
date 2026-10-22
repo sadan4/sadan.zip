@@ -60,11 +60,6 @@ function nodeFromPos(ast: css.CssNode, offset: number): css.CssNode {
     return cur;
 }
 
-const cssVars: string[] = [
-    "--foo",
-    "--bar",
-];
-
 // The css var completion is lifted from tailwind
 // https://github.com/tailwindlabs/tailwindcss-intellisense/blob/5067ff7ec0b4b8bb5c3325a69c1f3410eb5b350a/packages/tailwindcss-language-service/src/completionProvider.ts
 const VAR_REGEX = /[\s:;/*(){}](?<helper>var)\(\s*['"]?(?<path>[^)'"]*)$/;
@@ -78,6 +73,13 @@ export function CssEditor() {
         queryKey: ["get css modules", buildHash],
         queryFn() {
             return buildService.getCssModules();
+        },
+    });
+
+    const { data: cssVars } = useSuspenseQuery({
+        queryKey: ["get css vars", buildHash],
+        queryFn() {
+            return buildService.getCssVars();
         },
     });
 
@@ -268,7 +270,7 @@ export function CssEditor() {
             removeCompletionProvider.dispose();
             clearMarkers();
         };
-    }, [handle, namesList, namesMap]);
+    }, [handle, namesList, namesMap, cssVars]);
 
     return (
         <MonacoCodeEditor

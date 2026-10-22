@@ -63,6 +63,7 @@ export interface IBuildService {
     getModuleDependents(moduleId: TModuleId): ModuleDeps | undefined;
     getExperiments(): ExperimentInfo[];
     getCssModules(): Promise<CssModule[]>;
+    getCssVars(): string[];
 }
 
 const self = globalThis as any as SharedWorkerGlobalScope;
@@ -137,6 +138,7 @@ class BuildService implements IBuildService {
     #bundleHash!: TBundleHash;
     #bundle!: Bundle;
     #classNamesPromise?: Promise<CssModule[]>;
+    #cssVars?: string[];
     /**
      * shared between all tabs connected to this worker, so the bundle is only downloaded once
      */
@@ -341,6 +343,10 @@ class BuildService implements IBuildService {
 
             return CssModule.array().parse(raw_data);
         })());
+    }
+
+    public getCssVars(): string[] {
+        return (this.#cssVars ??= this.#bundle.get_css_vars());
     }
 }
 

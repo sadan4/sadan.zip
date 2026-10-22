@@ -126,6 +126,8 @@ phf = {version = "0.14", features = ["macros"]}
 async-trait = "0.1"
 percent-encoding = "2"
 ordered-float = "5"
+lightningcss = { version = "1.0.0-alpha.72", features = ["visitor", "into_owned"] }
+getrandom = { version = "0.3", features = ["wasm_js"] }
 
 [patch.crates-io]
 typesize = { git = "https://github.com/sadan4/typesize", branch = "feat/smolstr" }
