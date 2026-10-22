@@ -14,7 +14,7 @@ impl From<ModuleEntry> for (u32, String) {
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct JsHashEntry {
+pub struct ChunkHashEntry {
 	// at most 8 chars `/"\d{,6}"/`
 	pub chunk_id: SmolStr,
 	// 16 chars

@@ -4,18 +4,23 @@ use anyhow::{Context, Result, bail};
 use const_format::formatc;
 use html_parser::{Dom, Node};
 use regress::Regex;
-use webpack_chunk_parser::JsHashEntry;
+use webpack_chunk_parser::ChunkHashEntry;
 
 pub struct ParsedHtml {
 	pub global_env_text: String,
 	pub web_js_url: String,
-	pub extra_chunks: Vec<JsHashEntry>,
+	pub extra_chunks: Vec<ChunkHashEntry>,
+	pub extra_css_chunks: Vec<ChunkHashEntry>,
 }
 
 #[derive(Debug)]
 struct ScriptElement<'dom> {
 	txt: Option<&'dom str>,
 	src: Option<&'dom str>,
+}
+
+struct CssLink<'dom> {
+	href: &'dom str,
 }
 
 const GLOBAL_ENV_NEEDLE: &str = "window.GLOBAL_ENV =";
@@ -26,6 +31,10 @@ static CHUNK_SCRIPT_HREF_REGEX: LazyLock<Regex> = LazyLock::new(|| {
 	Regex::new(r"/assets/(([\w.-]+?)\.[a-fA-F\d]{16})\.js")
 		.expect("invalid regex")
 });
+static CHUNK_CSS_HREF_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+	Regex::new(r"/assets/(([\w.-]+?)\.[a-fA-F\d]{16})\.css")
+		.expect("invalid regex")
+});
 
 pub fn parse_html(html: &str) -> Result<ParsedHtml> {
 	let dom = Dom::parse(html)?;
@@ -33,6 +42,7 @@ pub fn parse_html(html: &str) -> Result<ParsedHtml> {
 		bail!("failed to parse html: {:?}", dom.errors);
 	}
 	let scripts = collect_script_elements(&dom);
+	let stylesheets = collect_css_link_elements(&dom);
 	let global_env_text = scripts
 		.iter()
 		.find_map(|s| {
@@ -62,9 +72,20 @@ pub fn parse_html(html: &str) -> Result<ParsedHtml> {
 			}
 			CHUNK_SCRIPT_HREF_REGEX
 				.find(src)
-				.map(|m| JsHashEntry {
+				.map(|m| ChunkHashEntry {
 					chunk_id: src[m.group(2).unwrap()].into(),
 					hash: src[m.group(1).unwrap()].into(),
+				})
+		})
+		.collect();
+	let extra_css_chunks = stylesheets
+		.into_iter()
+		.filter_map(|CssLink { href }| {
+			CHUNK_CSS_HREF_REGEX
+				.find(href)
+				.map(|m| ChunkHashEntry {
+					chunk_id: href[m.group(2).unwrap()].into(),
+					hash: href[m.group(1).unwrap()].into(),
 				})
 		})
 		.collect();
@@ -72,7 +93,49 @@ pub fn parse_html(html: &str) -> Result<ParsedHtml> {
 		global_env_text,
 		web_js_url,
 		extra_chunks,
+		extra_css_chunks,
 	})
+}
+
+fn collect_css_link_elements(dom: &Dom) -> Vec<CssLink<'_>> {
+	const TAG: &str = "link";
+	fn do_<'vec, 'dom: 'vec>(
+		node: &'dom Node,
+		elts: &'vec mut Vec<CssLink<'dom>>,
+	) {
+		let Node::Element(e) = node else {
+			return;
+		};
+
+		if e.name == TAG {
+			if e.attributes
+				.get("rel")
+				.and_then(Option::as_ref)
+				.is_none_or(|rel| rel != "stylesheet")
+			{
+				return;
+			}
+
+			let Some(href) = e
+				.attributes
+				.get("href")
+				.and_then(Option::as_deref)
+			else {
+				return;
+			};
+
+			elts.push(CssLink { href });
+		} else {
+			for c in &e.children {
+				do_(c, elts);
+			}
+		}
+	}
+	let mut ret = Vec::new();
+	for c in &dom.children {
+		do_(c, &mut ret);
+	}
+	ret
 }
 
 fn collect_script_elements(dom: &Dom) -> Vec<ScriptElement<'_>> {

@@ -1,6 +1,7 @@
 import { Boilerplate } from "@/components/Boilerplate";
 import { IconButton } from "@/components/Button";
 import { MonacoCodeEditor } from "@/components/CodeEditor/Monaco";
+import { CSSIcon } from "@/components/icons/CSS";
 import Github from "@/components/icons/Github";
 import { Box } from "@/components/layout/Box";
 import { HorizontalLine } from "@/components/Lines";
@@ -26,6 +27,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createLink } from "@tanstack/react-router";
 import { Background, Controls, MiniMap, ReactFlow, ReactFlowProvider } from "@xyflow/react";
 
+import { CssEditor } from "./CssEditor";
 import { ExperimentList } from "./Experiments";
 import { ExplorerSidebar } from "./Sidebar";
 import {
@@ -52,7 +54,7 @@ import {
     Undo2Icon,
     XIcon,
 } from "lucide-react";
-import { Activity, type PropsWithChildren, use, useEffect, useRef, useState } from "react";
+import { Activity, type PropsWithChildren, Suspense, use, useEffect, useRef, useState } from "react";
 
 
 function pendingUri(str: string) {
@@ -356,6 +358,7 @@ function ExplorerHeader() {
     const settingsModalRef = useRef<ModalContext>(null);
     const moduleSidebarOpen = useModuleViewerStore(({ moduleSidebarOpen }) => moduleSidebarOpen);
     const activePanel = useModuleViewerStore(({ activePanel }) => activePanel);
+    const buildService = useModuleViewerStore(({ _buildService }) => _buildService);
 
     return (
         <>
@@ -402,6 +405,13 @@ function ExplorerHeader() {
                             label: "Experiments",
                             renderIcon() {
                                 return <FlaskConicalIcon />;
+                            },
+                        },
+                        {
+                            id: ViewMode.CSS_EDITOR,
+                            label: "CSS Editor",
+                            renderIcon() {
+                                return <CSSIcon />;
                             },
                         },
                     ]}
@@ -503,6 +513,13 @@ export function Explorer() {
                         </Activity>
                         <Activity mode={visibleIf(activePanel === ViewMode.EXPERIMENTS)}>
                             <ExperimentList />
+                        </Activity>
+                        <Activity mode={visibleIf(activePanel === ViewMode.CSS_EDITOR)}>
+                            <div className="size-full bg-bg-100">
+                                <Suspense fallback="scraping class names...">
+                                    {activePanel === ViewMode.CSS_EDITOR && <CssEditor />}
+                                </Suspense>
+                            </div>
                         </Activity>
                     </div>
                 </div>

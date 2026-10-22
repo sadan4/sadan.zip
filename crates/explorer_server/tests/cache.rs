@@ -15,7 +15,7 @@ use explorer_server_core::{
 	write_mpk_zst_atomic,
 };
 use explorer_types::{BundleMetadata, Channel, DepInfo, FullBundle, ModuleId};
-use redis::AsyncCommands as _;
+use redis::{AsyncCommands as _};
 use tempfile::TempDir;
 use tokio::time::{Instant, sleep};
 
@@ -102,6 +102,7 @@ fn write_fixture(root: &Path) {
 		modules,
 		env_var_text: String::new(),
 		experiments: Vec::new(),
+		css_chunks: HashMap::new(),
 	};
 
 	write_mpk_zst_atomic(

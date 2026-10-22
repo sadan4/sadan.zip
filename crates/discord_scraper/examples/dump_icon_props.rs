@@ -7,23 +7,24 @@
 //! ```sh
 //! cargo run -p discord_scraper --example dump_icon_props [stable|canary]
 //! ```
-use std::{env, io, sync::Arc, thread};
+use std::{env, sync::Arc, thread};
 
 use anyhow::{Context, Result, bail};
-use discord_scraper::{JsScraper, NoProgress, make_reqwest_client};
+use discord_scraper::{BarProgress, JsScraper, make_reqwest_client};
 use explorer_types::{Channel, ModuleId};
 use oxc_allocator::Allocator;
 use smol_str::SmolStr;
+use term_progress::MultiProgressWrapper;
 use tracing::{info, warn};
 use tracing_subscriber::{EnvFilter, fmt};
 use webpack_ast_parser::WebpackAstParser;
 
-fn install_tracing() {
+fn install_tracing(bars: MultiProgressWrapper) {
 	let filter = EnvFilter::try_from_default_env()
 		.unwrap_or_else(|_| EnvFilter::new("info"));
 	fmt()
 		.with_env_filter(filter)
-		.with_writer(io::stderr)
+		.with_writer(move || bars.writer())
 		.with_ansi_sanitization(false)
 		.init();
 }
@@ -49,7 +50,8 @@ fn icon_props_export(id: ModuleId, src: &str) -> Option<SmolStr> {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-	install_tracing();
+	let bars = MultiProgressWrapper::default();
+	install_tracing(bars.clone());
 	let channel = parse_channel()?;
 
 	let client = make_reqwest_client()?;
@@ -66,8 +68,13 @@ async fn main() -> Result<()> {
 	info!("{channel:?} build hash: {build_hash}");
 	let html = res.text().await?;
 
-	let scraped =
-		JsScraper::scrape(&html, channel, client, Arc::new(NoProgress)).await?;
+	let scraped = JsScraper::scrape(
+		&html,
+		channel,
+		client,
+		Arc::new(BarProgress::new(bars, channel)),
+	)
+	.await?;
 	info!(
 		"scraped {} modules from build {}",
 		scraped.modules.len(),

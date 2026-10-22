@@ -4,6 +4,10 @@ const vs_editor_editor = (await ((import.meta.env.DEV && !import.meta.env.SSR)
     ? import("../../../../node_modules/monaco-editor/esm/vs/editor/editor.worker?worker&url")
     : import("omt:../../../../node_modules/monaco-editor/esm/vs/editor/editor.worker")
 )).default
+const vs_language_css_cssWorker = (await ((import.meta.env.DEV && !import.meta.env.SSR) 
+    ? import("../../../../node_modules/monaco-editor/esm/vs/language/css/css.worker?worker&url")
+    : import("omt:../../../../node_modules/monaco-editor/esm/vs/language/css/css.worker")
+)).default
 const vs_language_typescript_tsWorker = (await ((import.meta.env.DEV && !import.meta.env.SSR) 
     ? import("../../../../node_modules/monaco-editor/esm/vs/language/typescript/ts.worker?worker&url")
     : import("omt:../../../../node_modules/monaco-editor/esm/vs/language/typescript/ts.worker")
@@ -13,6 +17,8 @@ globalThis.MonacoEnvironment = {
         switch (label) {
             case "editorWorkerService":
             return new Worker(vs_editor_editor, {type: "module", name: "vs/editor/editor" });
+            case "css":
+            return new Worker(vs_language_css_cssWorker, {type: "module", name: "vs/language/css/cssWorker" });
             case "javascript":
             case "typescript":
             return new Worker(vs_language_typescript_tsWorker, {type: "module", name: "vs/language/typescript/tsWorker" });
@@ -164,6 +170,10 @@ import * as monaco from "monaco-editor/esm/vs/editor/editor.api.js";
 export * from "monaco-editor/esm/vs/editor/editor.api.js";
 export default monaco;
 // Languages
+// css
+import "monaco-editor/esm/vs/basic-languages/css/css.contribution.js";
+// css
+import "monaco-editor/esm/vs/language/css/monaco.contribution.js";
 // javascript
 import "monaco-editor/esm/vs/basic-languages/javascript/javascript.contribution.js";
 // typescript

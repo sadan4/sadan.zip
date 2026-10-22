@@ -1,27 +1,10 @@
 use clap::{CommandFactory as _, Parser as _};
-use derive_more::From;
-use indicatif::MultiProgress;
 use miette::{Result, bail};
 use miette_ui::install_miette_hook;
 use reporter::{Cli, cmds, util::MultiProgressWrapper, vc};
 use std::{io, process, sync::LazyLock};
 use tracing::error;
 use tracing_subscriber::util::SubscriberInitExt;
-
-#[derive(From)]
-struct MultiProgressWriteWrapper(&'static MultiProgress);
-
-impl io::Write for MultiProgressWriteWrapper {
-	fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-		self.0
-			.suspend(|| io::stderr().lock().write(buf))
-	}
-
-	// no need to flush stderr, rust doesn't either
-	fn flush(&mut self) -> io::Result<()> {
-		Ok(())
-	}
-}
 
 static GLOBAL_BAR: LazyLock<MultiProgressWrapper> =
 	LazyLock::new(MultiProgressWrapper::default);
@@ -58,7 +41,7 @@ fn install_tracing() {
 		.with_line_number(true)
 		.with_ansi_sanitization(false)
 		.with_ansi(true)
-		.with_writer(|| MultiProgressWriteWrapper::from(GLOBAL_BAR.inner_()));
+		.with_writer(|| GLOBAL_BAR.writer());
 	registry()
 		.with(filter_layer)
 		.with(fmt_layer)
