@@ -5,6 +5,7 @@ use oxc::{
 	allocator::Box as OxcBox,
 	ast::{
 		AstKind,
+		StaticPropertyName,
 		ast::{
 			Argument,
 			ArrayExpression,
@@ -42,7 +43,6 @@ use oxc::{
 			SpreadElement,
 			Statement,
 			StaticMemberExpression,
-			Str,
 			StringLiteral,
 			TaggedTemplateExpression,
 			TemplateLiteral,
@@ -51,8 +51,10 @@ use oxc::{
 	},
 	semantic::{NodeId, ScopeId, SymbolId},
 	span::{GetSpan, Span},
+	str::JSStr,
 };
 use oxc_ecmascript::{GlobalContext, constant_evaluation::IsLiteralValue};
+use parser_diag::{PResult, err};
 use std::borrow::Cow;
 
 use crate::ast_kind::IntoAstKind;
@@ -235,6 +237,22 @@ pub trait PropertyKeyExt<'ast>: ExpressionExt<'ast> {
 		match self.as_prop_key_mut_()? {
 			PropertyKey::PrivateIdentifier(i) => Some(i.as_mut()),
 			_ => None,
+		}
+	}
+
+	fn static_name_utf8(&self) -> Option<PResult<Cow<'ast, str>>> {
+		let this = self.as_prop_key_()?;
+		let name = this.static_name()?;
+		match name {
+			StaticPropertyName::Borrowed(jsstr) => Some(
+				jsstr
+					.as_str()
+					.ok_or_else(|| err(this, "property key is not valid utf8"))
+					.map(Cow::Borrowed),
+			),
+			StaticPropertyName::Owned(compact_str) => {
+				Some(Ok(Cow::Owned(compact_str.into_string())))
+			}
 		}
 	}
 }
@@ -615,7 +633,7 @@ impl<'a> IntoAstKind<'a> for &Functionish<'a, 'a> {
 	}
 }
 
-pub trait ExpressionExt<'ast> {
+pub trait ExpressionExt<'ast>: GetSpan {
 	fn as_expr_(&self) -> Option<&Expression<'ast>>;
 	fn as_expr_mut_(&mut self) -> Option<&mut Expression<'ast>>;
 
@@ -843,29 +861,38 @@ pub trait ExpressionExt<'ast> {
 		}
 	}
 
-	fn as_string_literal_like(&self) -> Option<Str<'ast>> {
+	fn as_string_literal_like(&self) -> Option<(JSStr<'ast>, Span)> {
 		match self.as_expr_()? {
-			Expression::StringLiteral(s) => Some(s.value),
+			Expression::StringLiteral(s) => Some((s.value, s.span)),
 			Expression::TemplateLiteral(t)
 				if t.is_no_substitution_template() =>
 			{
-				Some(t.quasis[0].value.cooked.unwrap())
+				let v = &t.quasis[0];
+				Some((v.value.cooked.unwrap(), v.span))
 			}
 			_ => None,
 		}
 	}
 
-	fn try_parse_string_or_number_literal(&self) -> Option<Cow<'ast, str>> {
-		self.as_string_literal_like()
-			.map(Into::into)
-			.or_else(|| {
-				self.as_numeric_literal().map(|n| {
-					n.raw.map(Into::into).map_or_else(
-						|| Cow::Owned(format!("{}", n.value)),
-						Cow::Borrowed,
-					)
-				})
-			})
+	fn try_parse_string_or_number_literal(&self) -> PResult<Cow<'ast, str>> {
+		if let Some((lit, span)) = self.as_string_literal_like() {
+			match lit.as_str() {
+				Some(s) => Ok(Cow::Borrowed(s)),
+				None => Err(err(
+					&span,
+					"String has lone surrgates, is not valid utf8",
+				)),
+			}
+		} else if let Some(n) = self.as_numeric_literal() {
+			Ok(n.raw.map(Into::into).map_or_else(
+				|| Cow::Owned(format!("{}", n.value)),
+				Cow::Borrowed,
+			))
+		} else {
+			Err(err(self, "node is not a string or number literal"))
+		}
+		// self.as_numeric_literal().map(|n| {
+		// })
 	}
 
 	fn as_unary_expression(&self) -> Option<&UnaryExpression<'ast>> {
@@ -899,6 +926,7 @@ pub trait ExpressionExt<'ast> {
 		}
 	}
 
+	#[deprecated = "use debug_name on AstKind instead"]
 	fn dbg_name(&self) -> &'static str {
 		match self.as_expr_().expect("unreachable") {
 			Expression::BooleanLiteral(_) => "BooleanLiteral",
@@ -1141,5 +1169,17 @@ impl<'ast> MemberExprRef<'ast> {
 	/// get the rhs of the member expression
 	pub const fn right(self) -> MemberExprAccessKind<'ast> {
 		MemberExprAccessKind::from_member_expr(self)
+	}
+}
+
+pub trait StringLiteralExt<'ast> {
+	fn as_utf8(&self) -> PResult<&'ast str>;
+}
+
+impl<'ast> StringLiteralExt<'ast> for StringLiteral<'ast> {
+	fn as_utf8(&self) -> PResult<&'ast str> {
+		self.value
+			.as_str()
+			.ok_or_else(|| err(self, "string is not valid utf8"))
 	}
 }

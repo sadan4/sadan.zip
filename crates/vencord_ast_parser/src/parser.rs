@@ -53,6 +53,7 @@ use ast_parser::{
 		MemberExpressionExt,
 		ObjectExpressionExt as _,
 		PropertyKeyExt as _,
+		StringLiteralExt,
 	},
 	parse_for_traverse,
 	sym_id::GetSymId,
@@ -256,7 +257,8 @@ impl<'ast> VencordAstParser<'ast> {
 						(value.as_str(), span.start + 1)
 					}
 					RawReplace::String(lit) => {
-						(lit.value.as_str(), lit.span.start + 1)
+						// TODO: better error reporting on lone surrgates
+						(lit.value.as_str()?, lit.span.start + 1)
 					}
 					// In a function or template replacement, `$self.<prop>`
 					// appears verbatim in the raw source (it's a textual
@@ -398,13 +400,19 @@ impl<'ast> VencordAstParser<'ast> {
 		repl: &RawReplacement<'ast>,
 		plugin_keys: &HashMap<SmolStr, Span>,
 	) {
+		let ch = self.diag_ch.as_ref().unwrap();
 		let (value, replace_span) = match repl.replace {
 			RawReplace::ComputedString(value, span) => (value.as_str(), span),
-			RawReplace::String(lit) => (lit.value.as_str(), lit.span),
+			RawReplace::String(lit) => match lit.as_utf8() {
+				Ok(s) => (s, lit.span),
+				Err(e) => {
+					ch.send(e);
+					return;
+				}
+			},
 			RawReplace::Func(_) | RawReplace::Template(_) => return,
 		};
 
-		let ch = self.diag_ch.as_ref().unwrap();
 		let refs = Self::collect_self_references(value, replace_span.start + 1);
 		for (prop, spans) in &refs {
 			if plugin_keys.contains_key(prop) {
@@ -437,9 +445,13 @@ impl<'ast> VencordAstParser<'ast> {
 			RawReplace::ComputedString(value, span) => {
 				Some((value.as_str(), span))
 			}
-			RawReplace::String(string_lit) => {
-				Some((string_lit.value.as_str(), string_lit.span))
-			}
+			RawReplace::String(string_lit) => match string_lit.as_utf8() {
+				Ok(e) => Some((e, string_lit.span)),
+				Err(e) => {
+					self.diag_ch.as_ref().unwrap().send(e);
+					return;
+				}
+			},
 			RawReplace::Func(_) | RawReplace::Template(_) => None,
 		}) else {
 			return;
@@ -708,8 +720,7 @@ impl<'ast> VencordAstParser<'ast> {
 			.ok_or_else(|| {
 				err(&name_prop.value, "`name` is not a string literal")
 			})?
-			.value
-			.as_str();
+			.as_utf8()?;
 		Ok(name_val)
 	}
 
@@ -726,8 +737,7 @@ impl<'ast> VencordAstParser<'ast> {
 			.ok_or_else(|| {
 				err(&desc_prop.value, "`description` is not a string literal")
 			})?
-			.value
-			.as_str();
+			.as_utf8()?;
 		Ok(Some(desc_val))
 	}
 
@@ -751,7 +761,7 @@ impl<'ast> VencordAstParser<'ast> {
 					.ok_or_else(|| {
 						err(&name_prop.value, "`name` is not a string literal")
 					})?
-					.value
+					.as_utf8()?
 					.to_smolstr();
 				let id_val = id_prop
 					.value
@@ -1316,12 +1326,17 @@ impl<'ast> VencordAstParser<'ast> {
 				// unwrap() here is safe because this is not a tagged template
 				// literal; therefore, there will always be a cooked value
 				.unwrap()
-				.to_string()
+				.as_str()
+				.ok_or_else(|| {
+					err(e, "string literal fragment is not valid utf8")
+				})
+				.map(String::from)
 		});
 		// handle the first one because it has nothing before it
-		ret.lits.push(it.next().unwrap());
+		ret.lits.push(it.next().unwrap()?);
 
 		for (lit, expr) in it.zip(template_val.expressions.iter()) {
+			let lit = lit?;
 			let ident_ref = expr.as_identifier().ok_or_else(|| {
 				err(expr, "Template expr is not an identifier")
 			})?;
@@ -1516,24 +1531,31 @@ impl<'ast> VencordAstParser<'ast> {
 			let match_ =
 				self.canonicalize_match_like(&r.match_, apply_regress_canon)?;
 			let no_warn = r.no_warn;
+			let canonicalize_replacement_string = |mut value: String,
+			                                       span: Span|
+			 -> ReplaceLike {
+				// span.start is the `"` or `'` so we have to add one
+				let used_replace_capture_spans =
+					Self::collect_replace_capture_spans(&value, span.start + 1);
+				if apply_regress_canon {
+					canonicalize_replace_for_regress(&mut value);
+				}
+				ReplaceLike {
+					v: Replacer::Str(value),
+					s: span,
+					used_replace_capture_spans,
+				}
+			};
 			let replace = match &r.replace {
-				RawReplace::String(StringLiteral { value, span, .. })
-				| RawReplace::ComputedString(value, span) => {
-					let mut value = value.to_string();
-					// span.start is the `"` or `'` so we have to add one
-					let used_replace_capture_spans =
-						Self::collect_replace_capture_spans(
-							&value,
-							span.start + 1,
-						);
-					if apply_regress_canon {
-						canonicalize_replace_for_regress(&mut value);
-					}
-					ReplaceLike {
-						v: Replacer::Str(value),
-						s: *span,
-						used_replace_capture_spans,
-					}
+				RawReplace::String(StringLiteral { value, span, .. }) => {
+					let value = value
+						.as_str()
+						.ok_or_else(|| err(span, "string literal is not utf8"))?
+						.to_owned();
+					canonicalize_replacement_string(value, *span)
+				}
+				RawReplace::ComputedString(value, span) => {
+					canonicalize_replacement_string(String::from(*value), *span)
 				}
 				RawReplace::Func(f) => self.canonicalize_replace_func(f)?,
 				RawReplace::Template(TemplateLiteral { span, .. }) => {
@@ -1633,7 +1655,7 @@ impl<'ast> VencordAstParser<'ast> {
 				Ok(FindArg::Regex { flags, pattern })
 			}
 			Argument::StringLiteral(string_lit) => {
-				Ok(FindArg::String(string_lit.value.to_string()))
+				Ok(FindArg::String(string_lit.as_utf8()?.to_owned()))
 			}
 			Argument::TemplateLiteral(template_lit)
 				if template_lit.is_no_substitution_template() =>
@@ -1642,6 +1664,13 @@ impl<'ast> VencordAstParser<'ast> {
 					template_lit
 						.single_quasi()
 						.unwrap()
+						.as_str()
+						.ok_or_else(|| {
+							err(
+								&**template_lit,
+								"string literal is not valid utf8",
+							)
+						})?
 						.to_string(),
 				))
 			}
@@ -1725,8 +1754,17 @@ impl<'ast> VencordAstParser<'ast> {
 		apply_regress_canon: bool,
 	) -> PResult<MatchLike> {
 		let ret = match raw {
-			RawMatchLike::String(StringLiteral { value, span, .. })
-			| RawMatchLike::ComputedString(value, span) => {
+			RawMatchLike::String(StringLiteral { value, span, .. }) => {
+				let value = value.as_str().ok_or_else(|| {
+					err(span, "string literal is not valid utf8")
+				})?;
+				let value = canonicalize_intl(value, false, *span)?;
+				MatchLike {
+					v: Match::Str(Finder::new(value.as_bytes()).into_owned()),
+					s: *span,
+				}
+			}
+			RawMatchLike::ComputedString(value, span) => {
 				let value = canonicalize_intl(value, false, *span)?;
 				MatchLike {
 					v: Match::Str(Finder::new(value.as_bytes()).into_owned()),

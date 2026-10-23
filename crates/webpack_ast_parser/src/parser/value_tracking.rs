@@ -4,7 +4,10 @@ use std::{
 	sync::Arc,
 };
 
-use ast_parser::{AstParser as _, exts::MemberExprRef};
+use ast_parser::{
+	AstParser as _,
+	exts::{MemberExprRef, StringLiteralExt},
+};
 use explorer_types::{ModuleId, SpannedId};
 use num_bigint::BigInt;
 use ordered_float::NotNan;
@@ -920,7 +923,7 @@ impl<'ast> WebpackAstParser<'ast> {
 				module_id: self.get_module_id()?.id,
 			},
 			Expression::StringLiteral(str) => SpannedValue {
-				value: ConstantValue::String(str.to_string()),
+				value: ConstantValue::String(str.as_utf8()?.to_owned()),
 				span: str.span,
 				module_id: self.get_module_id()?.id,
 			},
@@ -935,7 +938,17 @@ impl<'ast> WebpackAstParser<'ast> {
 						let str_val = self.to_string(&value);
 						ret.push_str(&str_val);
 					}
-					ret.push_str(quasi.value.cooked.as_ref().unwrap());
+					ret.push_str(
+						quasi
+							.value
+							.cooked
+							.as_ref()
+							.unwrap()
+							.as_str()
+							.ok_or_else(|| {
+								self.local_err(quasi, "value is not valid utf8")
+							})?,
+					);
 				}
 				SpannedValue {
 					value: ConstantValue::String(ret),

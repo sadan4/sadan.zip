@@ -73,12 +73,11 @@ impl<'ast, State> Traverse<'ast, State> for FlattenTemplatePass {
 				let new_cooked = ctx
 					.a()
 					.alloc_concat_strs_array([
-						left.value.cooked.unwrap().as_str(),
+						left.value.cooked.unwrap().as_str().expect("not utf8"),
 						&str_val,
-						right.value.cooked.unwrap().as_str(),
+						right.value.cooked.unwrap().as_str().expect("not utf8"),
 					])
 					.into();
-				left.lone_surrogates |= right.lone_surrogates;
 				left.tail = right.tail;
 				left.span = left
 					.span

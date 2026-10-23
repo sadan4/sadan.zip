@@ -17,6 +17,7 @@ miette.workspace = true
 serde.workspace = true
 smallvec.workspace = true
 smol_str.workspace = true
+parser_diag.workspace = true
 
 [lints]
 workspace = true

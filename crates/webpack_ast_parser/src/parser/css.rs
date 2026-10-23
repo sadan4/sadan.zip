@@ -1,3 +1,4 @@
+use ast_parser::exts::PropertyKeyExt;
 use explorer_types::{ModuleId, serde_span::deserialize_span};
 use oxc::{
 	ast::ast::{ObjectProperty, ObjectPropertyKind},
@@ -28,9 +29,7 @@ pub struct ClassName {
 
 impl<'ast> WebpackAstParser<'ast> {
 	#[expect(clippy::future_not_send)]
-	pub(super) async fn impl_as_css_module(
-		&self,
-	) -> PResult<CssModule> {
+	pub(super) async fn impl_as_css_module(&self) -> PResult<CssModule> {
 		let raw_map = self.get_export_map_raw();
 		let cn_obj = raw_map
 			.node
@@ -41,7 +40,10 @@ impl<'ast> WebpackAstParser<'ast> {
 				err(&cn_obj, "raw_map::node is not an object literal")
 			})?;
 		if cn_obj.properties.is_empty() {
-			return Err(err(cn_obj, "empty object literal is not a classnames module"));
+			return Err(err(
+				cn_obj,
+				"empty object literal is not a classnames module",
+			));
 		}
 		let mut class_names = Vec::with_capacity(cn_obj.properties.len());
 		for prop in &cn_obj.properties {
@@ -71,10 +73,10 @@ impl<'ast> WebpackAstParser<'ast> {
 	) -> PResult<ClassName> {
 		let exported_as = prop
 			.key
-			.static_name()
+			.static_name_utf8()
 			.ok_or_else(|| {
 				err(&prop.key, "property does not have a static name")
-			})?
+			})??
 			.to_smolstr();
 		let val = self
 			.resolve_constant_value(&prop.value)

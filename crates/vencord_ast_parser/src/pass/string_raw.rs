@@ -36,7 +36,7 @@ impl<'ast> Traverse<'ast, ()> for EvalStringRawPass {
 				elem.span,
 				TemplateElementValue {
 					raw: old_raw,
-					cooked: Some(old_raw),
+					cooked: Some(old_raw.into()),
 				},
 				elem.tail,
 				&ctx,

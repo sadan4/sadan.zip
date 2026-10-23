@@ -6,7 +6,13 @@ use std::{borrow::Cow, collections::HashMap};
 use ast_parser::{
 	AstParser as _,
 	ast_kind::IntoAstKind,
-	exts::{ExpressionExt, Functionish, MemberExpressionExt},
+	exts::{
+		ExpressionExt,
+		Functionish,
+		MemberExpressionExt,
+		PropertyKeyExt,
+		StringLiteralExt,
+	},
 };
 use explorer_types::SpannedId;
 use oxc::{
@@ -30,6 +36,7 @@ use oxc::{
 	},
 	semantic::{NodeId, SymbolId},
 	span::{GetSpan, Span},
+	str::JSStr,
 	syntax::GetNodeId,
 };
 use parser_diag::{PResult, ParserDiagnostic, err};
@@ -158,7 +165,7 @@ impl<'ast> WebpackAstParser<'ast> {
 		cx: &mut DomCx<'ast>,
 	) -> PResult<dom::Node> {
 		let tag = match &jsx.tag {
-			jsx::Tag::Dom(tag) => tag.value.to_smolstr(),
+			jsx::Tag::Dom(tag) => tag.as_utf8()?.to_smolstr(),
 			jsx::Tag::Component(c) => {
 				return Err(err(*c, "JSX component tags are not supported"));
 			}
@@ -171,8 +178,8 @@ impl<'ast> WebpackAstParser<'ast> {
 				cx.issue(prop, "JSX spread props are not supported");
 				continue;
 			};
-			let key = if let Some(k) = &prop.key.static_name() {
-				k.to_smolstr()
+			let key = if let Some(k) = prop.key.static_name_utf8() {
+				k?.to_smolstr()
 			} else {
 				let key = prop.key.as_expression().unwrap();
 				let cv = match self.resolve_constant_value(key).await {
@@ -571,7 +578,7 @@ impl<'ast> WebpackAstParser<'ast> {
 				else {
 					continue;
 				};
-				let Some(key) = prop.key.static_name() else {
+				let Some(Ok(key)) = prop.key.static_name_utf8() else {
 					continue;
 				};
 				if key.ends_with("Icon") {
@@ -800,7 +807,9 @@ impl<'ast> WebpackAstParser<'ast> {
 		obj: SymbolId,
 		prop: &str,
 	) -> bool {
-		if mem.optional() || mem.static_property_name() != Some(prop) {
+		if mem.optional()
+			|| mem.static_property_name() != Some(JSStr::from(prop))
+		{
 			return false;
 		}
 		let Some(obj_ref) = mem

@@ -2,8 +2,7 @@ use super::util::Ctx;
 use ast_parser::exts::ExpressionExt as _;
 use derive_more::{Deref, DerefMut};
 use oxc::{
-	allocator::{Allocator, CloneIn, GetAllocator},
-	ast::{
+	allocator::{Allocator, CloneIn, GetAllocator}, ast::{
 		ast::{
 			Expression,
 			IdentifierReference,
@@ -12,10 +11,7 @@ use oxc::{
 			TSEnumMemberName,
 		},
 		builder::{AstBuilder, GetAstBuilder},
-	},
-	minifier::PropertyReadSideEffects,
-	semantic::{ReferenceId, SymbolId},
-	span::{GetSpan, Span},
+	}, minifier::PropertyReadSideEffects, semantic::{ReferenceId, SymbolId}, span::{GetSpan, Span}, str::JSStr,
 };
 use oxc_ecmascript::{
 	GlobalContext,
@@ -31,7 +27,7 @@ use std::collections::HashMap;
 
 #[derive(Default, Debug)]
 pub struct InlineEnumsPass<'ast> {
-	value_map: HashMap<SymbolId, HashMap<Str<'ast>, (Span, EnumValue<'ast>)>>,
+	value_map: HashMap<SymbolId, HashMap<JSStr<'ast>, (Span, EnumValue<'ast>)>>,
 }
 
 /// Recursively inline enum member references within an expression
@@ -40,7 +36,7 @@ fn inline_enum_references_in_expr<'ast>(
 	expr: &Expression<'ast>,
 	tracker: &EnumValueTracker<'_, 'ast>,
 	enum_symbol_id: SymbolId,
-	value_map: &HashMap<Str<'ast>, (Span, EnumValue<'ast>)>,
+	value_map: &HashMap<JSStr<'ast>, (Span, EnumValue<'ast>)>,
 	ctx: &Ctx<'_, 'ast, ()>,
 ) -> Expression<'ast> {
 	match expr {
@@ -56,7 +52,7 @@ fn inline_enum_references_in_expr<'ast>(
 			{
 				// This is a reference to our enum, try to inline it
 				if let Some((span, enum_value)) =
-					value_map.get(&member_expr.property.name.as_arena_str())
+					value_map.get(&member_expr.property.name.as_arena_str().into())
 				{
 					return enum_value_to_expression(enum_value, *span, ctx);
 				}
@@ -270,7 +266,7 @@ impl<'ast> Traverse<'ast, ()> for InlineEnumsPass<'ast> {
 			return;
 		};
 		let Some((span, constant_value)) =
-			enum_value_map.get(&expr.property.name.as_arena_str())
+			enum_value_map.get(&expr.property.name.as_arena_str().into())
 		else {
 			return;
 		};

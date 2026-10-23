@@ -14,6 +14,7 @@ use ast_parser::{
 		MemberExpressionExt,
 		NumericLiteralExt,
 		StatementExt as _,
+		StringLiteralExt,
 	},
 	parse,
 };
@@ -74,7 +75,7 @@ impl HashTarget {
 	const fn get_ext(self) -> &'static str {
 		match self {
 			Self::Js => ".js",
-			Self::Css => ".css"
+			Self::Css => ".css",
 		}
 	}
 }
@@ -82,7 +83,12 @@ impl HashTarget {
 fn as_valid_module_id<'ast>(expr: &'ast Expression<'ast>) -> Option<ModuleId> {
 	match expr {
 		Expression::NumericLiteral(n) => n.as_u32().map(ModuleId),
-		Expression::StringLiteral(s) => s.value.parse().ok().map(ModuleId),
+		Expression::StringLiteral(s) => s
+			.value
+			.as_str()?
+			.parse()
+			.ok()
+			.map(ModuleId),
 		_ => None,
 	}
 }
@@ -95,13 +101,13 @@ fn handle_chunk_cond_rhs(
 	match rhs {
 		Expression::BinaryExpression(cur) => {
 			let cur = cur.as_ref();
-			let chunk_hash_with_ext = &*cur
+			let chunk_hash_with_ext = cur
 				.right
 				.as_string_literal()
 				.ok_or_else(|| {
 					err(&cur.right, "chunk hash is not a string literal")
 				})?
-				.value;
+				.as_utf8()?;
 			let chunk_hash = chunk_hash_with_ext
 				.strip_suffix(target.get_ext())
 				.unwrap_or(chunk_hash_with_ext);
@@ -115,8 +121,10 @@ fn handle_chunk_cond_rhs(
 		}
 		// if the module id is small enough, it might be inlined instead of concatenated
 		Expression::StringLiteral(cur) => {
-			let cur = &*cur.as_ref().value;
-			let chunk_hash = cur.strip_suffix(target.get_ext()).unwrap_or(cur);
+			let cur = cur.as_utf8()?;
+			let chunk_hash = cur
+				.strip_suffix(target.get_ext())
+				.unwrap_or(cur);
 			Ok(ChunkHashEntry {
 				chunk_id: module_id.to_smolstr(),
 				hash: chunk_hash.to_smolstr(),
@@ -280,10 +288,11 @@ impl<'ast> WebpackMainChunkParser<'ast> {
 		let id = prop
 			.key
 			.try_parse_string_or_number_literal()
-			.ok_or_else(|| {
+			.map_err(|e| {
 				err(&prop.key, "chunk id is not a string or number literal")
+					.s(e)
 			})?;
-		let hash = prop
+		let (hash, hash_span) = prop
 			.value
 			.as_string_literal_like()
 			.ok_or_else(|| {
@@ -291,7 +300,10 @@ impl<'ast> WebpackMainChunkParser<'ast> {
 			})?;
 		let ret = ChunkHashEntry {
 			chunk_id: id.into(),
-			hash: hash.as_str().into(),
+			hash: hash
+				.as_str()
+				.ok_or_else(|| err(&hash_span, "hash is not valid utf8"))?
+				.into(),
 		};
 		Ok(ret)
 	}
@@ -411,18 +423,18 @@ impl<'ast> WebpackMainChunkParser<'ast> {
 			let chunk_id = cond
 				.left
 				.as_string_literal()
-				.map(|s| &*s.value)
+				.map(StringLiteralExt::as_utf8)
 				.or_else(|| {
 					cond.right
 						.as_string_literal()
-						.map(|s| &*s.value)
+						.map(StringLiteralExt::as_utf8)
 				})
 				.ok_or_else(|| {
 					err(
 						cond,
 						"neither side of the chunk id test is a string literal",
 					)
-				})?;
+				})??;
 			let rhs = &expr.consequent;
 			let entry = handle_chunk_cond_rhs(chunk_id, rhs, raw_target)?;
 			ret.push(entry);

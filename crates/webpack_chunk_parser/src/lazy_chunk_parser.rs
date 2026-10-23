@@ -141,9 +141,7 @@ impl<'ast> WebpackLazyChunkParser<'ast> {
 			));
 		}
 		let id_raw = chunk_ids.first().unwrap();
-		id_raw
-			.try_parse_string_or_number_literal()
-			.ok_or_else(|| err(id_raw, "Failed to parse as string or number"))
+		id_raw.try_parse_string_or_number_literal()
 	}
 }
 

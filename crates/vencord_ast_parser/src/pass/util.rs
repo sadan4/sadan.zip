@@ -18,6 +18,7 @@ use oxc::{
 	minifier::PropertyReadSideEffects,
 	semantic::IsGlobalReference,
 	span::Span,
+	str::JSStr,
 };
 use oxc_ecmascript::{
 	GlobalContext,
@@ -94,10 +95,15 @@ impl<'a, 'ast: 'a, State> Ctx<'a, 'ast, State> {
 			"malformed template literal {}",
 			t.dbg_str()
 		);
-		let q_strs = t
-			.quasis
-			.iter()
-			.map(|q| Cow::Borrowed(q.value.cooked.unwrap().as_str()));
+		let q_strs = t.quasis.iter().map(|q| {
+			Cow::Borrowed(
+				q.value
+					.cooked
+					.unwrap()
+					.as_str()
+					.expect("not utf8"),
+			)
+		});
 		let expr_strs = t.expressions.iter().map(|e| {
 			e.evaluate_value_to_string(self)
 				.unwrap()
@@ -134,7 +140,7 @@ impl<'a, 'ast: 'a, State> Ctx<'a, 'ast, State> {
 pub fn empty_template_element_value() -> TemplateElementValue<'static> {
 	TemplateElementValue {
 		raw: Str::from(""),
-		cooked: Some(Str::from("")),
+		cooked: Some(JSStr::from("")),
 	}
 }
 
