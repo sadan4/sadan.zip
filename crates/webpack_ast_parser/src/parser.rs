@@ -62,6 +62,7 @@ use ast_parser::{
 		ObjectExpressionExt,
 		PropertyKeyExt,
 		StatementExt,
+		StringLiteralExt,
 	},
 	parse_with_tokens,
 	sym_id::GetSymId,
@@ -97,7 +98,6 @@ use oxc::{
 			Program,
 			Statement,
 			StaticMemberExpression,
-			Str,
 			VariableDeclaration,
 			VariableDeclarationKind,
 		},
@@ -624,7 +624,7 @@ impl<'ast> WebpackAstParser<'ast> {
 		let key = match node {
 			AstKind::IdentifierReference(id) => id.name.to_smolstr(),
 			AstKind::IdentifierName(id) => id.name.to_smolstr(),
-			AstKind::StringLiteral(s) => s.value.to_smolstr(),
+			AstKind::StringLiteral(s) => s.as_utf8().ok()?.to_smolstr(),
 			_ => return None,
 		};
 
@@ -861,7 +861,10 @@ impl<'ast> WebpackAstParser<'ast> {
 
 	pub fn as_json_module(&self) -> Option<&'ast str> {
 		self.as_json_module_e_exports()
-			.or_else(|| self.as_json_module_export_default())
+			.or_else(|| {
+				self.as_json_module_export_default()
+					.ok()
+			})
 	}
 
 	pub async fn as_css_module(&self) -> PResult<CssModule> {
@@ -908,39 +911,64 @@ impl<'ast> WebpackAstParser<'ast> {
 			return None;
 		}
 		self.try_parse_json_parse(json_parse_intl)
+			.ok()
 	}
-	fn as_json_module_export_default(&self) -> Option<&'ast str> {
+	fn as_json_module_export_default(&self) -> PResult<&'ast str> {
 		let map = self.get_export_map_raw();
 		let default_export = map
 			.exports
-			.get("default")?
+			.get("default")
+			.ok_or_else(|| err_ns("module has no export `default`"))?
 			.try_unwrap_range_ref()
-			.ok()?;
-		let parse_fn = default_export
-			.last()?
-			.as_call_expression()?;
+			.map_err(|_| {
+				err_ns(r#"raw_export_map["default"] is not a export range"#)
+			})?;
+		let parse_fn = default_export.last().ok_or_else(|| {
+			err_ns(
+				r#"raw_export_map["default"] as RawExportRange has no members"#,
+			)
+		})?;
+		let parse_fn = parse_fn
+			.as_call_expression()
+			.ok_or_else(|| err(parse_fn, "Expected a call expression"))?;
 		self.try_parse_json_parse(parse_fn)
 	}
 	fn try_parse_json_parse(
 		&self,
 		call: &'ast CallExpression<'ast>,
-	) -> Option<&'ast str> {
+	) -> PResult<&'ast str> {
 		let json_parse = call
 			.callee
-			.as_static_member_expression()?;
-		let json_ref = json_parse.object.as_identifier()?;
+			.as_static_member_expression()
+			.ok_or_else(|| {
+				err(&call.callee, "expected a static member expression")
+			})?;
+		let json_ref = json_parse
+			.object
+			.as_identifier()
+			.ok_or_else(|| err(&json_parse.object, "Expected an identifier"))?;
 		if !self
 			.sema
 			.is_reference_to_global_variable(json_ref)
 			|| json_ref.name != "JSON"
-			|| json_parse.property.name != "parse"
 		{
-			return None;
+			return Err(err(
+				json_ref,
+				"expected a refernce to globalThis.JSON",
+			));
+		}
+		if json_parse.property.name != "parse" {
+			return Err(err(&json_parse.property, "Expected `parse`"));
 		}
 		let [Argument::StringLiteral(lit)] = call.arguments.as_slice() else {
-			return None;
+			return Err(err(
+				&call
+					.arguments_span()
+					.unwrap_or_else(|| Span::empty(call.span.end - 1)),
+				"Expected a single string argument",
+			));
 		};
-		Some(lit.value.as_str())
+		lit.as_utf8()
 	}
 	fn collect_own_intl_modules(
 		&self,
@@ -979,7 +1007,7 @@ impl<'ast> WebpackAstParser<'ast> {
 					"invalid args for createLoader call, expected 2 args",
 				));
 			};
-			if fallback_lang.value.as_str() != WANT_LANG {
+			if fallback_lang.value != WANT_LANG {
 				return Err(err(
 					&**fallback_lang,
 					format!(
@@ -1255,7 +1283,7 @@ impl<'ast> WebpackAstParser<'ast> {
 							if export_names
 								.first()
 								.and_then(|k| k.try_unwrap_named_ref().ok())
-								.is_some_and(|name| **name == *ident)
+								.is_some_and(|name| **name == ident.as_js_str())
 							{
 								let Some(ident) =
 									prop.value.as_binding_identifier()
@@ -1346,11 +1374,12 @@ impl<'ast> WebpackAstParser<'ast> {
 									&& let Some(inner_access) = self.p_if(
 										assign_per.node_id(),
 										AstKind::as_static_member_expression,
-									) && let Some(span) = self
-									.match_outer_access_chain(
-										inner_access,
-										remaining,
-									) {
+									)
+									&& let Some(span) = self
+										.match_outer_access_chain(
+											inner_access,
+											remaining,
+										) {
 									uses.push(span.into_ast_kind());
 								}
 							} else {
@@ -1457,7 +1486,8 @@ impl<'ast> WebpackAstParser<'ast> {
 			let c_then_obj = c_then.object.as_call_expression()?;
 			if self
 				.is_lazy_chunk_require(c_then_obj)
-				.is_some() || self.is_promise_resolve(c_then_obj)
+				.is_some()
+				|| self.is_promise_resolve(c_then_obj)
 			{
 				return true;
 			}
@@ -1541,7 +1571,7 @@ impl<'ast> WebpackAstParser<'ast> {
 		if !self.cmp_sym(wreq_use, &wreq) || wreq_e.property.name != "e" {
 			return None;
 		}
-		Some(&chunk_id.value)
+		chunk_id.value.as_str()
 	}
 	// FIXME: make PResult?
 	fn get_modules_that_this_module_requires_impl(
@@ -2700,9 +2730,11 @@ impl<'ast> WebpackAstParser<'ast> {
 				// TODO: check that args[1] is store_sym_id
 				if let Some(define_prop_arg) = args[1].as_string_literal()
 					&& define_prop_arg.value == "displayName"
-					&& let Some(define_value_arg) = args[2].as_string_literal()
+					&& let Some(define_value_arg) = args[2]
+						.as_string_literal()
+						.and_then(|s| s.as_utf8().ok())
 				{
-					return Some(SmolStr::new(define_value_arg.value));
+					return Some(SmolStr::new(define_value_arg));
 				}
 				// Object.defineProperty(store)
 				// store must be an identifier
@@ -2732,9 +2764,11 @@ impl<'ast> WebpackAstParser<'ast> {
 	fn is_constant_string<ID: GetSymId>(
 		&self,
 		sym_id: &ID,
-	) -> Option<Str<'ast>> {
+	) -> Option<&'ast str> {
 		self.constant_value_of(sym_id)?
-			.as_string_literal_like()
+			.as_string_literal_like()?
+			.0
+			.as_str()
 	}
 	/// The only value `sym_id` is ever set to
 	/// ```js
@@ -2919,12 +2953,18 @@ impl<'ast> WebpackAstParser<'ast> {
 			!matches!(
 				seq[0].kind(),
 				TK::Dot
-					| TK::Comma | TK::Colon
-					| TK::Eq | TK::Eq2
-					| TK::Eq3 | TK::Amp2
-					| TK::LParen | TK::RParen
-					| TK::Pipe2 | TK::Semicolon
-					| TK::Question | TK::Extends
+					| TK::Comma
+					| TK::Colon
+					| TK::Eq
+					| TK::Eq2
+					| TK::Eq3
+					| TK::Amp2
+					| TK::LParen
+					| TK::RParen
+					| TK::Pipe2
+					| TK::Semicolon
+					| TK::Question
+					| TK::Extends
 					| TK::Let
 			)
 		} else {

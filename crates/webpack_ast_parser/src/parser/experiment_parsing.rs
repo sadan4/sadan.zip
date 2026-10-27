@@ -5,7 +5,13 @@ use crate::parser::{
 };
 use ast_parser::{
 	AstParser,
-	exts::{ExpressionExt, ObjectExpressionExt, StatementExt},
+	exts::{
+		ExpressionExt,
+		ObjectExpressionExt,
+		PropertyKeyExt,
+		StatementExt,
+		StringLiteralExt,
+	},
 };
 use explorer_types::{
 	SpannedId,
@@ -83,7 +89,7 @@ impl<'ast> WebpackAstParser<'ast> {
 		let label = if let Some(ObjectProperty { value, .. }) =
 			obj.get_property("label")
 		{
-			let label = value
+			let (label, label_span) = value
 				.as_string_literal_like()
 				.ok_or_else(|| {
 					err(
@@ -91,7 +97,12 @@ impl<'ast> WebpackAstParser<'ast> {
 						"`label` experiment property is not a string literal",
 					)
 				})?;
-			Some(label.to_string())
+			Some(
+				label
+					.as_str()
+					.ok_or_else(|| err(&label_span, "label is not utf8"))?
+					.to_string(),
+			)
 		} else {
 			None
 		};
@@ -147,9 +158,15 @@ impl<'ast> WebpackAstParser<'ast> {
 			let Some(prop) = prop.as_property() else {
 				return Err(err(prop, "Invalid variation property"));
 			};
-			let key = prop.key.static_name().ok_or_else(|| {
-				err(&prop.key, "Variation property key is not an a static name")
-			})?;
+			let key = prop
+				.key
+				.static_name_utf8()
+				.ok_or_else(|| {
+					err(
+						&prop.key,
+						"Variation property key is not an a static name",
+					)
+				})??;
 			let config = self
 				.config_to_json(&prop.value, "variation value")
 				.await;
@@ -167,19 +184,22 @@ impl<'ast> WebpackAstParser<'ast> {
 			.get_property("kind")
 			.ok_or_else(|| err(obj, "Experiment does not have kind property"))?
 			.value;
-		let scope = kind
+		let (scope, scope_span) = kind
 			.as_string_literal_like()
 			.ok_or_else(|| {
 				err(kind, "`kind` experiment property is not a string literal")
 			})?;
-		match scope.as_str() {
-			"user" => Ok(ExperimentScope::User),
-			"guild" => Ok(ExperimentScope::Guild),
-			"installation" => Ok(ExperimentScope::Installation),
-			_ => Err(err(
-				kind,
-				"`kind` experiment property is not `user` or `guild`",
-			)),
+		if scope == "user" {
+			Ok(ExperimentScope::User)
+		} else if scope == "guild" {
+			Ok(ExperimentScope::Guild)
+		} else if scope == "installation" {
+			Ok(ExperimentScope::Installation)
+		} else {
+			Err(err(
+				&scope_span,
+				"`kind` experiment property is not `user`, `guild` or `installation`",
+			))
 		}
 	}
 	#[expect(clippy::future_not_send)]
@@ -210,7 +230,7 @@ impl<'ast> WebpackAstParser<'ast> {
 		let label_prop = t.get_property("label").ok_or_else(|| {
 			err(t, "Experiment treatment does not have `label` property")
 		})?;
-		let label = label_prop
+		let (label, label_span) = label_prop
 			.value
 			.as_string_literal_like()
 			.ok_or_else(|| {
@@ -219,6 +239,9 @@ impl<'ast> WebpackAstParser<'ast> {
 					"`label` experiment treatment property is not a string literal",
 				)
 			})?;
+		let label = label
+			.as_str()
+			.ok_or_else(|| err(&label_span, "label is not valid utf8"))?;
 		let config_prop = t
 			.get_property("config")
 			.ok_or_else(|| {
@@ -263,17 +286,18 @@ impl<'ast> WebpackAstParser<'ast> {
 			err(obj, format!("Experiment does not have `{prop}` property"))
 		})?;
 		let ret = match &name_prop.value {
-			Expression::StringLiteral(lit) => lit.value.to_string(),
+			Expression::StringLiteral(lit) => lit.as_utf8()?.to_owned(),
 			Expression::TemplateLiteral(lit)
 				if lit.is_no_substitution_template() =>
 			{
-				lit.quasis
-					.first()
-					.unwrap()
+				let quasi = lit.quasis.first().unwrap();
+				quasi
 					.value
 					.cooked
 					.unwrap()
-					.to_string()
+					.as_str()
+					.ok_or_else(|| err(quasi, "string is not valid utf8"))?
+					.to_owned()
 			}
 			Expression::Identifier(ident) => self
 				.is_constant_string(&**ident)
@@ -307,7 +331,7 @@ impl<'ast> WebpackAstParser<'ast> {
 			.get_property("label")
 			.ok_or_else(|| err(obj, "Experiment does not have label property"))?
 			.value;
-		let label = label
+		let (label, label_span) = label
 			.as_string_literal_like()
 			.ok_or_else(|| {
 				err(
@@ -315,6 +339,9 @@ impl<'ast> WebpackAstParser<'ast> {
 					"`label` experiment property is not a string literal",
 				)
 			})?;
+		let label = label
+			.as_str()
+			.ok_or_else(|| err(&label_span, "label is not valid utf8"))?;
 		let default_config = if let Some(ObjectProperty { value, .. }) =
 			obj.get_property("defaultConfig")
 		{
@@ -360,7 +387,7 @@ impl<'ast> WebpackAstParser<'ast> {
 			obj: ExperimentKind::Normal(NormalExperiment {
 				kind,
 				id,
-				label: label.to_string(),
+				label: label.to_owned(),
 				default_config,
 				treatments,
 				common_trigger_point,

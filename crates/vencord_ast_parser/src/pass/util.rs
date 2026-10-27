@@ -2,7 +2,7 @@ use ast_parser::exts::TemplateLiteralExt as _;
 use derive_more::{Deref, DerefMut};
 use itertools::Itertools;
 use oxc::{
-	allocator::{Allocator, Dummy, GetAllocator, StringBuilder},
+	allocator::{Allocator, Dummy, GetAllocator},
 	ast::{
 		ast::{
 			BigintBase,
@@ -18,6 +18,7 @@ use oxc::{
 	minifier::PropertyReadSideEffects,
 	semantic::IsGlobalReference,
 	span::Span,
+	str::{JSStr, JSStrBuilder},
 };
 use oxc_ecmascript::{
 	GlobalContext,
@@ -29,7 +30,7 @@ use oxc_ecmascript::{
 	side_effects::MayHaveSideEffectsContext,
 };
 use oxc_traverse::TraverseCtx;
-use std::{borrow::Cow, mem};
+use std::mem;
 
 #[derive(Deref, DerefMut)]
 #[repr(transparent)]
@@ -62,8 +63,7 @@ impl<'a, 'ast: 'a, State> Ctx<'a, 'ast, State> {
 					self,
 				)
 			}
-			ConstantValue::String(cow) => {
-				let atom = Str::from_cow_in(&cow, self);
+			ConstantValue::String(atom) => {
 				Expression::new_string_literal(span, atom, None, self)
 			}
 			ConstantValue::Boolean(b) => {
@@ -83,7 +83,7 @@ impl<'a, 'ast: 'a, State> Ctx<'a, 'ast, State> {
 	/// # Panics
 	/// Panics if the template has non-literal values
 	/// Use [`TemplateLiteralExt::is_literal`] to check if a template is a literal
-	pub fn eval_template(&self, t: &TemplateLiteral<'ast>) -> Str<'ast> {
+	pub fn eval_template(&self, t: &TemplateLiteral<'ast>) -> JSStr<'ast> {
 		debug_assert!(
 			!t.is_no_substitution_template(),
 			"no substution templates should be handled outside of this function to better preserve AST span and source info"
@@ -97,17 +97,17 @@ impl<'a, 'ast: 'a, State> Ctx<'a, 'ast, State> {
 		let q_strs = t
 			.quasis
 			.iter()
-			.map(|q| Cow::Borrowed(q.value.cooked.unwrap().as_str()));
+			.map(|q| q.value.cooked.unwrap());
 		let expr_strs = t.expressions.iter().map(|e| {
 			e.evaluate_value_to_string(self)
 				.unwrap()
 		});
 		let strs = q_strs.interleave(expr_strs);
-		let mut ret = StringBuilder::new_in(self.a());
+		let mut ret = JSStrBuilder::new_in(self);
 		for s in strs {
-			ret.push_str(&s);
+			ret.push_js_str(s);
 		}
-		ret.into()
+		ret.into_js_str()
 	}
 	/// used with [`std::mem::replace`]
 	/// ```ignore
@@ -134,7 +134,7 @@ impl<'a, 'ast: 'a, State> Ctx<'a, 'ast, State> {
 pub fn empty_template_element_value() -> TemplateElementValue<'static> {
 	TemplateElementValue {
 		raw: Str::from(""),
-		cooked: Some(Str::from("")),
+		cooked: Some(JSStr::from("")),
 	}
 }
 

@@ -107,8 +107,8 @@ impl miette::Diagnostic for ParserDiagnostic {
 	}
 }
 
-pub fn err(
-	pos: &impl GetSpan,
+pub fn err<G: GetSpan + ?Sized>(
+	pos: &G,
 	msg: impl Into<Cow<'static, str>>,
 ) -> ParserDiagnostic {
 	ParserDiagnostic {

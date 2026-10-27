@@ -66,6 +66,7 @@ mod fold_template {
 			TemplateLiteral,
 		},
 		span::Span,
+		str::JSStr,
 	};
 	use std::mem;
 	use tracing::warn;
@@ -78,7 +79,7 @@ mod fold_template {
 		span: Span,
 		ctx: &Ctx<'_, 'ast, State>,
 	) -> Expression<'ast> {
-		let left_val = left.value.as_str();
+		let left_val = left.value.as_str().expect("not utf8");
 		let q1 = &mut right.quasis[0];
 		let new_q1_raw = ctx
 			.ast
@@ -89,13 +90,17 @@ mod fold_template {
 			.allocator()
 			.alloc_concat_strs_array([
 				left_val,
-				q1.value.cooked.unwrap().as_str(),
+				q1.value
+					.cooked
+					.unwrap()
+					.as_str()
+					.expect("not utf8"),
 			]);
 		let new_q1 = TemplateElement::new(
 			q1.span,
 			TemplateElementValue {
 				raw: Str::from(new_q1_raw),
-				cooked: Some(Str::from(new_q1_val)),
+				cooked: Some(JSStr::from(new_q1_val)),
 			},
 			q1.tail,
 			ctx,
@@ -115,7 +120,7 @@ mod fold_template {
 		span: Span,
 		ctx: &Ctx<'_, 'ast, State>,
 	) -> Expression<'ast> {
-		let right_val = right.value.as_str();
+		let right_val = right.value.as_str().expect("not utf8");
 		let last_idx = left.quasis.len() - 1;
 		let q = &mut left.quasis[last_idx];
 		let new_q_raw = ctx
@@ -126,7 +131,11 @@ mod fold_template {
 			.ast
 			.allocator()
 			.alloc_concat_strs_array([
-				q.value.cooked.unwrap().as_str(),
+				q.value
+					.cooked
+					.unwrap()
+					.as_str()
+					.expect("not utf8"),
 				right_val,
 			]);
 		debug_assert!(
@@ -137,7 +146,7 @@ mod fold_template {
 			q.span,
 			TemplateElementValue {
 				raw: Str::from(new_q_raw),
-				cooked: Some(Str::from(new_q_val)),
+				cooked: Some(JSStr::from(new_q_val)),
 			},
 			q.tail,
 			ctx,
@@ -224,18 +233,20 @@ mod fold_template {
 					.value
 					.cooked
 					.unwrap()
-					.as_str(),
+					.as_str()
+					.expect("not utf8"),
 				right_joiner
 					.value
 					.cooked
 					.unwrap()
-					.as_str(),
+					.as_str()
+					.expect("not utf8"),
 			]);
 		let joiner = TemplateElement::new(
 			left_joiner.span,
 			TemplateElementValue {
 				raw: Str::from(joiner_raw),
-				cooked: Some(Str::from(joiner_cooked)),
+				cooked: Some(JSStr::from(joiner_cooked)),
 			},
 			right_joiner.tail,
 			ctx,

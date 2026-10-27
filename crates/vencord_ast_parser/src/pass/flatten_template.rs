@@ -3,6 +3,7 @@ use ast_parser::exts::{ExpressionExt as _, TemplateLiteralExt as _};
 use oxc::{
 	ast::ast::{Expression, StringLiteral, TemplateElementValue},
 	span::GetSpan as _,
+	str::{JSStr, JSStrBuilder},
 };
 use oxc_ecmascript::constant_evaluation::ConstantEvaluation;
 use oxc_traverse::{Traverse, TraverseCtx};
@@ -62,23 +63,31 @@ impl<'ast, State> Traverse<'ast, State> for FlattenTemplatePass {
 					.expressions
 					.remove(i)
 					.span();
-				let new_raw = ctx
-					.a()
-					.alloc_concat_strs_array([
-						left.value.raw.as_str(),
-						&str_val,
-						right.value.raw.as_str(),
-					])
-					.into();
-				let new_cooked = ctx
-					.a()
-					.alloc_concat_strs_array([
-						left.value.cooked.unwrap().as_str(),
-						&str_val,
-						right.value.cooked.unwrap().as_str(),
-					])
-					.into();
-				left.lone_surrogates |= right.lone_surrogates;
+				let new_raw = {
+					let cap = left.value.raw.len()
+						+ str_val.len()
+						+ right.value.raw.len();
+					let mut v = JSStrBuilder::with_capacity_in(cap, &ctx);
+					v.push_str(&left.value.raw);
+					v.push_js_str(str_val);
+					v.push_str(&right.value.raw);
+					v.into_js_str()
+						.as_str()
+						.expect("not utf8")
+						.into()
+				};
+				let new_cooked = {
+					let left = left.value.cooked.unwrap();
+					let mid = str_val;
+					let right = right.value.cooked.unwrap();
+					let strs = [left, mid, right];
+					let len = strs.into_iter().map(JSStr::len).sum();
+					let mut v = JSStrBuilder::with_capacity_in(len, &ctx);
+					for s in strs {
+						v.push_js_str(s);
+					}
+					v.into_js_str()
+				};
 				left.tail = right.tail;
 				left.span = left
 					.span
@@ -256,6 +265,19 @@ mod tests {
 		let out = test_pass!(code, FlattenTemplatePass);
 		assert_snapshot!(out, /* language=TypeScript */ @"
 		const msg = 'before```after';
+		console.log(msg);
+		");
+	}
+
+	#[test]
+	fn lone_surrogates() {
+		let code = r#"
+			const msg = `a${"\uD800"}b`;
+			console.log(msg);
+		"#;
+		let out = test_pass!(code, FlattenTemplatePass);
+		assert_snapshot!(out, @r"
+		const msg = 'a\ud800b';
 		console.log(msg);
 		");
 	}

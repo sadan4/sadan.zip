@@ -7,7 +7,7 @@ use oxc::{
 	allocator::{Allocator, TakeIn, Vec as OxcVec},
 	ast::{
 		AstKind,
-		Comment,
+		Comment as OxcComment,
 		ast::{
 			ArrowFunctionExpression,
 			BlockStatement,
@@ -50,11 +50,19 @@ mod token_stream {
 	use std::hint::likely;
 
 	use derive_more::{From, IsVariant};
+	use oxc::span::Span;
 
-	use super::{Comment, GetSpan, Kind, OxcVec, Token};
+	use super::{GetSpan, Kind, OxcComment, OxcVec, Token};
+
+	/// in oxc 0.154.0, [`OxcComment`] lost clone; we only need the span
+	#[derive(Copy, Clone, Debug)]
+	pub struct Comment {
+		pub span: Span,
+	}
+
 	pub struct TokenStream<'a> {
 		tokens: OxcVec<'a, Token>,
-		comments: OxcVec<'a, Comment>,
+		comments: OxcVec<'a, OxcComment>,
 		token_idx: usize,
 		comment_idx: usize,
 	}
@@ -62,7 +70,7 @@ mod token_stream {
 	impl<'a> TokenStream<'a> {
 		pub fn new(
 			mut tokens: OxcVec<'a, Token>,
-			comments: OxcVec<'a, Comment>,
+			comments: OxcVec<'a, OxcComment>,
 		) -> Self {
 			debug_assert!(
 				tokens.is_sorted_by_key(|t| t.span().start),
@@ -91,7 +99,7 @@ mod token_stream {
 			self.tokens.get(self.token_idx)
 		}
 
-		fn next_comment(&self) -> Option<&Comment> {
+		fn next_comment(&self) -> Option<&OxcComment> {
 			self.comments.get(self.comment_idx)
 		}
 	}
@@ -143,9 +151,9 @@ mod token_stream {
 				self.token_idx += 1;
 				Some(token.into())
 			} else {
-				let comment = self.comments[self.comment_idx];
+				let comment = &self.comments[self.comment_idx];
 				self.comment_idx += 1;
-				Some(comment.into())
+				Some(Comment { span: comment.span }.into())
 			}
 		}
 	}
