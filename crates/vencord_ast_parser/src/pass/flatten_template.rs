@@ -268,4 +268,17 @@ mod tests {
 		console.log(msg);
 		");
 	}
+
+	#[test]
+	fn lone_surrogates() {
+		let code = r#"
+			const msg = `a${"\uD800"}b`;
+			console.log(msg);
+		"#;
+		let out = test_pass!(code, FlattenTemplatePass);
+		assert_snapshot!(out, @r"
+		const msg = 'a\ud800b';
+		console.log(msg);
+		");
+	}
 }
