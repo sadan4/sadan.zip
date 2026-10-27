@@ -7,7 +7,6 @@ use oxc::{
 			Expression,
 			IdentifierReference,
 			NumberBase,
-			Str,
 			TSEnumMemberName,
 		},
 		builder::{AstBuilder, GetAstBuilder},
@@ -124,7 +123,7 @@ fn enum_value_to_expression<'ast>(
 #[derive(Debug)]
 enum EnumValue<'ast> {
 	Number(f64),
-	String(Str<'ast>),
+	String(JSStr<'ast>),
 	Computed(Expression<'ast>),
 }
 
@@ -191,8 +190,7 @@ impl<'ast> Traverse<'ast, ()> for InlineEnumsPass<'ast> {
 
 					let value = match evaluated {
 						Some(ConstantValue::String(s)) => {
-							let atom = Str::from_cow_in(&s, &ctx);
-							EnumValue::String(atom)
+							EnumValue::String(s)
 						}
 						Some(ConstantValue::Number(n)) => {
 							debug_assert!(n.is_finite() && n.fract() == 0.);
@@ -312,7 +310,7 @@ impl<'ast> GlobalContext<'ast> for EnumValueTracker<'_, 'ast> {
 		match self.0.get(&ref_id) {
 			Some(EnumValue::Number(e)) => Some(ConstantValue::Number(*e)),
 			Some(EnumValue::String(s)) => {
-				Some(ConstantValue::String((*s).into()))
+				Some(ConstantValue::String(*s))
 			}
 			Some(EnumValue::Computed(_)) => None,
 			None => self

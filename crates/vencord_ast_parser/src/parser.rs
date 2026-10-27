@@ -81,7 +81,6 @@ use oxc::{
 			RegExpLiteral,
 			SpreadElement,
 			Statement,
-			Str,
 			StringLiteral,
 			TemplateLiteral,
 		},
@@ -406,7 +405,7 @@ impl<'ast> VencordAstParser<'ast> {
 			RawReplace::String(lit) => match lit.as_utf8() {
 				Ok(s) => (s, lit.span),
 				Err(e) => {
-					ch.send(e);
+					_ = ch.send(e);
 					return;
 				}
 			},
@@ -448,7 +447,7 @@ impl<'ast> VencordAstParser<'ast> {
 			RawReplace::String(string_lit) => match string_lit.as_utf8() {
 				Ok(e) => Some((e, string_lit.span)),
 				Err(e) => {
-					self.diag_ch.as_ref().unwrap().send(e);
+					_ = self.diag_ch.as_ref().unwrap().send(e);
 					return;
 				}
 			},
@@ -865,18 +864,22 @@ impl<'ast> VencordAstParser<'ast> {
 				Ok(RawMatchLike::Template(t.as_ref()))
 			}
 			Expression::BinaryExpression(b) => {
-				let cow = b
+				let s = b
 					.evaluate_value_to_string(self)
 					.ok_or_else(|| {
 						err(
 							b.as_ref(),
 							"Invalid binary expression for match-like",
 						)
+					})?
+					.as_arena_str()
+					.ok_or_else(|| {
+						err(
+							b.as_ref(),
+							"This expression evaluated to a string but was not UTF8",
+						)
 					})?;
-				Ok(RawMatchLike::ComputedString(
-					Str::from_cow_in(&cow, self),
-					b.span,
-				))
+				Ok(RawMatchLike::ComputedString(s, b.span))
 			}
 			_ => Err(err(value, "Invalid match-like type")),
 		}
@@ -926,15 +929,19 @@ impl<'ast> VencordAstParser<'ast> {
 				Ok(RawReplace::Template(s.as_ref()))
 			}
 			Expression::BinaryExpression(s) => {
-				let cow = s
+				let str = s
 					.evaluate_value_to_string(self)
 					.ok_or_else(|| {
 						err(s.as_ref(), "Invalid bin exp for replace")
+					})?
+					.as_arena_str()
+					.ok_or_else(|| {
+						err(
+							s.as_ref(),
+							"This expression evaluated to a string but is not valid UTF8",
+						)
 					})?;
-				Ok(RawReplace::ComputedString(
-					Str::from_cow_in(&cow, self),
-					s.span,
-				))
+				Ok(RawReplace::ComputedString(str, s.span))
 			}
 			_ => Err(err(value, "Invalid replace type")),
 		}
