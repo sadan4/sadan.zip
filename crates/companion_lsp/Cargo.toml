@@ -1,59 +1,49 @@
 [package]
-name = "companion_lsp"
-version = "0.1.0"
 edition.workspace = true
+name              = "companion_lsp"
+version           = "0.1.0"
 
 [dependencies]
-anyhow.workspace = true
-serde.workspace = true
-serde_json.workspace = true
-tokio = { workspace = true, features = [
-	"rt-multi-thread",
-	"macros",
-	"fs",
-	"time",
-	"sync",
-	"io-std",
-	"io-util",
-	"net",
-	"process",
-] }
-tokio-tungstenite.workspace = true
-futures-util.workspace = true
-dashmap.workspace = true
-tracing.workspace = true
+anyhow.workspace             = true
+ast_parser.workspace         = true
+async-trait.workspace        = true
+bytecount.workspace          = true
+const_format.workspace       = true
+dashmap.workspace            = true
+explorer_types.workspace     = true
+futures-util.workspace       = true
+itertools.workspace          = true
+libc.workspace               = true
+memchr.workspace             = true
+miette.workspace             = true
+miette_ui.workspace          = true
+oxc.workspace                = true
+parser_diag.workspace        = true
+patch_engine.workspace       = true
+percent-encoding.workspace   = true
+phf.workspace                = true
+pretty_printer.workspace     = true
+rayon.workspace              = true
+regex.workspace              = true
+regress.workspace            = true
+serde.workspace              = true
+serde_json.workspace         = true
+smol_str.workspace           = true
+text_diff.workspace          = true
+thiserror.workspace          = true
+tokio                        = { workspace = true, features = ["rt-multi-thread", "macros", "fs", "time", "sync", "io-std", "io-util", "net", "process"] }
+tokio-tungstenite.workspace  = true
+tower-lsp-server.workspace   = true
+tracing.workspace            = true
 tracing-subscriber.workspace = true
-tower-lsp-server.workspace = true
-oxc.workspace = true
-thiserror.workspace = true
-ast_parser.workspace = true
+url.workspace                = true
 vencord_ast_parser.workspace = true
 webpack_ast_parser.workspace = true
-pretty_printer.workspace = true
-explorer_types.workspace = true
-smol_str.workspace = true
-regex.workspace = true
-regress.workspace = true
-bytecount.workspace = true
-memchr.workspace = true
-parser_diag.workspace = true
-phf.workspace = true
-const_format.workspace = true
-url.workspace = true
-miette.workspace = true
-miette_ui.workspace = true
-itertools.workspace = true
-percent-encoding.workspace = true
-async-trait.workspace = true
-libc.workspace = true
-patch_engine.workspace = true
-text_diff.workspace = true
-xxhash-rust.workspace = true
-rayon.workspace = true
+xxhash-rust.workspace        = true
 
 [dev-dependencies]
+insta.workspace    = true
 tempfile.workspace = true
-insta.workspace = true
 
 [lints]
 workspace = true

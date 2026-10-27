@@ -1,17 +1,17 @@
 [package]
-name = "macros"
-version = "0.1.0"
 edition.workspace = true
+name              = "macros"
+version           = "0.1.0"
 
 [lib]
+doctest    = false
 proc-macro = true
-test = false
-doctest = false
+test       = false
 
 [dependencies]
 proc-macro2.workspace = true
-quote.workspace = true
-syn.workspace = true
+quote.workspace       = true
+syn.workspace         = true
 
 [lints]
 workspace = true

@@ -1,39 +1,32 @@
 [package]
-name = "explorer_server"
-version = "0.1.0"
 edition.workspace = true
+name              = "explorer_server"
+version           = "0.1.0"
 
 [dependencies]
-clap.workspace = true
-discord_scraper.workspace = true
-webpack_ast_parser.workspace = true
-explorer_types.workspace = true
+anyhow.workspace               = true
+axum.workspace                 = true
+clap.workspace                 = true
+derive_more.workspace          = true
+discord_scraper.workspace      = true
 explorer_server_core.workspace = true
-tokio = { workspace = true, features = [
-  "rt-multi-thread",
-  "macros",
-  "fs",
-  "time",
-  "process",
-  "sync",
-] }
-tokio-util = { workspace = true, features = ["io", "io-util"] }
-reqwest.workspace = true
-anyhow.workspace = true
-tracing.workspace = true
-tracing-subscriber.workspace = true
-rmp-serde.workspace = true
-serde.workspace = true
-serde_json.workspace = true
-zstd.workspace = true
-libc.workspace = true
-axum.workspace = true
-http.workspace = true
-tower-http.workspace = true
-derive_more.workspace = true
-git_hash.workspace = true
-sevenz-rust2.workspace = true
-redis.workspace = true
+explorer_types.workspace       = true
+git_hash.workspace             = true
+http.workspace                 = true
+libc.workspace                 = true
+redis.workspace                = true
+reqwest.workspace              = true
+rmp-serde.workspace            = true
+serde.workspace                = true
+serde_json.workspace           = true
+sevenz-rust2.workspace         = true
+tokio                          = { workspace = true, features = ["rt-multi-thread", "macros", "fs", "time", "process", "sync"] }
+tokio-util                     = { workspace = true, features = ["io", "io-util"] }
+tower-http.workspace           = true
+tracing.workspace              = true
+tracing-subscriber.workspace   = true
+webpack_ast_parser.workspace   = true
+zstd.workspace                 = true
 
 [lints]
 workspace = true

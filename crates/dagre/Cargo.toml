@@ -1,27 +1,27 @@
 [package]
-name = "dagre"
-version = "0.1.0"
+description       = "Rust port of dagre: directed graph layout"
 edition.workspace = true
-description = "Rust port of dagre: directed graph layout"
-license = "MIT"
+license           = "MIT"
+name              = "dagre"
+version           = "0.1.0"
 
 [dependencies]
-serde = { workspace = true, optional = true }
-smol_str.workspace = true
 rustc-hash.workspace = true
+serde                = { workspace = true, optional = true }
+smol_str.workspace   = true
 
 [features]
 default = ["serde"]
-serde = ["dep:serde"]
 profile = []
+serde   = ["dep:serde"]
 
 [dev-dependencies]
-criterion.workspace = true
+criterion.workspace  = true
 serde_json.workspace = true
 
 [[bench]]
-name = "ranker_layout"
 harness = false
+name    = "ranker_layout"
 
 [lints]
 workspace = true

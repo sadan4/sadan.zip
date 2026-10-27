@@ -1,11 +1,11 @@
 [package]
-name = "miette_ctx"
-version = "0.1.0"
 edition.workspace = true
+name              = "miette_ctx"
+version           = "0.1.0"
 
 [dependencies]
-miette.workspace = true
-anyhow.workspace = true
+anyhow.workspace    = true
+miette.workspace    = true
 thiserror.workspace = true
 
 [lints]

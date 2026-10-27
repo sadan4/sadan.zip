@@ -10,115 +10,117 @@ resolver        = "3"
 ignored = ["oxc_span"]
 
 [workspace.dependencies]
-wasm-bindgen             = "0.2.1"
-anyhow                   = "1.0.102"
-arrayvec                 = "0.7.8"
-ast_parser               = { path = "crates/ast_parser" }
+anyhow                   = "1"
+arrayvec                 = "0.7"
 async-trait              = "0.1"
-axum                     = { version = "0.8.8", features = ["macros", "http2"] }
-bitcode                  = { version = "0.6.9", features = ["serde"] }
-bitflags                 = { version = "2.11.0", features = ["serde"] }
-bstr                     = "1.12.3"
-bytecount                = { version = "0.6.9" }
-bytes                    = "1.11.1"
-clap                     = { version = "4.6.0", features = ["derive"] }
-clap_complete            = "4.6.0"
-clearscreen              = "4.0.6"
-console_error_panic_hook = "0.1.7"
-const_format             = { version = "0.2.35", features = ["fmt"] }
-criterion                = { version = "0.8.2", features = ["html_reports"] }
-daft                     = { version = "0.1.7", features = ["derive"] }
-dagre                    = { path = "crates/dagre", features = ["serde"] }
-dashmap                  = "6.1.0"
-derive_more              = { version = "2.1.1", features = ["full"] }
-discord_scraper          = { path = "crates/discord_scraper" }
-explorer_server_core     = { path = "crates/explorer_server_core" }
-explorer_types           = { path = "crates/explorer_types" }
-futures-util             = "0.3.31"
+axum                     = { version = "0.8", features = ["macros", "http2"] }
+bitcode                  = { version = "0.6", features = ["serde"] }
+bitflags                 = { version = "2", features = ["serde"] }
+bstr                     = "1"
+bytecount                = { version = "0.6" }
+bytes                    = "1"
+clap                     = { version = "4", features = ["derive"] }
+clap_complete            = "4"
+clearscreen              = "4"
+console_error_panic_hook = "0.1"
+const_format             = { version = "0.2", features = ["fmt"] }
+criterion                = { version = "0.8", features = ["html_reports"] }
+daft                     = { version = "0.1", features = ["derive"] }
+dashmap                  = "6"
+derive_more              = { version = "2", features = ["full"] }
+futures-util             = "0.3"
 getrandom                = { version = "0.3", features = ["wasm_js"] }
-git_hash                 = { path = "crates/git_hash" }
-hashbrown                = "0.17.1"
-html_parser              = "0.7.0"
-http                     = "1.4.0"
-indicatif                = "0.18.4"
-insta                    = { version = "1.47.1", features = ["ron"] }
-intl_hash                = { path = "crates/intl_hash" }
-itertools                = "0.15.0"
-jiff                     = { version = "0.2.31", features = ["logging"] }
-js-sys                   = "0.3.91"
-libc                     = "0.2.189"
+hashbrown                = "0.17"
+html_parser              = "0.7"
+http                     = "1"
+indicatif                = "0.18"
+insta                    = { version = "1", features = ["ron"] }
+itertools                = "0.15"
+jiff                     = { version = "0.2", features = ["logging"] }
+js-sys                   = "0.3"
+libc                     = "0.2"
 lightningcss             = { version = "1.0.0-alpha.72", features = ["visitor", "into_owned"] }
-macros                   = { path = "crates/macros" }
-markdown                 = { version = "1.0.0", features = [] }
-memchr                   = "2.8.0"
-miette                   = { version = "7.1.0", default-features = false, features = ["serde", "derive"] }
-miette_ctx               = { path = "crates/miette_ctx" }
-miette_ui                = { path = "crates/miette_ui", default-features = false }
-notify                   = "8.2.0"
-num-bigint               = "0.5.1"
-num-traits               = "0.2.19"
-num_cpus                 = "1.17.0"
+markdown                 = { version = "1", features = [] }
+memchr                   = "2"
+miette                   = { version = "7", default-features = false, features = ["serde", "derive"] }
+notify                   = "8"
+num-bigint               = "0.5"
+num-traits               = "0.2"
+num_cpus                 = "1"
 ordered-float            = "5"
-owo-colors               = "4.3.0"
-oxc                      = { version = "0.156.0", default-features = false }
-oxc_allocator            = { version = "0.156.0", default-features = false }
-oxc_data_structures      = { version = "0.156.0", features = ["stack"] }
-oxc_ecmascript           = { version = "0.156.0", default-features = false, features = ["constant_evaluation"] }
-oxc_span                 = { version = "0.156.0", default-features = false }
-oxc_traverse             = { version = "0.156.0", default-features = false }
-parser_diag              = { path = "crates/parser_diag" }
-patch_engine             = { path = "crates/patch_engine" }
+owo-colors               = "4"
+oxc                      = { version = "0.156", default-features = false }
+oxc_allocator            = { version = "0.156", default-features = false }
+oxc_data_structures      = { version = "0.156", features = ["stack"] }
+oxc_ecmascript           = { version = "0.156", default-features = false, features = ["constant_evaluation"] }
+oxc_span                 = { version = "0.156", default-features = false }
+oxc_traverse             = { version = "0.156", default-features = false }
 percent-encoding         = "2"
 phf                      = { version = "0.14", features = ["macros"] }
-pretty_printer           = { path = "crates/pretty_printer" }
-proc-macro2              = { version = "1.0.32", default-features = false }
-quote                    = { version = "1.0", default-features = false }
-rangemap                 = "1.7.1"
-rayon                    = "1.12.0"
-redis                    = { version = "1.6.0", features = ["tokio-comp"] }
-regex                    = "1.12.3"
-regress                  = "0.11.1"
-reporter                 = { path = "crates/reporter" }
-reqwest                  = { version = "0.13.2", features = ["stream", "query"] }
-reqwest-middleware       = { version = "0.5.1", features = ["query"] }
-reqwest-retry            = "0.9.1"
+proc-macro2              = { version = "1", default-features = false }
+quote                    = { version = "1", default-features = false }
+rangemap                 = "1"
+rayon                    = "1"
+redis                    = { version = "1", features = ["tokio-comp"] }
+regex                    = "1"
+regress                  = "0.11"
+reqwest                  = { version = "0.13", features = ["stream", "query"] }
+reqwest-middleware       = { version = "0.5", features = ["query"] }
+reqwest-retry            = "0.9"
 rmcp                     = "3"
 rmp-serde                = "1"
-rustc-hash               = "2.1.2"
-serde                    = { version = "1.0.228", features = ["derive", "rc"] }
-serde-wasm-bindgen       = "0.6.5"
-serde_json               = { version = "1.0.149", features = ["preserve_order"] }
-sevenz-rust2             = { version = "0.22.2", features = ["zstd", "compress"] }
-smallvec                 = "1.15.2"
-smol_str                 = { version = "0.3.6", features = ["std", "serde"] }
-syn                      = { version = "2.0", default-features = false, features = ["full", "parsing", "printing", "proc-macro"] }
-syntect                  = { version = "5.3.0", default-features = false }
-tempfile                 = "3.27.0"
-term_progress            = { path = "crates/term_progress" }
-terminal_size            = "0.4.4"
-text_diff                = { path = "crates/text_diff" }
-textwrap                 = "0.16.2"
-thiserror                = "2.0.18"
-tokio                    = { version = "1.49.0", features = ["macros", "rt-multi-thread"] }
-tokio-stream             = { version = "0.1.18", default-features = false }
-tokio-tungstenite        = "0.30.0"
-tokio-util               = { version = "0.7.18", default-features = false }
-toml                     = "1.1.4"
-tower-http               = { version = "0.7.0", features = ["cors"] }
-tower-lsp-server         = "0.23.0"
-tracing                  = "0.1.44"
-tracing-subscriber       = { version = "0.3.23", features = ["env-filter", "time"] }
-typesize                 = { version = "0.1.15", features = ["smol_str"] }
-unicode-ident            = "1.0.24"
-unicode-width            = "0.2.2"
-url                      = "2.5.8"
-vencord_ast_parser       = { path = "crates/vencord_ast_parser" }
-wasm-bindgen-futures     = "0.4.64"
-web-sys                  = "0.3.4"
-webpack_ast_parser       = { path = "crates/webpack_ast_parser" }
-webpack_chunk_parser     = { path = "crates/webpack_chunk_parser" }
-xxhash-rust              = { version = "0.8.15", features = ["xxh64"] }
-zstd                     = "0.13.3"
+rustc-hash               = "2"
+serde                    = { version = "1", features = ["derive", "rc"] }
+serde-wasm-bindgen       = "0.6"
+serde_json               = { version = "1", features = ["preserve_order"] }
+sevenz-rust2             = { version = "0.22", features = ["zstd", "compress"] }
+smallvec                 = "1"
+smol_str                 = { version = "0.3", features = ["std", "serde"] }
+syn                      = { version = "2", default-features = false, features = ["full", "parsing", "printing", "proc-macro"] }
+syntect                  = { version = "5", default-features = false }
+tempfile                 = "3"
+terminal_size            = "0.4"
+textwrap                 = "0.16"
+thiserror                = "2"
+tokio                    = { version = "1", features = ["macros", "rt-multi-thread"] }
+tokio-stream             = { version = "0.1", default-features = false }
+tokio-tungstenite        = "0.30"
+tokio-util               = { version = "0.7", default-features = false }
+toml                     = "1"
+tower-http               = { version = "0.7", features = ["cors"] }
+tower-lsp-server         = "0.23"
+tracing                  = "0.1"
+tracing-subscriber       = { version = "0.3", features = ["env-filter", "time"] }
+typesize                 = { version = "0.1", features = ["smol_str"] }
+unicode-ident            = "1"
+unicode-width            = "0.2"
+url                      = "2"
+wasm-bindgen             = "0.2"
+wasm-bindgen-futures     = "0.4"
+web-sys                  = "0.3"
+xxhash-rust              = { version = "0.8", features = ["xxh64"] }
+zstd                     = "0.13"
+
+# workspace deps
+ast_parser           = { path = "crates/ast_parser" }
+dagre                = { path = "crates/dagre", features = ["serde"] }
+discord_scraper      = { path = "crates/discord_scraper" }
+explorer_server_core = { path = "crates/explorer_server_core" }
+explorer_types       = { path = "crates/explorer_types" }
+git_hash             = { path = "crates/git_hash" }
+intl_hash            = { path = "crates/intl_hash" }
+macros               = { path = "crates/macros" }
+miette_ctx           = { path = "crates/miette_ctx" }
+miette_ui            = { path = "crates/miette_ui", default-features = false }
+parser_diag          = { path = "crates/parser_diag" }
+patch_engine         = { path = "crates/patch_engine" }
+pretty_printer       = { path = "crates/pretty_printer" }
+reporter             = { path = "crates/reporter" }
+term_progress        = { path = "crates/term_progress" }
+text_diff            = { path = "crates/text_diff" }
+vencord_ast_parser   = { path = "crates/vencord_ast_parser" }
+webpack_ast_parser   = { path = "crates/webpack_ast_parser" }
+webpack_chunk_parser = { path = "crates/webpack_chunk_parser" }
 
 [patch.crates-io]
 typesize = { git = "https://github.com/sadan4/typesize", branch = "feat/smolstr" }

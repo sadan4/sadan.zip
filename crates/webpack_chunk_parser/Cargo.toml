@@ -1,26 +1,26 @@
 [package]
-name = "webpack_chunk_parser"
-version = "0.1.0"
 edition.workspace = true
+name              = "webpack_chunk_parser"
+version           = "0.1.0"
 
 [lib]
 doctest = false
 
 [dependencies]
-oxc.workspace = true
-ast_parser.workspace = true
-derive_more.workspace = true
-anyhow.workspace = true
-serde.workspace = true
-smol_str.workspace = true
-memchr.workspace = true
-regex.workspace = true
+anyhow.workspace         = true
+ast_parser.workspace     = true
+derive_more.workspace    = true
 explorer_types.workspace = true
-parser_diag.workspace = true
-tracing.workspace = true
+memchr.workspace         = true
+oxc.workspace            = true
+parser_diag.workspace    = true
+regex.workspace          = true
+serde.workspace          = true
+smol_str.workspace       = true
+tracing.workspace        = true
 
 [dev-dependencies]
-insta.workspace = true
+insta.workspace     = true
 itertools.workspace = true
 
 [lints]

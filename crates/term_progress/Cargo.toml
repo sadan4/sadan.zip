@@ -1,11 +1,11 @@
 [package]
-name = "term_progress"
-version = "0.1.0"
 edition.workspace = true
+name              = "term_progress"
+version           = "0.1.0"
 
 [dependencies]
-indicatif.workspace = true
 derive_more.workspace = true
+indicatif.workspace   = true
 
 [lints]
 workspace = true

@@ -1,66 +1,61 @@
 [package]
-name = "reporter"
-version = "0.1.0"
 edition.workspace = true
+name              = "reporter"
+version           = "0.1.0"
 
 [dependencies]
-tokio = { workspace = true, features = [
-    "rt-multi-thread",
-    "macros",
-    "fs",
-    "process",
-] }
-discord_scraper.workspace = true
-explorer_types.workspace = true
+anyhow.workspace               = true
+arrayvec.workspace             = true
+ast_parser.workspace           = true
+bitcode.workspace              = true
+bstr.workspace                 = true
+clap.workspace                 = true
+clap_complete.workspace        = true
+clearscreen.workspace          = true
+daft.workspace                 = true
+dashmap.workspace              = true
+derive_more.workspace          = true
+discord_scraper.workspace      = true
 explorer_server_core.workspace = true
-vencord_ast_parser.workspace = true
-webpack_ast_parser.workspace = true
-anyhow.workspace = true
-clap.workspace = true
-clap_complete.workspace = true
-tracing.workspace = true
-tracing-subscriber.workspace = true
-zstd.workspace = true
-serde.workspace = true
-itertools.workspace = true
-miette_ui = { workspace = true, features = ["highlight"] }
-oxc.workspace = true
-thiserror.workspace = true
-regress.workspace = true
-derive_more.workspace = true
-miette = {workspace = true, features = ["fancy", "syntect-highlighter"]}
-term_progress.workspace = true
-owo-colors.workspace = true
-unicode-width.workspace = true
-textwrap.workspace = true
-terminal_size.workspace = true
-syntect = { workspace = true, features = ["regex-onig", "parsing"] }
-oxc_allocator.workspace = true
-ast_parser.workspace = true
-reqwest-middleware.workspace = true
-notify.workspace = true
-memchr.workspace = true
-rustc-hash.workspace = true
-clearscreen.workspace = true
-pretty_printer.workspace = true
-patch_engine.workspace = true
-bitcode.workspace = true
-rayon.workspace = true
-num_cpus.workspace = true
-dashmap.workspace = true
-rmp-serde.workspace = true
-tokio-stream.workspace = true
-tokio-util = { workspace = true, features = ["io", "io-util"] }
-arrayvec.workspace = true
-jiff.workspace = true
-miette_ctx.workspace = true
-smol_str.workspace = true
-daft.workspace = true
-smallvec.workspace = true
-bstr.workspace = true
-hashbrown.workspace = true
-text_diff.workspace = true
-parser_diag.workspace = true
+explorer_types.workspace       = true
+hashbrown.workspace            = true
+itertools.workspace            = true
+jiff.workspace                 = true
+memchr.workspace               = true
+miette                         = { workspace = true, features = ["fancy", "syntect-highlighter"] }
+miette_ctx.workspace           = true
+miette_ui                      = { workspace = true, features = ["highlight"] }
+notify.workspace               = true
+num_cpus.workspace             = true
+owo-colors.workspace           = true
+oxc.workspace                  = true
+oxc_allocator.workspace        = true
+parser_diag.workspace          = true
+patch_engine.workspace         = true
+pretty_printer.workspace       = true
+rayon.workspace                = true
+regress.workspace              = true
+reqwest-middleware.workspace   = true
+rmp-serde.workspace            = true
+rustc-hash.workspace           = true
+serde.workspace                = true
+smallvec.workspace             = true
+smol_str.workspace             = true
+syntect                        = { workspace = true, features = ["regex-onig", "parsing"] }
+term_progress.workspace        = true
+terminal_size.workspace        = true
+text_diff.workspace            = true
+textwrap.workspace             = true
+thiserror.workspace            = true
+tokio                          = { workspace = true, features = ["rt-multi-thread", "macros", "fs", "process"] }
+tokio-stream.workspace         = true
+tokio-util                     = { workspace = true, features = ["io", "io-util"] }
+tracing.workspace              = true
+tracing-subscriber.workspace   = true
+unicode-width.workspace        = true
+vencord_ast_parser.workspace   = true
+webpack_ast_parser.workspace   = true
+zstd.workspace                 = true
 
 [dev-dependencies]
 insta.workspace = true

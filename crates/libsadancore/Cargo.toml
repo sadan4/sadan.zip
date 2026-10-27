@@ -1,40 +1,40 @@
 [package]
-name = "libsadancore"
-version = "0.0.0"
-publish = false
 edition = "2024"
+name    = "libsadancore"
+publish = false
+version = "0.0.0"
 
 [lib]
 crate-type = ["cdylib"]
 
 [dependencies]
-rustc-hash.workspace = true
-wasm-bindgen.workspace = true
-anyhow.workspace = true
+anyhow.workspace                   = true
+ast_parser.workspace               = true
+async-trait.workspace              = true
 console_error_panic_hook.workspace = true
-js-sys.workspace = true
-zstd.workspace = true
-explorer_types.workspace = true
-wasm-bindgen-futures.workspace = true
-thiserror.workspace = true
-const_format.workspace = true
-rmp-serde.workspace = true
-serde.workspace = true
-serde-wasm-bindgen.workspace = true
-oxc.workspace = true
-webpack_ast_parser.workspace = true
-smol_str.workspace = true
-ast_parser.workspace = true
-pretty_printer.workspace = true
-dagre.workspace = true
-parser_diag.workspace = true
-regress.workspace = true
-memchr.workspace = true
-vencord_ast_parser.workspace = true
-async-trait.workspace = true
-url.workspace = true
-serde_json.workspace = true
-lightningcss.workspace = true
+const_format.workspace             = true
+dagre.workspace                    = true
+explorer_types.workspace           = true
+js-sys.workspace                   = true
+lightningcss.workspace             = true
+memchr.workspace                   = true
+oxc.workspace                      = true
+parser_diag.workspace              = true
+pretty_printer.workspace           = true
+regress.workspace                  = true
+rmp-serde.workspace                = true
+rustc-hash.workspace               = true
+serde.workspace                    = true
+serde-wasm-bindgen.workspace       = true
+serde_json.workspace               = true
+smol_str.workspace                 = true
+thiserror.workspace                = true
+url.workspace                      = true
+vencord_ast_parser.workspace       = true
+wasm-bindgen.workspace             = true
+wasm-bindgen-futures.workspace     = true
+webpack_ast_parser.workspace       = true
+zstd.workspace                     = true
 # lightningcss pulls getrandom 0.3, which needs a backend on wasm32
 getrandom.workspace = true
 
@@ -42,18 +42,8 @@ getrandom.workspace = true
 local-server = []
 
 [dependencies.web-sys]
+features  = ["CanvasRenderingContext2d", "HtmlCanvasElement", "Document", "Window", "Element", "CssStyleDeclaration", "Request", "Response", "WorkerGlobalScope"]
 workspace = true
-features = [
-    "CanvasRenderingContext2d",
-    "HtmlCanvasElement",
-    "Document",
-    "Window",
-    "Element",
-    "CssStyleDeclaration",
-    "Request",
-    "Response",
-    "WorkerGlobalScope"
-]
 
 [lints]
 workspace = true

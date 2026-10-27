@@ -1,23 +1,23 @@
 [package]
-name = "ast_parser"
-version = "0.1.0"
 edition.workspace = true
+name              = "ast_parser"
+version           = "0.1.0"
 
 [lib]
 doctest = false
 
 [dependencies]
-anyhow.workspace = true
-itertools.workspace = true
-oxc = { workspace = true, features = ["semantic", "ast_visit"] }
-oxc_ecmascript.workspace = true
+anyhow.workspace              = true
+derive_more.workspace         = true
+itertools.workspace           = true
+miette.workspace              = true
+oxc                           = { workspace = true, features = ["semantic", "ast_visit"] }
 oxc_data_structures.workspace = true
-derive_more.workspace = true
-miette.workspace = true
-serde.workspace = true
-smallvec.workspace = true
-smol_str.workspace = true
-parser_diag.workspace = true
+oxc_ecmascript.workspace      = true
+parser_diag.workspace         = true
+serde.workspace               = true
+smallvec.workspace            = true
+smol_str.workspace            = true
 
 [lints]
 workspace = true

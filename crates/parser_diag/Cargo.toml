@@ -1,13 +1,13 @@
 [package]
-name = "parser_diag"
-version = "0.1.0"
 edition.workspace = true
+name              = "parser_diag"
+version           = "0.1.0"
 
 [dependencies]
 derive_more.workspace = true
-miette.workspace = true
-oxc_span.workspace = true
-thiserror.workspace = true
+miette.workspace      = true
+oxc_span.workspace    = true
+thiserror.workspace   = true
 
 [dev-dependencies]
 miette = { workspace = true, features = ["fancy"] }

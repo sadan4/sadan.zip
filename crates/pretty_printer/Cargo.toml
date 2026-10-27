@@ -1,33 +1,33 @@
 [package]
-name = "pretty_printer"
-description = "A port of the pretty printer found in chrome's devtools, with slight improvements for minified code."
-version = "0.1.0"
+description       = "A port of the pretty printer found in chrome's devtools, with slight improvements for minified code."
 edition.workspace = true
-license = "BSD-3-Clause"
+license           = "BSD-3-Clause"
+name              = "pretty_printer"
+version           = "0.1.0"
 
 [lib]
 doctest = false
 
 [dependencies]
-anyhow.workspace = true
-oxc = { workspace = true, features = ["ast_visit"] }
-derive_more.workspace = true
-memchr.workspace = true
-parser_diag.workspace = true
-clap.workspace = true
+anyhow.workspace        = true
+clap.workspace          = true
 clap_complete.workspace = true
+derive_more.workspace   = true
+memchr.workspace        = true
+oxc                     = { workspace = true, features = ["ast_visit"] }
+parser_diag.workspace   = true
+rayon.workspace         = true
 unicode-ident.workspace = true
-rayon.workspace = true
 
 [dev-dependencies]
-insta.workspace = true
-macros.workspace = true
+criterion.workspace          = true
+insta.workspace              = true
+macros.workspace             = true
 tracing-subscriber.workspace = true
-criterion.workspace = true
 
 [[bench]]
-name = "large_file"
 harness = false
+name    = "large_file"
 
 [lints]
 workspace = true
