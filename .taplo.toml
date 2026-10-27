@@ -1,0 +1,7 @@
+[formatting]
+align_entries = true
+reorder_keys = true
+indent_tables = false
+compact_arrays = true
+array_auto_collapse = true
+array_auto_expand = false

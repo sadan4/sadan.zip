@@ -1,7 +1,7 @@
 [workspace]
+members         = ["crates/*"]
 package.edition = "2024"
-members = ["crates/*"]
-resolver = "3"
+resolver        = "3"
 
 [workspace.metadata.cargo-shear]
 # oxc_span is only pulled in for its "serialize" feature, which adds
@@ -10,152 +10,143 @@ resolver = "3"
 ignored = ["oxc_span"]
 
 [workspace.dependencies]
-wasm-bindgen = "0.2.113"
-serde-wasm-bindgen = "0.6.5"
-anyhow = "1.0.102"
-serde = { version = "1.0.228", features = ["derive", "rc"] }
+wasm-bindgen             = "0.2.1"
+anyhow                   = "1.0.102"
+arrayvec                 = "0.7.8"
+ast_parser               = { path = "crates/ast_parser" }
+async-trait              = "0.1"
+axum                     = { version = "0.8.8", features = ["macros", "http2"] }
+bitcode                  = { version = "0.6.9", features = ["serde"] }
+bitflags                 = { version = "2.11.0", features = ["serde"] }
+bstr                     = "1.12.3"
+bytecount                = { version = "0.6.9" }
+bytes                    = "1.11.1"
+clap                     = { version = "4.6.0", features = ["derive"] }
+clap_complete            = "4.6.0"
+clearscreen              = "4.0.6"
 console_error_panic_hook = "0.1.7"
-web-sys = "0.3.4"
-js-sys = "0.3.91"
-zstd = "0.13.3"
-tokio = { version = "1.49.0", features = ["macros", "rt-multi-thread"] }
-tokio-stream = { version = "0.1.18", default-features = false }
-tokio-util = { version = "0.7.18", default-features = false }
-reqwest = { version = "0.13.2", features = ["stream", "query"] }
-tracing = "0.1.44"
-tracing-subscriber = { version = "0.3.23", features = ["env-filter", "time"] }
-rmp-serde = "1"
-serde_json = { version = "1.0.149", features = ["preserve_order"] }
-sevenz-rust2 = {version = "0.22.2", features = ["zstd", "compress"]}
-toml = "1.1.4"
-axum = { version = "0.8.8", features = ["macros", "http2"] }
-http = "1.4.0"
-wasm-bindgen-futures = "0.4.64"
-thiserror = "2.0.18"
-const_format = { version = "0.2.35", features = ["fmt"] }
-tower-http = { version = "0.7.0", features = ["cors"] }
-html_parser = "0.7.0"
-clap = { version = "4.6.0", features = ["derive"] }
-clap_complete = "4.6.0"
-itertools = "0.15.0"
-xxhash-rust = { version = "0.8.15", features = ["xxh64"] }
-oxc = { version = "0.156.0", default-features = false }
-oxc_span = { version = "0.156.0", default-features = false }
-oxc_traverse = { version = "0.156.0", default-features = false }
-oxc_ecmascript = { version = "0.156.0", default-features = false, features = [
-  "constant_evaluation",
-] }
-oxc_allocator = { version = "0.156.0", default-features = false }
-oxc_data_structures= { version = "0.156.0", features = ["stack"] }
-miette = { version = "7.1.0", default-features = false, features = [
-  "serde",
-  "derive",
-] }
-regress = "0.11.1"
-derive_more = { version = "2.1.1", features = ["full"] }
-indicatif = "0.18.4"
-insta = { version = "1.47.1", features = ["ron"] }
-bitflags = { version = "2.11.0", features = ["serde"] }
-owo-colors = "4.3.0"
-unicode-width = "0.2.2"
-textwrap = "0.16.2"
-terminal_size = "0.4.4"
-syntect = { version = "5.3.0", default-features = false }
-memchr = "2.8.0"
-num-bigint = "0.5.1"
-num-traits = "0.2.19"
-regex = "1.12.3"
-smol_str = { version = "0.3.6", features = ["std", "serde"] }
-proc-macro2 = { version = "1.0.32", default-features = false }
-quote = { version = "1.0", default-features = false }
-syn = { version = "2.0", default-features = false, features = [
-  "full",
-  "parsing",
-  "printing",
-  "proc-macro",
-] }
-reqwest-retry = "0.9.1"
-reqwest-middleware = { version = "0.5.1", features = ["query"] }
-bytes = "1.11.1"
-macros = { path = "crates/macros" }
-explorer_types = { path = "crates/explorer_types" }
-explorer_server_core = { path = "crates/explorer_server_core" }
-ast_parser = { path = "crates/ast_parser" }
-intl_hash = { path = "crates/intl_hash" }
-vencord_ast_parser = { path = "crates/vencord_ast_parser" }
-webpack_ast_parser = { path = "crates/webpack_ast_parser" }
-webpack_chunk_parser = { path = "crates/webpack_chunk_parser" }
-pretty_printer = { path = "crates/pretty_printer" }
-patch_engine = { path = "crates/patch_engine" }
-dagre = { path = "crates/dagre", features = ["serde"] }
-discord_scraper = { path = "crates/discord_scraper" }
-miette_ctx = { path = "crates/miette_ctx" }
-git_hash = { path = "crates/git_hash" }
-reporter = { path = "crates/reporter" }
-term_progress = { path = "crates/term_progress" }
-text_diff = { path = "crates/text_diff" }
-parser_diag = { path = "crates/parser_diag" }
-miette_ui = { path = "crates/miette_ui", default-features = false }
-tower-lsp-server = "0.23.0"
-tokio-tungstenite = "0.30.0"
-futures-util = "0.3.31"
-dashmap = "6.1.0"
-tempfile = "3.27.0"
-notify = "8.2.0"
-rustc-hash = "2.1.2"
-clearscreen = "4.0.6"
-bitcode = { version = "0.6.9", features = ["serde"] }
-markdown = { version = "1.0.0", features = [] }
-criterion = { version = "0.8.2", features = ["html_reports"] }
-bytecount = { version = "0.6.9" }
-rayon = "1.12.0"
-num_cpus = "1.17.0"
-arrayvec = "0.7.8"
-jiff = { version = "0.2.31", features = ["logging"] }
-daft = { version = "0.1.7", features = ["derive"] }
-smallvec = "1.15.2"
-rangemap = "1.7.1"
-hashbrown = "0.17.1"
-bstr = "1.12.3"
-unicode-ident = "1.0.24"
-typesize = { version= "0.1.15", features = ["smol_str"] }
-libc = "0.2.189"
-url = "2.5.8"
-redis = { version = "1.6.0", features = ["tokio-comp"] }
-phf = {version = "0.14", features = ["macros"]}
-async-trait = "0.1"
-percent-encoding = "2"
-ordered-float = "5"
-lightningcss = { version = "1.0.0-alpha.72", features = ["visitor", "into_owned"] }
-getrandom = { version = "0.3", features = ["wasm_js"] }
+const_format             = { version = "0.2.35", features = ["fmt"] }
+criterion                = { version = "0.8.2", features = ["html_reports"] }
+daft                     = { version = "0.1.7", features = ["derive"] }
+dagre                    = { path = "crates/dagre", features = ["serde"] }
+dashmap                  = "6.1.0"
+derive_more              = { version = "2.1.1", features = ["full"] }
+discord_scraper          = { path = "crates/discord_scraper" }
+explorer_server_core     = { path = "crates/explorer_server_core" }
+explorer_types           = { path = "crates/explorer_types" }
+futures-util             = "0.3.31"
+getrandom                = { version = "0.3", features = ["wasm_js"] }
+git_hash                 = { path = "crates/git_hash" }
+hashbrown                = "0.17.1"
+html_parser              = "0.7.0"
+http                     = "1.4.0"
+indicatif                = "0.18.4"
+insta                    = { version = "1.47.1", features = ["ron"] }
+intl_hash                = { path = "crates/intl_hash" }
+itertools                = "0.15.0"
+jiff                     = { version = "0.2.31", features = ["logging"] }
+js-sys                   = "0.3.91"
+libc                     = "0.2.189"
+lightningcss             = { version = "1.0.0-alpha.72", features = ["visitor", "into_owned"] }
+macros                   = { path = "crates/macros" }
+markdown                 = { version = "1.0.0", features = [] }
+memchr                   = "2.8.0"
+miette                   = { version = "7.1.0", default-features = false, features = ["serde", "derive"] }
+miette_ctx               = { path = "crates/miette_ctx" }
+miette_ui                = { path = "crates/miette_ui", default-features = false }
+notify                   = "8.2.0"
+num-bigint               = "0.5.1"
+num-traits               = "0.2.19"
+num_cpus                 = "1.17.0"
+ordered-float            = "5"
+owo-colors               = "4.3.0"
+oxc                      = { version = "0.156.0", default-features = false }
+oxc_allocator            = { version = "0.156.0", default-features = false }
+oxc_data_structures      = { version = "0.156.0", features = ["stack"] }
+oxc_ecmascript           = { version = "0.156.0", default-features = false, features = ["constant_evaluation"] }
+oxc_span                 = { version = "0.156.0", default-features = false }
+oxc_traverse             = { version = "0.156.0", default-features = false }
+parser_diag              = { path = "crates/parser_diag" }
+patch_engine             = { path = "crates/patch_engine" }
+percent-encoding         = "2"
+phf                      = { version = "0.14", features = ["macros"] }
+pretty_printer           = { path = "crates/pretty_printer" }
+proc-macro2              = { version = "1.0.32", default-features = false }
+quote                    = { version = "1.0", default-features = false }
+rangemap                 = "1.7.1"
+rayon                    = "1.12.0"
+redis                    = { version = "1.6.0", features = ["tokio-comp"] }
+regex                    = "1.12.3"
+regress                  = "0.11.1"
+reporter                 = { path = "crates/reporter" }
+reqwest                  = { version = "0.13.2", features = ["stream", "query"] }
+reqwest-middleware       = { version = "0.5.1", features = ["query"] }
+reqwest-retry            = "0.9.1"
+rmcp                     = "3"
+rmp-serde                = "1"
+rustc-hash               = "2.1.2"
+serde                    = { version = "1.0.228", features = ["derive", "rc"] }
+serde-wasm-bindgen       = "0.6.5"
+serde_json               = { version = "1.0.149", features = ["preserve_order"] }
+sevenz-rust2             = { version = "0.22.2", features = ["zstd", "compress"] }
+smallvec                 = "1.15.2"
+smol_str                 = { version = "0.3.6", features = ["std", "serde"] }
+syn                      = { version = "2.0", default-features = false, features = ["full", "parsing", "printing", "proc-macro"] }
+syntect                  = { version = "5.3.0", default-features = false }
+tempfile                 = "3.27.0"
+term_progress            = { path = "crates/term_progress" }
+terminal_size            = "0.4.4"
+text_diff                = { path = "crates/text_diff" }
+textwrap                 = "0.16.2"
+thiserror                = "2.0.18"
+tokio                    = { version = "1.49.0", features = ["macros", "rt-multi-thread"] }
+tokio-stream             = { version = "0.1.18", default-features = false }
+tokio-tungstenite        = "0.30.0"
+tokio-util               = { version = "0.7.18", default-features = false }
+toml                     = "1.1.4"
+tower-http               = { version = "0.7.0", features = ["cors"] }
+tower-lsp-server         = "0.23.0"
+tracing                  = "0.1.44"
+tracing-subscriber       = { version = "0.3.23", features = ["env-filter", "time"] }
+typesize                 = { version = "0.1.15", features = ["smol_str"] }
+unicode-ident            = "1.0.24"
+unicode-width            = "0.2.2"
+url                      = "2.5.8"
+vencord_ast_parser       = { path = "crates/vencord_ast_parser" }
+wasm-bindgen-futures     = "0.4.64"
+web-sys                  = "0.3.4"
+webpack_ast_parser       = { path = "crates/webpack_ast_parser" }
+webpack_chunk_parser     = { path = "crates/webpack_chunk_parser" }
+xxhash-rust              = { version = "0.8.15", features = ["xxh64"] }
+zstd                     = "0.13.3"
 
 [patch.crates-io]
 typesize = { git = "https://github.com/sadan4/typesize", branch = "feat/smolstr" }
 
 
 [profile.release]
-codegen-units = 1
-incremental = true
-lto = "thin"
-opt-level = 3
-debug = true
+codegen-units   = 1
+debug           = true
+incremental     = true
+lto             = "thin"
+opt-level       = 3
+panic           = "abort"
 split-debuginfo = "packed"
-strip = true
-panic = "abort"
+strip           = true
 
 [profile.dev]
-opt-level = 0
+debug       = true
 incremental = true
-debug = true
+opt-level   = 0
 
 [profile.bench]
-codegen-units = 1
-incremental = true
-lto = "thin"
-opt-level = 3
-debug = true
+codegen-units   = 1
+debug           = true
+incremental     = true
+lto             = "thin"
+opt-level       = 3
 split-debuginfo = "off"
-strip = false
+strip           = false
 
 # reporter does a lot of string chunching
 [profile.dev.package.regex]
@@ -185,19 +176,19 @@ opt-level = 3
 non_kebab_case_bins = "allow"
 
 [workspace.lints.clippy]
+nursery  = { priority = -1, level = "warn" }
 pedantic = { priority = -1, level = "warn" }
-nursery = { priority = -1, level = "warn" }
 #TODO: add safety docs later
-missing_safety_doc = "deny"
+missing_safety_doc         = "deny"
 undocumented_unsafe_blocks = "deny"
 # pedantic
 # i'd love to be able to get docs on everything, but it doesn't matter that much
-missing_panics_doc = "allow"
 missing_errors_doc = "allow"
+missing_panics_doc = "allow"
 # too noisy
 cast_possible_truncation = "allow"
-cast_sign_loss = "allow"
-cast_ptr_alignment = "allow"
+cast_ptr_alignment       = "allow"
+cast_sign_loss           = "allow"
 # only good to browse
 must_use_candidate = "allow"
 # bad
@@ -213,7 +204,7 @@ unchecked_time_subtraction = "allow"
 # Nursery
 debug_assert_with_mut_call = "deny"
 # too damn noisy
-cast_possible_wrap = "allow"
+cast_possible_wrap  = "allow"
 cast_precision_loss = "allow"
 # it doesnt take types into account, so two names
 # with different types will still trigger the lint
@@ -222,20 +213,20 @@ similar_names = "allow"
 significant_drop_tightening = "allow"
 # completely broken
 # https://github.com/rust-lang/rust-clippy/issues/8539
-iter_with_drain = "allow"
+iter_with_drain              = "allow"
 too_long_first_doc_paragraph = "allow"
 #restriction
 # allow_attributes = "warn"
 # love to set this up, but no auto-fixes
 # arbitrary_source_item_ordering = "warn"
 # bugged and runs after macros are expanded
-cognitive_complexity = "allow"
-create_dir = "warn"
-decimal_literal_representation = "warn"
-filetype_is_file = "warn"
-fn_to_numeric_cast_any = "warn"
-multiple_inherent_impl = "warn"
-precedence_bits = "warn"
-semicolon_outside_block = "warn"
-disallowed_methods = "deny"
+cognitive_complexity                = "allow"
+create_dir                          = "warn"
+decimal_literal_representation      = "warn"
 deprecated_attributes_without_since = "allow"
+disallowed_methods                  = "deny"
+filetype_is_file                    = "warn"
+fn_to_numeric_cast_any              = "warn"
+multiple_inherent_impl              = "warn"
+precedence_bits                     = "warn"
+semicolon_outside_block             = "warn"
