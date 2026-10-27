@@ -98,7 +98,6 @@ use oxc::{
 			Program,
 			Statement,
 			StaticMemberExpression,
-			Str,
 			VariableDeclaration,
 			VariableDeclarationKind,
 		},
@@ -106,7 +105,6 @@ use oxc::{
 	parser::{Kind as TK, Token},
 	semantic::{NodeId, ReferenceFlags, ReferenceId, Semantic, SymbolId},
 	span::{GetSpan, SourceType, Span},
-	str::JSStr,
 };
 use parser_diag::{LocalSource, PResult, ParserDiagnostic, err, err_ns};
 use rangemap::RangeSet;
@@ -863,7 +861,10 @@ impl<'ast> WebpackAstParser<'ast> {
 
 	pub fn as_json_module(&self) -> Option<&'ast str> {
 		self.as_json_module_e_exports()
-			.or_else(|| self.as_json_module_export_default())
+			.or_else(|| {
+				self.as_json_module_export_default()
+					.ok()
+			})
 	}
 
 	pub async fn as_css_module(&self) -> PResult<CssModule> {
@@ -910,6 +911,7 @@ impl<'ast> WebpackAstParser<'ast> {
 			return None;
 		}
 		self.try_parse_json_parse(json_parse_intl)
+			.ok()
 	}
 	fn as_json_module_export_default(&self) -> PResult<&'ast str> {
 		let map = self.get_export_map_raw();
@@ -918,8 +920,14 @@ impl<'ast> WebpackAstParser<'ast> {
 			.get("default")
 			.ok_or_else(|| err_ns("module has no export `default`"))?
 			.try_unwrap_range_ref()
-			.map_err(|_| todo!())?;
-		let parse_fn = default_export.last()?;
+			.map_err(|_| {
+				err_ns(r#"raw_export_map["default"] is not a export range"#)
+			})?;
+		let parse_fn = default_export.last().ok_or_else(|| {
+			err_ns(
+				r#"raw_export_map["default"] as RawExportRange has no members"#,
+			)
+		})?;
 		let parse_fn = parse_fn
 			.as_call_expression()
 			.ok_or_else(|| err(parse_fn, "Expected a call expression"))?;
@@ -960,7 +968,7 @@ impl<'ast> WebpackAstParser<'ast> {
 				"Expected a single string argument",
 			));
 		};
-		Ok(lit.as_utf8()?)
+		lit.as_utf8()
 	}
 	fn collect_own_intl_modules(
 		&self,
@@ -999,7 +1007,7 @@ impl<'ast> WebpackAstParser<'ast> {
 					"invalid args for createLoader call, expected 2 args",
 				));
 			};
-			if fallback_lang.value.as_str() != WANT_LANG {
+			if fallback_lang.value != WANT_LANG {
 				return Err(err(
 					&**fallback_lang,
 					format!(
@@ -1275,7 +1283,7 @@ impl<'ast> WebpackAstParser<'ast> {
 							if export_names
 								.first()
 								.and_then(|k| k.try_unwrap_named_ref().ok())
-								.is_some_and(|name| **name == *ident)
+								.is_some_and(|name| **name == ident.as_js_str())
 							{
 								let Some(ident) =
 									prop.value.as_binding_identifier()
@@ -1563,7 +1571,7 @@ impl<'ast> WebpackAstParser<'ast> {
 		if !self.cmp_sym(wreq_use, &wreq) || wreq_e.property.name != "e" {
 			return None;
 		}
-		Some(&chunk_id.value)
+		chunk_id.value.as_str()
 	}
 	// FIXME: make PResult?
 	fn get_modules_that_this_module_requires_impl(
@@ -2722,9 +2730,11 @@ impl<'ast> WebpackAstParser<'ast> {
 				// TODO: check that args[1] is store_sym_id
 				if let Some(define_prop_arg) = args[1].as_string_literal()
 					&& define_prop_arg.value == "displayName"
-					&& let Some(define_value_arg) = args[2].as_string_literal()
+					&& let Some(define_value_arg) = args[2]
+						.as_string_literal()
+						.and_then(|s| s.as_utf8().ok())
 				{
-					return Some(SmolStr::new(define_value_arg.value));
+					return Some(SmolStr::new(define_value_arg));
 				}
 				// Object.defineProperty(store)
 				// store must be an identifier
@@ -2754,9 +2764,11 @@ impl<'ast> WebpackAstParser<'ast> {
 	fn is_constant_string<ID: GetSymId>(
 		&self,
 		sym_id: &ID,
-	) -> Option<Str<'ast>> {
+	) -> Option<&'ast str> {
 		self.constant_value_of(sym_id)?
-			.as_string_literal_like()
+			.as_string_literal_like()?
+			.0
+			.as_str()
 	}
 	/// The only value `sym_id` is ever set to
 	/// ```js
