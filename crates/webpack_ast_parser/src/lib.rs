@@ -7,5 +7,5 @@ pub mod intl;
 mod parser;
 mod sync;
 
-pub use parser::{WebpackAstParser, export_map, css};
+pub use parser::{WebpackAstParser, css, endpoints, export_map};
 pub use sync::ThreadSafeParser;

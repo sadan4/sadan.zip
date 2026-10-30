@@ -1,6 +1,7 @@
 #![allow(clippy::multiple_inherent_impl)]
 mod arg_finder;
 pub mod css;
+pub mod endpoints;
 mod enum_iife;
 mod experiment_parsing;
 pub mod export_map;

@@ -1,6 +1,6 @@
 #![allow(clippy::unreadable_literal, clippy::needless_raw_string_hashes)]
 
-use insta::{assert_debug_snapshot};
+use insta::assert_debug_snapshot;
 use macros::cache_test;
 use webpack_ast_parser::css::ClassName;
 

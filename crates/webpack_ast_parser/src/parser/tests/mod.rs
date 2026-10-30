@@ -20,7 +20,9 @@ macro_rules! parse {
 }
 
 mod concatenated_modules;
+mod css;
 mod direct_module_definition;
+mod endpoints;
 mod experiments;
 mod export_parsing;
 mod find_gen;
@@ -32,7 +34,6 @@ mod key_modules;
 mod module_id;
 mod outgoing_deps;
 mod remaining_access_chain;
-mod css;
 
 #[derive(Copy, Clone)]
 struct SpanDumper<'a>(pub Span, pub &'a str);
