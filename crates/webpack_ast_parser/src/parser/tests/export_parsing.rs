@@ -1180,6 +1180,25 @@ mod stores {
 	}
 
 	#[test]
+	fn store_data_survives_range_map() {
+		use crate::export_map::{ExportValue, ExtraData};
+
+		let p = parse!("test_data/wp/stores/store3.js");
+		let Some(ExportValue::Map(store)) = p.get_export_map().exports.get("Z")
+		else {
+			panic!("expected Z to be a map");
+		};
+		assert_eq!(store.hover.as_deref(), Some("GuildStore"));
+		let ExtraData::Store(data) = &store.extra_data else {
+			panic!("expected store data, got {:?}", store.extra_data);
+		};
+		for event in ["CONNECTION_OPEN", "GUILD_CREATE"] {
+			let span = data.flux_events[event];
+			assert!(!span.is_empty(), "{event} has an empty span");
+		}
+	}
+
+	#[test]
 	fn with_getters() {
 		let p = parse!("test_data/wp/stores/getter.js");
 		let map = p.dbg_export_map();

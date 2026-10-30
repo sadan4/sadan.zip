@@ -9,7 +9,9 @@ const BUF_SIZE: usize = 1024 * 1024;
 
 const REPORTER_CACHE_DIR_ENV: &str = "REPORTER_CACHE_DIR";
 const XDG_CACHE_ENV: &str = "XDG_CACHE_HOME";
-const CACHE_SUBDIR: &str = env!("CARGO_CRATE_NAME");
+/// kept as `reporter` so caches written before this moved out of reporter
+/// are still found
+const CACHE_SUBDIR: &str = "reporter";
 
 type Result<T> = std::result::Result<T, CacheError>;
 

@@ -68,6 +68,7 @@ reqwest                  = { version = "0.13", features = ["stream", "query"] }
 reqwest-middleware       = { version = "0.5", features = ["query"] }
 reqwest-retry            = "0.9"
 rmcp                     = "3"
+schemars                 = "1"
 rmp-serde                = "1"
 rustc-hash               = "2"
 serde                    = { version = "1", features = ["derive", "rc"] }
@@ -103,6 +104,7 @@ zstd                     = "0.13"
 
 # workspace deps
 ast_parser           = { path = "crates/ast_parser" }
+bundle_source        = { path = "crates/bundle_source" }
 dagre                = { path = "crates/dagre", features = ["serde"] }
 discord_scraper      = { path = "crates/discord_scraper" }
 explorer_server_core = { path = "crates/explorer_server_core" }

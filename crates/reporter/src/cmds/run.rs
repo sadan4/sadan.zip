@@ -156,6 +156,7 @@ pub async fn run_reporter(
 			     channel,
 			     modules,
 			     build_hash: _,
+			     css_chunks: _,
 			 }| (channel, Arc::new(modules)),
 		)
 		.collect_vec();

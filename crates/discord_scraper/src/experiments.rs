@@ -293,6 +293,25 @@ impl ParsedBundle {
 		})
 	}
 
+	/// Parses every module in `modules`, reusing an already built dep graph
+	///
+	/// # Errors
+	/// If a module fails to parse
+	pub fn with_dep_info(
+		modules: &Modules,
+		dep_info: DepInfo,
+		progress: Arc<dyn ScrapeProgress>,
+	) -> Result<Self> {
+		let store = InMemoryBundle::new();
+		store.set_deps(&dep_info);
+		parse_modules(modules, &store, false, &*progress)?;
+		Ok(Self {
+			store,
+			dep_info,
+			progress,
+		})
+	}
+
 	#[must_use]
 	pub const fn dep_info(&self) -> &DepInfo {
 		&self.dep_info
@@ -335,6 +354,17 @@ impl ParsedBundle {
 			.ok()?
 			.get(&id)
 			.cloned()
+	}
+
+	/// Every parser in the bundle, in no particular order
+	pub fn parsers(
+		&self,
+	) -> impl Iterator<Item = (ModuleId, &Arc<ThreadSafeParser>)> {
+		self.store
+			.parsers()
+			.into_iter()
+			.flatten()
+			.map(|(&id, parser)| (id, parser))
 	}
 }
 

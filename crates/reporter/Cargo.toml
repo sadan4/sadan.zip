@@ -8,6 +8,7 @@ anyhow.workspace               = true
 arrayvec.workspace             = true
 ast_parser.workspace           = true
 bitcode.workspace              = true
+bundle_source.workspace        = true
 bstr.workspace                 = true
 clap.workspace                 = true
 clap_complete.workspace        = true

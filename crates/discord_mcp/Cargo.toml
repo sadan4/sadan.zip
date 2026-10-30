@@ -1,0 +1,43 @@
+[package]
+edition.workspace = true
+name              = "discord_mcp"
+version           = "0.1.0"
+
+[[bin]]
+name = "discord-mcp"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace             = true
+bundle_source.workspace      = true
+dashmap.workspace            = true
+discord_scraper.workspace    = true
+explorer_types.workspace     = true
+intl_hash.workspace          = true
+memchr.workspace             = true
+miette                       = { workspace = true, features = ["fancy-no-backtrace"] }
+oxc.workspace                = true
+patch_engine.workspace       = true
+pretty_printer.workspace     = true
+rayon.workspace              = true
+regex.workspace              = true
+regress.workspace            = true
+reporter.workspace           = true
+rmcp                         = { workspace = true, features = ["transport-io"] }
+schemars.workspace           = true
+serde.workspace              = true
+serde_json.workspace         = true
+smol_str.workspace           = true
+term_progress.workspace      = true
+text_diff.workspace          = true
+tokio                        = { workspace = true, features = ["fs", "io-std"] }
+tracing.workspace            = true
+tracing-subscriber.workspace = true
+vencord_ast_parser.workspace = true
+webpack_ast_parser.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

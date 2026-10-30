@@ -1,30 +1,16 @@
 pub mod http;
 
-use anyhow::{Context as _, Result, bail};
+use std::sync::Arc;
+
+use anyhow::{Context as _, Result};
+pub use bundle_source::scrape::{ScrapedBranch, ScrapedOutput};
 use clap::Args;
-use discord_scraper::{
-	BarProgress,
-	JsScraper,
-	ScrapeProgress as _,
-	ScrapedModules,
-	make_reqwest_client,
-	util::ByteStr,
-};
-use explorer_types::{Channel, ModuleId};
-use reqwest_middleware::ClientWithMiddleware;
-use serde::{Deserialize, Serialize};
+use discord_scraper::BarProgress;
 use smallvec::SmallVec;
-use std::{collections::HashMap, sync::Arc};
 use tokio::task;
-use tracing::{debug, error, info, warn};
+use tracing::warn;
 
-use crate::{
-	Branch,
-	cache,
-	util::MultiProgressWrapper,
-};
-
-pub type ScrapedOutput = HashMap<ModuleId, String>;
+use crate::{Branch, util::MultiProgressWrapper};
 
 #[derive(Args, Debug, Clone)]
 pub struct FetchOpts {
@@ -48,13 +34,6 @@ pub struct FetchOpts {
 	pub branches: Vec<Branch>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct ScrapedBranch {
-	pub channel: Channel,
-	pub modules: ScrapedOutput,
-	pub build_hash: String,
-}
-
 pub async fn fetch_build(
 	opts: FetchOpts,
 	bars: &MultiProgressWrapper,
@@ -66,105 +45,14 @@ pub async fn fetch_build(
 		SmallVec::with_capacity(opts.branches.len());
 	for &branch in &opts.branches {
 		let ch = branch.into();
-		let bars2 = bars.clone();
-		futs.push(tokio::spawn(async move {
-			let scraped = fetch_for_channel(ch, bars2).await?;
-			Ok(scraped)
-		}));
+		let progress = Arc::new(BarProgress::new(bars.clone(), ch));
+		futs.push(tokio::spawn(bundle_source::scrape::fetch_modules(
+			ch, progress, false,
+		)));
 	}
 	let mut results = Vec::with_capacity(futs.len());
 	for fut in futs {
 		results.push(fut.await.context("Join error")??);
 	}
 	Ok(results)
-}
-
-async fn fetch_for_channel(
-	channel: Channel,
-	bars: MultiProgressWrapper,
-) -> Result<ScrapedBranch> {
-	info!("Fetching build from {channel:?} channel");
-	let progress = Arc::new(BarProgress::new(bars, channel));
-	progress.set_stage("Fetching index HTML");
-	let client =
-		make_reqwest_client().context("Failed to create HTTP client")?;
-	let IndexResponse { text, build_hash } =
-		fetch_index(&client, channel).await?;
-	let cache_key = make_cache_key(build_hash.clone());
-	progress.set_stage("Reading cache");
-	match cache::read(&cache_key).await {
-		Ok(Some(data)) => {
-			info!("Cache hit on fetching build");
-			return Ok(data);
-		}
-		Ok(None) => {
-			debug!("Cache miss on fetching build");
-		}
-		Err(e) => {
-			if e.is_deserialize() {
-				warn!("Failed to deserialize cache file. invalidating entry");
-				if let Err(e) = cache::invalidate(&cache_key).await {
-					error!("Failed to invalidate cache entry {e:?}");
-				}
-			}
-			warn!(
-				"Failed to read from cache, falling back to scraping via network. {e:?}"
-			);
-		}
-	}
-	let ScrapedModules { modules, .. } =
-		JsScraper::scrape(text.as_ref(), channel, client, progress).await?;
-	let output = ScrapedBranch {
-		channel,
-		modules,
-		build_hash,
-	};
-	// we need to await this here so the task isn't dropped on process exit
-	match cache::write(&cache_key, &output, None).await {
-		Ok(()) => {
-			info!("Wrote modules to cache");
-		}
-		Err(e) => {
-			warn!("Failed to write modules to cache. {e:?}");
-		}
-	}
-	Ok(output)
-}
-
-fn make_cache_key(mut build_hash: String) -> String {
-	debug_assert!(!build_hash.is_empty(), "build hash should not be empty");
-	const SUFFIX: &str = ".cache";
-	if !build_hash.ends_with(SUFFIX) {
-		build_hash.push_str(SUFFIX);
-	}
-	build_hash
-}
-
-pub struct IndexResponse {
-	pub text: ByteStr,
-	pub build_hash: String,
-}
-
-pub async fn fetch_index(
-	client: &ClientWithMiddleware,
-	channel: Channel,
-) -> Result<IndexResponse> {
-	let url = channel.app_base();
-	let res = client.get(url).send().await?;
-	let build_hash = if let Some(build_hash) = res.headers().get("x-build-id") {
-		match build_hash.to_str() {
-			Ok(s) => {
-				info!("{channel:?} build hash: {s}");
-				String::from(s)
-			}
-			Err(e) => {
-				bail!("Failed to read build hash from response header: {e:?}");
-			}
-		}
-	} else {
-		bail!("Response did not include build hash header");
-	};
-	let bytes = res.bytes().await?;
-	let text = ByteStr::try_from(bytes).context("Invalid response body")?;
-	Ok(IndexResponse { text, build_hash })
 }

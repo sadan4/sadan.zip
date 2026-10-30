@@ -428,13 +428,12 @@ fn raw_export_range_to_range_export_range(
 	ret.1.clone_from(annotation);
 	ret
 }
-// TODO: transform extra data?
 pub(super) fn raw_export_map_to_range_export_map(
 	ExportMap {
 		exports,
 		cjs_default,
 		hover,
-		extra_data: _,
+		extra_data,
 		node: _,
 	}: &RawExportMap,
 ) -> RangeExportMap {
@@ -449,7 +448,23 @@ pub(super) fn raw_export_map_to_range_export_map(
 			.as_ref()
 			.map(|e| Box::new(raw_export_value_to_range_export_value(e))),
 		hover: hover.clone(),
-		extra_data: ExtraData::None,
+		extra_data: match extra_data {
+			ExtraData::None => ExtraData::None,
+			ExtraData::Store(StoreData { store, flux_events }) => {
+				ExtraData::Store(StoreData {
+					store: get_ast_kind_span_for_export_map(*store),
+					flux_events: flux_events
+						.iter()
+						.map(|(event, handler)| {
+							(
+								event.clone(),
+								get_ast_kind_span_for_export_map(*handler),
+							)
+						})
+						.collect(),
+				})
+			}
+		},
 		node: None,
 	}
 }

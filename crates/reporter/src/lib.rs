@@ -1,4 +1,4 @@
-pub mod cache;
+pub use bundle_source::cache;
 pub mod cmds;
 pub mod diag;
 pub mod fetcher;

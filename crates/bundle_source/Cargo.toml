@@ -1,0 +1,23 @@
+[package]
+edition.workspace = true
+name              = "bundle_source"
+version           = "0.1.0"
+
+[dependencies]
+anyhow.workspace             = true
+derive_more.workspace        = true
+discord_scraper.workspace    = true
+explorer_types.workspace     = true
+reqwest-middleware.workspace = true
+rmp-serde.workspace          = true
+serde.workspace              = true
+smol_str.workspace           = true
+thiserror.workspace          = true
+tokio                        = { workspace = true, features = ["fs"] }
+tokio-stream.workspace       = true
+tokio-util                   = { workspace = true, features = ["io", "io-util"] }
+tracing.workspace            = true
+zstd.workspace               = true
+
+[lints]
+workspace = true
