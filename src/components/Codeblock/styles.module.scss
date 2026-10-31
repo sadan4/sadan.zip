@@ -29,6 +29,7 @@
             align-items: flex-end;
             justify-content: flex-start;
             flex-direction: column;
+            gap: .25rem;
 
             > .button-container {
                 @include u.anim-prop(opacity);

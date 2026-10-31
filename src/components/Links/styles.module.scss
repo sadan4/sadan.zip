@@ -2,13 +2,12 @@
     .link,
     .link>:global(.text) {
         font-weight: 500;
-        color: var(--color-info-400);
+        color: var(--color-textLink-foreground);
         text-decoration: inherit;
     }
 
-    .link,
     .link:hover>:global(.text) {
-        color: var(--color-info-500);
+        color: var(--color-textLink-activeForeground);
     }
 
     .text-link {

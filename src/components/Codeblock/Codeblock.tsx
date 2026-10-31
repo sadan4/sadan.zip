@@ -15,9 +15,11 @@ import * as styles from "./styles.module.scss";
 import { IconButton } from "../Button";
 import { ScrollAreaDirection } from "../layout/ScrollArea/types";
 import { Text } from "../Text";
+import { ThemeContext } from "../Theme/misc";
+import { TooltipPosition } from "../Tooltip/constants";
 
 import { CopyIcon } from "lucide-react";
-import { type ComponentProps, startTransition, Suspense, useCallback, useEffect, useState } from "react";
+import { type ComponentProps, startTransition, Suspense, use, useCallback, useEffect, useState } from "react";
 
 export interface CodeblockProps extends Omit<ComponentProps<"div">, "children" | "lang"> {
     children: string;
@@ -48,7 +50,7 @@ declare module "react" {
 
 function CodeblockInner({
     lang,
-    theme = TextmateTheme.TOKYO_NIGHT,
+    theme,
     children,
     className,
     overflowX = HorizontalOverflowMode.WRAP,
@@ -57,6 +59,15 @@ function CodeblockInner({
     noCopy = false,
     ...props
 }: CodeblockProps) {
+    if (theme == null) {
+        // TODO: ssr based on theme
+        if (import.meta.env.SSR) {
+            theme = TextmateTheme.TOKYO_NIGHT;
+        } else {
+            theme = use(ThemeContext).theme;
+        }
+    }
+
     // NOTE: react compiler workaround
     let lineNumbers = _lineNumbers;
 
@@ -143,7 +154,9 @@ function CodeblockInner({
         >
             {highlightedCode}
             <div className={styles.overlayContainer}>
-                <Text>{languageDisplayNames[lang]}</Text>
+                <div className="rounded-lg border border-editorHoverWidget-border bg-editorHoverWidget-background p-1">
+                    <Text>{languageDisplayNames[lang]}</Text>
+                </div>
                 {!noCopy && (
                     <div className={styles.buttonContainer}>
                         <IconButton
@@ -152,6 +165,7 @@ function CodeblockInner({
                             onClick={() => copy(children)
                                 .then(() => true)
                                 .catch(() => false)}
+                            tooltipPosition={TooltipPosition.RIGHT}
                         >
                             <CopyIcon />
                         </IconButton>

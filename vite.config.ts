@@ -4,6 +4,7 @@ import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import viteReact from "@vitejs/plugin-react";
 
 import { omt } from "./scripts/vite-plugin-omt.ts";
+import { themeModules } from "./scripts/vite-plugin-theme-modules.ts";
 
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -72,6 +73,7 @@ const config = defineConfig(async ({ command, isSsrBuild }) => {
                 compiler: true,
             }),
             omt(),
+            themeModules(),
             !isWindowsOnArm && (await import("@cloudflare/vite-plugin")).cloudflare({
                 viteEnvironment: {
                     name: "ssr",

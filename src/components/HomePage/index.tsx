@@ -26,6 +26,7 @@ import {
 } from "@/utils/constants";
 
 import * as styles from "./styles.module.scss";
+import { ThemeSelector } from "../Theme/Selector";
 
 import { ArrowRightIcon } from "lucide-react";
 import type { ReactNode } from "react";
@@ -108,7 +109,29 @@ function LinksTabSection() {
     );
 }
 
-export type HomePageTab = "about" | "links";
+function ThemeTabSection() {
+    return (
+        <div>
+            <Text
+                size="lg"
+                color="primary"
+            >
+                Theme
+            </Text>
+            <div className="flex items-start justify-between pr-2">
+                <Text tag="p">
+                    This site can be themed with any VSCode theme. Select your favourite here!
+                </Text>
+                <ThemeSelector />
+            </div>
+            <Text>
+                Themes even work without JavaScirpt!
+            </Text>
+        </div>
+    );
+}
+
+export type HomePageTab = "about" | "links" | "theme";
 
 export interface HomePageProps {
     tab: HomePageTab;
@@ -174,6 +197,23 @@ export function HomePage({ tab }: HomePageProps) {
                                             size="xl"
                                         >
                                             Links
+                                        </TextLink>
+                                    );
+                                },
+                            },
+                            {
+                                id: "theme",
+                                render() {
+                                    return <ThemeTabSection />;
+                                },
+                                renderTab(_props) {
+                                    return (
+                                        <TextLink
+                                            to="/{-$tab}"
+                                            params={{ tab: "theme" }}
+                                            size="xl"
+                                        >
+                                            Theme
                                         </TextLink>
                                     );
                                 },

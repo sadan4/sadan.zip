@@ -15,7 +15,7 @@ export default {
                     true,
                     {
                         // tailwind at rules
-                        ignoreAtRules: ["reference", "apply", "utility"],
+                        ignoreAtRules: ["reference", "apply", "utility", "theme", "source"],
                     },
                 ],
             },
@@ -43,5 +43,8 @@ export default {
                 camelCaseSvgKeywords: true,
             },
         ],
+        "custom-property-pattern": null,
+        // tailwind only inlines string imports; `url()` imports skip its @theme processing
+        "import-notation": "string",
     },
 } satisfies Config;

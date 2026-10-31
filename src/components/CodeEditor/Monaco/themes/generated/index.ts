@@ -18,6 +18,8 @@ export function CATPPUCCIN_LATTE() { return import("./catppuccin_latte.ts").then
 export function DRACULA() { return import("./dracula.ts").then(({default: d}) => d) }
 export function GRUVBOX() { return import("./gruvbox.ts").then(({default: d}) => d) }
 export function OXOCARBON() { return import("./oxocarbon.ts").then(({default: d}) => d) }
+export function VSCODE_DARK() { return import("./vscode_dark.ts").then(({default: d}) => d) }
+export function VSCODE_LIGHT() { return import("./vscode_light.ts").then(({default: d}) => d) }
 export const loaderMap: Record<TextmateTheme, () => Promise<MonacoThemeData>> = {
     [0]: TOKYO_NIGHT,
     [1]: ROSE_PINE,
@@ -31,4 +33,6 @@ export const loaderMap: Record<TextmateTheme, () => Promise<MonacoThemeData>> = 
     [9]: DRACULA,
     [10]: GRUVBOX,
     [11]: OXOCARBON,
+    [12]: VSCODE_DARK,
+    [13]: VSCODE_LIGHT,
 };

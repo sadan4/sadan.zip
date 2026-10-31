@@ -674,6 +674,7 @@ const styleRules: RuleMap = {
                 // template literal tags
                 "js",
                 "css",
+                "ts",
             ],
         },
     ],
