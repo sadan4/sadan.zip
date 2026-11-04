@@ -23,6 +23,7 @@ use memchr::memmem::Finder;
 use oxc::{
 	allocator::Allocator,
 	ast::ast::{
+		ArrowFunctionBody,
 		ArrowFunctionExpression,
 		BinaryOperator,
 		Expression,
@@ -30,6 +31,7 @@ use oxc::{
 		ObjectProperty,
 		Program,
 		PropertyKind,
+		Statement,
 		VariableDeclarator,
 	},
 	semantic::{ReferenceFlags, Semantic, SymbolFlags, SymbolId},
@@ -49,8 +51,12 @@ pub struct WebpackMainChunkParser<'ast> {
 }
 
 const WEBPACK_EXPORTS_NAME: &str = "__webpack_exports__";
-const KNOWN_BUILD_MODULE_IDS: &[ModuleId] =
-	&[ModuleId(128014), ModuleId(446023), ModuleId(927815)];
+const KNOWN_BUILD_MODULE_IDS: &[ModuleId] = &[
+	ModuleId(128014),
+	ModuleId(446023),
+	ModuleId(927815),
+	ModuleId(556193),
+];
 static BUILD_MODULE_NEEDLE: LazyLock<Finder<'static>> = LazyLock::new(|| {
 	Finder::new(b"Trying to open a changelog for an invalid build number")
 });
@@ -91,6 +97,36 @@ fn as_valid_module_id<'ast>(expr: &'ast Expression<'ast>) -> Option<ModuleId> {
 			.map(ModuleId),
 		_ => None,
 	}
+}
+
+/// parses the chunk id out of `id === e`, the literal may be on either side
+fn parse_chunk_id_test(test: &Expression) -> PResult<SmolStr> {
+	let test = test.get_inner_expression();
+	let cond = test
+		.as_binary_expression()
+		.ok_or_else(|| err(test, "chunk id test is not a binary expression"))?;
+	if cond.operator != BinaryOperator::StrictEquality {
+		return Err(err(cond, "chunk id test is not strict equality"));
+	}
+	let as_chunk_id = |expr: &Expression| -> Option<PResult<SmolStr>> {
+		match expr {
+			Expression::StringLiteral(s) => {
+				Some(s.as_utf8().map(ToSmolStr::to_smolstr))
+			}
+			Expression::NumericLiteral(n) => {
+				n.as_u32().map(|n| Ok(n.to_smolstr()))
+			}
+			_ => None,
+		}
+	};
+	as_chunk_id(&cond.left)
+		.or_else(|| as_chunk_id(&cond.right))
+		.ok_or_else(|| {
+			err(
+				cond,
+				"neither side of the chunk id test is a string or number literal",
+			)
+		})?
 }
 
 fn handle_chunk_cond_rhs(
@@ -399,44 +435,68 @@ impl<'ast> WebpackMainChunkParser<'ast> {
 			}
 			return Err(err_ns(format!("Failed to find `wreq.{target}`")));
 		};
-		// expect body to be BinExp>[BinExp>["" + {id:hash}[id]] + ".js"]
-		let mut cur = u_func.get_expression().ok_or_else(|| {
-			err(
-				u_func,
-				format!("`wreq.{target}` body is not a single expression"),
-			)
-		})?;
 		let mut ret = Vec::new();
-		while let Some(expr) = cur.as_conditional_expression() {
-			let test = expr.test.get_inner_expression();
-			let cond = test
-				.as_binary_expression()
+		// expect body to be BinExp>[BinExp>["" + {id:hash}[id]] + ".js"]
+		let mut cur = if let ArrowFunctionBody::FunctionBody(body) =
+			&u_func.body
+		{
+			// or a block of `if (id === e) return "" + e + ".hash.js";`
+			// followed by `return <expr>`
+			let (last, ifs) = body
+				.statements
+				.split_last()
 				.ok_or_else(|| {
-					err(test, "chunk id test is not a binary expression")
+					err(u_func, format!("`wreq.{target}` body is empty"))
 				})?;
-			if cond.operator != BinaryOperator::StrictEquality {
-				return Err(err(
-					cond,
-					"chunk id test is not a strict equality",
-				));
-			}
-			let chunk_id = cond
-				.left
-				.as_string_literal()
-				.map(StringLiteralExt::as_utf8)
-				.or_else(|| {
-					cond.right
-						.as_string_literal()
-						.map(StringLiteralExt::as_utf8)
-				})
+			for stmt in ifs {
+				let Statement::IfStatement(if_stmt) = stmt else {
+					return Err(err(
+						stmt,
+						format!("`wreq.{target}` body has a non-if statement"),
+					));
+				};
+				if if_stmt.alternate.is_some() {
+					return Err(err(
+						if_stmt.as_ref(),
+						"chunk id test has an else branch",
+					));
+				}
+				let rhs = match &if_stmt.consequent {
+					Statement::ReturnStatement(r) => r.argument.as_ref(),
+					_ => None,
+				}
 				.ok_or_else(|| {
 					err(
-						cond,
-						"neither side of the chunk id test is a string literal",
+						&if_stmt.consequent,
+						"chunk id test consequent is not a return",
 					)
-				})??;
+				})?;
+				let chunk_id = parse_chunk_id_test(&if_stmt.test)?;
+				let entry = handle_chunk_cond_rhs(&chunk_id, rhs, raw_target)?;
+				ret.push(entry);
+			}
+			match last {
+				Statement::ReturnStatement(r) => r.argument.as_ref(),
+				_ => None,
+			}
+			.ok_or_else(|| {
+				err(
+					last,
+					format!("`wreq.{target}` body does not end with a return"),
+				)
+			})?
+		} else {
+			u_func.get_expression().ok_or_else(|| {
+				err(
+					u_func,
+					format!("`wreq.{target}` body is not a single expression"),
+				)
+			})?
+		};
+		while let Some(expr) = cur.as_conditional_expression() {
+			let chunk_id = parse_chunk_id_test(&expr.test)?;
 			let rhs = &expr.consequent;
-			let entry = handle_chunk_cond_rhs(chunk_id, rhs, raw_target)?;
+			let entry = handle_chunk_cond_rhs(&chunk_id, rhs, raw_target)?;
 			ret.push(entry);
 			cur = &expr.alternate;
 		}
@@ -630,27 +690,30 @@ impl<'ast> WebpackMainChunkParser<'ast> {
 
 	pub fn get_build_number(&self) -> PResult<SmolStr> {
 		let modules = self.get_defined_modules()?;
-		// use known build modules to save time
-		// TODO: perform a manual search if this fails
-		// FIXME: warn when using BUILD_MODULE_NEEDLE
-		for maybe_known_id in KNOWN_BUILD_MODULE_IDS {
-			if let Some(m_txt) = modules.get(maybe_known_id)
-				&& BUILD_MODULE_NEEDLE
-					.find(m_txt.as_bytes())
-					.is_some()
-			{
-				let id = BUILD_NUMBER_REGEX
-					.captures(m_txt)
-					.and_then(|caps| caps.get(1))
-					.ok_or_else(|| {
-						err_ns(
-							"Failed to find the build number in the build module",
-						)
-					})?
-					.as_str()
-					.into();
-				return Ok(id);
-			}
+		let is_build_module = |m_txt: &&String| {
+			BUILD_MODULE_NEEDLE
+				.find(m_txt.as_bytes())
+				.is_some()
+		};
+		// use known build modules to save time, fall back to scanning them all
+		// FIXME: warn when the known ids miss
+		let build_module = KNOWN_BUILD_MODULE_IDS
+			.iter()
+			.filter_map(|id| modules.get(id))
+			.find(is_build_module)
+			.or_else(|| modules.values().find(is_build_module));
+		if let Some(m_txt) = build_module {
+			let id = BUILD_NUMBER_REGEX
+				.captures(m_txt)
+				.and_then(|caps| caps.get(1))
+				.ok_or_else(|| {
+					err_ns(
+						"Failed to find the build number in the build module",
+					)
+				})?
+				.as_str()
+				.into();
+			return Ok(id);
 		}
 		Err(err_ns("Failed to find the build module"))
 	}
@@ -843,6 +906,34 @@ mod tests {
 		{
 			let build_number = parser.get_build_number().unwrap();
 			assert_eq!(build_number, "538030", "build number mismatch");
+		};
+		{
+			let mut hashes = parser.get_js_chunk_hashes().unwrap();
+			hashes.sort_by(|a, b| a.chunk_id.cmp(&b.chunk_id));
+			assert_ron_snapshot!(hashes);
+		};
+		{
+			let modules = parser
+				.get_defined_modules()
+				.unwrap()
+				.into_keys()
+				.sorted()
+				.collect_vec();
+			assert_ron_snapshot!(modules);
+		};
+	}
+
+	#[test]
+	fn format_5() {
+		let alloc = Allocator::new();
+		let parser = parse!(alloc, "test_data/fullWeb5.js");
+		{
+			let entrypoint = parser.get_entrypoint_id().unwrap();
+			assert_eq!(entrypoint, ModuleId(329563), "entrypoint mismatch");
+		};
+		{
+			let build_number = parser.get_build_number().unwrap();
+			assert_eq!(build_number, "664219", "build number mismatch");
 		};
 		{
 			let mut hashes = parser.get_js_chunk_hashes().unwrap();
