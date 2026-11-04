@@ -154,6 +154,7 @@ in {
 						"~@cpu-emulation @debug @keyring @mount @obsolete @privileged @setuid"
 						"setrlimit"
 					];
+					LimitNOFILE = 65536;
 				};
 
 				environment = {
