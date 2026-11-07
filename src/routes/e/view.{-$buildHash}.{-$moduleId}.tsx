@@ -97,7 +97,8 @@ export const Route = createFileRoute("/e/view/{-$buildHash}/{-$moduleId}")({
     // still runs on the server for ssr: false routes, so crawlers get build-specific embeds
     async head({ params: { buildHash, moduleId }, match: { search } }) {
         // embeds only matter for the initial server render, don't refetch on client navigations
-        const meta = import.meta.env.SSR ? await (await import("./-meta")).fetchBuildMeta(buildHash) : null;
+        const embed = import.meta.env.SSR ? await import("./-meta") : null;
+        const meta = embed?.isDiscordbot() ? await embed.fetchBuildMeta(buildHash) : null;
 
         return {
             meta: [

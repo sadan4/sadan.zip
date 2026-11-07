@@ -1,6 +1,7 @@
 import { BUILD_METADATA_URL } from "@/utils/constants";
 import type { TBundleHash } from "@/utils/types";
 import { decode } from "@msgpack/msgpack";
+import { getRequestHeader } from "@tanstack/react-start/server";
 
 import { zstdDecompressSync } from "node:zlib";
 import z from "zod";
@@ -20,6 +21,10 @@ export type BuildMeta = z.infer<typeof BuildMeta>;
  * don't hold up the embed for too long if the build server is slow
  */
 const FETCH_TIMEOUT_MS = 2000;
+
+export function isDiscordbot(): boolean {
+    return getRequestHeader("user-agent")?.includes("Discordbot") ?? false;
+}
 
 /**
  * @returns null if the build server doesn't have the build or can't be reached
