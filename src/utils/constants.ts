@@ -49,6 +49,10 @@ export function BUNDLE_ARCHIVE_URL(buildHash: TBundleHash): string {
     return `${SERVER_BASE_URL}/build/archive/${buildHash}.7z`;
 }
 
+export function BUILD_METADATA_URL(buildHash: TBundleHash): string {
+    return `${SERVER_BASE_URL}/build/${buildHash}/metadata`;
+}
+
 export function BUNDLE_ARCHIVE_FILENAME(buildHash: TBundleHash): string {
     return `${buildHash}.7z`;
 }

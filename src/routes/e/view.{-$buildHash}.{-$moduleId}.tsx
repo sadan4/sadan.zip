@@ -8,6 +8,7 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 
 import { type BundleLoadProgress, useBundleLoadStore } from "./-data/loadProgress";
+import type { BuildMeta } from "./-meta";
 
 import { LoaderCircle } from "lucide-react";
 import z from "zod";
@@ -93,8 +94,66 @@ export const Route = createFileRoute("/e/view/{-$buildHash}/{-$moduleId}")({
         }
     },
     validateSearch: zodValidator(searchParamsSchema),
+    // still runs on the server for ssr: false routes, so crawlers get build-specific embeds
+    async head({ params: { buildHash, moduleId }, match: { search } }) {
+        // embeds only matter for the initial server render, don't refetch on client navigations
+        const meta = import.meta.env.SSR ? await (await import("./-meta")).fetchBuildMeta(buildHash) : null;
+
+        return {
+            meta: [
+                {
+                    property: "og:title",
+                    content: getEmbedTitle(meta, moduleId),
+                },
+                {
+                    property: "og:description",
+                    content: getEmbedDescription(buildHash, meta, moduleId, search),
+                },
+            ],
+        };
+    },
     ssr: false,
 });
+
+function getEmbedTitle(meta: BuildMeta | null, moduleId: number | null): string {
+    const build = meta ? `Build ${meta.buildNumber}` : "Discord Bundle Explorer";
+
+    return moduleId == null ? `sadan - ${build}` : `sadan - Module ${moduleId} · ${build}`;
+}
+
+function getEmbedDescription(
+    buildHash: TBundleHash,
+    meta: BuildMeta | null,
+    moduleId: number | null,
+    { sl, el }: z.infer<typeof searchParamsSchema>,
+): string {
+    const lines: string[] = [];
+
+    if (meta) {
+        const channels = meta.channel.length ? `${meta.channel.join(" and ")} ` : "";
+
+        const firstSeen = new Date(meta.firstSeen).toLocaleDateString("en-US", {
+            dateStyle: "medium",
+            timeZone: "UTC",
+        });
+
+        lines.push(`Discord ${channels}build ${meta.buildNumber} (${buildHash.slice(0, 8)}), first seen ${firstSeen}.`);
+    } else {
+        lines.push(`Discord build ${buildHash}.`);
+    }
+
+    if (moduleId != null) {
+        if (sl != null && el != null && el !== sl) {
+            lines.push(`Lines ${sl}-${el} of module ${moduleId}.`);
+        } else if (sl != null) {
+            lines.push(`Line ${sl} of module ${moduleId}.`);
+        } else {
+            lines.push(`Module ${moduleId}.`);
+        }
+    }
+
+    return lines.join("\n");
+}
 
 function ExplorerWrapper() {
     return <ui.Explorer />;
