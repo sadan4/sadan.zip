@@ -1,0 +1,49 @@
+import { RAMDownloader } from "@/components/RAMDownloader/RAMDownloader";
+
+export const meta = {
+    title: "Hello, Blog",
+    description: "testing testing 123",
+    date: "2026-11-08",
+};
+
+this is the obligatory sample post because i need something so the UI doesn't look weird
+
+## Markdown test
+
+abc **bold** and *italic* and `inline code` and [relative links](/) in [MDX (external link)](https://mdxjs.org)
+
+- list
+- of
+- things
+
+> quotes too
+
+1. ordered
+2. list
+3. of
+4. things
+
+> [!NOTE]
+> 
+> callouts?
+
+### Codeblocks
+
+thanks [shiki](https://shiki.style)
+
+```ts
+export abstract class Animal {
+    abstract speak();
+}
+export class Cat extends Animal {
+    override speak() {
+        console.log(":3");
+    }
+}
+```
+
+## Components
+
+we can do wacky things like download ram from a blog
+
+<RAMDownloader />

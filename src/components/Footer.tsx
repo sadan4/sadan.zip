@@ -1,6 +1,6 @@
 import { Text } from "@/components/Text";
 
-import { PersonalButtonLink, SourceLink, ThemeLink } from "./Links";
+import { BlogLink, PersonalButtonLink, SourceLink, ThemeLink } from "./Links";
 import { joinWithKey } from "../utils/array";
 
 import {
@@ -36,6 +36,7 @@ export const DefaultFooter = memo(function DefaultFooter() {
             <ThemeLink key="footer-theme-link" />
             <SourceLink key="footer-source-link" />
             <PersonalButtonLink key="footer-button-link" />
+            <BlogLink key="footer-blog-link" />
         </BaseFooter>
     );
 });

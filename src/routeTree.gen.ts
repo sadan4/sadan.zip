@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from "./routes/__root";
 import { Route as RouteImport } from "./routes/_";
 import { Route as IndexRouteImport } from "./routes/_/index";
+import { Route as BlogRouteRouteImport } from "./routes/_/blog/route";
 import { Route as ComponentsRouteImport } from "./routes/_/components";
 import { Route as DemanglerRouteImport } from "./routes/_/demangler";
 import { Route as DownloadRamRouteImport } from "./routes/_/download-ram";
@@ -19,6 +20,8 @@ import { Route as Char123TabChar125RouteImport } from "./routes/_/{-$tab}";
 import { Route as AstViewerIndexRouteImport } from "./routes/ast-viewer/index";
 import { Route as R88x31IndexRouteImport } from "./routes/_/88x31/index";
 import { Route as R88x31LangRouteImport } from "./routes/_/88x31/$lang";
+import { Route as BlogIndexRouteImport } from "./routes/_/blog/index";
+import { Route as BlogSlugRouteImport } from "./routes/_/blog/$slug";
 import { Route as DiscordIntlIndexRouteImport } from "./routes/_/discord-intl/index";
 import { Route as EIndexRouteImport } from "./routes/_/e/index";
 import { Route as VisIndexRouteImport } from "./routes/_/vis/index";
@@ -31,6 +34,11 @@ const Route = RouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: "/",
   path: "/",
+  getParentRoute: () => Route,
+} as any);
+const BlogRouteRoute = BlogRouteRouteImport.update({
+  id: "/blog",
+  path: "/blog",
   getParentRoute: () => Route,
 } as any);
 const ComponentsRoute = ComponentsRouteImport.update({
@@ -73,6 +81,16 @@ const R88x31LangRoute = R88x31LangRouteImport.update({
   path: "/88x31/$lang",
   getParentRoute: () => Route,
 } as any);
+const BlogIndexRoute = BlogIndexRouteImport.update({
+  id: "/",
+  path: "/",
+  getParentRoute: () => BlogRouteRoute,
+} as any);
+const BlogSlugRoute = BlogSlugRouteImport.update({
+  id: "/$slug",
+  path: "/$slug",
+  getParentRoute: () => BlogRouteRoute,
+} as any);
 const DiscordIntlIndexRoute = DiscordIntlIndexRouteImport.update({
   id: "/discord-intl/",
   path: "/discord-intl/",
@@ -97,6 +115,7 @@ const EViewChar123BuildHashChar125Char123ModuleIdChar125Route =
 
 export interface FileRoutesByFullPath {
   "/": typeof IndexRoute;
+  "/blog": typeof BlogRouteRouteWithChildren;
   "/components": typeof ComponentsRoute;
   "/demangler": typeof DemanglerRoute;
   "/download-ram": typeof DownloadRamRoute;
@@ -104,7 +123,9 @@ export interface FileRoutesByFullPath {
   "/{-$tab}": typeof Char123TabChar125Route;
   "/ast-viewer/": typeof AstViewerIndexRoute;
   "/88x31/$lang": typeof R88x31LangRoute;
+  "/blog/$slug": typeof BlogSlugRoute;
   "/88x31/": typeof R88x31IndexRoute;
+  "/blog/": typeof BlogIndexRoute;
   "/discord-intl/": typeof DiscordIntlIndexRoute;
   "/e/": typeof EIndexRoute;
   "/vis/": typeof VisIndexRoute;
@@ -119,7 +140,9 @@ export interface FileRoutesByTo {
   "/": typeof IndexRoute;
   "/ast-viewer": typeof AstViewerIndexRoute;
   "/88x31/$lang": typeof R88x31LangRoute;
+  "/blog/$slug": typeof BlogSlugRoute;
   "/88x31": typeof R88x31IndexRoute;
+  "/blog": typeof BlogIndexRoute;
   "/discord-intl": typeof DiscordIntlIndexRoute;
   "/e": typeof EIndexRoute;
   "/vis": typeof VisIndexRoute;
@@ -128,6 +151,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport;
   "/_": typeof RouteWithChildren;
+  "/_/blog": typeof BlogRouteRouteWithChildren;
   "/_/components": typeof ComponentsRoute;
   "/_/demangler": typeof DemanglerRoute;
   "/_/download-ram": typeof DownloadRamRoute;
@@ -136,7 +160,9 @@ export interface FileRoutesById {
   "/_/": typeof IndexRoute;
   "/ast-viewer/": typeof AstViewerIndexRoute;
   "/_/88x31/$lang": typeof R88x31LangRoute;
+  "/_/blog/$slug": typeof BlogSlugRoute;
   "/_/88x31/": typeof R88x31IndexRoute;
+  "/_/blog/": typeof BlogIndexRoute;
   "/_/discord-intl/": typeof DiscordIntlIndexRoute;
   "/_/e/": typeof EIndexRoute;
   "/_/vis/": typeof VisIndexRoute;
@@ -146,6 +172,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath;
   fullPaths:
     | "/"
+    | "/blog"
     | "/components"
     | "/demangler"
     | "/download-ram"
@@ -153,7 +180,9 @@ export interface FileRouteTypes {
     | "/{-$tab}"
     | "/ast-viewer/"
     | "/88x31/$lang"
+    | "/blog/$slug"
     | "/88x31/"
+    | "/blog/"
     | "/discord-intl/"
     | "/e/"
     | "/vis/"
@@ -168,7 +197,9 @@ export interface FileRouteTypes {
     | "/"
     | "/ast-viewer"
     | "/88x31/$lang"
+    | "/blog/$slug"
     | "/88x31"
+    | "/blog"
     | "/discord-intl"
     | "/e"
     | "/vis"
@@ -176,6 +207,7 @@ export interface FileRouteTypes {
   id:
     | "__root__"
     | "/_"
+    | "/_/blog"
     | "/_/components"
     | "/_/demangler"
     | "/_/download-ram"
@@ -184,7 +216,9 @@ export interface FileRouteTypes {
     | "/_/"
     | "/ast-viewer/"
     | "/_/88x31/$lang"
+    | "/_/blog/$slug"
     | "/_/88x31/"
+    | "/_/blog/"
     | "/_/discord-intl/"
     | "/_/e/"
     | "/_/vis/"
@@ -211,6 +245,13 @@ declare module "@tanstack/react-router" {
       path: "/";
       fullPath: "/";
       preLoaderRoute: typeof IndexRouteImport;
+      parentRoute: typeof Route;
+    };
+    "/_/blog": {
+      id: "/_/blog";
+      path: "/blog";
+      fullPath: "/blog";
+      preLoaderRoute: typeof BlogRouteRouteImport;
       parentRoute: typeof Route;
     };
     "/_/components": {
@@ -269,6 +310,20 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof R88x31LangRouteImport;
       parentRoute: typeof Route;
     };
+    "/_/blog/": {
+      id: "/_/blog/";
+      path: "/";
+      fullPath: "/blog/";
+      preLoaderRoute: typeof BlogIndexRouteImport;
+      parentRoute: typeof BlogRouteRoute;
+    };
+    "/_/blog/$slug": {
+      id: "/_/blog/$slug";
+      path: "/$slug";
+      fullPath: "/blog/$slug";
+      preLoaderRoute: typeof BlogSlugRouteImport;
+      parentRoute: typeof BlogRouteRoute;
+    };
     "/_/discord-intl/": {
       id: "/_/discord-intl/";
       path: "/discord-intl";
@@ -300,7 +355,22 @@ declare module "@tanstack/react-router" {
   }
 }
 
+interface BlogRouteRouteChildren {
+  BlogSlugRoute: typeof BlogSlugRoute;
+  BlogIndexRoute: typeof BlogIndexRoute;
+}
+
+const BlogRouteRouteChildren: BlogRouteRouteChildren = {
+  BlogSlugRoute: BlogSlugRoute,
+  BlogIndexRoute: BlogIndexRoute,
+};
+
+const BlogRouteRouteWithChildren = BlogRouteRoute._addFileChildren(
+  BlogRouteRouteChildren,
+);
+
 interface RouteChildren {
+  BlogRouteRoute: typeof BlogRouteRouteWithChildren;
   ComponentsRoute: typeof ComponentsRoute;
   DemanglerRoute: typeof DemanglerRoute;
   DownloadRamRoute: typeof DownloadRamRoute;
@@ -315,6 +385,7 @@ interface RouteChildren {
 }
 
 const RouteChildren: RouteChildren = {
+  BlogRouteRoute: BlogRouteRouteWithChildren,
   ComponentsRoute: ComponentsRoute,
   DemanglerRoute: DemanglerRoute,
   DownloadRamRoute: DownloadRamRoute,

@@ -1,3 +1,4 @@
+import mdx from "@mdx-js/rollup";
 import tailwindcss from "@tailwindcss/vite";
 import { devtools } from "@tanstack/devtools-vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
@@ -58,6 +59,10 @@ const config = defineConfig(async ({ command, isSsrBuild }) => {
                 },
             }),
             tailwindcss(),
+            {
+                enforce: "pre",
+                ...mdx(),
+            },
             tanstackStart({
                 router: {
                     quoteStyle: "double",
@@ -70,6 +75,7 @@ const config = defineConfig(async ({ command, isSsrBuild }) => {
             }),
             viteReact({
                 compiler: true,
+                include: /\.(?:mdx|[mc]?[jt]sx?)$/,
             }),
             omt(),
             !isWindowsOnArm && (await import("@cloudflare/vite-plugin")).cloudflare({

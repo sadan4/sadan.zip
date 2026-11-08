@@ -108,6 +108,14 @@ export function PersonalButtonLink() {
     );
 }
 
+export function BlogLink() {
+    return (
+        <Link to="/blog">
+            <Text tag="span">Blog</Text>
+        </Link>
+    );
+}
+
 export function DownloadRamLink() {
     return (
         <Link to="/download-ram">
