@@ -4,7 +4,7 @@ import { createFileRoute, notFound } from "@tanstack/react-router";
 import * as z from "zod";
 
 const tabParamSchema = z.object({
-    tab: z.enum(["about", "links"]),
+    tab: z.enum(["about", "links", "theme"]),
 });
 
 export const Route = createFileRoute("/_/{-$tab}")({

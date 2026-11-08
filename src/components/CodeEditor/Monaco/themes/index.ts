@@ -22,8 +22,6 @@ export type BuiltinMonacoTheme = typeof MonacoTheme[keyof typeof MonacoTheme];
 
 export type MonacoTheme = BuiltinMonacoTheme | TextmateTheme;
 
-export const DEFAULT_MONACO_THEME: MonacoTheme = TextmateTheme.TOKYO_NIGHT;
-
 export const AllMonacoThemes = {
     ...MonacoTheme,
     ...filterObject(TextmateTheme, (_, v): v is TextmateTheme => typeof v === "number"),
@@ -67,6 +65,8 @@ export function useMonacoTheme(theme: MonacoTheme): string {
         case TextmateTheme.CATPPUCCIN_LATTE:
         case TextmateTheme.GRUVBOX:
         case TextmateTheme.OXOCARBON:
+        case TextmateTheme.VSCODE_DARK:
+        case TextmateTheme.VSCODE_LIGHT:
         case TextmateTheme.DRACULA: {
             return registeredThemeMap.get(theme) ?? use(loadLazyTextmateThemeForMonaco(theme));
         }

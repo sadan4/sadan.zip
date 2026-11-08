@@ -1,8 +1,5 @@
 use std::{
-	env,
-	ffi::OsStr,
-	path::{Path, PathBuf},
-	process,
+	env, ffi::OsStr, path::{Path, PathBuf}, process::{self, Stdio},
 };
 
 use anyhow::{Context, Result, anyhow, bail};
@@ -76,6 +73,8 @@ impl CommandExt for process::Command {
 		let mut ret = Self::new("bun");
 		ret.arg("run");
 		ret.arg(script_file);
+		ret.stdout(Stdio::inherit());
+		ret.stderr(Stdio::inherit());
 		ret
 	}
 

@@ -78,7 +78,7 @@ export function ModuleSearch() {
                     );
                 }
                 return (
-                    <Text color="success">
+                    <Text color="primary">
                         {data.moduleIds.length} results found
                     </Text>
                 );
@@ -175,12 +175,11 @@ function Item({ results, idx, longPreview, buildService, buildHash }: ItemProps)
                     },
                 });
             }}
-            className="mb-1 border-b border-fg-700"
+            className="border-fg-700 mb-1 border-b"
         >
             <Text
                 size="xs"
                 weight="bold"
-                color="accent"
             >
                 {moduleId}
                 .js:

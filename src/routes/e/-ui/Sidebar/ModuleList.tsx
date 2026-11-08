@@ -23,14 +23,15 @@ function ModuleListItem({ moduleId, onSelectModule }: ModuleListItemProps) {
     return (
         <Clickable
             tag="li"
-            className="px-2"
+            className="w-full px-2 hover:bg-list-hoverBackground"
             onClick={() => {
                 onSelectModule(moduleId);
             }}
         >
             <Text
                 tag="span"
-                color={isSelectedModule ? "primary" : "white"}
+                color={isSelectedModule ? "primary" : "foreground"}
+                className=""
             >
                 {moduleId}
             </Text>
@@ -144,7 +145,6 @@ export function ModuleList() {
                 {status === "pending" && (
                     <Text
                         size="lg"
-                        color="accent"
                         center
                     >
                         Loading Modules...

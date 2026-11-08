@@ -7,7 +7,7 @@ import { Text, type TextProps } from "./Text";
 import { useEffect, useRef, useState } from "react";
 
 const nameTextProps: TextProps<"span"> = {
-    color: "accent",
+    color: "primary",
     size: "4xl",
     weight: "bold",
 };

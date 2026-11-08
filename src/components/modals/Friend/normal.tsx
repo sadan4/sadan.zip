@@ -23,7 +23,7 @@ function ArrowButton({ direction }: ArrowButtonProps) {
 
     return (
         <div>
-            <Component className="h-24 w-24" />
+            <Component className="h-24 w-24 text-button-foreground" />
         </div>
     );
 }
@@ -49,10 +49,10 @@ function FriendModalCloseIcon() {
                     }}
                 >
                     <div
-                        className={cn("flex h-44 w-44 items-center justify-center rounded-full bg-bg-100")}
+                        className={cn("flex h-44 w-44 items-center justify-center rounded-full bg-editor-background")}
                     >
                         <XIcon
-                            className="h-full w-full text-info-500"
+                            className="h-full w-full text-textLink-foreground"
                         />
                     </div>
                 </Clickable>

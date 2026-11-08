@@ -1,15 +1,17 @@
 import { Boilerplate } from "@/components/Boilerplate";
 import { Clickable } from "@/components/Clickable";
-import { Box } from "@/components/layout/Box";
 import { BufferedScroller } from "@/components/layout/BufferedScroller";
 import { ScrollAreaContext } from "@/components/layout/ScrollArea/context";
 import { Link } from "@/components/Links";
 import { Text } from "@/components/Text";
+import { Tooltip } from "@/components/Tooltip";
+import { TooltipPosition } from "@/components/Tooltip/constants";
 import { getNewestEntry, useIntersection } from "@/hooks/intersection";
 import { useMediaQuery } from "@/hooks/mediaQuery";
 import { useToaster } from "@/hooks/toaster";
 import { copyWithNotify } from "@/utils/clipboard";
 import cn from "@/utils/cn";
+import { EM_DASH, NBSP } from "@/utils/constants";
 import type { TBundleHash } from "@/utils/types";
 import { useInfiniteQuery } from "@tanstack/react-query";
 
@@ -166,7 +168,7 @@ function BundleItem({ bundleMeta, latestTags }: BundleItemProps) {
                 }}
                 preload={false}
                 aria-label={`Open build ${bundleMeta.build_number}`}
-                className="group flex h-full items-center gap-4 rounded-md border border-fg-700/60 bg-bg-200 px-4 py-3 transition-colors hover:border-primary-400/70 hover:bg-bg-300 focus-visible:border-primary-400 focus-visible:bg-bg-300"
+                className="group hover:border-primary-400/70 focus-visible:border-primary-400 focus-visible:bg-bg-300 flex h-full items-center gap-4 rounded-md border border-editorHoverWidget-border bg-editorHoverWidget-background px-4 py-3 transition-colors hover:bg-toolbar-hoverBackground"
             >
                 <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-3">
@@ -190,34 +192,49 @@ function BundleItem({ bundleMeta, latestTags }: BundleItemProps) {
                         )}
                     </div>
                     <div className="mt-1.5 flex items-center gap-3">
-                        <span className="flex min-w-0 items-center gap-1 text-xs text-fg-700">
-                            <Clock3
-                                className="size-3 shrink-0"
-                                aria-hidden="true"
-                            />
-                            <span title={buildDate.toLocaleString(undefined, strftimeOptions)}>
-                                {buildDate.toLocaleString()}
-                            </span>
-                        </span>
-                        <Clickable
-                            tag="span"
-                            className="flex items-center gap-1 text-xs text-fg-700"
-                            onClick={async (e) => {
-                                e.stopPropagation();
-                                e.preventDefault();
-                                await copyWithNotify(bundleMeta.build_hash, ToastStore.getState());
-                            }}
-                            title={bundleMeta.build_hash}
+                        <Tooltip
+                            text={buildDate.toLocaleString(undefined, strftimeOptions)}
+                            position={TooltipPosition.BOTTOM}
                         >
-                            <Hash
-                                className="size-3 shrink-0"
-                                aria-hidden="true"
-                            />
-                            <code>{bundleMeta.build_hash.slice(0, 9)}</code>
-                        </Clickable>
+                            <span className="text-fg-700 flex min-w-0 items-center gap-1 text-xs">
+                                <Text color="description">
+                                    <Clock3
+                                        className="inline size-5 shrink-0"
+                                        aria-hidden="true"
+                                    />
+                                    {NBSP}
+                                    {buildDate.toLocaleString()}
+                                </Text>
+                            </span>
+                        </Tooltip>
+                        <Tooltip
+                            position={TooltipPosition.BOTTOM}
+                            text={`Click to copy ${EM_DASH} ${bundleMeta.build_hash}`}
+                        >
+                            <Clickable
+                                tag="span"
+                                className="text-fg-700 flex items-center gap-1 text-xs"
+                                onClick={async (e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                    await copyWithNotify(bundleMeta.build_hash, ToastStore.getState());
+                                }}
+                            >
+                                <Text
+                                    color="description"
+                                    className="flex items-center justify-center"
+                                >
+                                    <Hash
+                                        className="inline size-5 shrink-0"
+                                        aria-hidden="true"
+                                    />
+                                    <code>{bundleMeta.build_hash.slice(0, 9)}</code>
+                                </Text>
+                            </Clickable>
+                        </Tooltip>
                     </div>
                 </div>
-                <span className="flex shrink-0 items-center gap-1 text-sm text-primary-400">
+                <span className="text-primary-400 flex shrink-0 items-center gap-1 text-sm">
                     <span className="hidden sm:inline">Open</span>
                     <ArrowRight
                         className="size-4 transition-transform group-hover:translate-x-0.5"
@@ -324,7 +341,7 @@ export function BundleSelector() {
         <>
             <Boilerplate />
             <div className="mx-auto w-full max-w-[90vw] px-4 pt-8">
-                <Box className="p-4 sm:p-6">
+                <div className="rounded-lg border-2 border-editorWidget-border bg-editor-background p-4 sm:p-6">
                     <div className="flex flex-wrap items-end justify-between gap-3">
                         <div>
                             <Text
@@ -342,7 +359,6 @@ export function BundleSelector() {
                                 />
                                 <Text
                                     size="sm"
-                                    color="white-700"
                                 >
                                     {filteredBundles!.length === sortedBundles!.length
                                         ? `${sortedBundles!.length}${hasNextPage ? "+" : ""} available`
@@ -354,7 +370,6 @@ export function BundleSelector() {
                     {status === "pending" && (
                         <Text
                             size="lg"
-                            color="accent"
                             center
                             className="py-10"
                         >
@@ -375,6 +390,7 @@ export function BundleSelector() {
                         <BufferedScroller
                             items={filteredBundles!}
                             cols={numCols}
+                            batchSize={50}
                             renderHeader={() => {
                                 if (sortedBundles!.length === 0) {
                                     return (
@@ -425,7 +441,7 @@ export function BundleSelector() {
                             }}
                         />
                     )}
-                </Box>
+                </div>
             </div>
         </>
     );

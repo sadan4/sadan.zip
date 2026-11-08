@@ -47,7 +47,6 @@ const fallbackTab: Tab = {
         return (
             <Text
                 size="xl"
-                color="error"
                 weight="bold"
             >
                 ERROR
@@ -58,7 +57,6 @@ const fallbackTab: Tab = {
         return (
             <Text
                 size="lg"
-                color="error"
                 weight="bold"
             >
                 ERROR
@@ -126,7 +124,6 @@ export function TabBar({
 
     useEffect(() => {
         if (selectedTab) {
-            // oxlint-disable-next-line react/react-compiler
             setTab(selectedTab);
         }
     }, [selectedTab]);

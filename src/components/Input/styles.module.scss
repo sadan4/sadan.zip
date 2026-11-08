@@ -1,7 +1,8 @@
 @layer components {
 	.input {
-		background-color: var(--color-bg-300);
-		border-radius: var(--radius-md);
+		background-color: var(--color-input-background);
+		border-radius: var(--radius-lg);
+		border-color: var(--color-input-border);
 		padding-inline: .75rem;
 		padding-block: .5rem;
 		width: 100%;

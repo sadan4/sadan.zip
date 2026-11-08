@@ -5,6 +5,5 @@ export {
 export {
     AllMonacoThemes,
     type BuiltinMonacoTheme,
-    DEFAULT_MONACO_THEME,
     MonacoTheme,
 } from "./themes";

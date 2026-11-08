@@ -11,7 +11,7 @@ impl Command {}
 
 impl Runnable for Command {
 	fn run(&self) -> Result<()> {
-		let script_path = path::absolute("scripts/codegen/monacoThemes.ts")
+		let script_path = path::absolute("scripts/codegen/monacoThemes")
 			.context("monaco themes gen path")?;
 		info!("Generating monaco themes");
 		process::Command::tsx(script_path)

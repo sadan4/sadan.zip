@@ -8,7 +8,7 @@
         > path {
             overflow: visible;
             pointer-events: none;
-            stroke: var(--border-hold-color, var(--color-info-500));
+            stroke: var(--border-hold-color, var(--color-textLink-foreground));
             stroke-linecap: round;
         }
 

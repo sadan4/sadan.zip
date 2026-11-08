@@ -13,7 +13,7 @@ export function TreeAccordion({ contents, children, open, onArrowClick }: TreeAc
             <div className="flex">
                 <svg
                     viewBox="-2.4 -2.4 28.8 28.8"
-                    className="size-5 fill-none stroke-fg-500"
+                    className="size-5 fill-none stroke-icon-foreground"
                     style={{
                         transform: `rotate(${open ? 0 : -90}deg)`,
                     }}

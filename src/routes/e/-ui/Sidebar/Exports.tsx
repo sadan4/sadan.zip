@@ -35,7 +35,6 @@ function SectionHeading({ children }: { children: ReactNode; }) {
     return (
         <Text
             size="sm"
-            color="neutral-content"
         >
             {children}
         </Text>
@@ -151,7 +150,6 @@ function ExportTreeItem({ node, moduleId }: ExportTreeItemProps) {
                     <Text
                         tag="span"
                         size="xs"
-                        color="neutral-content"
                         className="ml-1"
                     >
                         {node.hover}
@@ -169,7 +167,6 @@ function ExportTreeItem({ node, moduleId }: ExportTreeItemProps) {
                 >
                     <Text
                         size="xs"
-                        color="accent"
                     >
                         {range.start.line}
                         :
@@ -225,7 +222,7 @@ function ModuleDepsRow({ moduleId }: { moduleId: TModuleId; }) {
         >
             <Text
                 size="xs"
-                color="accent"
+                color="primary"
             >
                 {moduleId}
             </Text>
@@ -244,7 +241,6 @@ function ModuleDepsGroups({ deps }: { deps: ModuleDeps; }) {
                 <div className="flex flex-col">
                     <Text
                         size="xs"
-                        color="neutral-content"
                     >
                         Sync
                     </Text>
@@ -260,7 +256,6 @@ function ModuleDepsGroups({ deps }: { deps: ModuleDeps; }) {
                 <div className="flex flex-col">
                     <Text
                         size="xs"
-                        color="neutral-content"
                     >
                         Lazy
                     </Text>

@@ -1,7 +1,10 @@
 import { Devtools } from "@/components/Devtools";
 import { LayerContext } from "@/components/Layer/context";
+import { RootThemeProvider } from "@/components/Theme";
+import { getCachedTheme, getThemeServerFn } from "@/components/Theme/misc";
 import { ToastContainer } from "@/components/Toast";
 import { NotFoundPage } from "@/routes/-404";
+import { getThemeDeclaration } from "@/styles/themes/generated";
 import { installF8Break, uninstallF8Break } from "@/utils/devtools";
 import { assert } from "@/utils/error";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -13,6 +16,16 @@ import rootCss from "../index.css?url";
 import { useEffect, useState } from "react";
 
 export const Route = createRootRoute({
+    async beforeLoad() {
+        let theme;
+
+        if (import.meta.env.SSR) {
+            theme = await getThemeServerFn();
+        } else {
+            theme = getCachedTheme();
+        }
+        return { theme };
+    },
     loader({ location: { publicHref } }) {
         return {
             publicHref,
@@ -99,6 +112,9 @@ function RootComponent({ children }: { children: React.ReactNode; }) {
         root: null,
     });
 
+    const { theme } = Route.useRouteContext();
+    const themeDecl = getThemeDeclaration(theme);
+
     useEffect(() => {
         if (import.meta.env.DEV) {
             if (Error.stackTraceLimit < 15) {
@@ -111,8 +127,6 @@ function RootComponent({ children }: { children: React.ReactNode; }) {
 
         assert(root instanceof HTMLBodyElement, "Failed to find root element");
 
-        // this is only ever called once
-        // oxlint-disable-next-line react/react-compiler
         setLayerCtx({
             level: 0,
             root,
@@ -129,15 +143,20 @@ function RootComponent({ children }: { children: React.ReactNode; }) {
             <head>
                 <HeadContent />
             </head>
-            <body id="root">
-                <QueryClientProvider client={queryClient}>
-                    <LayerContext value={layerCtx}>
-                        <ToastContainer>
-                            {children}
-                        </ToastContainer>
-                    </LayerContext>
-                    <Devtools />
-                </QueryClientProvider>
+            <body
+                id="root"
+                className={themeDecl.className}
+            >
+                <RootThemeProvider>
+                    <QueryClientProvider client={queryClient}>
+                        <LayerContext value={layerCtx}>
+                            <ToastContainer>
+                                {children}
+                            </ToastContainer>
+                        </LayerContext>
+                        <Devtools />
+                    </QueryClientProvider>
+                </RootThemeProvider>
                 <Scripts />
             </body>
         </html>

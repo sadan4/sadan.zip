@@ -5,11 +5,11 @@
         display: flex;
         flex-direction: column;
         gap: 2px;
-        background-color: var(--color-bg-100);
+        background-color: var(--color-editorWidget-background);
         padding: 1rem;
         border-radius: .375rem;
         outline: 2px;
         outline-style: solid;
-        outline-color: u.alpha(var(--color-fg-600) 25%);
+        outline-color: var(--color-menu-border);
     }
 }

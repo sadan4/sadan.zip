@@ -95,7 +95,7 @@ export function SnowCanvas({
         }
 
         const rootStyle = getComputedStyle(document.documentElement);
-        const snowColor = rootStyle.getPropertyValue("--color-fg-500");
+        const snowColor = rootStyle.getPropertyValue("--color-editorCursor-foreground");
 
 
         function resizeCanvas() {
