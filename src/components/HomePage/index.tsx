@@ -24,6 +24,7 @@ import {
     STEAM_USERNAME,
     steamProfileUrl,
 } from "@/utils/constants";
+import { unreachable } from "@/utils/error";
 
 import * as styles from "./styles.module.scss";
 
@@ -174,6 +175,20 @@ export function HomePage({ tab }: HomePageProps) {
                                             size="xl"
                                         >
                                             Links
+                                        </TextLink>
+                                    );
+                                },
+                            },
+                            {
+                                id: "blog",
+                                render: unreachable,
+                                renderTab() {
+                                    return (
+                                        <TextLink
+                                            to="/blog"
+                                            size="xl"
+                                        >
+                                            Blog
                                         </TextLink>
                                     );
                                 },
