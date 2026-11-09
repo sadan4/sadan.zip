@@ -1,24 +1,23 @@
 {
 	lib,
-	cacert,
-	redis,
 	rustPlatform,
+	pkg-config,
+	aws-lc,
+	oniguruma,
+	zstd,
+	cacert,
 	valkey,
-	rev ? null,
+	redis,
+	rev ? "git",
 }: let
 	crate-name = "explorer_server";
 in
 	rustPlatform.buildRustPackage (finalAttrs: {
 			pname = crate-name;
-			version = "0.1.0";
+			version = "0.1.0-${rev}";
 
-			env =
-				lib.optionalAttrs (rev != null) {
-					GIT_HASH = rev;
-				}
-				// {
-					RUSTC_BOOTSTRAP = 1;
-				};
+			__structuredAttrs = true;
+			strictDeps = true;
 
 			src =
 				lib.fileset.toSource {
@@ -38,6 +37,16 @@ in
 				outputHashes = import ./cargo-output-hashes.nix;
 			};
 
+			nativeBuildInputs = [
+				pkg-config
+			];
+
+			buildInputs = [
+				aws-lc
+				oniguruma
+				zstd
+			];
+
 			nativeCheckInputs = [
 				# reqwest needs certs despite only connecting over http
 				cacert
@@ -45,11 +54,14 @@ in
 				valkey
 			];
 
-			strictDeps = true;
+			env = {
+				GIT_HASH = rev;
+				RUSTC_BOOTSTRAP = 1;
+			};
 
 			buildPhase = ''
-				cargo build --release --package ${crate-name}
-			'';
+        cargo build --release --package ${crate-name}
+      '';
 
 			useNextest = true;
 
@@ -59,9 +71,9 @@ in
 			];
 
 			installPhase = ''
-				mkdir -p $out/bin
-				cp target/release/${crate-name} $out/bin/
-			'';
+        mkdir -p $out/bin
+        cp target/release/${crate-name} $out/bin/
+      '';
 
 			meta = {
 				description = "";
