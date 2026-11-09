@@ -10,7 +10,9 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { rehypeGithubAlerts } from "rehype-github-alerts";
 import rehypeSlug from "rehype-slug";
+import remarkFrontmatter from "remark-frontmatter";
 import remarkGfm from "remark-gfm";
+import remarkMdxFrontmatter from "remark-mdx-frontmatter";
 import { defineConfig, type Rollup, type UserConfig } from "vite";
 import devtoolsJSON from "vite-plugin-devtools-json";
 
@@ -65,7 +67,11 @@ const config = defineConfig(async ({ command, isSsrBuild }) => {
             {
                 enforce: "pre",
                 ...mdx({
-                    remarkPlugins: [remarkGfm],
+                    remarkPlugins: [
+                        remarkFrontmatter,
+                        remarkMdxFrontmatter,
+                        remarkGfm,
+                    ],
                     rehypePlugins: [
                         rehypeSlug,
                         rehypeGithubAlerts,

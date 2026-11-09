@@ -240,9 +240,15 @@ importers:
       rehype-slug:
         specifier: ^6.0.0
         version: 6.0.0
+      remark-frontmatter:
+        specifier: ^5.0.0
+        version: 5.0.0(supports-color@10.2.2)
       remark-gfm:
         specifier: ^4.0.1
         version: 4.0.1(supports-color@10.2.2)
+      remark-mdx-frontmatter:
+        specifier: ^6.0.0
+        version: 6.0.0
       rolldown:
         specifier: ^1.2.4
         version: 1.2.4
@@ -266,7 +272,7 @@ importers:
         version: 5.2.0(supports-color@10.2.2)(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
       vite:
         specifier: ^8.2.1
-        version: 8.2.1(patch_hash=92289e52503fc3f2b43a3ba8e4a9cde0366cf0685f70df1892b71dac5734bdc8)(@types/node@26.2.0)(@vitejs/devtools@0.1.22)(esbuild@0.28.1)(jiti@2.7.0)(less@4.6.4)(sass@1.99.0)(stylus@0.62.0(supports-color@10.2.2))
+        version: 8.2.1(patch_hash=92289e52503fc3f2b43a3ba8e4a9cde0366cf0685f70df1892b71dac5734bdc8)(@types/node@26.2.0)(@vitejs/devtools@0.1.22)(esbuild@0.28.1)(jiti@2.7.0)(less@4.6.4)(sass@1.99.0)(stylus@0.62.0(supports-color@10.2.2))(yaml@2.9.1)
       vite-plugin-devtools-json:
         specifier: ^1.1.0
         version: 1.1.0(vite@8.2.1)
@@ -4551,6 +4557,9 @@ packages:
   estree-util-to-js@2.0.0:
     resolution: {integrity: sha512-WDF+xj5rRWmD5tj6bIqRi6CkLIXbbNQUcxQHzGysQzvHmdYG2G7p/Tf0J0gpxGgkeMZNTIjT/AoSvC9Xehcgdg==}
 
+  estree-util-value-to-estree@3.5.0:
+    resolution: {integrity: sha512-aMV56R27Gv3QmfmF1MY12GWkGzzeAezAX+UplqHVASfjc9wNzI/X6hC0S9oxq61WT4aQesLGslWP9tKk6ghRZQ==}
+
   estree-util-visit@2.0.0:
     resolution: {integrity: sha512-m5KgiH85xAhhW8Wta0vShLcUvOsh3LLPI2YVwcbio1l7E09NTLL1EyMZFM1OyWowoH0skScNbhOPl4kcBgzTww==}
 
@@ -4602,6 +4611,9 @@ packages:
 
   fastq@1.20.1:
     resolution: {integrity: sha512-GGToxJ/w1x32s/D2EKND7kTil4n8OVk/9mycTc4VDza13lOvpUZTGX3mFSCtV9ksdGBVzvsyAVLM6mHFThxXxw==}
+
+  fault@2.0.1:
+    resolution: {integrity: sha512-WtySTkS4OKev5JtpHXnib4Gxiurzh5NCGvWrFaZ34m6JehfTUhKZvn9njTfw48t6JumVQOmrKqpmGcdwxnhqBQ==}
 
   fdir@6.5.0:
     resolution: {integrity: sha512-tIbYtZbucOs0BRGqPJkshJUYdL+SDH7dVM8gjy+ERp3WAUjLEFJE+02kanyHtwjWOnwrKYBiwAmM0p4kLJAnXg==}
@@ -4663,6 +4675,10 @@ packages:
   form-data@4.0.5:
     resolution: {integrity: sha512-8RipRLol37bNs2bhoV67fiTEvdTrbMUYcFTiy3+wuuOnUog2QBHCZWXDRijWQfAkhBj2Uf5UnVaiWwA5vdd82w==}
     engines: {node: '>= 6'}
+
+  format@0.2.2:
+    resolution: {integrity: sha512-wzsgA6WOq+09wrU1tsJ09udeR/YZRaeArL9e1wPbFg3GG2yDnC2ldKpxs4xunpFF9DgqCqOIra3bc1HWrJ37Ww==}
+    engines: {node: '>=0.4.x'}
 
   fs-constants@1.0.0:
     resolution: {integrity: sha512-y6OAwoSIf7FyjMIv94u+b5rdheZEjzR63GTyZJm5qh4Bi+2YgwLCcI/fPFZkL5PSixOt6ZNKm+w+Hfp/Bciwow==}
@@ -5522,6 +5538,9 @@ packages:
   mdast-util-from-markdown@2.1.0:
     resolution: {integrity: sha512-KRLgmPaP2H1ul2bpoJkOS+9pAcDAAj9Nu1mqLnh8NLeJG5tlvj42TH80PIGBpROWlRXLk0lDrWNuZCFy/tsB4A==}
 
+  mdast-util-frontmatter@2.0.1:
+    resolution: {integrity: sha512-LRqI9+wdgC25P0URIJY9vwocIzCcksduHQ9OF2joxQoyTNVduwLAFUzjoopuRJbJAReaKrNQKAZKL3uCMugWJA==}
+
   mdast-util-gfm-autolink-literal@2.1.0:
     resolution: {integrity: sha512-Jx6QSK8wDo558Bcf7q+1pe0v81g2PVs09Hlvu9xJHmCFRF3sAPW7vXFVIAwBncs3sde92WbsVqNxwdqViA2XnQ==}
 
@@ -5580,6 +5599,9 @@ packages:
 
   micromark-core-commonmark@2.0.4:
     resolution: {integrity: sha512-wxEeE8v8XVvOrxn1TZj74qYhAtTQsSqufHVS3uNVyT1MupXxhyaHk8/9xDNPh9BmL77QNDgWTkZ3RsYHB2ry7w==}
+
+  micromark-extension-frontmatter@2.0.0:
+    resolution: {integrity: sha512-C4AkuM3dA58cgZha7zVnuVxBhDsbttIMiytjgsM2XbHAB2faRVaHRle40558FBN+DJcrLNCoqG5mlrpdU4cRtg==}
 
   micromark-extension-gfm-autolink-literal@2.1.0:
     resolution: {integrity: sha512-oOg7knzhicgQ3t4QCjCWgTmfNhvQbDDnJeVu9v81r7NltNCVmhPy1fJRX27pISafdjL+SVc4d3l48Gb6pbRypw==}
@@ -6259,8 +6281,14 @@ packages:
   rehype-slug@6.0.0:
     resolution: {integrity: sha512-lWyvf/jwu+oS5+hL5eClVd3hNdmwM1kAC0BUvEGD19pajQMIzcNUd/k9GsfQ+FfECvX+JE+e9/btsKH0EjJT6A==}
 
+  remark-frontmatter@5.0.0:
+    resolution: {integrity: sha512-XTFYvNASMe5iPN0719nPrdItC9aU0ssC4v14mH1BCi1u0n1gAocqcujWUrByftZTbLhRtiKRyjYTSIOcr69UVQ==}
+
   remark-gfm@4.0.1:
     resolution: {integrity: sha512-1quofZ2RQ9EWdeN34S79+KExV1764+wCUGop5CPL1WGdD0ocPpu91lzPGbwWMECpEpd42kJGQwzRfyov9j4yNg==}
+
+  remark-mdx-frontmatter@6.0.0:
+    resolution: {integrity: sha512-Rz7oaxWwaKpWn/c+iqWOq5wQWPt8TdPyfUIZWBCGqwSqNZ7X8heHkPviy7/UHUXjtd8QTnEV6LXb+CKn9A+ZFA==}
 
   remark-mdx@3.1.1:
     resolution: {integrity: sha512-Pjj2IYlUY3+D8x00UJsIOg5BEvfMyeI+2uLPn9VO9Wg4MEtN/VTIq2NEJQfde9PnX15KgtHyl9S0BcTnWrIuWg==}
@@ -6484,6 +6512,10 @@ packages:
   smob@1.6.2:
     resolution: {integrity: sha512-RQsvleCbF8cVHEv+xuDGaA4pOizFqJ0GgjtMSRo6oP8pnN7WsigHgVGey6aILRBKv4W2YOMHLqbKdnB6hpB9fw==}
     engines: {node: '>=20.0.0'}
+
+  smol-toml@1.9.1:
+    resolution: {integrity: sha512-j7WyPdf0CJoutMzMoPLF/bVXHtKZIT9Rb4eGeEbWw8X2t5oirjPgpL+OpaENZrILYaXqYwnVH+qgUwVbl+pUJQ==}
+    engines: {node: '>= 18'}
 
   solid-js@1.9.12:
     resolution: {integrity: sha512-QzKaSJq2/iDrWR1As6MHZQ8fQkdOBf8GReYb7L5iKwMGceg7HxDcaOHk0at66tNgn9U2U7dXo8ZZpLIAmGMzgw==}
@@ -6911,6 +6943,9 @@ packages:
   unist-util-is@6.0.1:
     resolution: {integrity: sha512-LsiILbtBETkDz8I9p1dQ0uyRUWuaQzd/cuEeS1hoRSyW5E5XGmTzlwY1OrNzzakGowI9Dr/I8HVaw4hTtnxy8g==}
 
+  unist-util-mdx-define@1.1.2:
+    resolution: {integrity: sha512-9ncH7i7TN5Xn7/tzX5bE3rXgz1X/u877gYVAUB3mLeTKYJmQHmqKTDBi6BTGXV7AeolBCI9ErcVsOt2qryoD0g==}
+
   unist-util-position-from-estree@2.0.0:
     resolution: {integrity: sha512-KaFVRjoqLyF6YXCbVLNad/eS4+OfPQQn2yOd7zF/h5T/CSL2v8NpN6a5TPvtbXthAGw5nG+PuTtq+DdIZr+cRQ==}
 
@@ -7294,6 +7329,11 @@ packages:
   yaml@1.10.3:
     resolution: {integrity: sha512-vIYeF1u3CjlhAFekPPAk2h/Kv4T3mAkMox5OymRiJQB0spDP10LHvt+K7G9Ny6NuuMAb25/6n1qyUjAcGNf/AA==}
     engines: {node: '>= 6'}
+
+  yaml@2.9.1:
+    resolution: {integrity: sha512-3NxN8+78OdzbT7C/WjGsyfPAtJaN3FNDsWxv7Y7mcDsT/oOmgW8BpyQQFFBnvZE3j9Y2Sdz1ULFLezL7Eb2yFw==}
+    engines: {node: '>= 14.6'}
+    hasBin: true
 
   yargs-parser@21.1.1:
     resolution: {integrity: sha512-tVpsJW7DdjecAiFpbIB1e3qxIQsE6NoPc5/eTdrbbIC4h0LVsWhnoa3g+m2HclBIujHzsxZ4VJVA+GUuc2/LBw==}
@@ -7697,7 +7737,7 @@ snapshots:
       '@cloudflare/unenv-preset': 2.16.1(unenv@2.0.0-rc.24)(workerd@1.20260815.1)
       miniflare: 5.20260815.0-alpha
       unenv: 2.0.0-rc.24
-      vite: 8.2.1(patch_hash=92289e52503fc3f2b43a3ba8e4a9cde0366cf0685f70df1892b71dac5734bdc8)(@types/node@26.2.0)(@vitejs/devtools@0.1.22)(esbuild@0.28.1)(jiti@2.7.0)(less@4.6.4)(sass@1.99.0)(stylus@0.62.0(supports-color@10.2.2))
+      vite: 8.2.1(patch_hash=92289e52503fc3f2b43a3ba8e4a9cde0366cf0685f70df1892b71dac5734bdc8)(@types/node@26.2.0)(@vitejs/devtools@0.1.22)(esbuild@0.28.1)(jiti@2.7.0)(less@4.6.4)(sass@1.99.0)(stylus@0.62.0(supports-color@10.2.2))(yaml@2.9.1)
       workerd: 1.20260815.1
       wrangler: 4.124.0
       ws: 8.21.0
@@ -8242,7 +8282,7 @@ snapshots:
     dependencies:
       glob: 13.0.6
       react-docgen-typescript: 2.4.0(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
-      vite: 8.2.1(patch_hash=92289e52503fc3f2b43a3ba8e4a9cde0366cf0685f70df1892b71dac5734bdc8)(@types/node@26.2.0)(@vitejs/devtools@0.1.22)(esbuild@0.28.1)(jiti@2.7.0)(less@4.6.4)(sass@1.99.0)(stylus@0.62.0(supports-color@10.2.2))
+      vite: 8.2.1(patch_hash=92289e52503fc3f2b43a3ba8e4a9cde0366cf0685f70df1892b71dac5734bdc8)(@types/node@26.2.0)(@vitejs/devtools@0.1.22)(esbuild@0.28.1)(jiti@2.7.0)(less@4.6.4)(sass@1.99.0)(stylus@0.62.0(supports-color@10.2.2))(yaml@2.9.1)
     optionalDependencies:
       typescript: 5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319)
 
@@ -9012,7 +9052,7 @@ snapshots:
       rolldown: 1.2.4
     optionalDependencies:
       '@babel/runtime': 7.29.2
-      vite: 8.2.1(patch_hash=92289e52503fc3f2b43a3ba8e4a9cde0366cf0685f70df1892b71dac5734bdc8)(@types/node@26.2.0)(@vitejs/devtools@0.1.22)(esbuild@0.28.1)(jiti@2.7.0)(less@4.6.4)(sass@1.99.0)(stylus@0.62.0(supports-color@10.2.2))
+      vite: 8.2.1(patch_hash=92289e52503fc3f2b43a3ba8e4a9cde0366cf0685f70df1892b71dac5734bdc8)(@types/node@26.2.0)(@vitejs/devtools@0.1.22)(esbuild@0.28.1)(jiti@2.7.0)(less@4.6.4)(sass@1.99.0)(stylus@0.62.0(supports-color@10.2.2))(yaml@2.9.1)
     optional: true
 
   '@rolldown/pluginutils@1.0.1': {}
@@ -9286,7 +9326,7 @@ snapshots:
       '@storybook/csf-plugin': 10.5.9(esbuild@0.28.1)(rollup@4.62.4)(storybook@10.5.9(@types/react@19.3.0)(prettier@3.9.6)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(vite@8.2.1)
       storybook: 10.5.9(@types/react@19.3.0)(prettier@3.9.6)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       ts-dedent: 2.3.0
-      vite: 8.2.1(patch_hash=92289e52503fc3f2b43a3ba8e4a9cde0366cf0685f70df1892b71dac5734bdc8)(@types/node@26.2.0)(@vitejs/devtools@0.1.22)(esbuild@0.28.1)(jiti@2.7.0)(less@4.6.4)(sass@1.99.0)(stylus@0.62.0(supports-color@10.2.2))
+      vite: 8.2.1(patch_hash=92289e52503fc3f2b43a3ba8e4a9cde0366cf0685f70df1892b71dac5734bdc8)(@types/node@26.2.0)(@vitejs/devtools@0.1.22)(esbuild@0.28.1)(jiti@2.7.0)(less@4.6.4)(sass@1.99.0)(stylus@0.62.0(supports-color@10.2.2))(yaml@2.9.1)
     transitivePeerDependencies:
       - esbuild
       - rollup
@@ -9299,7 +9339,7 @@ snapshots:
     optionalDependencies:
       esbuild: 0.28.1
       rollup: 4.62.4
-      vite: 8.2.1(patch_hash=92289e52503fc3f2b43a3ba8e4a9cde0366cf0685f70df1892b71dac5734bdc8)(@types/node@26.2.0)(@vitejs/devtools@0.1.22)(esbuild@0.28.1)(jiti@2.7.0)(less@4.6.4)(sass@1.99.0)(stylus@0.62.0(supports-color@10.2.2))
+      vite: 8.2.1(patch_hash=92289e52503fc3f2b43a3ba8e4a9cde0366cf0685f70df1892b71dac5734bdc8)(@types/node@26.2.0)(@vitejs/devtools@0.1.22)(esbuild@0.28.1)(jiti@2.7.0)(less@4.6.4)(sass@1.99.0)(stylus@0.62.0(supports-color@10.2.2))(yaml@2.9.1)
 
   '@storybook/global@5.0.0': {}
 
@@ -9331,7 +9371,7 @@ snapshots:
       resolve: 1.22.12
       storybook: 10.5.9(@types/react@19.3.0)(prettier@3.9.6)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       tsconfig-paths: 4.2.0
-      vite: 8.2.1(patch_hash=92289e52503fc3f2b43a3ba8e4a9cde0366cf0685f70df1892b71dac5734bdc8)(@types/node@26.2.0)(@vitejs/devtools@0.1.22)(esbuild@0.28.1)(jiti@2.7.0)(less@4.6.4)(sass@1.99.0)(stylus@0.62.0(supports-color@10.2.2))
+      vite: 8.2.1(patch_hash=92289e52503fc3f2b43a3ba8e4a9cde0366cf0685f70df1892b71dac5734bdc8)(@types/node@26.2.0)(@vitejs/devtools@0.1.22)(esbuild@0.28.1)(jiti@2.7.0)(less@4.6.4)(sass@1.99.0)(stylus@0.62.0(supports-color@10.2.2))(yaml@2.9.1)
     optionalDependencies:
       typescript: 5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319)
     transitivePeerDependencies:
@@ -9525,7 +9565,7 @@ snapshots:
       '@tailwindcss/node': 4.3.3
       '@tailwindcss/oxide': 4.3.3
       tailwindcss: 4.3.3
-      vite: 8.2.1(patch_hash=92289e52503fc3f2b43a3ba8e4a9cde0366cf0685f70df1892b71dac5734bdc8)(@types/node@26.2.0)(@vitejs/devtools@0.1.22)(esbuild@0.28.1)(jiti@2.7.0)(less@4.6.4)(sass@1.99.0)(stylus@0.62.0(supports-color@10.2.2))
+      vite: 8.2.1(patch_hash=92289e52503fc3f2b43a3ba8e4a9cde0366cf0685f70df1892b71dac5734bdc8)(@types/node@26.2.0)(@vitejs/devtools@0.1.22)(esbuild@0.28.1)(jiti@2.7.0)(less@4.6.4)(sass@1.99.0)(stylus@0.62.0(supports-color@10.2.2))(yaml@2.9.1)
 
   '@tanstack/devtools-client@0.0.6':
     dependencies:
@@ -9574,7 +9614,7 @@ snapshots:
       chalk: 5.6.2
       launch-editor: 2.13.2
       picomatch: 4.0.4
-      vite: 8.2.1(patch_hash=92289e52503fc3f2b43a3ba8e4a9cde0366cf0685f70df1892b71dac5734bdc8)(@types/node@26.2.0)(@vitejs/devtools@0.1.22)(esbuild@0.28.1)(jiti@2.7.0)(less@4.6.4)(sass@1.99.0)(stylus@0.62.0(supports-color@10.2.2))
+      vite: 8.2.1(patch_hash=92289e52503fc3f2b43a3ba8e4a9cde0366cf0685f70df1892b71dac5734bdc8)(@types/node@26.2.0)(@vitejs/devtools@0.1.22)(esbuild@0.28.1)(jiti@2.7.0)(less@4.6.4)(sass@1.99.0)(stylus@0.62.0(supports-color@10.2.2))(yaml@2.9.1)
     transitivePeerDependencies:
       - bufferutil
       - supports-color
@@ -9699,7 +9739,7 @@ snapshots:
       react: 19.3.0
       react-dom: 19.3.0(react@19.3.0)
     optionalDependencies:
-      vite: 8.2.1(patch_hash=92289e52503fc3f2b43a3ba8e4a9cde0366cf0685f70df1892b71dac5734bdc8)(@types/node@26.2.0)(@vitejs/devtools@0.1.22)(esbuild@0.28.1)(jiti@2.7.0)(less@4.6.4)(sass@1.99.0)(stylus@0.62.0(supports-color@10.2.2))
+      vite: 8.2.1(patch_hash=92289e52503fc3f2b43a3ba8e4a9cde0366cf0685f70df1892b71dac5734bdc8)(@types/node@26.2.0)(@vitejs/devtools@0.1.22)(esbuild@0.28.1)(jiti@2.7.0)(less@4.6.4)(sass@1.99.0)(stylus@0.62.0(supports-color@10.2.2))(yaml@2.9.1)
     transitivePeerDependencies:
       - '@farmfe/core'
       - '@rspack/core'
@@ -9762,7 +9802,7 @@ snapshots:
       zod: 4.4.3
     optionalDependencies:
       '@tanstack/react-router': 1.170.30(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
-      vite: 8.2.1(patch_hash=92289e52503fc3f2b43a3ba8e4a9cde0366cf0685f70df1892b71dac5734bdc8)(@types/node@26.2.0)(@vitejs/devtools@0.1.22)(esbuild@0.28.1)(jiti@2.7.0)(less@4.6.4)(sass@1.99.0)(stylus@0.62.0(supports-color@10.2.2))
+      vite: 8.2.1(patch_hash=92289e52503fc3f2b43a3ba8e4a9cde0366cf0685f70df1892b71dac5734bdc8)(@types/node@26.2.0)(@vitejs/devtools@0.1.22)(esbuild@0.28.1)(jiti@2.7.0)(less@4.6.4)(sass@1.99.0)(stylus@0.62.0(supports-color@10.2.2))(yaml@2.9.1)
     transitivePeerDependencies:
       - '@farmfe/core'
       - '@rspack/core'
@@ -9818,7 +9858,7 @@ snapshots:
       xmlbuilder2: 4.0.3
       zod: 4.4.3
     optionalDependencies:
-      vite: 8.2.1(patch_hash=92289e52503fc3f2b43a3ba8e4a9cde0366cf0685f70df1892b71dac5734bdc8)(@types/node@26.2.0)(@vitejs/devtools@0.1.22)(esbuild@0.28.1)(jiti@2.7.0)(less@4.6.4)(sass@1.99.0)(stylus@0.62.0(supports-color@10.2.2))
+      vite: 8.2.1(patch_hash=92289e52503fc3f2b43a3ba8e4a9cde0366cf0685f70df1892b71dac5734bdc8)(@types/node@26.2.0)(@vitejs/devtools@0.1.22)(esbuild@0.28.1)(jiti@2.7.0)(less@4.6.4)(sass@1.99.0)(stylus@0.62.0(supports-color@10.2.2))(yaml@2.9.1)
     transitivePeerDependencies:
       - '@farmfe/core'
       - '@rspack/core'
@@ -10292,7 +10332,7 @@ snapshots:
       pathe: 2.0.3
       perfect-debounce: 2.1.0
       tinyexec: 1.1.2
-      vite: 8.2.1(patch_hash=92289e52503fc3f2b43a3ba8e4a9cde0366cf0685f70df1892b71dac5734bdc8)(@types/node@26.2.0)(@vitejs/devtools@0.1.22)(esbuild@0.28.1)(jiti@2.7.0)(less@4.6.4)(sass@1.99.0)(stylus@0.62.0(supports-color@10.2.2))
+      vite: 8.2.1(patch_hash=92289e52503fc3f2b43a3ba8e4a9cde0366cf0685f70df1892b71dac5734bdc8)(@types/node@26.2.0)(@vitejs/devtools@0.1.22)(esbuild@0.28.1)(jiti@2.7.0)(less@4.6.4)(sass@1.99.0)(stylus@0.62.0(supports-color@10.2.2))(yaml@2.9.1)
     transitivePeerDependencies:
       - '@modelcontextprotocol/sdk'
       - bufferutil
@@ -10366,7 +10406,7 @@ snapshots:
       pathe: 2.0.3
       perfect-debounce: 2.1.0
       tinyexec: 1.1.2
-      vite: 8.2.1(patch_hash=92289e52503fc3f2b43a3ba8e4a9cde0366cf0685f70df1892b71dac5734bdc8)(@types/node@26.2.0)(@vitejs/devtools@0.1.22)(esbuild@0.28.1)(jiti@2.7.0)(less@4.6.4)(sass@1.99.0)(stylus@0.62.0(supports-color@10.2.2))
+      vite: 8.2.1(patch_hash=92289e52503fc3f2b43a3ba8e4a9cde0366cf0685f70df1892b71dac5734bdc8)(@types/node@26.2.0)(@vitejs/devtools@0.1.22)(esbuild@0.28.1)(jiti@2.7.0)(less@4.6.4)(sass@1.99.0)(stylus@0.62.0(supports-color@10.2.2))(yaml@2.9.1)
       vue: 3.5.34(typescript@5.9.3(patch_hash=6c942d884912b201b63bf26aaaa7eb6241d38da696cbb6bcdecb3db104a31319))
       ws: 8.21.3
     transitivePeerDependencies:
@@ -10398,7 +10438,7 @@ snapshots:
   '@vitejs/plugin-react@6.1.2(@rolldown/plugin-babel@0.2.3(@babel/core@7.29.7(supports-color@10.2.2))(@babel/runtime@7.29.2)(rolldown@1.2.4)(vite@8.2.1))(babel-plugin-react-compiler@1.0.0)(oxc-transform-react@0.147.0)(vite@8.2.1)':
     dependencies:
       '@rolldown/pluginutils': 1.0.1
-      vite: 8.2.1(patch_hash=92289e52503fc3f2b43a3ba8e4a9cde0366cf0685f70df1892b71dac5734bdc8)(@types/node@26.2.0)(@vitejs/devtools@0.1.22)(esbuild@0.28.1)(jiti@2.7.0)(less@4.6.4)(sass@1.99.0)(stylus@0.62.0(supports-color@10.2.2))
+      vite: 8.2.1(patch_hash=92289e52503fc3f2b43a3ba8e4a9cde0366cf0685f70df1892b71dac5734bdc8)(@types/node@26.2.0)(@vitejs/devtools@0.1.22)(esbuild@0.28.1)(jiti@2.7.0)(less@4.6.4)(sass@1.99.0)(stylus@0.62.0(supports-color@10.2.2))(yaml@2.9.1)
     optionalDependencies:
       '@rolldown/plugin-babel': 0.2.3(@babel/core@7.29.7(supports-color@10.2.2))(@babel/runtime@7.29.2)(rolldown@1.2.4)(vite@8.2.1)
       babel-plugin-react-compiler: 1.0.0
@@ -11633,6 +11673,10 @@ snapshots:
       astring: 1.9.0
       source-map: 0.7.6
 
+  estree-util-value-to-estree@3.5.0:
+    dependencies:
+      '@types/estree': 1.0.9
+
   estree-util-visit@2.0.0:
     dependencies:
       '@types/estree-jsx': 1.0.5
@@ -11678,6 +11722,10 @@ snapshots:
   fastq@1.20.1:
     dependencies:
       reusify: 1.1.0
+
+  fault@2.0.1:
+    dependencies:
+      format: 0.2.2
 
   fdir@6.5.0(picomatch@4.0.4):
     optionalDependencies:
@@ -11740,6 +11788,8 @@ snapshots:
       es-set-tostringtag: 2.1.0
       hasown: 2.0.3
       mime-types: 2.1.35
+
+  format@0.2.2: {}
 
   fs-constants@1.0.0:
     optional: true
@@ -12630,6 +12680,17 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  mdast-util-frontmatter@2.0.1(supports-color@10.2.2):
+    dependencies:
+      '@types/mdast': 4.0.4
+      devlop: 1.1.0
+      escape-string-regexp: 5.0.0
+      mdast-util-from-markdown: 2.1.0(supports-color@10.2.2)
+      mdast-util-to-markdown: 2.2.3
+      micromark-extension-frontmatter: 2.0.0
+    transitivePeerDependencies:
+      - supports-color
+
   mdast-util-gfm-autolink-literal@2.1.0:
     dependencies:
       '@types/mdast': 4.0.4
@@ -12798,6 +12859,13 @@ snapshots:
       micromark-util-normalize-identifier: 2.0.1
       micromark-util-resolve-all: 2.0.1
       micromark-util-subtokenize: 2.1.0
+      micromark-util-symbol: 2.0.1
+      micromark-util-types: 2.0.3
+
+  micromark-extension-frontmatter@2.0.0:
+    dependencies:
+      fault: 2.0.1
+      micromark-util-character: 2.1.1
       micromark-util-symbol: 2.0.1
       micromark-util-types: 2.0.3
 
@@ -13788,6 +13856,15 @@ snapshots:
       hast-util-to-string: 3.0.1
       unist-util-visit: 5.1.0
 
+  remark-frontmatter@5.0.0(supports-color@10.2.2):
+    dependencies:
+      '@types/mdast': 4.0.4
+      mdast-util-frontmatter: 2.0.1(supports-color@10.2.2)
+      micromark-extension-frontmatter: 2.0.0
+      unified: 11.0.5
+    transitivePeerDependencies:
+      - supports-color
+
   remark-gfm@4.0.1(supports-color@10.2.2):
     dependencies:
       '@types/mdast': 4.0.4
@@ -13798,6 +13875,15 @@ snapshots:
       unified: 11.0.5
     transitivePeerDependencies:
       - supports-color
+
+  remark-mdx-frontmatter@6.0.0:
+    dependencies:
+      '@types/mdast': 4.0.4
+      estree-util-value-to-estree: 3.5.0
+      smol-toml: 1.9.1
+      unified: 11.0.5
+      unist-util-mdx-define: 1.1.2
+      yaml: 2.9.1
 
   remark-mdx@3.1.1(supports-color@10.2.2):
     dependencies:
@@ -14117,6 +14203,8 @@ snapshots:
       is-fullwidth-code-point: 3.0.0
 
   smob@1.6.2: {}
+
+  smol-toml@1.9.1: {}
 
   solid-js@1.9.12:
     dependencies:
@@ -14657,6 +14745,16 @@ snapshots:
     dependencies:
       '@types/unist': 3.0.3
 
+  unist-util-mdx-define@1.1.2:
+    dependencies:
+      '@types/estree': 1.0.9
+      '@types/hast': 3.0.4
+      '@types/mdast': 4.0.4
+      estree-util-is-identifier-name: 3.0.0
+      estree-util-scope: 1.0.1
+      estree-walker: 3.0.3
+      vfile: 6.0.3
+
   unist-util-position-from-estree@2.0.0:
     dependencies:
       '@types/unist': 3.0.3
@@ -14704,7 +14802,7 @@ snapshots:
       esbuild: 0.28.1
       rolldown: 1.2.4
       rollup: 4.62.4
-      vite: 8.2.1(patch_hash=92289e52503fc3f2b43a3ba8e4a9cde0366cf0685f70df1892b71dac5734bdc8)(@types/node@26.2.0)(@vitejs/devtools@0.1.22)(esbuild@0.28.1)(jiti@2.7.0)(less@4.6.4)(sass@1.99.0)(stylus@0.62.0(supports-color@10.2.2))
+      vite: 8.2.1(patch_hash=92289e52503fc3f2b43a3ba8e4a9cde0366cf0685f70df1892b71dac5734bdc8)(@types/node@26.2.0)(@vitejs/devtools@0.1.22)(esbuild@0.28.1)(jiti@2.7.0)(less@4.6.4)(sass@1.99.0)(stylus@0.62.0(supports-color@10.2.2))(yaml@2.9.1)
 
   unstorage@1.17.5(@azure/identity@4.13.1(supports-color@10.2.2)):
     dependencies:
@@ -14768,9 +14866,9 @@ snapshots:
   vite-plugin-devtools-json@1.1.0(vite@8.2.1):
     dependencies:
       uuid: 14.0.2
-      vite: 8.2.1(patch_hash=92289e52503fc3f2b43a3ba8e4a9cde0366cf0685f70df1892b71dac5734bdc8)(@types/node@26.2.0)(@vitejs/devtools@0.1.22)(esbuild@0.28.1)(jiti@2.7.0)(less@4.6.4)(sass@1.99.0)(stylus@0.62.0(supports-color@10.2.2))
+      vite: 8.2.1(patch_hash=92289e52503fc3f2b43a3ba8e4a9cde0366cf0685f70df1892b71dac5734bdc8)(@types/node@26.2.0)(@vitejs/devtools@0.1.22)(esbuild@0.28.1)(jiti@2.7.0)(less@4.6.4)(sass@1.99.0)(stylus@0.62.0(supports-color@10.2.2))(yaml@2.9.1)
 
-  vite@8.2.1(patch_hash=92289e52503fc3f2b43a3ba8e4a9cde0366cf0685f70df1892b71dac5734bdc8)(@types/node@26.2.0)(@vitejs/devtools@0.1.22)(esbuild@0.28.1)(jiti@2.7.0)(less@4.6.4)(sass@1.99.0)(stylus@0.62.0(supports-color@10.2.2)):
+  vite@8.2.1(patch_hash=92289e52503fc3f2b43a3ba8e4a9cde0366cf0685f70df1892b71dac5734bdc8)(@types/node@26.2.0)(@vitejs/devtools@0.1.22)(esbuild@0.28.1)(jiti@2.7.0)(less@4.6.4)(sass@1.99.0)(stylus@0.62.0(supports-color@10.2.2))(yaml@2.9.1):
     dependencies:
       lightningcss: 1.33.0
       picomatch: 4.0.5
@@ -14786,10 +14884,11 @@ snapshots:
       less: 4.6.4
       sass: 1.99.0
       stylus: 0.62.0(supports-color@10.2.2)
+      yaml: 2.9.1
 
   vitefu@1.1.3(vite@8.2.1):
     optionalDependencies:
-      vite: 8.2.1(patch_hash=92289e52503fc3f2b43a3ba8e4a9cde0366cf0685f70df1892b71dac5734bdc8)(@types/node@26.2.0)(@vitejs/devtools@0.1.22)(esbuild@0.28.1)(jiti@2.7.0)(less@4.6.4)(sass@1.99.0)(stylus@0.62.0(supports-color@10.2.2))
+      vite: 8.2.1(patch_hash=92289e52503fc3f2b43a3ba8e4a9cde0366cf0685f70df1892b71dac5734bdc8)(@types/node@26.2.0)(@vitejs/devtools@0.1.22)(esbuild@0.28.1)(jiti@2.7.0)(less@4.6.4)(sass@1.99.0)(stylus@0.62.0(supports-color@10.2.2))(yaml@2.9.1)
 
   vscode-jsonrpc@8.2.0: {}
 
@@ -14958,6 +15057,8 @@ snapshots:
   yallist@4.0.0: {}
 
   yaml@1.10.3: {}
+
+  yaml@2.9.1: {}
 
   yargs-parser@21.1.1: {}
 

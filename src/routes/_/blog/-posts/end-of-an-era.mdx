@@ -1,0 +1,37 @@
+---
+title: On Vencord
+description: The end of an era
+date: 2026-11-10
+---
+
+> [!NOTE]
+> As of now, the rust client is not accessable to the public, Expect a new blog post with thoughts on it a few months after it has released.
+
+## Background
+
+Recently discord announced that they would be rewriting the discord client in rust[^1]. While this is a good thing for users as it will use less RAM and achieve overall better performance, I can't help but approach this with a tinge of melancholy as it will effectively get rid of client mods.
+
+## My history with client mods
+
+I have not been the client modding scene for a long time. I started in 2024 when I was using [Vesktop](https://vesktop.dev) on linux. I noticed that it did not have support for the [VolumeBooster](https://vencord.dev/plugins/VolumeBooster/) plugin, and I saw no reason why it shouldn't be possible to implement it. I sent a patch to add support for it[^2], and it got merged. The experience I gained by implementing volume booster on desktop lead to me having the skills to fix the various bugs I ran into. I found I enjoyed writing patches and tunneling my way through disocrd's rspack bundle, which lead to me fixing patches when they broke so plugins would be broken for as short of a time as possible. This became a hobby of mine, and I enjoyed alongside [nookies](https://github.com/Nuckyz), [thororen](https://www.thororen.com), and [vee](https://vendicated.dev) to make vencord the best it could be.
+
+## An invaluable experience
+
+When I sent my first patch to vencord in 2024 I had very little experience with javascript in general. Working on client mods taught me how bundlers work, how to read minified code, an infinite ammount of knowlege about regex, and a lot of minutiae about the language that just comes in handy in general whenever you are working with it. While I was working on vencord I found the state of developer tooling inadequate, so I built my own. This got me interested in static analasis, AST parsing and custom developer tooling. More and more related side projects later, I had built my own [archive of discord builds](https://sadan.zip/e) that provides the same LSP[^3] features that were enjoyed in the editor, but in a browser. There are so many things I have learned[^4] that stemmed from my work on vencord that I can't even think of all them.
+
+## Mixed feelings
+
+While I will enjoy discord not using gigabytes of ram, I will miss things plugins like [BetterFolders](https://vencord.dev/plugins/BetterFolders/) and [ViewRaw](https://vencord.dev/plugins/ViewRaw/), themes like [midnight](https://github.com/refact0r/midnight-discord) and [system24](https://github.com/refact0r/system24) (I never could pick which one I preferred). I have tentative hope for the new client; however, I can't find happiness in myself about it due to what will be lost. Most of all I will miss working on vencord itself, and the people in the community.
+
+## New beginnings?
+
+> [!NOTE]
+> This touches on AI, which I still am unsure about my feelings on
+> and they will undoubtly evolve over time. These are just my current emotions.
+
+The more I use AI for programming the more I dislike it. I program because I enjoy the process and the existance of AI ruins that for me. I have seen multiple people online suggest to just "vibecode" a new client mod. If a new client mod were to be created in major part due to AI, I don't know if I would want to use/contribute to it. Modding has always been a product of passion and AI generated work just doesn't have the same passion behind it for me. AI aside, I think working on a native and/or web client mod would be a good change of pace and teach me even more skills, despite the fact that i'm unsure if it will be worth the time and effort it will take compared the JS client. I'm just waiting for the native client to release.
+
+[^1]: https://x.com/svishnevskiy/status/2118081920194203799
+[^2]: https://github.com/Vendicated/Vencord/pull/2730
+[^3]: [Language Server Protocol](https://microsoft.github.io/language-server-protocol/)
+[^4]: Such as the rust programming language, tinkering with my writing own parsers/compilers, etc...

@@ -16,7 +16,7 @@ export interface PostSummary extends PostMeta {
 
 interface PostModule {
     default: MDXContent;
-    meta: PostMeta;
+    frontmatter: PostMeta;
 }
 
 const posts = import.meta.glob<PostModule>("./*.mdx");
@@ -29,11 +29,11 @@ function pathForSlug(slug: string) {
 export function loadPostMeta(slug: string): Promise<PostMeta> | undefined {
     const path = pathForSlug(slug);
 
-    return posts[path]?.().then(({ default: content, meta }) => {
+    return posts[path]?.().then(({ default: content, frontmatter }) => {
         if (!postContent.has(path)) {
             postContent.set(path, content);
         }
-        return meta;
+        return frontmatter;
     });
 }
 
@@ -50,7 +50,7 @@ export function getPostContent(slug: string): MDXContent {
 
 export async function loadPostSummaries(): Promise<PostSummary[]> {
     const summaries = await Promise.all(Object.entries(posts).map(async ([path, load]) => ({
-        ...(await load()).meta,
+        ...(await load()).frontmatter,
         slug: path.slice("./".length, -".mdx".length),
     })));
 
