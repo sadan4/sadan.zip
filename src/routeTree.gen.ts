@@ -18,6 +18,8 @@ import { Route as DownloadRamRouteImport } from "./routes/_/download-ram";
 import { Route as MinkyRouteImport } from "./routes/_/minky";
 import { Route as Char123TabChar125RouteImport } from "./routes/_/{-$tab}";
 import { Route as AstViewerIndexRouteImport } from "./routes/ast-viewer/index";
+import { Route as XERouteImport } from "./routes/x/e";
+import { Route as XSDotjsRouteImport } from "./routes/x/s[.]js";
 import { Route as R88x31IndexRouteImport } from "./routes/_/88x31/index";
 import { Route as R88x31LangRouteImport } from "./routes/_/88x31/$lang";
 import { Route as BlogIndexRouteImport } from "./routes/_/blog/index";
@@ -71,6 +73,16 @@ const AstViewerIndexRoute = AstViewerIndexRouteImport.update({
   path: "/ast-viewer/",
   getParentRoute: () => rootRouteImport,
 } as any);
+const XERoute = XERouteImport.update({
+  id: "/x/e",
+  path: "/x/e",
+  getParentRoute: () => rootRouteImport,
+} as any);
+const XSDotjsRoute = XSDotjsRouteImport.update({
+  id: "/x/s.js",
+  path: "/x/s.js",
+  getParentRoute: () => rootRouteImport,
+} as any);
 const R88x31IndexRoute = R88x31IndexRouteImport.update({
   id: "/88x31/",
   path: "/88x31/",
@@ -121,6 +133,8 @@ export interface FileRoutesByFullPath {
   "/download-ram": typeof DownloadRamRoute;
   "/minky": typeof MinkyRoute;
   "/{-$tab}": typeof Char123TabChar125Route;
+  "/x/e": typeof XERoute;
+  "/x/s.js": typeof XSDotjsRoute;
   "/ast-viewer/": typeof AstViewerIndexRoute;
   "/88x31/$lang": typeof R88x31LangRoute;
   "/blog/$slug": typeof BlogSlugRoute;
@@ -137,6 +151,8 @@ export interface FileRoutesByTo {
   "/download-ram": typeof DownloadRamRoute;
   "/minky": typeof MinkyRoute;
   "/{-$tab}": typeof Char123TabChar125Route;
+  "/x/e": typeof XERoute;
+  "/x/s.js": typeof XSDotjsRoute;
   "/": typeof IndexRoute;
   "/ast-viewer": typeof AstViewerIndexRoute;
   "/88x31/$lang": typeof R88x31LangRoute;
@@ -157,6 +173,8 @@ export interface FileRoutesById {
   "/_/download-ram": typeof DownloadRamRoute;
   "/_/minky": typeof MinkyRoute;
   "/_/{-$tab}": typeof Char123TabChar125Route;
+  "/x/e": typeof XERoute;
+  "/x/s.js": typeof XSDotjsRoute;
   "/_/": typeof IndexRoute;
   "/ast-viewer/": typeof AstViewerIndexRoute;
   "/_/88x31/$lang": typeof R88x31LangRoute;
@@ -178,6 +196,8 @@ export interface FileRouteTypes {
     | "/download-ram"
     | "/minky"
     | "/{-$tab}"
+    | "/x/e"
+    | "/x/s.js"
     | "/ast-viewer/"
     | "/88x31/$lang"
     | "/blog/$slug"
@@ -194,6 +214,8 @@ export interface FileRouteTypes {
     | "/download-ram"
     | "/minky"
     | "/{-$tab}"
+    | "/x/e"
+    | "/x/s.js"
     | "/"
     | "/ast-viewer"
     | "/88x31/$lang"
@@ -213,6 +235,8 @@ export interface FileRouteTypes {
     | "/_/download-ram"
     | "/_/minky"
     | "/_/{-$tab}"
+    | "/x/e"
+    | "/x/s.js"
     | "/_/"
     | "/ast-viewer/"
     | "/_/88x31/$lang"
@@ -227,6 +251,8 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   Route: typeof RouteWithChildren;
+  XERoute: typeof XERoute;
+  XSDotjsRoute: typeof XSDotjsRoute;
   AstViewerIndexRoute: typeof AstViewerIndexRoute;
   EViewChar123BuildHashChar125Char123ModuleIdChar125Route: typeof EViewChar123BuildHashChar125Char123ModuleIdChar125Route;
 }
@@ -294,6 +320,20 @@ declare module "@tanstack/react-router" {
       path: "/ast-viewer";
       fullPath: "/ast-viewer/";
       preLoaderRoute: typeof AstViewerIndexRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/x/e": {
+      id: "/x/e";
+      path: "/x/e";
+      fullPath: "/x/e";
+      preLoaderRoute: typeof XERouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/x/s.js": {
+      id: "/x/s.js";
+      path: "/x/s.js";
+      fullPath: "/x/s.js";
+      preLoaderRoute: typeof XSDotjsRouteImport;
       parentRoute: typeof rootRouteImport;
     };
     "/_/88x31/": {
@@ -403,6 +443,8 @@ const RouteWithChildren = Route._addFileChildren(RouteChildren);
 
 const rootRouteChildren: RootRouteChildren = {
   Route: RouteWithChildren,
+  XERoute: XERoute,
+  XSDotjsRoute: XSDotjsRoute,
   AstViewerIndexRoute: AstViewerIndexRoute,
   EViewChar123BuildHashChar125Char123ModuleIdChar125Route:
     EViewChar123BuildHashChar125Char123ModuleIdChar125Route,

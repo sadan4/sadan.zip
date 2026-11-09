@@ -74,6 +74,17 @@ export const Route = createRootRoute({
                     href: rootCss,
                 },
             ],
+            scripts: [
+                // proxy couldflare analytics to avoid adblockers
+                {
+                    src: "/x/s.js",
+                    defer: true,
+                    "data-cf-beacon": JSON.stringify({
+                        token: "77bf4097e7754d19bd9d215cdefa1771",
+                        send: { to: "/x/e" },
+                    }),
+                },
+            ],
         };
     },
 
