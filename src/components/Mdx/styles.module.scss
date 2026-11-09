@@ -29,7 +29,24 @@
             font-size: 1.125rem;
         }
 
-        // the site font only ships a regular face and disables synthesis globally
+        .heading-anchor {
+            margin-left: 0.5rem;
+            user-select: none;
+            opacity: 0;
+        }
+
+        h1,
+        h2,
+        h3,
+        h4,
+        h5,
+        h6 {
+            &:hover > .heading-anchor,
+            &:has(a:focus-visible) > .heading-anchor {
+                opacity: 0.6;
+            }
+        }
+
         strong,
         em {
             font-synthesis: weight style;
@@ -70,6 +87,44 @@
             overflow-x: auto;
             background-color: var(--color-bg-300);
             border-radius: 0.25rem;
+        }
+
+        :global(.markdown-alert) {
+            $base: var(--md-alert-color);
+
+            &:global(.markdown-alert-note) {
+                --md-alert-color: var(--color-info-400);
+            }
+
+            &:global(.markdown-alert-tip) {
+                --md-alert-color: var(--color-success-400);
+            }
+
+            &:global(.markdown-alert-important) {
+                --md-alert-color: var(--color-secondary-500);
+            }
+
+            &:global(.markdown-alert-warning) {
+                --md-alert-color: var(--color-warning-500);
+            }
+
+            &:global(.markdown-alert-caution) {
+                --md-alert-color: var(--color-error-500);
+            }
+
+            background-color: color-mix(in oklab, $base 10%, transparent);
+            padding: .5rem;
+            border-left: .25rem solid color-mix(in oklab, $base 50%, white);
+
+            > :global(.markdown-alert-title) {
+                display: flex;
+                align-items: center;
+                color: $base;
+
+                > svg {
+                    display: inline;
+                }
+            }
         }
     }
 }

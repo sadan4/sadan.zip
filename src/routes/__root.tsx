@@ -10,7 +10,7 @@ import { type AnyRouteMatch, createRootRoute, HeadContent, Scripts } from "@tans
 import rootCssFontUrl from "../assets/ComicShannsMono-Regular.woff2?url";
 import rootCss from "../index.css?url";
 
-import { useEffect, useState } from "react";
+import { startTransition, useEffect, useState } from "react";
 
 export const Route = createRootRoute({
     loader({ location: { publicHref } }) {
@@ -94,9 +94,20 @@ if (!import.meta.env.SSR) {
 }
 
 function RootComponent({ children }: { children: React.ReactNode; }) {
-    const [layerCtx, setLayerCtx] = useState<LayerContext>({
-        level: 0,
-        root: null,
+    const [layerCtx, setLayerCtx] = useState<LayerContext>(() => {
+        let root: HTMLBodyElement | null = null;
+
+        if (!import.meta.env.SSR) {
+            root = document.getElementById("root") as HTMLBodyElement | null;
+            if (import.meta.env.DEV && !root) {
+                console.warn("failed to pre-set root element");
+            }
+        }
+
+        return {
+            level: 0,
+            root,
+        };
     });
 
     useEffect(() => {
@@ -111,11 +122,12 @@ function RootComponent({ children }: { children: React.ReactNode; }) {
 
         assert(root instanceof HTMLBodyElement, "Failed to find root element");
 
-        // this is only ever called once
-        // oxlint-disable-next-line react/react-compiler
-        setLayerCtx({
-            level: 0,
-            root,
+        // transition so we don't interrupt thigns hydrating
+        startTransition(() => {
+            setLayerCtx({
+                level: 0,
+                root,
+            });
         });
 
         return uninstallF8Break;

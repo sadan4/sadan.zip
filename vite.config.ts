@@ -8,6 +8,9 @@ import { omt } from "./scripts/vite-plugin-omt.ts";
 
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { rehypeGithubAlerts } from "rehype-github-alerts";
+import rehypeSlug from "rehype-slug";
+import remarkGfm from "remark-gfm";
 import { defineConfig, type Rollup, type UserConfig } from "vite";
 import devtoolsJSON from "vite-plugin-devtools-json";
 
@@ -61,7 +64,13 @@ const config = defineConfig(async ({ command, isSsrBuild }) => {
             tailwindcss(),
             {
                 enforce: "pre",
-                ...mdx(),
+                ...mdx({
+                    remarkPlugins: [remarkGfm],
+                    rehypePlugins: [
+                        rehypeSlug,
+                        rehypeGithubAlerts,
+                    ],
+                }),
             },
             tanstackStart({
                 router: {

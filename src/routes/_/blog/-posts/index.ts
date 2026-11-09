@@ -20,18 +20,32 @@ interface PostModule {
 }
 
 const posts = import.meta.glob<PostModule>("./*.mdx");
-const postContent = new Map(Object.entries(posts).map(([path, load]) => [path, lazy(load)]));
+const postContent = new Map<string, MDXContent>();
 
 function pathForSlug(slug: string) {
     return `./${slug}.mdx`;
 }
 
 export function loadPostMeta(slug: string): Promise<PostMeta> | undefined {
-    return posts[pathForSlug(slug)]?.().then(({ meta }) => meta);
+    const path = pathForSlug(slug);
+
+    return posts[path]?.().then(({ default: content, meta }) => {
+        if (!postContent.has(path)) {
+            postContent.set(path, content);
+        }
+        return meta;
+    });
 }
 
 export function getPostContent(slug: string): MDXContent {
-    return postContent.get(pathForSlug(slug))!;
+    const path = pathForSlug(slug);
+    let content = postContent.get(path);
+
+    if (!content) {
+        content = lazy(posts[path]);
+        postContent.set(path, content);
+    }
+    return content;
 }
 
 export async function loadPostSummaries(): Promise<PostSummary[]> {
