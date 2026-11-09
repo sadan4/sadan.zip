@@ -7,7 +7,11 @@
 	inherit (lib) mkDefault mkEnableOption mkOption mkIf types;
 
 	cfg = config.services.explorer-server;
-	boolFlag = name: val: "--${name} ${if val then "true" else "false"}";
+	boolFlag = name: val: "--${name} ${
+		if val
+		then "true"
+		else "false"
+	}";
 	scrapeCanaryFlag = boolFlag "scrape-canary";
 	scrapeStableFlag = boolFlag "scrape-stable";
 in {
@@ -56,16 +60,18 @@ in {
 					type = types.nullOr types.str;
 					description = "URI to use for the cache. If null, no cache is used.\nSee <https://docs.rs/redis/1.6.0/redis/#connection-parameters> for the supported protocols.";
 				};
-			scrapeCanary = mkOption {
-				default = true;
-				type = types.bool;
-				description = "wether to scrape the discord canary branch";
-			};
-			scrapeStable = mkOption {
-				default = true;
-				type = types.bool;
-				description = "wether to scrape the discord stable branch";
-			};
+			scrapeCanary =
+				mkOption {
+					default = true;
+					type = types.bool;
+					description = "wether to scrape the discord canary branch";
+				};
+			scrapeStable =
+				mkOption {
+					default = true;
+					type = types.bool;
+					description = "wether to scrape the discord stable branch";
+				};
 		};
 	};
 
@@ -90,12 +96,13 @@ in {
 			systemd.tmpfiles.rules = [
 				"d ${cfg.stateDir} 0750 ${cfg.user} ${cfg.group} - -"
 			];
-			services.redis.servers.explorer-server = mkIf (cfg.settings.cacheUri != null) {
-				enable = mkDefault true;
-				user = mkDefault cfg.user;
-				unixSocket = mkDefault "/run/explorer-server/redis.sock";
-				unixSocketPerm = mkDefault 770;
-			};
+			services.redis.servers.explorer-server =
+				mkIf (cfg.settings.cacheUri != null) {
+					enable = mkDefault true;
+					user = mkDefault cfg.user;
+					unixSocket = mkDefault "/run/explorer-server/redis.sock";
+					unixSocketPerm = mkDefault 770;
+				};
 
 			# yoinked from nixpks forgejo config
 			systemd.services.explorer-server = {

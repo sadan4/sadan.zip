@@ -2,7 +2,7 @@
 	description = "sadan.zip";
 	inputs = {
 		nixpkgs = {
-			url = "github:NixOS/nixpkgs/nixos-unstable";
+			url = "https://channels.nixos.org/nixos-unstable/nixexprs.tar.zst";
 		};
 	};
 
@@ -37,6 +37,7 @@
 					// {default = self.packages.${pkgs.stdenv.hostPlatform.system}.reporter;}
 			);
 		nixosModules.default = import ./nix/nixos-module.nix;
+		formatter = forAllSystems (pkgs: pkgs.alejandra);
 		devShells =
 			forAllSystems (pkgs: {
 					default = let
@@ -61,17 +62,17 @@
 							];
 							hardeningDisable = ["all"];
 							shellHook = ''
-								export CC_wasm32_unknown_unknown="${clang-unwrapped}/bin/clang";
-								export CFLAGS_wasm32_unknown_unknown="-I ${clang-unwrapped.lib}/lib/clang/21/include";
-								export LIBCLANG_PATH="${pkgs.llvmPackages_latest.libclang.lib}/lib";
-								export CC="${clang}/bin/clang";
-								export CXX="${clang}/bin/clang++";
-								# runtime libs for cargo-built test binaries (no nix rpath):
-								# libstdc++ (clang -lstdc++)
-								export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath [
-									pkgs.stdenv.cc.cc.lib
-								]}''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}";
-							'';
+                export CC_wasm32_unknown_unknown="${clang-unwrapped}/bin/clang";
+                export CFLAGS_wasm32_unknown_unknown="-I ${clang-unwrapped.lib}/lib/clang/21/include";
+                export LIBCLANG_PATH="${pkgs.llvmPackages_latest.libclang.lib}/lib";
+                export CC="${clang}/bin/clang";
+                export CXX="${clang}/bin/clang++";
+                # runtime libs for cargo-built test binaries (no nix rpath):
+                # libstdc++ (clang -lstdc++)
+                export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath [
+										pkgs.stdenv.cc.cc.lib
+									]}''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}";
+              '';
 						};
 				});
 	};

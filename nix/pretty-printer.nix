@@ -3,21 +3,20 @@
 	stdenv,
 	installShellFiles,
 	rustPlatform,
-	rev ? null,
+	pkg-config,
+	aws-lc,
+	oniguruma,
+	zstd,
+	rev ? "git",
 }: let
 	crate-name = "pretty_printer";
 in
 	rustPlatform.buildRustPackage (finalAttrs: {
 			pname = crate-name;
-			version = "0.1.0";
+			version = "0.1.0-${rev}";
 
-			env =
-				lib.optionalAttrs (rev != null) {
-					GIT_HASH = rev;
-				}
-				// {
-					RUSTC_BOOTSTRAP = 1;
-				};
+			__structuredAttrs = true;
+			strictDeps = true;
 
 			src =
 				lib.fileset.toSource {
@@ -38,14 +37,24 @@ in
 			};
 
 			nativeBuildInputs = [
+				pkg-config
 				installShellFiles
 			];
 
-			strictDeps = true;
+			buildInputs = [
+				aws-lc
+				oniguruma
+				zstd
+			];
+
+			env = {
+				GIT_HASH = rev;
+				RUSTC_BOOTSTRAP = 1;
+			};
 
 			buildPhase = ''
-				cargo build --release --package ${crate-name}
-			'';
+        cargo build --release --package ${crate-name}
+      '';
 
 			useNextest = true;
 
@@ -55,19 +64,19 @@ in
 			];
 
 			installPhase = ''
-				runHook preInstall
-				mkdir -p $out/bin
-				cp target/release/${crate-name} $out/bin/
-				runHook postInstall
-			'';
+        runHook preInstall
+        mkdir -p $out/bin
+        cp target/release/${crate-name} $out/bin/
+        runHook postInstall
+      '';
 
 			postInstall =
 				lib.optionalString (stdenv.buildPlatform.canExecute stdenv.hostPlatform) ''
-					installShellCompletion --cmd ${crate-name} \
-						--bash <($out/bin/${crate-name} --completions bash) \
-						--fish <($out/bin/${crate-name} --completions fish) \
-						--zsh <($out/bin/${crate-name} --completions zsh)
-				'';
+          installShellCompletion --cmd ${crate-name} \
+            --bash <($out/bin/${crate-name} --completions bash) \
+            --fish <($out/bin/${crate-name} --completions fish) \
+            --zsh <($out/bin/${crate-name} --completions zsh)
+        '';
 
 			meta = {
 				description = "A port of the pretty printer found in chrome's devtools, with byte-for-byte output (excluding bugs).";

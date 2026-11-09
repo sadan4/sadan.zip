@@ -1,21 +1,20 @@
 {
 	lib,
 	rustPlatform,
-	rev ? null,
+	pkg-config,
+	aws-lc,
+	oniguruma,
+	zstd,
+	rev ? "git",
 }: let
 	crate-name = "reporter";
 in
 	rustPlatform.buildRustPackage (finalAttrs: {
 			pname = crate-name;
-			version = "0.1.0";
+			version = "0.1.0-${rev}";
 
-			env =
-				lib.optionalAttrs (rev != null) {
-					GIT_HASH = rev;
-				}
-				// {
-					RUSTC_BOOTSTRAP = 1;
-				};
+			__structuredAttrs = true;
+			strictDeps = true;
 
 			src =
 				lib.fileset.toSource {
@@ -35,11 +34,24 @@ in
 				outputHashes = import ./cargo-output-hashes.nix;
 			};
 
-			strictDeps = true;
+			nativeBuildInputs = [
+				pkg-config
+			];
+
+			buildInputs = [
+				aws-lc
+				oniguruma
+				zstd
+			];
+
+			env = {
+				GIT_HASH = rev;
+				RUSTC_BOOTSTRAP = 1;
+			};
 
 			buildPhase = ''
-				cargo build --release --package ${crate-name}
-			'';
+        cargo build --release --package ${crate-name}
+      '';
 
 			useNextest = true;
 
@@ -49,9 +61,9 @@ in
 			];
 
 			installPhase = ''
-				mkdir -p $out/bin
-				cp target/release/${crate-name} $out/bin/
-			'';
+        mkdir -p $out/bin
+        cp target/release/${crate-name} $out/bin/
+      '';
 
 			meta = {
 				description = "";
