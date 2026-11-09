@@ -10,7 +10,7 @@ function BlogLayout() {
     return (
         <>
             <Boilerplate />
-            <div className="mx-auto w-full p-4 pt-8 md:w-3/4 md:px-0 lg:w-1/2">
+            <div className="mx-auto w-full p-4 pt-8 contain-inline-size md:w-3/4 md:px-0 lg:w-1/2">
                 <Box>
                     <Outlet />
                 </Box>

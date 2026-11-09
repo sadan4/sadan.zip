@@ -4,6 +4,9 @@
         line-height: 1.75;
         color: var(--color-fg-500);
 
+        // don't let longest footnote set max width
+        overflow-wrap: anywhere;
+
         > * + * {
             margin-top: 1rem;
         }
