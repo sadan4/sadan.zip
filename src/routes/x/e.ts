@@ -4,6 +4,8 @@ export const Route = createFileRoute("/x/e")({
     server: {
         handlers: {
             async POST({ request }) {
+                const origin = request.headers.get("origin") ?? new URL(request.url).origin;
+
                 const res = await fetch("https://cloudflareinsights.com/cdn-cgi/rum", {
                     method: "POST",
                     body: request.body,
@@ -11,6 +13,8 @@ export const Route = createFileRoute("/x/e")({
                         "content-type": request.headers.get("content-type") ?? "application/json",
                         "user-agent": request.headers.get("user-agent") ?? "",
                         "x-forwarded-for": request.headers.get("cf-connecting-ip") ?? "",
+                        origin,
+                        referer: request.headers.get("referer") ?? `${origin}/`,
                     },
                 });
 
