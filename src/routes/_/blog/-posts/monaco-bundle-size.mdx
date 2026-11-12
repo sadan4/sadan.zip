@@ -25,6 +25,9 @@ you will end up with an app that loads a whopping 14MiB of assets (js/css)
 
 With a few tricks, we can get monaco-editor down to *only* 4.9MiB. The inquisitive can find the full code [here](https://github.com/vencord/monaco-editor-prebuild).
 
+> [!WARNING]
+> The link above is specially written for vencord and will not work in a standard vite setup, for code that you can just drop into your vite app with minimal changes, see [this](https://github.com/sadan4/sadan.zip/blob/web/scripts/codegen/monacoEditor.ts) (the same codegen that powers this site!)
+
 ---
 
 [esbuild](https://esbuild.github.io/), the build system used for vencord, just isn't enough. While esbuild is a great tool, it doesn't have support for anything even close to the [emitFile](https://rollupjs.org/plugin-development/#this-emitfile) plugin context method provided by rollup.
