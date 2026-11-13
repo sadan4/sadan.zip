@@ -10,11 +10,11 @@ import { omt } from "./scripts/vite-plugin-omt.ts";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { rehypeGithubAlerts } from "rehype-github-alerts";
+import rehypeMdxImportMedia from "rehype-mdx-import-media";
 import rehypeSlug from "rehype-slug";
 import remarkFrontmatter from "remark-frontmatter";
 import remarkGfm from "remark-gfm";
 import remarkMdxFrontmatter from "remark-mdx-frontmatter";
-import remarkMdxImages from "remark-mdx-images";
 import { defineConfig, type Rollup, type UserConfig } from "vite";
 import devtoolsJSON from "vite-plugin-devtools-json";
 
@@ -74,11 +74,11 @@ const config = defineConfig(async ({ command, isSsrBuild }) => {
                         remarkFrontmatter,
                         remarkMdxFrontmatter,
                         remarkGfm,
-                        remarkMdxImages,
                     ],
                     rehypePlugins: [
                         rehypeSlug,
                         rehypeGithubAlerts,
+                        rehypeMdxImportMedia,
                     ],
                 }),
             },
