@@ -43,7 +43,7 @@ export const Route = createFileRoute("/_/blog/$slug")({
 
 function Post() {
     const { slug } = Route.useParams();
-    const { title, date } = Route.useLoaderData();
+    const { title, description, date } = Route.useLoaderData();
 
     return (
         <article>
@@ -55,6 +55,9 @@ function Post() {
                 <Text tag="span">Back to blog</Text>
             </Link>
             <h1 className="mt-4 text-4xl font-bold text-primary-400">{title}</h1>
+            <Text size="md">
+                {description}
+            </Text>
             <Text
                 color="white-700"
                 className="mb-8"

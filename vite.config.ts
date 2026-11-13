@@ -4,6 +4,7 @@ import { devtools } from "@tanstack/devtools-vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import viteReact from "@vitejs/plugin-react";
 
+import { resolveMdxRelativeLinks } from "./scripts/remark-resolve-relative-links.ts";
 import { omt } from "./scripts/vite-plugin-omt.ts";
 
 import { dirname, join } from "node:path";
@@ -13,6 +14,7 @@ import rehypeSlug from "rehype-slug";
 import remarkFrontmatter from "remark-frontmatter";
 import remarkGfm from "remark-gfm";
 import remarkMdxFrontmatter from "remark-mdx-frontmatter";
+import remarkMdxImages from "remark-mdx-images";
 import { defineConfig, type Rollup, type UserConfig } from "vite";
 import devtoolsJSON from "vite-plugin-devtools-json";
 
@@ -68,9 +70,11 @@ const config = defineConfig(async ({ command, isSsrBuild }) => {
                 enforce: "pre",
                 ...mdx({
                     remarkPlugins: [
+                        resolveMdxRelativeLinks,
                         remarkFrontmatter,
                         remarkMdxFrontmatter,
                         remarkGfm,
+                        remarkMdxImages,
                     ],
                     rehypePlugins: [
                         rehypeSlug,

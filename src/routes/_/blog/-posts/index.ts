@@ -8,6 +8,7 @@ export interface PostMeta {
      * `YYYY-MM-DD`
      */
     date: string;
+    draft?: boolean;
 }
 
 export interface PostSummary extends PostMeta {
@@ -49,10 +50,14 @@ export function getPostContent(slug: string): MDXContent {
 }
 
 export async function loadPostSummaries(): Promise<PostSummary[]> {
-    const summaries = await Promise.all(Object.entries(posts).map(async ([path, load]) => ({
+    let summaries = await Promise.all(Object.entries(posts).map(async ([path, load]) => ({
         ...(await load()).frontmatter,
         slug: path.slice("./".length, -".mdx".length),
     })));
+
+    if (!import.meta.env.DEV) {
+        summaries = summaries.filter((summary) => !summary.draft);
+    }
 
     return summaries.toSorted((a, b) => b.date.localeCompare(a.date));
 }
