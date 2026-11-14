@@ -14,32 +14,40 @@
 		inherit (nixpkgs) lib;
 		inherit (lib.attrsets) genAttrs;
 
+		pkgsFor = system:
+			import nixpkgs {
+				inherit system;
+				config.allowUnfree = true;
+			};
+
+		forLinuxSystems = fn: genAttrs ["x86_64-linux" "aarch64-linux"] (system: fn (pkgsFor system));
+
+		# nixpkgs-unstable has dropped x86_64-darwin
 		forAllSystems = fn:
-			genAttrs ["x86_64-linux" "aarch64-linux"] (
-				system:
-					fn (
-						import nixpkgs {
-							inherit system;
-							config.allowUnfree = true;
-						}
-					)
+			genAttrs ["x86_64-linux" "aarch64-linux" "aarch64-darwin"] (
+				system: fn (pkgsFor system)
 			);
 	in {
 		packages =
 			forAllSystems (
-				pkgs:
-					lib.filterAttrs (_: lib.isDerivation) (
-						import ./default.nix {
-							inherit pkgs;
-							rev = self.rev or self.dirtyRev or null;
-						}
-					)
-					// {default = self.packages.${pkgs.stdenv.hostPlatform.system}.reporter;}
+				pkgs: let
+					available =
+						lib.filterAttrs (
+							_: v: lib.isDerivation v && lib.meta.availableOn pkgs.stdenv.hostPlatform v
+						) (
+							import ./default.nix {
+								inherit pkgs;
+								rev = self.rev or self.dirtyRev or null;
+							}
+						);
+				in
+					available
+					// lib.optionalAttrs (available ? reporter) {default = available.reporter;}
 			);
 		nixosModules.default = import ./nix/nixos-module.nix;
 		formatter = forAllSystems (pkgs: pkgs.alejandra);
 		devShells =
-			forAllSystems (pkgs: {
+			forLinuxSystems (pkgs: {
 					default = let
 						inherit (pkgs.llvmPackages_21) clang-unwrapped;
 						inherit (pkgs.llvmPackages_latest) clang;

@@ -82,6 +82,7 @@ in
 				description = "A port of the pretty printer found in chrome's devtools, with byte-for-byte output (excluding bugs).";
 				homepage = "https://github.com/sadan4/sadan.zip/tree/web/crates/${crate-name}";
 				license = lib.licenses.bsd3;
+				platforms = lib.platforms.unix;
 				mainProgram = crate-name;
 			};
 		})

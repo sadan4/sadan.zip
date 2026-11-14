@@ -79,6 +79,7 @@ in
 				description = "";
 				homepage = "https://github.com/sadan4/sadan.zip/";
 				license = lib.licenses.agpl3Only;
+				platforms = lib.platforms.linux;
 				mainProgram = crate-name;
 			};
 		})
